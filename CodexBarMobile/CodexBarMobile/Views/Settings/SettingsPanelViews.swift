@@ -28,14 +28,22 @@ struct QKSettingsToggleRow: View {
 struct QKSettingsPickerRow<SelectionValue: Hashable>: View {
     @Environment(\.quotaKitTheme) private var theme
     let title: LocalizedStringResource
+    var subtitle: LocalizedStringResource?
     @Binding var selection: SelectionValue
     let options: [(SelectionValue, String)]
 
     var body: some View {
         HStack {
-            Text(self.title)
-                .font(.body.weight(.medium))
-                .foregroundStyle(self.theme.textPrimary)
+            VStack(alignment: .leading, spacing: 4) {
+                Text(self.title)
+                    .font(.body.weight(.medium))
+                    .foregroundStyle(self.theme.textPrimary)
+                if let subtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(self.theme.textMuted)
+                }
+            }
             Spacer()
             Picker(self.title, selection: self.$selection) {
                 ForEach(self.options, id: \.0) { option in
@@ -56,6 +64,11 @@ struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
+    @State private var widgetDisplayMode: QuotaKitWidgetDisplayMode
+
+    init() {
+        _widgetDisplayMode = State(initialValue: QuotaKitWidgetDisplayModeStore.load())
+    }
 
     var body: some View {
         ScrollView {
@@ -67,6 +80,16 @@ struct UsageSettingsView: View {
                         subtitle: "Display the quota you have left instead of the quota you have used on usage cards.",
                         isOn: self.$showRemainingUsage,
                         accessibilityIdentifier: "show-remaining-usage-toggle")
+                        .padding(16)
+                }
+
+                QKSectionHeader(title: "Widgets")
+                QKSurfaceCard {
+                    QKSettingsPickerRow(
+                        title: "Widget quota window",
+                        subtitle: "Choose whether widgets show session, weekly, or both quota windows.",
+                        selection: self.widgetDisplayModeBinding,
+                        options: QuotaKitWidgetDisplayMode.allCases.map { ($0, $0.localizedTitle) })
                         .padding(16)
                 }
 
@@ -118,6 +141,21 @@ struct UsageSettingsView: View {
         Binding(
             get: { CostChartStyle(rawValue: self.usageCostChartStyleRawValue) ?? .bars },
             set: { self.usageCostChartStyleRawValue = $0.rawValue })
+    }
+
+    private var widgetDisplayModeBinding: Binding<QuotaKitWidgetDisplayMode> {
+        Binding(
+            get: { self.widgetDisplayMode },
+            set: { newValue in
+                guard newValue != self.widgetDisplayMode else { return }
+                self.widgetDisplayMode = newValue
+                Self.saveWidgetDisplayMode(newValue)
+            })
+    }
+
+    static func saveWidgetDisplayMode(_ mode: QuotaKitWidgetDisplayMode) {
+        QuotaKitWidgetDisplayModeStore.save(mode)
+        WidgetTimelineRefresher.reloadAllTimelines()
     }
 }
 

@@ -12,6 +12,8 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         super.setUp()
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
+        QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
         UserDefaults.standard.removePersistentDomain(forName: Self.remoteConfigSuiteName)
         UserDefaults(suiteName: Self.remoteConfigSuiteName)?
             .removePersistentDomain(forName: Self.remoteConfigSuiteName)
@@ -20,6 +22,8 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
     override func tearDown() {
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
+        QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
         super.tearDown()
     }
 
@@ -146,6 +150,26 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         .modelContainer(ModelContainerFactory.shared())
 
         XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testUsageSettingsRendersWidgetDisplayPicker() {
+        let view = NavigationStack {
+            UsageSettingsView()
+        }
+        .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+
+        XCTAssertNotNil(self.renderToImage(view))
+    }
+
+    func testUsageSettingsWidgetDisplaySaveWritesAppGroupRawValue() throws {
+        let defaults = try XCTUnwrap(QuotaKitWidgetDisplayModeStore.appGroupDefaults())
+        defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+
+        UsageSettingsView.saveWidgetDisplayMode(.weekly)
+
+        XCTAssertEqual(
+            defaults.string(forKey: QuotaKitWidgetDisplayModeStore.key),
+            QuotaKitWidgetDisplayMode.weekly.rawValue)
     }
 
     private func renderToImage<V: View>(_ view: V) -> UIImage? {

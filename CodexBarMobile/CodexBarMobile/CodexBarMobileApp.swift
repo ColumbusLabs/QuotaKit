@@ -30,6 +30,8 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
             defaults.removeObject(forKey: MobileSettingsKeys.appearanceMode)
+            QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
+                .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {

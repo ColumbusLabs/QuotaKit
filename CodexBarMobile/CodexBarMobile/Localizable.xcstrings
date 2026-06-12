@@ -18447,6 +18447,146 @@
         }
       }
     },
+    "%@ %lld%%": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld%%"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld%%"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld%%"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%@ %lld%%"
+          }
+        }
+      }
+    },
+    "Both": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Both"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "両方"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "两者"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "兩者"
+          }
+        }
+      }
+    },
+    "Choose whether widgets show session, weekly, or both quota windows.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Choose whether widgets show session, weekly, or both quota windows."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットにセッション、週間、または両方のクォータ枠を表示するかを選択します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "选择小组件显示会话、每周或两种配额窗口。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "選擇小工具顯示當前週期、每週或兩種配額視窗。"
+          }
+        }
+      }
+    },
+    "Widget quota window": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget quota window"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットのクォータ枠"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件配额窗口"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具配額視窗"
+          }
+        }
+      }
+    },
+    "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota bars, and pace chips; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota bars, and pace chips; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェットとペース — QuotaKit Pro ウィジェットはデフォルトでセッションと週間のクォータ枠を表示し、設定で両方 / セッション / 週間の表示を切り替えられます。サニタイズ済みの iPhone 側スナップショットデータ、同期経過バッジ、クォータバー、ペースチップに対応し、使用量カードも Mac アプリに合わせて赤字/予備のペースラベル、予測される使い切り時刻、期待使用量マーカーを表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件和节奏 — QuotaKit Pro 小组件默认显示 Session 和 Weekly 配额窗口，并可在设置中切换 Both / Session / Weekly 显示；同时包含经过清理的 iPhone 端快照数据、同步时间徽章、配额条和节奏标签。使用量卡片也与 Mac App 保持一致，显示超额/余量节奏标签、预计耗尽时间和预期使用量标记。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具和節奏 — QuotaKit Pro 小工具預設顯示 Session 和 Weekly 配額視窗，並可在設定中切換 Both / Session / Weekly 顯示；同時包含已清理的 iPhone 端快照資料、同步時間徽章、配額列和節奏標籤。使用量卡片也與 Mac App 保持一致，顯示超額/餘量節奏標籤、預計用盡時間和預期使用量標記。"
+          }
+        }
+      }
+    },
     "Widgets and pace — QuotaKit Pro adds refreshed Home Screen and Lock Screen widgets with Session / Weekly configuration, sanitized iPhone-side snapshot data, sync-age badges, quota bars, and pace chips; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
       "localizations": {
         "en": {

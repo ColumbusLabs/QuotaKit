@@ -232,6 +232,29 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(QuotaKitWidgetSnapshotStore.filename, "quotakit-widget-snapshot.json")
     }
 
+    func testWidgetDisplayModeStoreDefaultsToBothForMissingAndInvalidValues() {
+        let defaults = Self.makeDefaults()
+        defer { defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key) }
+
+        XCTAssertEqual(QuotaKitWidgetDisplayModeStore.load(defaults: defaults), .both)
+
+        defaults.set("daily", forKey: QuotaKitWidgetDisplayModeStore.key)
+
+        XCTAssertEqual(QuotaKitWidgetDisplayModeStore.load(defaults: defaults), .both)
+    }
+
+    func testWidgetDisplayModeStoreRoundTripsAllModes() {
+        let defaults = Self.makeDefaults()
+        defer { defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key) }
+
+        for mode in QuotaKitWidgetDisplayMode.allCases {
+            QuotaKitWidgetDisplayModeStore.save(mode, defaults: defaults)
+
+            XCTAssertEqual(defaults.string(forKey: QuotaKitWidgetDisplayModeStore.key), mode.rawValue)
+            XCTAssertEqual(QuotaKitWidgetDisplayModeStore.load(defaults: defaults), mode)
+        }
+    }
+
     func testWidgetUsageWindowResolvesNonSessionLabelsByStableSlot() {
         let provider = QuotaKitWidgetSnapshot.Provider(
             id: "claude",
@@ -289,6 +312,120 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly Sonnet")
     }
 
+    func testWidgetBothModeReturnsDistinctWindowsOnly() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Session",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "Weekly",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
+        XCTAssertEqual(windows.map(\.window.title), ["Session", "Weekly"])
+    }
+
+    func testWidgetBothModeDoesNotDuplicateSingleAvailableWindow() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Session",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.count, 1)
+        XCTAssertEqual(windows.first?.mode, .session)
+        XCTAssertEqual(windows.first?.window.title, "Session")
+    }
+
+    func testWidgetBothModeUsesStableSlotsForNonSessionLabels() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "5-hour",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
+        XCTAssertEqual(windows.map(\.window.title), ["5-hour", "7-day"])
+    }
+
+    func testWidgetBothModePreservesWeeklyOnlyWindowMode() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Weekly",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = provider.displayWindows(for: .both)
+
+        XCTAssertEqual(windows.count, 1)
+        XCTAssertEqual(windows.first?.mode, .weekly)
+        XCTAssertEqual(windows.first?.window.title, "Weekly")
+    }
+
+    func testWidgetBothModeReturnsNoWindowsWhenProviderHasNoWindows() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: "Waiting for sync",
+            isError: false,
+            windows: [])
+
+        XCTAssertTrue(provider.displayWindows(for: .both).isEmpty)
+    }
+
     func testLockedWidgetPlaceholderRendersForAllFamilies() {
         for family in Self.widgetFamilies {
             let view = QuotaKitWidgetView(
@@ -315,6 +452,20 @@ final class QuotaKitWidgetTests: XCTestCase {
         }
     }
 
+    func testUnlockedBothModeWidgetRendersForAllFamilies() {
+        for family in Self.widgetFamilies {
+            let view = QuotaKitWidgetView(
+                entry: .init(
+                    date: Date(),
+                    snapshot: QuotaKitWidgetPreviewData.snapshot,
+                    isUnlocked: true,
+                    isPreview: false,
+                    displayMode: .both),
+                overrideFamily: family)
+            XCTAssertNotNil(self.renderToImage(view), "Expected both-mode widget to render for \(family)")
+        }
+    }
+
     func testUnlockedSmallWidgetRendersCleanGlanceLayout() {
         let provider = QuotaKitWidgetPreviewData.snapshot.providers[0]
         XCTAssertEqual(provider.window(for: .session)?.title, "Session")
@@ -324,7 +475,8 @@ final class QuotaKitWidgetTests: XCTestCase {
                 date: Date(),
                 snapshot: QuotaKitWidgetPreviewData.snapshot,
                 isUnlocked: true,
-                isPreview: false),
+                isPreview: false,
+                displayMode: .session),
             overrideFamily: .systemSmall)
 
         XCTAssertNotNil(
@@ -342,7 +494,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                 snapshot: QuotaKitWidgetPreviewData.snapshot,
                 isUnlocked: true,
                 isPreview: false,
-                usageWindow: .weekly),
+                displayMode: .weekly),
             overrideFamily: .systemSmall)
 
         XCTAssertNotNil(

@@ -5,6 +5,14 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.1 (165)] — 2026-06-11 — Widget quota window controls
+
+### Changed
+
+- QuotaKit widgets now show both Session and Weekly quota windows by default
+  when both are available, with a Usage Settings picker to switch all widgets to
+  Both, Session, or Weekly display.
+
 ## [1.11.1 (164)] — 2026-06-11 — Mobile UX performance bundle
 
 ### Changed

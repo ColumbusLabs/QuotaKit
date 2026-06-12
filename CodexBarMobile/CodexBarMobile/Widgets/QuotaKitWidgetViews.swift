@@ -3,39 +3,65 @@ import Foundation
 import SwiftUI
 import WidgetKit
 
-enum QuotaKitWidgetUsageWindow: String, CaseIterable, Sendable {
-    case session
-    case weekly
-
-    var localizedTitle: String {
-        switch self {
-        case .session:
-            String(localized: "Session")
-        case .weekly:
-            String(localized: "Weekly")
-        }
-    }
-}
-
 struct QuotaKitWidgetEntry: TimelineEntry {
     let date: Date
     let snapshot: QuotaKitWidgetSnapshot?
     let isUnlocked: Bool
     let isPreview: Bool
-    var usageWindow: QuotaKitWidgetUsageWindow = .session
+    var displayMode: QuotaKitWidgetDisplayMode = .both
+}
+
+struct QuotaKitWidgetDisplayWindow: Identifiable, Equatable {
+    let mode: QuotaKitWidgetDisplayMode
+    let window: QuotaKitWidgetSnapshot.Provider.Window
+
+    var id: String {
+        "\(self.mode.rawValue)-\(self.window.title)"
+    }
 }
 
 extension QuotaKitWidgetSnapshot.Provider {
-    func window(for usageWindow: QuotaKitWidgetUsageWindow) -> Window? {
-        switch usageWindow {
+    func window(for displayMode: QuotaKitWidgetDisplayMode) -> Window? {
+        switch displayMode {
+        case .both:
+            return self.sessionWindow(allowPrimaryFallback: true)
         case .session:
-            return self.windows.first(where: Self.isSessionWindow)
-                ?? self.windows.first
+            return self.sessionWindow(allowPrimaryFallback: true)
         case .weekly:
-            return self.windows.first(where: Self.isWeeklyWindow)
-                ?? self.windows.dropFirst().first
-                ?? self.windows.first
+            return self.weeklyWindow(allowPrimaryFallback: true)
         }
+    }
+
+    func displayWindows(for displayMode: QuotaKitWidgetDisplayMode) -> [QuotaKitWidgetDisplayWindow] {
+        switch displayMode {
+        case .both:
+            let explicitWeekly = self.windows.first(where: Self.isWeeklyWindow)
+            let session = self.sessionWindow(allowPrimaryFallback: explicitWeekly == nil)
+            var result = session.map {
+                [QuotaKitWidgetDisplayWindow(mode: .session, window: $0)]
+            } ?? []
+            if let weekly = self.weeklyWindow(allowPrimaryFallback: false),
+               session.map({ weekly != $0 }) ?? true
+            {
+                result.append(QuotaKitWidgetDisplayWindow(mode: .weekly, window: weekly))
+            }
+            return result
+        case .session, .weekly:
+            return self.window(for: displayMode).map {
+                [QuotaKitWidgetDisplayWindow(mode: displayMode, window: $0)]
+            } ?? []
+        }
+    }
+
+    private func sessionWindow(allowPrimaryFallback: Bool) -> Window? {
+        self.windows.first(where: Self.isSessionWindow)
+            ?? (allowPrimaryFallback ? self.windows.first : nil)
+    }
+
+    private func weeklyWindow(allowPrimaryFallback: Bool) -> Window? {
+        self.windows.first(where: Self.isWeeklyWindow)
+            ?? self.windows.dropFirst().first
+            ?? (allowPrimaryFallback ? self.windows.first : nil)
     }
 
     private static func isSessionWindow(_ window: Window) -> Bool {
@@ -48,6 +74,7 @@ extension QuotaKitWidgetSnapshot.Provider {
     private static func isWeeklyWindow(_ window: Window) -> Bool {
         let title = window.title.localizedLowercase
         return title.contains("week")
+            || title.contains("day")
             || title.contains(String(localized: "Weekly").localizedLowercase)
     }
 }
@@ -74,19 +101,19 @@ struct QuotaKitWidgetView: View {
                 case .systemMedium:
                     QuotaKitWidgetMediumView(
                         snapshot: snapshot,
-                        usageWindow: self.entry.usageWindow)
+                        displayMode: self.entry.displayMode)
                 case .accessoryRectangular:
                     QuotaKitWidgetAccessoryRectangularView(
                         provider: provider,
-                        usageWindow: self.entry.usageWindow)
+                        displayMode: self.entry.displayMode)
                 case .accessoryCircular:
                     QuotaKitWidgetAccessoryCircularView(
                         provider: provider,
-                        usageWindow: self.entry.usageWindow)
+                        displayMode: self.entry.displayMode)
                 default:
                     QuotaKitWidgetSmallView(
                         provider: provider,
-                        usageWindow: self.entry.usageWindow)
+                        displayMode: self.entry.displayMode)
                 }
             } else {
                 QuotaKitWidgetEmptyView(family: family)
@@ -188,9 +215,61 @@ private struct WidgetPaceChip: View {
     }
 }
 
+private struct WidgetCompactWindowRow: View {
+    let providerID: String
+    let displayWindow: QuotaKitWidgetDisplayWindow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 5) {
+            HStack(alignment: .firstTextBaseline, spacing: 6) {
+                Text(self.displayWindow.window.title)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 4)
+                Text(verbatim: "\(Int(self.displayWindow.window.remainingPercent.rounded()))%")
+                    .font(.caption.monospacedDigit())
+                    .fontWeight(.semibold)
+                    .foregroundStyle(.primary)
+                    .lineLimit(1)
+            }
+            WidgetUsageBar(
+                window: self.displayWindow.window,
+                tint: ProviderColorPalette.color(for: self.providerID))
+                .frame(height: 5)
+        }
+    }
+}
+
+private struct WidgetCompactWindowColumn: View {
+    let providerID: String
+    let displayWindow: QuotaKitWidgetDisplayWindow
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            HStack(alignment: .firstTextBaseline, spacing: 4) {
+                Text(self.displayWindow.window.title)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .lineLimit(1)
+                Spacer(minLength: 2)
+                Text(verbatim: "\(Int(self.displayWindow.window.remainingPercent.rounded()))%")
+                    .font(.caption2.monospacedDigit())
+                    .fontWeight(.semibold)
+                    .lineLimit(1)
+            }
+            WidgetUsageBar(
+                window: self.displayWindow.window,
+                tint: ProviderColorPalette.color(for: self.providerID))
+                .frame(height: 4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+}
+
 private struct QuotaKitWidgetSmallView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
-    let usageWindow: QuotaKitWidgetUsageWindow
+    let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
@@ -208,7 +287,27 @@ private struct QuotaKitWidgetSmallView: View {
                     .foregroundStyle(.tertiary)
             }
 
-            if let window = self.provider.window(for: self.usageWindow) {
+            if self.displayMode == .both {
+                let displayWindows = self.provider.displayWindows(for: self.displayMode)
+                if displayWindows.isEmpty {
+                    Spacer(minLength: 4)
+                    Text(self.provider.statusMessage ?? String(localized: "No quota window"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(3)
+                    Spacer(minLength: 0)
+                } else {
+                    Spacer(minLength: 6)
+                    VStack(alignment: .leading, spacing: 10) {
+                        ForEach(displayWindows) { displayWindow in
+                            WidgetCompactWindowRow(
+                                providerID: self.provider.id,
+                                displayWindow: displayWindow)
+                        }
+                    }
+                    Spacer(minLength: 0)
+                }
+            } else if let window = self.provider.window(for: self.displayMode) {
                 Text(window.title)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -286,10 +385,10 @@ private struct WidgetPaceFooter: View {
 
 private struct QuotaKitWidgetMediumView: View {
     let snapshot: QuotaKitWidgetSnapshot
-    let usageWindow: QuotaKitWidgetUsageWindow
+    let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 11) {
+        VStack(alignment: .leading, spacing: self.displayMode == .both ? 8 : 11) {
             HStack {
                 WidgetBrandHeader()
                 Spacer()
@@ -298,23 +397,31 @@ private struct QuotaKitWidgetMediumView: View {
 
             let providers = Array(self.snapshot.providers.prefix(3))
             ForEach(providers) { provider in
-                let window = provider.window(for: self.usageWindow)
+                let window = provider.window(for: self.displayMode)
+                let displayWindows = provider.displayWindows(for: self.displayMode)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(provider.providerName)
                             .font(.subheadline)
                             .fontWeight(.semibold)
                             .lineLimit(1)
-                        Text(window?.title
-                            ?? provider.statusMessage
-                            ?? String(localized: "No quota window"))
+                        Text(self.subtitle(
+                            for: provider,
+                            window: window,
+                            displayWindows: displayWindows))
                             .font(.caption2)
                             .foregroundStyle(.secondary)
                             .lineLimit(1)
 
                         Spacer(minLength: 6)
 
-                        if let window {
+                        if self.displayMode == .both {
+                            if displayWindows.isEmpty {
+                                Image(systemName: provider.isError ? "exclamationmark.triangle" : "minus")
+                                    .font(.caption)
+                                    .foregroundStyle(.secondary)
+                            }
+                        } else if let window {
                             if let pace = window.pace {
                                 WidgetPaceChip(pace: pace, compact: true)
                             }
@@ -328,7 +435,17 @@ private struct QuotaKitWidgetMediumView: View {
                         }
                     }
 
-                    if let window {
+                    if self.displayMode == .both {
+                        if !displayWindows.isEmpty {
+                            HStack(spacing: 8) {
+                                ForEach(displayWindows) { displayWindow in
+                                    WidgetCompactWindowColumn(
+                                        providerID: provider.id,
+                                        displayWindow: displayWindow)
+                                }
+                            }
+                        }
+                    } else if let window {
                         WidgetUsageBar(
                             window: window,
                             tint: ProviderColorPalette.color(for: provider.id))
@@ -340,18 +457,50 @@ private struct QuotaKitWidgetMediumView: View {
         }
         .padding(12)
     }
+
+    private func subtitle(
+        for provider: QuotaKitWidgetSnapshot.Provider,
+        window: QuotaKitWidgetSnapshot.Provider.Window?,
+        displayWindows: [QuotaKitWidgetDisplayWindow]) -> String
+    {
+        if self.displayMode == .both,
+           !displayWindows.isEmpty
+        {
+            return displayWindows.map(\.window.title).joined(separator: " · ")
+        }
+        return window?.title
+            ?? provider.statusMessage
+            ?? String(localized: "No quota window")
+    }
 }
 
 private struct QuotaKitWidgetAccessoryRectangularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
-    let usageWindow: QuotaKitWidgetUsageWindow
+    let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(provider.providerName)
                 .font(.headline)
                 .lineLimit(1)
-            if let window = provider.window(for: self.usageWindow) {
+            if self.displayMode == .both {
+                let displayWindows = provider.displayWindows(for: self.displayMode)
+                if displayWindows.isEmpty {
+                    Text(provider.statusMessage ?? String(localized: "No quota window"))
+                        .font(.caption)
+                        .lineLimit(1)
+                } else {
+                    Text(displayWindows.map { displayWindow in
+                        String(
+                            format: String(localized: "%@ %lld%%"),
+                            displayWindow.window.title,
+                            Int64(displayWindow.window.remainingPercent.rounded()))
+                    }.joined(separator: " · "))
+                        .font(.caption)
+                        .lineLimit(1)
+                        .minimumScaleFactor(0.75)
+                }
+            } else if let window = provider.window(for: self.displayMode) {
                 Text(String(
                     format: String(localized: "%lld%% left · %@"),
                     Int64(window.remainingPercent.rounded()),
@@ -376,10 +525,10 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
 
 private struct QuotaKitWidgetAccessoryCircularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
-    let usageWindow: QuotaKitWidgetUsageWindow
+    let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
-        if let window = provider.window(for: self.usageWindow) {
+        if let window = provider.window(for: self.displayMode) {
             Gauge(value: window.remainingPercent, in: 0...100) {
                 Text(String(localized: "Quota"))
             } currentValueLabel: {

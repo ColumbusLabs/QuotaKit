@@ -46,7 +46,8 @@ struct QuotaKitWidgetProvider: TimelineProvider {
             date: Date(),
             snapshot: snapshot,
             isUnlocked: isUnlocked,
-            isPreview: isPreview)
+            isPreview: isPreview,
+            displayMode: isPreview ? .both : QuotaKitWidgetDisplayModeStore.load())
     }
 }
 
@@ -93,7 +94,7 @@ struct QuotaKitProviderWidget: Widget {
         snapshot: QuotaKitWidgetPreviewData.snapshot,
         isUnlocked: true,
         isPreview: true,
-        usageWindow: .weekly)
+        displayMode: .weekly)
 }
 
 #Preview(as: .systemMedium) {
