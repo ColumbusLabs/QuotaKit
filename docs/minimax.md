@@ -22,7 +22,7 @@ falls back across the provider's supported web requests when needed.
      returns 404.
 
 2) **Cached/imported browser session** (automatic web path)
-   - Uses CodexBar's standard cookie cache and browser import flow.
+   - Uses QuotaKit's standard cookie cache and browser import flow.
 
 3) **Browser cookie import** (automatic)
    - Uses provider metadata for browser order and MiniMax domain filters.
@@ -39,6 +39,8 @@ falls back across the provider's supported web requests when needed.
   - `MINIMAX_HOST=platform.minimaxi.com`
   - `MINIMAX_CODING_PLAN_URL=...` (full URL override)
   - `MINIMAX_REMAINS_URL=...` (full URL override)
+- Security policy: endpoint overrides are only accepted when they use `https://`, omit userinfo, and do not contain encoded host delimiters. Custom HTTPS proxy/test domains continue to work for compatibility, but `http://` endpoints are rejected so cookies and authorization headers are not sent in cleartext.
+- Strict provider-host mode: set `MINIMAX_REQUIRE_PROVIDER_ENDPOINT_OVERRIDES=true` to additionally reject custom proxy/test domains and only accept MiniMax-owned hosts under `minimax.io` or `minimaxi.com`.
 
 ## Cookie capture (optional override)
 - Open the Coding Plan page and DevTools → Network.
@@ -53,7 +55,7 @@ falls back across the provider's supported web requests when needed.
   - Top model and top method breakdowns.
   - Summary rows for recent billing-history totals.
 
-If the billing-history endpoint is unavailable but normal Coding Plan quota data is present, CodexBar still shows the
+If the billing-history endpoint is unavailable but normal Coding Plan quota data is present, QuotaKit still shows the
 quota card and omits the chart instead of treating the whole provider as failed.
 
 ## Key files

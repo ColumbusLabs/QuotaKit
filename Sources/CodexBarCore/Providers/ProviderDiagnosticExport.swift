@@ -177,6 +177,9 @@ public struct ProviderDiagnosticFetchAttempt: Codable, Sendable {
 
     public static func errorCategoryLabel(_ description: String?) -> String {
         guard let desc = description?.lowercased() else { return "unknown" }
+        if desc.contains("endpoint override") {
+            return "configuration"
+        }
         if desc.contains("network") || desc.contains("timeout") || desc.contains("connection") {
             return "network"
         }
@@ -216,11 +219,22 @@ public struct ProviderDiagnosticError: Codable, Sendable {
         if case ProviderFetchError.noAvailableStrategy = error {
             return authConfigured ? "configuration" : "auth"
         }
+        if error is ProviderEndpointOverrideError {
+            return "configuration"
+        }
         if let minimaxError = error as? MiniMaxUsageError {
             switch minimaxError {
             case .networkError: return "network"
             case .invalidCredentials: return "auth"
             case .apiError: return "api"
+            case .parseFailed: return "parse"
+            }
+        }
+        if let alibabaError = error as? AlibabaCodingPlanUsageError {
+            switch alibabaError {
+            case .networkError: return "network"
+            case .loginRequired, .invalidCredentials: return "auth"
+            case .apiError, .apiKeyUnavailableInRegion: return "api"
             case .parseFailed: return "parse"
             }
         }
