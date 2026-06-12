@@ -91,11 +91,15 @@ extension QuotaKitWidgetSnapshot.Provider {
     private static func isWeeklyWindow(_ window: Window) -> Bool {
         let title = window.title.localizedLowercase
         return title.contains("week")
-            || Self.hasNumericDayLabel(title)
+            || Self.hasWeeklyDayCountLabel(title)
             || title.contains(String(localized: "Weekly").localizedLowercase)
     }
 
-    private static func hasNumericDayLabel(_ title: String) -> Bool {
+    /// Day-count titles only mean "weekly" near seven days; "1 day" (daily)
+    /// and "30 days" (monthly) windows must not claim the weekly lane.
+    private static let weeklyDayCountRange = 5...9
+
+    private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
         let normalized = title
             .replacingOccurrences(of: "-", with: " ")
             .replacingOccurrences(of: "_", with: " ")
@@ -107,28 +111,30 @@ extension QuotaKitWidgetSnapshot.Provider {
         for token in tokens {
             let tokenText = String(token)
             if (tokenText == "day" || tokenText == "days"),
-               previousToken?.allSatisfy(\.isNumber) == true
+               let previousToken,
+               Self.isWeeklyDayCount(previousToken)
             {
                 return true
             }
 
-            if tokenText.hasSuffix("day") {
-                let prefix = tokenText.dropLast(3)
-                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
-                    return true
-                }
+            if tokenText.hasSuffix("day"), Self.isWeeklyDayCount(tokenText.dropLast(3)) {
+                return true
             }
 
-            if tokenText.hasSuffix("days") {
-                let prefix = tokenText.dropLast(4)
-                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
-                    return true
-                }
+            if tokenText.hasSuffix("days"), Self.isWeeklyDayCount(tokenText.dropLast(4)) {
+                return true
             }
 
             previousToken = token
         }
         return false
+    }
+
+    private static func isWeeklyDayCount(_ text: some StringProtocol) -> Bool {
+        guard let count = Int(text) else {
+            return false
+        }
+        return Self.weeklyDayCountRange.contains(count)
     }
 }
 
@@ -248,9 +254,7 @@ private struct WidgetSyncBadge: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: self.compact ? 7 : 8, weight: .semibold))
             }
-            Text(String(localized: "Synced"))
-                + Text(verbatim: " ")
-                + Text(self.lastSynced, style: .relative)
+            Text("Synced \(self.lastSynced, style: .relative) ago")
         }
         .font(self.compact ? .system(size: 9, weight: .medium) : .caption2)
         .foregroundStyle(self.isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
