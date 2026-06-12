@@ -5,7 +5,7 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
-## [Unreleased] — Mobile UX performance bundle
+## [1.11.1 (164)] — 2026-06-11 — Mobile UX performance bundle
 
 ### Changed
 
