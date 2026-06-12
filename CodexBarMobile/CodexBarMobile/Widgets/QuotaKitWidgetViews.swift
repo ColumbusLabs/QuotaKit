@@ -77,8 +77,18 @@ extension QuotaKitWidgetSnapshot.Provider {
 
     private func weeklyWindow(allowPrimaryFallback: Bool) -> Window? {
         self.windows.first(where: Self.isWeeklyWindow)
-            ?? self.windows.dropFirst().first
+            ?? self.fallbackWeeklyWindow
             ?? (allowPrimaryFallback ? self.windows.first : nil)
+    }
+
+    private var fallbackWeeklyWindow: Window? {
+        guard let candidate = self.windows.dropFirst().first else { return nil }
+        if let dayCount = Self.numericDayCount(in: candidate.title.localizedLowercase),
+           dayCount != 7
+        {
+            return nil
+        }
+        return candidate
     }
 
     private static func isSessionWindow(_ window: Window) -> Bool {
@@ -91,11 +101,11 @@ extension QuotaKitWidgetSnapshot.Provider {
     private static func isWeeklyWindow(_ window: Window) -> Bool {
         let title = window.title.localizedLowercase
         return title.contains("week")
-            || Self.hasNumericDayLabel(title)
+            || Self.numericDayCount(in: title) == 7
             || title.contains(String(localized: "Weekly").localizedLowercase)
     }
 
-    private static func hasNumericDayLabel(_ title: String) -> Bool {
+    private static func numericDayCount(in title: String) -> Int? {
         let normalized = title
             .replacingOccurrences(of: "-", with: " ")
             .replacingOccurrences(of: "_", with: " ")
@@ -107,28 +117,35 @@ extension QuotaKitWidgetSnapshot.Provider {
         for token in tokens {
             let tokenText = String(token)
             if (tokenText == "day" || tokenText == "days"),
-               previousToken?.allSatisfy(\.isNumber) == true
+               previousToken?.allSatisfy(\.isNumber) == true,
+               let count = previousToken.flatMap({ Int($0) })
             {
-                return true
+                return count
             }
 
             if tokenText.hasSuffix("day") {
                 let prefix = tokenText.dropLast(3)
-                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
-                    return true
+                if !prefix.isEmpty,
+                   prefix.allSatisfy(\.isNumber),
+                   let count = Int(prefix)
+                {
+                    return count
                 }
             }
 
             if tokenText.hasSuffix("days") {
                 let prefix = tokenText.dropLast(4)
-                if !prefix.isEmpty, prefix.allSatisfy(\.isNumber) {
-                    return true
+                if !prefix.isEmpty,
+                   prefix.allSatisfy(\.isNumber),
+                   let count = Int(prefix)
+                {
+                    return count
                 }
             }
 
             previousToken = token
         }
-        return false
+        return nil
     }
 }
 
@@ -248,9 +265,7 @@ private struct WidgetSyncBadge: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: self.compact ? 7 : 8, weight: .semibold))
             }
-            Text(String(localized: "Synced"))
-                + Text(verbatim: " ")
-                + Text(self.lastSynced, style: .relative)
+            Text("Synced \(self.lastSynced, style: .relative) ago")
         }
         .font(self.compact ? .system(size: 9, weight: .medium) : .caption2)
         .foregroundStyle(self.isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))

@@ -307,12 +307,12 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(savedSnapshots.map(\.lastSyncedAt), [firstSync, firstSync, secondSync])
     }
 
-    func testWidgetTimelineScheduleRefreshesEveryFiveMinutesByDefault() {
+    func testWidgetTimelineScheduleRefreshesEveryFifteenMinutesByDefault() {
         let now = Date(timeIntervalSince1970: 1_803_000_000)
 
         XCTAssertEqual(
             QuotaKitWidgetTimelineSchedule.nextRefreshDate(after: now, lastSyncedAt: nil),
-            now.addingTimeInterval(5 * 60))
+            now.addingTimeInterval(15 * 60))
     }
 
     func testWidgetTimelineScheduleRefreshesAtStaleBoundaryWhenSooner() {
@@ -330,7 +330,7 @@ final class QuotaKitWidgetTests: XCTestCase {
 
         XCTAssertEqual(
             QuotaKitWidgetTimelineSchedule.nextRefreshDate(after: now, lastSyncedAt: lastSyncedAt),
-            now.addingTimeInterval(5 * 60))
+            now.addingTimeInterval(15 * 60))
     }
 
     func testWidgetFreshnessThresholdMatchesAppFreshnessThreshold() {
@@ -348,6 +348,23 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertTrue(WidgetSyncBadgeFreshness.isStale(
             lastSynced: syncedAt,
             now: syncedAt.addingTimeInterval(QuotaKitWidgetTimelineSchedule.staleThreshold + 1)))
+    }
+
+    func testWidgetSyncBadgeRelativePhraseHasTranslatedCatalogKey() throws {
+        let testFileURL = URL(fileURLWithPath: #filePath)
+        let catalogURL = testFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("CodexBarMobile/Localizable.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try JSONDecoder().decode(StringCatalog.self, from: data)
+        let entry = try XCTUnwrap(catalog.strings["Synced %@ ago"])
+
+        for locale in ["en", "ja", "zh-Hans", "zh-Hant"] {
+            let localization = try XCTUnwrap(entry.localizations[locale])
+            XCTAssertEqual(localization.stringUnit.state, "translated")
+            XCTAssertFalse(localization.stringUnit.value.isEmpty)
+        }
     }
 
     func testWidgetDisplayModeStoreDefaultsToBothForMissingAndInvalidValues() {
@@ -694,6 +711,67 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(windows.first?.window.title, "Daily")
     }
 
+    func testWidgetBothModeTreatsSevenDayWindowAsWeekly() {
+        for title in ["7-day", "7 days"] {
+            let provider = QuotaKitWidgetSnapshot.Provider(
+                id: "claude",
+                providerName: "Claude",
+                lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+                statusMessage: nil,
+                isError: false,
+                windows: [
+                    .init(
+                        title: "5-hour",
+                        usedPercent: 61,
+                        remainingPercent: 39,
+                        resetsAt: nil,
+                        pace: nil),
+                    .init(
+                        title: title,
+                        usedPercent: 20,
+                        remainingPercent: 80,
+                        resetsAt: nil,
+                        pace: nil),
+                ])
+
+            let windows = provider.displayWindows(for: .both)
+
+            XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
+            XCTAssertEqual(windows.map(\.window.title), ["5-hour", title])
+        }
+    }
+
+    func testWidgetBothModeDoesNotTreatNumericNonWeeklyDayWindowsAsWeekly() {
+        for title in ["1day", "1 day", "14 days", "30-day", "30 days"] {
+            let provider = QuotaKitWidgetSnapshot.Provider(
+                id: "claude",
+                providerName: "Claude",
+                lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+                statusMessage: nil,
+                isError: false,
+                windows: [
+                    .init(
+                        title: "5-hour",
+                        usedPercent: 61,
+                        remainingPercent: 39,
+                        resetsAt: nil,
+                        pace: nil),
+                    .init(
+                        title: title,
+                        usedPercent: 20,
+                        remainingPercent: 80,
+                        resetsAt: nil,
+                        pace: nil),
+                ])
+
+            let windows = provider.displayWindows(for: .both)
+
+            XCTAssertEqual(windows.count, 1)
+            XCTAssertEqual(windows.first?.mode, .session)
+            XCTAssertEqual(windows.first?.window.title, "5-hour")
+        }
+    }
+
     func testWidgetCircularBothModeUsesSessionOrPrimaryFallback() {
         let provider = QuotaKitWidgetSnapshot.Provider(
             id: "claude",
@@ -1034,5 +1112,22 @@ final class QuotaKitWidgetTests: XCTestCase {
             return .standard
         }
         return defaults
+    }
+}
+
+private struct StringCatalog: Decodable {
+    let strings: [String: Entry]
+
+    struct Entry: Decodable {
+        let localizations: [String: Localization]
+    }
+
+    struct Localization: Decodable {
+        let stringUnit: StringUnit
+    }
+
+    struct StringUnit: Decodable {
+        let state: String
+        let value: String
     }
 }

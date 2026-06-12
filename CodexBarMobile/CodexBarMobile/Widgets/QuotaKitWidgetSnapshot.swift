@@ -124,7 +124,7 @@ enum QuotaKitWidgetSnapshotBuilder {
 }
 
 enum QuotaKitWidgetTimelineSchedule {
-    static let refreshInterval: TimeInterval = 5 * 60
+    static let refreshInterval: TimeInterval = 15 * 60
     static let staleThreshold: TimeInterval = 60 * 60
 
     static func nextRefreshDate(after date: Date, lastSyncedAt: Date?) -> Date {
