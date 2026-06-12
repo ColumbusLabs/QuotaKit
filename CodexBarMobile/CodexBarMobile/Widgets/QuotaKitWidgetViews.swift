@@ -84,7 +84,7 @@ extension QuotaKitWidgetSnapshot.Provider {
     private var fallbackWeeklyWindow: Window? {
         guard let candidate = self.windows.dropFirst().first else { return nil }
         if let dayCount = Self.numericDayCount(in: candidate.title.localizedLowercase),
-           dayCount != 7
+           !Self.weeklyDayCountRange.contains(dayCount)
         {
             return nil
         }
@@ -101,8 +101,16 @@ extension QuotaKitWidgetSnapshot.Provider {
     private static func isWeeklyWindow(_ window: Window) -> Bool {
         let title = window.title.localizedLowercase
         return title.contains("week")
-            || Self.numericDayCount(in: title) == 7
+            || Self.hasWeeklyDayCountLabel(title)
             || title.contains(String(localized: "Weekly").localizedLowercase)
+    }
+
+    /// Day-count titles only mean "weekly" near seven days; "1 day" (daily)
+    /// and "30 days" (monthly) windows must not claim the weekly lane.
+    private static let weeklyDayCountRange = 5...9
+
+    private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
+        Self.numericDayCount(in: title).map(Self.weeklyDayCountRange.contains) ?? false
     }
 
     private static func numericDayCount(in title: String) -> Int? {

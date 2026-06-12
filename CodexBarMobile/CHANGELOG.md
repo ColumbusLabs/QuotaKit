@@ -13,6 +13,8 @@ current Columbus Labs product surface and recent release history.
   when both are available, with a Usage Settings picker to switch all widgets to
   Both, Session, or Weekly display. Both mode keeps pace markers in the compact
   quota bars; switch to Session or Weekly when you want textual pace chips.
+- Widget weekly-window detection no longer mistakes daily or monthly day-count
+  labels such as "1 day" or "30 days" for weekly quota.
 - Widgets now show freshness from the phone's last synced usage timestamp, and
   request regular timeline refreshes on a WidgetKit-friendlier 15-minute cadence
   while still reloading immediately when the phone publishes fresh sync data.

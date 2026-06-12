@@ -500,6 +500,37 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly Sonnet")
     }
 
+    func testWidgetWeeklyResolutionSkipsDailyAndMonthlyDayCounts() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "1 day",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "30 days",
+                    usedPercent: 45,
+                    remainingPercent: 55,
+                    resetsAt: nil,
+                    pace: nil),
+                .init(
+                    title: "7-day",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        XCTAssertEqual(provider.window(for: .weekly)?.title, "7-day")
+    }
+
     func testWidgetBothModeReturnsDistinctWindowsOnly() {
         let provider = QuotaKitWidgetSnapshot.Provider(
             id: "claude",

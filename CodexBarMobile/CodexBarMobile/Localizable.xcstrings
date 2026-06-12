@@ -18559,30 +18559,30 @@
         }
       }
     },
-    "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
+    "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
+            "value": "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "ウィジェットとペース — QuotaKit Pro ウィジェットはデフォルトで Session と Weekly のクォータ枠を表示し、設定で Both / Session / Weekly の表示を切り替えられます。サニタイズ済みの iPhone 側スナップショットデータ、同期経過バッジ、クォータバー上のペースマーカー、単一ウィンドウモードでのペースチップに対応し、使用量カードも Mac アプリに合わせて赤字/予備のペースラベル、予測される使い切り時刻、期待使用量マーカーを表示します。"
+            "value": "ウィジェットとペース — QuotaKit Pro ウィジェットはデフォルトで Session と Weekly のクォータ枠を表示し、設定で Both / Session / Weekly の表示を切り替えられます。サニタイズ済みの iPhone 側スナップショットデータ、同期経過バッジ、クォータバー上のペースマーカー、単一ウィンドウモードでのペースチップに対応し、日次や月次の日数ラベルを Weekly クォータと誤認しなくなりました。使用量カードも Mac アプリに合わせて赤字/予備のペースラベル、予測される使い切り時刻、期待使用量マーカーを表示します。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "小组件和节奏 — QuotaKit Pro 小组件默认显示 Session 和 Weekly 配额窗口，并可在设置中切换 Both / Session / Weekly 显示；同时包含经过清理的 iPhone 端快照数据、同步时间徽章、配额条节奏标记，并在单窗口模式显示节奏标签。使用量卡片也与 Mac App 保持一致，显示超额/余量节奏标签、预计耗尽时间和预期使用量标记。"
+            "value": "小组件和节奏 — QuotaKit Pro 小组件默认显示 Session 和 Weekly 配额窗口，并可在设置中切换 Both / Session / Weekly 显示；同时包含经过清理的 iPhone 端快照数据、同步时间徽章、配额条节奏标记，并在单窗口模式显示节奏标签。日用量和月用量的天数标签不再被误判为 Weekly 配额。使用量卡片也与 Mac App 保持一致，显示超额/余量节奏标签、预计耗尽时间和预期使用量标记。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "小工具和節奏 — QuotaKit Pro 小工具預設顯示 Session 和 Weekly 配額視窗，並可在設定中切換 Both / Session / Weekly 顯示；同時包含已清理的 iPhone 端快照資料、同步時間徽章、配額列節奏標記，並在單一視窗模式顯示節奏標籤。使用量卡片也與 Mac App 保持一致，顯示超額/餘量節奏標籤、預計用盡時間和預期使用量標記。"
+            "value": "小工具和節奏 — QuotaKit Pro 小工具預設顯示 Session 和 Weekly 配額視窗，並可在設定中切換 Both / Session / Weekly 顯示；同時包含已清理的 iPhone 端快照資料、同步時間徽章、配額列節奏標記，並在單一視窗模式顯示節奏標籤。日用量和月用量的天數標籤不再被誤判為 Weekly 配額。使用量卡片也與 Mac App 保持一致，顯示超額/餘量節奏標籤、預計用盡時間和預期使用量標記。"
           }
         }
       }
