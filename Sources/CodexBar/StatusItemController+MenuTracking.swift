@@ -4,6 +4,15 @@ import CodexBarCore
 extension StatusItemController {
     private static let defaultClosedMenuPreparationDelay: Duration = .milliseconds(350)
 
+    var isMenuRefreshEnabled: Bool {
+        #if DEBUG
+        if let menuRefreshEnabledOverrideForTesting {
+            return menuRefreshEnabledOverrideForTesting
+        }
+        #endif
+        return Self.menuRefreshEnabled
+    }
+
     #if DEBUG
     private static var closedMenuPreparationDelayForTesting: Duration = defaultClosedMenuPreparationDelay
     static func setClosedMenuPreparationDelayForTesting(_ delay: Duration) {

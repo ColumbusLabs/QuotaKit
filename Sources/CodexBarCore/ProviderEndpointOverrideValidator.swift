@@ -1,6 +1,6 @@
 import Foundation
 
-enum ProviderEndpointOverrideError: LocalizedError, Sendable, Equatable {
+enum ProviderEndpointOverrideError: LocalizedError, Equatable {
     case minimax(String)
     case alibabaCodingPlan(String)
 
@@ -19,8 +19,8 @@ enum ProviderEndpointOverrideError: LocalizedError, Sendable, Equatable {
     }
 }
 
-struct ProviderEndpointOverrideValidator: Sendable {
-    enum HostPolicy: Sendable {
+struct ProviderEndpointOverrideValidator {
+    enum HostPolicy {
         case allowAnyHTTPSHost
         case providerOwnedOnly
     }

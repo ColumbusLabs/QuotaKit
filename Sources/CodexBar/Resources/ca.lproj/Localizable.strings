@@ -195,7 +195,8 @@
 "Could not switch system account" = "No s'ha pogut canviar el compte del sistema";
 
 "Credits" = "Crèdits";
-
+"Individual credits" = "Crèdits individuals";
+"Workspace" = "Espai de treball";
 "Credits history" = "Historial de crèdits";
 
 "Cursor login failed" = "L'inici de sessió de Cursor ha fallat";
@@ -799,13 +800,13 @@
 "language_swedish" = "Suec";
 
 "language_dutch" = "Nederlands";
-
+"language_german" = "Deutsch";
 "language_french" = "Francès";
 
 "language_ukrainian" = "Ucraïnès";
 
 "language_japanese" = "Japonès";
-
+"language_korean" = "Coreà";
 "start_at_login_title" = "Obrir en iniciar la sessió";
 
 "start_at_login_subtitle" = "Obre el QuotaKit automàticament en iniciar el Mac.";
@@ -1203,12 +1204,13 @@
 "display_mode_pace" = "Ritme";
 
 "display_mode_both" = "Tots dos";
-
+"display_mode_reset_time" = "Temps de reinici";
 "display_mode_percent_desc" = "Mostra el percentatge restant/usat (p. ex. 45 %)";
 
 "display_mode_pace_desc" = "Mostra l'indicador de ritme (p. ex. +5 %)";
 
 "display_mode_both_desc" = "Mostra el percentatge i el ritme (p. ex. 45 % · +5 %)";
+"display_mode_reset_time_desc" = "Mostra l'hora de reinici de la mètrica seleccionada (p. ex. ↻ 3:56 PM)";
 
 
 /* Provider status */
@@ -1816,3 +1818,4 @@
 
 
 "language_vietnamese" = "Vietnamita";
+"language_turkish" = "Türkçe";

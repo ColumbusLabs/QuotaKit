@@ -23,6 +23,7 @@
 		84672F595D2C0B83323E2C54 /* CodexBarWidgetViews.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CodexBarWidgetViews.swift; sourceTree = "<group>"; };
 		E430B27E4F28973A5E77EA3F /* WidgetKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = WidgetKit.framework; path = System/Library/Frameworks/WidgetKit.framework; sourceTree = SDKROOT; };
 		E7789C4095C40CF60759F2B7 /* CodexBarWidgetExtension.appex */ = {isa = PBXFileReference; explicitFileType = "wrapper.app-extension"; includeInIndex = 0; path = CodexBarWidgetExtension.appex; sourceTree = BUILT_PRODUCTS_DIR; };
+		EFBE36CB6481E7133E2A5CF3 /* CodexBar */ = {isa = PBXFileReference; lastKnownFileType = folder; name = CodexBar; path = ..; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */

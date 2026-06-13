@@ -24,8 +24,13 @@ extension StatusItemController {
     private func cancelShutdownTasks() {
         self.blinkTask?.cancel()
         self.blinkTask = nil
+        self.menuBarCountdownRefreshTask?.cancel()
+        self.menuBarCountdownRefreshTask = nil
         self.loginTask?.cancel()
         self.loginTask = nil
+        self.manualRefreshTask?.cancel()
+        self.manualRefreshTask = nil
+        self.menuCardRefreshMonitor.isManualRefreshInFlight = false
         self.screenChangeVisibilityTask?.cancel()
         self.screenChangeVisibilityTask = nil
         self.pendingScreenChangePreviousCount = nil

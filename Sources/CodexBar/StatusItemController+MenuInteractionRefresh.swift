@@ -27,6 +27,30 @@ extension StatusItemController {
         #endif
     }
 
+    struct MenuOperationTrace {
+        let operation: String
+        let startedAt: CFTimeInterval
+    }
+
+    /// Pairs the slow-operation timing log with a watchdog breadcrumb so a hang during
+    /// the operation is attributed to it even when the operation never finishes logging.
+    func beginMenuOperationTrace(
+        _ operation: String,
+        breadcrumb: @autoclosure () -> String) -> MenuOperationTrace
+    {
+        MainThreadActivityBreadcrumb.push(breadcrumb())
+        return MenuOperationTrace(operation: operation, startedAt: CACurrentMediaTime())
+    }
+
+    func endMenuOperationTrace(_ trace: MenuOperationTrace, menu: NSMenu, provider: UsageProvider?) {
+        MainThreadActivityBreadcrumb.pop()
+        self.logMenuOperationDurationIfSlow(
+            trace.operation,
+            startedAt: trace.startedAt,
+            menu: menu,
+            provider: provider)
+    }
+
     func logMenuOperationDurationIfSlow(
         _ operation: String,
         startedAt: CFTimeInterval,
@@ -100,6 +124,17 @@ extension StatusItemController {
                 self.deferredMenuInteractionRefreshTask = nil
                 return
             }
+            let pendingProviders = self.deferredMenuInteractionRefreshProviders
+            let hasProviderRefreshInFlight = pendingProviders.contains {
+                self.store.refreshingProviders.contains($0)
+            }
+            guard !self.store.isRefreshing, !hasProviderRefreshInFlight else {
+                self.deferredMenuInteractionRefreshTask = nil
+                self.scheduleDeferredMenuInteractionRefreshIfNeeded(
+                    delay: Self.defaultDeferredMenuInteractionRefreshDelay)
+                return
+            }
+            self.clearSatisfiedDeferredMenuInteractionRefreshes(for: Array(pendingProviders))
             let shouldRefreshStore = self.deferredMenuInteractionRefreshPending
             let openAIDashboardRefreshReason = self.deferredOpenAIDashboardRefreshReason
             guard shouldRefreshStore || openAIDashboardRefreshReason != nil else {
@@ -108,13 +143,6 @@ extension StatusItemController {
             }
             guard !self.hasPreparedForAppShutdown else {
                 self.deferredMenuInteractionRefreshTask = nil
-                return
-            }
-            guard !self.store.isRefreshing else {
-                self.deferredMenuInteractionRefreshTask = nil
-                self
-                    .scheduleDeferredMenuInteractionRefreshIfNeeded(delay: Self
-                        .defaultDeferredMenuInteractionRefreshDelay)
                 return
             }
             self.deferredMenuInteractionRefreshTask = nil

@@ -197,7 +197,8 @@
 "Could not switch system account" = "Impossible de changer de compte système";
 
 "Credits" = "Crédits";
-
+"Individual credits" = "Crédits individuels";
+"Workspace" = "Espace de travail";
 "Credits history" = "Historique des crédits";
 
 "Cursor login failed" = "La connexion au curseur a échoué";
@@ -795,7 +796,7 @@
 "language_chinese_traditional" = "Chinois traditionnel";
 
 "language_portuguese_brazilian" = "Portugais (Brésil)";
-
+"language_german" = "Allemand";
 "language_swedish" = "Suédois";
 
 "language_french" = "Français";
@@ -805,9 +806,9 @@
 "language_ukrainian" = "Ukrainien";
 
 "language_japanese" = "Japonais";
-
+"language_korean" = "Coréen";
 "language_vietnamese" = "Vietnamien";
-
+"language_turkish" = "Türkçe";
 "start_at_login_title" = "Lancer à l'ouverture de session";
 
 "start_at_login_subtitle" = "Ouvre automatiquement QuotaKit au démarrage de votre Mac.";
@@ -1227,12 +1228,13 @@
 "display_mode_pace" = "Rythme";
 
 "display_mode_both" = "Les deux";
-
+"display_mode_reset_time" = "Heure de réinitialisation";
 "display_mode_percent_desc" = "Afficher le pourcentage restant/utilisé (par exemple 45 %)";
 
 "display_mode_pace_desc" = "Afficher l'indicateur d'allure (par exemple +5 %)";
 
 "display_mode_both_desc" = "Afficher à la fois le pourcentage et le rythme (par exemple 45 % · +5 %)";
+"display_mode_reset_time_desc" = "Afficher l'heure de réinitialisation de la métrique sélectionnée (par exemple ↻ 15:56)";
 
 
 /* Provider status */

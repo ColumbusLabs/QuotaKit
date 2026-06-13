@@ -109,6 +109,7 @@ extension StatusItemController {
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
             tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: target),
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             sourceLabel: sourceLabel,
             kiloAutoMode: kiloAutoMode,
             hidePersonalInfo: self.settings.hidePersonalInfo,
@@ -118,6 +119,7 @@ extension StatusItemController {
                 .weekly: self.quotaWarningMarkerThresholds(provider: target, window: .weekly),
             ],
             workDaysPerWeek: self.settings.weeklyProgressWorkDays,
+            usesLiveSubtitle: surface == .liveCard,
             now: now)
         return UsageMenuCardView.Model.make(input)
     }

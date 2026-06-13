@@ -50,7 +50,8 @@ extension StatusItemController {
                 highlightState: recycled.highlightState,
                 showsSubmenuIndicator: submenu != nil,
                 submenuIndicatorAlignment: submenuIndicatorAlignment,
-                submenuIndicatorTopPadding: submenuIndicatorTopPadding)
+                submenuIndicatorTopPadding: submenuIndicatorTopPadding,
+                refreshMonitor: self.menuCardRefreshMonitor)
             {
                 view
             }
@@ -62,7 +63,8 @@ extension StatusItemController {
                 highlightState: highlightState,
                 showsSubmenuIndicator: submenu != nil,
                 submenuIndicatorAlignment: submenuIndicatorAlignment,
-                submenuIndicatorTopPadding: submenuIndicatorTopPadding)
+                submenuIndicatorTopPadding: submenuIndicatorTopPadding,
+                refreshMonitor: self.menuCardRefreshMonitor)
             {
                 view
             }

@@ -32,6 +32,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     {
         await ProviderInteractionContext.$current.withValue(interaction) {
             await self.store.refresh(forceTokenUsage: forceTokenUsage)
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             self.store.scheduleStorageFootprintRefreshForOverview(force: true)
             if refreshOpenMenusWhenComplete {
                 self.refreshOpenMenusAfterExplicitStoreAction()
@@ -48,7 +49,34 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     @objc func refreshNow() {
-        self.refreshStore(forceTokenUsage: true)
+        guard !self.hasPreparedForAppShutdown,
+              self.manualRefreshTask == nil,
+              !self.store.isRefreshing
+        else { return }
+
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return }
+            defer {
+                self.manualRefreshTask = nil
+                self.menuCardRefreshMonitor.isManualRefreshInFlight = false
+                self.updatePersistentRefreshRowsInProgress()
+            }
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+            #if DEBUG
+            if let operation = self._test_manualRefreshOperation {
+                await operation()
+                guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                return
+            }
+            #endif
+            await self.performStoreRefresh(
+                forceTokenUsage: true,
+                refreshOpenMenusWhenComplete: true,
+                interaction: .userInitiated)
+        }
+        self.manualRefreshTask = task
+        self.menuCardRefreshMonitor.isManualRefreshInFlight = true
+        self.updatePersistentRefreshRowsInProgress()
     }
 
     nonisolated func performPersistentRefreshAction() {

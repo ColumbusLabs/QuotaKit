@@ -124,7 +124,11 @@ public struct AntigravityStatusSnapshot: Sendable {
         let extraWindows = shownModels
             .sorted(by: Self.modelOrderPrecedes)
             .map { m in
-                NamedRateWindow(id: m.quota.modelId, title: m.quota.label, window: Self.rateWindow(for: m.quota))
+                NamedRateWindow(
+                    id: m.quota.modelId,
+                    title: m.quota.label,
+                    window: Self.rateWindow(for: m.quota),
+                    usageKnown: m.quota.remainingFraction != nil)
             }
 
         let identity = ProviderIdentitySnapshot(
@@ -357,6 +361,8 @@ public enum AntigravityStatusProbeError: LocalizedError, Sendable, Equatable {
     case apiError(String)
     case parseFailed(String)
     case timedOut
+    case authenticationRequired
+    case accountMismatch(expected: String?, found: String?)
 
     public var errorDescription: String? {
         switch self {
@@ -372,7 +378,21 @@ public enum AntigravityStatusProbeError: LocalizedError, Sendable, Equatable {
             "Could not parse Antigravity quota: \(message)"
         case .timedOut:
             "Antigravity quota request timed out."
+        case .authenticationRequired:
+            "Antigravity CLI is signed out. Run agy in a terminal to sign in, then retry."
+        case let .accountMismatch(expected, found):
+            Self.accountMismatchDescription(expected: expected, found: found)
         }
+    }
+
+    private static func accountMismatchDescription(expected: String?, found: String?) -> String {
+        let selected = expected ?? "the selected account"
+        if let found {
+            return "Antigravity local session is signed in as \(found), not \(selected); "
+                + "using the selected account's OAuth data instead."
+        }
+        return "Antigravity local session did not report an account matching \(selected); "
+            + "using the selected account's OAuth data instead."
     }
 
     private static func portDetectionDescription(_ message: String) -> String {
@@ -395,7 +415,20 @@ public enum AntigravityStatusProbeError: LocalizedError, Sendable, Equatable {
 }
 
 public struct AntigravityStatusProbe: Sendable {
+    /// Which local Antigravity processes the probe may attach to.
+    public enum ProcessScope: Sendable {
+        /// Match the IDE language server and the `agy` CLI language server.
+        case ideAndCLI
+        /// Match only the IDE language server. The local fetch strategy
+        /// uses this so it never attaches to a stale or half-warmed `agy`
+        /// process: those accept connections but return transient errors
+        /// on `GetUserStatus`, burning the probe timeout. `agy` is owned
+        /// by `AntigravityCLIHTTPSFetchStrategy`, which has a readiness loop.
+        case ideOnly
+    }
+
     public var timeout: TimeInterval = 8.0
+    public var processScope: ProcessScope = .ideAndCLI
 
     private static let getUserStatusPath = "/exa.language_server_pb.LanguageServerService/GetUserStatus"
     private static let commandModelConfigPath =
@@ -403,12 +436,13 @@ public struct AntigravityStatusProbe: Sendable {
     private static let unleashPath = "/exa.language_server_pb.LanguageServerService/GetUnleashData"
     private static let log = CodexBarLog.logger(LogCategories.antigravity)
 
-    public init(timeout: TimeInterval = 8.0) {
+    public init(timeout: TimeInterval = 8.0, processScope: ProcessScope = .ideAndCLI) {
         self.timeout = timeout
+        self.processScope = processScope
     }
 
     public func fetch() async throws -> AntigravityStatusSnapshot {
-        let processInfo = try await Self.detectProcessInfo(timeout: self.timeout)
+        let processInfo = try await Self.detectProcessInfo(timeout: self.timeout, scope: self.processScope)
         let ports = try await Self.listeningPorts(pid: processInfo.pid, timeout: self.timeout)
         let endpoint = try await Self.resolveWorkingEndpoint(
             candidateEndpoints: Self.connectionCandidates(
@@ -426,21 +460,7 @@ public struct AntigravityStatusProbe: Sendable {
                 extensionServerCSRFToken: processInfo.extensionServerCSRFToken),
             timeout: self.timeout)
 
-        do {
-            return try await Self.makeParsedRequest(
-                payload: RequestPayload(
-                    path: Self.getUserStatusPath,
-                    body: Self.defaultRequestBody()),
-                context: context,
-                parse: Self.parseUserStatusResponse)
-        } catch {
-            return try await Self.makeParsedRequest(
-                payload: RequestPayload(
-                    path: Self.commandModelConfigPath,
-                    body: Self.defaultRequestBody()),
-                context: context,
-                parse: Self.parseCommandModelResponse)
-        }
+        return try await Self.fetchSnapshot(context: context)
     }
 
     public func fetchPlanInfoSummary() async throws -> AntigravityPlanInfoSummary? {
@@ -475,6 +495,30 @@ public struct AntigravityStatusProbe: Sendable {
     public static func detectVersion(timeout: TimeInterval = 4.0) async -> String? {
         let running = await Self.isRunning(timeout: timeout)
         return running ? "running" : nil
+    }
+
+    // MARK: - CLI HTTPS Fetch
+
+    /// Fetch usage data from a known set of local ports (discovered via
+    /// ``AntigravityCLISession``'s ``pid``), without requiring a running
+    /// ``language_server`` process or CSRF token.
+    ///
+    /// The ``agy`` CLI exposes the same ``GetUserStatus`` gRPC-web endpoint on
+    /// its HTTPS port as the desktop ``language_server``. Unlike the desktop
+    /// endpoint, it does not require a CSRF token header.
+    public func fetchFromPorts(_ ports: [Int], deadline: Date? = nil) async throws -> AntigravityStatusSnapshot {
+        guard !ports.isEmpty else {
+            throw AntigravityStatusProbeError.portDetectionFailed("no listening ports found")
+        }
+        let endpoints = ports.map {
+            AntigravityConnectionEndpoint(
+                scheme: "https",
+                port: $0,
+                csrfToken: "",
+                source: .cliHTTPS)
+        }
+        let context = RequestContext(endpoints: endpoints, timeout: self.timeout, deadline: deadline)
+        return try await Self.fetchSnapshot(context: context)
     }
 
     // MARK: - Parsing
@@ -572,19 +616,32 @@ public struct AntigravityStatusProbe: Sendable {
         enum Source: String {
             case languageServer = "language-server"
             case extensionServer = "extension-server"
+            case cliHTTPS = "cli-https"
         }
 
         let scheme: String
         let port: Int
         let csrfToken: String
         let source: Source
+        /// Whether this endpoint needs a CSRF token header.
+        /// The CLI HTTPS endpoint (``Source/cliHTTPS``) speaks the same HTTP API
+        /// but does not require a CSRF token.
+        var requiresCSRFToken: Bool {
+            switch self.source {
+            case .languageServer, .extensionServer: true
+            case .cliHTTPS: false
+            }
+        }
 
         func matchesRequestTarget(_ other: Self) -> Bool {
             self.scheme == other.scheme && self.port == other.port && self.csrfToken == other.csrfToken
         }
     }
 
-    private static func detectProcessInfo(timeout: TimeInterval) async throws -> ProcessInfoResult {
+    private static func detectProcessInfo(
+        timeout: TimeInterval,
+        scope: ProcessScope = .ideAndCLI) async throws -> ProcessInfoResult
+    {
         let env = ProcessInfo.processInfo.environment
         let result = try await SubprocessRunner.run(
             binary: "/bin/ps",
@@ -593,16 +650,20 @@ public struct AntigravityStatusProbe: Sendable {
             timeout: timeout,
             label: "antigravity-ps")
 
-        return try Self.processInfo(fromProcessListOutput: result.stdout)
+        return try Self.processInfo(fromProcessListOutput: result.stdout, scope: scope)
     }
 
-    static func processInfo(fromProcessListOutput output: String) throws -> ProcessInfoResult {
+    static func processInfo(
+        fromProcessListOutput output: String,
+        scope: ProcessScope = .ideAndCLI) throws -> ProcessInfoResult
+    {
         let lines = output.split(separator: "\n")
         var sawTokenlessIDE = false
         for line in lines {
             let text = String(line)
             guard let match = Self.matchProcessLine(text) else { continue }
             guard let kind = Self.antigravityProcessKind(match.command) else { continue }
+            if scope == .ideOnly, kind == .cli { continue }
             // The IDE language server authenticates local requests with a
             // `--csrf_token` and must keep requiring it: skip a tokenless IDE
             // match so a later valid IDE server can still be found (and surface
@@ -642,7 +703,7 @@ public struct AntigravityStatusProbe: Sendable {
     }
 
     enum AntigravityProcessKind: Equatable {
-        /// IDE language server (`language_server*`). Requires a `--csrf_token`.
+        /// IDE language server (`language_server*` or `language-server`). Requires a `--csrf_token`.
         case ide
         /// CLI language server (`agy` / `antigravity-cli`). Needs no CSRF token.
         case cli
@@ -681,7 +742,7 @@ public struct AntigravityStatusProbe: Sendable {
     }
 
     private static func isLanguageServerCommandLine(_ lowerCommand: String) -> Bool {
-        let pattern = #"(^|[/\\])language_server(_macos|\.exe)?(\s|$)"#
+        let pattern = #"(^|[/\\])language(?:_|-)server(_macos|\.exe)?(\s|$)"#
         return lowerCommand.range(of: pattern, options: .regularExpression) != nil
     }
 
@@ -700,6 +761,7 @@ public struct AntigravityStatusProbe: Sendable {
 
     private static func isAntigravityCommandLine(_ command: String) -> Bool {
         if command.contains("--app_data_dir") && command.contains("antigravity") { return true }
+        if command.contains("antigravity.app/") || command.contains("antigravity.app\\") { return true }
         if command.contains("/antigravity/") || command.contains("\\antigravity\\") { return true }
         return false
     }
@@ -718,7 +780,7 @@ public struct AntigravityStatusProbe: Sendable {
         return Int(raw)
     }
 
-    private static func listeningPorts(pid: Int, timeout: TimeInterval) async throws -> [Int] {
+    static func listeningPorts(pid: Int, timeout: TimeInterval) async throws -> [Int] {
         let lsof = ["/usr/sbin/lsof", "/usr/bin/lsof"].first(where: {
             FileManager.default.isExecutableFile(atPath: $0)
         })
@@ -728,13 +790,19 @@ public struct AntigravityStatusProbe: Sendable {
         }
 
         let env = ProcessInfo.processInfo.environment
-        let result = try await SubprocessRunner.run(
-            binary: lsof,
-            arguments: ["-nP", "-iTCP", "-sTCP:LISTEN", "-a", "-p", String(pid)],
-            environment: env,
-            timeout: timeout,
-            label: "antigravity-lsof")
-
+        let result: SubprocessResult
+        do {
+            result = try await SubprocessRunner.run(
+                binary: lsof,
+                arguments: ["-nP", "-iTCP", "-sTCP:LISTEN", "-a", "-p", String(pid)],
+                environment: env,
+                timeout: timeout,
+                label: "antigravity-lsof")
+        } catch let SubprocessRunnerError.nonZeroExit(code, stderr)
+            where code == 1 && stderr.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            throw AntigravityStatusProbeError.portDetectionFailed("no listening ports found")
+        }
         let ports = Self.parseListeningPorts(result.stdout)
         if ports.isEmpty {
             throw AntigravityStatusProbeError.portDetectionFailed("no listening ports found")
@@ -953,6 +1021,20 @@ public struct AntigravityStatusProbe: Sendable {
     struct RequestContext {
         let endpoints: [AntigravityConnectionEndpoint]
         let timeout: TimeInterval
+        let deadline: Date?
+
+        init(endpoints: [AntigravityConnectionEndpoint], timeout: TimeInterval, deadline: Date? = nil) {
+            self.endpoints = endpoints
+            self.timeout = timeout
+            self.deadline = deadline
+        }
+
+        func timeoutForNextAttempt() -> TimeInterval? {
+            guard let deadline else { return self.timeout }
+            let remaining = deadline.timeIntervalSinceNow
+            guard remaining > 0 else { return nil }
+            return min(self.timeout, remaining)
+        }
     }
 
     private static func defaultRequestBody() -> [String: Any] {
@@ -984,6 +1066,30 @@ public struct AntigravityStatusProbe: Sendable {
         ]
     }
 
+    static func fetchSnapshot(
+        context: RequestContext,
+        send: @escaping @Sendable (RequestPayload, AntigravityConnectionEndpoint, TimeInterval) async throws -> Data =
+            sendRequest) async throws -> AntigravityStatusSnapshot
+    {
+        do {
+            return try await self.makeParsedRequest(
+                payload: RequestPayload(
+                    path: self.getUserStatusPath,
+                    body: self.defaultRequestBody()),
+                context: context,
+                send: send,
+                parse: self.parseUserStatusResponse)
+        } catch {
+            return try await self.makeParsedRequest(
+                payload: RequestPayload(
+                    path: self.commandModelConfigPath,
+                    body: self.defaultRequestBody()),
+                context: context,
+                send: send,
+                parse: self.parseCommandModelResponse)
+        }
+    }
+
     private static func makeRequest(
         payload: RequestPayload,
         context: RequestContext) async throws -> Data
@@ -1001,8 +1107,12 @@ public struct AntigravityStatusProbe: Sendable {
         var lastError: Error?
 
         for endpoint in context.endpoints {
+            guard let timeout = context.timeoutForNextAttempt() else {
+                lastError = lastError ?? AntigravityStatusProbeError.timedOut
+                break
+            }
             do {
-                let data = try await send(payload, endpoint, context.timeout)
+                let data = try await send(payload, endpoint, timeout)
                 return try parse(data)
             } catch {
                 lastError = error
@@ -1026,8 +1136,12 @@ public struct AntigravityStatusProbe: Sendable {
         var lastError: Error?
 
         for endpoint in context.endpoints {
+            guard let timeout = context.timeoutForNextAttempt() else {
+                lastError = lastError ?? AntigravityStatusProbeError.timedOut
+                break
+            }
             do {
-                return try await Self.sendRequest(payload: payload, endpoint: endpoint, timeout: context.timeout)
+                return try await Self.sendRequest(payload: payload, endpoint: endpoint, timeout: timeout)
             } catch {
                 lastError = error
                 Self.log.debug("Antigravity request attempt failed", metadata: [
@@ -1060,7 +1174,9 @@ public struct AntigravityStatusProbe: Sendable {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         request.setValue(String(body.count), forHTTPHeaderField: "Content-Length")
         request.setValue("1", forHTTPHeaderField: "Connect-Protocol-Version")
-        request.setValue(endpoint.csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
+        if endpoint.requiresCSRFToken {
+            request.setValue(endpoint.csrfToken, forHTTPHeaderField: "X-Codeium-Csrf-Token")
+        }
 
         let config = URLSessionConfiguration.ephemeral
         config.timeoutIntervalForRequest = timeout

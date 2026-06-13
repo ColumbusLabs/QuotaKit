@@ -32,34 +32,34 @@ extension StatusItemController {
 
             if isSelectionSwitch,
                let outgoingSelection,
-               self.hasReusableMergedSwitcherContent(
+               let cachedItems = self.reusableMergedSwitcherContent(
                    for: context.switcherSelection,
                    in: menu,
                    menuWidth: context.menuWidth,
                    codexAccountDisplay: context.codexAccountDisplay,
                    tokenAccountDisplay: context.tokenAccountDisplay)
             {
-                // Instant path: the incoming tab reattaches wholesale, so park the outgoing
-                // items for an equally instant switch-back.
-                self.cacheVisibleMergedSwitcherContent(
+                // Park the outgoing payloads for an equally instant switch-back. Compatible
+                // menu-item shells stay attached, avoiding the empty intermediate layout that
+                // AppKit can visibly render when the whole content block is removed first.
+                let outgoingCodexAccountDisplay = self.lastCodexAccountMenuDisplay
+                let outgoingTokenAccountDisplay = self.lastTokenAccountMenuDisplay
+                self.rememberMergedSwitcherState(enabledProviders, context.switcherSelection)
+                let displacedItems = self.replaceMenuContentKeepingRowsVisible(
+                    menu,
+                    fromIndex: contentStartIndex,
+                    with: cachedItems)
+                self.cacheMergedSwitcherContent(
+                    displacedItems,
                     in: menu,
                     selection: outgoingSelection,
-                    contentStartIndex: contentStartIndex,
-                    menuWidth: context.menuWidth)
-                while menu.items.count > contentStartIndex {
-                    menu.removeItem(at: contentStartIndex)
-                }
-                self.rememberMergedSwitcherState(enabledProviders, context.switcherSelection)
-                if self.addCachedMergedSwitcherContent(
-                    for: context.switcherSelection,
-                    to: menu,
-                    menuWidth: context.menuWidth,
-                    codexAccountDisplay: context.codexAccountDisplay,
-                    tokenAccountDisplay: context.tokenAccountDisplay)
-                {
-                    return
-                }
-                self.addSwitcherScopedMenuContent(into: menu, captureMenu: menu, context: context)
+                    context: MergedSwitcherContentCacheContext(
+                        menuWidth: context.menuWidth,
+                        codexAccountDisplay: outgoingCodexAccountDisplay,
+                        tokenAccountDisplay: outgoingTokenAccountDisplay,
+                        contentVersion: nil))
+                self.lastCodexAccountMenuDisplay = context.codexAccountDisplay
+                self.lastTokenAccountMenuDisplay = context.tokenAccountDisplay
                 self.cacheVisibleMergedSwitcherContent(
                     in: menu,
                     selection: context.switcherSelection,

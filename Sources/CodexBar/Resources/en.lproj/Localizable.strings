@@ -197,7 +197,8 @@
 "Could not switch system account" = "Could not switch system account";
 
 "Credits" = "Credits";
-
+"Individual credits" = "Individual credits";
+"Workspace" = "Workspace";
 "Credits history" = "Credits history";
 
 "Cursor login failed" = "Cursor login failed";
@@ -797,7 +798,7 @@
 "language_portuguese_brazilian" = "Português (Brasil)";
 
 "language_dutch" = "Nederlands";
-
+"language_german" = "Deutsch";
 "language_swedish" = "Svenska";
 
 "language_french" = "French";
@@ -805,7 +806,8 @@
 "language_ukrainian" = "Українська";
 
 "language_japanese" = "Japanese";
-
+"language_korean" = "Korean";
+"language_turkish" = "Türkçe";
 "start_at_login_title" = "Start at Login";
 
 "start_at_login_subtitle" = "Automatically opens QuotaKit when you start your Mac.";
@@ -1227,12 +1229,13 @@
 "display_mode_pace" = "Pace";
 
 "display_mode_both" = "Both";
-
+"display_mode_reset_time" = "Reset time";
 "display_mode_percent_desc" = "Show remaining/used percentage (e.g. 45%)";
 
 "display_mode_pace_desc" = "Show pace indicator (e.g. +5%)";
 
 "display_mode_both_desc" = "Show both percentage and pace (e.g. 45% · +5%)";
+"display_mode_reset_time_desc" = "Show the reset time for the selected metric (e.g. ↻ 3:56 PM)";
 
 
 /* Provider status */

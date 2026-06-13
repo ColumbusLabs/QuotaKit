@@ -62,6 +62,8 @@ extension StatusItemController {
         menu.removeAllItems()
 
         let t0 = CACurrentMediaTime()
+        MainThreadActivityBreadcrumb.push("hydrateChart:\(chartID)")
+        defer { MainThreadActivityBreadcrumb.pop() }
         let didHydrate: Bool = switch chartID {
         case Self.usageBreakdownChartID:
             self.appendUsageBreakdownChartItem(to: menu, width: width)
@@ -130,6 +132,8 @@ extension StatusItemController {
 
         menu.removeAllItems()
         let t0 = CACurrentMediaTime()
+        MainThreadActivityBreadcrumb.push("refreshChart:\(identity.chartID)")
+        defer { MainThreadActivityBreadcrumb.pop() }
         let didHydrate: Bool = switch identity.chartID {
         case Self.usageBreakdownChartID:
             self.appendUsageBreakdownChartItem(to: menu, width: width)

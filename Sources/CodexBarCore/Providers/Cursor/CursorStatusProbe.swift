@@ -3,6 +3,9 @@ import Foundation
 import FoundationNetworking
 #endif
 import SweetCookieKit
+#if canImport(SQLite3)
+import SQLite3
+#endif
 
 #if os(macOS)
 
@@ -335,6 +338,146 @@ public struct CursorUserInfo: Codable, Sendable {
     }
 }
 
+// MARK: - Cursor App Auth
+
+struct CursorAppAuthSession: Equatable {
+    let accessToken: String
+
+    var isUsable: Bool {
+        guard !self.accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
+              (try? self.userID()) != nil,
+              let expiresAt = try? self.expiresAt()
+        else {
+            return false
+        }
+        return expiresAt.timeIntervalSinceNow > 60
+    }
+
+    func cookieHeader() throws -> String {
+        try "WorkosCursorSessionToken=\(self.userID())%3A%3A\(self.accessToken)"
+    }
+
+    func userID() throws -> String {
+        let json = try self.payload()
+        guard let subject = json["sub"] as? String,
+              let userID = subject.split(separator: "|", omittingEmptySubsequences: true).last.map(String.init),
+              !userID.isEmpty
+        else {
+            throw CursorStatusProbeError.parseFailed("Cursor.app access token is missing a user ID")
+        }
+
+        let allowed = CharacterSet.alphanumerics.union(CharacterSet(charactersIn: "._-"))
+        guard userID.unicodeScalars.allSatisfy(allowed.contains) else {
+            throw CursorStatusProbeError.parseFailed("Cursor.app access token has an invalid user ID")
+        }
+
+        return userID
+    }
+
+    private func expiresAt() throws -> Date {
+        let json = try self.payload()
+        guard let expiration = json["exp"] as? NSNumber else {
+            throw CursorStatusProbeError.parseFailed("Cursor.app access token is missing an expiration")
+        }
+        return Date(timeIntervalSince1970: expiration.doubleValue)
+    }
+
+    private func payload() throws -> [String: Any] {
+        let parts = self.accessToken.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count >= 2 else {
+            throw CursorStatusProbeError.parseFailed("Cursor.app access token is not a JWT")
+        }
+
+        var payload = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        payload += String(repeating: "=", count: (4 - payload.count % 4) % 4)
+
+        guard let data = Data(base64Encoded: payload),
+              let json = try? JSONSerialization.jsonObject(with: data) as? [String: Any]
+        else {
+            throw CursorStatusProbeError.parseFailed("Cursor.app access token has an invalid payload")
+        }
+
+        return json
+    }
+}
+
+protocol CursorAppAuthSessionProviding: Sendable {
+    func loadSession() throws -> CursorAppAuthSession?
+}
+
+struct CursorAppAuthStore: CursorAppAuthSessionProviding {
+    private static let defaultDBPath: String = {
+        let home = NSHomeDirectory()
+        return "\(home)/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+    }()
+
+    private let dbPath: String
+
+    init(dbPath: String? = nil) {
+        self.dbPath = dbPath ?? Self.defaultDBPath
+    }
+
+    func loadSession() throws -> CursorAppAuthSession? {
+        guard FileManager.default.fileExists(atPath: self.dbPath) else { return nil }
+
+        guard let accessToken = try self.value(for: "cursorAuth/accessToken"),
+              !accessToken.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return nil
+        }
+
+        return CursorAppAuthSession(accessToken: accessToken)
+    }
+
+    private func value(for key: String) throws -> String? {
+        var db: OpaquePointer?
+        guard sqlite3_open_v2(self.dbPath, &db, SQLITE_OPEN_READONLY, nil) == SQLITE_OK else {
+            let message = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
+            sqlite3_close(db)
+            throw CursorStatusProbeError.networkError("SQLite error reading Cursor app auth: \(message)")
+        }
+        defer { sqlite3_close(db) }
+        sqlite3_busy_timeout(db, 250)
+
+        let query = "SELECT value FROM ItemTable WHERE key = ? LIMIT 1;"
+        var stmt: OpaquePointer?
+        guard sqlite3_prepare_v2(db, query, -1, &stmt, nil) == SQLITE_OK else {
+            let message = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
+            throw CursorStatusProbeError.networkError("SQLite error preparing Cursor app auth read: \(message)")
+        }
+        defer { sqlite3_finalize(stmt) }
+
+        sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
+        let stepResult = sqlite3_step(stmt)
+        guard stepResult == SQLITE_ROW else {
+            if stepResult == SQLITE_DONE { return nil }
+            let message = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
+            throw CursorStatusProbeError.networkError("SQLite error reading Cursor app auth: \(message)")
+        }
+
+        return Self.decodeSQLiteValue(stmt: stmt, index: 0)
+    }
+
+    private static func decodeSQLiteValue(stmt: OpaquePointer?, index: Int32) -> String? {
+        switch sqlite3_column_type(stmt, index) {
+        case SQLITE_TEXT:
+            guard let c = sqlite3_column_text(stmt, index) else { return nil }
+            return String(cString: c)
+        case SQLITE_BLOB:
+            guard let bytes = sqlite3_column_blob(stmt, index) else { return nil }
+            let data = Data(bytes: bytes, count: Int(sqlite3_column_bytes(stmt, index)))
+            return String(data: data, encoding: .utf8)
+                ?? String(data: data, encoding: .utf16LittleEndian)
+        default:
+            return nil
+        }
+    }
+}
+
+private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+
 // MARK: - Cursor Status Snapshot
 
 public struct CursorStatusSnapshot: Sendable {
@@ -463,9 +606,19 @@ public struct CursorStatusSnapshot: Sendable {
                 resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
         }
 
-        // On-demand: tracked via providerCost only (shown in the credits/cost section)
-        let resolvedOnDemandUsed = self.onDemandUsedUSD
-        let resolvedOnDemandLimit = self.onDemandLimitUSD
+        // Prefer a personal cap. Team accounts with no user cap expose only the shared on-demand budget.
+        let resolvedOnDemandUsed: Double
+        let resolvedOnDemandLimit: Double?
+        if (self.onDemandLimitUSD ?? 0) > 0 {
+            resolvedOnDemandUsed = self.onDemandUsedUSD
+            resolvedOnDemandLimit = self.onDemandLimitUSD
+        } else if (self.teamOnDemandLimitUSD ?? 0) > 0 {
+            resolvedOnDemandUsed = self.teamOnDemandUsedUSD ?? 0
+            resolvedOnDemandLimit = self.teamOnDemandLimitUSD
+        } else {
+            resolvedOnDemandUsed = self.onDemandUsedUSD
+            resolvedOnDemandLimit = self.onDemandLimitUSD
+        }
 
         // Provider cost snapshot for on-demand usage (include budget before first spend)
         let providerCost: ProviderCostSnapshot? = if resolvedOnDemandUsed > 0
@@ -683,7 +836,9 @@ public struct CursorStatusProbe: Sendable {
     public let baseURL: URL
     public var timeout: TimeInterval = 15.0
     private let browserDetection: BrowserDetection
+    private let browserCookieImportOrder: BrowserCookieImportOrder
     private let urlSession: any ProviderHTTPTransport
+    private let appAuthStore: any CursorAppAuthSessionProviding
 
     public init(
         baseURL: URL = URL(string: "https://cursor.com")!,
@@ -691,10 +846,36 @@ public struct CursorStatusProbe: Sendable {
         browserDetection: BrowserDetection,
         urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared)
     {
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: cursorCookieImportOrder,
+            urlSession: urlSession,
+            appAuthStore: CursorAppAuthStore())
+    }
+
+    init(
+        baseURL: URL = URL(string: "https://cursor.com")!,
+        timeout: TimeInterval = 15.0,
+        browserDetection: BrowserDetection,
+        browserCookieImportOrder: BrowserCookieImportOrder = cursorCookieImportOrder,
+        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        appAuthStore: any CursorAppAuthSessionProviding)
+    {
         self.baseURL = baseURL
         self.timeout = timeout
         self.browserDetection = browserDetection
+        self.browserCookieImportOrder = browserCookieImportOrder
         self.urlSession = urlSession
+        self.appAuthStore = appAuthStore
+    }
+
+    /// Fetch Cursor usage using a first-party web session derived from Cursor.app's access token.
+    func fetchWithAppAuthSession(_ session: CursorAppAuthSession) async throws -> CursorStatusSnapshot {
+        try await self.fetchWithCookieHeader(
+            session.cookieHeader(),
+            requestUsageUserIDFallback: session.userID())
     }
 
     /// Fetch Cursor usage with manual cookie header (for debugging).
@@ -706,6 +887,7 @@ public struct CursorStatusProbe: Sendable {
     public func fetch(
         cookieHeaderOverride: String? = nil,
         allowCachedSessions: Bool = true,
+        allowAppAuthFallback: Bool = true,
         logger: ((String) -> Void)? = nil)
         async throws -> CursorStatusSnapshot
     {
@@ -737,7 +919,7 @@ public struct CursorStatusProbe: Sendable {
 
         // Try each browser in order. The first browser that *has* session cookie names is not always valid
         // (e.g. stale Chrome tokens); keep trying until the API accepts a session or we run out of browsers.
-        let browserCandidates = cursorCookieImportOrder.cookieImportCandidates(using: self.browserDetection)
+        let browserCandidates = self.browserCookieImportOrder.cookieImportCandidates(using: self.browserDetection)
         switch await self.scanBrowsers(
             browserCandidates,
             importSessions: { browser in
@@ -795,6 +977,31 @@ public struct CursorStatusProbe: Sendable {
                     log("Stored session failed: \(error.localizedDescription)")
                     firstRecoverableError = firstRecoverableError ?? .networkError(error.localizedDescription)
                 }
+            }
+        }
+
+        // A transient failure for an explicitly selected session must not switch to Cursor.app's account.
+        if let firstRecoverableError {
+            throw firstRecoverableError
+        }
+
+        // Last fallback: derive Cursor's first-party web session from the app token in its global state DB.
+        // Reusing the web flow preserves modern billing, legacy request quotas, and account-scoped identity.
+        if allowAppAuthFallback,
+           let appSession = try? self.appAuthStore.loadSession(),
+           appSession.isUsable
+        {
+            log("Using Cursor.app local auth fallback")
+            do {
+                return try await self.fetchWithAppAuthSession(appSession)
+            } catch let error as CursorStatusProbeError {
+                if case .notLoggedIn = error {
+                    log("Cursor.app local auth was rejected")
+                } else {
+                    firstRecoverableError = firstRecoverableError ?? error
+                }
+            } catch {
+                firstRecoverableError = firstRecoverableError ?? .networkError(error.localizedDescription)
             }
         }
 
@@ -888,7 +1095,10 @@ public struct CursorStatusProbe: Sendable {
         }
     }
 
-    private func fetchWithCookieHeader(_ cookieHeader: String) async throws -> CursorStatusSnapshot {
+    private func fetchWithCookieHeader(
+        _ cookieHeader: String,
+        requestUsageUserIDFallback: String? = nil) async throws -> CursorStatusSnapshot
+    {
         enum FetchPart: Sendable {
             case usageSummary((CursorUsageSummary, String))
             case userInfo(Result<CursorUserInfo, Error>)
@@ -929,7 +1139,7 @@ public struct CursorStatusProbe: Sendable {
         // Uses try? to avoid breaking the flow for users where this endpoint fails or returns unexpected data.
         var requestUsage: CursorUsageResponse?
         var requestUsageRawJSON: String?
-        if let userId = userInfo?.sub {
+        if let userId = userInfo?.sub ?? requestUsageUserIDFallback {
             do {
                 let (usage, usageRawJSON) = try await self.fetchRequestUsage(userId: userId, cookieHeader: cookieHeader)
                 requestUsage = usage

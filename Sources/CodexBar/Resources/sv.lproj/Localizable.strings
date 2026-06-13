@@ -197,7 +197,8 @@
 "Could not switch system account" = "Kunde inte byta systemkonto";
 
 "Credits" = "Krediter";
-
+"Individual credits" = "Individuella krediter";
+"Workspace" = "Arbetsyta";
 "Credits history" = "Kredithistorik";
 
 "Cursor login failed" = "Cursor-inloggning misslyckades";
@@ -799,7 +800,7 @@
 "language_portuguese_brazilian" = "Português (Brasil)";
 
 "language_dutch" = "Nederlands";
-
+"language_german" = "Deutsch";
 "language_swedish" = "Svenska";
 
 "language_french" = "Franska";
@@ -807,7 +808,8 @@
 "language_ukrainian" = "Ukrainska";
 
 "language_japanese" = "Japanska";
-
+"language_korean" = "Koreanska";
+"language_turkish" = "Türkçe";
 "start_at_login_title" = "Starta vid inloggning";
 
 "start_at_login_subtitle" = "Öppnar QuotaKit automatiskt när du startar din Mac.";
@@ -1225,12 +1227,13 @@
 "display_mode_pace" = "Takt";
 
 "display_mode_both" = "Båda";
-
+"display_mode_reset_time" = "Återställningstid";
 "display_mode_percent_desc" = "Visa återstående/förbrukad procent (t.ex. 45 %)";
 
 "display_mode_pace_desc" = "Visa taktindikator (t.ex. +5 %)";
 
 "display_mode_both_desc" = "Visa både procent och takt (t.ex. 45 % · +5 %)";
+"display_mode_reset_time_desc" = "Visa återställningstiden för valt mått (t.ex. ↻ 3:56 PM)";
 
 
 /* Provider status */

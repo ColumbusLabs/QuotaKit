@@ -91,6 +91,36 @@ struct PreferencesPaneSmokeTests {
         #expect(L("quit_app") == "QuotaKit を終了")
     }
 
+    @Test
+    func `german app language resolves localized labels`() {
+        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
+        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
+        defer {
+            if let previousLanguage {
+                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "appLanguage")
+            }
+            if let previousAppleLanguages {
+                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+        }
+
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-de")
+        settings.appLanguage = "de"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "de")
+        #expect(L("tab_general") == "Allgemein")
+        #expect(L("language_title") == "Sprache")
+        #expect(L("quit_app") == "QuotaKit beenden")
+        #expect(L("display_mode_reset_time") == "Zurücksetzungszeit")
+        #expect(L("display_mode_reset_time_desc").contains("↻ 15:56"))
+        #expect(L("vertex_ai_login_instructions").contains("\n\n1. Öffnen Sie Terminal"))
+        #expect(!L("vertex_ai_login_instructions").contains("\\n"))
+    }
+
     private static func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)

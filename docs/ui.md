@@ -28,6 +28,8 @@ read_when:
 ## Menu card
 - Provider-specific rows with resets (countdown by default; optional absolute clock display). Primary, secondary,
   tertiary, and extra windows render when the provider snapshot has data for them.
+- Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the
+  active request, and the existing row geometry remains fixed through success or failure.
 - Codex credits can add a separate “Buy Credits…” menu action.
 - Codex OpenAI web extras: code review remaining and usage breakdown render when dashboard data is attached.
 - Token accounts: optional account switcher bar or stacked account cards (up to 6) when multiple manual tokens exist.
@@ -49,7 +51,7 @@ window has elapsed.
 
 ## Preferences notes
 - Advanced: “Disable Keychain access” turns off browser cookie import; paste Cookie headers manually in Providers.
-- Advanced: “Show provider storage usage” enables background scans of known provider-owned local paths; CodexBar only
+- Advanced: “Show provider storage usage” enables background scans of known provider-owned local paths; QuotaKit only
   reports sizes and cleanup ideas, it does not delete files.
 - Display: “Overview tab providers” controls which providers appear in Merge Icons → Overview (up to 3).
 - If no providers are selected for Overview, the Overview tab is hidden.

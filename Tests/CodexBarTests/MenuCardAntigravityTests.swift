@@ -109,6 +109,9 @@ struct MenuCardAntigravityTests {
         #expect(model.metrics[1].percent == 0)
         #expect(model.metrics[1].percentLabel == "0% left")
         #expect(model.metrics[1].resetText == nil)
+        let unknownMetric = try #require(model.metrics.first { $0.title == "Gemini 3.1 Pro (Low)" })
+        #expect(unknownMetric.statusText == "Unavailable - Resets in 1h")
+        #expect(unknownMetric.resetText == nil)
     }
 
     @Test

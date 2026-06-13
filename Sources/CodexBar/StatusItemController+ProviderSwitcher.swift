@@ -71,34 +71,57 @@ final class ProviderSwitcherEventPeekGate {
     }
 }
 
+/// Handles provider-switcher keyboard shortcuts and overview scrolling while the merged
+/// status menu is open. `NSMenu` tracking pulls events itself, so local event monitors,
+/// Carbon dispatcher handlers, registered hot keys (tracking pushes a hotkey-disable mode),
+/// and `menuHasKeyEquivalent` never see these events — peeking the queue from a run-loop
+/// observer is the only delivery path.
+///
+/// The peek itself must not disturb the tracking session: `NSApp.nextEvent` re-enters the
+/// event loop in the mode it is given, and re-entering `.eventTracking` dispatches the menu
+/// session's own timers and sources mid-observer. When that landed during menu setup or amid
+/// rapid claimed key repeats, it killed the session and left a zombie menu on screen that no
+/// longer dequeued events: clicks sat in the queue for tens of seconds while the cursor
+/// beach-balled. Three guards prevent that: peeks run in a private run-loop mode with no
+/// sources or timers registered (the queue is mode-agnostic, so matching still works), the
+/// peek only starts once the tracking loop is confirmed pumping, and mouse clicks are not
+/// monitored at all (`ProviderSwitcherView` handles those via its own `mouseDown`/`mouseUp`
+/// overrides), so the monitor never dequeues a click meant for AppKit.
 @MainActor
 final class ProviderSwitcherShortcutEventMonitor {
     private let callback: @MainActor (NSEvent) -> Bool
     private let observer: CFRunLoopObserver
+    private let trackingState = ProviderSwitcherMenuTrackingState()
     private var isActive = false
+
+    /// A run-loop mode nothing else registers sources or timers in, so running the loop in
+    /// this mode while polling the event queue cannot dispatch menu-session work re-entrantly.
+    private static let peekMode = RunLoop.Mode("com.steipete.codexbar.switcher-peek")
 
     init(
         events: NSEvent.EventTypeMask,
         peekGate: ProviderSwitcherEventPeekGate = ProviderSwitcherEventPeekGate(
-            eventTypes: [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp]),
+            eventTypes: [.keyDown, .keyUp, .scrollWheel]),
         callback: @escaping @MainActor (NSEvent) -> Bool)
     {
         self.callback = callback
+        let trackingState = self.trackingState
 
         self.observer = CFRunLoopObserverCreateWithHandler(
             nil,
             CFRunLoopActivity.beforeSources.rawValue,
             true,
             0)
-        { [events, peekGate, callback] _, _ in
+        { [events, peekGate, callback, trackingState] _, _ in
             MainActor.assumeIsolated {
+                guard trackingState.isTrackingActive else { return }
                 guard peekGate.shouldPeek() else { return }
                 var foundEvent = false
                 var blockedByUnhandledEvent = false
                 while let event = NSApp.nextEvent(
                     matching: events,
                     until: .distantPast,
-                    inMode: .eventTracking,
+                    inMode: Self.peekMode,
                     dequeue: false)
                 {
                     foundEvent = true
@@ -110,7 +133,7 @@ final class ProviderSwitcherShortcutEventMonitor {
                     _ = NSApp.nextEvent(
                         matching: events,
                         until: .distantPast,
-                        inMode: .eventTracking,
+                        inMode: Self.peekMode,
                         dequeue: true)
                 }
                 if !blockedByUnhandledEvent {
@@ -133,15 +156,71 @@ final class ProviderSwitcherShortcutEventMonitor {
             self.observer,
             CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString))
         self.isActive = true
+        // The menus this monitors are shown via `popUpMenuPositioningItem`, which posts no
+        // NSMenu tracking notifications. Arm the gate from a block queued in the tracking
+        // run-loop mode instead: it can only execute once the menu's tracking session is alive
+        // and pumping the run loop, which keeps peeks away from menu setup.
+        let trackingState = self.trackingState
+        RunLoop.main.perform(inModes: [.eventTracking]) {
+            MainActor.assumeIsolated {
+                trackingState.isTrackingActive = true
+            }
+        }
+        CFRunLoopWakeUp(CFRunLoopGetMain())
     }
 
     func stop() {
+        self.trackingState.isTrackingActive = false
         guard self.isActive else { return }
         CFRunLoopRemoveObserver(
             RunLoop.main.getCFRunLoop(),
             self.observer,
             CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString))
         self.isActive = false
+    }
+}
+
+/// Tracks whether an `NSMenu` tracking session is currently alive, so the shortcut monitor
+/// only touches the event queue while AppKit is actually pumping it.
+@MainActor
+private final class ProviderSwitcherMenuTrackingState {
+    var isTrackingActive = false
+}
+
+@MainActor
+private final class ProviderSwitcherTrackingRunLoopOperation {
+    private var operation: (@MainActor () -> Void)?
+
+    init(operation: @escaping @MainActor () -> Void) {
+        self.operation = operation
+    }
+
+    func run() {
+        guard let operation = self.operation else { return }
+        self.operation = nil
+        operation()
+    }
+}
+
+@MainActor
+enum ProviderSwitcherTrackingRunLoopScheduler {
+    static func schedule(_ operation: @escaping @MainActor () -> Void) {
+        let pending = ProviderSwitcherTrackingRunLoopOperation(operation: operation)
+        let runLoop = CFRunLoopGetMain()
+        // Main-actor tasks can starve while AppKit owns the modal menu loop. Queue in both modes so the
+        // rebuild runs during tracking, with the default mode as a fallback if tracking ends first.
+        let modes = [
+            RunLoop.Mode.eventTracking.rawValue,
+            RunLoop.Mode.default.rawValue,
+        ]
+        for mode in modes {
+            CFRunLoopPerformBlock(runLoop, mode as CFString) {
+                MainActor.assumeIsolated {
+                    pending.run()
+                }
+            }
+        }
+        CFRunLoopWakeUp(runLoop)
     }
 }
 
@@ -157,9 +236,7 @@ extension StatusItemController {
         self.removeProviderSwitcherShortcutMonitor()
         self.resetOverviewScrollAccumulation()
         let monitor = ProviderSwitcherShortcutEventMonitor(
-            events: [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .scrollWheel],
-            peekGate: ProviderSwitcherEventPeekGate(
-                eventTypes: [.keyDown, .keyUp, .leftMouseDown, .leftMouseUp, .scrollWheel]))
+            events: [.keyDown, .keyUp, .scrollWheel])
         { [weak self, weak menu] event in
             guard let self,
                   let menu,

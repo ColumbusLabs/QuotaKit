@@ -89,6 +89,35 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `amp balances are rendered in provider cards`() {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-amp-credits")
+        let store = Self.makeUsageStore(settings: settings)
+        let now = Date()
+
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 51.4,
+                    windowMinutes: 1440,
+                    resetsAt: now.addingTimeInterval(12 * 3600),
+                    resetDescription: nil),
+                secondary: nil,
+                ampUsage: AmpUsageDetails(
+                    individualCredits: 25.64,
+                    workspaceBalances: [AmpWorkspaceBalance(name: "billing@example.test", remaining: 10.22)]),
+                updatedAt: now),
+            provider: .amp)
+        let model = ProvidersPane(settings: settings, store: store)._test_menuCardModel(for: .amp)
+
+        #expect(model.creditsText == "Individual credits: $25.64\nWorkspace billing@example.test: $10.22")
+        #expect(model.creditsRemaining == nil)
+
+        settings.hidePersonalInfo = true
+        let redactedModel = ProvidersPane(settings: settings, store: store)._test_menuCardModel(for: .amp)
+        #expect(redactedModel.creditsText == "Individual credits: $25.64\nWorkspace Hidden: $10.22")
+    }
+
+    @Test
     func `account info caches codex auth parsing until config revision changes`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-account-info-cache")
         let home = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -125,6 +154,41 @@ struct UsageStoreCoverageTests {
 
         let store = Self.makeUsageStore(settings: settings)
         #expect(store.sourceLabel(for: .kilo) == "api")
+    }
+
+    @Test
+    func `clearing copilot budget extras syncs reset baseline`() {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-copilot-budget-clear")
+        let store = Self.makeUsageStore(settings: settings)
+        let live = Self.makeCopilotSnapshot(usedPercent: 20, extraRateWindows: [Self.makeCopilotBudgetWindow()])
+        let resetBaseline = Self.makeCopilotSnapshot(usedPercent: 10, extraRateWindows: nil)
+        store._setSnapshotForTesting(live, provider: .copilot)
+        store.lastKnownResetSnapshots[.copilot] = resetBaseline
+
+        store.clearCopilotBudgetExtras()
+
+        #expect(store.snapshot(for: .copilot)?.extraRateWindows == nil)
+        #expect(store.lastKnownResetSnapshots[.copilot]?.extraRateWindows == nil)
+        #expect(store.lastKnownResetSnapshots[.copilot]?.primary?.usedPercent == 20)
+    }
+
+    @Test
+    func `clearing copilot budget extras also clears stale reset baseline`() {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-copilot-budget-reset-clear")
+        let store = Self.makeUsageStore(settings: settings)
+        let live = Self.makeCopilotSnapshot(usedPercent: 20, extraRateWindows: nil)
+        let resetBaseline = Self.makeCopilotSnapshot(
+            usedPercent: 10,
+            extraRateWindows: [Self.makeCopilotBudgetWindow()])
+        store._setSnapshotForTesting(live, provider: .copilot)
+        store.lastKnownResetSnapshots[.copilot] = resetBaseline
+
+        store.clearCopilotBudgetExtras()
+
+        #expect(store.snapshot(for: .copilot)?.extraRateWindows == nil)
+        #expect(store.snapshot(for: .copilot)?.primary?.usedPercent == 20)
+        #expect(store.lastKnownResetSnapshots[.copilot]?.extraRateWindows == nil)
+        #expect(store.lastKnownResetSnapshots[.copilot]?.primary?.usedPercent == 10)
     }
 
     @Test
@@ -705,6 +769,24 @@ struct UsageStoreCoverageTests {
             .replacingOccurrences(of: "=", with: "")
             .replacingOccurrences(of: "+", with: "-")
             .replacingOccurrences(of: "/", with: "_")
+    }
+
+    private static func makeCopilotSnapshot(
+        usedPercent: Double,
+        extraRateWindows: [NamedRateWindow]?) -> UsageSnapshot
+    {
+        UsageSnapshot(
+            primary: RateWindow(usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            extraRateWindows: extraRateWindows,
+            updatedAt: Date(timeIntervalSince1970: 1_780_358_400))
+    }
+
+    private static func makeCopilotBudgetWindow() -> NamedRateWindow {
+        NamedRateWindow(
+            id: "copilot-budget-test",
+            title: "Budget - Copilot",
+            window: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil))
     }
 
     private static func enableOnly(_ enabledProvider: UsageProvider, settings: SettingsStore) throws {
