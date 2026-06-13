@@ -34,9 +34,9 @@ browser session when the CLI surface does not expose billing.
    - POSTs an empty gRPC-web protobuf request to
      `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig`.
    - Uses grok.com browser session cookies. When a non-expired
-     `~/.grok/auth.json` token is available, CodexBar first sends it with each
+     `~/.grok/auth.json` token is available, QuotaKit first sends it with each
      browser session, then retries that session with cookies only.
-   - CodexBar imports Chrome only by default to avoid unrelated browser
+   - QuotaKit imports Chrome only by default to avoid unrelated browser
      Keychain prompts.
    - CLI/test runtime does not import browser cookies unless
      `CODEXBAR_ALLOW_BROWSER_COOKIE_IMPORT=1` is set.

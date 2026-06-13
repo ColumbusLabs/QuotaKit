@@ -16,12 +16,12 @@ Antigravity supports three usage data sources:
 3. Google OAuth-backed remote usage (final fallback, and the source used for multi-account switching). The OAuth path can store multiple Google accounts through the shared token-account switcher.
 
 The local and CLI paths both prefer Antigravity's internal `GetUserStatus` quota payload and may fall back to
-`GetCommandModelConfigs`; CodexBar never scrapes the desktop UI or the `agy` TUI.
+`GetCommandModelConfigs`; QuotaKit never scrapes the desktop UI or the `agy` TUI.
 
 ## OAuth account switching
 
 - Login still uses Antigravity's Google OAuth client, discovered from `Antigravity.app` or overridden with `ANTIGRAVITY_OAUTH_CLIENT_ID` and `ANTIGRAVITY_OAUTH_CLIENT_SECRET`.
-- A successful login writes the latest shared credentials to `~/.codexbar/antigravity/oauth_creds.json` and upserts a token-account entry for the Google account.
+- A successful login writes the latest shared credentials to the app's compatibility credentials store and upserts a token-account entry for the Google account.
 - Each token-account entry stores serialized `AntigravityOAuthCredentials` and is injected into remote fetches through `ANTIGRAVITY_OAUTH_CREDENTIALS_JSON`.
 - When a token account is selected, the OAuth fetcher uses that account before falling back to the shared credentials file.
   In `auto` mode the ambient local desktop and `agy` CLI probes still run first, but a snapshot whose account does not
@@ -86,7 +86,7 @@ When the Antigravity desktop app is running:
 
 ### 2) `agy` CLI HTTPS source
 
-When source mode is `auto` or `cli` and the desktop local probe fails, CodexBar resolves `agy` via:
+When source mode is `auto` or `cli` and the desktop local probe fails, QuotaKit resolves `agy` via:
 
 - `ANTIGRAVITY_CLI_PATH`
 - `PATH` / login-shell path lookup
@@ -107,12 +107,12 @@ The fallback can return quota without the account email or plan fields from `Get
 Differences from the desktop local probe:
 
 - The CLI HTTPS endpoint does **not** require `X-Codeium-Csrf-Token`.
-- Readiness is endpoint-based: CodexBar retries until one of the quota endpoints parses, because fresh `agy`
+- Readiness is endpoint-based: QuotaKit retries until one of the quota endpoints parses, because fresh `agy`
   processes can bind a port before the quota service is initialized.
 - App runtime uses a bounded warm session: `agy` is kept alive briefly after a refresh, then stopped on idle. CLI runtime
   tears it down immediately after the one-shot fetch.
 - Repeated endpoint failures force a relaunch instead of reusing a wedged process forever.
-- CodexBar records the launched pid + executable identity and conservatively reaps only its own matching stale `agy`
+- QuotaKit records the launched pid + executable identity and conservatively reaps only its own matching stale `agy`
   process on the next launch. It never blind-kills a user-launched `agy`.
 
 ### 3) OAuth remote fallback
@@ -149,7 +149,7 @@ When source mode is `oauth`, only OAuth is used.
   - Labels: `Claude` (primary), `Gemini Pro` (secondary), `Gemini Flash` (tertiary)
 - Status badge: Google Workspace incidents for the Gemini product.
 - Antigravity has independent Claude, Gemini Pro, Gemini Flash, and additional model-specific quota windows such as
-  GPT-OSS. In automatic menu-bar/highest-usage selection, CodexBar treats the provider as exhausted only when the
+  GPT-OSS. In automatic menu-bar/highest-usage selection, QuotaKit treats the provider as exhausted only when the
   displayed Claude/Gemini summary lanes are exhausted; additional model windows remain visible in detailed usage
   breakdowns.
 - Some Antigravity local/CLI model config entries include reset metadata but omit `remainingFraction`. Those windows stay

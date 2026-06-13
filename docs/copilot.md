@@ -17,12 +17,12 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
    - Token polling:
      - `POST https://github.com/login/oauth/access_token`
    - Optional enterprise host:
-     - set Copilot `enterpriseHost` in `~/.codexbar/config.json` or the provider settings UI
-     - CodexBar normalizes values such as `https://octocorp.ghe.com/login` to `octocorp.ghe.com`
+     - set Copilot `enterpriseHost` in `~/.quotakit/config.json` or the provider settings UI
+     - QuotaKit normalizes values such as `https://octocorp.ghe.com/login` to `octocorp.ghe.com`
      - device flow uses `https://<enterpriseHost>/login/...`
    - Scope: `read:user`.
    - Token stored in config:
-     - `~/.codexbar/config.json` → `providers[].apiKey` for `copilot`
+     - `~/.quotakit/config.json` -> `providers[].apiKey` for `copilot`
      - token accounts use `providers[].tokenAccounts`
 
 2) **Usage fetch**
@@ -37,9 +37,9 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
      - `X-Github-Api-Version: 2025-04-01`
 
 3) **Budget fetch** (optional GitHub web endpoint, best-effort)
-   - Disabled by default. The Copilot provider's "Budget extras" setting must be enabled before CodexBar imports
+   - Disabled by default. The Copilot provider's "Budget extras" setting must be enabled before QuotaKit imports
      github.com cookies or renders budget bars.
-   - CodexBar asks the logged-in GitHub web endpoint for customer-scope budgets:
+   - QuotaKit asks the logged-in GitHub web endpoint for customer-scope budgets:
      - `GET https://github.com/settings/billing/budgets?page=<page>&page_size=10&scope=customer`
    - Headers:
      - `Cookie: <github.com browser cookies>`
@@ -47,8 +47,8 @@ Copilot uses GitHub OAuth device flow and the Copilot internal usage API for pri
      - `X-Requested-With: XMLHttpRequest`
      - `GitHub-Verified-Fetch: true`
      - `X-Fetch-Nonce: <fresh nonce when available>`
-   - CodexBar first tries to read a fresh nonce from `https://github.com/settings/billing/budgets`, then calls the JSON
-     endpoint. If GitHub rejects the web request, CodexBar keeps the normal Copilot quota bars and omits budget bars.
+   - QuotaKit first tries to read a fresh nonce from `https://github.com/settings/billing/budgets`, then calls the JSON
+     endpoint. If GitHub rejects the web request, QuotaKit keeps the normal Copilot quota bars and omits budget bars.
    - This is intentionally not the public GitHub REST billing API. The REST API did not expose the personal budget list
      for the tested individual account.
 

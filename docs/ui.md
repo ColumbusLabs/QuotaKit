@@ -51,7 +51,7 @@ window has elapsed.
 
 ## Preferences notes
 - Advanced: “Disable Keychain access” turns off browser cookie import; paste Cookie headers manually in Providers.
-- Advanced: “Show provider storage usage” enables background scans of known provider-owned local paths; CodexBar only
+- Advanced: “Show provider storage usage” enables background scans of known provider-owned local paths; QuotaKit only
   reports sizes and cleanup ideas, it does not delete files.
 - Display: “Overview tab providers” controls which providers appear in Merge Icons → Overview (up to 3).
 - If no providers are selected for Overview, the Overview tab is hidden.

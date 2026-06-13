@@ -54,7 +54,7 @@ Manual option:
 - Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
 
 ## Local storage footprint
-When **Settings → Advanced → Track provider local storage** is enabled, CodexBar measures:
+When **Settings -> Advanced -> Track provider local storage** is enabled, QuotaKit measures:
 - `~/Library/Application Support/Cursor`
 - `~/Library/Application Support/Caches/cursor-updater`
 - `~/.cursor`
@@ -64,7 +64,7 @@ When **Settings → Advanced → Track provider local storage** is enabled, Code
 - `~/Library/Caches/cursor-compile-cache`
 - `~/Library/HTTPStorages/com.todesktop.230313mzl4w4u92`
 
-The storage detail lists measured paths and their sizes. CodexBar does not delete Cursor data.
+The storage detail lists measured paths and their sizes. QuotaKit does not delete Cursor data.
 
 ## Snapshot mapping
 - Primary: plan usage percent (included plan).
