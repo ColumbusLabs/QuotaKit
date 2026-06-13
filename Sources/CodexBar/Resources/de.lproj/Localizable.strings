@@ -302,7 +302,7 @@
 "Subscription Utilization" = "Abonnementnutzung";
 "Surprise me" = "Überrasche mich";
 "Switcher shows icons" = "Switcher zeigt Symbole an";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als Codexbar.";
+"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als quotakit.";
 "System" = "System";
 "terminal_app_subtitle" = "Terminal für die Aktion „Terminal öffnen“";
 "terminal_app_title" = "Standardterminal";
@@ -528,7 +528,7 @@
 "open_menu_shortcut_title" = "Menü öffnen";
 "open_menu_shortcut_subtitle" = "Lösen Sie das Menü der Menüleiste von überall aus aus.";
 "install_cli" = "CLI installieren";
-"install_cli_subtitle" = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als Codexbar.";
+"install_cli_subtitle" = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als quotakit.";
 "cli_not_found" = "QuotaKitCLI wurde im App-Bundle nicht gefunden.";
 "no_writable_bin_dirs" = "Keine beschreibbaren Bin-Verzeichnisse gefunden.";
 "show_debug_settings_title" = "Debug-Einstellungen anzeigen";
