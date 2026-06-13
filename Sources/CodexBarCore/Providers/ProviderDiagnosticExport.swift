@@ -102,11 +102,15 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
             windows.append(ProviderDiagnosticRateWindow(label: "tertiary", window: tertiary))
         }
         for extra in snapshot.extraRateWindows ?? [] {
-            windows.append(ProviderDiagnosticRateWindow(label: extra.title, window: extra.window))
+            windows.append(ProviderDiagnosticRateWindow(
+                label: extra.title,
+                window: extra.window,
+                usageKnown: extra.usageKnown))
         }
 
         var providerSpecificData: [String] = []
         if snapshot.kiroUsage != nil { providerSpecificData.append("kiroUsage") }
+        if snapshot.ampUsage != nil { providerSpecificData.append("ampUsage") }
         if snapshot.zaiUsage != nil { providerSpecificData.append("zaiUsage") }
         if snapshot.minimaxUsage != nil { providerSpecificData.append("minimaxUsage") }
         if snapshot.deepseekUsage != nil { providerSpecificData.append("deepseekUsage") }
@@ -132,14 +136,50 @@ public struct ProviderDiagnosticRateWindow: Codable, Sendable {
     public let resetsAt: Date?
     public let hasResetDescription: Bool
     public let nextRegenPercent: Double?
+    public let usageKnown: Bool
 
-    public init(label: String, window: RateWindow) {
+    private enum CodingKeys: String, CodingKey {
+        case label
+        case usedPercent
+        case windowMinutes
+        case resetsAt
+        case hasResetDescription
+        case nextRegenPercent
+        case usageKnown
+    }
+
+    public init(label: String, window: RateWindow, usageKnown: Bool = true) {
         self.label = label
         self.usedPercent = window.usedPercent
         self.windowMinutes = window.windowMinutes
         self.resetsAt = window.resetsAt
         self.hasResetDescription = window.resetDescription?.isEmpty == false
         self.nextRegenPercent = window.nextRegenPercent
+        self.usageKnown = usageKnown
+    }
+
+    public init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+        self.label = try container.decode(String.self, forKey: .label)
+        self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
+        self.windowMinutes = try container.decodeIfPresent(Int.self, forKey: .windowMinutes)
+        self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
+        self.hasResetDescription = try container.decode(Bool.self, forKey: .hasResetDescription)
+        self.nextRegenPercent = try container.decodeIfPresent(Double.self, forKey: .nextRegenPercent)
+        self.usageKnown = try container.decodeIfPresent(Bool.self, forKey: .usageKnown) ?? true
+    }
+
+    public func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+        try container.encode(self.label, forKey: .label)
+        try container.encode(self.usedPercent, forKey: .usedPercent)
+        try container.encodeIfPresent(self.windowMinutes, forKey: .windowMinutes)
+        try container.encodeIfPresent(self.resetsAt, forKey: .resetsAt)
+        try container.encode(self.hasResetDescription, forKey: .hasResetDescription)
+        try container.encodeIfPresent(self.nextRegenPercent, forKey: .nextRegenPercent)
+        if !self.usageKnown {
+            try container.encode(false, forKey: .usageKnown)
+        }
     }
 }
 

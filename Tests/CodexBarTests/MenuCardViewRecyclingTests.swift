@@ -239,6 +239,51 @@ extension StatusMenuTests {
     }
 
     @Test
+    func `cached provider content swap preserves both item sets for switch back`() {
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        let controller = self.makeRecyclingController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let switcher = NSMenuItem(title: "Switcher", action: nil, keyEquivalent: "")
+        let outgoing = [
+            NSMenuItem(title: "Overview Card", action: nil, keyEquivalent: ""),
+            NSMenuItem.separator(),
+            NSMenuItem(title: "Overview Action", action: nil, keyEquivalent: ""),
+        ]
+        let incoming = [
+            NSMenuItem(title: "Codex Card", action: nil, keyEquivalent: ""),
+            NSMenuItem.separator(),
+            NSMenuItem(title: "Codex Usage", action: nil, keyEquivalent: ""),
+            NSMenuItem(title: "Codex Settings", action: nil, keyEquivalent: ""),
+        ]
+        let menu = NSMenu()
+        menu.addItem(switcher)
+        outgoing.forEach(menu.addItem)
+
+        let displacedOutgoing = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 1,
+            with: incoming)
+
+        #expect(menu.items.first === switcher)
+        #expect(menu.items.dropFirst().map(\.title) == ["Codex Card", "", "Codex Usage", "Codex Settings"])
+        #expect(Array(menu.items[1...3]).map(ObjectIdentifier.init) == outgoing.map(ObjectIdentifier.init))
+        #expect(displacedOutgoing.map(ObjectIdentifier.init) == incoming.prefix(3).map(ObjectIdentifier.init))
+        #expect(displacedOutgoing.map(\.title) == ["Overview Card", "", "Overview Action"])
+
+        let displacedIncoming = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 1,
+            with: displacedOutgoing)
+
+        #expect(Array(menu.items.dropFirst()).map(ObjectIdentifier.init) == outgoing.map(ObjectIdentifier.init))
+        #expect(displacedIncoming.map(ObjectIdentifier.init) == incoming.map(ObjectIdentifier.init))
+        #expect(displacedIncoming.allSatisfy { $0.menu == nil })
+        #expect(displacedIncoming.map(\.title) == ["Codex Card", "", "Codex Usage", "Codex Settings"])
+    }
+
+    @Test
     func `reconcile preserves highlight on a retained custom action row`() {
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false

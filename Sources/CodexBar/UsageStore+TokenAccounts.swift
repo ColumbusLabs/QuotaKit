@@ -701,7 +701,10 @@ extension UsageStore {
                     self.settings.stepfunToken = token
                 }
             },
-            costUsageHistoryDays: self.settings.costUsageHistoryDays)
+            costUsageHistoryDays: self.settings.costUsageHistoryDays,
+            persistsCLISessions: true,
+            persistentCLISessionIdleWindow: ProviderRegistry.persistentCLISessionIdleWindow(
+                refreshInterval: self.settings.refreshFrequency.seconds))
     }
 
     func sourceMode(for provider: UsageProvider) -> ProviderSourceMode {
@@ -971,6 +974,7 @@ extension UsageStore {
             tertiary: snapshot.tertiary,
             extraRateWindows: snapshot.extraRateWindows,
             kiroUsage: snapshot.kiroUsage,
+            ampUsage: snapshot.ampUsage,
             providerCost: snapshot.providerCost,
             zaiUsage: snapshot.zaiUsage,
             minimaxUsage: snapshot.minimaxUsage,

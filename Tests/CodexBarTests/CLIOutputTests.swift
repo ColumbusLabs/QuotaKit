@@ -64,4 +64,35 @@ struct CLIOutputTests {
         #expect(text.contains("Usage: 1.2 agent hours · 150 tokens · 1,200 TTS chars"))
         #expect(text.contains("Period: 2026-05-10 to 2026-05-17"))
     }
+
+    @Test
+    func `text renderer includes amp credits without free tier usage`() {
+        let snapshot = AmpUsageSnapshot(
+            freeQuota: nil,
+            freeUsed: nil,
+            hourlyReplenishment: nil,
+            windowHours: nil,
+            individualCredits: 25.64,
+            workspaceBalances: [
+                AmpWorkspaceBalance(name: "Alpha Team", remaining: 1234.56),
+            ],
+            accountEmail: "paid@example.com",
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+
+        let text = CLIRenderer.renderText(
+            provider: .amp,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Amp (cli)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(text.contains("Individual credits: $25.64"))
+        #expect(text.contains("Workspace Alpha Team: $1,234.56"))
+        #expect(text.contains("Account: paid@example.com"))
+        #expect(!text.contains("Amp Free:"))
+    }
 }

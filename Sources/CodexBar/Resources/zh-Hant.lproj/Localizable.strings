@@ -201,7 +201,8 @@
 "Could not switch system account" = "無法切換系統帳號";
 
 "Credits" = "額度";
-
+"Individual credits" = "個人額度";
+"Workspace" = "工作區";
 "Credits history" = "額度歷史";
 
 "Cursor login failed" = "Cursor 登入失敗";
@@ -815,13 +816,13 @@
 "language_swedish" = "瑞典語";
 
 "language_dutch" = "Nederlands";
-
+"language_german" = "Deutsch";
 "language_french" = "法語";
 
 "language_ukrainian" = "烏克蘭語";
 
 "language_japanese" = "日語";
-
+"language_korean" = "韓語";
 "start_at_login_title" = "登入時啟動";
 
 "start_at_login_subtitle" = "登入 Mac 時自動開啟 QuotaKit。";
@@ -1223,13 +1224,13 @@
 "display_mode_pace" = "進度";
 
 "display_mode_both" = "兩者";
-
+"display_mode_reset_time" = "重置時間";
 "display_mode_percent_desc" = "顯示剩餘/已使用百分比（例如 45%）";
 
 "display_mode_pace_desc" = "顯示進度指示器（例如 +5%）";
 
 "display_mode_both_desc" = "同時顯示百分比和進度（例如 45% · +5%）";
-
+"display_mode_reset_time_desc" = "顯示所選指標的重置時間（例如 ↻ 3:56 PM）";
 "status_operational" = "運作正常";
 
 "status_partial_outage" = "部分服務中斷";
@@ -1870,3 +1871,4 @@
 "language_vietnamese" = "越南語";
 
 "Request quota: %@ / %@" = "請求額度：%@ / %@";
+"language_turkish" = "Türkçe";

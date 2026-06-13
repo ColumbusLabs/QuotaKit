@@ -99,6 +99,8 @@
 "Could not start codex login" = "codex login を開始できませんでした";
 "Could not switch system account" = "システムアカウントを切り替えられませんでした";
 "Credits" = "クレジット";
+"Individual credits" = "個人クレジット";
+"Workspace" = "ワークスペース";
 "Credits history" = "クレジット履歴";
 "Cursor login failed" = "Cursor のログインに失敗しました";
 "Custom" = "カスタム";
@@ -402,8 +404,10 @@
 "language_dutch" = "オランダ語";
 "language_swedish" = "スウェーデン語";
 "language_french" = "フランス語";
+"language_german" = "ドイツ語";
 "language_ukrainian" = "ウクライナ語";
 "language_japanese" = "日本語";
+"language_korean" = "韓国語";
 "start_at_login_title" = "ログイン時に起動";
 "start_at_login_subtitle" = "Mac の起動時に QuotaKit を自動的に開きます。";
 "show_cost_summary" = "コスト概要を表示";
@@ -622,9 +626,11 @@
 "display_mode_percent" = "パーセント";
 "display_mode_pace" = "ペース";
 "display_mode_both" = "両方";
+"display_mode_reset_time" = "リセット時刻";
 "display_mode_percent_desc" = "残り/使用済みのパーセンテージを表示（例: 45%）";
 "display_mode_pace_desc" = "ペースインジケータを表示（例: +5%）";
 "display_mode_both_desc" = "パーセンテージとペースの両方を表示（例: 45% · +5%）";
+"display_mode_reset_time_desc" = "選択した指標のリセット時刻を表示（例: ↻ 15:56）";
 
 /* Provider status */
 "status_operational" = "正常稼働中";
@@ -1067,3 +1073,4 @@
 "Search providers" = "プロバイダを検索";
 
 "language_vietnamese" = "ベトナム語";
+"language_turkish" = "Türkçe";

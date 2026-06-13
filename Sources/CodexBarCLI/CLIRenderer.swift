@@ -35,6 +35,7 @@ enum CLIRenderer {
             lines: &lines)
         self.appendTertiaryLines(snapshot: snapshot, labels: labels, context: context, now: now, lines: &lines)
         self.appendDeepgramLines(snapshot: snapshot, useColor: context.useColor, lines: &lines)
+        self.appendAmpBalanceLines(snapshot: snapshot, useColor: context.useColor, lines: &lines)
         self.appendLimitsUnavailableLine(
             provider: provider,
             snapshot: snapshot,
@@ -143,6 +144,26 @@ enum CLIRenderer {
             } else {
                 lines.append(self.labelValueLine("Usage", value: line, useColor: useColor))
             }
+        }
+    }
+
+    private static func appendAmpBalanceLines(
+        snapshot: UsageSnapshot,
+        useColor: Bool,
+        lines: inout [String])
+    {
+        guard let usage = snapshot.ampUsage else { return }
+        if let individualCredits = usage.individualCredits {
+            lines.append(self.labelValueLine(
+                "Individual credits",
+                value: UsageFormatter.currencyString(individualCredits, currencyCode: "USD"),
+                useColor: useColor))
+        }
+        for workspace in usage.workspaceBalances {
+            lines.append(self.labelValueLine(
+                "Workspace \(workspace.name)",
+                value: UsageFormatter.currencyString(workspace.remaining, currencyCode: "USD"),
+                useColor: useColor))
         }
     }
 

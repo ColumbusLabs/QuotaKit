@@ -162,6 +162,29 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertEqual(CodexBarCLI.mapError(UsageError.noRateLimitsFound), ExitCode(3))
     }
 
+    func test_antigravityPlanDebugKeepsOneShotHelperAliveUntilDebugFetch() {
+        XCTAssertTrue(CodexBarCLI.holdsAntigravityCLISessionForPlanDebug(
+            provider: .antigravity,
+            planDebugEnabled: true,
+            jsonOnly: false,
+            persistsCLISessions: false))
+        XCTAssertFalse(CodexBarCLI.holdsAntigravityCLISessionForPlanDebug(
+            provider: .codex,
+            planDebugEnabled: true,
+            jsonOnly: false,
+            persistsCLISessions: false))
+        XCTAssertFalse(CodexBarCLI.holdsAntigravityCLISessionForPlanDebug(
+            provider: .antigravity,
+            planDebugEnabled: true,
+            jsonOnly: true,
+            persistsCLISessions: false))
+        XCTAssertFalse(CodexBarCLI.holdsAntigravityCLISessionForPlanDebug(
+            provider: .antigravity,
+            planDebugEnabled: true,
+            jsonOnly: false,
+            persistsCLISessions: true))
+    }
+
     func test_missingCodexBinaryErrorPayloadUsesInstallGuidance() {
         let payload = CodexBarCLI.makeErrorPayload(CodexStatusProbeError.codexNotInstalled, kind: .provider)
 
@@ -282,15 +305,24 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .grok))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.web, provider: .grok))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.auto, provider: .amp))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(.api, provider: .kilo))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .ollama,
+            environment: ["OLLAMA_API_KEY": "ollama-test"]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .codex,
             environment: ["OLLAMA_API_KEY": "ollama-test"]))
         XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .ollama,
             settings: ProviderSettingsSnapshot.make(
                 ollama: .init(cookieSource: .off, manualCookieHeader: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .kimi,
+            environment: ["KIMI_CODE_API_KEY": "kimi-test"]))
     }
 }

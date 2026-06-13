@@ -197,7 +197,8 @@
 "Could not switch system account" = "Не вдалося змінити обліковий запис системи";
 
 "Credits" = "Кредити";
-
+"Individual credits" = "Особисті кредити";
+"Workspace" = "Робоча область";
 "Credits history" = "Кредитна історія";
 
 "Cursor login failed" = "Помилка входу в систему курсору";
@@ -795,7 +796,7 @@
 "language_chinese_traditional" = "繁體中文";
 
 "language_portuguese_brazilian" = "Português (Brasil)";
-
+"language_german" = "Deutsch";
 "language_swedish" = "Svenska";
 
 "language_french" = "Français";
@@ -805,9 +806,9 @@
 "language_ukrainian" = "Українська";
 
 "language_japanese" = "Японська";
-
+"language_korean" = "Корейська";
 "language_vietnamese" = "В'єтнамська";
-
+"language_turkish" = "Türkçe";
 "start_at_login_title" = "Почніть із входу";
 
 "start_at_login_subtitle" = "Автоматично відкриває QuotaKit під час запуску Mac.";
@@ -1227,12 +1228,13 @@
 "display_mode_pace" = "Темп";
 
 "display_mode_both" = "Обидва";
-
+"display_mode_reset_time" = "Час скидання";
 "display_mode_percent_desc" = "Показати залишок/використаний відсоток (наприклад, 45%)";
 
 "display_mode_pace_desc" = "Показати індикатор темпу (наприклад, +5%)";
 
 "display_mode_both_desc" = "Показати відсоток і темп (наприклад, 45% · +5%)";
+"display_mode_reset_time_desc" = "Показувати час скидання для вибраного показника (наприклад, ↻ 15:56)";
 
 
 /* Provider status */

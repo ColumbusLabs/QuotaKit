@@ -79,6 +79,51 @@ extension StatusItemController {
         }
     }
 
+    /// Replaces cached content without first emptying the tracked menu. Compatible item shells
+    /// stay attached while their payloads swap; only separator or row-count differences cause
+    /// structural mutations.
+    func replaceMenuContentKeepingRowsVisible(
+        _ menu: NSMenu,
+        fromIndex: Int,
+        with newItems: [NSMenuItem])
+        -> [NSMenuItem]
+    {
+        guard fromIndex >= 0, fromIndex <= menu.items.count else { return [] }
+        defer { self.finishReconciledHighlightTracking(in: menu) }
+
+        let liveItems = Array(menu.items[fromIndex...])
+        let liveCount = liveItems.count
+        let sharedCount = min(liveCount, newItems.count)
+        var displacedItems: [NSMenuItem] = []
+        displacedItems.reserveCapacity(liveCount)
+        for offset in 0..<sharedCount {
+            let index = fromIndex + offset
+            let liveItem = liveItems[offset]
+            let newItem = newItems[offset]
+            if liveItem.isSeparatorItem == newItem.isSeparatorItem {
+                if !liveItem.isSeparatorItem {
+                    self.swapMenuItemContents(liveItem, newItem)
+                }
+                displacedItems.append(newItem)
+            } else {
+                menu.insertItem(newItem, at: index)
+                menu.removeItem(liveItem)
+                displacedItems.append(liveItem)
+            }
+        }
+        if newItems.count > liveCount {
+            for offset in liveCount..<newItems.count {
+                menu.insertItem(newItems[offset], at: fromIndex + offset)
+            }
+        } else if liveCount > newItems.count {
+            for offset in newItems.count..<liveCount {
+                menu.removeItem(liveItems[offset])
+                displacedItems.append(liveItems[offset])
+            }
+        }
+        return displacedItems
+    }
+
     private func finishReconciledHighlightTracking(in menu: NSMenu) {
         let menuKey = ObjectIdentifier(menu)
         guard let highlightedItem = self.highlightedMenuItems[menuKey] else { return }
@@ -125,8 +170,23 @@ extension StatusItemController {
         liveItem.keyEquivalent = newItem.keyEquivalent
         liveItem.keyEquivalentModifierMask = newItem.keyEquivalentModifierMask
         liveItem.indentationLevel = newItem.indentationLevel
+        liveItem.tag = newItem.tag
+        liveItem.identifier = newItem.identifier
+        liveItem.isHidden = newItem.isHidden
+        liveItem.isAlternate = newItem.isAlternate
+        liveItem.allowsKeyEquivalentWhenHidden = newItem.allowsKeyEquivalentWhenHidden
+        liveItem.onStateImage = newItem.onStateImage
+        liveItem.offStateImage = newItem.offStateImage
+        liveItem.mixedStateImage = newItem.mixedStateImage
         if #available(macOS 14.4, *) {
             liveItem.subtitle = newItem.subtitle
         }
+    }
+
+    private func swapMenuItemContents(_ liveItem: NSMenuItem, _ cachedItem: NSMenuItem) {
+        let holder = NSMenuItem()
+        self.updateMenuItemInPlace(holder, from: liveItem)
+        self.updateMenuItemInPlace(liveItem, from: cachedItem)
+        self.updateMenuItemInPlace(cachedItem, from: holder)
     }
 }

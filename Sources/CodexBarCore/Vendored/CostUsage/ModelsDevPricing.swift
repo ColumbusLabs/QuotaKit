@@ -68,17 +68,36 @@ struct ModelsDevCatalog: Codable, Equatable {
         return self.providers[providerID]?.pricing(modelID: rawModelID)
     }
 
-    func containsProviderIDs(_ providerIDs: some Sequence<String>) -> Bool {
-        providerIDs.allSatisfy { self.providers.keys.contains(ModelsDevProvider.normalizeProviderID($0)) }
+    func isPlausibleRefresh() -> Bool {
+        // These are the direct pricing sources CodexBar relies on. Requiring both
+        // rejects empty/partial responses without comparing against a fallback-
+        // enriched cache that intentionally grows as models.dev churns.
+        ["anthropic", "openai"].allSatisfy { providerID in
+            self.providers[providerID]?.models.values.contains(where: \.isPriceable) == true
+        }
     }
 
-    func containsProviderModels(from cachedCatalog: ModelsDevCatalog) -> Bool {
-        cachedCatalog.providers.allSatisfy { providerID, cachedProvider in
-            guard let provider = self.providers[ModelsDevProvider.normalizeProviderID(providerID)] else { return false }
-            return cachedProvider.models.values
-                .filter(\.isPriceable)
-                .allSatisfy { provider.containsModel(matching: $0) }
+    func mergingFallbackPricing(from cachedCatalog: ModelsDevCatalog) -> ModelsDevCatalog {
+        var merged = self
+        for (providerID, cachedProvider) in cachedCatalog.providers {
+            let normalizedProviderID = ModelsDevProvider.normalizeProviderID(providerID)
+            guard var provider = merged.providers[normalizedProviderID] else {
+                merged.providers[normalizedProviderID] = cachedProvider
+                continue
+            }
+
+            for (modelKey, cachedModel) in cachedProvider.models
+                where cachedModel.isPriceable && !provider.containsPricedModel(
+                    withStableIdentity: cachedModel.stableIdentity)
+            {
+                let fallbackKey = provider.models[modelKey] == nil
+                    ? modelKey
+                    : "codexbar-fallback:\(modelKey):\(cachedModel.normalizedID)"
+                provider.models[fallbackKey] = cachedModel
+            }
+            merged.providers[normalizedProviderID] = provider
         }
+        return merged
     }
 }
 
@@ -149,21 +168,21 @@ struct ModelsDevProvider: Codable, Equatable {
             {
                 return ModelsDevPricingLookup(pricing: pricing, normalizedModelID: candidate)
             }
-        }
 
-        for candidate in candidates {
-            if let match = self.models.values.first(where: { $0.normalizedID == candidate }),
-               let pricing = match.pricing(providerID: self.id ?? self.mapKey ?? "", providerName: self.name)
-            {
-                return ModelsDevPricingLookup(pricing: pricing, normalizedModelID: match.normalizedID)
+            for match in self.models.values where match.normalizedID == candidate {
+                if let pricing = match.pricing(providerID: self.id ?? self.mapKey ?? "", providerName: self.name) {
+                    return ModelsDevPricingLookup(pricing: pricing, normalizedModelID: match.normalizedID)
+                }
             }
         }
 
         return nil
     }
 
-    func containsModel(matching cachedModel: ModelsDevModel) -> Bool {
-        self.pricing(modelID: cachedModel.id) != nil
+    func containsPricedModel(withStableIdentity modelID: String) -> Bool {
+        self.models.values.contains { model in
+            model.isPriceable && model.stableIdentity == modelID
+        }
     }
 }
 
@@ -175,6 +194,10 @@ struct ModelsDevModel: Codable, Equatable {
 
     var normalizedID: String {
         ModelsDevModelIDNormalizer.normalize(self.id)
+    }
+
+    var stableIdentity: String {
+        ModelsDevModelIDNormalizer.stableIdentity(self.id)
     }
 
     var isPriceable: Bool {
@@ -244,7 +267,29 @@ enum ModelsDevModelIDNormalizer {
         raw.trimmingCharacters(in: .whitespacesAndNewlines)
     }
 
-    static func candidates(_ raw: String) -> [String] {
+    static func stableIdentity(_ raw: String) -> String {
+        let normalized = self.normalize(raw)
+        if let atSign = normalized.firstIndex(of: "@") {
+            let base = String(normalized[..<atSign])
+            let suffix = String(normalized[normalized.index(after: atSign)...])
+            if suffix.range(of: #"^\d{8}$"#, options: .regularExpression) != nil {
+                return "\(self.canonicalAliasIdentity(base))-\(suffix)"
+            }
+        }
+
+        return self.canonicalAliasIdentity(normalized)
+    }
+
+    private static func canonicalAliasIdentity(_ raw: String) -> String {
+        self.candidates(raw, preserveDatedSnapshots: true).reversed().lazy
+            .map { candidate in
+                guard candidate.hasSuffix("@default") else { return candidate }
+                return String(candidate.dropLast("@default".count))
+            }
+            .first { !$0.isEmpty } ?? self.normalize(raw)
+    }
+
+    static func candidates(_ raw: String, preserveDatedSnapshots: Bool = false) -> [String] {
         var candidates: [String] = []
 
         func append(_ value: String) {
@@ -278,20 +323,22 @@ enum ModelsDevModelIDNormalizer {
             let candidate = candidates[index]
             if let atSign = candidate.firstIndex(of: "@") {
                 let base = String(candidate[..<atSign])
-                append(base)
                 let suffix = String(candidate[candidate.index(after: atSign)...])
                 if suffix.range(of: #"^\d{8}$"#, options: .regularExpression) != nil {
                     append("\(base)-\(suffix)")
                 }
+                append(base)
             } else if candidate.hasPrefix("claude-") {
                 append("\(candidate)@default")
             }
 
-            if let dated = candidate.range(of: #"-\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) {
-                append(String(candidate[..<dated.lowerBound]))
-            }
-            if let compactDate = candidate.range(of: #"-\d{8}$"#, options: .regularExpression) {
-                append(String(candidate[..<compactDate.lowerBound]))
+            if !preserveDatedSnapshots {
+                if let dated = candidate.range(of: #"-\d{4}-\d{2}-\d{2}$"#, options: .regularExpression) {
+                    append(String(candidate[..<dated.lowerBound]))
+                }
+                if let compactDate = candidate.range(of: #"-\d{8}$"#, options: .regularExpression) {
+                    append(String(candidate[..<compactDate.lowerBound]))
+                }
             }
             if let version = candidate.range(of: #"-v\d+:\d+$"#, options: .regularExpression) {
                 var base = candidate
@@ -553,12 +600,10 @@ enum ModelsDevPricingPipeline {
 
         do {
             let catalog = try await client.fetchCatalog()
-            if let oldCatalog = load.artifact?.catalog,
-               !catalog.containsProviderModels(from: oldCatalog)
-            {
-                return
-            }
-            ModelsDevCache.save(catalog: catalog, fetchedAt: now, cacheRoot: cacheRoot)
+            let oldCatalog = load.artifact?.catalog
+            guard catalog.isPlausibleRefresh() else { return }
+            let refreshedCatalog = oldCatalog.map { catalog.mergingFallbackPricing(from: $0) } ?? catalog
+            ModelsDevCache.save(catalog: refreshedCatalog, fetchedAt: now, cacheRoot: cacheRoot)
         } catch {
             // Best-effort refresh only. Future scanner integration should keep using the last valid cache.
         }

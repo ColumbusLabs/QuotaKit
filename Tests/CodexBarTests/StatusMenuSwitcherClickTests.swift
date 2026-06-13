@@ -748,7 +748,7 @@ struct StatusMenuSwitcherClickTests {
     }
 
     @Test
-    func `switcher keeps reserved quota space when remaining becomes unavailable`() throws {
+    func `switcher keeps stable height when remaining becomes unavailable`() throws {
         var grokRemaining: Double? = 50
         let noQuotaView = ProviderSwitcherView(
             providers: [.claude, .grok],
@@ -896,13 +896,21 @@ struct StatusMenuSwitcherClickTests {
         view.layoutSubtreeIfNeeded()
 
         // All buttons must stay within switcher bounds (no vertical overflow).
-        for frame in view._test_buttonFrames() {
+        let buttonFrames = view._test_buttonFrames()
+        let contentFrames = view._test_buttonContentFrames()
+        let trackFrames = view._test_quotaIndicatorTrackFrames()
+        for (frame, contentFrame) in zip(buttonFrames, contentFrames) {
             #expect(frame.minY >= 0)
             #expect(frame.maxY <= view.bounds.maxY)
+            #expect(abs((contentFrame?.midY ?? -1) - frame.height / 2) <= 0.5)
+        }
+        for (buttonFrame, trackFrame) in zip(buttonFrames.dropFirst(), trackFrames) {
+            #expect(trackFrame.minY >= buttonFrame.minY)
+            #expect(trackFrame.maxY <= buttonFrame.maxY)
         }
 
         #expect(view._test_rowCount() == 4)
-        #expect(view._test_rowHeight() == 44)
-        #expect(view.bounds.height == 188)
+        #expect(view._test_rowHeight() == 39)
+        #expect(view.bounds.height == 168)
     }
 }

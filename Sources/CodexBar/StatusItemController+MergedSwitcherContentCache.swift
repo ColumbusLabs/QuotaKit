@@ -24,6 +24,13 @@ struct CachedMergedSwitcherMenuContent {
     }
 }
 
+struct MergedSwitcherContentCacheContext {
+    let menuWidth: CGFloat
+    let codexAccountDisplay: CodexAccountMenuDisplay?
+    let tokenAccountDisplay: TokenAccountMenuDisplay?
+    let contentVersion: Int?
+}
+
 extension StatusItemController {
     func preservingMergedSwitcherContentCachesDuringInvalidation(_ body: () -> Void) {
         let previous = self.preservesMergedSwitcherContentCachesDuringInvalidation
@@ -51,33 +58,48 @@ extension StatusItemController {
         guard menu.items.first?.view is ProviderSwitcherView else { return }
         guard contentStartIndex < menu.items.count else { return }
         let items = Array(menu.items[contentStartIndex...])
+        self.cacheMergedSwitcherContent(
+            items,
+            in: menu,
+            selection: selection,
+            context: MergedSwitcherContentCacheContext(
+                menuWidth: menuWidth,
+                codexAccountDisplay: self.lastCodexAccountMenuDisplay,
+                tokenAccountDisplay: self.lastTokenAccountMenuDisplay,
+                contentVersion: contentVersion))
+    }
+
+    func cacheMergedSwitcherContent(
+        _ items: [NSMenuItem],
+        in menu: NSMenu,
+        selection: ProviderSwitcherSelection,
+        context: MergedSwitcherContentCacheContext)
+    {
         guard !items.isEmpty else { return }
 
         let entry = CachedMergedSwitcherMenuContent(
-            requiredMenuContentVersion: contentVersion ??
+            requiredMenuContentVersion: context.contentVersion ??
                 self.menuVersions[ObjectIdentifier(menu)] ??
                 self.latestRequiredMenuRebuildVersion,
-            menuWidth: menuWidth,
-            codexAccountDisplay: self.lastCodexAccountMenuDisplay,
-            tokenAccountDisplay: self.lastTokenAccountMenuDisplay,
+            menuWidth: context.menuWidth,
+            codexAccountDisplay: context.codexAccountDisplay,
+            tokenAccountDisplay: context.tokenAccountDisplay,
             localizationSignature: self.lastMenuLocalizationSignature,
             items: items)
         self.mergedSwitcherContentCaches[ObjectIdentifier(menu), default: [:]][selection] = entry
     }
 
-    /// Non-consuming variant of `addCachedMergedSwitcherContent`'s lookup: reports whether a
-    /// reusable entry exists (evicting it when stale) without attaching anything, so callers
-    /// can choose between reattaching cached content and recycling the outgoing views.
-    func hasReusableMergedSwitcherContent(
+    /// Returns a reusable cached content block, evicting stale entries without attaching them.
+    func reusableMergedSwitcherContent(
         for selection: ProviderSwitcherSelection,
         in menu: NSMenu,
         menuWidth: CGFloat,
         codexAccountDisplay: CodexAccountMenuDisplay?,
         tokenAccountDisplay: TokenAccountMenuDisplay?)
-        -> Bool
+        -> [NSMenuItem]?
     {
         let key = ObjectIdentifier(menu)
-        guard let entry = self.mergedSwitcherContentCaches[key]?[selection] else { return false }
+        guard let entry = self.mergedSwitcherContentCaches[key]?[selection] else { return nil }
         guard entry.matches(
             requiredMenuContentVersion: self.latestRequiredMenuRebuildVersion,
             menuWidth: menuWidth,
@@ -86,9 +108,9 @@ extension StatusItemController {
             localizationSignature: self.menuLocalizationSignature())
         else {
             self.mergedSwitcherContentCaches[key]?.removeValue(forKey: selection)
-            return false
+            return nil
         }
-        return true
+        return entry.items
     }
 
     func addCachedMergedSwitcherContent(
@@ -99,22 +121,17 @@ extension StatusItemController {
         tokenAccountDisplay: TokenAccountMenuDisplay?)
         -> Bool
     {
-        let key = ObjectIdentifier(menu)
-        guard let entry = self.mergedSwitcherContentCaches[key]?[selection] else { return false }
-        guard entry.matches(
-            requiredMenuContentVersion: self.latestRequiredMenuRebuildVersion,
+        guard let items = self.reusableMergedSwitcherContent(
+            for: selection,
+            in: menu,
             menuWidth: menuWidth,
             codexAccountDisplay: codexAccountDisplay,
-            tokenAccountDisplay: tokenAccountDisplay,
-            localizationSignature: self.menuLocalizationSignature())
-        else {
-            self.mergedSwitcherContentCaches[key]?.removeValue(forKey: selection)
-            return false
-        }
+            tokenAccountDisplay: tokenAccountDisplay)
+        else { return false }
 
         self.lastCodexAccountMenuDisplay = codexAccountDisplay
         self.lastTokenAccountMenuDisplay = tokenAccountDisplay
-        for item in entry.items {
+        for item in items {
             menu.addItem(item)
         }
         return true

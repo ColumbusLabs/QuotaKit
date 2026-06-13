@@ -46,6 +46,50 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `diagnostic export marks named windows with unknown usage`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let summary = ProviderDiagnosticUsageSummary(from: UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "nebula-window",
+                    title: "Nebula Window",
+                    window: RateWindow(
+                        usedPercent: 100,
+                        windowMinutes: nil,
+                        resetsAt: now.addingTimeInterval(3600),
+                        resetDescription: nil),
+                    usageKnown: false),
+            ],
+            updatedAt: now))
+
+        let json = try self.json(summary)
+        let object = try #require(
+            JSONSerialization.jsonObject(with: Data(json.utf8)) as? [String: Any])
+        let windows = try #require(object["windows"] as? [[String: Any]])
+
+        #expect(windows.first?["usageKnown"] as? Bool == false)
+    }
+
+    @Test
+    func `diagnostic rate window defaults legacy payloads to known usage`() throws {
+        let json = """
+        {
+          "label": "Legacy Window",
+          "usedPercent": 42,
+          "hasResetDescription": false
+        }
+        """
+
+        let window = try JSONDecoder().decode(
+            ProviderDiagnosticRateWindow.self,
+            from: Data(json.utf8))
+
+        #expect(window.usageKnown)
+    }
+
+    @Test
     func `raw error text never appears in encoded JSON`() throws {
         let export = ProviderDiagnosticExport(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),

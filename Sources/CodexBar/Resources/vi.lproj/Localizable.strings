@@ -197,7 +197,8 @@
 "Could not switch system account" = "Không thể không chuyển đổi tài khoản hệ thống";
 
 "Credits" = "Tín dụng";
-
+"Individual credits" = "Tín dụng cá nhân";
+"Workspace" = "Không gian làm việc";
 "Credits history" = "Lịch sử tín dụng";
 
 "Cursor login failed" = "Đăng nhập con trỏ không thành công";
@@ -795,7 +796,7 @@
 "language_chinese_traditional" = "繁體中文";
 
 "language_portuguese_brazilian" = "Português (Brasil)";
-
+"language_german" = "Deutsch";
 "language_swedish" = "Svenska";
 
 "language_french" = "Tiếng Pháp";
@@ -805,7 +806,7 @@
 "language_ukrainian" = "Tiếng Ukraina";
 
 "language_japanese" = "Tiếng Nhật";
-
+"language_korean" = "Tiếng Hàn";
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 
 "start_at_login_subtitle" = "Tự động mở QuotaKit khi bạn khởi động máy Mac.";
@@ -1225,12 +1226,13 @@
 "display_mode_pace" = "Tốc độ";
 
 "display_mode_both" = "Cả hai";
-
+"display_mode_reset_time" = "Thời gian đặt lại";
 "display_mode_percent_desc" = "Hiển thị phần trăm còn lại/đã sử dụng (ví dụ: 45%)";
 
 "display_mode_pace_desc" = "Hiển thị chỉ báo tốc độ (ví dụ: +5%)";
 
 "display_mode_both_desc" = "Hiển thị cả phần trăm và tốc độ (ví dụ: 45% · +5%)";
+"display_mode_reset_time_desc" = "Hiển thị thời gian đặt lại của chỉ số đã chọn (ví dụ: ↻ 15:56)";
 
 
 /* Provider status */
@@ -2100,3 +2102,4 @@
 
 
 "language_vietnamese" = "Tiếng Việt";
+"language_turkish" = "Türkçe";

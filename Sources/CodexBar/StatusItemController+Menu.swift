@@ -56,15 +56,14 @@ extension StatusItemController {
         return self.makeBaseMenu()
     }
 
+    func menuNeedsUpdate(_ menu: NSMenu) {
+        guard self.shouldMergeIcons, menu === self.mergedMenu else { return }
+        self.refreshMenuForOpenIfNeeded(menu, provider: self.resolvedMenuProvider())
+    }
+
     func menuWillOpen(_ menu: NSMenu) {
-        let menuOpenStartedAt = CACurrentMediaTime()
-        defer {
-            self.logMenuOperationDurationIfSlow(
-                "menuWillOpen",
-                startedAt: menuOpenStartedAt,
-                menu: menu,
-                provider: self.menuProvider(for: menu))
-        }
+        let trace = self.beginMenuOperationTrace("menuWillOpen", breadcrumb: "menuWillOpen")
+        defer { self.endMenuOperationTrace(trace, menu: menu, provider: self.menuProvider(for: menu)) }
 
         self.cancelDeferredMenuInteractionRefreshTask()
         self.cancelClosedMenuRebuild(menu)
@@ -202,14 +201,10 @@ extension StatusItemController {
     }
 
     func populateMenu(_ menu: NSMenu, provider: UsageProvider?) {
-        let populateStartedAt = CACurrentMediaTime()
-        defer {
-            self.logMenuOperationDurationIfSlow(
-                "populateMenu",
-                startedAt: populateStartedAt,
-                menu: menu,
-                provider: provider)
-        }
+        let trace = self.beginMenuOperationTrace(
+            "populateMenu",
+            breadcrumb: "populateMenu:\(provider?.rawValue ?? "merged")")
+        defer { self.endMenuOperationTrace(trace, menu: menu, provider: provider) }
         defer { self.refreshMenuCardHeights(in: menu) }
 
         let enabledProviders = self.store.enabledProvidersForDisplay()
@@ -875,6 +870,11 @@ extension StatusItemController {
                 self?.performPersistentMenuAction(action, in: menu)
             })
 
+        if action == .refresh {
+            row.setInProgress(self.manualRefreshTask != nil || self.store.isRefreshing)
+            self.persistentRefreshRows.add(row)
+        }
+
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: shortcut?.key ?? "")
         item.keyEquivalentModifierMask = shortcut?.modifiers ?? NSEvent.ModifierFlags()
         item.isEnabled = true
@@ -1365,7 +1365,8 @@ extension StatusItemController {
             IconRemainingResolver.resolvedPercents(
                 snapshot: $0,
                 style: style,
-                showUsed: showUsed)
+                showUsed: showUsed,
+                secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
         }
         let primary = resolved?.primary
         var weekly = resolved?.secondary

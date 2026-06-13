@@ -77,6 +77,11 @@ extension UsageMenuCardView.Model {
         return lastError
     }
 
+    static func dashboardHint(error: String?) -> String? {
+        guard let error, !error.isEmpty else { return nil }
+        return error
+    }
+
     private static func hasLocalCodexTokenUsage(_ input: Input) -> Bool {
         input.provider == .codex &&
             input.tokenCostUsageEnabled &&
@@ -206,11 +211,26 @@ extension UsageMenuCardView.Model {
         if input.provider == .codex, !input.showOptionalCreditsAndExtraUsage {
             return []
         }
+        if input.provider == .copilot, !input.copilotBudgetExtrasEnabled {
+            return []
+        }
         return extraRateWindows.map { namedWindow in
             let paceDetail = Self.extraRateWindowPaceDetail(
                 provider: input.provider,
                 window: namedWindow.window,
                 input: input)
+            let usageKnown = namedWindow.usageKnown
+            let resetText = Self.resetText(
+                for: namedWindow.window,
+                style: input.resetTimeDisplayStyle,
+                now: input.now)
+            let statusText: String? = if usageKnown {
+                nil
+            } else if let resetText {
+                "\(L("Unavailable")) - \(resetText)"
+            } else {
+                L("Unavailable")
+            }
             return Metric(
                 id: namedWindow.id,
                 title: namedWindow.title,
@@ -219,14 +239,12 @@ extension UsageMenuCardView.Model {
                         ? namedWindow.window.usedPercent
                         : namedWindow.window.remainingPercent),
                 percentStyle: percentStyle,
-                resetText: Self.resetText(
-                    for: namedWindow.window,
-                    style: input.resetTimeDisplayStyle,
-                    now: input.now),
+                statusText: statusText,
+                resetText: usageKnown ? resetText : nil,
                 detailText: nil,
-                detailLeftText: paceDetail?.leftLabel,
-                detailRightText: paceDetail?.rightLabel,
-                pacePercent: paceDetail?.pacePercent,
+                detailLeftText: usageKnown ? paceDetail?.leftLabel : nil,
+                detailRightText: usageKnown ? paceDetail?.rightLabel : nil,
+                pacePercent: usageKnown ? paceDetail?.pacePercent : nil,
                 paceOnTop: paceDetail?.paceOnTop ?? true)
         }
     }

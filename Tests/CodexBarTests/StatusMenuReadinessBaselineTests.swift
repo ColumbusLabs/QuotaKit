@@ -129,7 +129,7 @@ extension StatusMenuTests {
     }
 
     @Test
-    func `merged presentation during in flight refresh preserves stale menu freshness`() {
+    func `native merged menu preparation during in flight refresh preserves stale menu freshness`() throws {
         self.disableMenuCardsForTesting()
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -137,6 +137,9 @@ extension StatusMenuTests {
         settings.mergeIcons = true
         settings.costUsageEnabled = true
         self.enableOnlyCodexForReadinessBaseline(settings)
+        if let claudeMetadata = ProviderRegistry.shared.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMetadata, enabled: true)
+        }
 
         let snapshotA = self.makeReadinessBaselineTokenSnapshot(
             sessionTokens: 111,
@@ -163,7 +166,9 @@ extension StatusMenuTests {
         defer { controller.releaseStatusItemsForTesting() }
         controller.menuRefreshEnabledOverrideForTesting = true
 
-        let menu = controller.prepareMergedMenuForPresentation()
+        let menu = try #require(controller.statusItem.menu)
+        #expect(menu === controller.mergedMenu)
+        controller.menuNeedsUpdate(menu)
         let key = ObjectIdentifier(menu)
         let preparedVersion = controller.menuVersions[key]
 
@@ -171,9 +176,8 @@ extension StatusMenuTests {
         store._setTokenSnapshotForTesting(snapshotB, provider: .codex)
         controller.invalidateMenus(allowStaleContentDuringDataRefresh: true)
 
-        let presentedMenu = controller.prepareMergedMenuForPresentation()
+        controller.menuNeedsUpdate(menu)
 
-        #expect(presentedMenu === menu)
         #expect(controller.menuVersions[key] == preparedVersion)
         #expect(controller.menuNeedsRefresh(menu))
     }
