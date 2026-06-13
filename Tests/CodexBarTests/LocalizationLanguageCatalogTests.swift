@@ -98,7 +98,7 @@ struct LocalizationLanguageCatalogTests {
         #expect(catalog["tab_general"] == "일반")
         #expect(catalog["quota_warning_session"] == "세션")
         #expect(catalog["quota_warning_warn_at"] == "경고 기준")
-        #expect(catalog["quit_app"] == "CodexBar 종료")
+        #expect(catalog["quit_app"] == "QuotaKit 종료")
     }
 
     @Test
@@ -116,7 +116,7 @@ struct LocalizationLanguageCatalogTests {
         #expect(Set(turkish.keys) == Set(english.keys))
         #expect(turkish["language_turkish"] == "Türkçe")
         #expect(turkish["tab_general"] == "Genel")
-        #expect(turkish["quit_app"] == "CodexBar'dan Çık")
+        #expect(turkish["quit_app"] == "QuotaKit'dan Çık")
         #expect(turkish["display_mode_percent_desc"]?.contains("%45") == true)
         #expect(turkish["session_depleted_notification_body"]?.hasPrefix("0% kaldı.") == true)
 

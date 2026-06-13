@@ -1,4 +1,4 @@
-/* Turkish localization for CodexBar */
+/* Turkish localization for QuotaKit */
 
 " providers" = " sağlayıcı";
 "(System)" = "(Sistem)";
@@ -79,7 +79,7 @@
 "Codex login failed" = "Codex girişi başarısız";
 "Codex login timed out" = "Codex girişi zaman aşımına uğradı";
 "CodexBar Lifecycle Keepalive" = "QuotaKit Yaşam Döngüsü Canlı Tutma";
-"CodexBar can't show its menu bar icon" = "QuotaKit menü çubuğu simgesini gösteremiyor";
+"QuotaKit can't show its menu bar icon" = "QuotaKit menü çubuğu simgesini gösteremiyor";
 "CodexBar could not read managed account storage. " = "QuotaKit yönetilen hesap depolamasını okuyamadı. ";
 "Configure…" = "Yapılandır…";
 "Connected" = "Bağlı";
@@ -304,7 +304,7 @@
 "Subscription Utilization" = "Abonelik Kullanımı";
 "Surprise me" = "Beni şaşırt";
 "Switcher shows icons" = "Değiştirici simgeleri gösterir";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "QuotaKitCLI'yi quotakit olarak /usr/local/bin ve /opt/homebrew/bin dizinlerine sembolik bağlayın.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "QuotaKitCLI'yi quotakit olarak /usr/local/bin ve /opt/homebrew/bin dizinlerine sembolik bağlayın.";
 "System" = "Sistem";
 "Temporarily shows the loading animation after the next refresh." = "Sonraki yenilemeden sonra yükleme animasyonunu geçici olarak gösterir.";
 "Tertiary (\\(label))" = "Üçüncül (\\(label))";
@@ -459,6 +459,31 @@
 "tab_advanced" = "Gelişmiş";
 "tab_about" = "Hakkında";
 "tab_debug" = "Hata Ayıklama";
+"tab_mobile" = "Mobil";
+
+/* Mobile Sync */
+"mobile_section_icloud_sync" = "iCloud Eşzamanlama";
+"mobile_toggle_sync_title" = "Kullanımı iCloud ile eşzamanla";
+"mobile_toggle_sync_subtitle" = "Kullanım verilerini iCloud'a göndererek iOS eşlikçi uygulamasının göstermesini sağlar.";
+"mobile_section_push" = "iOS Anlık Bildirimleri";
+"mobile_toggle_push_title" = "iOS'a anlık bildirim gönder";
+"mobile_toggle_push_subtitle" = "Bir oturum kotası tükendiğinde veya geri yüklendiğinde, iCloud üzerinden iOS eşlikçi uygulamasına görünür bir uyarı bildirimi gönderir. Bu, Mac yerel bildirimlerinden bağımsızdır — Mac'i sessiz tutup yine de iPhone'unuzda uyarı alabilirsiniz.";
+"mobile_section_mock_data" = "Hata Ayıklama · Sahte Sağlayıcı Verileri";
+"mobile_toggle_mock_title" = "Sahte sağlayıcı verisi enjekte et";
+"mobile_toggle_mock_subtitle" = "Her eşzamanlamada 50 kimlikte 60 sentetik sağlayıcı gönderir (codex/claude/perplexity çok hesaplı yolları için 6 zengin sahte; openai/deepseek/antigravity/manus/copilot/venice/stepfun için 7 çok hesaplı ikinci sekme çifti dahil 52 basit sahte; grok/groq/elevenlabs/deepgram/llmproxy için 5 v0.27.0 tek hesaplı sağlayıcı; azureopenai/alibabatokenplan/t3chat için 3 v0.28/v0.29 tek hesaplı sağlayıcı; yedek işleme için 2 bilinmeyen kimlikli sahte). Tüm sahte e-postalar `.test` TLD'sini kullanır, böylece iPhone (1.5.2+) bunları MOCK rozetiyle gösterir. Kapatıldığında CloudKit yaklaşık 1 döngü içinde bunları otomatik temizler. Varsayılan KAPALI.";
+"mobile_mock_reference_header" = "Referans — en çok test edilen 8 sahte (35 basit sahte kısalık için atlandı):";
+"mobile_mock_cost_note" = "Sahte veriler etkinken 30 günlük maliyet panelinize ~$85 ekler. Gerçek sayılara dönmek için kapatın.";
+"mobile_section_dev_test" = "GELİŞTİRİCİ — iOS Anlık Bildirim Testi";
+"mobile_dev_test_intro" = "Gerçek bir `QuotaTransition` kaydını CloudKit'e yazar; bu, iOS uygulamasının üretimde alacağı aynı uyarı bildirimini tetikler. Yukarıdaki anahtara bağlıdır (AÇIK olmalıdır).";
+"mobile_dev_depleted" = "Tükendi";
+"mobile_dev_restored" = "Geri yüklendi";
+"mobile_dev_warning" = "Uyarı";
+"mobile_dev_verify_push" = "Anlık Bildirim Kurulumunu Doğrula";
+"mobile_sync_status_syncing" = "Eşzamanlanıyor…";
+"mobile_sync_status_last_sync_format" = "Son eşzamanlama: %@";
+"mobile_sync_status_last_attempt_format" = "Son deneme: %@";
+"mobile_sync_status_no_sync" = "Henüz eşzamanlama yok";
+"mobile_button_sync_now" = "Şimdi Eşzamanla";
 
 /* Providers Pane */
 "select_a_provider" = "Bir sağlayıcı seçin";
@@ -614,7 +639,7 @@
 "login_shell_path" = "Oturum kabuğu PATH (başlangıç yakalaması)";
 "cleared" = "Temizlendi.";
 "no_fetch_attempts" = "Henüz getirme denemesi yok.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe, Sistem Ayarları → Menü Çubuğu → Menü Çubuğunda İzin Ver bölümünde menü çubuğu uygulamalarını engelleyebilir. QuotaKit çalışıyor, ancak macOS simgesini gizliyor olabilir. Menü Çubuğu ayarlarını açın ve QuotaKit'ı etkinleştirin.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe, Sistem Ayarları → Menü Çubuğu → Menü Çubuğunda İzin Ver bölümünde menü çubuğu uygulamalarını engelleyebilir. QuotaKit çalışıyor, ancak macOS simgesini gizliyor olabilir. Menü Çubuğu ayarlarını açın ve QuotaKit'ı etkinleştirin.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Otomatik";
