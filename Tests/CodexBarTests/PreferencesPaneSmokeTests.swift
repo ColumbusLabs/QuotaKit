@@ -114,7 +114,7 @@ struct PreferencesPaneSmokeTests {
         #expect(UserDefaults.standard.string(forKey: "appLanguage") == "de")
         #expect(L("tab_general") == "Allgemein")
         #expect(L("language_title") == "Sprache")
-        #expect(L("quit_app") == "CodexBar beenden")
+        #expect(L("quit_app") == "QuotaKit beenden")
         #expect(L("display_mode_reset_time") == "Zurücksetzungszeit")
         #expect(L("display_mode_reset_time_desc").contains("↻ 15:56"))
         #expect(L("vertex_ai_login_instructions").contains("\n\n1. Öffnen Sie Terminal"))
