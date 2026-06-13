@@ -256,10 +256,16 @@ enum WidgetSyncBadgeFreshness {
     }
 }
 
+private enum WidgetSyncBadgeLabelStyle {
+    case full
+    case elapsedOnly
+}
+
 private struct WidgetSyncBadge: View {
     let lastSynced: Date
     var showsIcon = true
     var compact = false
+    var labelStyle: WidgetSyncBadgeLabelStyle = .full
 
     /// Mirrors `SyncFreshnessState.staleThreshold`; evaluated when the
     /// timeline entry renders, so the tint can lag until the next refresh.
@@ -273,12 +279,34 @@ private struct WidgetSyncBadge: View {
                 Image(systemName: "arrow.triangle.2.circlepath")
                     .font(.system(size: self.compact ? 7 : 8, weight: .semibold))
             }
-            Text("Synced \(self.lastSynced, style: .relative) ago")
+            switch self.labelStyle {
+            case .full:
+                Text("Synced \(self.lastSynced, style: .relative) ago")
+            case .elapsedOnly:
+                Text(self.lastSynced, style: .relative)
+            }
         }
         .font(self.compact ? .system(size: 9, weight: .medium) : .caption2)
-        .foregroundStyle(self.isStale ? AnyShapeStyle(.orange) : AnyShapeStyle(.tertiary))
+        .foregroundStyle(self.foregroundStyle)
         .lineLimit(1)
-        .minimumScaleFactor(0.75)
+        .minimumScaleFactor(self.compact ? 0.68 : 0.75)
+        .padding(.horizontal, self.compact ? 5 : 0)
+        .padding(.vertical, self.compact ? 2 : 0)
+        .background {
+            if self.compact {
+                Capsule()
+                    .fill(self.isStale ? Color.orange.opacity(0.16) : Color.white.opacity(0.12))
+            }
+        }
+    }
+
+    private var foregroundStyle: AnyShapeStyle {
+        if self.isStale {
+            return AnyShapeStyle(.orange)
+        }
+        return self.compact
+            ? AnyShapeStyle(Color.white.opacity(0.88))
+            : AnyShapeStyle(.secondary)
     }
 }
 
@@ -376,8 +404,10 @@ private struct QuotaKitWidgetSmallView: View {
                 Spacer(minLength: 6)
                 WidgetSyncBadge(
                     lastSynced: self.lastSyncedAt,
-                    showsIcon: false,
-                    compact: true)
+                    showsIcon: true,
+                    compact: true,
+                    labelStyle: .elapsedOnly)
+                    .frame(maxWidth: 58, alignment: .trailing)
             }
 
             if self.displayMode == .both {

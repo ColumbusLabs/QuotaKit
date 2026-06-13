@@ -5,7 +5,7 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
-## [1.11.1 (165)] — 2026-06-11 — Widget quota window controls
+## [1.11.1 (167)] — 2026-06-12 — Widget quota window controls
 
 ### Changed
 
@@ -13,6 +13,8 @@ current Columbus Labs product surface and recent release history.
   when both are available, with a Usage Settings picker to switch all widgets to
   Both, Session, or Weekly display. Both mode keeps pace markers in the compact
   quota bars; switch to Session or Weekly when you want textual pace chips.
+- The small widget sync badge is brighter, shorter, and constrained to stay
+  inside the top-right corner.
 - Widget weekly-window detection no longer mistakes daily or monthly day-count
   labels such as "1 day" or "30 days" for weekly quota.
 - Widgets now show freshness from the phone's last synced usage timestamp, and
