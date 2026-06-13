@@ -79,7 +79,7 @@
 "Codex login failed" = "Codex-Anmeldung fehlgeschlagen";
 "Codex login timed out" = "Zeitüberschreitung beim Codex-Login";
 "CodexBar Lifecycle Keepalive" = "QuotaKit Lifecycle Keepalive";
-"CodexBar can't show its menu bar icon" = "QuotaKit kann sein Menüleistensymbol nicht anzeigen";
+"QuotaKit can't show its menu bar icon" = "QuotaKit kann sein Menüleistensymbol nicht anzeigen";
 "CodexBar could not read managed account storage. " = "QuotaKit konnte den verwalteten Kontospeicher nicht lesen.";
 "Configure…" = "Konfigurieren…";
 "Connected" = "Verbunden";
@@ -302,7 +302,7 @@
 "Subscription Utilization" = "Abonnementnutzung";
 "Surprise me" = "Überrasche mich";
 "Switcher shows icons" = "Switcher zeigt Symbole an";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als quotakit.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Verknüpfen Sie QuotaKitCLI mit /usr/local/bin und /opt/homebrew/bin als quotakit.";
 "System" = "System";
 "terminal_app_subtitle" = "Terminal für die Aktion „Terminal öffnen“";
 "terminal_app_title" = "Standardterminal";
@@ -614,7 +614,7 @@
 "login_shell_path" = "Login-Shell-PATH (Starterfassung)";
 "cleared" = "Gelöscht.";
 "no_fetch_attempts" = "Noch keine Abrufversuche.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe kann Menüleisten-Apps unter Systemeinstellungen → Menüleiste → Zulassen in der Menüleiste blockieren. QuotaKit wird ausgeführt, aber macOS verbirgt möglicherweise sein Symbol. Öffnen Sie die Menüleisteneinstellungen und aktivieren Sie QuotaKit.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe kann Menüleisten-Apps unter Systemeinstellungen → Menüleiste → Zulassen in der Menüleiste blockieren. QuotaKit wird ausgeführt, aber macOS verbirgt möglicherweise sein Symbol. Öffnen Sie die Menüleisteneinstellungen und aktivieren Sie QuotaKit.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Automatisch";

@@ -79,7 +79,7 @@
 "Codex login failed" = "Codex 로그인 실패";
 "Codex login timed out" = "Codex 로그인 시간 초과";
 "CodexBar Lifecycle Keepalive" = "QuotaKit 수명 주기 유지";
-"CodexBar can't show its menu bar icon" = "QuotaKit가 메뉴 막대 아이콘을 표시할 수 없습니다";
+"QuotaKit can't show its menu bar icon" = "QuotaKit가 메뉴 막대 아이콘을 표시할 수 없습니다";
 "CodexBar could not read managed account storage. " = "QuotaKit가 관리 계정 저장소를 읽을 수 없습니다. ";
 "Configure…" = "구성…";
 "Connected" = "연결됨";
@@ -304,7 +304,7 @@
 "Subscription Utilization" = "구독 사용률";
 "Surprise me" = "랜덤으로 선택";
 "Switcher shows icons" = "전환기에 아이콘 표시";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "QuotaKitCLI를 quotakit로 /usr/local/bin 및 /opt/homebrew/bin에 심볼릭 링크합니다.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "QuotaKitCLI를 quotakit로 /usr/local/bin 및 /opt/homebrew/bin에 심볼릭 링크합니다.";
 "System" = "시스템";
 "Temporarily shows the loading animation after the next refresh." = "다음 새로 고침 후 불러오는 중 애니메이션을 일시적으로 표시합니다.";
 "terminal_app_subtitle" = "터미널 열기 동작에서 사용하는 터미널";
@@ -600,7 +600,7 @@
 "login_shell_path" = "로그인 셸 PATH(시작 시 캡처)";
 "cleared" = "지웠습니다.";
 "no_fetch_attempts" = "아직 가져오기 시도가 없습니다.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe는 시스템 설정 → 메뉴 막대 → 메뉴 막대에서 허용 설정에서 메뉴 막대 앱을 차단할 수 있습니다. QuotaKit는 실행 중이지만 macOS가 아이콘을 가리고 있을 수 있습니다. 메뉴 막대 설정을 열고 QuotaKit를 켜세요.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe는 시스템 설정 → 메뉴 막대 → 메뉴 막대에서 허용 설정에서 메뉴 막대 앱을 차단할 수 있습니다. QuotaKit는 실행 중이지만 macOS가 아이콘을 가리고 있을 수 있습니다. 메뉴 막대 설정을 열고 QuotaKit를 켜세요.";
 "metric_pref_automatic" = "자동";
 "metric_pref_primary" = "1차";
 "metric_pref_secondary" = "2차";
