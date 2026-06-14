@@ -58,6 +58,10 @@ cd CodexBarMobile
 xcodegen generate
 ```
 
+## Documentation
+
+Provider setup notes and Mac provider internals live in [docs/providers.md](docs/providers.md).
+
 ## Upstream And Credits
 
 QuotaKit is derived from:
