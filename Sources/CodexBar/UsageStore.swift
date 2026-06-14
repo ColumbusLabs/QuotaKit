@@ -780,6 +780,14 @@ final class UsageStore {
             event: event,
             provider: provider,
             soundEnabled: self.settings.quotaWarningSoundEnabled)
+
+        if self.settings.notificationPushToiOSEnabled {
+            self.quotaTransitionWriter.writeQuotaWarning(
+                provider: provider,
+                window: event.window,
+                threshold: event.threshold,
+                accountDisplayName: event.accountDisplayName)
+        }
     }
 
     func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {

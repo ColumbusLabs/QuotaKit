@@ -85,21 +85,13 @@ extension UsageStore {
                     currentRemaining: currentRemaining,
                     accountDisplayName: accountDisplayName),
                 provider: provider)
-
-            if self.settings.notificationPushToiOSEnabled {
-                self.quotaTransitionWriter.writeQuotaWarning(
-                    provider: provider,
-                    window: window,
-                    threshold: threshold,
-                    accountDisplayName: accountDisplayName)
-            }
         }
 
         state.lastRemaining = currentRemaining
         self.quotaWarningState[key] = state
     }
 
-    private func quotaWarningAccountDisplayName(provider: UsageProvider, snapshot: UsageSnapshot) -> String? {
+    func quotaWarningAccountDisplayName(provider: UsageProvider, snapshot: UsageSnapshot) -> String? {
         guard !self.settings.hidePersonalInfo else { return nil }
         let account = snapshot.accountEmail(for: provider)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
