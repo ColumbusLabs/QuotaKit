@@ -75,6 +75,30 @@ struct CodexBarTests {
     }
 
     @Test
+    func `antigravity icon uses compact fallback model quota`() {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "antigravity-compact-fallback-model",
+                    title: "New Model",
+                    window: RateWindow(
+                        usedPercent: 64,
+                        windowMinutes: nil,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+            ],
+            updatedAt: Date())
+
+        let remaining = IconRemainingResolver.resolvedRemaining(snapshot: snapshot, style: .antigravity)
+
+        #expect(remaining.primary == 36)
+        #expect(remaining.secondary == nil)
+    }
+
+    @Test
     func `perplexity icon falls back to purchased lane when bonus is exhausted`() {
         let snapshot = UsageSnapshot(
             primary: nil,

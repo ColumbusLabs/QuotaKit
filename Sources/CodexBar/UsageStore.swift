@@ -760,6 +760,8 @@ final class UsageStore {
     enum SessionQuotaWindowSource: String {
         case primary
         case copilotSecondaryFallback
+        case antigravityQuotaSummary
+        case antigravityLegacy
     }
 
     struct QuotaWarningStateKey: Hashable {
@@ -770,24 +772,22 @@ final class UsageStore {
     struct QuotaWarningState {
         var lastRemaining: Double?
         var firedThresholds: Set<Int> = []
+        var source: SessionQuotaWindowSource?
     }
 
-    private func sessionQuotaWindow(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
-    {
-        if let primary = snapshot.primary, Self.isSessionWindow(primary) {
-            return (primary, .primary)
-        }
-        if provider == .copilot, let secondary = snapshot.secondary {
-            return (secondary, .copilotSecondaryFallback)
-        }
-        return nil
-    }
+    func postQuotaWarning(_ event: QuotaWarningEvent, provider: UsageProvider) {
+        self.sessionQuotaNotifier.postQuotaWarning(
+            event: event,
+            provider: provider,
+            soundEnabled: self.settings.quotaWarningSoundEnabled)
 
-    private static func isSessionWindow(_ window: RateWindow) -> Bool {
-        guard let minutes = window.windowMinutes else { return true }
-        return minutes <= 6 * 60
+        if self.settings.notificationPushToiOSEnabled {
+            self.quotaTransitionWriter.writeQuotaWarning(
+                provider: provider,
+                window: event.window,
+                threshold: event.threshold,
+                accountDisplayName: event.accountDisplayName)
+        }
     }
 
     func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
@@ -877,91 +877,6 @@ final class UsageStore {
                 provider: provider,
                 accountDisplayName: accountDisplayName)
         }
-    }
-
-    func handleQuotaWarningTransitions(provider: UsageProvider, snapshot: UsageSnapshot) {
-        guard self.settings.quotaWarningNotificationsEnabled else { return }
-
-        let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
-        self.handleQuotaWarningTransition(
-            provider: provider,
-            window: .session,
-            rateWindow: snapshot.primary,
-            accountDisplayName: accountDisplayName)
-        self.handleQuotaWarningTransition(
-            provider: provider,
-            window: .weekly,
-            rateWindow: snapshot.secondary,
-            accountDisplayName: accountDisplayName)
-    }
-
-    private func handleQuotaWarningTransition(
-        provider: UsageProvider,
-        window: QuotaWarningWindow,
-        rateWindow: RateWindow?,
-        accountDisplayName: String?)
-    {
-        let key = QuotaWarningStateKey(provider: provider, window: window)
-        guard self.settings.quotaWarningEnabled(provider: provider, window: window) else {
-            self.quotaWarningState.removeValue(forKey: key)
-            return
-        }
-        guard let rateWindow else {
-            self.quotaWarningState.removeValue(forKey: key)
-            return
-        }
-
-        let thresholds = self.settings.resolvedQuotaWarningThresholds(provider: provider, window: window)
-        let currentRemaining = rateWindow.remainingPercent
-        var state = self.quotaWarningState[key] ?? QuotaWarningState()
-        let cleared = QuotaWarningNotificationLogic.thresholdsToClear(
-            currentRemaining: currentRemaining,
-            alreadyFired: state.firedThresholds)
-        state.firedThresholds.subtract(cleared)
-
-        if let threshold = QuotaWarningNotificationLogic.crossedThreshold(
-            previousRemaining: state.lastRemaining,
-            currentRemaining: currentRemaining,
-            thresholds: thresholds,
-            alreadyFired: state.firedThresholds)
-        {
-            state.firedThresholds.formUnion(QuotaWarningNotificationLogic.firedThresholdsAfterWarning(
-                threshold: threshold,
-                thresholds: thresholds))
-            self.sessionQuotaNotifier.postQuotaWarning(
-                event: QuotaWarningEvent(
-                    window: window,
-                    threshold: threshold,
-                    currentRemaining: currentRemaining,
-                    accountDisplayName: accountDisplayName),
-                provider: provider,
-                soundEnabled: self.settings.quotaWarningSoundEnabled)
-
-            // iOS 1.6.0 / Mac 0.25.2 — also fire a CKRecord so iPhones
-            // subscribed to the warning zone get a visible push. Gated
-            // by the same push-toggle that controls depleted/restored.
-            // The writer debounces independently per (provider, window,
-            // threshold) so it doesn't suppress a 20% push if 50% just
-            // fired seconds earlier.
-            if self.settings.notificationPushToiOSEnabled {
-                self.quotaTransitionWriter.writeQuotaWarning(
-                    provider: provider,
-                    window: window,
-                    threshold: threshold,
-                    accountDisplayName: accountDisplayName)
-            }
-        }
-
-        state.lastRemaining = currentRemaining
-        self.quotaWarningState[key] = state
-    }
-
-    private func quotaWarningAccountDisplayName(provider: UsageProvider, snapshot: UsageSnapshot) -> String? {
-        guard !self.settings.hidePersonalInfo else { return nil }
-        let account = snapshot.accountEmail(for: provider)?
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let account, !account.isEmpty else { return nil }
-        return account
     }
 
     private func refreshStatus(_ provider: UsageProvider) async {

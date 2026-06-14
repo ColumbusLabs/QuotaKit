@@ -147,6 +147,7 @@ final class SettingsStore {
 
     @ObservationIgnored let userDefaults: UserDefaults
     @ObservationIgnored let configStore: CodexBarConfigStore
+    @ObservationIgnored let antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore
     @ObservationIgnored var config: CodexBarConfig
     @ObservationIgnored var configPersistTask: Task<Void, Never>?
     @ObservationIgnored var configLoading = false
@@ -204,7 +205,8 @@ final class SettingsStore {
             account: "amp-cookie",
             promptKind: .ampCookie),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
-        tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore())
+        tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore(),
+        antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore = AntigravityOAuthCredentialsStore())
     {
         let appGroupID = AppGroupSupport.currentGroupID()
         let appGroupMigration: AppGroupSupport.MigrationResult
@@ -256,6 +258,7 @@ final class SettingsStore {
             stores: legacyStores)
         self.userDefaults = userDefaults
         self.configStore = configStore
+        self.antigravityOAuthCredentialsStore = antigravityOAuthCredentialsStore
         self.config = config
         self.configLoading = true
         let defaultsState = Self.loadDefaultsState(userDefaults: userDefaults)
@@ -466,13 +469,36 @@ extension SettingsStore {
 
     private static func loadMenuBarMetricPreferences(userDefaults: UserDefaults) -> [String: String] {
         let storedPreferences = userDefaults.dictionary(forKey: "menuBarMetricPreferences") as? [String: String] ?? [:]
-        if !storedPreferences.isEmpty {
-            return storedPreferences
+        let preferences: [String: String] = if !storedPreferences.isEmpty {
+            storedPreferences
+        } else if let menuBarMetricRaw = userDefaults.string(forKey: "menuBarMetricPreference"),
+                  let legacyPreference = MenuBarMetricPreference(rawValue: menuBarMetricRaw)
+        {
+            Dictionary(
+                uniqueKeysWithValues: UsageProvider.allCases.map { ($0.rawValue, legacyPreference.rawValue) })
+        } else {
+            [:]
         }
-        guard let menuBarMetricRaw = userDefaults.string(forKey: "menuBarMetricPreference"),
-              let legacyPreference = MenuBarMetricPreference(rawValue: menuBarMetricRaw)
-        else { return [:] }
-        return Dictionary(uniqueKeysWithValues: UsageProvider.allCases.map { ($0.rawValue, legacyPreference.rawValue) })
+
+        let migrationKey = "antigravityTwoPoolMetricPreferenceMigrated"
+        guard !userDefaults.bool(forKey: migrationKey) else { return preferences }
+
+        // Tagged builds through v0.35 used primary=Claude, secondary=Gemini Pro,
+        // and tertiary=Gemini Flash. Remap those meanings once to the two-pool schema.
+        var migrated = preferences
+        switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? "") {
+        case .primary:
+            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.secondary.rawValue
+        case .secondary:
+            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
+        case .tertiary:
+            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
+        case .automatic, .extraUsage, .average, .none:
+            break
+        }
+        userDefaults.set(migrated, forKey: "menuBarMetricPreferences")
+        userDefaults.set(true, forKey: migrationKey)
+        return migrated
     }
 
     private static func loadMultiAccountMenuLayoutRaw(userDefaults: UserDefaults) -> String {

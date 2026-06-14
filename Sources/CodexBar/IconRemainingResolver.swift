@@ -21,6 +21,15 @@ enum IconRemainingResolver {
         return projection.visibleRateLanes.compactMap { projection.rateWindow(for: $0) }
     }
 
+    private static func antigravityVisibleWindows(snapshot: UsageSnapshot) -> [RateWindow] {
+        var windows = [snapshot.primary, snapshot.secondary, snapshot.tertiary].compactMap(\.self)
+        let compactFallbacks = snapshot.extraRateWindows?
+            .filter { $0.usageKnown && $0.id.hasPrefix("antigravity-compact-fallback-") }
+            .map(\.window) ?? []
+        windows.append(contentsOf: compactFallbacks)
+        return windows
+    }
+
     static func resolvedWindows(
         snapshot: UsageSnapshot,
         style: IconStyle,
@@ -34,7 +43,7 @@ enum IconRemainingResolver {
                 secondary: windows.dropFirst().first)
         }
         if style == .antigravity {
-            let windows = [snapshot.primary, snapshot.secondary, snapshot.tertiary].compactMap(\.self)
+            let windows = self.antigravityVisibleWindows(snapshot: snapshot)
             return (
                 primary: windows.first,
                 secondary: windows.dropFirst().first)
@@ -71,7 +80,7 @@ enum IconRemainingResolver {
                 secondary: windows.dropFirst().first?.remainingPercent)
         }
         if style == .antigravity {
-            let windows = [snapshot.primary, snapshot.secondary, snapshot.tertiary].compactMap(\.self)
+            let windows = self.antigravityVisibleWindows(snapshot: snapshot)
             return (
                 primary: windows.first?.remainingPercent,
                 secondary: windows.dropFirst().first?.remainingPercent)

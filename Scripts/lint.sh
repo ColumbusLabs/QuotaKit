@@ -190,10 +190,20 @@ audit_provider_palette() {
   python3 "${ROOT_DIR}/Scripts/audit_provider_palette.py"
 }
 
+check_release_dsym_paths() {
+  "${ROOT_DIR}/Scripts/test_release_dsym_paths.sh"
+}
+
+check_sparkle_signing_paths() {
+  "${ROOT_DIR}/Scripts/test_sparkle_signing_paths.sh"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
   lint)
+    check_release_dsym_paths
+    check_sparkle_signing_paths
     ensure_tools
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict
