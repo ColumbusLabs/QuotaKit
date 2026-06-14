@@ -9,14 +9,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `0.33.1` development
-  (post-`0.33.0` tip), including security fixes that reject insecure or
-  malformed provider endpoint overrides (OpenRouter, Codebuff, Groq,
-  ElevenLabs, MiniMax, Alibaba) and malformed provider hosts before sending
-  credentials, clearer Claude Web reauthentication guidance, per-request CLI
-  serve config reload, scroll-wheel Overview highlighting, merged dropdown
-  positioning stability, switcher segment height fixes, and incremental
-  Codex priority-turn resolution.
+- Synced upstream CodexBar Mac improvements through `0.35.1` development
+  (`1d39e0ca..2e4b3556`), including Antigravity quota-summary pooling,
+  transient launch retries, Linux HTTP probing, Gemini API-key auth recognition,
+  MiMo balance/token usage, local session-log fallback, prompt refresh failures,
+  browser-cookie isolation hardening, weekly pace work-day configuration,
+  open-menu usage refresh, status-menu appearance fixes, editable cost-history
+  settings, Command Code credit resilience, and release dSYM/Sparkle signing-path
+  validation helpers.
 
 ## 0.32.4.5 / iOS 1.11.1 — 2026-06-11
 

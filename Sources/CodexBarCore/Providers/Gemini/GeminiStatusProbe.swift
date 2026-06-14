@@ -118,7 +118,7 @@ public enum GeminiStatusProbeError: LocalizedError, Sendable, Equatable {
 
 public enum GeminiAuthType: String, Sendable {
     case oauthPersonal = "oauth-personal"
-    case apiKey = "api-key"
+    case apiKey = "gemini-api-key"
     case vertexAI = "vertex-ai"
     case unknown
 }
@@ -166,6 +166,9 @@ public struct GeminiStatusProbe: Sendable {
             return .unknown
         }
 
+        if selectedType == "api-key" {
+            return .apiKey
+        }
         return GeminiAuthType(rawValue: selectedType) ?? .unknown
     }
 

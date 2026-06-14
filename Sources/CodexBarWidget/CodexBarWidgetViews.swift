@@ -321,7 +321,10 @@ private struct SwitcherSmallUsageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
-            ForEach(WidgetUsageRow.rows(for: self.entry)) { row in
+            ForEach(WidgetUsageRow.rows(
+                for: self.entry,
+                limit: WidgetUsageRow.smallWidgetRowLimit(for: self.entry)))
+            { row in
                 UsageBarRow(
                     title: row.title,
                     percentLeft: row.percentLeft,
@@ -342,7 +345,10 @@ private struct SwitcherMediumUsageView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
-            ForEach(WidgetUsageRow.rows(for: self.entry)) { row in
+            ForEach(WidgetUsageRow.rows(
+                for: self.entry,
+                limit: WidgetUsageRow.mediumWidgetRowLimit(for: self.entry)))
+            { row in
                 UsageBarRow(
                     title: row.title,
                     percentLeft: row.percentLeft,
@@ -411,7 +417,10 @@ private struct SmallUsageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
-            ForEach(WidgetUsageRow.rows(for: self.entry)) { row in
+            ForEach(WidgetUsageRow.rows(
+                for: self.entry,
+                limit: WidgetUsageRow.smallWidgetRowLimit(for: self.entry)))
+            { row in
                 UsageBarRow(
                     title: row.title,
                     percentLeft: row.percentLeft,
@@ -434,7 +443,10 @@ private struct MediumUsageView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HeaderView(provider: self.entry.provider, updatedAt: self.entry.updatedAt)
-            ForEach(WidgetUsageRow.rows(for: self.entry)) { row in
+            ForEach(WidgetUsageRow.rows(
+                for: self.entry,
+                limit: WidgetUsageRow.mediumWidgetRowLimit(for: self.entry)))
+            { row in
                 UsageBarRow(
                     title: row.title,
                     percentLeft: row.percentLeft,
@@ -505,31 +517,95 @@ struct WidgetUsageRow: Identifiable, Equatable {
     let title: String
     let percentLeft: Double?
 
-    static func rows(for entry: WidgetSnapshot.ProviderEntry) -> [WidgetUsageRow] {
+    static func smallWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
+        self.antigravityQuotaSummaryRowLimit(for: entry, limit: 2)
+    }
+
+    static func mediumWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
+        self.antigravityQuotaSummaryRowLimit(for: entry, limit: 3)
+    }
+
+    private static func antigravityQuotaSummaryRowLimit(
+        for entry: WidgetSnapshot.ProviderEntry,
+        limit: Int) -> Int?
+    {
+        guard entry.provider == .antigravity,
+              entry.usageRows?.contains(where: {
+                  $0.id.hasPrefix("antigravity-quota-summary-")
+              }) == true
+        else {
+            return nil
+        }
+        return limit
+    }
+
+    static func rows(for entry: WidgetSnapshot.ProviderEntry, limit: Int? = nil) -> [WidgetUsageRow] {
+        let rows: [WidgetUsageRow]
         if let usageRows = entry.usageRows {
-            return usageRows.map { row in
+            rows = usageRows.map { row in
                 WidgetUsageRow(id: row.id, title: row.title, percentLeft: row.percentLeft)
             }
+        } else {
+            let metadata = ProviderDefaults.metadata[entry.provider]
+            var defaultRows = [
+                WidgetUsageRow(
+                    id: "primary",
+                    title: metadata?.sessionLabel ?? "Session",
+                    percentLeft: entry.primary?.remainingPercent),
+                WidgetUsageRow(
+                    id: "secondary",
+                    title: metadata?.weeklyLabel ?? "Weekly",
+                    percentLeft: entry.secondary?.remainingPercent),
+            ]
+            if metadata?.supportsOpus == true {
+                defaultRows.append(WidgetUsageRow(
+                    id: "tertiary",
+                    title: metadata?.opusLabel ?? "Opus",
+                    percentLeft: entry.tertiary?.remainingPercent))
+            }
+            rows = defaultRows.filter { $0.percentLeft != nil }
         }
-
-        let metadata = ProviderDefaults.metadata[entry.provider]
-        var rows = [
-            WidgetUsageRow(
-                id: "primary",
-                title: metadata?.sessionLabel ?? "Session",
-                percentLeft: entry.primary?.remainingPercent),
-            WidgetUsageRow(
-                id: "secondary",
-                title: metadata?.weeklyLabel ?? "Weekly",
-                percentLeft: entry.secondary?.remainingPercent),
-        ]
-        if metadata?.supportsOpus == true {
-            rows.append(WidgetUsageRow(
-                id: "tertiary",
-                title: metadata?.opusLabel ?? "Opus",
-                percentLeft: entry.tertiary?.remainingPercent))
+        guard let limit else { return rows }
+        if entry.provider == .antigravity,
+           limit >= 2,
+           rows.contains(where: { $0.id.hasPrefix("antigravity-quota-summary-") })
+        {
+            var selected = ["Gemini ", "Claude + GPT "].compactMap { titlePrefix in
+                rows
+                    .filter { $0.title.hasPrefix(titlePrefix) }
+                    .min { lhs, rhs in
+                        switch (lhs.percentLeft, rhs.percentLeft) {
+                        case let (.some(left), .some(right)):
+                            left < right
+                        case (.some, .none):
+                            true
+                        case (.none, .some):
+                            false
+                        case (.none, .none):
+                            false
+                        }
+                    }
+            }
+            let selectedIDs = Set(selected.map(\.id))
+            let fallbackRows = rows.enumerated()
+                .filter { !selectedIDs.contains($0.element.id) }
+                .sorted { lhs, rhs in
+                    switch (lhs.element.percentLeft, rhs.element.percentLeft) {
+                    case let (.some(left), .some(right)):
+                        left == right ? lhs.offset < rhs.offset : left < right
+                    case (.some, .none):
+                        true
+                    case (.none, .some):
+                        false
+                    case (.none, .none):
+                        lhs.offset < rhs.offset
+                    }
+                }
+                .map(\.element)
+            selected.append(contentsOf: fallbackRows.prefix(max(0, limit - selected.count)))
+            return selected
         }
-        return rows.filter { $0.percentLeft != nil }
+        return Array(rows.prefix(max(0, limit)))
     }
 }
 

@@ -15,11 +15,11 @@ struct GeminiStatusProbeAPITests {
         }
     }
 
-    @Test
-    func `rejects api key auth type`() async throws {
+    @Test(arguments: ["gemini-api-key", "api-key"])
+    func `rejects api key auth types`(authType: String) async throws {
         let env = try GeminiTestEnvironment()
         defer { env.cleanup() }
-        try env.writeSettings(authType: "api-key")
+        try env.writeSettings(authType: authType)
 
         let probe = GeminiStatusProbe(timeout: 1, homeDirectory: env.homeURL.path)
         await Self.expectError(.unsupportedAuthType("API key")) {
