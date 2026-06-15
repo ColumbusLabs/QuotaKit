@@ -195,7 +195,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .openai || provider == .claude, cost.limit <= 0 {
+        if provider == .openai || provider == .claude || provider == .litellm, cost.limit <= 0 {
             let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             let periodLabel = Self.localizedPeriodLabel(cost.period ?? "Last 30 days")
             return ProviderCostSection(

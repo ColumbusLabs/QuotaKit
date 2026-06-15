@@ -81,6 +81,18 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `allows LiteLLM endpoint`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .litellm,
+            apiKey: "sk-test",
+            enterpriseHost: "https://litellm.example.com"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .litellm && $0.code == "enterprise_host_unused" }))
+    }
+
+    @Test
     func `allows OpenAI API project workspace ID`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .openai, workspaceID: "proj_abc"))

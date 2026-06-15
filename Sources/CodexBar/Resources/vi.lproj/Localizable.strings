@@ -807,6 +807,7 @@
 
 "language_japanese" = "Tiếng Nhật";
 "language_korean" = "Tiếng Hàn";
+"language_italian" = "Italiano";
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 
 "start_at_login_subtitle" = "Tự động mở QuotaKit khi bạn khởi động máy Mac.";
@@ -2101,3 +2102,5 @@
 
 "language_vietnamese" = "Tiếng Việt";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "Tiếng Indonesia";
+"language_polish" = "Tiếng Ba Lan";

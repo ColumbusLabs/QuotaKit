@@ -13,12 +13,15 @@ enum AppLanguage: String, CaseIterable, Identifiable {
     case portugueseBrazilian = "pt-BR"
     case swedish = "sv"
     case french = "fr"
+    case italian = "it"
     case dutch = "nl"
     case ukrainian = "uk"
     case vietnamese = "vi"
     case japanese = "ja"
     case korean = "ko"
     case turkish = "tr"
+    case indonesian = "id"
+    case polish = "pl"
 
     var id: String {
         self.rawValue
@@ -36,12 +39,15 @@ enum AppLanguage: String, CaseIterable, Identifiable {
         case .portugueseBrazilian: L("language_portuguese_brazilian")
         case .swedish: L("language_swedish")
         case .french: L("language_french")
+        case .italian: L("language_italian")
         case .dutch: L("language_dutch")
         case .ukrainian: L("language_ukrainian")
         case .vietnamese: L("language_vietnamese")
         case .japanese: L("language_japanese")
         case .korean: L("language_korean")
         case .turkish: L("language_turkish")
+        case .indonesian: L("language_indonesian")
+        case .polish: L("language_polish")
         }
     }
 }

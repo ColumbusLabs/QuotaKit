@@ -39,6 +39,31 @@ struct MenuBarMetricWindowResolverTests {
     }
 
     @Test
+    func `automatic metric uses team budget for team-bound LiteLLM keys`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 10,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "Personal"),
+            secondary: RateWindow(
+                usedPercent: 80,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: "Team"),
+            updatedAt: Date())
+
+        let window = MenuBarMetricWindowResolver.rateWindow(
+            preference: .automatic,
+            provider: .litellm,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(window?.usedPercent == 80)
+        #expect(window?.resetDescription == "Team")
+    }
+
+    @Test
     func `automatic metric uses constrained antigravity family lane`() {
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: "Claude"),

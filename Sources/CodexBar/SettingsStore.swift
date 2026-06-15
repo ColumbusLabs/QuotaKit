@@ -206,7 +206,8 @@ final class SettingsStore {
             promptKind: .ampCookie),
         copilotTokenStore: any CopilotTokenStoring = KeychainCopilotTokenStore(),
         tokenAccountStore: any ProviderTokenAccountStoring = FileTokenAccountStore(),
-        antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore = AntigravityOAuthCredentialsStore())
+        antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore = AntigravityOAuthCredentialsStore(),
+        performInitialProviderDetection: Bool = !SettingsStore.isRunningTests)
     {
         let appGroupID = AppGroupSupport.currentGroupID()
         let appGroupMigration: AppGroupSupport.MigrationResult
@@ -271,7 +272,9 @@ final class SettingsStore {
         userDefaults.removeObject(forKey: "showCodexUsage")
         userDefaults.removeObject(forKey: "showClaudeUsage")
         LaunchAtLoginManager.setEnabled(self.launchAtLogin)
-        self.runInitialProviderDetectionIfNeeded()
+        if performInitialProviderDetection {
+            self.runInitialProviderDetectionIfNeeded()
+        }
         self.ensureAlibabaProviderAutoEnabledIfNeeded()
         self.applyTokenCostDefaultIfNeeded()
         if self.claudeUsageDataSource != .cli {

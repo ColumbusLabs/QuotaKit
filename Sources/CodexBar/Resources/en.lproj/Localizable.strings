@@ -808,6 +808,8 @@
 "language_japanese" = "Japanese";
 "language_korean" = "Korean";
 "language_turkish" = "Türkçe";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
 "start_at_login_title" = "Start at Login";
 
 "start_at_login_subtitle" = "Automatically opens QuotaKit when you start your Mac.";
@@ -2148,6 +2150,7 @@
 
 
 "language_vietnamese" = "Vietnamese";
+"language_indonesian" = "Bahasa Indonesia";
 
 "Request quota: %@ / %@" = "Request quota: %@ / %@";
 

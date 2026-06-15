@@ -198,12 +198,17 @@ check_sparkle_signing_paths() {
   "${ROOT_DIR}/Scripts/test_sparkle_signing_paths.sh"
 }
 
+check_swift_test_sharding() {
+  "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
   lint)
     check_release_dsym_paths
     check_sparkle_signing_paths
+    check_swift_test_sharding
     ensure_tools
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict

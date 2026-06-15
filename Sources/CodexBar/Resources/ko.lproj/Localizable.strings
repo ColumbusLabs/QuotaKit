@@ -408,6 +408,8 @@
 "language_ukrainian" = "우크라이나어";
 "language_japanese" = "일본어";
 "language_korean" = "한국어";
+"language_italian" = "Italiano";
+"language_polish" = "폴란드어";
 "start_at_login_title" = "로그인 시 시작";
 "start_at_login_subtitle" = "Mac을 시작할 때 QuotaKit를 자동으로 엽니다.";
 "show_cost_summary" = "비용 요약 표시";
@@ -1043,4 +1045,5 @@
 "Search providers" = "공급자 검색";
 "language_vietnamese" = "베트남어";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "인도네시아어";
 "Request quota: %@ / %@" = "요청 할당량: %@ / %@";

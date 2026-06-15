@@ -114,6 +114,9 @@ enum MenuBarMetricWindowResolver {
         if provider == .factory || provider == .kimi {
             return snapshot.secondary ?? snapshot.primary
         }
+        if provider == .litellm {
+            return snapshot.secondary ?? snapshot.primary
+        }
         if provider == .copilot,
            let primary = snapshot.primary,
            let secondary = snapshot.secondary

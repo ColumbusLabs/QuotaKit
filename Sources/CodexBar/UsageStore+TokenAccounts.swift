@@ -33,6 +33,32 @@ struct CodexAccountUsageSnapshot: Identifiable {
     }
 }
 
+extension UsageStore {
+    func activateCachedTokenAccountSnapshot(provider: UsageProvider, accountID: UUID) {
+        guard let cached = self.accountSnapshots[provider]?.first(where: { $0.account.id == accountID }) else {
+            self.snapshots.removeValue(forKey: provider)
+            self.errors.removeValue(forKey: provider)
+            self.lastSourceLabels.removeValue(forKey: provider)
+            self.lastKnownResetSnapshots.removeValue(forKey: provider)
+            return
+        }
+
+        if let snapshot = cached.snapshot {
+            self.snapshots[provider] = snapshot
+            self.lastKnownResetSnapshots[provider] = snapshot
+        } else {
+            self.snapshots.removeValue(forKey: provider)
+            self.lastKnownResetSnapshots.removeValue(forKey: provider)
+        }
+        self.errors[provider] = cached.error
+        if let sourceLabel = cached.sourceLabel {
+            self.lastSourceLabels[provider] = sourceLabel
+        } else {
+            self.lastSourceLabels.removeValue(forKey: provider)
+        }
+    }
+}
+
 private struct TokenAccountFetchResult {
     let index: Int
     let account: ProviderTokenAccount
@@ -968,27 +994,7 @@ extension UsageStore {
         let primary = self.codexBackfillingResetWindow(snapshot.primary, from: cached.primary)
         let secondary = self.codexBackfillingResetWindow(snapshot.secondary, from: cached.secondary)
         guard primary != snapshot.primary || secondary != snapshot.secondary else { return snapshot }
-        return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
-            tertiary: snapshot.tertiary,
-            extraRateWindows: snapshot.extraRateWindows,
-            kiroUsage: snapshot.kiroUsage,
-            ampUsage: snapshot.ampUsage,
-            providerCost: snapshot.providerCost,
-            zaiUsage: snapshot.zaiUsage,
-            minimaxUsage: snapshot.minimaxUsage,
-            deepseekUsage: snapshot.deepseekUsage,
-            openRouterUsage: snapshot.openRouterUsage,
-            openAIAPIUsage: snapshot.openAIAPIUsage,
-            claudeAdminAPIUsage: snapshot.claudeAdminAPIUsage,
-            mistralUsage: snapshot.mistralUsage,
-            deepgramUsage: snapshot.deepgramUsage,
-            cursorRequests: snapshot.cursorRequests,
-            subscriptionExpiresAt: snapshot.subscriptionExpiresAt,
-            subscriptionRenewsAt: snapshot.subscriptionRenewsAt,
-            updatedAt: snapshot.updatedAt,
-            identity: snapshot.identity)
+        return snapshot.with(primary: primary, secondary: secondary)
     }
 
     private nonisolated static func codexMergedResetBackfillSnapshot(

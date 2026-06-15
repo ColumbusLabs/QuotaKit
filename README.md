@@ -14,7 +14,7 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 
 ## Highlights
 
-- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, Vertex AI, Mistral, Perplexity, OpenRouter, ElevenLabs, Deepgram, and more.
+- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, Vertex AI, Mistral, Perplexity, OpenRouter, LiteLLM, ElevenLabs, Deepgram, and more.
 - iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
 - iPhone alerts when a provider runs out of quota or becomes available again.
 - Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.

@@ -1,9 +1,8 @@
-import CodexBarMacroSupport
 import Foundation
 
-@ProviderDescriptorRegistration
-@ProviderDescriptorDefinition
 public enum AntigravityProviderDescriptor {
+    public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .antigravity,
@@ -150,6 +149,21 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         let listeningPorts: @Sendable (Int, TimeInterval) async throws -> [Int]
         let drainOutput: @Sendable () async -> Data
         let fetchSnapshot: @Sendable ([Int]) async throws -> AntigravityStatusSnapshot
+        let now: @Sendable () -> Date
+
+        init(
+            pollIntervalNanoseconds: UInt64,
+            listeningPorts: @escaping @Sendable (Int, TimeInterval) async throws -> [Int],
+            drainOutput: @escaping @Sendable () async -> Data,
+            fetchSnapshot: @escaping @Sendable ([Int]) async throws -> AntigravityStatusSnapshot,
+            now: @escaping @Sendable () -> Date = Date.init)
+        {
+            self.pollIntervalNanoseconds = pollIntervalNanoseconds
+            self.listeningPorts = listeningPorts
+            self.drainOutput = drainOutput
+            self.fetchSnapshot = fetchSnapshot
+            self.now = now
+        }
     }
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
@@ -226,9 +240,9 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         dependencies: SnapshotWaitDependencies) async throws -> AntigravityStatusSnapshot
     {
         var lastFetchError: Error?
-        while Date() < deadline {
+        while dependencies.now() < deadline {
             try await Self.checkAuthenticationPrompt(dependencies)
-            let remaining = deadline.timeIntervalSinceNow
+            let remaining = deadline.timeIntervalSince(dependencies.now())
             let portProbeTimeout = min(2.0, max(0.2, remaining))
             let ports: [Int]
             do {
@@ -261,9 +275,13 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
                 }
             }
 
-            let remainingNanoseconds = UInt64(max(0, deadline.timeIntervalSinceNow) * 1_000_000_000)
+            let remainingNanoseconds = UInt64(
+                max(0, deadline.timeIntervalSince(dependencies.now())) * 1_000_000_000)
             guard remainingNanoseconds > 0 else { break }
-            try await Task.sleep(nanoseconds: min(dependencies.pollIntervalNanoseconds, remainingNanoseconds))
+            let sleepNanoseconds = min(dependencies.pollIntervalNanoseconds, remainingNanoseconds)
+            if sleepNanoseconds > 0 {
+                try await Task.sleep(nanoseconds: sleepNanoseconds)
+            }
         }
 
         try await Self.checkAuthenticationPrompt(dependencies)

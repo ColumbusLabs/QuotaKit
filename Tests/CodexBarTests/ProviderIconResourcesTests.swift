@@ -33,6 +33,7 @@ struct ProviderIconResourcesTests {
             "elevenlabs",
             "groq",
             "llmproxy",
+            "litellm",
             "deepgram",
             "ollama",
         ]

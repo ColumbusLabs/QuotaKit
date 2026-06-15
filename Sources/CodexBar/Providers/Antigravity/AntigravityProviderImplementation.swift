@@ -1,9 +1,7 @@
 import CodexBarCore
-import CodexBarMacroSupport
 import Foundation
 import SwiftUI
 
-@ProviderImplementationRegistration
 struct AntigravityProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .antigravity
     let supportsLoginFlow: Bool = true

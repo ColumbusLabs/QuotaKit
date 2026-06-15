@@ -807,8 +807,11 @@
 
 "language_japanese" = "Японська";
 "language_korean" = "Корейська";
+"language_italian" = "Italiano";
 "language_vietnamese" = "В'єтнамська";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "Індонезійська";
+"language_polish" = "Польська";
 "start_at_login_title" = "Почніть із входу";
 
 "start_at_login_subtitle" = "Автоматично відкриває QuotaKit під час запуску Mac.";

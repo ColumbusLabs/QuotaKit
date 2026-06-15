@@ -37,6 +37,8 @@ For Mac local development:
 
 ```bash
 ./Scripts/compile_and_run.sh
+
+# Also run the sharded test suite before packaging/relaunching
 ./Scripts/compile_and_run.sh --test
 ```
 
@@ -53,13 +55,17 @@ For Mac local development:
 
 ## Common Tasks
 
-### Add a Provider
+### Add a New Provider
 
-1. Add a provider descriptor and fetcher under `Sources/CodexBarCore/Providers/`.
-2. Add app-side implementation wiring under `Sources/CodexBar/Providers/`.
-3. Register the implementation in the provider registry.
-4. Add tests for parsing, status, and sync behavior.
-5. Add mock-provider coverage when the provider affects visible UI or sync.
+1. Add a `UsageProvider` case in `Sources/CodexBarCore/Providers/Providers.swift`
+2. Add core descriptor/fetcher wiring under `Sources/CodexBarCore/Providers/YourProvider/`
+3. Add app-side implementation under `Sources/CodexBar/Providers/YourProvider/`
+4. Register the descriptor in `ProviderDescriptorRegistry`
+5. Register the implementation in `ProviderImplementationRegistry`
+6. Add icon assets such as `Resources/ProviderIcon-yourprovider.svg`
+
+Add tests for parsing, status, and sync behavior. Add mock-provider coverage when
+the provider affects visible UI or sync.
 
 ### Debug Cookie Or Credential Issues
 
@@ -67,6 +73,12 @@ For Mac local development:
 2. Reproduce with `./Scripts/compile_and_run.sh`.
 3. Check Console.app for the running app process logs.
 4. Avoid live credential probes unless the user explicitly requested them.
+
+### Run Tests Only
+
+```bash
+make test
+```
 
 ### Format And Lint
 

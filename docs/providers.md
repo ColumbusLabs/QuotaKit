@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 49 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 50 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -69,6 +69,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Grok | `grok agent stdio` JSON-RPC `x.ai/billing` (`cli`) → grok.com billing gRPC-web via Chrome session cookies (`web`); local `~/.grok/sessions` signals as fallback. |
 | GroqCloud | API key → Prometheus metrics API for request/token/cache-hit rates (`api`). |
 | LLM Proxy | API key + base URL → `/v1/quota-stats` aggregate proxy usage (`api`). |
+| LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 
 ## Codex
@@ -381,6 +382,15 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Optional project ID from provider settings or `DEEPGRAM_PROJECT_ID`; otherwise aggregates all visible projects.
 - Reads Deepgram usage breakdowns for audio hours, agent hours, token totals, TTS characters, and requests.
 - Details: `docs/deepgram.md`.
+
+## LiteLLM
+- API key from config or `LITELLM_API_KEY`; base URL from config `enterpriseHost` or `LITELLM_BASE_URL`.
+- Reads `/key/info` first, then `/user/info?user_id=...` for user-bound keys or `/team/info?team_id=...` for team-only keys.
+- User-bound keys show personal budget usage as the primary window and the key's exact matching team as the secondary window.
+- Team-only keys show the team budget as their sole usage window. Automatic menu-bar selection prefers the enforced team budget.
+- Spend remains visible in the API-spend row when LiteLLM has no budget limit configured.
+- Accepts base URLs with or without a `/v1` suffix; management requests are sent to the proxy root.
+- Details: `docs/litellm.md`.
 
 ## StepFun
 - Username/password login or manual Oasis-Token.
