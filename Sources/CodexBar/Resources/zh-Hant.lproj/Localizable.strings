@@ -823,6 +823,8 @@
 
 "language_japanese" = "日語";
 "language_korean" = "韓語";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
 "start_at_login_title" = "登入時啟動";
 
 "start_at_login_subtitle" = "登入 Mac 時自動開啟 QuotaKit。";
@@ -1870,3 +1872,7 @@
 
 "Request quota: %@ / %@" = "請求額度：%@ / %@";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "印尼語";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

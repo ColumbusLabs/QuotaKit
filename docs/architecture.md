@@ -12,8 +12,6 @@ read_when:
 - `Sources/CodexBar`: state + UI (UsageStore, SettingsStore, StatusItemController, menus, icon rendering).
 - `Sources/CodexBarWidget`: WidgetKit source target for the packaged QuotaKit widget extension.
 - `Sources/CodexBarCLI`: source target for the bundled `quotakit` usage/status CLI.
-- `Sources/CodexBarMacros`: SwiftSyntax macros for provider registration.
-- `Sources/CodexBarMacroSupport`: shared macro support used by app/core/CLI targets.
 - `Sources/CodexBarClaudeWatchdog`: source target for the packaged `QuotaKitClaudeWatchdog` helper process.
 - `Sources/CodexBarClaudeWebProbe`: CLI helper to diagnose Claude web fetches.
 

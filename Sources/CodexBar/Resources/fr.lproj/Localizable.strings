@@ -807,8 +807,11 @@
 
 "language_japanese" = "Japonais";
 "language_korean" = "Coréen";
+"language_italian" = "Italiano";
 "language_vietnamese" = "Vietnamien";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "Indonésien";
+"language_polish" = "Polonais";
 "start_at_login_title" = "Lancer à l'ouverture de session";
 
 "start_at_login_subtitle" = "Ouvre automatiquement QuotaKit au démarrage de votre Mac.";
@@ -2099,3 +2102,6 @@
 "No matching providers" = "Aucun fournisseur correspondant";
 
 "Search providers" = "Fournisseurs de recherche";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

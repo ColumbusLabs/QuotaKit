@@ -808,6 +808,8 @@
 "language_japanese" = "Japanese";
 "language_korean" = "Korean";
 "language_turkish" = "Türkçe";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
 "start_at_login_title" = "Start at Login";
 
 "start_at_login_subtitle" = "Automatically opens QuotaKit when you start your Mac.";
@@ -2148,9 +2150,14 @@
 
 
 "language_vietnamese" = "Vietnamese";
+"language_indonesian" = "Bahasa Indonesia";
 
 "Request quota: %@ / %@" = "Request quota: %@ / %@";
 
 "terminal_app_subtitle" = "Terminal used by the Open Terminal action";
 
 "terminal_app_title" = "Default Terminal";
+
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

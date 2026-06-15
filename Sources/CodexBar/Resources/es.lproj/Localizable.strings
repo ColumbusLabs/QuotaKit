@@ -807,6 +807,8 @@
 
 "language_japanese" = "Japonés";
 "language_korean" = "Coreano";
+"language_italian" = "Italiano";
+"language_polish" = "Polski";
 "start_at_login_title" = "Abrir al iniciar sesión";
 
 "start_at_login_subtitle" = "Abre QuotaKit automáticamente al iniciar tu Mac.";
@@ -1820,3 +1822,7 @@
 
 "language_vietnamese" = "Vietnamita";
 "language_turkish" = "Türkçe";
+"language_indonesian" = "Indonesio";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

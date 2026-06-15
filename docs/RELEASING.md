@@ -74,7 +74,7 @@ unless Columbus Labs intentionally adds one later.
 ## Checklist (quick)
 - [ ] Confirm `.mac-release.env` points to `ColumbusLabs/QuotaKit`, `QuotaKit`, and `https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`.
 - [ ] Update versions (`version.env`, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.
-- [ ] `swiftformat`, `swiftlint`, `swift test` (zero warnings/errors)
+- [ ] `swiftformat`, `swiftlint`, `make test` (zero warnings/errors)
 - [ ] `./Scripts/build_icon.sh` if icon changed
 - [ ] `./Scripts/sign-and-notarize.sh`
 - [ ] Generate Sparkle appcast via `Scripts/release.sh` or `Scripts/make_appcast.sh`; use `SPARKLE_PRIVATE_KEY_FILE` only if overriding Keychain signing.

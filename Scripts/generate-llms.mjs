@@ -5,11 +5,9 @@ import { fileURLToPath } from "node:url";
 
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const docsDir = path.join(repoRoot, "docs");
-const cname = fs.readFileSync(path.join(docsDir, "CNAME"), "utf8").trim();
-const origin = "https://" + cname;
-const productName = "CodexBar";
-const productDescription = "CodexBar shows OpenAI Codex and Claude Code usage limits in the macOS menu bar.";
-const source = "https://github.com/steipete/CodexBar";
+const origin = "https://columbus-labs.com/quotakit/mac";
+const productName = "QuotaKit";
+const source = "https://github.com/ColumbusLabs/QuotaKit";
 
 const pages = allHtml(docsDir)
   .map((file) => {
@@ -24,6 +22,9 @@ const pages = allHtml(docsDir)
   })
   .filter(Boolean)
   .sort((a, b) => (a.rel === "index.html" ? -1 : b.rel === "index.html" ? 1 : a.rel.localeCompare(b.rel)));
+const productDescription =
+  pages.find((page) => page.rel === "index.html")?.description ||
+  "QuotaKit shows AI coding-provider usage limits in the macOS menu bar.";
 
 const lines = [
   "# " + productName,
@@ -54,7 +55,7 @@ function allHtml(dir) {
 }
 
 function pageUrl(rel) {
-  return rel === "index.html" ? origin + "/" : origin + "/" + rel;
+  return rel === "index.html" ? origin : origin + "/" + rel;
 }
 
 function textContent(value) {

@@ -17,6 +17,35 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   open-menu usage refresh, status-menu appearance fixes, editable cost-history
   settings, Command Code credit resilience, and release dSYM/Sparkle signing-path
   validation helpers.
+- Synced upstream CodexBar Mac improvements through `b1e52908`
+  (`2e4b3556..b1e52908`), including explicit provider registration, shared
+  token/environment/cookie resolution, a LiteLLM provider, Italian/Indonesian/
+  Polish/Arabic/Persian/Thai Mac localizations, bounded subprocess output
+  draining, Claude cookie and OAuth ownership tests, Copilot reset-time display,
+  menu/provider refresh coordination, usage snapshot preservation, provider
+  readiness test stabilization, broader provider/runtime test coverage, and
+  website provider logo refreshes.
+
+### Fixed
+
+- Antigravity: retry transient `Text file busy` launch failures while the CLI executable is being replaced.
+- Antigravity: fall back to loopback HTTP for local CLI and language-server probes on Linux, where self-signed localhost TLS cannot be trusted (fixes #1508). Thanks @zodiacfireworks!
+- Codebuff: enforce the optional subscription grace period even when the transport ignores cancellation.
+- Copilot: show the shared quota reset date for limited premium and chat usage windows. Thanks @Zihao-Qi!
+- Codex: keep managed login timeouts bounded while preserving captured output when detached helpers retain stdout or stderr.
+- Claude: keep segmented multi-account menus scoped to the selected account while its refresh is in flight (fixes #1527).
+- Command Code: keep showing available credits after the bounded optional subscription grace, including when the transport ignores cancellation (fixes #1131).
+- DeepSeek: keep balance refreshes responsive when optional usage-summary work ignores cancellation.
+- OpenRouter: keep credit refreshes responsive when optional key-quota enrichment ignores cancellation.
+- Provider probes: stop waiting indefinitely for inherited output pipes after subprocesses or CLI version checks exit (fixes #1531).
+- Menu bar: update visible usage values in place when a manual refresh completes instead of leaving the open provider card stale until the menu is reopened (fixes #1516).
+- Gemini: recognize the current `gemini-api-key` CLI auth setting so API-key sessions show the supported OAuth guidance instead of a misleading not-logged-in error (fixes #1511).
+- Kiro: keep usage refreshes bounded when CLI helpers retain output pipes, ignore termination, or are cancelled (fixes #1533). Thanks @kiranmagic7!
+- Gemini: keep fnm package discovery bounded when helper descendants retain output pipes or ignore termination (fixes #1534). Thanks @kiranmagic7!
+- Xiaomi MiMo: cancel optional token-plan requests when the required balance request fails instead of delaying the error for up to 30 seconds.
+- Settings: make the cost history window directly editable by keyboard while preserving the existing stepper and 1–365 day bounds (fixes #1499). Thanks @kiranmagic7!
+- OpenCode Go: show Zen balances for accounts without subscription usage windows, including when the balance request takes longer than optional enrichment (fixes #1476). Thanks @kiranmagic7!
+- Website: replace the remaining Devin, LiteLLM, and T3 Chat provider letter tiles with logo assets.
 
 ## 0.32.4.5 / iOS 1.11.1 — 2026-06-11
 

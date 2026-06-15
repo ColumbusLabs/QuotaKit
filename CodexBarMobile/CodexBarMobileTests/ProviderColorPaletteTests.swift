@@ -59,6 +59,7 @@ struct ProviderColorPaletteTests {
             ("grok", 26 / 255, 26 / 255, 26 / 255),
             ("groq", 245 / 255, 104 / 255, 68 / 255),
             ("llmproxy", 36 / 255, 180 / 255, 126 / 255),
+            ("litellm", 76 / 255, 137 / 255, 192 / 255),
             ("deepgram", 0.49, 0.23, 0.93),
         ]
 
@@ -131,7 +132,7 @@ private let knownDistinctProviders = [
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
     "doubao", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
-    "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "deepgram",
+    "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
 ]
 
 private func expectDistinctColors(

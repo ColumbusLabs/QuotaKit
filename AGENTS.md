@@ -2,6 +2,12 @@
 
 This repository is the Columbus Labs QuotaKit codebase. QuotaKit tracks AI quota, usage, and spend on Mac, then syncs that data to the iPhone app through iCloud.
 
+## Build, Test, Run
+- Dev loop: `./Scripts/compile_and_run.sh` kills old instances, builds, packages, relaunches the Mac app, and confirms it stays running; add `--test` for the sharded full suite.
+- Quick build/test: `swift build` (debug) or `swift build -c release`; `make test` for the sharded full suite.
+- Package locally: `./Scripts/package_app.sh` to refresh the Mac app bundle, then restart with the QuotaKit-owned app path for the current checkout.
+- Release flow: `./Scripts/release.sh`; app metadata lives in `.mac-release.env`, repo build/signing stays in `Scripts/sign-and-notarize.sh`, and validation steps live in `docs/RELEASING.md`.
+
 ## Scope
 
 - Primary mobile work lives in `CodexBarMobile/`.
@@ -9,6 +15,15 @@ This repository is the Columbus Labs QuotaKit codebase. QuotaKit tracks AI quota
 - Mac-side targets still carry inherited implementation names such as `CodexBar`, `CodexBarCore`, and `CodexBarCLI`. Treat those as internal identifiers unless the task explicitly asks for a Mac rename/refactor.
 - The public product name is **QuotaKit** and the company name is **Columbus Labs**.
 - Current upstream alignment is recorded in `version.env` through `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE`.
+
+## Testing Guidelines
+- Add/extend XCTest cases under `Tests/CodexBarTests/*Tests.swift` (`FeatureNameTests` with `test_caseDescription` methods).
+- Model names in tests/code: released models or clearly fictitious names only; never expose unreleased names.
+- Always run `make test` before handoff; add focused `swift test --filter ...` runs for parser/provider fixes when possible.
+- After any code change, run the relevant lint/build checks and fix reported format/lint issues before handoff.
+- Prefer CLI/focused tests over app-bundle live tests when behavior can be verified without relaunching CodexBar.
+- Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts. Live provider probes, browser-cookie imports, `codexbar usage` against real accounts, and real SecItem reads must be explicitly requested; otherwise use parser tests, stubs, test stores, or `KeychainNoUIQuery`.
+- macOS CI is brittle around headless AppKit status/menu tests. Prefer covering menu behavior through stable state/model seams (`MenuDescriptor`, `ProvidersPane`, `CodexAccountsSectionState`, etc.) instead of constructing live `NSStatusBar`/`NSMenu` flows unless the AppKit wiring itself is the thing under test.
 
 ## Development Flow
 

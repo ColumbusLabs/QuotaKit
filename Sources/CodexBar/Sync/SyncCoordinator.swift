@@ -1899,7 +1899,7 @@ final class SyncCoordinator {
              // (project API), LLM Proxy (quota stats) all surface
              // pre-computed numbers from their own APIs — never via the
              // local Codex/Claude pricing tables.
-             .grok, .groq, .elevenlabs, .deepgram, .llmproxy,
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy, .litellm,
              // Upstream v0.28.0–v0.29.0 new providers. Azure OpenAI
              // (deployment validation), Alibaba Token Plan (Bailian quota),
              // and T3 Chat (web session) all surface pre-computed numbers

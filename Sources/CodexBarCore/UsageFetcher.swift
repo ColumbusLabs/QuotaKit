@@ -243,28 +243,13 @@ public struct UsageSnapshot: Codable, Sendable {
     }
 
     public func with(extraRateWindows: [NamedRateWindow]?) -> UsageSnapshot {
-        UsageSnapshot(
-            primary: self.primary,
-            secondary: self.secondary,
-            tertiary: self.tertiary,
-            extraRateWindows: extraRateWindows,
-            kiroUsage: self.kiroUsage,
-            ampUsage: self.ampUsage,
-            providerCost: self.providerCost,
-            zaiUsage: self.zaiUsage,
-            minimaxUsage: self.minimaxUsage,
-            deepseekUsage: self.deepseekUsage,
-            mimoUsage: self.mimoUsage,
-            openRouterUsage: self.openRouterUsage,
-            openAIAPIUsage: self.openAIAPIUsage,
-            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
-            mistralUsage: self.mistralUsage,
-            deepgramUsage: self.deepgramUsage,
-            cursorRequests: self.cursorRequests,
-            subscriptionExpiresAt: self.subscriptionExpiresAt,
-            subscriptionRenewsAt: self.subscriptionRenewsAt,
-            updatedAt: self.updatedAt,
-            identity: self.identity)
+        self.replacing(extraRateWindows: .value(extraRateWindows))
+    }
+
+    public func with(primary: RateWindow?, secondary: RateWindow?) -> UsageSnapshot {
+        self.replacing(
+            primary: .value(primary),
+            secondary: .value(secondary))
     }
 
     public init(from decoder: Decoder) throws {
@@ -428,30 +413,8 @@ public struct UsageSnapshot: Codable, Sendable {
         UsageLimitsAvailability.resolve(provider: provider, snapshot: self).isUnavailable
     }
 
-    /// Keep this initializer-style copy in sync with UsageSnapshot fields so relabeling/scoping never drops data.
     public func withIdentity(_ identity: ProviderIdentitySnapshot?) -> UsageSnapshot {
-        UsageSnapshot(
-            primary: self.primary,
-            secondary: self.secondary,
-            tertiary: self.tertiary,
-            extraRateWindows: self.extraRateWindows,
-            kiroUsage: self.kiroUsage,
-            ampUsage: self.ampUsage,
-            providerCost: self.providerCost,
-            zaiUsage: self.zaiUsage,
-            minimaxUsage: self.minimaxUsage,
-            deepseekUsage: self.deepseekUsage,
-            mimoUsage: self.mimoUsage,
-            openRouterUsage: self.openRouterUsage,
-            openAIAPIUsage: self.openAIAPIUsage,
-            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
-            mistralUsage: self.mistralUsage,
-            deepgramUsage: self.deepgramUsage,
-            cursorRequests: self.cursorRequests,
-            subscriptionExpiresAt: self.subscriptionExpiresAt,
-            subscriptionRenewsAt: self.subscriptionRenewsAt,
-            updatedAt: self.updatedAt,
-            identity: identity)
+        self.replacing(identity: .value(identity))
     }
 
     public func scoped(to provider: UsageProvider) -> UsageSnapshot {
@@ -470,28 +433,10 @@ public struct UsageSnapshot: Codable, Sendable {
         if primary == self.primary, secondary == self.secondary, tertiary == self.tertiary {
             return self
         }
-        return UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
-            tertiary: tertiary,
-            extraRateWindows: self.extraRateWindows,
-            kiroUsage: self.kiroUsage,
-            ampUsage: self.ampUsage,
-            providerCost: self.providerCost,
-            zaiUsage: self.zaiUsage,
-            minimaxUsage: self.minimaxUsage,
-            deepseekUsage: self.deepseekUsage,
-            mimoUsage: self.mimoUsage,
-            openRouterUsage: self.openRouterUsage,
-            openAIAPIUsage: self.openAIAPIUsage,
-            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
-            mistralUsage: self.mistralUsage,
-            deepgramUsage: self.deepgramUsage,
-            cursorRequests: self.cursorRequests,
-            subscriptionExpiresAt: self.subscriptionExpiresAt,
-            subscriptionRenewsAt: self.subscriptionRenewsAt,
-            updatedAt: self.updatedAt,
-            identity: self.identity)
+        return self.replacing(
+            primary: .value(primary),
+            secondary: .value(secondary),
+            tertiary: .value(tertiary))
     }
 
     private func orderedPerplexityFallbackWindows() -> [RateWindow] {
@@ -510,6 +455,49 @@ public struct UsageSnapshot: Codable, Sendable {
             return lhsEmail == rhsEmail
         }
         return true
+    }
+
+    private enum Replacement<Value> {
+        case unchanged
+        case value(Value)
+
+        func resolving(_ current: Value) -> Value {
+            switch self {
+            case .unchanged: current
+            case let .value(value): value
+            }
+        }
+    }
+
+    private func replacing(
+        primary: Replacement<RateWindow?> = .unchanged,
+        secondary: Replacement<RateWindow?> = .unchanged,
+        tertiary: Replacement<RateWindow?> = .unchanged,
+        extraRateWindows: Replacement<[NamedRateWindow]?> = .unchanged,
+        identity: Replacement<ProviderIdentitySnapshot?> = .unchanged) -> UsageSnapshot
+    {
+        UsageSnapshot(
+            primary: primary.resolving(self.primary),
+            secondary: secondary.resolving(self.secondary),
+            tertiary: tertiary.resolving(self.tertiary),
+            extraRateWindows: extraRateWindows.resolving(self.extraRateWindows),
+            kiroUsage: self.kiroUsage,
+            ampUsage: self.ampUsage,
+            providerCost: self.providerCost,
+            zaiUsage: self.zaiUsage,
+            minimaxUsage: self.minimaxUsage,
+            deepseekUsage: self.deepseekUsage,
+            mimoUsage: self.mimoUsage,
+            openRouterUsage: self.openRouterUsage,
+            openAIAPIUsage: self.openAIAPIUsage,
+            claudeAdminAPIUsage: self.claudeAdminAPIUsage,
+            mistralUsage: self.mistralUsage,
+            deepgramUsage: self.deepgramUsage,
+            cursorRequests: self.cursorRequests,
+            subscriptionExpiresAt: self.subscriptionExpiresAt,
+            subscriptionRenewsAt: self.subscriptionRenewsAt,
+            updatedAt: self.updatedAt,
+            identity: identity.resolving(self.identity))
     }
 }
 

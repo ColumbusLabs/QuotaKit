@@ -1,6 +1,8 @@
 import CodexBarCore
 
 enum IconRemainingResolver {
+    private static let visibleZeroPercent = 0.0001
+
     private static func codexProjection(snapshot: UsageSnapshot) -> CodexConsumerProjection {
         CodexConsumerProjection.make(
             surface: .menuBar,
@@ -73,35 +75,13 @@ enum IconRemainingResolver {
         secondaryOverrideWindowID: String? = nil)
         -> (primary: Double?, secondary: Double?)
     {
-        if style == .perplexity {
-            let windows = snapshot.orderedPerplexityDisplayWindows()
-            return (
-                primary: windows.first?.remainingPercent,
-                secondary: windows.dropFirst().first?.remainingPercent)
-        }
-        if style == .antigravity {
-            let windows = self.antigravityVisibleWindows(snapshot: snapshot)
-            return (
-                primary: windows.first?.remainingPercent,
-                secondary: windows.dropFirst().first?.remainingPercent)
-        }
-        if style == .codex {
-            let windows = self.codexVisibleWindows(snapshot: snapshot)
-            return (
-                primary: windows.first?.remainingPercent,
-                secondary: windows.dropFirst().first?.remainingPercent)
-        }
-        if style == .copilot,
-           let secondaryOverrideWindowID,
-           let extraWindow = snapshot.extraRateWindows?.first(where: { $0.id == secondaryOverrideWindowID })?.window
-        {
-            return (
-                primary: snapshot.primary?.remainingPercent,
-                secondary: extraWindow.remainingPercent)
-        }
+        let windows = self.resolvedWindows(
+            snapshot: snapshot,
+            style: style,
+            secondaryOverrideWindowID: secondaryOverrideWindowID)
         return (
-            primary: snapshot.primary?.remainingPercent,
-            secondary: snapshot.secondary?.remainingPercent)
+            primary: windows.primary?.remainingPercent,
+            secondary: windows.secondary?.remainingPercent)
     }
 
     static func resolvedPercents(
@@ -115,8 +95,18 @@ enum IconRemainingResolver {
             snapshot: snapshot,
             style: style,
             secondaryOverrideWindowID: secondaryOverrideWindowID)
-        return (
+        var percents = (
             primary: showUsed ? windows.primary?.usedPercent : windows.primary?.remainingPercent,
             secondary: showUsed ? windows.secondary?.usedPercent : windows.secondary?.remainingPercent)
+        if showUsed, style == .warp, let secondary = windows.secondary {
+            if secondary.remainingPercent <= 0 {
+                // Preserve Warp's exhausted/no-bonus layout even though used percent is 100.
+                percents.secondary = 0
+            } else if percents.secondary == 0 {
+                // A zero fill means "lane absent" to IconRenderer; keep an unused bonus lane visible.
+                percents.secondary = self.visibleZeroPercent
+            }
+        }
+        return percents
     }
 }

@@ -2,6 +2,10 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+private func antigravityBlockingSleep(_ interval: TimeInterval) {
+    Thread.sleep(forTimeInterval: interval)
+}
+
 private final class AntigravityCLICounter: @unchecked Sendable {
     private let lock = NSLock()
     private var count = 0
@@ -54,6 +58,23 @@ private final class AntigravityCLITimeoutRecorder: @unchecked Sendable {
     func snapshot() -> [TimeInterval] {
         self.lock.lock()
         let value = self.timeouts
+        self.lock.unlock()
+        return value
+    }
+}
+
+private final class AntigravityCLITestClock: @unchecked Sendable {
+    private let lock = NSLock()
+    private var date: Date
+
+    init(date: Date) {
+        self.date = date
+    }
+
+    func now() -> Date {
+        self.lock.lock()
+        let value = self.date
+        self.date = self.date.addingTimeInterval(1)
         self.lock.unlock()
         return value
     }
@@ -668,11 +689,11 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             context: AntigravityStatusProbe.RequestContext(
                 endpoints: endpoints,
                 timeout: 10,
-                deadline: Date().addingTimeInterval(2)),
+                deadline: Date().addingTimeInterval(10)),
             send: { _, _, timeout in
                 timeoutRecorder.append(timeout)
                 if attempts.increment() == 1 {
-                    try await Task.sleep(nanoseconds: 100_000_000)
+                    antigravityBlockingSleep(0.1)
                     throw AntigravityStatusProbeError.apiError("first endpoint failed")
                 }
                 return Data("ok".utf8)
@@ -721,23 +742,26 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
     @Test
     func `cli HTTPS reports last readiness error when ports never become usable`() async {
         let fetchAttempts = AntigravityCLICounter()
+        let start = Date(timeIntervalSinceReferenceDate: 0)
+        let clock = AntigravityCLITestClock(date: start)
 
         do {
             _ = try await AntigravityCLIHTTPSFetchStrategy.waitForSnapshot(
                 pid: 123,
-                deadline: Date().addingTimeInterval(2),
+                deadline: start.addingTimeInterval(5),
                 dependencies: AntigravityCLIHTTPSFetchStrategy.SnapshotWaitDependencies(
-                    pollIntervalNanoseconds: 10_000_000,
+                    pollIntervalNanoseconds: 0,
                     listeningPorts: { _, _ in [50080] },
                     drainOutput: { Data() },
                     fetchSnapshot: { _ in
                         let attempt = fetchAttempts.increment()
                         throw AntigravityStatusProbeError.apiError("HTTP 500: warming attempt \(attempt)")
-                    }))
+                    },
+                    now: { clock.now() }))
             Issue.record("Expected readiness polling to throw")
         } catch let AntigravityStatusProbeError.apiError(message) {
-            #expect(fetchAttempts.value > 1)
-            #expect(message == "HTTP 500: warming attempt \(fetchAttempts.value)")
+            #expect(fetchAttempts.value == 2)
+            #expect(message == "HTTP 500: warming attempt 2")
         } catch {
             Issue.record("Expected apiError, got \(error)")
         }
