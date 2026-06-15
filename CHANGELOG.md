@@ -17,13 +17,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   open-menu usage refresh, status-menu appearance fixes, editable cost-history
   settings, Command Code credit resilience, and release dSYM/Sparkle signing-path
   validation helpers.
-- Synced upstream CodexBar Mac improvements through `dd09666b`
-  (`2e4b3556..dd09666b`), including explicit provider registration, shared
+- Synced upstream CodexBar Mac improvements through `b1e52908`
+  (`2e4b3556..b1e52908`), including explicit provider registration, shared
   token/environment/cookie resolution, a LiteLLM provider, Italian/Indonesian/
   Polish/Arabic/Persian/Thai Mac localizations, bounded subprocess output
   draining, Claude cookie and OAuth ownership tests, Copilot reset-time display,
   menu/provider refresh coordination, usage snapshot preservation, provider
-  readiness test stabilization, and broader provider/runtime test coverage.
+  readiness test stabilization, broader provider/runtime test coverage, and
+  website provider logo refreshes.
 
 ### Fixed
 
@@ -44,6 +45,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Xiaomi MiMo: cancel optional token-plan requests when the required balance request fails instead of delaying the error for up to 30 seconds.
 - Settings: make the cost history window directly editable by keyboard while preserving the existing stepper and 1–365 day bounds (fixes #1499). Thanks @kiranmagic7!
 - OpenCode Go: show Zen balances for accounts without subscription usage windows, including when the balance request takes longer than optional enrichment (fixes #1476). Thanks @kiranmagic7!
+- Website: replace the remaining Devin, LiteLLM, and T3 Chat provider letter tiles with logo assets.
 
 ## 0.32.4.5 / iOS 1.11.1 — 2026-06-11
 

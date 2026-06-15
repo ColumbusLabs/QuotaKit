@@ -79,7 +79,7 @@
 "Codex login failed" = "Logowanie do Codex nie powiodło się";
 "Codex login timed out" = "Przekroczono limit czasu logowania do Codex";
 "CodexBar Lifecycle Keepalive" = "Podtrzymanie cyklu życia QuotaKit";
-"CodexBar can't show its menu bar icon" = "QuotaKit nie może pokazać swojej ikony na pasku menu";
+"QuotaKit can't show its menu bar icon" = "QuotaKit nie może pokazać swojej ikony na pasku menu";
 "CodexBar could not read managed account storage. " = "QuotaKit nie mógł odczytać magazynu zarządzanych kont. ";
 "Configure…" = "Skonfiguruj…";
 "Connected" = "Połączono";
@@ -304,7 +304,7 @@
 "Subscription Utilization" = "Wykorzystanie subskrypcji";
 "Surprise me" = "Zaskocz mnie";
 "Switcher shows icons" = "Przełącznik pokazuje ikony";
-"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Dowiąż symbolicznie QuotaKitCLI do /usr/local/bin i /opt/homebrew/bin jako quotakit.";
+"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Dowiąż symbolicznie QuotaKitCLI do /usr/local/bin i /opt/homebrew/bin jako quotakit.";
 "System" = "System";
 "Temporarily shows the loading animation after the next refresh." = "Tymczasowo pokazuje animację ładowania po następnym odświeżeniu.";
 "terminal_app_subtitle" = "Terminal używany przez akcję Otwórz terminal";
@@ -619,7 +619,7 @@
 "login_shell_path" = "PATH powłoki logowania (przechwycony przy starcie)";
 "cleared" = "Wyczyszczono.";
 "no_fetch_attempts" = "Brak prób pobrania.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "Automatycznie";
@@ -1080,6 +1080,29 @@
 "Search providers" = "Szukaj dostawców";
 
 "Request quota: %@ / %@" = "Limit żądań: %@ / %@";
+"tab_mobile" = "Mobile";
+"mobile_section_icloud_sync" = "iCloud Sync";
+"mobile_toggle_sync_title" = "Sync usage to iCloud";
+"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
+"mobile_section_push" = "iOS Push Notifications";
+"mobile_toggle_push_title" = "Push notifications to iOS";
+"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
+"mobile_section_mock_data" = "Debug · Mock Provider Data";
+"mobile_toggle_mock_title" = "Inject mock provider data";
+"mobile_toggle_mock_subtitle" = "Pushes 60 synthetic providers across 50 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 52 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy and 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
+"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (35 simple mocks omitted for brevity):";
+"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
+"mobile_section_dev_test" = "DEV — iOS Push Test";
+"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
+"mobile_dev_depleted" = "Depleted";
+"mobile_dev_restored" = "Restored";
+"mobile_dev_warning" = "Warning";
+"mobile_dev_verify_push" = "Verify Push Setup";
+"mobile_sync_status_syncing" = "Syncing…";
+"mobile_sync_status_last_sync_format" = "Last sync: %@";
+"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
+"mobile_sync_status_no_sync" = "No sync yet";
+"mobile_button_sync_now" = "Sync Now";
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";

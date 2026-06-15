@@ -25,7 +25,7 @@ public enum LiteLLMProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .litellm,
                 iconResourceName: "ProviderIcon-litellm",
-                color: ProviderColor(red: 76 / 255, green: 137 / 255, blue: 240 / 255)),
+                color: ProviderColor(red: 76 / 255, green: 137 / 255, blue: 192 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "LiteLLM spend is reported by the provider API." }),

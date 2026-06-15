@@ -82,19 +82,19 @@ struct LocalizationLanguageCatalogTests {
             "ar": [
                 "language_arabic": "العربية",
                 "tab_general": "عام",
-                "quit_app": "إنهاء CodexBar",
+                "quit_app": "إنهاء QuotaKit",
                 "usage_percent_suffix_left": "متبقٍ",
             ],
             "fa": [
                 "language_persian": "فارسی",
                 "tab_general": "عمومی",
-                "quit_app": "خروج از CodexBar",
+                "quit_app": "خروج از QuotaKit",
                 "usage_percent_suffix_left": "باقی مانده",
             ],
             "th": [
                 "language_thai": "ไทย",
                 "tab_general": "ทั่วไป",
-                "quit_app": "ออกจาก CodexBar",
+                "quit_app": "ออกจาก QuotaKit",
                 "usage_percent_suffix_left": "คงเหลือ",
             ],
         ]
@@ -278,7 +278,30 @@ struct LocalizationLanguageCatalogTests {
             "language_thai",
             "link_email",
             "link_github",
+            "mobile_button_sync_now",
+            "mobile_dev_depleted",
+            "mobile_dev_restored",
+            "mobile_dev_test_intro",
+            "mobile_dev_verify_push",
+            "mobile_dev_warning",
+            "mobile_mock_cost_note",
+            "mobile_mock_reference_header",
+            "mobile_section_dev_test",
+            "mobile_section_icloud_sync",
+            "mobile_section_mock_data",
+            "mobile_section_push",
+            "mobile_sync_status_last_attempt_format",
+            "mobile_sync_status_last_sync_format",
+            "mobile_sync_status_no_sync",
+            "mobile_sync_status_syncing",
+            "mobile_toggle_mock_subtitle",
+            "mobile_toggle_mock_title",
+            "mobile_toggle_push_subtitle",
+            "mobile_toggle_push_title",
+            "mobile_toggle_sync_subtitle",
+            "mobile_toggle_sync_title",
             "ory_session_…=…; csrftoken=…",
+            "tab_mobile",
         ]
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)
@@ -313,7 +336,7 @@ struct LocalizationLanguageCatalogTests {
         #expect(Set(indonesian.keys) == Set(english.keys))
         #expect(indonesian["language_indonesian"] == "Bahasa Indonesia")
         #expect(indonesian["tab_general"] == "Umum")
-        #expect(indonesian["quit_app"] == "Keluar CodexBar")
+        #expect(indonesian["quit_app"] == "Keluar QuotaKit")
         #expect(indonesian["30d"] == "30 hari")
         #expect(indonesian["On"] == "Aktif")
         #expect(indonesian["Off"] == "Nonaktif")
