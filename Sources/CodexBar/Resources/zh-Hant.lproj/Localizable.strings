@@ -1873,3 +1873,6 @@
 "Request quota: %@ / %@" = "請求額度：%@ / %@";
 "language_turkish" = "Türkçe";
 "language_indonesian" = "印尼語";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

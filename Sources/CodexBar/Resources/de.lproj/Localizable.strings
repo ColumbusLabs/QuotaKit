@@ -1078,3 +1078,6 @@
 "Search providers" = "Suchanbieter";
 
 "Request quota: %@ / %@" = "Anfragelimit: %@ / %@";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

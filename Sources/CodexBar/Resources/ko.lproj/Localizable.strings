@@ -1047,3 +1047,6 @@
 "language_turkish" = "Türkçe";
 "language_indonesian" = "인도네시아어";
 "Request quota: %@ / %@" = "요청 할당량: %@ / %@";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

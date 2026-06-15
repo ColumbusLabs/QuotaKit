@@ -2157,3 +2157,7 @@
 "terminal_app_subtitle" = "Terminal used by the Open Terminal action";
 
 "terminal_app_title" = "Default Terminal";
+
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

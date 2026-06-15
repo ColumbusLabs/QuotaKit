@@ -118,6 +118,7 @@ enum ProviderColorPalette {
             (["grok"], RawColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255)),
             (["groq", "groqcloud", "groqapi"], RawColor(red: 245 / 255, green: 104 / 255, blue: 68 / 255)),
             (["llmproxy"], RawColor(red: 36 / 255, green: 180 / 255, blue: 126 / 255)),
+            (["litellm"], RawColor(red: 76 / 255, green: 137 / 255, blue: 240 / 255)),
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
             (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
         ]

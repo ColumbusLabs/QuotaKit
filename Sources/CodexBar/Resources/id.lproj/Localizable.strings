@@ -1080,3 +1080,6 @@
 "Search providers" = "Cari penyedia";
 
 "Request quota: %@ / %@" = "Kuota permintaan: %@ / %@";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

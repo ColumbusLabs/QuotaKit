@@ -2102,3 +2102,6 @@
 "No matching providers" = "Немає відповідних постачальників";
 
 "Search providers" = "Пошук провайдерів";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

@@ -1103,3 +1103,6 @@
 "display_mode_reset_time_desc" = "Seçilen metrik için sıfırlama zamanını göster (örn. ↻ 15:56)";
 "terminal_app_title" = "Varsayılan Terminal";
 "terminal_app_subtitle" = "Terminali Aç eyleminde kullanılan terminal";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

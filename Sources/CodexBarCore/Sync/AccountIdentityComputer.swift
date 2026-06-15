@@ -67,7 +67,7 @@ public enum AccountIdentityComputer {
              // Upstream v0.27.0 new providers. iOS 1.8 surfaces these
              // via single-account cards. Promote to Tier-A only if a
              // user files a cross-Mac merging request for them.
-             .grok, .groq, .elevenlabs, .deepgram, .llmproxy,
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy, .litellm,
              // Upstream v0.28.0–v0.29.0 new providers. iOS 1.9 surfaces
              // these via single-account cards. Promote to Tier-A only if a
              // user files a cross-Mac merging request for them.

@@ -202,6 +202,10 @@ check_swift_test_sharding() {
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
 
+check_app_locales() {
+  node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
@@ -209,6 +213,7 @@ case "$cmd" in
     check_release_dsym_paths
     check_sparkle_signing_paths
     check_swift_test_sharding
+    check_app_locales
     ensure_tools
     "${BIN_DIR}/swiftformat" Sources Tests --lint
     "${BIN_DIR}/swiftlint" --strict

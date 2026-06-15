@@ -1080,3 +1080,6 @@
 "Search providers" = "Szukaj dostawców";
 
 "Request quota: %@ / %@" = "Limit żądań: %@ / %@";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";

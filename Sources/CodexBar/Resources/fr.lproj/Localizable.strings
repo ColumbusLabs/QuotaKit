@@ -2102,3 +2102,6 @@
 "No matching providers" = "Aucun fournisseur correspondant";
 
 "Search providers" = "Fournisseurs de recherche";
+"language_arabic" = "العربية";
+"language_persian" = "فارسی";
+"language_thai" = "ไทย";
