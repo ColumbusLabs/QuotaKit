@@ -47,7 +47,7 @@ struct UtilizationHistoryView: View {
     /// hot path would negate the caching win.
     ///
     /// Correctness relies on the same data-flow guarantee as
-    /// `UtilizationAggregateView.identityKey` — see that method's comment. Summary:
+    /// `UtilizationAggregateModelBuilder.identityKey` — see that method's comment. Summary:
     /// upstream always bumps the owning provider's `lastUpdated` when utilization
     /// changes, and the latest-captured timestamp on the active series also bumps
     /// when new entries arrive. Together they give sufficient invalidation without

@@ -37,6 +37,13 @@ public struct SyncUsagePace: Codable, Sendable, Equatable {
     }
 }
 
+/// Semantic identity for a rate-limit window whose label may be localized
+/// or provider-specific.
+public enum SyncRateWindowIdentity: String, Codable, Sendable, Equatable {
+    case session
+    case weekly
+}
+
 /// A single rate-limit window snapshot for iCloud sync.
 public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let label: String?
@@ -45,6 +52,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
     public let resetsAt: Date?
     public let resetDescription: String?
     public let pace: SyncUsagePace?
+    public let identity: SyncRateWindowIdentity?
 
     public var remainingPercent: Double {
         max(0, 100 - self.usedPercent)
@@ -56,7 +64,8 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         windowMinutes: Int?,
         resetsAt: Date?,
         resetDescription: String?,
-        pace: SyncUsagePace? = nil)
+        pace: SyncUsagePace? = nil,
+        identity: SyncRateWindowIdentity? = nil)
     {
         self.label = label
         self.usedPercent = usedPercent
@@ -64,6 +73,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.resetsAt = resetsAt
         self.resetDescription = resetDescription
         self.pace = pace
+        self.identity = identity
     }
 
     public init(from decoder: Decoder) throws {
@@ -74,6 +84,7 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
         self.pace = try container.decodeIfPresent(SyncUsagePace.self, forKey: .pace)
+        self.identity = try container.decodeIfPresent(SyncRateWindowIdentity.self, forKey: .identity)
     }
 }
 
@@ -379,7 +390,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     ///
     /// Wire-compatible: optional + `decodeIfPresent`. Pre-1.6.0 iOS
     /// ignores the new field; old Mac doesn't emit it.
-    public let quotaWarnings: SyncQuotaWarningConfig?
+    public var quotaWarnings: SyncQuotaWarningConfig?
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions
     //
@@ -603,50 +614,6 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = azureOpenAIInfo
         self.alibabaTokenPlan = alibabaTokenPlan
         self.deepSeekUsage = deepSeekUsage
-    }
-
-    /// Returns a copy with `quotaWarnings` swapped out. Used by Mac
-    /// SyncCoordinator post-hoc to inject per-provider config (resolved
-    /// from `SettingsStore`) before encoding the wire envelope, without
-    /// requiring each provider fetcher to know about the settings layer.
-    public func with(quotaWarnings: SyncQuotaWarningConfig?) -> ProviderUsageSnapshot {
-        ProviderUsageSnapshot(
-            providerID: self.providerID,
-            providerName: self.providerName,
-            primary: self.primary,
-            secondary: self.secondary,
-            accountEmail: self.accountEmail,
-            loginMethod: self.loginMethod,
-            statusMessage: self.statusMessage,
-            isError: self.isError,
-            lastUpdated: self.lastUpdated,
-            costSummary: self.costSummary,
-            budget: self.budget,
-            rateWindows: self.rateWindows,
-            utilizationHistory: self.utilizationHistory,
-            perplexityCredits: self.perplexityCredits,
-            accountIdentities: self.accountIdentities,
-            quotaWarnings: quotaWarnings,
-            openAIAPIDashboard: self.openAIAPIDashboard,
-            zaiHourlyUsage: self.zaiHourlyUsage,
-            kiroCredits: self.kiroCredits,
-            bedrockCost: self.bedrockCost,
-            moonshotBalance: self.moonshotBalance,
-            antigravityAccounts: self.antigravityAccounts,
-            grokBilling: self.grokBilling,
-            elevenLabsCredits: self.elevenLabsCredits,
-            deepgramUsage: self.deepgramUsage,
-            groqMetrics: self.groqMetrics,
-            llmProxyStats: self.llmProxyStats,
-            claudeAdminUsage: self.claudeAdminUsage,
-            claudeExtraUsage: self.claudeExtraUsage,
-            openCodeGoZenBalance: self.openCodeGoZenBalance,
-            minimaxBilling: self.minimaxBilling,
-            codexWorkspace: self.codexWorkspace,
-            openRouterStats: self.openRouterStats,
-            azureOpenAIInfo: self.azureOpenAIInfo,
-            alibabaTokenPlan: self.alibabaTokenPlan,
-            deepSeekUsage: self.deepSeekUsage)
     }
 
     /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.

@@ -677,7 +677,7 @@ struct CloudKitMergeTests {
     // clear session bars and "16% used". Root cause was two-fold:
     //   (a) aggregate view averaged raw entries instead of daily peaks
     //       (bursty providers look like zeros in raw avg) — fixed in
-    //       UtilizationAggregateView.buildModel;
+    //       UtilizationAggregateModelBuilder.buildModel;
     //   (b) `mergeUtilizationHistories` grouped by (name, windowMinutes),
     //       so if two Macs disagreed on `windowMinutes` for the same series,
     //       two "session" entries landed in the merged history and

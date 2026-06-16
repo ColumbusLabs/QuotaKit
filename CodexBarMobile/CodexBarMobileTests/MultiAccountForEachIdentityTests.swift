@@ -13,8 +13,8 @@ import Testing
 /// doesn't) used to collide on three downstream identity sites:
 ///   1. `CostBreakdownRow.id` (provider name)
 ///   2. `CostBudgetRow.id` (raw providerID)
-///   3. `UtilizationAggregateView.ProviderShare.id` (raw providerID) and
-///      the per-day `DaySegment.providerID` ForEach key
+///   3. `UtilizationProviderShare.id` (raw providerID) and
+///      the per-day `UtilizationDaySegment.providerID` ForEach key
 ///
 /// All three now key on `cardIdentityKey = providerID|accountEmail`. These
 /// tests pin that contract so a future refactor that "simplifies" the id
@@ -165,7 +165,7 @@ struct MultiAccountForEachIdentityTests {
             "Two Codex budgets from different accounts must not collide on a single ForEach slot")
     }
 
-    // MARK: - UtilizationAggregateView.ProviderShare
+    // MARK: - UtilizationProviderShare
 
     @Test("Two Codex providers in UtilizationAggregateView build distinct ProviderShare ids")
     func utilizationProviderSharesHaveDistinctIDs() throws {
@@ -174,7 +174,7 @@ struct MultiAccountForEachIdentityTests {
         let noEmail = Self.makeCodexSnapshotWithUtilization(
             accountEmail: nil, peakPercentPerDay: 75)
 
-        let model = try #require(UtilizationAggregateView.buildModel(
+        let model = try #require(UtilizationAggregateModelBuilder.buildModel(
             from: [withEmail, noEmail], windowSize: 30))
 
         #expect(model.providerShares.count == 2,
@@ -193,7 +193,7 @@ struct MultiAccountForEachIdentityTests {
         let noEmail = Self.makeCodexSnapshotWithUtilization(
             accountEmail: nil, peakPercentPerDay: 75)
 
-        let model = try #require(UtilizationAggregateView.buildModel(
+        let model = try #require(UtilizationAggregateModelBuilder.buildModel(
             from: [withEmail, noEmail], windowSize: 30))
 
         // The chart code does `ForEach(bar.segments, id: \.providerID)`; the

@@ -96,6 +96,7 @@ targets:
           - "**/.DS_Store"
       - path: CodexBarMobile/Widgets/QuotaKitWidgetSnapshot.swift
       - path: CodexBarMobile/Widgets/QuotaKitWidgetDisplayMode.swift
+      - path: CodexBarMobile/Widgets/QuotaKitWidgetPresentation.swift
       - path: CodexBarMobile/Widgets/QuotaKitWidgetViews.swift
       - path: CodexBarMobile/Views/UsageProgressBarView.swift
       - path: CodexBarMobile/Models/ProviderColorPalette.swift

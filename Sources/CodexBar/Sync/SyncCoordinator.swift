@@ -747,6 +747,17 @@ final class SyncCoordinator {
         case session
         case weekly
         case other
+
+        var syncRateWindowIdentity: SyncRateWindowIdentity? {
+            switch self {
+            case .session:
+                .session
+            case .weekly:
+                .weekly
+            case .other:
+                nil
+            }
+        }
     }
 
     private func syncRateWindow(
@@ -762,7 +773,8 @@ final class SyncCoordinator {
             windowMinutes: window.windowMinutes,
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
-            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now))
+            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now),
+            identity: role.syncRateWindowIdentity)
     }
 
     private func syncUsagePace(
@@ -1560,7 +1572,8 @@ final class SyncCoordinator {
             // snapshot means a quota config change re-emits the envelope
             // even when usage data is unchanged.
             let quotaWarnings = self.resolvedQuotaWarnings(for: provider.providerID)
-            let enrichedProvider = provider.with(quotaWarnings: quotaWarnings)
+            var enrichedProvider = provider
+            enrichedProvider.quotaWarnings = quotaWarnings
             guard let data = try? providerDiffEncoder.encode(enrichedProvider) else {
                 // Encode fallback: include anyway so we don't silently drop a
                 // provider just because its JSON encoding briefly failed.

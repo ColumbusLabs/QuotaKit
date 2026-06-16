@@ -63,7 +63,9 @@ audit_xcstrings() {
   local ios_xcstrings="$ROOT_DIR/CodexBarMobile/CodexBarMobile/Localizable.xcstrings"
   if [[ -f "$ios_xcstrings" ]]; then
     if ! python3 "$ROOT_DIR/Scripts/audit_localized_keys.py" "$ios_xcstrings" \
-         "$ROOT_DIR/CodexBarMobile/CodexBarMobile"; then
+         "$ROOT_DIR/CodexBarMobile/CodexBarMobile" \
+         "$ROOT_DIR/CodexBarMobile/CodexBarMobileWidgets" \
+         "$ROOT_DIR/CodexBarMobile/CodexBarMobilePushExtension"; then
       rc=1
     fi
   fi

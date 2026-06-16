@@ -66,16 +66,16 @@ struct ViewCacheIdentityTests {
     @Test("UtilizationAggregateView: same input → same key")
     func aggregate_sameInput_sameKey() {
         let providers = [Self.makeProvider(id: "a"), Self.makeProvider(id: "b")]
-        let k1 = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
+        let k1 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
+        let k2 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         #expect(k1 == k2)
     }
 
     @Test("UtilizationAggregateView: changed providerID → different key")
     func aggregate_changedProviderID_differentKey() {
-        let k1 = UtilizationAggregateView.identityKey(
+        let k1 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(id: "a")], windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(
+        let k2 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(id: "b")], windowSize: 30)
         #expect(k1 != k2)
     }
@@ -83,9 +83,9 @@ struct ViewCacheIdentityTests {
     @Test("UtilizationAggregateView: changed lastUpdated → different key")
     func aggregate_changedLastUpdated_differentKey() {
         let base = Date(timeIntervalSince1970: 1_700_000_000)
-        let k1 = UtilizationAggregateView.identityKey(
+        let k1 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(lastUpdated: base)], windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(
+        let k2 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(lastUpdated: base.addingTimeInterval(60))], windowSize: 30)
         #expect(k1 != k2)
     }
@@ -94,16 +94,16 @@ struct ViewCacheIdentityTests {
     func aggregate_orderIrrelevant() {
         let a = Self.makeProvider(id: "a")
         let b = Self.makeProvider(id: "b")
-        let k1 = UtilizationAggregateView.identityKey(for: [a, b], windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(for: [b, a], windowSize: 30)
+        let k1 = UtilizationAggregateModelBuilder.identityKey(for: [a, b], windowSize: 30)
+        let k2 = UtilizationAggregateModelBuilder.identityKey(for: [b, a], windowSize: 30)
         #expect(k1 == k2)
     }
 
     @Test("UtilizationAggregateView: different windowSize → different key")
     func aggregate_windowSize_affectsKey() {
         let p = [Self.makeProvider()]
-        #expect(UtilizationAggregateView.identityKey(for: p, windowSize: 30)
-            != UtilizationAggregateView.identityKey(for: p, windowSize: 7))
+        #expect(UtilizationAggregateModelBuilder.identityKey(for: p, windowSize: 30)
+            != UtilizationAggregateModelBuilder.identityKey(for: p, windowSize: 7))
     }
 
     // MARK: - Hotspot 2: UtilizationHistoryView

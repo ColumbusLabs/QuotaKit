@@ -5,6 +5,6 @@ Recent updates
 • Claude Designs / Daily Routines / Web Sonnet usage bars on the Claude detail page; Cursor Extra budget gauge on the Cursor page.
 • Synthetic 5h / weekly tokens / search hourly labels render correctly instead of generic fallbacks.
 • Codex Pro $100 plan badge; estimated cost for newly-released models marked with *.
-• Two Macs on different CodexBar versions during a rolling upgrade now show a single card per account.
+• Two Macs on different QuotaKit versions during a rolling upgrade now show a single card per account.
 
-Requires CodexBar for Mac 0.23.4 or later for the new providers.
+Requires QuotaKit for Mac 0.23.4 or later for the new providers.

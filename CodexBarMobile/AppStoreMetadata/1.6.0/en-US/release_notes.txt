@@ -1,4 +1,4 @@
-1.6.0 — Catch-up for 11 new providers from Mac CodexBar v0.24/v0.25, plus a Claude peak-hours indicator and quota warning markers on every usage bar.
+1.6.0 — Catch-up for 11 new providers from QuotaKit Mac v0.24/v0.25, plus a Claude peak-hours indicator and quota warning markers on every usage bar.
 
 What's new
 • 11 new providers render natively — Windsurf, Codebuff, DeepSeek, Manus, Xiaomi MiMo, Doubao, Command Code, StepFun, Crof, Venice, OpenAI API. Each has its own brand color across the Usage, Cost, and Subscription tabs.
@@ -7,4 +7,4 @@ What's new
 • Warning push — when a configured threshold (e.g. 50% remaining) is crossed on Mac, the iPhone gets a localized push at that moment instead of only at full depletion.
 • Claude peak-hours indicator on the Claude detail page — see at a glance whether you're inside Anthropic's published 8am-2pm ET peak window or how long until the next one starts.
 
-Requires CodexBar for Mac 0.25.1+ for the new providers and depleted/restored push, or 0.25.2+ for the warning push.
+Requires QuotaKit for Mac 0.25.1+ for the new providers and depleted/restored push, or 0.25.2+ for the warning push.

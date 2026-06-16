@@ -17,7 +17,7 @@ import UIKit
 /// state on providers with no history, the user opens the Cost tab
 /// once with Perplexity enabled and gets a blank screen or a fall-off.
 ///
-/// `UtilizationAggregateView.buildModel(from:windowSize:)` is already
+/// `UtilizationAggregateModelBuilder.buildModel(from:windowSize:)` is already
 /// `compactMap`-gated on `utilizationHistory` being non-nil and its
 /// `session` series having entries — so the no-history case should be a
 /// silent skip. These tests pin that behavior (so a future refactor
@@ -67,8 +67,8 @@ struct SubscriptionUtilizationCompatTests {
             self.makeProvider(id: "codex", name: "Codex", utilization: self.sessionSeries(18)),
             self.makeProvider(id: "perplexity", name: "Perplexity", utilization: nil),
         ]
-        let k1 = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
+        let k1 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
+        let k2 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         #expect(k1 == k2)
         #expect(k1.contains("perplexity"))
     }
@@ -83,8 +83,8 @@ struct SubscriptionUtilizationCompatTests {
             self.makeProvider(id: "claude", name: "Claude", utilization: self.sessionSeries(42)),
             self.makeProvider(id: "opencodego", name: "OpenCode Go", utilization: nil),
         ]
-        let k1 = UtilizationAggregateView.identityKey(for: withPerplexity, windowSize: 30)
-        let k2 = UtilizationAggregateView.identityKey(for: withOpenCodeGo, windowSize: 30)
+        let k1 = UtilizationAggregateModelBuilder.identityKey(for: withPerplexity, windowSize: 30)
+        let k2 = UtilizationAggregateModelBuilder.identityKey(for: withOpenCodeGo, windowSize: 30)
         #expect(k1 != k2)
     }
 
@@ -98,7 +98,7 @@ struct SubscriptionUtilizationCompatTests {
             self.makeProvider(id: "perplexity", name: "Perplexity", utilization: nil),
             self.makeProvider(id: "opencodego", name: "OpenCode Go", utilization: nil),
         ]
-        let key = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
+        let key = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         #expect(key.contains("n=1"))
     }
 
@@ -112,7 +112,7 @@ struct SubscriptionUtilizationCompatTests {
             self.makeProvider(id: "perplexity", name: "Perplexity", utilization: nil),
             self.makeProvider(id: "opencodego", name: "OpenCode Go", utilization: nil),
         ]
-        let key = UtilizationAggregateView.identityKey(for: providers, windowSize: 30)
+        let key = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         #expect(!key.isEmpty)
         #expect(key.contains("n=0"))
     }
@@ -183,7 +183,7 @@ struct SubscriptionUtilizationCompatTests {
         // period card. Post-fix: shows 16% — same number the user sees on
         // the detail page's bar chart.
         let provider = self.bursty30DayProvider(peakPercentPerDay: 16)
-        let model = try #require(UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+        let model = try #require(UtilizationAggregateModelBuilder.buildModel(from: [provider], windowSize: 30))
 
         // 30-day average of daily peaks should be ~16%, NOT ~0.67% (raw avg).
         let last30 = try #require(model.last30Avg)
@@ -207,7 +207,7 @@ struct SubscriptionUtilizationCompatTests {
         let claude = self.bursty30DayProvider(id: "claude", name: "Claude", peakPercentPerDay: 24)
         let codex = self.bursty30DayProvider(id: "codex", name: "Codex", peakPercentPerDay: 16)
 
-        let model = try #require(UtilizationAggregateView.buildModel(from: [claude, codex], windowSize: 30))
+        let model = try #require(UtilizationAggregateModelBuilder.buildModel(from: [claude, codex], windowSize: 30))
         #expect(model.providerShares.count == 2)
 
         // 1.5.3 fix: ProviderShare.id now carries the multi-account-aware
@@ -252,7 +252,7 @@ struct SubscriptionUtilizationCompatTests {
             lastUpdated: Date(),
             utilizationHistory: [emptyFirst, realSecond])
 
-        let model = try #require(UtilizationAggregateView.buildModel(from: [provider], windowSize: 30))
+        let model = try #require(UtilizationAggregateModelBuilder.buildModel(from: [provider], windowSize: 30))
         #expect(model.providerShares.count == 1)
         // Average of daily peaks (each day = 42%) should be 42, not 0.
         #expect(model.providerShares.first?.rawAvgPercent == 42)
