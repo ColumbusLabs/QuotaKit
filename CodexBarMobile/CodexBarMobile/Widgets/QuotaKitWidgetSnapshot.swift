@@ -14,6 +14,15 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
             let pace: SyncUsagePace?
             let identity: SyncRateWindowIdentity?
 
+            private enum CodingKeys: String, CodingKey {
+                case title
+                case usedPercent
+                case remainingPercent
+                case resetsAt
+                case pace
+                case identity
+            }
+
             init(
                 title: String,
                 usedPercent: Double,
@@ -28,6 +37,17 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
                 self.resetsAt = resetsAt
                 self.pace = pace
                 self.identity = identity
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.title = try container.decode(String.self, forKey: .title)
+                self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
+                self.remainingPercent = try container.decode(Double.self, forKey: .remainingPercent)
+                self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
+                self.pace = try container.decodeIfPresent(SyncUsagePace.self, forKey: .pace)
+                let rawIdentity = try container.decodeIfPresent(String.self, forKey: .identity)
+                self.identity = rawIdentity.flatMap(SyncRateWindowIdentity.init(rawValue:))
             }
         }
 

@@ -143,6 +143,27 @@ struct SyncModelTests {
         #expect(decoded.identity == .session)
     }
 
+    @Test("SyncRateWindow decodes unknown identity as nil")
+    func rateWindowUnknownIdentityDecodesNil() throws {
+        let json = """
+        {
+            "label": "Monthly",
+            "usedPercent": 37,
+            "windowMinutes": 43200,
+            "resetsAt": "2023-11-14T22:13:20Z",
+            "identity": "monthly"
+        }
+        """
+
+        let window = try CloudSyncConstants.makeJSONDecoder()
+            .decode(SyncRateWindow.self, from: Data(json.utf8))
+
+        #expect(window.identity == nil)
+        #expect(window.usedPercent == 37)
+        #expect(window.windowMinutes == 43_200)
+        #expect(window.resetsAt == Date(timeIntervalSince1970: 1_700_000_000))
+    }
+
     @Test("SyncRateWindow round-trips populated pace")
     func rateWindowPaceRoundTrip() throws {
         let pace = SyncUsagePace(

@@ -108,6 +108,44 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
     }
 
+    func testWidgetSnapshotUnknownWindowIdentityDecodesAsNil() throws {
+        let json = """
+        {
+            "schemaVersion": 4,
+            "generatedAt": "2026-02-21T00:00:00Z",
+            "lastSyncedAt": "2026-02-21T00:01:00Z",
+            "providers": [
+                {
+                    "id": "codex",
+                    "providerName": "Codex",
+                    "lastUpdated": "2026-02-21T00:00:00Z",
+                    "isError": false,
+                    "windows": [
+                        {
+                            "title": "Monthly",
+                            "usedPercent": 37,
+                            "remainingPercent": 63,
+                            "resetsAt": "2023-11-14T22:13:20Z",
+                            "identity": "monthly"
+                        }
+                    ]
+                }
+            ]
+        }
+        """
+
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(QuotaKitWidgetSnapshot.self, from: Data(json.utf8))
+        let window = try XCTUnwrap(decoded.primaryProvider?.primaryWindow)
+
+        XCTAssertEqual(window.title, "Monthly")
+        XCTAssertEqual(window.usedPercent, 37)
+        XCTAssertEqual(window.remainingPercent, 63)
+        XCTAssertEqual(window.resetsAt, Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertNil(window.identity)
+        XCTAssertEqual(decoded.lastSyncedAt, Date(timeIntervalSince1970: 1_771_632_060))
+    }
+
     func testWidgetSnapshotV2PayloadFallsBackToGeneratedAtForLastSyncedAt() throws {
         let json = """
         {

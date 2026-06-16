@@ -84,7 +84,8 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
         self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
         self.resetDescription = try container.decodeIfPresent(String.self, forKey: .resetDescription)
         self.pace = try container.decodeIfPresent(SyncUsagePace.self, forKey: .pace)
-        self.identity = try container.decodeIfPresent(SyncRateWindowIdentity.self, forKey: .identity)
+        let rawIdentity = try container.decodeIfPresent(String.self, forKey: .identity)
+        self.identity = rawIdentity.flatMap(SyncRateWindowIdentity.init(rawValue:))
     }
 }
 
