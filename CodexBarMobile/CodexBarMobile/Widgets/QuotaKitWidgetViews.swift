@@ -11,152 +11,6 @@ struct QuotaKitWidgetEntry: TimelineEntry {
     var displayMode: QuotaKitWidgetDisplayMode = .both
 }
 
-struct QuotaKitWidgetDisplayWindow: Identifiable, Equatable {
-    let mode: QuotaKitWidgetDisplayMode
-    let window: QuotaKitWidgetSnapshot.Provider.Window
-
-    var id: String {
-        "\(self.mode.rawValue)-\(self.window.title)"
-    }
-
-    var title: String {
-        self.mode.localizedTitle
-    }
-}
-
-extension QuotaKitWidgetSnapshot.Provider {
-    func window(for displayMode: QuotaKitWidgetDisplayMode) -> Window? {
-        switch displayMode {
-        case .both:
-            return self.sessionWindow(allowPrimaryFallback: true)
-        case .session:
-            return self.sessionWindow(allowPrimaryFallback: true)
-        case .weekly:
-            return self.weeklyWindow(allowPrimaryFallback: true)
-        }
-    }
-
-    func displayWindows(for displayMode: QuotaKitWidgetDisplayMode) -> [QuotaKitWidgetDisplayWindow] {
-        switch displayMode {
-        case .both:
-            let weekly = self.weeklyWindow(allowPrimaryFallback: false)
-            let session = self.sessionWindowForBothMode(weekly: weekly)
-            var result = session.map {
-                [QuotaKitWidgetDisplayWindow(mode: .session, window: $0)]
-            } ?? []
-            if let weekly,
-               session.map({ weekly != $0 }) ?? true
-            {
-                result.append(QuotaKitWidgetDisplayWindow(mode: .weekly, window: weekly))
-            }
-            return result
-        case .session, .weekly:
-            return self.window(for: displayMode).map {
-                [QuotaKitWidgetDisplayWindow(mode: displayMode, window: $0)]
-            } ?? []
-        }
-    }
-
-    private func sessionWindow(allowPrimaryFallback: Bool) -> Window? {
-        self.windows.first(where: Self.isSessionWindow)
-            ?? (allowPrimaryFallback ? self.windows.first : nil)
-    }
-
-    private func sessionWindowForBothMode(weekly: Window?) -> Window? {
-        if let explicitSession = self.windows.first(where: Self.isSessionWindow) {
-            return explicitSession
-        }
-        if let weekly,
-           let primary = self.windows.first,
-           primary != weekly
-        {
-            return primary
-        }
-        return weekly == nil ? self.windows.first : nil
-    }
-
-    private func weeklyWindow(allowPrimaryFallback: Bool) -> Window? {
-        self.windows.first(where: Self.isWeeklyWindow)
-            ?? self.fallbackWeeklyWindow
-            ?? (allowPrimaryFallback ? self.windows.first : nil)
-    }
-
-    private var fallbackWeeklyWindow: Window? {
-        guard let candidate = self.windows.dropFirst().first else { return nil }
-        if let dayCount = Self.numericDayCount(in: candidate.title.localizedLowercase),
-           !Self.weeklyDayCountRange.contains(dayCount)
-        {
-            return nil
-        }
-        return candidate
-    }
-
-    private static func isSessionWindow(_ window: Window) -> Bool {
-        let title = window.title.localizedLowercase
-        return title.contains("session")
-            || title.contains("hour")
-            || title.contains(String(localized: "Session").localizedLowercase)
-    }
-
-    private static func isWeeklyWindow(_ window: Window) -> Bool {
-        let title = window.title.localizedLowercase
-        return title.contains("week")
-            || Self.hasWeeklyDayCountLabel(title)
-            || title.contains(String(localized: "Weekly").localizedLowercase)
-    }
-
-    /// Day-count titles only mean "weekly" near seven days; "1 day" (daily)
-    /// and "30 days" (monthly) windows must not claim the weekly lane.
-    private static let weeklyDayCountRange = 5...9
-
-    private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
-        Self.numericDayCount(in: title).map(Self.weeklyDayCountRange.contains) ?? false
-    }
-
-    private static func numericDayCount(in title: String) -> Int? {
-        let normalized = title
-            .replacingOccurrences(of: "-", with: " ")
-            .replacingOccurrences(of: "_", with: " ")
-        let tokens = normalized.split { character in
-            !character.isLetter && !character.isNumber
-        }
-
-        var previousToken: Substring?
-        for token in tokens {
-            let tokenText = String(token)
-            if (tokenText == "day" || tokenText == "days"),
-               previousToken?.allSatisfy(\.isNumber) == true,
-               let count = previousToken.flatMap({ Int($0) })
-            {
-                return count
-            }
-
-            if tokenText.hasSuffix("day") {
-                let prefix = tokenText.dropLast(3)
-                if !prefix.isEmpty,
-                   prefix.allSatisfy(\.isNumber),
-                   let count = Int(prefix)
-                {
-                    return count
-                }
-            }
-
-            if tokenText.hasSuffix("days") {
-                let prefix = tokenText.dropLast(4)
-                if !prefix.isEmpty,
-                   prefix.allSatisfy(\.isNumber),
-                   let count = Int(prefix)
-                {
-                    return count
-                }
-            }
-
-            previousToken = token
-        }
-        return nil
-    }
-}
-
 struct QuotaKitWidgetView: View {
     let entry: QuotaKitWidgetEntry
     let overrideFamily: WidgetFamily?
@@ -411,7 +265,9 @@ private struct QuotaKitWidgetSmallView: View {
             }
 
             if self.displayMode == .both {
-                let displayWindows = self.provider.displayWindows(for: self.displayMode)
+                let displayWindows = QuotaKitWidgetPresentation.displayWindows(
+                    for: self.provider,
+                    displayMode: self.displayMode)
                 if displayWindows.isEmpty {
                     Spacer(minLength: 4)
                     Text(self.provider.statusMessage ?? String(localized: "No quota window"))
@@ -430,7 +286,10 @@ private struct QuotaKitWidgetSmallView: View {
                     }
                     Spacer(minLength: 0)
                 }
-            } else if let window = self.provider.window(for: self.displayMode) {
+            } else if let window = QuotaKitWidgetPresentation.primaryWindow(
+                for: self.provider,
+                displayMode: self.displayMode)
+            {
                 Text(window.title)
                     .font(.system(size: 13))
                     .foregroundStyle(.secondary)
@@ -520,8 +379,12 @@ private struct QuotaKitWidgetMediumView: View {
 
             let providers = Array(self.snapshot.providers.prefix(3))
             ForEach(providers) { provider in
-                let window = provider.window(for: self.displayMode)
-                let displayWindows = provider.displayWindows(for: self.displayMode)
+                let window = QuotaKitWidgetPresentation.primaryWindow(
+                    for: provider,
+                    displayMode: self.displayMode)
+                let displayWindows = QuotaKitWidgetPresentation.displayWindows(
+                    for: provider,
+                    displayMode: self.displayMode)
                 VStack(alignment: .leading, spacing: 4) {
                     HStack(alignment: .firstTextBaseline, spacing: 6) {
                         Text(provider.providerName)
@@ -597,34 +460,6 @@ private struct QuotaKitWidgetMediumView: View {
     }
 }
 
-enum QuotaKitWidgetAccessoryRectangularPresentation {
-    static func detailText(
-        for provider: QuotaKitWidgetSnapshot.Provider,
-        displayMode: QuotaKitWidgetDisplayMode) -> String
-    {
-        if displayMode == .both {
-            let displayWindows = provider.displayWindows(for: displayMode)
-            guard !displayWindows.isEmpty else {
-                return provider.statusMessage ?? String(localized: "No quota window")
-            }
-            return displayWindows.map { displayWindow in
-                String(
-                    format: String(localized: "%@ %lld%%"),
-                    displayWindow.title,
-                    Int64(displayWindow.window.remainingPercent.rounded()))
-            }.joined(separator: " · ")
-        }
-
-        guard let window = provider.window(for: displayMode) else {
-            return provider.statusMessage ?? String(localized: "No quota window")
-        }
-        return String(
-            format: String(localized: "%lld%% left · %@"),
-            Int64(window.remainingPercent.rounded()),
-            window.title)
-    }
-}
-
 private struct QuotaKitWidgetAccessoryRectangularView: View {
     let provider: QuotaKitWidgetSnapshot.Provider
     let lastSyncedAt: Date
@@ -635,7 +470,7 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
             Text(provider.providerName)
                 .font(.headline)
                 .lineLimit(1)
-            Text(QuotaKitWidgetAccessoryRectangularPresentation.detailText(
+            Text(QuotaKitWidgetPresentation.accessoryDetailText(
                 for: self.provider,
                 displayMode: self.displayMode))
                 .font(.caption)
@@ -654,7 +489,10 @@ private struct QuotaKitWidgetAccessoryCircularView: View {
     let displayMode: QuotaKitWidgetDisplayMode
 
     var body: some View {
-        if let window = provider.window(for: self.displayMode) {
+        if let window = QuotaKitWidgetPresentation.primaryWindow(
+            for: self.provider,
+            displayMode: self.displayMode)
+        {
             Gauge(value: window.remainingPercent, in: 0...100) {
                 Text(String(localized: "Quota"))
             } currentValueLabel: {

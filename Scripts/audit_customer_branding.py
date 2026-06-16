@@ -17,6 +17,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 FORBIDDEN_RE = re.compile(r"CodexBar|codexbar|~/\.codexbar")
+APP_STORE_METADATA_FORBIDDEN_RE = re.compile(
+    r"CodexBar|codexbar|steipete/CodexBar|github\.com/steipete/CodexBar")
 
 LOCALIZABLE_RE = re.compile(
     r'"(?P<key>(?:\\.|[^"\\])*)"\s*=\s*"(?P<value>(?:\\.|[^"\\])*)";'
@@ -227,6 +229,19 @@ def audit_app_bundle() -> list[str]:
     return failures
 
 
+def audit_app_store_metadata() -> list[str]:
+    failures: list[str] = []
+    metadata_root = ROOT / "CodexBarMobile" / "AppStoreMetadata"
+    if not metadata_root.exists():
+        return failures
+
+    for path in sorted(metadata_root.rglob("*.txt")):
+        text = path.read_text(encoding="utf-8")
+        if APP_STORE_METADATA_FORBIDDEN_RE.search(text):
+            failures.append(f"{relative(path)}: public App Store metadata contains legacy identity")
+    return failures
+
+
 def main() -> int:
     if sys.argv[1:] == ["--self-test"]:
         return self_test()
@@ -235,6 +250,7 @@ def main() -> int:
     failures.extend(audit_xcstrings_values())
     failures.extend(audit_swift_literals())
     failures.extend(audit_app_bundle())
+    failures.extend(audit_app_store_metadata())
 
     if failures:
         print("ERROR: customer branding audit found legacy CodexBar references:", file=sys.stderr)

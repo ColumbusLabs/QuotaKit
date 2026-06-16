@@ -96,134 +96,18 @@ struct ProviderDetailView: View {
                     self.mockBanner
                 }
 
-                // Rate limit cards (or Perplexity credit breakdown when available)
-                self.primaryUsageSection
-
-                // v0.26 dedicated cards — dispatched by providerID +
-                // typed envelope field. iOS 1.7.0 fold-in. Each card
-                // is only rendered when both the providerID matches
-                // AND the snapshot carries its typed payload; missing
-                // data falls through silently to the generic sections
-                // below.
-                if self.provider.providerID == "kiro",
-                   let kiroCredits = self.provider.kiroCredits
+                ProviderDetailPrimarySectionView(
+                    section: ProviderDetailSectionDispatcher.primarySection(for: self.provider),
+                    tintColor: self.providerColor)
                 {
-                    KiroCreditsCard(credits: kiroCredits, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "bedrock",
-                   let bedrockCost = self.provider.bedrockCost
-                {
-                    BedrockCostCard(cost: bedrockCost, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "moonshot",
-                   let moonshotBalance = self.provider.moonshotBalance
-                {
-                    MoonshotBalanceCard(balance: moonshotBalance, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "zai",
-                   let zaiHourly = self.provider.zaiHourlyUsage
-                {
-                    ZaiHourlyChart(usage: zaiHourly, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "openai",
-                   let openAIDashboard = self.provider.openAIAPIDashboard
-                {
-                    OpenAIDashboardSection(dashboard: openAIDashboard, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "antigravity",
-                   let antigravityAccounts = self.provider.antigravityAccounts,
-                   antigravityAccounts.accounts.count > 1
-                {
-                    AntigravityAccountSwitcher(accounts: antigravityAccounts, tintColor: self.providerColor)
+                    self.rateLimitSection
                 }
 
-                // iOS 1.8.0 — v0.27 dedicated cards. Same dispatch
-                // pattern as v0.26: provider ID match + envelope field
-                // present. Falls through silently to the generic card
-                // list when Mac is on a pre-0.27.0 build (envelope
-                // fields stay nil).
-                if self.provider.providerID == "grok",
-                   let grokBilling = self.provider.grokBilling
-                {
-                    GrokBillingCard(billing: grokBilling, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "elevenlabs",
-                   let elevenLabsCredits = self.provider.elevenLabsCredits
-                {
-                    ElevenLabsCreditsCard(credits: elevenLabsCredits, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "deepgram",
-                   let deepgramUsage = self.provider.deepgramUsage
-                {
-                    DeepgramUsageCard(usage: deepgramUsage, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "groq",
-                   let groqMetrics = self.provider.groqMetrics
-                {
-                    GroqMetricsCard(metrics: groqMetrics, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "llmproxy",
-                   let llmProxyStats = self.provider.llmProxyStats
-                {
-                    LLMProxyStatsCard(stats: llmProxyStats, tintColor: self.providerColor)
-                }
-                // iOS 1.9.0 — parity gap D: OpenRouter balance / credits / usage.
-                if self.provider.providerID == "openrouter",
-                   let openRouterStats = self.provider.openRouterStats
-                {
-                    OpenRouterStatsCard(stats: openRouterStats, tintColor: self.providerColor)
-                }
-                // iOS 1.9.0 — parity gap E: Azure OpenAI deployment info.
-                if self.provider.providerID == "azureopenai",
-                   let azureInfo = self.provider.azureOpenAIInfo
-                {
-                    AzureOpenAIInfoCard(info: azureInfo, tintColor: self.providerColor)
-                }
-                // iOS 1.9.0 — parity gap G: Alibaba Token Plan (Bailian) credits.
-                if self.provider.providerID == "alibabatokenplan",
-                   let alibabaPlan = self.provider.alibabaTokenPlan
-                {
-                    AlibabaTokenPlanCard(plan: alibabaPlan, tintColor: self.providerColor)
-                }
-                // iOS 1.10.0 — DeepSeek web-session usage + cost (v0.30.0 #1166).
-                if self.provider.providerID == "deepseek",
-                   let deepSeekUsage = self.provider.deepSeekUsage
-                {
-                    DeepSeekUsageCard(usage: deepSeekUsage, tintColor: self.providerColor)
-                }
-
-                // iOS 1.8.0 build 134 — v0.27 existing-provider
-                // extensions. Same dispatch pattern: provider ID
-                // match + envelope field present.
-                if self.provider.providerID == "claude",
-                   let claudeAdmin = self.provider.claudeAdminUsage
-                {
-                    ClaudeAdminUsageCard(usage: claudeAdmin, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "claude",
-                   let claudeExtra = self.provider.claudeExtraUsage
-                {
-                    ClaudeExtraUsageCard(extraUsage: claudeExtra, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "opencodego",
-                   let zenBalance = self.provider.openCodeGoZenBalance
-                {
-                    OpenCodeGoZenBalanceCard(balance: zenBalance, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "minimax",
-                   let minimaxBilling = self.provider.minimaxBilling
-                {
-                    MiniMaxBillingCard(billing: minimaxBilling, tintColor: self.providerColor)
-                }
-                if self.provider.providerID == "codex",
-                   let codexWorkspace = self.provider.codexWorkspace,
-                   (codexWorkspace.workspaceName?.isEmpty == false ||
-                       (!self.hasRateWindowPace && codexWorkspace.weeklyPaceLabel?.isEmpty == false))
-                {
-                    CodexWorkspaceBadge(
-                        context: codexWorkspace,
-                        tintColor: self.providerColor,
-                        showsPace: !self.hasRateWindowPace)
+                ForEach(ProviderDetailSectionDispatcher.sections(
+                    for: self.provider,
+                    hasRateWindowPace: self.hasRateWindowPace))
+                { section in
+                    ProviderDetailSectionView(section: section, tintColor: self.providerColor)
                 }
 
                 // Claude peak-hours indicator (Anthropic peak window
@@ -363,40 +247,6 @@ struct ProviderDetailView: View {
             RoundedRectangle(cornerRadius: 10, style: .continuous)
                 .fill(Color.secondary.opacity(0.08))
         )
-    }
-
-    // MARK: - Primary usage section
-
-    /// Chooses between a specialized provider card and the generic
-    /// rate-window list. When a typed envelope card claims the primary
-    /// real estate (Perplexity, Kiro, Bedrock, Moonshot), we skip the
-    /// generic list to avoid double-rendering the same data.
-    @ViewBuilder
-    private var primaryUsageSection: some View {
-        if self.provider.providerID == "perplexity",
-           let credits = self.provider.perplexityCredits
-        {
-            PerplexityCreditsCard(credits: credits, tintColor: self.providerColor)
-        } else if self.providerHasDedicatedPrimaryCard {
-            // The dedicated card is rendered below in the body; skip
-            // the generic rate-window list so the page isn't redundant.
-            EmptyView()
-        } else {
-            self.rateLimitSection
-        }
-    }
-
-    private var providerHasDedicatedPrimaryCard: Bool {
-        switch self.provider.providerID {
-        case "kiro" where self.provider.kiroCredits != nil:
-            true
-        case "bedrock" where self.provider.bedrockCost != nil:
-            true
-        case "moonshot" where self.provider.moonshotBalance != nil:
-            true
-        default:
-            false
-        }
     }
 
     private var hasRateWindowPace: Bool {

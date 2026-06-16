@@ -1,4 +1,4 @@
-1.6.0 — Mac CodexBar v0.24/v0.25 で追加された 11 個のプロバイダーに iOS が追いつき、Claude のピーク時間インジケーターとクォータ警告マーカーを新規追加。
+1.6.0 — QuotaKit Mac v0.24/v0.25 で追加された 11 個のプロバイダーに iOS が追いつき、Claude のピーク時間インジケーターとクォータ警告マーカーを新規追加。
 
 新機能
 • 11 個の新プロバイダーをネイティブ表示 — Windsurf、Codebuff、DeepSeek、Manus、Xiaomi MiMo、Doubao、Command Code、StepFun、Crof、Venice、OpenAI API。それぞれがブランドカラーで Usage / Cost / Subscription タブに表示されます。
@@ -7,4 +7,4 @@
 • 警告プッシュ — Mac 側で設定した閾値（例: 残り 50%）を越えた瞬間に iPhone がローカライズされたプッシュを受信します。完全に枯渇するまで待つ必要はありません。
 • Claude 詳細ページにピーク時間インジケーター追加 — Anthropic が公開する 8am-2pm ET ピーク窓内にいるか、次のピーク開始までどれくらいかを一目で確認できます。
 
-新プロバイダーと枯渇 / 回復プッシュには macOS 用 CodexBar 0.25.1+、警告プッシュには 0.25.2+ が必要です。
+新プロバイダーと枯渇 / 回復プッシュには macOS 用 QuotaKit 0.25.1+、警告プッシュには 0.25.2+ が必要です。

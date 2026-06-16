@@ -23,29 +23,34 @@ verbatim: "...")` or a plain Swift String, not `String(localized:)`.
 from __future__ import annotations
 
 import json
-import os
 import re
 import sys
+from pathlib import Path
 
 PATTERN = re.compile(r'String\(localized:\s*"((?:[^"\\]|\\.)*)"')
 
 
-def scan_source(root: str) -> set[str]:
+def scan_swift_file(path: Path) -> set[str]:
     keys: set[str] = set()
-    for dp, _, fns in os.walk(root):
+    content = path.read_text(encoding="utf-8")
+    for m in PATTERN.finditer(content):
+        # Swift literal -> raw string: only \" and \n are common here
+        raw = m.group(1).replace('\\"', '"').replace("\\n", "\n")
+        keys.add(raw)
+    return keys
+
+
+def scan_source(path: str) -> set[str]:
+    root = Path(path)
+    keys: set[str] = set()
+    if root.is_file():
+        return scan_swift_file(root) if root.suffix == ".swift" else keys
+
+    for source_path in root.rglob("*.swift"):
         # Skip Xcode build products + preview assets
-        if any(seg in dp for seg in (".build", "DerivedData", "Preview Content")):
+        if any(seg in source_path.parts for seg in (".build", "DerivedData", "Preview Content")):
             continue
-        for fn in fns:
-            if not fn.endswith(".swift"):
-                continue
-            path = os.path.join(dp, fn)
-            with open(path, encoding="utf-8") as fh:
-                content = fh.read()
-            for m in PATTERN.finditer(content):
-                # Swift literal -> raw string: only \" and \n are common here
-                raw = m.group(1).replace('\\"', '"').replace("\\n", "\n")
-                keys.add(raw)
+        keys.update(scan_swift_file(source_path))
     return keys
 
 
@@ -56,11 +61,13 @@ def load_catalog(xcstrings: str) -> set[str]:
 
 
 def main() -> int:
-    if len(sys.argv) != 3:
-        print(f"usage: {sys.argv[0]} <xcstrings_path> <source_root>", file=sys.stderr)
+    if len(sys.argv) < 3:
+        print(f"usage: {sys.argv[0]} <xcstrings_path> <source_root> [<source_root> ...]", file=sys.stderr)
         return 2
-    xcstrings, source_root = sys.argv[1], sys.argv[2]
-    source_keys = scan_source(source_root)
+    xcstrings, source_roots = sys.argv[1], sys.argv[2:]
+    source_keys: set[str] = set()
+    for source_root in source_roots:
+        source_keys.update(scan_source(source_root))
     catalog_keys = load_catalog(xcstrings)
     missing = sorted(source_keys - catalog_keys)
     if not missing:

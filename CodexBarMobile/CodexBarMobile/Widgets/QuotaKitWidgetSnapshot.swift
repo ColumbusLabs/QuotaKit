@@ -3,7 +3,7 @@ import Foundation
 import os
 
 struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
-    static let currentSchemaVersion = 3
+    static let currentSchemaVersion = 4
 
     struct Provider: Codable, Equatable, Identifiable, Sendable {
         struct Window: Codable, Equatable, Sendable {
@@ -12,6 +12,43 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
             let remainingPercent: Double
             let resetsAt: Date?
             let pace: SyncUsagePace?
+            let identity: SyncRateWindowIdentity?
+
+            private enum CodingKeys: String, CodingKey {
+                case title
+                case usedPercent
+                case remainingPercent
+                case resetsAt
+                case pace
+                case identity
+            }
+
+            init(
+                title: String,
+                usedPercent: Double,
+                remainingPercent: Double,
+                resetsAt: Date?,
+                pace: SyncUsagePace?,
+                identity: SyncRateWindowIdentity? = nil)
+            {
+                self.title = title
+                self.usedPercent = usedPercent
+                self.remainingPercent = remainingPercent
+                self.resetsAt = resetsAt
+                self.pace = pace
+                self.identity = identity
+            }
+
+            init(from decoder: Decoder) throws {
+                let container = try decoder.container(keyedBy: CodingKeys.self)
+                self.title = try container.decode(String.self, forKey: .title)
+                self.usedPercent = try container.decode(Double.self, forKey: .usedPercent)
+                self.remainingPercent = try container.decode(Double.self, forKey: .remainingPercent)
+                self.resetsAt = try container.decodeIfPresent(Date.self, forKey: .resetsAt)
+                self.pace = try container.decodeIfPresent(SyncUsagePace.self, forKey: .pace)
+                let rawIdentity = try container.decodeIfPresent(String.self, forKey: .identity)
+                self.identity = rawIdentity.flatMap(SyncRateWindowIdentity.init(rawValue:))
+            }
         }
 
         let id: String
@@ -99,8 +136,77 @@ enum QuotaKitWidgetSnapshotBuilder {
                     usedPercent: window.usedPercent,
                     remainingPercent: window.remainingPercent,
                     resetsAt: window.resetsAt,
-                    pace: window.pace)
+                    pace: window.pace,
+                    identity: window.identity ?? Self.legacyIdentity(for: window))
             })
+    }
+
+    private static func legacyIdentity(for window: SyncRateWindow) -> SyncRateWindowIdentity? {
+        guard let title = window.label?.localizedLowercase else { return nil }
+        if title.contains("session")
+            || title.contains("hour")
+            || title.contains(String(localized: "Session").localizedLowercase)
+        {
+            return .session
+        }
+        if title.contains("week")
+            || title.contains(String(localized: "Weekly").localizedLowercase)
+            || Self.hasWeeklyDayCountLabel(title)
+        {
+            return .weekly
+        }
+        return nil
+    }
+
+    /// Day-count titles only mean "weekly" near seven days; "1 day" (daily)
+    /// and "30 days" (monthly) windows must not claim the weekly lane.
+    private static let weeklyDayCountRange = 5...9
+
+    private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
+        Self.numericDayCount(in: title).map(Self.weeklyDayCountRange.contains) ?? false
+    }
+
+    private static func numericDayCount(in title: String) -> Int? {
+        let normalized = title
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+        let tokens = normalized.split { character in
+            !character.isLetter && !character.isNumber
+        }
+
+        var previousToken: Substring?
+        for token in tokens {
+            let tokenText = String(token)
+            if (tokenText == "day" || tokenText == "days"),
+               previousToken?.allSatisfy(\.isNumber) == true,
+               let count = previousToken.flatMap({ Int($0) })
+            {
+                return count
+            }
+
+            if tokenText.hasSuffix("day") {
+                let prefix = tokenText.dropLast(3)
+                if !prefix.isEmpty,
+                   prefix.allSatisfy(\.isNumber),
+                   let count = Int(prefix)
+                {
+                    return count
+                }
+            }
+
+            if tokenText.hasSuffix("days") {
+                let prefix = tokenText.dropLast(4)
+                if !prefix.isEmpty,
+                   prefix.allSatisfy(\.isNumber),
+                   let count = Int(prefix)
+                {
+                    return count
+                }
+            }
+
+            previousToken = token
+        }
+        return nil
     }
 
     private static func sanitizedStatusMessage(_ message: String?) -> String? {

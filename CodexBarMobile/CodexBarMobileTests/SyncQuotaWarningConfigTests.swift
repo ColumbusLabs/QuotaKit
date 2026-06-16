@@ -158,8 +158,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(decoded.quotaWarnings?.weeklyEnabled == true)
     }
 
-    @Test("`with(quotaWarnings:)` keeps all other fields intact")
-    func withQuotaWarningsPreservesOtherFields() {
+    @Test("mutable quotaWarnings copy keeps all other fields intact")
+    func mutableQuotaWarningsCopyPreservesOtherFields() {
         let original = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -171,8 +171,8 @@ struct SyncQuotaWarningConfigTests {
             isError: false,
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
 
-        let enriched = original.with(
-            quotaWarnings: SyncQuotaWarningConfig(sessionThresholds: [40]))
+        var enriched = original
+        enriched.quotaWarnings = SyncQuotaWarningConfig(sessionThresholds: [40])
 
         #expect(enriched.providerID == original.providerID)
         #expect(enriched.providerName == original.providerName)

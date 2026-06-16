@@ -69,7 +69,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertNil(decoded.primaryProvider?.primaryWindow?.pace)
     }
 
-    func testWidgetSnapshotV3PreservesPaceAndLastSyncedAt() throws {
+    func testWidgetSnapshotV4PreservesPaceIdentityAndLastSyncedAt() throws {
         let pace = SyncUsagePace(
             stage: .behind,
             deltaPercent: -8,
@@ -93,7 +93,8 @@ final class QuotaKitWidgetTests: XCTestCase {
                             usedPercent: 42,
                             remainingPercent: 58,
                             resetsAt: nil,
-                            pace: pace),
+                            pace: pace,
+                            identity: .weekly),
                     ]),
             ])
 
@@ -101,9 +102,48 @@ final class QuotaKitWidgetTests: XCTestCase {
         let decoded = try CloudSyncConstants.makeJSONDecoder()
             .decode(QuotaKitWidgetSnapshot.self, from: data)
 
-        XCTAssertEqual(decoded.schemaVersion, 3)
+        XCTAssertEqual(decoded.schemaVersion, QuotaKitWidgetSnapshot.currentSchemaVersion)
         XCTAssertEqual(decoded.lastSyncedAt, Date(timeIntervalSince1970: 1_802_999_900))
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.pace, pace)
+        XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
+    }
+
+    func testWidgetSnapshotUnknownWindowIdentityDecodesAsNil() throws {
+        let json = """
+        {
+            "schemaVersion": 4,
+            "generatedAt": "2026-02-21T00:00:00Z",
+            "lastSyncedAt": "2026-02-21T00:01:00Z",
+            "providers": [
+                {
+                    "id": "codex",
+                    "providerName": "Codex",
+                    "lastUpdated": "2026-02-21T00:00:00Z",
+                    "isError": false,
+                    "windows": [
+                        {
+                            "title": "Monthly",
+                            "usedPercent": 37,
+                            "remainingPercent": 63,
+                            "resetsAt": "2023-11-14T22:13:20Z",
+                            "identity": "monthly"
+                        }
+                    ]
+                }
+            ]
+        }
+        """
+
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(QuotaKitWidgetSnapshot.self, from: Data(json.utf8))
+        let window = try XCTUnwrap(decoded.primaryProvider?.primaryWindow)
+
+        XCTAssertEqual(window.title, "Monthly")
+        XCTAssertEqual(window.usedPercent, 37)
+        XCTAssertEqual(window.remainingPercent, 63)
+        XCTAssertEqual(window.resetsAt, Date(timeIntervalSince1970: 1_700_000_000))
+        XCTAssertNil(window.identity)
+        XCTAssertEqual(decoded.lastSyncedAt, Date(timeIntervalSince1970: 1_771_632_060))
     }
 
     func testWidgetSnapshotV2PayloadFallsBackToGeneratedAtForLastSyncedAt() throws {
@@ -465,8 +505,66 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(provider.window(for: .session)?.title, "5-hour")
-        XCTAssertEqual(provider.window(for: .weekly)?.title, "7-day")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session)?.title, "5-hour")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "7-day")
+    }
+
+    func testWidgetUsageWindowTypedIdentityBeatsMisleadingLabels() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "7-day",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .session),
+                .init(
+                    title: "5-hour",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .weekly),
+            ])
+
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session)?.title, "7-day")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "5-hour")
+    }
+
+    func testWidgetBothModeTypedIdentityBeatsSlotOrder() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "claude",
+            providerName: "Claude",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Weekly quota",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .weekly),
+                .init(
+                    title: "Session quota",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .session),
+            ])
+
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
+
+        XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
+        XCTAssertEqual(windows.map(\.window.title), ["Session quota", "Weekly quota"])
     }
 
     func testWidgetUsageWindowPrefersFirstExplicitWeeklyLane() {
@@ -497,7 +595,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly Sonnet")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "Weekly Sonnet")
     }
 
     func testWidgetWeeklyResolutionSkipsDailyAndMonthlyDayCounts() {
@@ -528,7 +626,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(provider.window(for: .weekly)?.title, "7-day")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "7-day")
     }
 
     func testWidgetBothModeReturnsDistinctWindowsOnly() {
@@ -553,7 +651,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
         XCTAssertEqual(windows.map(\.window.title), ["Session", "Weekly"])
@@ -575,7 +673,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.count, 1)
         XCTAssertEqual(windows.first?.mode, .session)
@@ -604,7 +702,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
         XCTAssertEqual(windows.map(\.window.title), ["5-hour", "7-day"])
@@ -632,7 +730,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.map(\.title), ["Session", "Weekly"])
     }
@@ -659,7 +757,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let detailText = QuotaKitWidgetAccessoryRectangularPresentation.detailText(
+        let detailText = QuotaKitWidgetPresentation.accessoryDetailText(
             for: provider,
             displayMode: .both)
 
@@ -690,7 +788,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
         XCTAssertEqual(windows.map(\.window.title), ["Quota", "Weekly"])
@@ -712,7 +810,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.count, 1)
         XCTAssertEqual(windows.first?.mode, .weekly)
@@ -735,7 +833,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        let windows = provider.displayWindows(for: .both)
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
         XCTAssertEqual(windows.count, 1)
         XCTAssertEqual(windows.first?.mode, .session)
@@ -765,7 +863,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                         pace: nil),
                 ])
 
-            let windows = provider.displayWindows(for: .both)
+            let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
             XCTAssertEqual(windows.map(\.mode), [.session, .weekly])
             XCTAssertEqual(windows.map(\.window.title), ["5-hour", title])
@@ -795,7 +893,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                         pace: nil),
                 ])
 
-            let windows = provider.displayWindows(for: .both)
+            let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
 
             XCTAssertEqual(windows.count, 1)
             XCTAssertEqual(windows.first?.mode, .session)
@@ -825,7 +923,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(provider.window(for: .both)?.title, "5-hour")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .both)?.title, "5-hour")
     }
 
     func testWidgetCircularBothModeFallsBackToWeeklyOnlyWindow() {
@@ -844,7 +942,7 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(provider.window(for: .both)?.title, "Weekly")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .both)?.title, "Weekly")
     }
 
     func testWidgetBothModeReturnsNoWindowsWhenProviderHasNoWindows() {
@@ -856,7 +954,7 @@ final class QuotaKitWidgetTests: XCTestCase {
             isError: false,
             windows: [])
 
-        XCTAssertTrue(provider.displayWindows(for: .both).isEmpty)
+        XCTAssertTrue(QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both).isEmpty)
     }
 
     func testLockedWidgetPlaceholderRendersForAllFamilies() {
@@ -984,7 +1082,7 @@ final class QuotaKitWidgetTests: XCTestCase {
 
     func testUnlockedSmallWidgetRendersCleanGlanceLayout() {
         let provider = QuotaKitWidgetPreviewData.snapshot.providers[0]
-        XCTAssertEqual(provider.window(for: .session)?.title, "Session")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .session)?.title, "Session")
 
         let view = QuotaKitWidgetView(
             entry: .init(
@@ -1002,7 +1100,7 @@ final class QuotaKitWidgetTests: XCTestCase {
 
     func testUnlockedSmallWidgetRendersWeeklyConfiguration() {
         let provider = QuotaKitWidgetPreviewData.snapshot.providers[0]
-        XCTAssertEqual(provider.window(for: .weekly)?.title, "Weekly")
+        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "Weekly")
 
         let view = QuotaKitWidgetView(
             entry: .init(

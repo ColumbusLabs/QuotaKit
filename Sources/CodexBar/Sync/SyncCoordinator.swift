@@ -762,7 +762,60 @@ final class SyncCoordinator {
             windowMinutes: window.windowMinutes,
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
-            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now))
+            pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now),
+            identity: Self.syncRateWindowIdentity(label: label, window: window))
+    }
+
+    private static func syncRateWindowIdentity(label: String?, window: RateWindow) -> SyncRateWindowIdentity? {
+        if window.windowMinutes == 10080 {
+            return .weekly
+        }
+        guard let label else { return nil }
+        let normalized = label
+            .localizedLowercase
+            .replacingOccurrences(of: "-", with: " ")
+            .replacingOccurrences(of: "_", with: " ")
+
+        if normalized.contains("week") || Self.containsWeeklyDayCount(normalized) {
+            return .weekly
+        }
+        if normalized.contains("session") || normalized.contains("5 hour") || normalized.contains("5h")
+            || normalized.contains("4 hour") || normalized.contains("4h")
+        {
+            return .session
+        }
+        if normalized.contains("rate limit"),
+           let windowMinutes = window.windowMinutes,
+           (1...(24 * 60)).contains(windowMinutes)
+        {
+            return .session
+        }
+        return nil
+    }
+
+    private static func containsWeeklyDayCount(_ label: String) -> Bool {
+        let tokens = label
+            .split { character in
+                !character.isLetter && !character.isNumber
+            }
+            .map(String.init)
+
+        for index in tokens.indices {
+            if let days = Int(tokens[index]), (5...9).contains(days),
+               tokens.indices.contains(index + 1),
+               tokens[index + 1].hasPrefix("day")
+            {
+                return true
+            }
+            if tokens[index].count == 2,
+               tokens[index].hasSuffix("d"),
+               let days = Int(tokens[index].prefix(1)),
+               (5...9).contains(days)
+            {
+                return true
+            }
+        }
+        return false
     }
 
     private func syncUsagePace(
@@ -1560,7 +1613,8 @@ final class SyncCoordinator {
             // snapshot means a quota config change re-emits the envelope
             // even when usage data is unchanged.
             let quotaWarnings = self.resolvedQuotaWarnings(for: provider.providerID)
-            let enrichedProvider = provider.with(quotaWarnings: quotaWarnings)
+            var enrichedProvider = provider
+            enrichedProvider.quotaWarnings = quotaWarnings
             guard let data = try? providerDiffEncoder.encode(enrichedProvider) else {
                 // Encode fallback: include anyway so we don't silently drop a
                 // provider just because its JSON encoding briefly failed.
