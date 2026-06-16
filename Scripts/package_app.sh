@@ -141,8 +141,8 @@ if [[ -f "$ICON_SOURCE" ]]; then
 fi
 
 BUNDLE_ID="com.columbuslabs.quotakit.mac"
-RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-${CODEXBAR_RELEASE_BRANCH:-mobile-dev}}"
-FEED_URL="https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/${RELEASE_BRANCH}/appcast.xml"
+RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-${CODEXBAR_RELEASE_BRANCH:-main}}"
+FEED_URL="${MAC_RELEASE_FEED_URL:-https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/${RELEASE_BRANCH}/appcast.xml}"
 AUTO_CHECKS=true
 if [[ "$LOWER_CONF" == "debug" ]]; then
   BUNDLE_ID="com.columbuslabs.quotakit.mac.debug"

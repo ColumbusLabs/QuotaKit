@@ -45,7 +45,7 @@ phase1() {
   "$ROOT/Scripts/lint.sh" lint
 
   # `swift test` is authoritatively gated by CI on every push to
-  # mobile-dev; re-running it here is belt-and-suspenders. Some tests
+  # main; re-running it here is belt-and-suspenders. Some tests
   # (Claude OAuth delegated-refresh, credential prompts) block on real
   # keychain on a developer Mac and hang indefinitely, unlike the
   # sandboxed CI environment where they run to completion. Opt in via

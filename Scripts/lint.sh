@@ -200,6 +200,33 @@ check_sparkle_signing_paths() {
   "${ROOT_DIR}/Scripts/test_sparkle_signing_paths.sh"
 }
 
+check_release_feed_url() {
+  local expected="https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml"
+
+  # shellcheck source=/dev/null
+  source "${ROOT_DIR}/.mac-release.env"
+
+  if [[ "${MAC_RELEASE_FEED_URL:-}" != "$expected" ]]; then
+    echo "ERROR: .mac-release.env MAC_RELEASE_FEED_URL must point at the customer appcast:" >&2
+    echo "       expected: $expected" >&2
+    echo "       actual:   ${MAC_RELEASE_FEED_URL:-<unset>}" >&2
+    return 1
+  fi
+
+  if ! grep -F 'RELEASE_BRANCH="${QUOTAKIT_RELEASE_BRANCH:-${CODEXBAR_RELEASE_BRANCH:-main}}"' \
+       "${ROOT_DIR}/Scripts/package_app.sh" >/dev/null; then
+    echo "ERROR: Scripts/package_app.sh must default release bundles to the main customer appcast branch." >&2
+    return 1
+  fi
+
+  if grep -F 'mobile-dev' "${ROOT_DIR}/Scripts/package_app.sh" >/dev/null; then
+    echo "ERROR: Scripts/package_app.sh still references mobile-dev; customer release bundles must not." >&2
+    return 1
+  fi
+
+  echo "release-feed audit: customer appcast URL is $expected"
+}
+
 check_swift_test_sharding() {
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
@@ -214,6 +241,7 @@ case "$cmd" in
   lint)
     check_release_dsym_paths
     check_sparkle_signing_paths
+    check_release_feed_url
     check_swift_test_sharding
     check_app_locales
     ensure_tools
@@ -244,8 +272,11 @@ case "$cmd" in
   audit-provider-palette)
     audit_provider_palette
     ;;
+  audit-release-feed)
+    check_release_feed_url
+    ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding|audit-provider-palette]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding|audit-provider-palette|audit-release-feed]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac
