@@ -8,7 +8,10 @@ read_when:
 
 # CLI configuration
 
-`quotakit config` edits the same `~/.codexbar/config.json` file used by the app's Settings → Providers pane.
+`quotakit config` edits the same resolved config file used by the app's Settings → Providers pane.
+New installs use `~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths resolve to
+`$XDG_CONFIG_HOME/quotakit/config.json`; `QUOTAKIT_CONFIG` overrides the path, and `CODEXBAR_CONFIG` remains supported
+for migrated installs.
 The CLI writes the file with `0600` permissions.
 
 ## Providers
@@ -64,14 +67,14 @@ sessions instead of an xAI API key for CodexBar's billing view, so enable them w
 `quotakit config enable --provider grok`.
 
 LLM Proxy also needs a base URL. Use `LLM_PROXY_BASE_URL` for CLI runs, or add `"enterpriseHost"` to the provider entry
-in `~/.codexbar/config.json`.
+in the CodexBar config file.
 
 ## Isolated config files
 
-For tests, demos, and CI, point CodexBar at a temporary config file:
+For tests, demos, and CI, point QuotaKit at a temporary config file:
 
 ```bash
-export CODEXBAR_CONFIG=/tmp/codexbar-config.json
+export QUOTAKIT_CONFIG=/tmp/quotakit-config.json
 quotakit config enable --provider grok
 quotakit config providers --json --pretty
 ```

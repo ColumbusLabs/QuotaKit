@@ -514,7 +514,7 @@
 "Requires authentication via GitHub Device Flow." = "Requereix autenticació mitjançant el flux de dispositiu de GitHub.";
 
 "Resets: \\(reset)" = "Es reinicia: \\(reset)";
-
+"reset_tomorrow_format" = "demà, %@";
 "Rolling five-hour limit" = "Límit mòbil de cinc hores";
 
 "Search hourly" = "Cerques per hora";

@@ -405,6 +405,10 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `8` (issue #14 upstream sync): merged upstream scanner coverage for new
+    ///   non-token-cost providers (Zed, Poe, Chutes). This does not add local
+    ///   pricing, but the scanner switch changed, so roll the fingerprint
+    ///   under the lint-enforced cache invalidation contract.
     /// - `6` (0.33.1 sync): merged upstream v0.32.4→0.33.1-dev cost-scanner
     ///   changes — Claude parser now splits native 1-hour cache-write usage
     ///   (`ClaudeCostTokens.cacheCreation1h`) under corrected Claude pricing
@@ -443,7 +447,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 7
+    static let parserLogicVersion = 8
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored

@@ -1367,7 +1367,7 @@
 "Resets in %@" = "Renova em %@";
 
 "Resets now" = "Renova agora";
-
+"reset_tomorrow_format" = "amanhã, %@";
 "Lasts until reset" = "Dura até a renovação";
 
 "Updated %@" = "Atualizado %@";

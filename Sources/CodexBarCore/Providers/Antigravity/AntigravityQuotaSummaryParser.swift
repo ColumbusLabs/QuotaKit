@@ -1,22 +1,42 @@
 import Foundation
 
+// swiftformat:disable:next redundantSendable
 struct AntigravityQuotaSummary: Sendable, Equatable {
     let description: String?
     let groups: [AntigravityQuotaSummaryGroup]
 }
 
+// swiftformat:disable:next redundantSendable
 struct AntigravityQuotaSummaryGroup: Sendable, Equatable {
     let displayName: String
     let description: String?
     let buckets: [AntigravityQuotaSummaryBucket]
 }
 
+// swiftformat:disable:next redundantSendable
 struct AntigravityQuotaSummaryBucket: Sendable, Equatable {
     let bucketId: String
     let displayName: String
     let remainingFraction: Double?
+    let resetTime: Date?
     let resetDescription: String?
     let disabled: Bool
+
+    init(
+        bucketId: String,
+        displayName: String,
+        remainingFraction: Double?,
+        resetTime: Date? = nil,
+        resetDescription: String?,
+        disabled: Bool)
+    {
+        self.bucketId = bucketId
+        self.displayName = displayName
+        self.remainingFraction = remainingFraction
+        self.resetTime = resetTime
+        self.resetDescription = resetDescription
+        self.disabled = disabled
+    }
 }
 
 extension AntigravityStatusProbe {
@@ -57,10 +77,12 @@ extension AntigravityStatusProbe {
         let bucketId = payload.bucketId?.trimmingCharacters(in: .whitespacesAndNewlines)
         let displayName = payload.displayName?.trimmingCharacters(in: .whitespacesAndNewlines)
         guard let resolvedBucketId = bucketId, !resolvedBucketId.isEmpty else { return nil }
+        let resetTime = payload.resetTime.flatMap { Self.parseDate($0) }
         return AntigravityQuotaSummaryBucket(
             bucketId: resolvedBucketId,
             displayName: self.nonEmpty(displayName) ?? resolvedBucketId,
             remainingFraction: payload.resolvedRemainingFraction,
+            resetTime: resetTime,
             resetDescription: payload.description,
             disabled: payload.disabled ?? false)
     }
@@ -119,6 +141,7 @@ private struct QuotaSummaryBucketPayload: Decodable {
     let disabled: Bool?
     let remainingFraction: Double?
     let remaining: QuotaSummaryRemainingPayload?
+    let resetTime: String?
 
     var resolvedRemainingFraction: Double? {
         self.remainingFraction ?? self.remaining?.remainingFraction

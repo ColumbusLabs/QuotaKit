@@ -513,6 +513,66 @@ code {
   align-items: center;
 }
 
+.brew {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 6px 6px 14px;
+  border: 1px solid var(--line-strong);
+  border-radius: 999px;
+  background: var(--bg-elev);
+  font-size: 13.5px;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+.brew code {
+  background: none;
+  padding: 0;
+  direction: ltr;
+  min-width: 0;
+  text-align: left;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  unicode-bidi: isolate;
+}
+
+.brew-copy {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  margin: 0;
+  border: 0;
+  background: transparent;
+  border-radius: 999px;
+  color: var(--ink-2);
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: background 140ms ease, color 140ms ease;
+}
+
+.brew-copy:hover {
+  background: var(--bg-elev-2);
+  color: var(--ink-1);
+}
+
+.brew-copy .ok {
+  display: none;
+}
+
+.brew-copy.copied .ic {
+  display: none;
+}
+
+.brew-copy.copied .ok {
+  display: inline;
+  color: #16a34a;
+}
+
 .fineprint {
   margin: 6px 0 0;
   font-size: 13px;
@@ -845,9 +905,9 @@ code {
     color: transparent;
   }
   .language-control::before {
-    content: "文";
+    content: "Aa";
     position: absolute;
-    left: 14px;
+    left: 12px;
     z-index: 1;
     color: var(--ink-1);
     font-size: 13px;
@@ -858,7 +918,7 @@ code {
     padding-left: 12px;
   }
   [dir="rtl"] .language-control::before {
-    right: 14px;
+    right: 12px;
     left: auto;
   }
   .language-control svg {
@@ -896,9 +956,23 @@ code {
   .lede .actions {
     flex-direction: column;
     align-items: stretch;
+    min-width: 0;
+    width: 100%;
   }
   .lede .actions .btn {
+    max-width: 100%;
+    min-width: 0;
     width: 100%;
+  }
+  .brew {
+    min-width: 0;
+    width: 100%;
+  }
+  .brew code {
+    flex: 1 1 auto;
+  }
+  .brew-copy {
+    flex: 0 0 28px;
   }
   .grid {
     grid-template-columns: 1fr;
@@ -909,6 +983,19 @@ code {
   }
   .detail {
     grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 480px) {
+  .masthead {
+    gap: 12px;
+  }
+  .nav {
+    flex: 0 1 auto;
+    min-width: 0;
+  }
+  .nav .btn {
+    display: none;
   }
 }
 

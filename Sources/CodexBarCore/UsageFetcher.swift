@@ -144,6 +144,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let elevenLabsUsage: ElevenLabsUsageSnapshot?
     public let groqUsage: GroqUsageSnapshot?
     public let llmProxyUsage: LLMProxyUsageSnapshot?
+    public let poeUsage: PoeUsageHistorySnapshot?
     public let cursorRequests: CursorRequestUsage?
     /// iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
     /// like zaiUsage / cursorRequests; SyncCoordinator threads it to the envelope.
@@ -173,6 +174,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case elevenLabsUsage
         case groqUsage
         case llmProxyUsage
+        case poeUsage
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case updatedAt
@@ -204,6 +206,7 @@ public struct UsageSnapshot: Codable, Sendable {
         elevenLabsUsage: ElevenLabsUsageSnapshot? = nil,
         groqUsage: GroqUsageSnapshot? = nil,
         llmProxyUsage: LLMProxyUsageSnapshot? = nil,
+        poeUsage: PoeUsageHistorySnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
@@ -233,6 +236,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.elevenLabsUsage = elevenLabsUsage
         self.groqUsage = groqUsage
         self.llmProxyUsage = llmProxyUsage
+        self.poeUsage = poeUsage
         self.cursorRequests = cursorRequests
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
@@ -282,6 +286,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.elevenLabsUsage = try container.decodeIfPresent(ElevenLabsUsageSnapshot.self, forKey: .elevenLabsUsage)
         self.groqUsage = try container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
         self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
+        self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
@@ -326,6 +331,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.elevenLabsUsage, forKey: .elevenLabsUsage)
         try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
         try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
+        try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
@@ -493,6 +499,7 @@ public struct UsageSnapshot: Codable, Sendable {
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            poeUsage: self.poeUsage,
             cursorRequests: self.cursorRequests,
             subscriptionExpiresAt: self.subscriptionExpiresAt,
             subscriptionRenewsAt: self.subscriptionRenewsAt,
@@ -960,12 +967,14 @@ public struct UsageFetcher: Sendable {
     private let initializeTimeoutSeconds: TimeInterval
     private let requestTimeoutSeconds: TimeInterval
     private let codexExecutableResolver: CodexExecutableResolver
+    private let codexArguments: [String]
 
     public init(environment: [String: String] = ProcessInfo.processInfo.environment) {
         self.environment = environment
         self.initializeTimeoutSeconds = 8.0
         self.requestTimeoutSeconds = 3.0
         self.codexExecutableResolver = defaultCodexExecutableResolver
+        self.codexArguments = ["-s", "read-only", "-a", "untrusted", "app-server"]
         LoginShellPathCache.shared.captureOnce()
     }
 
@@ -973,12 +982,14 @@ public struct UsageFetcher: Sendable {
         environment: [String: String],
         initializeTimeoutSeconds: TimeInterval,
         requestTimeoutSeconds: TimeInterval,
+        codexArguments: [String] = ["-s", "read-only", "-a", "untrusted", "app-server"],
         codexExecutableResolver: @escaping CodexExecutableResolver = defaultCodexExecutableResolver)
     {
         self.environment = environment
         self.initializeTimeoutSeconds = initializeTimeoutSeconds
         self.requestTimeoutSeconds = requestTimeoutSeconds
         self.codexExecutableResolver = codexExecutableResolver
+        self.codexArguments = codexArguments
         LoginShellPathCache.shared.captureOnce()
     }
 
@@ -992,6 +1003,7 @@ public struct UsageFetcher: Sendable {
 
     public func loadLatestCLIAccountSnapshot() async throws -> CodexCLIAccountSnapshot {
         let rpc = try CodexRPCClient(
+            arguments: self.codexArguments,
             environment: self.environment,
             initializeTimeoutSeconds: self.initializeTimeoutSeconds,
             requestTimeoutSeconds: self.requestTimeoutSeconds,
@@ -1051,6 +1063,7 @@ public struct UsageFetcher: Sendable {
     public func debugRawRateLimits() async -> String {
         do {
             let rpc = try CodexRPCClient(
+                arguments: self.codexArguments,
                 environment: self.environment,
                 initializeTimeoutSeconds: self.initializeTimeoutSeconds,
                 requestTimeoutSeconds: self.requestTimeoutSeconds,
