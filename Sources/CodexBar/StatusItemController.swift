@@ -135,6 +135,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var menuIdentitySignatures: [ObjectIdentifier: String] = [:]
     var codexAccountMenuProjectionRevalidationTask: Task<Void, Never>?
     var openMenuRebuildsClosingHostedSubviewMenus: Set<ObjectIdentifier> = []
+    var parentMenuRebuildPendingAfterHostedSubviewClose = false
     var deferredMenuInteractionRefreshProviders: Set<UsageProvider> = []
     var deferredMenuInteractionRefreshPending: Bool {
         !self.deferredMenuInteractionRefreshProviders.isEmpty
@@ -512,6 +513,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             refreshOpenMenus: refreshOpenMenus,
             deferOpenParentMenuRebuild: true,
             allowStaleContentDuringDataRefresh: true)
+        self.completeParentMenuRebuildAfterHostedSubviewCloseIfNeeded()
     }
 
     private func observeStoreIconChanges() {
@@ -523,8 +525,9 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
                 self.observeStoreIconChanges()
                 let signature = self.storeIconObservationSignature()
                 guard signature != self.lastObservedStoreIconWorkSignature else { return }
-                self.lastObservedStoreIconWorkSignature = signature
-                self.updateIcons()
+                // Reuse the signature we just computed for the change check; `updateIcons` would
+                // otherwise recompute the identical value on the same main-actor turn.
+                self.updateIcons(precomputedStoreIconSignature: signature)
             }
         }
     }
@@ -662,13 +665,19 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         }
     }
 
-    func updateIcons() {
+    /// Updates the menu bar icons.
+    ///
+    /// The store-icon observer already computes `storeIconObservationSignature()` to decide whether any
+    /// icon work is needed, so it passes that value in via `precomputedStoreIconSignature` to avoid
+    /// recomputing the identical signature on the same main-actor turn. Other callers omit it and let the
+    /// signature refresh here, keeping `lastObservedStoreIconWorkSignature` current as the change gate.
+    func updateIcons(precomputedStoreIconSignature: String? = nil) {
         #if DEBUG
         guard !self.isReleasedForTesting else { return }
         #endif
         MainThreadActivityBreadcrumb.push("updateIcons")
         self.scheduleMenuBarCountdownRefreshIfNeeded()
-        self.lastObservedStoreIconWorkSignature = self.storeIconObservationSignature()
+        self.lastObservedStoreIconWorkSignature = precomputedStoreIconSignature ?? self.storeIconObservationSignature()
         self.beginIconPerfUpdatePass()
         defer {
             self.endIconPerfUpdatePass()

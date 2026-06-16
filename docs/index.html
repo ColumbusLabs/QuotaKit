@@ -6,7 +6,7 @@
     <title>QuotaKit — every AI coding limit in your menu bar</title>
     <meta
       name="description"
-      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 40+ providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, Grok, and more."
+      content="A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 53 providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, LiteLLM, and more."
     />
     <meta name="theme-color" content="#0a0a0c" />
     <link rel="canonical" href="https://columbus-labs.com/quotakit/mac" />
@@ -14,7 +14,7 @@
     <meta property="og:title" content="QuotaKit" />
     <meta
       property="og:description"
-      content="Track usage windows, credits, and resets across 40+ AI coding providers from your macOS menu bar."
+      content="Track usage windows, credits, and resets across 53 AI coding providers from your macOS menu bar."
     />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://columbus-labs.com/quotakit/mac" />
@@ -37,7 +37,7 @@
         } catch (_) {}
       })();
     </script>
-    <link rel="stylesheet" href="./site.css?v=9" />
+    <link rel="stylesheet" href="./site.css?v=10" />
   </head>
   <body>
     <div class="backdrop" aria-hidden="true">
@@ -85,7 +85,7 @@
 
       <section class="providers" aria-labelledby="providers-h">
         <header class="section-head">
-          <h2 id="providers-h">40+ providers, one menu bar</h2>
+          <h2 id="providers-h">53 providers, one menu bar</h2>
           <p>Popular providers become status items with their own usage windows, reset countdowns, charts, and provider menus.</p>
         </header>
         <ul class="grid">
@@ -187,6 +187,15 @@
         </a></li>
         <li><a class="provider" style="--brand:#44C800;--ink:#0a0a0c" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/codebuff.md">
           <img class="chip-logo no-bg" src="./logos/codebuff.png" data-dark-src="./logos/codebuff-dark.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Codebuff</span><span class="auth">API key</span></span>
+        </a></li>
+        <li><a class="provider" style="--brand:#26AD61" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/poe.md">
+          <img class="chip-logo" src="./logos/poe.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Poe</span><span class="auth">API key</span></span>
+        </a></li>
+        <li><a class="provider" style="--brand:#3184FF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/chutes.md">
+          <img class="chip-logo" src="./logos/chutes.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Chutes</span><span class="auth">API key</span></span>
+        </a></li>
+        <li><a class="provider" style="--brand:#084EFF" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/zed.md">
+          <img class="chip-logo" src="./logos/zed.svg" alt="" width="20" height="20" /><span class="meta"><span class="name">Zed</span><span class="auth">Local</span></span>
         </a></li>
         <li><a class="provider add" href="https://github.com/ColumbusLabs/QuotaKit/blob/main/docs/provider.md">
           <span class="chip">+</span><span class="meta"><span class="name">Your provider</span><span class="auth">Authoring guide</span></span>

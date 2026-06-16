@@ -1370,7 +1370,7 @@
 "Resets in %@" = "Resetten over %@";
 
 "Resets now" = "Wordt nu gereset";
-
+"reset_tomorrow_format" = "morgen, %@";
 "Lasts until reset" = "Gaat mee tot reset";
 
 "Updated %@" = "Bijgewerkt %@";

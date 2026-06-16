@@ -24,7 +24,10 @@ Standalone CLI tarballs are not part of the Columbus Labs public release lane ye
 - Dependencies: Swift 6.2+, Commander package (`https://github.com/steipete/Commander`).
 
 ## Configuration
-QuotaKit currently reads `~/.codexbar/config.json` for provider settings, secrets, and ordering for compatibility with existing installs.
+QuotaKit reads the resolved config file for provider settings, secrets, and ordering. New installs use
+`~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths resolve to
+`$XDG_CONFIG_HOME/quotakit/config.json`; `QUOTAKIT_CONFIG` overrides the path,
+and `CODEXBAR_CONFIG` remains supported for compatibility with migrated installs.
 See `docs/configuration.md` for the schema.
 
 ## Command
@@ -73,13 +76,13 @@ See `docs/configuration.md` for the schema.
 - Global flags: `-h/--help`, `-V/--version`, `-v/--verbose`, `--no-color`, `--log-level <trace|verbose|debug|info|warning|error|critical>`, `--json-output`, `--json-only`.
   - `--json-output`: JSONL logs on stderr (machine-readable).
   - `--json-only`: suppress non-JSON output; errors become JSON payloads.
-- `quotakit config validate` checks `~/.codexbar/config.json` for invalid fields.
+- `quotakit config validate` checks the resolved config file for invalid fields.
   - `--format text|json`, `--pretty`, and `--json-only` are supported.
   - Warnings keep exit code 0; errors exit non-zero.
 - `quotakit config dump` prints the normalized config JSON.
 
 ### Token accounts
-The CLI reads multi-account tokens from `~/.codexbar/config.json` (same file as the app).
+The CLI reads multi-account tokens from the same resolved config file as the app.
 - Select a specific account: `--account <label>` (matches the label/email in the file).
 - Select by index (1-based): `--account-index <n>`.
 - Fetch all accounts for the provider: `--all-accounts`.
