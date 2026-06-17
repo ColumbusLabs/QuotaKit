@@ -31,6 +31,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   Kiro helper process cleanup, Antigravity reset-time parsing, menu/status
   refresh fixes, widget and usage-pace display updates, localization updates,
   provider website assets, and broader provider/process test coverage.
+- Synced upstream CodexBar Mac improvements through `05545feb`
+  (`ac01d736..05545feb`), including LiteLLM budget spend display,
+  manual-refresh quota stability, non-interactive menu-card hover behavior,
+  and stricter app-locale placeholder validation.
 - Antigravity: prefer app and `agy` quota summaries, group usage into Gemini and Claude + GPT session/weekly pools, and preserve IDE and OAuth fallbacks. Thanks @Zihao-Qi!
 - Antigravity: show structured quota reset timestamps from the current `resetTime` field (#1553). Thanks @akunzai!
 - Configuration: honor absolute `XDG_CONFIG_HOME` paths while rejecting relative paths and preserving QuotaKit config precedence (#1562). Thanks @kiranmagic7!
