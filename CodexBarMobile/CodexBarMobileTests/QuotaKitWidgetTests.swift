@@ -108,6 +108,60 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
     }
 
+    func testWidgetSnapshotMovesSelectedProviderFirst() throws {
+        let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
+            from: PreviewData.sampleSnapshot,
+            generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            providerPreferences: QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: [],
+                selectedProviderID: "claude"))
+
+        XCTAssertEqual(snapshot.primaryProvider?.id, "claude")
+        XCTAssertEqual(snapshot.primaryProvider?.providerName, "Claude")
+    }
+
+    func testWidgetSnapshotUsesProviderOrderWhenSelectionIsMissing() throws {
+        let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
+            from: PreviewData.sampleSnapshot,
+            generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
+            providerPreferences: QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: ["codex", "claude"],
+                selectedProviderID: nil))
+
+        XCTAssertEqual(snapshot.primaryProvider?.id, "codex")
+        XCTAssertEqual(snapshot.providers.dropFirst().first?.id, "claude")
+    }
+
+    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() throws {
+        let now = Date(timeIntervalSince1970: 1_803_000_000)
+        let snapshot = QuotaKitWidgetSnapshot(
+            generatedAt: now,
+            providers: [
+                .init(
+                    id: "zai",
+                    providerName: "z.ai",
+                    lastUpdated: now,
+                    statusMessage: nil,
+                    isError: false,
+                    windows: []),
+                .init(
+                    id: "claude",
+                    providerName: "Claude",
+                    lastUpdated: now,
+                    statusMessage: nil,
+                    isError: false,
+                    windows: []),
+            ])
+
+        let reordered = snapshot.applyingProviderPreferences(
+            QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: [],
+                selectedProviderID: "claude"))
+
+        XCTAssertEqual(reordered.primaryProvider?.id, "claude")
+        XCTAssertEqual(snapshot.primaryProvider?.id, "zai")
+    }
+
     func testWidgetSnapshotUnknownWindowIdentityDecodesAsNil() throws {
         let json = """
         {
@@ -444,6 +498,111 @@ final class QuotaKitWidgetTests: XCTestCase {
         QuotaKitWidgetDisplayModeStore.save(.weekly, appGroupDefaults: { nil })
 
         XCTAssertNil(UserDefaults.standard.string(forKey: QuotaKitWidgetDisplayModeStore.key))
+    }
+
+    func testWidgetProviderPreferencesStoreRoundTripsProviderOrderAndSelection() {
+        let defaults = Self.makeDefaults()
+        defer {
+            defaults.removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+            defaults.removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
+        }
+
+        QuotaKitWidgetProviderPreferencesStore.saveProviderOrderIDs(
+            ["claude", " ", "codex", "claude"],
+            defaults: defaults)
+        QuotaKitWidgetProviderPreferencesStore.saveSelectedProviderID(" codex ", defaults: defaults)
+
+        XCTAssertEqual(
+            QuotaKitWidgetProviderPreferencesStore.loadProviderOrderIDs(defaults: defaults),
+            ["claude", "codex"])
+        XCTAssertEqual(
+            QuotaKitWidgetProviderPreferencesStore.loadSelectedProviderID(defaults: defaults),
+            "codex")
+        XCTAssertEqual(
+            QuotaKitWidgetProviderPreferencesStore.load(defaults: defaults),
+            QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: ["claude", "codex"],
+                selectedProviderID: "codex"))
+    }
+
+    func testWidgetProviderPreferencesStoreDoesNotFallBackToStandardDefaults() {
+        UserDefaults.standard.set(
+            ["claude"],
+            forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+        UserDefaults.standard.set(
+            "claude",
+            forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
+        defer {
+            UserDefaults.standard.removeObject(
+                forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+            UserDefaults.standard.removeObject(
+                forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
+        }
+
+        XCTAssertEqual(
+            QuotaKitWidgetProviderPreferencesStore.load(appGroupDefaults: { nil }),
+            .empty)
+
+        QuotaKitWidgetProviderPreferencesStore.saveProviderOrderIDs(
+            ["codex"],
+            appGroupDefaults: { nil })
+        QuotaKitWidgetProviderPreferencesStore.saveSelectedProviderID(
+            "codex",
+            appGroupDefaults: { nil })
+
+        XCTAssertEqual(
+            UserDefaults.standard.stringArray(
+                forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey),
+            ["claude"])
+        XCTAssertEqual(
+            UserDefaults.standard.string(
+                forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey),
+            "claude")
+    }
+
+    func testWidgetProviderPreferencesOrderingHonorsSavedOrderAndAppendsNewProvidersByName() {
+        let items = [
+            WidgetProviderPreferenceTestItem(id: "zai", name: "z.ai"),
+            WidgetProviderPreferenceTestItem(id: "claude", name: "Claude"),
+            WidgetProviderPreferenceTestItem(id: "gemini", name: "Gemini"),
+            WidgetProviderPreferenceTestItem(id: "codex", name: "Codex"),
+        ]
+
+        let ordered = QuotaKitWidgetProviderPreferencesStore.orderedItems(
+            items,
+            preferences: QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: ["codex", "claude"],
+                selectedProviderID: nil),
+            providerID: \.id,
+            providerName: \.name)
+
+        XCTAssertEqual(ordered.map(\.id), ["codex", "claude", "gemini", "zai"])
+    }
+
+    func testWidgetProviderPreferencesEmptyOrderPreservesInputOrder() {
+        let items = [
+            WidgetProviderPreferenceTestItem(id: "zai", name: "z.ai"),
+            WidgetProviderPreferenceTestItem(id: "claude", name: "Claude"),
+            WidgetProviderPreferenceTestItem(id: "codex", name: "Codex"),
+        ]
+
+        let ordered = QuotaKitWidgetProviderPreferencesStore.orderedItems(
+            items,
+            preferences: .empty,
+            providerID: \.id,
+            providerName: \.name)
+
+        XCTAssertEqual(ordered.map(\.id), ["zai", "claude", "codex"])
+    }
+
+    func testWidgetProviderPreferencesSelectionFallsBackToOrderedProvider() {
+        let selected = QuotaKitWidgetProviderPreferencesStore.selectedProviderID(
+            availableProviderIDs: ["zai", "claude", "codex"],
+            preferences: QuotaKitWidgetProviderPreferences(
+                providerOrderIDs: ["codex", "claude"],
+                selectedProviderID: "missing"))
+
+        XCTAssertEqual(selected, "codex")
     }
 
     func testWidgetEntryDisplayModeResolverUsesBothForPreviewEntries() {
@@ -1259,4 +1418,9 @@ private struct StringCatalog: Decodable {
         let state: String
         let value: String
     }
+}
+
+private struct WidgetProviderPreferenceTestItem {
+    let id: String
+    let name: String
 }

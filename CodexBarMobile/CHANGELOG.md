@@ -9,6 +9,10 @@ current Columbus Labs product surface and recent release history.
 
 ### Changed
 
+- The Usage tab now lets users choose the provider shown in QuotaKit widgets
+  and reorder providers directly in the app. Widgets follow the selected
+  provider immediately; if no provider is selected, they fall back to the saved
+  Usage order.
 - QuotaKit widgets now show both Session and Weekly quota windows by default
   when both are available, with a Usage Settings picker to switch all widgets to
   Both, Session, or Weekly display. Both mode keeps pace markers in the compact

@@ -14,6 +14,10 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
         QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
             .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+        QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+        QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
         UserDefaults.standard.removePersistentDomain(forName: Self.remoteConfigSuiteName)
         UserDefaults(suiteName: Self.remoteConfigSuiteName)?
             .removePersistentDomain(forName: Self.remoteConfigSuiteName)
@@ -24,6 +28,10 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         UserDefaults.standard.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
         QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
             .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+        QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+        QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+            .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
         super.tearDown()
     }
 

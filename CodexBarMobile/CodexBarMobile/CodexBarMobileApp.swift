@@ -32,6 +32,10 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.appearanceMode)
             QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
                 .removeObject(forKey: QuotaKitWidgetDisplayModeStore.key)
+            QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+                .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.providerOrderKey)
+            QuotaKitWidgetProviderPreferencesStore.appGroupDefaults()?
+                .removeObject(forKey: QuotaKitWidgetProviderPreferencesStore.selectedProviderKey)
         }
 
         if arguments.contains("UI_TEST_SKIP_ONBOARDING") {

@@ -93,6 +93,25 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
         self.providers.first
     }
 
+    func applyingProviderPreferences(
+        _ preferences: QuotaKitWidgetProviderPreferences) -> QuotaKitWidgetSnapshot
+    {
+        let orderedProviders = QuotaKitWidgetProviderPreferencesStore.orderedItems(
+            self.providers,
+            preferences: preferences,
+            providerID: \.id,
+            providerName: \.providerName)
+        let selectedProviders = QuotaKitWidgetProviderPreferencesStore.moveSelectedProviderFirst(
+            orderedProviders,
+            preferences: preferences,
+            providerID: \.id)
+        return QuotaKitWidgetSnapshot(
+            schemaVersion: self.schemaVersion,
+            generatedAt: self.generatedAt,
+            lastSyncedAt: self.lastSyncedAt,
+            providers: selectedProviders)
+    }
+
     private enum CodingKeys: String, CodingKey {
         case schemaVersion
         case generatedAt
@@ -104,9 +123,11 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
 enum QuotaKitWidgetSnapshotBuilder {
     static func makeSnapshot(
         from snapshot: SyncedUsageSnapshot,
-        generatedAt: Date = Date()) -> QuotaKitWidgetSnapshot
+        generatedAt: Date = Date(),
+        providerPreferences: QuotaKitWidgetProviderPreferences = QuotaKitWidgetProviderPreferencesStore.load())
+        -> QuotaKitWidgetSnapshot
     {
-        let providers = snapshot.providers
+        let snapshotProviders = snapshot.providers
             .sorted {
                 if $0.lastUpdated != $1.lastUpdated {
                     return $0.lastUpdated > $1.lastUpdated
@@ -114,6 +135,15 @@ enum QuotaKitWidgetSnapshotBuilder {
                 return $0.providerName.localizedCaseInsensitiveCompare($1.providerName) == .orderedAscending
             }
             .map { Self.makeProvider($0) }
+        let orderedProviders = QuotaKitWidgetProviderPreferencesStore.orderedItems(
+            snapshotProviders,
+            preferences: providerPreferences,
+            providerID: \.id,
+            providerName: \.providerName)
+        let providers = QuotaKitWidgetProviderPreferencesStore.moveSelectedProviderFirst(
+            orderedProviders,
+            preferences: providerPreferences,
+            providerID: \.id)
 
         return QuotaKitWidgetSnapshot(
             generatedAt: generatedAt,

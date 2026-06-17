@@ -31,11 +31,16 @@ struct QuotaKitWidgetProvider: TimelineProvider {
 
     private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
         let isProUnlocked = ProEntitlementCacheStore.load() != nil
-        let storedSnapshot = QuotaKitWidgetSnapshotStore.load()
+        let preferences = isPreview
+            ? QuotaKitWidgetProviderPreferences.empty
+            : QuotaKitWidgetProviderPreferencesStore.load()
+        let storedSnapshot = QuotaKitWidgetSnapshotStore.load()?
+            .applyingProviderPreferences(preferences)
         #if DEBUG && targetEnvironment(simulator)
         let snapshot = isPreview
             ? QuotaKitWidgetPreviewData.snapshot
             : storedSnapshot ?? QuotaKitWidgetPreviewData.simulatorSnapshot
+                .applyingProviderPreferences(preferences)
         #else
         let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : storedSnapshot
         #endif
