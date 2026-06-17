@@ -232,6 +232,7 @@ check_swift_test_sharding() {
 }
 
 check_app_locales() {
+  node "${ROOT_DIR}/Scripts/check-app-locales.mjs" --test
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
 }
 

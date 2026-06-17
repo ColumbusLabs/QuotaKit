@@ -346,6 +346,81 @@ struct StatusMenuPersistentRefreshTests {
     }
 
     @Test
+    func `manual refresh keeps frozen quota even if menu rebuilds before completion`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let now = Date()
+        for provider in [UsageProvider.claude, .codex] {
+            controller.store.snapshots[provider] = UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 21,
+                    windowMinutes: 300,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now)
+            let frozen = try #require(controller.menuCardModel(for: provider))
+            controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [provider: frozen])
+
+            controller.store.snapshots[provider] = UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 18,
+                    windowMinutes: 300,
+                    resetsAt: now.addingTimeInterval(3600),
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now.addingTimeInterval(1))
+            let rebuiltFallback = try #require(controller.menuCardModel(for: provider))
+            let inFlight = controller.menuCardRefreshMonitor.model(for: provider, fallback: rebuiltFallback)
+
+            #expect(frozen.metrics.first?.percentLabel == "79% left")
+            #expect(rebuiltFallback.metrics.first?.percentLabel == "82% left")
+            #expect(inFlight.metrics.first?.percentLabel == "79% left")
+
+            controller.menuCardRefreshMonitor.endManualRefresh()
+            let completed = controller.menuCardRefreshMonitor.model(for: provider, fallback: frozen)
+            #expect(completed.metrics.first?.percentLabel == "82% left")
+        }
+    }
+
+    @Test
+    func `manual refresh uses fallback when frozen quota layout is incompatible`() throws {
+        let settings = self.makeSettings()
+        let controller = self.makeController(settings: settings)
+        let now = Date()
+        controller.store.snapshots[.claude] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 21,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now)
+        let frozen = try #require(controller.menuCardModel(for: .claude))
+        controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [.claude: frozen])
+
+        controller.store.snapshots[.claude] = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 18,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(3600),
+                resetDescription: nil),
+            secondary: RateWindow(
+                usedPercent: 12,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60),
+                resetDescription: nil),
+            updatedAt: now.addingTimeInterval(1))
+        let rebuiltFallback = try #require(controller.menuCardModel(for: .claude))
+        let inFlight = controller.menuCardRefreshMonitor.model(for: .claude, fallback: rebuiltFallback)
+
+        #expect(frozen.metrics.count == 1)
+        #expect(rebuiltFallback.metrics.count == 2)
+        #expect(inFlight.metrics.count == 2)
+        #expect(inFlight.metrics.map(\.id) == rebuiltFallback.metrics.map(\.id))
+    }
+
+    @Test
     func `refresh monitor updates single line credit balances`() throws {
         let settings = self.makeSettings()
         let controller = self.makeController(
