@@ -5,6 +5,18 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.7 / iOS 1.11.1 — 2026-06-18
+
+### Fixed
+
+- Mac updates: prevent launch and background refresh from showing Keychain
+  permission prompts after an app update.
+- Keychain migration: update existing credential accessibility in place without
+  reading secret values or deleting/re-adding items, and retry safely later when
+  macOS reports that interaction would be required.
+- Claude OAuth: limit promptable Keychain reads to explicit user actions such as
+  opening the menu or running a manual refresh.
+
 ## 0.32.4.6 / iOS 1.11.1 — 2026-06-16
 
 ### Changed
