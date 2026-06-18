@@ -5,6 +5,15 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.1 (169)] — 2026-06-18 — Provider logos in app and widgets
+
+### Changed
+
+- Provider rows, usage cards, details, dashboard provider-share lists, and
+  QuotaKit widgets now use the same provider logo assets as the Mac app. Generic
+  aggregate rows keep neutral markers so provider logos only appear where they
+  identify a real provider.
+
 ## [1.11.1 (168)] — 2026-06-17 — Provider order and widget provider controls
 
 ### Changed

@@ -16,6 +16,7 @@ struct ProviderDetailView: View {
     @State private var selectedAccountIndex: Int = 0
 
     @AppStorage(MobileSettingsKeys.usageCostChartStyle) private var chartStyleRawValue = CostChartStyle.bars.rawValue
+    @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
     @State private var selectedDate: String?
 
     /// Single-account convenience init — used by call sites that
@@ -92,6 +93,7 @@ struct ProviderDetailView: View {
                 if self.group.hasMultipleAccounts {
                     self.accountTabBar
                 }
+                self.providerIdentityHeader
                 if self.isMockProvider {
                     self.mockBanner
                 }
@@ -163,6 +165,53 @@ struct ProviderDetailView: View {
     }
 
     // MARK: - Mock Detail Banner
+
+    private var providerIdentityHeader: some View {
+        HStack(spacing: 12) {
+            ProviderBrandMark(
+                providerID: self.provider.providerID,
+                size: 28,
+                tint: self.providerColor)
+
+            VStack(alignment: .leading, spacing: 3) {
+                HStack(alignment: .firstTextBaseline, spacing: 8) {
+                    Text(self.provider.providerName)
+                        .font(.title3)
+                        .fontWeight(.semibold)
+                        .lineLimit(1)
+
+                    if self.isMockProvider {
+                        MockBadgeView()
+                    }
+                }
+
+                if let subtitle = self.providerIdentitySubtitle {
+                    Text(subtitle)
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+
+            Spacer(minLength: 0)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 12)
+        .qkCardBackground(cornerRadius: 14)
+        .accessibilityElement(children: .combine)
+    }
+
+    private var providerIdentitySubtitle: String? {
+        if let accountEmail = self.provider.accountEmail, !accountEmail.isEmpty {
+            return MobilePersonalInfoRedactor.redactEmail(accountEmail, isEnabled: self.hidePersonalInfo)
+        }
+        if let loginMethod = self.provider.loginMethod, !loginMethod.isEmpty {
+            return MobilePersonalInfoRedactor.redactEmails(
+                in: loginMethod,
+                isEnabled: self.hidePersonalInfo) ?? loginMethod
+        }
+        return nil
+    }
 
     /// Inline banner at the top of the detail page reminding the user
     /// Segmented control at the top of the detail view — one tab per

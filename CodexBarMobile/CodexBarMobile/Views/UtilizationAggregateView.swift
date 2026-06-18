@@ -265,10 +265,11 @@ struct UtilizationAggregateView: View {
 
     private func providerShareRow(_ row: UtilizationProviderShare) -> some View {
         VStack(alignment: .leading, spacing: 8) {
-            HStack(alignment: .firstTextBaseline, spacing: 10) {
-                Circle()
-                    .fill(row.color)
-                    .frame(width: 10, height: 10)
+            HStack(alignment: .center, spacing: 10) {
+                ProviderBrandMark(
+                    providerID: row.providerID,
+                    size: 14,
+                    tint: row.color)
 
                 VStack(alignment: .leading, spacing: 2) {
                     Text(row.name)

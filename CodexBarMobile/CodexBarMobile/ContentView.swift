@@ -489,9 +489,7 @@ private struct WidgetProviderPickerContent: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Image(systemName: "rectangle.on.rectangle.angled")
-                .font(.body.weight(.semibold))
-                .foregroundStyle(self.theme.accent)
+            self.selectedProviderMark
                 .frame(width: 32, height: 32)
                 .background(self.theme.surfaceElevated, in: Circle())
 
@@ -513,6 +511,24 @@ private struct WidgetProviderPickerContent: View {
             .pickerStyle(.menu)
             .accessibilityIdentifier("widget-provider-picker")
         }
+    }
+
+    @ViewBuilder
+    private var selectedProviderMark: some View {
+        if let selectedGroup {
+            ProviderBrandMark(
+                providerID: selectedGroup.providerID,
+                size: 18,
+                tint: ProviderColorPalette.color(for: selectedGroup.providerID))
+        } else {
+            Image(systemName: "rectangle.on.rectangle.angled")
+                .font(.body.weight(.semibold))
+                .foregroundStyle(self.theme.accent)
+        }
+    }
+
+    private var selectedGroup: ProviderAccountGroup? {
+        self.groups.first { $0.providerID == self.selectedProviderID } ?? self.groups.first
     }
 }
 
@@ -565,9 +581,10 @@ private struct ProviderOrderRow: View {
 
     var body: some View {
         HStack(spacing: 12) {
-            Circle()
-                .fill(ProviderColorPalette.color(for: self.group.providerID))
-                .frame(width: 10, height: 10)
+            ProviderBrandMark(
+                providerID: self.group.providerID,
+                size: 18,
+                tint: ProviderColorPalette.color(for: self.group.providerID))
 
             VStack(alignment: .leading, spacing: 2) {
                 Text(self.group.providerName)

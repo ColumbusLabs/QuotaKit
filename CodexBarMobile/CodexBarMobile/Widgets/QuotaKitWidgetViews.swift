@@ -248,9 +248,10 @@ private struct QuotaKitWidgetSmallView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             HStack(spacing: 6) {
-                Circle()
-                    .fill(WidgetPalette.brandAccent)
-                    .frame(width: 7, height: 7)
+                ProviderBrandMark(
+                    providerID: self.provider.id,
+                    size: 15,
+                    tint: ProviderColorPalette.color(for: self.provider.id))
                 Text(self.provider.providerName)
                     .font(.system(size: 17, weight: .semibold))
                     .lineLimit(1)
@@ -386,7 +387,11 @@ private struct QuotaKitWidgetMediumView: View {
                     for: provider,
                     displayMode: self.displayMode)
                 VStack(alignment: .leading, spacing: 4) {
-                    HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    HStack(alignment: .center, spacing: 6) {
+                        ProviderBrandMark(
+                            providerID: provider.id,
+                            size: 14,
+                            tint: ProviderColorPalette.color(for: provider.id))
                         Text(provider.providerName)
                             .font(.subheadline)
                             .fontWeight(.semibold)
@@ -467,9 +472,15 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
 
     var body: some View {
         VStack(alignment: .leading, spacing: 2) {
-            Text(provider.providerName)
-                .font(.headline)
-                .lineLimit(1)
+            HStack(spacing: 4) {
+                ProviderBrandMark(
+                    providerID: self.provider.id,
+                    size: 11,
+                    tint: ProviderColorPalette.color(for: self.provider.id))
+                Text(provider.providerName)
+                    .font(.headline)
+                    .lineLimit(1)
+            }
             Text(QuotaKitWidgetPresentation.accessoryDetailText(
                 for: self.provider,
                 displayMode: self.displayMode))

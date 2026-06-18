@@ -44,7 +44,7 @@ struct CostBreakdownRowView: View {
     var body: some View {
         QKSurfaceCard(elevation: .surface, accentColor: self.row.color, cornerRadius: 16) {
             VStack(alignment: .leading, spacing: 8) {
-                HStack(alignment: .firstTextBaseline, spacing: 10) {
+                HStack(alignment: .center, spacing: 10) {
                     if let rank, rank <= 3 {
                         Text("#\(rank)")
                             .font(.caption.weight(.bold))
@@ -52,9 +52,16 @@ struct CostBreakdownRowView: View {
                             .frame(width: 22, alignment: .leading)
                     }
 
-                    Circle()
-                        .fill(self.row.color)
-                        .frame(width: 8, height: 8)
+                    if let brandProviderID = self.row.brandProviderID {
+                        ProviderBrandMark(
+                            providerID: brandProviderID,
+                            size: 14,
+                            tint: self.row.color)
+                    } else {
+                        Circle()
+                            .fill(self.row.color)
+                            .frame(width: 8, height: 8)
+                    }
 
                     VStack(alignment: .leading, spacing: 2) {
                         Text(self.row.label)

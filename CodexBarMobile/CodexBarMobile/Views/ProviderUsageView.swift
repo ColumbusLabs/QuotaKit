@@ -113,22 +113,29 @@ struct ProviderUsageView: View {
     @ViewBuilder
     private var providerHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
-            HStack(alignment: .firstTextBaseline) {
-                Text(self.provider.providerName)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                    .foregroundStyle(self.theme.textPrimary)
+            HStack(alignment: .center, spacing: 8) {
+                ProviderBrandMark(
+                    providerID: self.provider.providerID,
+                    size: 18,
+                    tint: self.providerColor)
 
-                if let count = self.accountCount, count > 1 {
-                    // Multi-account group indicator. Mirrors Mac's
-                    // implicit "N tabs at top of provider menu" hint.
-                    Text("· \(count)")
-                        .font(.subheadline.monospacedDigit())
-                        .foregroundStyle(.secondary)
-                        .accessibilityLabel(Text(String(
-                            format: String(localized: "provider-account-count-label"),
-                            count)))
-                        .accessibilityIdentifier("provider-account-count")
+                HStack(alignment: .firstTextBaseline, spacing: 4) {
+                    Text(self.provider.providerName)
+                        .font(.headline)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(self.theme.textPrimary)
+
+                    if let count = self.accountCount, count > 1 {
+                        // Multi-account group indicator. Mirrors Mac's
+                        // implicit "N tabs at top of provider menu" hint.
+                        Text("· \(count)")
+                            .font(.subheadline.monospacedDigit())
+                            .foregroundStyle(.secondary)
+                            .accessibilityLabel(Text(String(
+                                format: String(localized: "provider-account-count-label"),
+                                count)))
+                            .accessibilityIdentifier("provider-account-count")
+                    }
                 }
 
                 if self.usesSyntheticDataTreatment {
@@ -327,35 +334,6 @@ struct ProviderUsageView: View {
     }
 
     private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-}
-
-private enum MobilePersonalInfoRedactor {
-    private static var emailPlaceholder: String {
-        String(localized: "Hidden")
-    }
-
-    private static let emailRegex: NSRegularExpression? = {
-        let pattern = #"[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}"#
-        return try? NSRegularExpression(pattern: pattern, options: [.caseInsensitive])
-    }()
-
-    static func redactEmail(_ email: String?, isEnabled: Bool) -> String {
-        guard let email, !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else { return "" }
-        guard isEnabled else { return email }
-        return Self.emailPlaceholder
-    }
-
-    static func redactEmails(in text: String?, isEnabled: Bool) -> String? {
-        guard let text else { return nil }
-        guard isEnabled else { return text }
-        guard let regex = Self.emailRegex else { return text }
-        let range = NSRange(text.startIndex..<text.endIndex, in: text)
-        return regex.stringByReplacingMatches(
-            in: text,
-            options: [],
-            range: range,
-            withTemplate: Self.emailPlaceholder)
-    }
 }
 
 // MARK: - Previews

@@ -315,6 +315,7 @@ struct CostBreakdownRow: Identifiable {
     let amountUSD: Double
     let subtitle: String?
     let color: Color
+    let brandProviderID: String?
     /// Optional override for SwiftUI identity. Defaults to `label` for the
     /// existing Model Mix / Codex Service Mix sites where labels are
     /// guaranteed unique (one row per model name, one per service name).
@@ -331,12 +332,14 @@ struct CostBreakdownRow: Identifiable {
         amountUSD: Double,
         subtitle: String?,
         color: Color,
+        brandProviderID: String? = nil,
         identityOverride: String? = nil)
     {
         self.label = label
         self.amountUSD = amountUSD
         self.subtitle = subtitle
         self.color = color
+        self.brandProviderID = brandProviderID
         self.identityOverride = identityOverride
     }
 

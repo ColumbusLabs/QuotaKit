@@ -29,6 +29,7 @@
 		134FDBBA3076DE5E1FA986F2 /* ClaudePeakHours.swift in Sources */ = {isa = PBXBuildFile; fileRef = 646750577DC086F6AB6026FD /* ClaudePeakHours.swift */; };
 		15E1F684F0EFDD39DB30A2D6 /* ModelContainerFactoryTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C1DABA431C3A96BC06782271 /* ModelContainerFactoryTests.swift */; };
 		1E05BEE4F76DC16C3AA0C014 /* CloudSyncReader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0AC8949E5A683B18E778EAC3 /* CloudSyncReader.swift */; };
+		211C3E3D7A88B2FD6C972288 /* ProviderIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 233C29F28A7A9315F33F31F2 /* ProviderIcons.xcassets */; };
 		2454FC869F1C8C693320BD25 /* MockBadgeView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6469C96DB80CE222DDD8EC78 /* MockBadgeView.swift */; };
 		245BDE7180336632728266D2 /* QuotaUsageColor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5A33151726F2A4B67242EC93 /* QuotaUsageColor.swift */; };
 		24899A4840A4D7B044BEC20C /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 04473E13F793B1EDF3EF4280 /* Assets.xcassets */; };
@@ -75,6 +76,7 @@
 		4E63C52D8C920C2076DD3CD5 /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		4E86AA2099918361C172E3FA /* QKViewModifiers.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8A42F0546848B07DB8106FC0 /* QKViewModifiers.swift */; };
 		4E9110FF22BC0A9CE852339C /* QuotaKitWidgetSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7F02C90907BEFBD7030162A3 /* QuotaKitWidgetSnapshot.swift */; };
+		4F511D15E2C673BE1742B03A /* ProviderBrandMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48474396310B35D113727F /* ProviderBrandMark.swift */; };
 		5276BDE7FB232DBFA63A2D92 /* CWLSchemaTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 57D94028CBE4AB12A131F439 /* CWLSchemaTests.swift */; };
 		5318530147AE0495BD05345D /* CodexBarSync.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = D34FB83FA26B8508F5A3D9FB /* CodexBarSync.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 		537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */ = {isa = PBXBuildFile; fileRef = A5404A3DBB0C65C3C3C8D8ED /* ProviderAccountGroup.swift */; };
@@ -86,7 +88,9 @@
 		5BDC62538006F2EF448F53ED /* MockProviderBanner.swift in Sources */ = {isa = PBXBuildFile; fileRef = 13047F3A04FEB413C5E079B0 /* MockProviderBanner.swift */; };
 		5D8207521516544C8E0D2004 /* QKSurfaceCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0316E90523AC431875826A46 /* QKSurfaceCard.swift */; };
 		5DF56542F0C2F51860FE8AD8 /* SyncedUsageData.swift in Sources */ = {isa = PBXBuildFile; fileRef = 48D17C7D2668994C4942329B /* SyncedUsageData.swift */; };
+		5F8B0B3A467BF75AD03BA067 /* ProviderBrandMark.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6A48474396310B35D113727F /* ProviderBrandMark.swift */; };
 		604878FFA6A87CB12430A755 /* ReleaseNotesView.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6BC4E5289780DEDAC6E63EB5 /* ReleaseNotesView.swift */; };
+		60560573F6A20BAAB553E159 /* MobilePersonalInfoRedactor.swift in Sources */ = {isa = PBXBuildFile; fileRef = 27A6303CEB79E3886D646968 /* MobilePersonalInfoRedactor.swift */; };
 		61BEB22E497DAC7C2FE2AC9C /* CodexBarMobilePushExtension.appex in Embed Foundation Extensions */ = {isa = PBXBuildFile; fileRef = 81B87DC9EB24AAEFE036F9F7 /* CodexBarMobilePushExtension.appex */; settings = {ATTRIBUTES = (RemoveHeadersOnCopy, ); }; };
 		638B0DA8806E1E1637E13E7A /* CWLAggregateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 7AABCE82169AC4EF72708082 /* CWLAggregateTests.swift */; };
 		6552CAFC19A45A6D83821AC0 /* QuotaZoneNotificationParser.swift in Sources */ = {isa = PBXBuildFile; fileRef = 01AA3F7A048F7301BC92A1A2 /* QuotaZoneNotificationParser.swift */; };
@@ -101,6 +105,7 @@
 		6C1FECC502FD2DD3FF666618 /* QuotaProviderListTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = C3D273F51CDB63F11D2E772A /* QuotaProviderListTests.swift */; };
 		6C6973342A6DB39DA86008A8 /* UsageSnapshot.swift in Sources */ = {isa = PBXBuildFile; fileRef = 6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */; };
 		6C830A82BED8F694F753A082 /* MultiAccountLinkageCandidate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 5639281ED3BA765C9553C8B9 /* MultiAccountLinkageCandidate.swift */; };
+		6CF299C8FC3FA2ED7444A1FF /* ProviderBrandAssetTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = F62B225B3CD83CEBD40E6D04 /* ProviderBrandAssetTests.swift */; };
 		6DCDD71DAADD02D424FB0660 /* ProviderUsageSnapshot+Identity.swift in Sources */ = {isa = PBXBuildFile; fileRef = FA73FB0C58DB34861BD5E35F /* ProviderUsageSnapshot+Identity.swift */; };
 		724CDFD257C13ABA5020E7C9 /* V030Snapshots.swift in Sources */ = {isa = PBXBuildFile; fileRef = E29AF435AB2A4FE691117704 /* V030Snapshots.swift */; };
 		753F40CEB17DC47E704E5EDE /* ElevenLabsCreditsCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = 777FFCFF0443DD9AC52685CD /* ElevenLabsCreditsCard.swift */; };
@@ -112,6 +117,7 @@
 		79DBF7C145003178B2EAB4C7 /* RemoteConfigTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 98FA0F554BFAFBDD317A9DA1 /* RemoteConfigTests.swift */; };
 		79EAA88F300D60A039EC9FFE /* ProviderAccessGateTests.swift in Sources */ = {isa = PBXBuildFile; fileRef = 612D32E6BAAAD2D3828744C8 /* ProviderAccessGateTests.swift */; };
 		7C4C854794745B878D87D28B /* QuotaKitWidgetDisplayMode.swift in Sources */ = {isa = PBXBuildFile; fileRef = 0E7F8D5F8B26597B4CD64DE5 /* QuotaKitWidgetDisplayMode.swift */; };
+		7D54B9103AE48BC23C76B975 /* ProviderIcons.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = 233C29F28A7A9315F33F31F2 /* ProviderIcons.xcassets */; };
 		7DE87B531A4C930C27E274E2 /* ProNotificationCoordinator.swift in Sources */ = {isa = PBXBuildFile; fileRef = ECF52DD40F8A2A15AE0B3591 /* ProNotificationCoordinator.swift */; };
 		82D12B778494DEEFDCB40A06 /* CostLedgerModels.swift in Sources */ = {isa = PBXBuildFile; fileRef = 20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */; };
 		8339AFBE51335A1D5D52E911 /* ProviderDetailSections.swift in Sources */ = {isa = PBXBuildFile; fileRef = 65861C7B1183A2AD10B57A5E /* ProviderDetailSections.swift */; };
@@ -320,11 +326,13 @@
 		1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaProviderList.swift; sourceTree = "<group>"; };
 		1F8C8BB69CA51A514FF41E14 /* MultiAccountForEachIdentityTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountForEachIdentityTests.swift; sourceTree = "<group>"; };
 		20CA4E5C7B1091C018B038D4 /* CostLedgerModels.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostLedgerModels.swift; sourceTree = "<group>"; };
+		233C29F28A7A9315F33F31F2 /* ProviderIcons.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = ProviderIcons.xcassets; sourceTree = "<group>"; };
 		247726F710DF2854B553518D /* ClaudePeakHoursTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudePeakHoursTests.swift; sourceTree = "<group>"; };
 		252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileChartAxisFormatter.swift; sourceTree = "<group>"; };
 		252E82C4DE92C8734EDD3F33 /* AccountIdentityNormalize.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AccountIdentityNormalize.swift; sourceTree = "<group>"; };
 		25CF646B494D13FACA4ED547 /* MultiAccountTabRenderingTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MultiAccountTabRenderingTests.swift; sourceTree = "<group>"; };
 		273C987230CB40BB514BC840 /* PayloadCompression.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = PayloadCompression.swift; sourceTree = "<group>"; };
+		27A6303CEB79E3886D646968 /* MobilePersonalInfoRedactor.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobilePersonalInfoRedactor.swift; sourceTree = "<group>"; };
 		281EDA8CD1BF12028FCE3068 /* CostChartStyle.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostChartStyle.swift; sourceTree = "<group>"; };
 		29C5E714FA876A9617524529 /* SnapshotCacheTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SnapshotCacheTests.swift; sourceTree = "<group>"; };
 		2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = OpenAIDashboardSection.swift; sourceTree = "<group>"; };
@@ -372,6 +380,7 @@
 		653C5C652EF27FF7622A5EE0 /* MobileReleaseNotesCatalog.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileReleaseNotesCatalog.swift; sourceTree = "<group>"; };
 		65861C7B1183A2AD10B57A5E /* ProviderDetailSections.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderDetailSections.swift; sourceTree = "<group>"; };
 		68E69F28C0538809129FB6D3 /* UsageCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageCardView.swift; sourceTree = "<group>"; };
+		6A48474396310B35D113727F /* ProviderBrandMark.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBrandMark.swift; sourceTree = "<group>"; };
 		6AF7B6A222FD3554CA455D8E /* SyncQuotaWarningConfigTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SyncQuotaWarningConfigTests.swift; sourceTree = "<group>"; };
 		6B9D488D2E7E34286B71E8E7 /* UsageSnapshot.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = UsageSnapshot.swift; sourceTree = "<group>"; };
 		6BBBF160B317AF2B0C136E2B /* NotificationService.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = NotificationService.swift; sourceTree = "<group>"; };
@@ -476,6 +485,7 @@
 		F1706346D05559DDD5AA66F0 /* CodexBarMobileTests.xctest */ = {isa = PBXFileReference; includeInIndex = 0; lastKnownFileType = wrapper.cfbundle; path = CodexBarMobileTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		F2BA90E690B546A77A86EE29 /* QuotaTransitionSubscriptions.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = QuotaTransitionSubscriptions.swift; sourceTree = "<group>"; };
 		F2D734F2CE4464CAFE153B50 /* QuotaKitWidgets.entitlements */ = {isa = PBXFileReference; lastKnownFileType = text.plist.entitlements; path = QuotaKitWidgets.entitlements; sourceTree = "<group>"; };
+		F62B225B3CD83CEBD40E6D04 /* ProviderBrandAssetTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ProviderBrandAssetTests.swift; sourceTree = "<group>"; };
 		F63562F3CAD90EB09C32903E /* V026RenderedTextTests.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = V026RenderedTextTests.swift; sourceTree = "<group>"; };
 		F73457F32FC7DD4C6DE7F847 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist; path = Info.plist; sourceTree = "<group>"; };
 		FA73FB0C58DB34861BD5E35F /* ProviderUsageSnapshot+Identity.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "ProviderUsageSnapshot+Identity.swift"; sourceTree = "<group>"; };
@@ -528,6 +538,7 @@
 				D094735B11258986C3F6032E /* Info.plist */,
 				B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */,
 				1C3F51A2F6DE018A276166F7 /* PrivacyInfo.xcprivacy */,
+				233C29F28A7A9315F33F31F2 /* ProviderIcons.xcassets */,
 				E2A541F08F84758361CFB314 /* Design */,
 				78C0055577F3BF5232A8324A /* iCloud */,
 				E885519810099589A32096E1 /* Models */,
@@ -563,6 +574,7 @@
 				D9D2EF86D6BE96E67F6200EF /* ProEntitlementStoreTests.swift */,
 				612D32E6BAAAD2D3828744C8 /* ProviderAccessGateTests.swift */,
 				621D68074A776C6DDAE3E81D /* ProviderAccountGroupTests.swift */,
+				F62B225B3CD83CEBD40E6D04 /* ProviderBrandAssetTests.swift */,
 				CC94BA62C1AD26767A4958DC /* ProviderColorPaletteTests.swift */,
 				A9CB78D4F4D66ED4664D9183 /* ProviderDetailSectionDispatcherTests.swift */,
 				96F4B4918D5CB25D930D349C /* ProviderUsageViewSubtitleTests.swift */,
@@ -823,6 +835,7 @@
 			isa = PBXGroup;
 			children = (
 				1BDF4E8BBAE94A76CDF2D83D /* CostHeroStrip.swift */,
+				6A48474396310B35D113727F /* ProviderBrandMark.swift */,
 				3C2B5EC721ECA533D1F65CE9 /* QKMetricDisplay.swift */,
 				4B8AACA585DD58DA4C1FD2D6 /* QKSectionHeader.swift */,
 				C3720BF8EEA748F67A8A4DCE /* QKStatusChip.swift */,
@@ -869,6 +882,7 @@
 				6C72A51985FA627302CDAC57 /* CostShareService.swift */,
 				252CB6CF0CDF983CD183384F /* MobileChartAxisFormatter.swift */,
 				82B8A4D1FFD04AA72E89022F /* MobileDisplayPreferences.swift */,
+				27A6303CEB79E3886D646968 /* MobilePersonalInfoRedactor.swift */,
 				653C5C652EF27FF7622A5EE0 /* MobileReleaseNotesCatalog.swift */,
 				C64C2DA34FBFB5523DC71C9B /* MockProviderDetector.swift */,
 				5639281ED3BA765C9553C8B9 /* MultiAccountLinkageCandidate.swift */,
@@ -1122,6 +1136,7 @@
 				24899A4840A4D7B044BEC20C /* Assets.xcassets in Resources */,
 				D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */,
 				6977A50D67FD6F33CE7E9D54 /* PrivacyInfo.xcprivacy in Resources */,
+				211C3E3D7A88B2FD6C972288 /* ProviderIcons.xcassets in Resources */,
 				67EB6CD90A69FA868B731377 /* QuotaKit.storekit in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -1131,6 +1146,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				4DB89DB1AD9D92776B164DD2 /* Localizable.xcstrings in Resources */,
+				7D54B9103AE48BC23C76B975 /* ProviderIcons.xcassets in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -1175,6 +1191,7 @@
 				3E760477B64BC29FD35B99AE /* ProEntitlementStoreTests.swift in Sources */,
 				79EAA88F300D60A039EC9FFE /* ProviderAccessGateTests.swift in Sources */,
 				36890D62A476E10C3211107E /* ProviderAccountGroupTests.swift in Sources */,
+				6CF299C8FC3FA2ED7444A1FF /* ProviderBrandAssetTests.swift in Sources */,
 				F78F3508FDA61D1B36D66800 /* ProviderColorPaletteTests.swift in Sources */,
 				F7E4288CA0993FABDE6F9FEE /* ProviderDetailSectionDispatcherTests.swift in Sources */,
 				E7948A0383825AE3E4A49801 /* ProviderUsageViewSubtitleTests.swift in Sources */,
@@ -1246,6 +1263,7 @@
 				F81D7EB9E7C4A01541815B3B /* MiniMaxBillingCard.swift in Sources */,
 				297CB7B072F71D5540B234A4 /* MobileChartAxisFormatter.swift in Sources */,
 				0708B75CE4F9E291D3AF8879 /* MobileDisplayPreferences.swift in Sources */,
+				60560573F6A20BAAB553E159 /* MobilePersonalInfoRedactor.swift in Sources */,
 				D41D674BDC188D9B94C80BBD /* MobileReleaseNotesCatalog.swift in Sources */,
 				2454FC869F1C8C693320BD25 /* MockBadgeView.swift in Sources */,
 				5BDC62538006F2EF448F53ED /* MockProviderBanner.swift in Sources */,
@@ -1265,6 +1283,7 @@
 				7DE87B531A4C930C27E274E2 /* ProNotificationCoordinator.swift in Sources */,
 				FA54D67B708AF38DF8166382 /* ProviderAccessGate.swift in Sources */,
 				537F8FAA96052658292926BC /* ProviderAccountGroup.swift in Sources */,
+				5F8B0B3A467BF75AD03BA067 /* ProviderBrandMark.swift in Sources */,
 				A24E829408C379D88C7715CC /* ProviderColorPalette.swift in Sources */,
 				8339AFBE51335A1D5D52E911 /* ProviderDetailSections.swift in Sources */,
 				B050FB5BF5817C3844A27F32 /* ProviderDetailView.swift in Sources */,
@@ -1352,6 +1371,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				28DA038639C0CBA5A1EE5DFD /* ProEntitlementCache.swift in Sources */,
+				4F511D15E2C673BE1742B03A /* ProviderBrandMark.swift in Sources */,
 				905ADC7606341C62FC1D9032 /* ProviderColorPalette.swift in Sources */,
 				053EC880C689A3812B06E6D6 /* QuotaKitWidgetDisplayMode.swift in Sources */,
 				446219191DC255B167AB116A /* QuotaKitWidgetPresentation.swift in Sources */,
@@ -1413,7 +1433,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/QuotaKitWidgets.entitlements;
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1434,7 +1454,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1458,7 +1478,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobileWidgets/QuotaKitWidgets.entitlements;
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobileWidgets/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1634,7 +1654,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1656,7 +1676,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1694,7 +1714,7 @@
 				ASSETCATALOG_COMPILER_APPICON_NAME = AppIcon;
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobile/CodexBarMobile.entitlements;
 				CODE_SIGN_IDENTITY = "iPhone Developer";
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobile/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (
@@ -1730,7 +1750,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_IDENTITY = "";
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEFINES_MODULE = YES;
 				DYLIB_COMPATIBILITY_VERSION = 1;
 				DYLIB_CURRENT_VERSION = 1;
@@ -1754,7 +1774,7 @@
 			isa = XCBuildConfiguration;
 			buildSettings = {
 				CODE_SIGN_ENTITLEMENTS = CodexBarMobilePushExtension/PushExtension.entitlements;
-				CURRENT_PROJECT_VERSION = 168;
+				CURRENT_PROJECT_VERSION = 169;
 				DEVELOPMENT_TEAM = QUOTAKIT_TEAM_ID;
 				INFOPLIST_FILE = CodexBarMobilePushExtension/Info.plist;
 				LD_RUNPATH_SEARCH_PATHS = (

@@ -18699,30 +18699,30 @@
         }
       }
     },
-    "Usage organization — choose which provider appears in widgets and reorder providers directly from the Usage tab.": {
+    "Usage organization — provider logos now match the Mac app across cards, detail screens, dashboard provider-share rows, and widgets; you can still choose which provider appears in widgets and reorder providers directly from the Usage tab.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Usage organization — choose which provider appears in widgets and reorder providers directly from the Usage tab."
+            "value": "Usage organization — provider logos now match the Mac app across cards, detail screens, dashboard provider-share rows, and widgets; you can still choose which provider appears in widgets and reorder providers directly from the Usage tab."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "使用状況の整理 — ウィジェットに表示するプロバイダーを選び、使用状況タブからプロバイダーを直接並べ替えられます。"
+            "value": "使用状況の整理 — プロバイダーのロゴがカード、詳細画面、ダッシュボードのプロバイダー別共有行、ウィジェットでMacアプリと一致するようになりました。ウィジェットに表示するプロバイダーの選択や、使用状況タブからの並べ替えも引き続き行えます。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "用量整理 — 选择显示在小组件中的提供商，并可直接在用量标签页重新排序提供商。"
+            "value": "用量整理 — 提供商标志现在会在卡片、详情页、仪表板的提供商占比行和小组件中与 Mac App 保持一致；你仍可选择小组件显示的提供商，并可直接在用量标签页重新排序提供商。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "用量整理 — 選擇顯示在小工具中的提供商，並可直接在用量分頁重新排序提供商。"
+            "value": "用量整理 — 提供商標誌現在會在卡片、詳細頁、儀表板的提供商占比列和小工具中與 Mac App 保持一致；你仍可選擇小工具顯示的提供商，並可直接在用量分頁重新排序提供商。"
           }
         }
       }

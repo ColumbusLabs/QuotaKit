@@ -40,6 +40,7 @@ struct CostDashboardView: View {
                                 amountUSD: $0.thirtyDayCost,
                                 subtitle: self.providerSubtitle(for: $0),
                                 color: providerTint(for: $0.provider),
+                                brandProviderID: $0.provider.providerID,
                                 identityOverride: $0.id)
                         },
                         total: self.insights.total30DayCost)

@@ -27,6 +27,7 @@ struct UtilizationDayBar: Identifiable {
 
 struct UtilizationProviderShare: Identifiable {
     let id: String
+    let providerID: String
     let name: String
     let color: Color
     let rawAvgPercent: Double  // 30-day raw average usage %
@@ -115,7 +116,7 @@ enum UtilizationAggregateModelBuilder {
         // accounts after Mac ≥ 0.25 starts extracting accountEmail) would
         // otherwise collide on `id` here and propagate the collision into the
         // chart segment ForEach and the UtilizationProviderShare list. 1.5.3 fix.
-        let providerData = providers.compactMap { provider -> (id: String, name: String, color: Color, dayMaxes: [Date: Double])? in
+        let providerData = providers.compactMap { provider -> (id: String, providerID: String, name: String, color: Color, dayMaxes: [Date: Double])? in
             guard let history = provider.utilizationHistory else { return nil }
             let sessionSeries = history.filter { $0.name == "session" }
             let chosen = sessionSeries.isEmpty ? Array(history.prefix(1)) : sessionSeries
@@ -129,7 +130,7 @@ enum UtilizationAggregateModelBuilder {
                 dayMaxes[day] = max(dayMaxes[day] ?? 0, entry.usedPercent)
             }
             guard !dayMaxes.isEmpty else { return nil }
-            return (id: provider.cardIdentityKey, name: provider.providerName,
+            return (id: provider.cardIdentityKey, providerID: provider.providerID, name: provider.providerName,
                     color: Self.providerColor(for: provider.providerID),
                     dayMaxes: dayMaxes)
         }
@@ -256,11 +257,11 @@ enum UtilizationAggregateModelBuilder {
 
         // === Provider Share (30-day avg of daily peaks) ===
 
-        let providerThirtyDayRaw: [(id: String, name: String, color: Color, avg: Double)] = providerData.compactMap { pd in
+        let providerThirtyDayRaw: [(id: String, providerID: String, name: String, color: Color, avg: Double)] = providerData.compactMap { pd in
             let recent = pd.dayMaxes.filter { $0.key >= last30Start }.values
             guard !recent.isEmpty else { return nil }
             let avg = recent.reduce(0, +) / Double(recent.count)
-            return (id: pd.id, name: pd.name, color: pd.color, avg: avg)
+            return (id: pd.id, providerID: pd.providerID, name: pd.name, color: pd.color, avg: avg)
         }
 
         let totalRaw = providerThirtyDayRaw.reduce(0) { $0 + $1.avg }
@@ -268,6 +269,7 @@ enum UtilizationAggregateModelBuilder {
             .map { item in
                 UtilizationProviderShare(
                     id: item.id,
+                    providerID: item.providerID,
                     name: item.name,
                     color: item.color,
                     rawAvgPercent: item.avg,

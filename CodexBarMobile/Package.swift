@@ -33,6 +33,7 @@ let package = Package(
             path: "CodexBarMobile",
             exclude: [
                 "Assets.xcassets",
+                "ProviderIcons.xcassets",
                 "CodexBarMobile.entitlements",
             ],
             swiftSettings: [
