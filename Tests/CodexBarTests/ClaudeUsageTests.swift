@@ -3,7 +3,7 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
-struct ClaudeUsageTests {
+struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
     private actor AsyncCounter {
         private var value = 0
 
@@ -396,10 +396,9 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func `oauth bootstrap only on user action background startup allows interactive read when no cache`() async throws {
+    func `background startup suppresses interactive OAuth read when no cache`() async throws {
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
-            var allowBackgroundPromptBootstrapFlags: [Bool] = []
         }
 
         let flags = FlagBox()
@@ -408,8 +407,7 @@ struct ClaudeUsageTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             environment: [:],
             dataSource: .oauth,
-            oauthKeychainPromptCooldownEnabled: true,
-            allowStartupBootstrapPrompt: true)
+            oauthKeychainPromptCooldownEnabled: true)
 
         let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
         let loadCredsOverride: (@Sendable (
@@ -417,7 +415,6 @@ struct ClaudeUsageTests {
             Bool,
             Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
             flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
-            flags.allowBackgroundPromptBootstrapFlags.append(ClaudeOAuthCredentialsStore.allowBackgroundPromptBootstrap)
             return ClaudeOAuthCredentials(
                 accessToken: "fresh-token",
                 refreshToken: "refresh-token",
@@ -440,8 +437,53 @@ struct ClaudeUsageTests {
             }
         }
 
-        #expect(flags.allowKeychainPromptFlags == [true])
-        #expect(flags.allowBackgroundPromptBootstrapFlags == [true])
+        #expect(flags.allowKeychainPromptFlags == [false])
+        #expect(snapshot.primary.usedPercent == 7)
+    }
+
+    @Test
+    func `oauth bootstrap always mode background startup suppresses interactive read when no cache`() async throws {
+        final class FlagBox: @unchecked Sendable {
+            var allowKeychainPromptFlags: [Bool] = []
+        }
+
+        let flags = FlagBox()
+        let usageResponse = try Self.makeOAuthUsageResponse()
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true)
+
+        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
+            flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
+            return ClaudeOAuthCredentials(
+                accessToken: "fresh-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: 3600),
+                scopes: ["user:profile"],
+                rateLimitTier: nil)
+        }
+
+        let snapshot = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+            try await ProviderRefreshContext.$current.withValue(.startup) {
+                try await ProviderInteractionContext.$current.withValue(.background) {
+                    try await ClaudeUsageFetcher.$hasCachedCredentialsOverride.withValue(false) {
+                        try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
+                            try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
+                                try await fetcher.loadLatestUsage(model: "sonnet")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        #expect(flags.allowKeychainPromptFlags == [false])
         #expect(snapshot.primary.usedPercent == 7)
     }
 

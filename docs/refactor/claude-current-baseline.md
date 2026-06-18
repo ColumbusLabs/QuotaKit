@@ -80,12 +80,8 @@ Current behavior that later refactor work must preserve:
 - The default Claude keychain prompt mode is `onlyOnUserAction`.
 - Prompt policy is only applicable when the Claude OAuth read strategy is `securityFramework`.
 - User-initiated interaction clears a prior Claude keychain cooldown denial before retrying availability or repair.
-- Startup bootstrap prompting is allowed only when all of these are true:
-  - runtime is app,
-  - interaction is background,
-  - refresh phase is startup,
-  - prompt mode is `onlyOnUserAction`,
-  - no cached Claude credentials exist.
+- Launch and background refresh never show Claude OAuth Keychain prompts, including `always` mode.
+- Promptable Claude CLI keychain reads are limited to explicit user actions such as menu/manual/provider actions.
 - Background delegated refresh is blocked when prompt policy is `onlyOnUserAction` and the caller did not explicitly
   allow background delegated refresh.
 - Prompt mode `never` blocks delegated refresh attempts.

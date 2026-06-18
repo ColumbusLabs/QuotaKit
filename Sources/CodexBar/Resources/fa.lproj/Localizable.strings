@@ -17,7 +17,7 @@
 "Add Workspace" = "افزودن فضای کاری";
 "Advanced" = "پیشرفته";
 "All" = "همه";
-"Always allow prompts" = "همیشه اجازه دهید پرامپت ها";
+"Always allow on user actions" = "همیشه در اقدامات کاربر اجازه دهید";
 "Animation pattern" = "الگوی انیمیشن";
 "Antigravity login is managed in the app" = "ورود Antigravity در اپلیکیشن مدیریت می شود";
 "Applies only to the Security.framework OAuth keychain reader." = "فقط برای Security.framework OAuth خواننده جاکلیدی کاربرد دارد.";

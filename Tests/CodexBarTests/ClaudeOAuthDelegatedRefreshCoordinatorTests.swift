@@ -442,9 +442,11 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                         await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
                             .dynamic { _ in dataBox.load() })
                         {
-                            await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
-                                now: Date(timeIntervalSince1970: 61000),
-                                timeout: 0.1)
+                            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                                    now: Date(timeIntervalSince1970: 61000),
+                                    timeout: 0.1)
+                            }
                         }
                     })
 

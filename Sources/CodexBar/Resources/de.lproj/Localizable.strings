@@ -17,7 +17,7 @@
 "Add Workspace" = "Arbeitsbereich hinzufügen";
 "Advanced" = "Fortschrittlich";
 "All" = "Alle";
-"Always allow prompts" = "Erlauben Sie immer Aufforderungen";
+"Always allow on user actions" = "Bei Benutzeraktionen immer erlauben";
 "Animation pattern" = "Animationsmuster";
 "Antigravity login is managed in the app" = "Der Antigravity-Login wird in der App verwaltet";
 "Applies only to the Security.framework OAuth keychain reader." = "Gilt nur für den Security.framework OAuth-Schlüsselbundleser.";

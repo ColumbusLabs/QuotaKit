@@ -17,7 +17,7 @@
 "Add Workspace" = "เพิ่มพื้นที่ทํางาน";
 "Advanced" = "ขั้นสูง";
 "All" = "ทั้งหมด";
-"Always allow prompts" = "อนุญาตข้อความแจ้งเสมอ";
+"Always allow on user actions" = "อนุญาตเสมอเมื่อผู้ใช้สั่งการ";
 "Animation pattern" = "รูปแบบแอนิเมชั่น";
 "Antigravity login is managed in the app" = "Antigravity เข้าสู่ระบบได้รับการจัดการในแอป";
 "Applies only to the Security.framework OAuth keychain reader." = "นําไปใช้กับโปรแกรมอ่านพวงกุญแจ Security.framework OAuth เท่านั้น";

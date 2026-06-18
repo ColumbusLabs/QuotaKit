@@ -53,6 +53,75 @@ struct KeychainPromptSafetyAuditTests {
         #expect(offenders.isEmpty, "Unexpected direct SecItemCopyMatching in tests: \(offenders.map(\.path))")
     }
 
+    @Test
+    func `legacy migration stores read and delete with no UI keychain queries`() throws {
+        let files = [
+            "Sources/CodexBar/CookieHeaderStore.swift",
+            "Sources/CodexBar/CopilotTokenStore.swift",
+            "Sources/CodexBar/KimiK2TokenStore.swift",
+            "Sources/CodexBar/KimiTokenStore.swift",
+            "Sources/CodexBar/MiniMaxAPITokenStore.swift",
+            "Sources/CodexBar/MiniMaxCookieStore.swift",
+            "Sources/CodexBar/SyntheticTokenStore.swift",
+            "Sources/CodexBar/ZaiTokenStore.swift",
+        ]
+
+        for file in files {
+            let lines = try Self.readRepoFile(file).split(separator: "\n", omittingEmptySubsequences: false)
+            for (index, line) in lines.enumerated()
+                where line.contains("SecItemCopyMatching") || line.contains("SecItemDelete")
+            {
+                let window = Self.window(lines: lines, endingAt: index, maxDistance: 8)
+                #expect(
+                    window.contains("KeychainNoUIQuery.apply"),
+                    "\(file):\(index + 1) must apply KeychainNoUIQuery before \(line)")
+                #expect(
+                    !window.contains("KeychainPromptHandler"),
+                    "\(file):\(index + 1) must not show a pre-alert before legacy migration reads")
+            }
+        }
+    }
+
+    @Test
+    func `keychain migration injected security client remains no UI`() throws {
+        let migration = try Self.readRepoFile("Sources/CodexBar/KeychainMigration.swift")
+
+        #expect(migration.contains("KeychainNoUIQuery.apply(to: &query)\n\n        let status = client.copyMatching"))
+        #expect(migration
+            .contains("KeychainNoUIQuery.apply(to: &updateQuery)\n\n        let attributes: [String: Any]"))
+        #expect(migration.contains("let updateStatus = client.update(updateQuery, attributes)"))
+        #expect(!migration.contains("SecItemDelete"))
+        #expect(!migration.contains("SecItemAdd"))
+    }
+
+    @Test
+    func `claude background startup cannot reenable prompt bootstrap`() throws {
+        let fetcher = try Self.readRepoFile("Sources/CodexBarCore/Providers/Claude/ClaudeUsageFetcher.swift")
+        let descriptor = try Self.readRepoFile(
+            "Sources/CodexBarCore/Providers/Claude/ClaudeProviderDescriptor.swift")
+        let securityCLIReader = try Self.readRepoFile(
+            "Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials+SecurityCLIReader.swift")
+
+        #expect(!fetcher.contains("allowStartupBootstrapPrompt"))
+        #expect(!descriptor.contains("allowStartupBootstrapPrompt"))
+        #expect(fetcher.contains("case .always:\n                self.interaction == .userInitiated"))
+        #expect(securityCLIReader.contains("guard interaction == .userInitiated else"))
+    }
+
+    @Test
+    func `alibaba safe storage password read uses no UI query`() throws {
+        let importer = try Self.readRepoFile(
+            "Sources/CodexBarCore/Providers/Alibaba/AlibabaCodingPlanCookieImporter.swift")
+        let lines = importer.split(separator: "\n", omittingEmptySubsequences: false)
+        guard let readIndex = lines.firstIndex(where: { $0.contains("SecItemCopyMatching") }) else {
+            Issue.record("Expected Alibaba importer to contain a Safe Storage keychain read")
+            return
+        }
+
+        let window = Self.window(lines: lines, endingAt: readIndex, maxDistance: 8)
+        #expect(window.contains("KeychainNoUIQuery.apply"))
+    }
+
     private static func repoRoot() -> URL {
         URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -91,6 +160,11 @@ struct KeychainPromptSafetyAuditTests {
             }
         }
         return files
+    }
+
+    private static func window(lines: [Substring], endingAt index: Int, maxDistance: Int) -> String {
+        let start = max(0, index - maxDistance)
+        return lines[start...index].joined(separator: "\n")
     }
 
     private static func hasOpenKeychainTestDouble(lines: [Substring], before oneBasedLineNumber: Int) -> Bool {

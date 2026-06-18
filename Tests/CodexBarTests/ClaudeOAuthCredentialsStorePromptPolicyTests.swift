@@ -665,7 +665,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     }
 
     @Test
-    func `experimental reader allows fallback in background when stored mode always`() throws {
+    func `experimental reader background always suppresses prompt pre alert`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -725,7 +725,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             })
 
                         #expect(creds.accessToken == "fallback-token")
-                        #expect(preAlertHits >= 1)
+                        #expect(preAlertHits == 0)
                     }
                 }
             }

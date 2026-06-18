@@ -59,6 +59,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         let environment: [String: String]
         let readStrategy: ClaudeOAuthKeychainReadStrategy
         let keychainAccessDisabled: Bool
+        let interaction: ProviderInteraction
         #if DEBUG
         let cliAvailableOverride: Bool?
         let touchAuthPathOverride: (@Sendable (TimeInterval, [String: String]) async throws -> Void)?
@@ -87,6 +88,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             environment: environment,
             readStrategy: ClaudeOAuthKeychainReadStrategyPreference.current(),
             keychainAccessDisabled: KeychainAccessGate.isDisabled,
+            interaction: ProviderInteractionContext.current,
             cliAvailableOverride: self.cliAvailableOverrideForTesting,
             touchAuthPathOverride: self.touchAuthPathOverrideForTesting,
             keychainFingerprintOverride: self.keychainFingerprintOverrideForTesting)
@@ -95,7 +97,8 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         let configuration = AttemptConfiguration(
             environment: environment,
             readStrategy: ClaudeOAuthKeychainReadStrategyPreference.current(),
-            keychainAccessDisabled: KeychainAccessGate.isDisabled)
+            keychainAccessDisabled: KeychainAccessGate.isDisabled,
+            interaction: ProviderInteractionContext.current)
         #endif
         let task = Task.detached(priority: .utility) {
             #if DEBUG
@@ -138,8 +141,6 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         }
 
         let baseline = self.currentKeychainChangeObservationBaseline(
-            readStrategy: configuration.readStrategy,
-            keychainAccessDisabled: configuration.keychainAccessDisabled,
             configuration: configuration)
         var touchError: Error?
 
@@ -156,8 +157,6 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         // Otherwise we end up in a long cooldown with still-expired credentials.
         let changed = await self.waitForClaudeKeychainChange(
             from: baseline,
-            readStrategy: configuration.readStrategy,
-            keychainAccessDisabled: configuration.keychainAccessDisabled,
             configuration: configuration,
             timeout: min(max(timeout, 1), 2))
         if changed {
@@ -242,24 +241,20 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     }
 
     private static func currentKeychainChangeObservationBaseline(
-        readStrategy: ClaudeOAuthKeychainReadStrategy,
-        keychainAccessDisabled: Bool,
-        configuration: AttemptConfiguration?) -> KeychainChangeObservationBaseline
+        configuration: AttemptConfiguration) -> KeychainChangeObservationBaseline
     {
-        if readStrategy == .securityCLIExperimental {
+        if configuration.readStrategy == .securityCLIExperimental {
             return .securityCLI(data: self.currentClaudeKeychainDataViaSecurityCLIForObservation(
-                readStrategy: readStrategy,
-                keychainAccessDisabled: keychainAccessDisabled,
-                interaction: .background))
+                readStrategy: configuration.readStrategy,
+                keychainAccessDisabled: configuration.keychainAccessDisabled,
+                interaction: configuration.interaction))
         }
         return .securityFramework(fingerprint: self.currentClaudeKeychainFingerprint(configuration: configuration))
     }
 
     private static func waitForClaudeKeychainChange(
         from baseline: KeychainChangeObservationBaseline,
-        readStrategy: ClaudeOAuthKeychainReadStrategy,
-        keychainAccessDisabled: Bool,
-        configuration: AttemptConfiguration?,
+        configuration: AttemptConfiguration,
         timeout: TimeInterval) async -> Bool
     {
         // Prefer correctness but bound the delay. Keychain writes can be slightly delayed after the CLI touch.
@@ -287,9 +282,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
                 // a later successful read.
                 guard let dataBefore else { return false }
                 guard let current = self.currentClaudeKeychainDataViaSecurityCLIForObservation(
-                    readStrategy: readStrategy,
-                    keychainAccessDisabled: keychainAccessDisabled,
-                    interaction: .background)
+                    readStrategy: configuration.readStrategy,
+                    keychainAccessDisabled: configuration.keychainAccessDisabled,
+                    interaction: configuration.interaction)
                 else { return false }
                 return current != dataBefore
             }

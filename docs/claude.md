@@ -51,8 +51,9 @@ Admin API key setup:
 - Options:
   - `Never prompt`: never attempts interactive Claude OAuth Keychain prompts.
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
-  - `Always allow prompts`: allows interactive prompts in both user and background flows.
+  - `Always allow on user actions`: allows interactive prompts during menu/manual/provider actions.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
+- Launch and background refresh never show Claude OAuth Keychain prompts.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
 

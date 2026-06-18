@@ -1181,7 +1181,7 @@ extension StatusItemController {
                 return
             }
             self.deferMenuInteractionRefreshIfNeeded(providers: retryProviders)
-            await ProviderInteractionContext.$current.withValue(.background) {
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
                 for provider in retryProviders {
                     guard !Task.isCancelled else { return }
                     await self.store.refreshProvider(provider, coalesceIfRefreshing: true)

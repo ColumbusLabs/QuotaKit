@@ -17,7 +17,7 @@
 "Add Workspace" = "ワークスペースを追加";
 "Advanced" = "詳細";
 "All" = "すべて";
-"Always allow prompts" = "常にプロンプトを許可";
+"Always allow on user actions" = "ユーザー操作時は常に許可";
 "Animation pattern" = "アニメーションパターン";
 "Antigravity login is managed in the app" = "Antigravity のログインはアプリ内で管理されます";
 "Applies only to the Security.framework OAuth keychain reader." = "Security.framework の OAuth キーチェーンリーダーにのみ適用されます。";

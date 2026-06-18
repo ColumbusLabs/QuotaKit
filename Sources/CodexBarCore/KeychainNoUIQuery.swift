@@ -5,10 +5,10 @@ import Darwin
 import LocalAuthentication
 import Security
 
-enum KeychainNoUIQuery {
+public enum KeychainNoUIQuery {
     private static let uiFailPolicy = KeychainNoUIQuery.resolveUIFailPolicy()
 
-    static func apply(to query: inout [String: Any]) {
+    public static func apply(to query: inout [String: Any]) {
         let context = LAContext()
         context.interactionNotAllowed = true
         query[kSecUseAuthenticationContext as String] = context
@@ -18,7 +18,7 @@ enum KeychainNoUIQuery {
         query[kSecUseAuthenticationUI as String] = self.uiFailPolicy as CFString
     }
 
-    static func uiFailPolicyForTesting() -> String {
+    public static func uiFailPolicyForTesting() -> String {
         self.uiFailPolicy
     }
 

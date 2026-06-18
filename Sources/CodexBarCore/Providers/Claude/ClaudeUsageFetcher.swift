@@ -80,7 +80,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let dataSource: ClaudeUsageDataSource
         let oauthKeychainPromptCooldownEnabled: Bool
         let allowBackgroundDelegatedRefresh: Bool
-        let allowStartupBootstrapPrompt: Bool
         let useWebExtras: Bool
         let manualCookieHeader: String?
         let webOrganizationID: String?
@@ -112,10 +111,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     private var allowBackgroundDelegatedRefresh: Bool {
         self.configuration.allowBackgroundDelegatedRefresh
-    }
-
-    private var allowStartupBootstrapPrompt: Bool {
-        self.configuration.allowStartupBootstrapPrompt
     }
 
     private var useWebExtras: Bool {
@@ -150,7 +145,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             case .onlyOnUserAction:
                 self.interaction == .userInitiated
             case .always:
-                true
+                self.interaction == .userInitiated
             }
         }
 
@@ -231,7 +226,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         dataSource: ClaudeUsageDataSource = .oauth,
         oauthKeychainPromptCooldownEnabled: Bool = false,
         allowBackgroundDelegatedRefresh: Bool = false,
-        allowStartupBootstrapPrompt: Bool = false,
         useWebExtras: Bool = false,
         manualCookieHeader: String? = nil,
         webOrganizationID: String? = nil,
@@ -243,7 +237,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             dataSource: dataSource,
             oauthKeychainPromptCooldownEnabled: oauthKeychainPromptCooldownEnabled,
             allowBackgroundDelegatedRefresh: allowBackgroundDelegatedRefresh,
-            allowStartupBootstrapPrompt: allowStartupBootstrapPrompt,
             useWebExtras: useWebExtras,
             manualCookieHeader: manualCookieHeader,
             webOrganizationID: webOrganizationID,
@@ -270,23 +263,16 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 let hasCache = ClaudeOAuthCredentialsStore.hasCachedCredentials(environment: self.fetcher.environment)
                 #endif
 
-                let startupBootstrapOverride = self.shouldAllowStartupBootstrapPrompt(
-                    policy: promptPolicy,
-                    hasCache: hasCache)
-                let allowKeychainPrompt = (promptPolicy.canPromptNow || startupBootstrapOverride) && !hasCache
+                let allowKeychainPrompt = promptPolicy.canPromptNow && !hasCache
                 ClaudeUsageFetcher.logOAuthBootstrapPromptDecision(
                     allowKeychainPrompt: allowKeychainPrompt,
                     policy: promptPolicy,
-                    hasCache: hasCache,
-                    startupBootstrapOverride: startupBootstrapOverride)
+                    hasCache: hasCache)
 
-                let credentials = try await ClaudeOAuthCredentialsStore.$allowBackgroundPromptBootstrap
-                    .withValue(startupBootstrapOverride) {
-                        try await ClaudeUsageFetcher.loadOAuthCredentials(
-                            environment: self.fetcher.environment,
-                            allowKeychainPrompt: allowKeychainPrompt,
-                            respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
-                    }
+                let credentials = try await ClaudeUsageFetcher.loadOAuthCredentials(
+                    environment: self.fetcher.environment,
+                    allowKeychainPrompt: allowKeychainPrompt,
+                    respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
 
                 try self.validateRequiredOAuthScope(credentials)
                 let usage = try await ClaudeUsageFetcher.fetchOAuthUsage(accessToken: credentials.accessToken)
@@ -318,19 +304,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             } catch {
                 throw ClaudeUsageError.oauthFailed(error.localizedDescription)
             }
-        }
-
-        private func shouldAllowStartupBootstrapPrompt(
-            policy: ClaudeOAuthKeychainPromptPolicy,
-            hasCache: Bool) -> Bool
-        {
-            guard self.fetcher.allowStartupBootstrapPrompt else { return false }
-            guard !hasCache else { return false }
-            guard ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode() == .onlyOnUserAction else {
-                return false
-            }
-            guard policy.interaction == .background else { return false }
-            return ProviderRefreshContext.current == .startup
         }
 
         private func loadAfterDelegatedRefresh(allowDelegatedRetry: Bool) async throws -> ClaudeUsageSnapshot {
@@ -766,8 +739,7 @@ extension ClaudeUsageFetcher {
     private static func logOAuthBootstrapPromptDecision(
         allowKeychainPrompt: Bool,
         policy: ClaudeOAuthKeychainPromptPolicy,
-        hasCache: Bool,
-        startupBootstrapOverride: Bool)
+        hasCache: Bool)
     {
         guard allowKeychainPrompt else { return }
         self.log.info(
@@ -777,7 +749,6 @@ extension ClaudeUsageFetcher {
                 "promptMode": policy.mode.rawValue,
                 "promptPolicyApplicable": "\(policy.isApplicable)",
                 "hasCache": "\(hasCache)",
-                "startupBootstrapOverride": "\(startupBootstrapOverride)",
             ])
     }
 

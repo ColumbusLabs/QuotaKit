@@ -68,12 +68,8 @@ Phase 2 must reconcile this into planner-only source selection.
 The planner must use one explicit `ClaudePromptDecision` equivalent, but outcome parity with current behavior is required:
 
 - User-initiated actions can clear prior keychain cooldown denial.
-- Startup bootstrap prompt is only allowed when all are true:
-  - runtime is app
-  - interaction is background
-  - refresh phase is startup
-  - prompt mode is `onlyOnUserAction`
-  - no cached credentials
+- Launch and background refresh never show Claude OAuth Keychain prompts, including `always` mode.
+- Promptable Claude CLI keychain reads are limited to explicit user actions such as menu/manual/provider actions.
 - Background delegated refresh is blocked when:
   - prompt policy is `onlyOnUserAction`
   - caller does not explicitly allow background delegated refresh
@@ -152,9 +148,9 @@ compatibility must be preserved:
 - **Decision:** keep current CLI ordering in `auto`: `web -> cli`.
 - Planner must encode this explicitly and not rely on incidental strategy ordering.
 
-### Startup bootstrap prompt in `onlyOnUserAction`
+### Background prompt suppression
 
-- **Decision:** keep support exactly under the startup bootstrap constraints listed above.
+- **Decision:** launch and background refresh must remain non-prompting.
 - Any expansion/restriction requires explicit doc update and tests.
 
 ### Runtime policy unification timing
@@ -337,7 +333,7 @@ Use these risk IDs in refactor PR checklists/reviews.
 | Risk ID | Severity | Risk | Detail |
 | --- | --- | --- | --- |
 | R1 | Critical | Auto-ordering reconciliation | Three `.auto` paths are inconsistent today. Characterize strategy pipeline vs `resolveUsageStrategy` helper vs fetcher-direct `.auto` before deleting any path. |
-| R2 | High | Prompt policy consolidation | Prompt policy exists across strategy availability, fetcher flow, and credentials store gates. Preserve startup bootstrap constraints exactly to avoid prompt storms or silent OAuth suppression. |
+| R2 | High | Prompt policy consolidation | Prompt policy exists across strategy availability, fetcher flow, and credentials store gates. Preserve no-background-prompt constraints exactly to avoid prompt storms or silent OAuth suppression. |
 | R3 | High | `ClaudeOAuthCredentialsStore` decomposition | Large lock-protected state + layered caches + fingerprint invalidation + security calls. Splits can break cache coherence, invalidation timing, or prompt gating order. |
 | R4 | High | Owner semantics drift | Preserve exact owner-to-refresh mapping: `.claudeCLI` delegated, `.codexbar` direct refresh, `.environment` no refresh. |
 | R5 | Medium | CLI runtime parity | Preserve runtime-specific policy: CLI `auto` remains `web -> cli`; OAuth is available only when explicitly selected as `sourceMode=.oauth`. Do not accidentally default CLI runtime to app ordering. |

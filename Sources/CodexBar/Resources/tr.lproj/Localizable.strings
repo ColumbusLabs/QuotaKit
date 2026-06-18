@@ -17,7 +17,7 @@
 "Add Workspace" = "Çalışma Alanı Ekle";
 "Advanced" = "Gelişmiş";
 "All" = "Tümü";
-"Always allow prompts" = "Her zaman istemlere izin ver";
+"Always allow on user actions" = "Kullanıcı eylemlerinde her zaman izin ver";
 "Animation pattern" = "Animasyon deseni";
 "Antigravity login is managed in the app" = "Antigravity girişi uygulama içinden yönetilir";
 "Applies only to the Security.framework OAuth keychain reader." = "Yalnızca Security.framework OAuth Anahtarlık okuyucusu için geçerlidir.";

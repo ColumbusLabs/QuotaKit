@@ -24,7 +24,7 @@ still in place, but the architecture has changed:
 | CodexBar stores provider credentials only in keychain | Manual/provider settings are config-file backed (`~/.codexbar/config.json`), while keychain is still used for runtime caches and Claude OAuth bootstrap fallback. |
 | `ClaudeOAuthCredentials.swift` migrated CodexBar-owned Claude OAuth keychain items | Claude OAuth primary source is Claude CLI keychain service (`Claude Code-credentials`), with CodexBar cache in `com.steipete.codexbar.cache` (`oauth.claude`). |
 | Migration runs in `CodexBarApp.init()` | Migration runs in `HiddenWindowView` `.task` via detached task (`KeychainMigration.migrateIfNeeded()`). |
-| Post-migration prompts should be zero in all Claude paths | Legacy-store prompts are reduced; Claude OAuth bootstrap can still prompt when reading Claude CLI keychain, with cooldown + no-UI probes to prevent storms. |
+| Post-migration prompts should be zero in all Claude paths | Legacy-store migration uses no-UI reads; Claude OAuth launch/background refresh never prompts. Promptable Claude CLI keychain reads are limited to explicit user actions. |
 | Log category is `KeychainMigration` | Category is `keychain-migration` (kebab-case). |
 
 ## Current keychain surfaces for Claude
@@ -45,22 +45,23 @@ Load order for credentials:
 2. In-memory cache.
 3. CodexBar keychain cache (`com.steipete.codexbar.cache`, account `oauth.claude`).
 4. `~/.claude/.credentials.json`.
-5. Claude CLI keychain service: `Claude Code-credentials` (promptable fallback).
+5. Claude CLI keychain service: `Claude Code-credentials` (promptable only during explicit user actions).
 
 Prompt mitigation:
 - Non-interactive keychain probes use `KeychainNoUIQuery` with `LAContext.interactionNotAllowed`.
-- Pre-alert is shown only when preflight suggests interaction may be required.
+- Pre-alert is shown only for user-action reads when preflight suggests interaction may be required.
 - Denials are cooled down in the background via `claudeOAuthKeychainDeniedUntil`
   (`ClaudeOAuthKeychainAccessGate`). User actions (menu open / manual refresh) clear this cooldown.
 - Auto-mode availability checks use non-interactive loads with prompt cooldown respected.
 - Background cache-sync-on-change also performs non-interactive Claude keychain probes (`syncWithClaudeKeychainIfChanged`)
   and can update cached OAuth data when the token changes.
+- The experimental `/usr/bin/security` reader is skipped outside user actions because it can trigger macOS Keychain UI.
 
-### Why two Claude keychain prompts can still happen on startup
-When CodexBar does not have usable OAuth credentials in its own cache (`com.steipete.codexbar.cache` / `oauth.claude`),
-bootstrap falls through to Claude CLI keychain reads.
+### Why two Claude keychain prompts can still happen after a user action
+When QuotaKit does not have usable OAuth credentials in its own cache (`com.steipete.codexbar.cache` / `oauth.claude`),
+an explicit user action can fall through to Claude CLI keychain reads.
 
-Current flow can perform up to two interactive reads in one bootstrap call:
+That user-action flow can perform up to two interactive reads:
 1. Interactive read of the newest discovered keychain candidate.
 2. If that does not return usable data, interactive legacy service-level fallback read.
 

@@ -68,7 +68,6 @@ public enum ClaudeOAuthCredentialsStore {
     #if DEBUG
     @TaskLocal private static var taskCredentialsURLOverride: URL?
     #endif
-    @TaskLocal static var allowBackgroundPromptBootstrap: Bool = false
     // In-memory cache (nonisolated for synchronous access)
     private static let memoryCacheLock = NSLock()
     private nonisolated(unsafe) static var cachedCredentialRecord: ClaudeOAuthCredentialRecord?
@@ -101,55 +100,46 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     private struct CollaboratorContext {
-        let allowBackgroundPromptBootstrap: Bool
         #if DEBUG
         let credentialsURLOverride: URL?
         let testingOverrides: TestingOverridesSnapshot
         #endif
 
         func run<T>(_ operation: () throws -> T) rethrows -> T {
-            try ClaudeOAuthCredentialsStore.$allowBackgroundPromptBootstrap
-                .withValue(self.allowBackgroundPromptBootstrap) {
-                    #if DEBUG
-                    try ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(self.testingOverrides) {
-                        try ClaudeOAuthCredentialsStore
-                            .withCredentialsURLOverrideForTesting(self.credentialsURLOverride) {
-                                try operation()
-                            }
+            #if DEBUG
+            try ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(self.testingOverrides) {
+                try ClaudeOAuthCredentialsStore
+                    .withCredentialsURLOverrideForTesting(self.credentialsURLOverride) {
+                        try operation()
                     }
-                    #else
-                    try operation()
-                    #endif
-                }
+            }
+            #else
+            try operation()
+            #endif
         }
 
         func run<T>(_ operation: () async throws -> T) async rethrows -> T {
-            try await ClaudeOAuthCredentialsStore.$allowBackgroundPromptBootstrap
-                .withValue(self.allowBackgroundPromptBootstrap) {
-                    #if DEBUG
-                    try await ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(self.testingOverrides) {
-                        try await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(
-                            self.credentialsURLOverride)
-                        {
-                            try await operation()
-                        }
-                    }
-                    #else
+            #if DEBUG
+            try await ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(self.testingOverrides) {
+                try await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(
+                    self.credentialsURLOverride)
+                {
                     try await operation()
-                    #endif
                 }
+            }
+            #else
+            try await operation()
+            #endif
         }
     }
 
     private static func currentCollaboratorContext() -> CollaboratorContext {
         #if DEBUG
         CollaboratorContext(
-            allowBackgroundPromptBootstrap: self.allowBackgroundPromptBootstrap,
             credentialsURLOverride: self.taskCredentialsURLOverride,
             testingOverrides: self.currentTestingOverridesSnapshotForTask)
         #else
-        CollaboratorContext(
-            allowBackgroundPromptBootstrap: self.allowBackgroundPromptBootstrap)
+        CollaboratorContext()
         #endif
     }
 
@@ -376,11 +366,12 @@ public enum ClaudeOAuthCredentialsStore {
                 let shouldPreferSecurityCLIKeychainRead =
                     ClaudeOAuthCredentialsStore.shouldPreferSecurityCLIKeychainRead()
                 var fallbackPromptMode = promptMode
+                var effectiveAllowKeychainPrompt = allowKeychainPrompt
                 if shouldPreferSecurityCLIKeychainRead {
                     fallbackPromptMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode()
                     let fallbackDecision = ClaudeOAuthCredentialsStore.securityFrameworkFallbackPromptDecision(
                         promptMode: fallbackPromptMode,
-                        allowKeychainPrompt: allowKeychainPrompt,
+                        allowKeychainPrompt: effectiveAllowKeychainPrompt,
                         respectKeychainPromptCooldown: respectKeychainPromptCooldown)
                     ClaudeOAuthCredentialsStore.log.debug(
                         "Claude keychain Security.framework fallback prompt policy evaluated",
@@ -390,10 +381,10 @@ public enum ClaudeOAuthCredentialsStore {
                             "fallbackPromptAllowed": "\(fallbackDecision.allowed)",
                             "fallbackBlockedReason": fallbackDecision.blockedReason ?? "none",
                         ])
-                    guard fallbackDecision.allowed else { return nil }
+                    effectiveAllowKeychainPrompt = fallbackDecision.allowed
                 }
 
-                if ClaudeOAuthCredentialsStore.shouldShowClaudeKeychainPreAlert() {
+                if effectiveAllowKeychainPrompt, ClaudeOAuthCredentialsStore.shouldShowClaudeKeychainPreAlert() {
                     KeychainPromptHandler.notify(
                         KeychainPromptContext(
                             kind: .claudeOAuth,
@@ -403,7 +394,7 @@ public enum ClaudeOAuthCredentialsStore {
                 let keychainData: Data = if shouldPreferSecurityCLIKeychainRead {
                     try ClaudeOAuthCredentialsStore.loadFromClaudeKeychainUsingSecurityFramework(
                         promptMode: fallbackPromptMode,
-                        allowKeychainPrompt: true)
+                        allowKeychainPrompt: effectiveAllowKeychainPrompt)
                 } else {
                     try ClaudeOAuthCredentialsStore.loadFromClaudeKeychain()
                 }
@@ -1526,13 +1517,22 @@ public enum ClaudeOAuthCredentialsStore {
                     "fallbackBlockedReason": fallbackDecision.blockedReason ?? "none",
                 ])
             guard fallbackDecision.allowed else {
-                throw ClaudeOAuthCredentialsError.notFound
+                return try self.loadFromClaudeKeychainUsingSecurityFramework(
+                    promptMode: fallbackPromptMode,
+                    allowKeychainPrompt: false)
             }
             return try self.loadFromClaudeKeychainUsingSecurityFramework(
                 promptMode: fallbackPromptMode,
                 allowKeychainPrompt: true)
         }
-        return try self.loadFromClaudeKeychainUsingSecurityFramework()
+        let promptMode = ClaudeOAuthKeychainPromptPreference.current()
+        let promptDecision = self.securityFrameworkFallbackPromptDecision(
+            promptMode: promptMode,
+            allowKeychainPrompt: true,
+            respectKeychainPromptCooldown: false)
+        return try self.loadFromClaudeKeychainUsingSecurityFramework(
+            promptMode: promptMode,
+            allowKeychainPrompt: promptDecision.allowed)
     }
 
     /// Legacy alias for backward compatibility
@@ -1544,6 +1544,9 @@ public enum ClaudeOAuthCredentialsStore {
         promptMode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current(),
         allowKeychainPrompt: Bool = true) throws -> Data
     {
+        guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode) else {
+            throw ClaudeOAuthCredentialsError.notFound
+        }
         #if DEBUG
         if let store = taskClaudeKeychainOverrideStore, let override = store.data { return override }
         if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride { return override }
@@ -1939,6 +1942,9 @@ public enum ClaudeOAuthCredentialsStore {
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: promptMode) else {
             return (allowed: false, blockedReason: self.fallbackBlockedReason(promptMode: promptMode))
         }
+        guard ProviderInteractionContext.current == .userInitiated else {
+            return (allowed: false, blockedReason: "background")
+        }
         if respectKeychainPromptCooldown,
            !ClaudeOAuthKeychainAccessGate.shouldAllowPrompt()
         {
@@ -1955,7 +1961,7 @@ public enum ClaudeOAuthCredentialsStore {
         case .onlyOnUserAction:
             return "onlyOnUserAction-background"
         case .always:
-            return "disallowed"
+            return "background"
         }
     }
 
@@ -1966,8 +1972,9 @@ public enum ClaudeOAuthCredentialsStore {
         switch mode {
         case .never: return false
         case .onlyOnUserAction:
-            return ProviderInteractionContext.current == .userInitiated || self.allowBackgroundPromptBootstrap
-        case .always: return true
+            return ProviderInteractionContext.current == .userInitiated
+        case .always:
+            return true
         }
     }
 

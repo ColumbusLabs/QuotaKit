@@ -17,7 +17,7 @@
 "Add Workspace" = "Tambah Workspace";
 "Advanced" = "Lanjutan";
 "All" = "Semua";
-"Always allow prompts" = "Selalu izinkan permintaan";
+"Always allow on user actions" = "Selalu izinkan saat tindakan pengguna";
 "Animation pattern" = "Pola animasi";
 "Antigravity login is managed in the app" = "Login Antigravity dikelola di dalam aplikasi";
 "Applies only to the Security.framework OAuth keychain reader." = "Hanya berlaku untuk pembaca keychain OAuth Security.framework.";

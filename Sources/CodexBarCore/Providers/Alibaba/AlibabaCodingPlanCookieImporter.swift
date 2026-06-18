@@ -364,13 +364,14 @@ enum AlibabaChromiumCookieFallbackImporter {
     }
 
     private static func safeStoragePassword(service: String, account: String) -> String? {
-        let query: [String: Any] = [
+        var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
             kSecAttrAccount as String: account,
             kSecMatchLimit as String: kSecMatchLimitOne,
             kSecReturnData as String: true,
         ]
+        KeychainNoUIQuery.apply(to: &query)
 
         var result: AnyObject?
         let status = SecItemCopyMatching(query as CFDictionary, &result)

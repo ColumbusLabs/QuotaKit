@@ -17,7 +17,7 @@
 "Add Workspace" = "작업 공간 추가";
 "Advanced" = "고급";
 "All" = "전체";
-"Always allow prompts" = "항상 프롬프트 허용";
+"Always allow on user actions" = "사용자 작업 시 항상 허용";
 "Animation pattern" = "애니메이션 패턴";
 "Antigravity login is managed in the app" = "Antigravity 로그인은 앱에서 관리됩니다";
 "Applies only to the Security.framework OAuth keychain reader." = "Security.framework OAuth 키체인 리더에만 적용됩니다.";

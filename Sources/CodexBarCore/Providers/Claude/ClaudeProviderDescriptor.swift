@@ -299,19 +299,9 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
 
         guard sourceMode == .auto else { return true }
 
-        let fallbackPromptMode = ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode()
         let promptPolicyApplicable = ClaudeOAuthKeychainPromptPreference.isApplicable()
         if ProviderInteractionContext.current == .userInitiated {
             _ = ClaudeOAuthKeychainAccessGate.clearDenied()
-        }
-
-        let shouldAllowStartupBootstrap = runtime == .app &&
-            ProviderRefreshContext.current == .startup &&
-            ProviderInteractionContext.current == .background &&
-            fallbackPromptMode == .onlyOnUserAction &&
-            !ClaudeOAuthCredentialsStore.hasCachedCredentials(environment: environment)
-        if shouldAllowStartupBootstrap {
-            return ClaudeOAuthKeychainAccessGate.shouldAllowPrompt()
         }
 
         if promptPolicyApplicable,
@@ -336,8 +326,6 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: context.sourceMode == .auto,
             allowBackgroundDelegatedRefresh: context.runtime == .cli,
-            allowStartupBootstrapPrompt: context.runtime == .app &&
-                (context.sourceMode == .auto || context.sourceMode == .oauth),
             useWebExtras: false)
         let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(
