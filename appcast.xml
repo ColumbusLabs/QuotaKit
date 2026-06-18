@@ -5,6 +5,32 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.7</title>
+            <pubDate>Thu, 18 Jun 2026 15:07:59 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.7.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.7</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.7 Mobile 1.11.1</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Mac updates: prevent launch and background refresh from showing Keychain</li>
+</ul>
+  permission prompts after an app update.
+<ul>
+<li>Keychain migration: update existing credential accessibility in place without</li>
+</ul>
+  reading secret values or deleting/re-adding items, and retry safely later when
+  macOS reports that interaction would be required.
+<ul>
+<li>Claude OAuth: limit promptable Keychain reads to explicit user actions such as</li>
+</ul>
+  opening the menu or running a manual refresh.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.7/QuotaKit-macos-universal-0.32.4.7.zip" length="54243699" type="application/octet-stream" sparkle:edSignature="GsWwG0JfTsMsr7avg7iOEr/TThNbSt0cyD2KZcQrayb7MdGE9HzTgxxr7CEDG3lYWZqepcUGcT8hnJ7Nh/MrCw=="/>
+        </item>
+        <item>
             <title>0.32.4.6</title>
             <pubDate>Tue, 16 Jun 2026 19:56:06 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -107,26 +133,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.5/QuotaKit-macos-universal-0.32.4.5.zip" length="49625514" type="application/octet-stream" sparkle:edSignature="FiQICfRrzoMA0xnfGd6G4J6Xhdz5lOqi3kRmPxhP6TfzXH54QUYYnyOuR6bFD3V2oIK7foPChL203WhOPyI8AQ=="/>
-        </item>
-        <item>
-            <title>0.32.4.4</title>
-            <pubDate>Mon, 08 Jun 2026 14:38:02 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.4.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.4</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.4 Mobile 1.11.1</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Show the QuotaKit app symbol in the Mac menu bar before the first quota</li>
-</ul>
-  snapshot is available, instead of rendering an empty initial status item.
-<ul>
-<li>Updated the menu bar visibility guidance to use QuotaKit product naming.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.4/QuotaKit-macos-universal-0.32.4.4.zip" length="47990122" type="application/octet-stream" sparkle:edSignature="ZL3r8klAvWTqnUd/Y5nj/qa/35+kxTL5ORPtEyM8CtaomOcWsXaUV5XRDZrEJMQSXkOLShFNtO8YRKqclxwoCQ=="/>
         </item>
     </channel>
 </rss>
