@@ -13,6 +13,9 @@ current Columbus Labs product surface and recent release history.
   QuotaKit widgets now use the same provider logo assets as the Mac app. Generic
   aggregate rows keep neutral markers so provider logos only appear where they
   identify a real provider.
+- QuotaKit widgets now refresh their stored snapshot directly from background
+  CloudKit silent pushes, so new Mac sync data can update the widget without
+  opening the app first.
 
 ## [1.11.1 (168)] — 2026-06-17 — Provider order and widget provider controls
 

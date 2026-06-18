@@ -401,6 +401,52 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(savedSnapshots.map(\.lastSyncedAt), [firstSync, firstSync, secondSync])
     }
 
+    func testBackgroundWidgetRefreshPublishesFetchedCloudKitSnapshot() {
+        var publishedSnapshots: [SyncedUsageSnapshot] = []
+        var clearCount = 0
+
+        let result = WidgetBackgroundSnapshotRefresh.apply(
+            perProvider: .success([PreviewData.sampleSnapshot]),
+            legacy: .empty,
+            publishSnapshot: { publishedSnapshots.append($0) },
+            clearSnapshot: { clearCount += 1 })
+
+        XCTAssertEqual(result, .newData)
+        XCTAssertEqual(publishedSnapshots.count, 1)
+        XCTAssertEqual(publishedSnapshots.first?.syncTimestamp, PreviewData.sampleSnapshot.syncTimestamp)
+        XCTAssertEqual(clearCount, 0)
+    }
+
+    func testBackgroundWidgetRefreshClearsOnlyWhenCloudKitIsAuthoritativelyEmpty() {
+        var publishedSnapshots: [SyncedUsageSnapshot] = []
+        var clearCount = 0
+
+        let result = WidgetBackgroundSnapshotRefresh.apply(
+            perProvider: .empty,
+            legacy: .empty,
+            publishSnapshot: { publishedSnapshots.append($0) },
+            clearSnapshot: { clearCount += 1 })
+
+        XCTAssertEqual(result, .noData)
+        XCTAssertTrue(publishedSnapshots.isEmpty)
+        XCTAssertEqual(clearCount, 1)
+    }
+
+    func testBackgroundWidgetRefreshDoesNotClearSnapshotOnCloudKitError() {
+        var publishedSnapshots: [SyncedUsageSnapshot] = []
+        var clearCount = 0
+
+        let result = WidgetBackgroundSnapshotRefresh.apply(
+            perProvider: .error(.networkUnavailable),
+            legacy: .empty,
+            publishSnapshot: { publishedSnapshots.append($0) },
+            clearSnapshot: { clearCount += 1 })
+
+        XCTAssertEqual(result, .failed)
+        XCTAssertTrue(publishedSnapshots.isEmpty)
+        XCTAssertEqual(clearCount, 0)
+    }
+
     func testWidgetTimelineScheduleRefreshesEveryFifteenMinutesByDefault() {
         let now = Date(timeIntervalSince1970: 1_803_000_000)
 

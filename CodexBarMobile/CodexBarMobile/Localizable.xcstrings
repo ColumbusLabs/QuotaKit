@@ -18755,6 +18755,34 @@
         }
       }
     },
+    "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ウィジェット同期 — CloudKitのサイレントプッシュを受けたバックグラウンドでウィジェットが直接更新されるようになり、Macから同期された新しいデータをアプリを開かずにウィジェットへ反映できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小组件同步 —— 小组件现在会在后台通过 CloudKit 静默推送直接刷新，因此 Mac 新同步的数据无需先打开应用也能更新到小组件。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小工具同步 —— 小工具現在會在背景透過 CloudKit 靜默推播直接重新整理，因此 Mac 新同步的資料不必先打開 App 也能更新到小工具。"
+          }
+        }
+      }
+    },
     "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
       "localizations": {
         "en": {

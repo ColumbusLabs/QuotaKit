@@ -111,6 +111,19 @@ extension Notification.Name {
         "com.columbuslabs.quotakit.providerZoneDidChange")
 }
 
+private extension WidgetBackgroundSnapshotRefreshResult {
+    var backgroundFetchResult: UIBackgroundFetchResult {
+        switch self {
+        case .newData:
+            .newData
+        case .noData:
+            .noData
+        case .failed:
+            .failed
+        }
+    }
+}
+
 // MARK: - AppDelegate
 
 /// `UIApplicationDelegate` responsibilities:
@@ -162,10 +175,9 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     /// Handle silent CloudKit push. Today only the DeviceProvidersZone
     /// subscription fires here (quota subs render their alertBody without
-    /// app code). On match, broadcast so SyncedUsageData can run its
-    /// cache-based incremental refresh. We report `.newData` optimistically
-    /// since the real work is async — iOS awards background time budget
-    /// based on this signal.
+    /// app code). On match, refresh the widget snapshot directly before
+    /// completing the background fetch. Then broadcast so an already-running
+    /// app scene can update its in-memory UI model too.
     func application(
         _: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
@@ -175,9 +187,12 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
             completionHandler(.noData)
             return
         }
-        NotificationCenter.default.post(
-            name: .quotaKitProviderZoneDidChange, object: nil)
-        completionHandler(.newData)
+        Task { @MainActor in
+            let result = await WidgetBackgroundSnapshotRefresh.refresh()
+            NotificationCenter.default.post(
+                name: .quotaKitProviderZoneDidChange, object: nil)
+            completionHandler(result.backgroundFetchResult)
+        }
     }
 
     func application(

@@ -36,6 +36,7 @@ enum MobileReleaseNotesCatalog {
                         String(localized: "Usage organization — provider logos now match the Mac app across cards, detail screens, dashboard provider-share rows, and widgets; you can still choose which provider appears in widgets and reorder providers directly from the Usage tab."),
                         String(localized: "Branding and setup — iOS screens, the app icon, share cards, update prompts, and Mac setup now use QuotaKit. The iPhone shares a Columbus Labs setup page for Mac installation instead of sending you straight to GitHub."),
                         String(localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),
+                        String(localized: "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first."),
                         String(localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                         String(localized: "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth."),
                     ]),
