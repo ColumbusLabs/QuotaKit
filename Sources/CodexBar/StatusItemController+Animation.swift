@@ -269,6 +269,7 @@ extension StatusItemController {
         let showUsed = self.settings.usageBarsShowUsed
         let showBrandPercent = self.settings.menuBarShowsBrandIconWithPercent
         let primaryProvider = self.primaryProviderForUnifiedIcon()
+        let resolverStyle = self.store.style(for: primaryProvider)
         let snapshot = self.store.snapshot(for: primaryProvider)
         let warningFlash = self.quotaWarningFlashActive(provider: primaryProvider)
 
@@ -277,8 +278,9 @@ extension StatusItemController {
         let resolved = snapshot.map {
             IconRemainingResolver.resolvedPercents(
                 snapshot: $0,
-                style: style,
+                style: resolverStyle,
                 showUsed: showUsed,
+                renderingStyle: style,
                 secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
         }
         var metrics = MergedIconRenderMetrics(
@@ -340,7 +342,7 @@ extension StatusItemController {
             provider: primaryProvider,
             snapshot: snapshot,
             style: style,
-            statusIndicator: self.mergedStatusIndicator(),
+            statusIndicator: self.store.statusIndicator(for: primaryProvider),
             warningFlash: warningFlash,
             needsAnimation: needsAnimation)
         let shouldUseAppIconFallback =
@@ -371,14 +373,6 @@ extension StatusItemController {
         return false
     }
 
-    private func mergedStatusIndicator() -> ProviderStatusIndicator {
-        for provider in self.store.enabledProvidersForDisplay() {
-            let indicator = self.store.statusIndicator(for: provider)
-            if indicator.hasIssue { return indicator }
-        }
-        return .none
-    }
-
     private func applyBrandPercentIcon(
         context: MergedIconRenderContext,
         metrics: MergedIconRenderMetrics)
@@ -400,6 +394,7 @@ extension StatusItemController {
             "text=\(displayText ?? "nil")",
             "warningFlash=\(context.warningFlash ? "1" : "0")",
             "anim=\(context.needsAnimation ? "1" : "0")",
+            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
         ].joined(separator: "|")
         if self.shouldSkipMergedIconRender(signature) {
             // AppKit can lose button title/image-position state independently of the cached render signature.
@@ -428,6 +423,7 @@ extension StatusItemController {
             "stale=\(metrics.stale ? "1" : "0")",
             "warningFlash=\(context.warningFlash ? "1" : "0")",
             "anim=\(context.needsAnimation ? "1" : "0")",
+            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
         ].joined(separator: "|")
         if self.shouldSkipMergedIconRender(signature) {
             self.noteIconPerfRender(skipped: true)
@@ -455,6 +451,7 @@ extension StatusItemController {
                 "status=\(context.statusIndicator.rawValue)",
                 "warningFlash=\(context.warningFlash ? "1" : "0")",
                 "anim=\(context.needsAnimation ? "1" : "0")",
+                "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
             ].joined(separator: "|")
             if self.shouldSkipMergedIconRender(signature) {
                 self.noteIconPerfRender(skipped: true)
@@ -462,7 +459,8 @@ extension StatusItemController {
             }
             let image = IconRenderer.makeMorphIcon(
                 progress: morphProgress,
-                style: context.style)
+                style: context.style,
+                hideCritters: self.settings.menuBarHidesCritters)
             self.setButtonImage(
                 context.warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
                 for: context.button)
@@ -483,6 +481,7 @@ extension StatusItemController {
             "tilt=\(Self.iconSignatureValue(Double(motion.tilt)))",
             "warningFlash=\(context.warningFlash ? "1" : "0")",
             "anim=\(context.needsAnimation ? "1" : "0")",
+            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
         ].joined(separator: "|")
         if self.shouldSkipMergedIconRender(signature) {
             self.noteIconPerfRender(skipped: true)
@@ -497,7 +496,8 @@ extension StatusItemController {
             blink: motion.blink,
             wiggle: motion.wiggle,
             tilt: motion.tilt,
-            statusIndicator: context.statusIndicator)
+            statusIndicator: context.statusIndicator,
+            hideCritters: self.settings.menuBarHidesCritters)
         self.setButtonImage(
             context.warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
             for: context.button)
@@ -634,12 +634,16 @@ extension StatusItemController {
                 "status=\(statusIndicator.rawValue)",
                 "warningFlash=\(warningFlash ? "1" : "0")",
                 "loading=\(isLoading ? "1" : "0")",
+                "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
             ].joined(separator: "|")
             if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
-            let image = IconRenderer.makeMorphIcon(progress: morphProgress, style: style)
+            let image = IconRenderer.makeMorphIcon(
+                progress: morphProgress,
+                style: style,
+                hideCritters: self.settings.menuBarHidesCritters)
             self.setButtonImage(
                 warningFlash ? Self.quotaWarningFlashImage(base: image) : image, for: button)
         } else {
@@ -657,6 +661,7 @@ extension StatusItemController {
                 "tilt=\(Self.iconSignatureValue(Double(tilt)))",
                 "warningFlash=\(warningFlash ? "1" : "0")",
                 "loading=\(isLoading ? "1" : "0")",
+                "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
             ].joined(separator: "|")
             if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
                 self.noteIconPerfRender(skipped: true)
@@ -671,7 +676,8 @@ extension StatusItemController {
                 blink: blink,
                 wiggle: wiggle,
                 tilt: tilt,
-                statusIndicator: statusIndicator)
+                statusIndicator: statusIndicator,
+                hideCritters: self.settings.menuBarHidesCritters)
             self.setButtonImage(
                 warningFlash ? Self.quotaWarningFlashImage(base: image) : image, for: button)
         }
@@ -847,10 +853,14 @@ extension StatusItemController {
         {
             return balance
         }
-        if provider == .mistral,
-           let spend = Self.mistralSpendDisplayText(snapshot: snapshot)
-        {
-            return spend
+        if provider == .mistral {
+            let preference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+            let hasMonthlyWindow = snapshot?.extraRateWindows?.contains { $0.id == "mistral-monthly-plan" } == true
+            if preference != .monthlyPlan || !hasMonthlyWindow,
+               let spend = Self.mistralSpendDisplayText(snapshot: snapshot)
+            {
+                return spend
+            }
         }
         if provider == .kimik2,
            let credits = Self.kimiK2CreditsDisplayText(snapshot: snapshot)

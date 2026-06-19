@@ -20,6 +20,34 @@ struct OpenAIDashboardWebViewCacheTests {
     // MARK: - Data Store Identity Tests
 
     @Test
+    func `navigation retry uses only remaining shared deadline`() throws {
+        let start = Date(timeIntervalSinceReferenceDate: 1000)
+        let deadline = start.addingTimeInterval(10)
+
+        let remaining = try OpenAIDashboardWebViewCache.remainingNavigationTimeout(
+            until: deadline,
+            now: start.addingTimeInterval(9.75))
+
+        #expect(remaining == 0.25)
+    }
+
+    @Test
+    func `navigation retry refuses expired shared deadline`() {
+        let deadline = Date(timeIntervalSinceReferenceDate: 1000)
+
+        do {
+            _ = try OpenAIDashboardWebViewCache.remainingNavigationTimeout(
+                until: deadline,
+                now: deadline)
+            Issue.record("Expected deadline timeout")
+        } catch let error as URLError {
+            #expect(error.code == .timedOut)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func `WKWebsiteDataStore should return same instance for same email`() {
         if self.shouldSkipOnCI() { return }
         OpenAIDashboardWebsiteDataStore.clearCacheForTesting()
@@ -373,6 +401,64 @@ struct OpenAIDashboardWebViewCacheTests {
         #expect(!cache.hasCachedEntry(for: store2), "Second store should be evicted")
     }
 
+    @Test
+    func `Evict idle removes idle WebViews without interrupting busy WebViews`() {
+        if self.shouldSkipOnCI() { return }
+        let cache = OpenAIDashboardWebViewCache()
+        let idleStore = WKWebsiteDataStore.nonPersistent()
+        let busyStore = WKWebsiteDataStore.nonPersistent()
+
+        cache.cacheEntryForTesting(websiteDataStore: idleStore)
+        cache.cacheEntryForTesting(websiteDataStore: busyStore, isBusy: true)
+
+        cache.evictIdle()
+
+        #expect(!cache.hasCachedEntry(for: idleStore), "Idle WebView should be evicted")
+        #expect(cache.hasCachedEntry(for: busyStore), "Busy WebView should remain cached")
+        #expect(cache.entryCount == 1, "Only the busy entry should remain")
+
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `Memory pressure monitor evicts idle shared WebViews without interrupting busy WebViews`() {
+        if self.shouldSkipOnCI() { return }
+        let cache = OpenAIDashboardWebViewCache.shared
+        cache.clearAllForTesting()
+        defer { cache.clearAllForTesting() }
+
+        let idleStore = WKWebsiteDataStore.nonPersistent()
+        let busyStore = WKWebsiteDataStore.nonPersistent()
+
+        cache.cacheEntryForTesting(websiteDataStore: idleStore)
+        cache.cacheEntryForTesting(websiteDataStore: busyStore, isBusy: true)
+
+        #expect(cache.entryCount == 2, "Should have one idle entry and one busy entry before pressure")
+
+        let monitor = MemoryPressureMonitor()
+        monitor.handleMemoryPressureForTesting(isWarning: true, isCritical: false)
+
+        #expect(!cache.hasCachedEntry(for: idleStore), "Memory pressure should evict the idle shared WebView")
+        #expect(cache.hasCachedEntry(for: busyStore), "Memory pressure should not interrupt a busy shared WebView")
+        #expect(cache.entryCount == 1, "Only the busy shared entry should remain")
+    }
+
+    @Test
+    func `Memory pressure malloc relief runs off the main thread`() async {
+        let probe = MemoryPressureThreadProbe()
+        let monitor = MemoryPressureMonitor(releaseFreeMallocPages: {
+            probe.recordCurrentThread()
+        })
+
+        monitor.handleMemoryPressureForTesting(isWarning: true, isCritical: false)
+
+        let completed = await Task.detached {
+            probe.wait(timeout: .now() + 2)
+        }.value
+        #expect(completed)
+        #expect(probe.wasMainThread == false)
+    }
+
     // MARK: - Busy WebView Tests
 
     @Test
@@ -480,5 +566,26 @@ struct OpenAIDashboardWebViewCacheTests {
 
         cache.clearAllForTesting()
         OpenAIDashboardWebsiteDataStore.clearCacheForTesting()
+    }
+}
+
+private final class MemoryPressureThreadProbe: @unchecked Sendable {
+    private let lock = NSLock()
+    private let semaphore = DispatchSemaphore(value: 0)
+    private var recordedMainThread: Bool?
+
+    var wasMainThread: Bool? {
+        self.lock.withLock { self.recordedMainThread }
+    }
+
+    func recordCurrentThread() {
+        self.lock.withLock {
+            self.recordedMainThread = Thread.isMainThread
+        }
+        self.semaphore.signal()
+    }
+
+    func wait(timeout: DispatchTime) -> Bool {
+        self.semaphore.wait(timeout: timeout) == .success
     }
 }

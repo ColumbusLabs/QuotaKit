@@ -7,6 +7,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.7 / iOS 1.11.1 — 2026-06-18
 
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `6c5aa41a`
+  (`05545feb..6c5aa41a`), including Codex reset-credit display, Cursor
+  personal spend beside team pools, Mistral monthly usage, storage breakdown
+  details, provider-sidebar sorting, usage-confidence metadata, memory-pressure
+  cache trimming, process-output bounds, Kiro/Cursor/Antigravity quota fixes,
+  Windsurf Devin import updates, Codex web timeout hardening, localization
+  updates, and broader provider/runtime test coverage.
+
 ### Fixed
 
 - Mac updates: prevent launch and background refresh from showing Keychain

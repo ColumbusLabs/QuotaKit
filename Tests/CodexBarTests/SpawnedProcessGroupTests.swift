@@ -16,6 +16,25 @@ struct SpawnedProcessGroupTests {
     }
 
     @Test
+    func `musl close-from selects numeric descriptors at or above minimum`() throws {
+        let descriptors = try PosixSpawnFileActionsCloseFrom.descriptorsToClose(startingAt: 4) { path in
+            #expect(path == "/proc/self/fd")
+            return ["8", "cwd", "3", "4"]
+        }
+
+        #expect(descriptors == [4, 8])
+    }
+
+    @Test
+    func `musl close-from fails when descriptor enumeration fails`() {
+        #expect(throws: PosixSpawnFileActionsCloseFrom.CloseFromError.self) {
+            try PosixSpawnFileActionsCloseFrom.descriptorsToClose(startingAt: 3) { _ in
+                throw CocoaError(.fileReadNoPermission)
+            }
+        }
+    }
+
+    @Test
     func `launch captures child output`() async throws {
         let stdoutPipe = Pipe()
         let stderrPipe = Pipe()

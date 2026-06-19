@@ -26,19 +26,25 @@ public struct CodexWebDashboardStrategy: ProviderFetchStrategy {
             throw OpenAIDashboardFetcher.FetchError.loginRequired
         }
 
+        let options = OpenAIWebOptions(
+            deadline: OpenAIDashboardFetcher.deadline(startingAt: Date(), timeout: context.webTimeout),
+            debugDumpHTML: context.webDebugDumpHTML,
+            verbose: context.verbose)
+
         // Ensure AppKit is initialized before using WebKit in a CLI.
         await MainActor.run {
             _ = NSApplication.shared
         }
 
-        let options = OpenAIWebOptions(
-            timeout: context.webTimeout,
-            debugDumpHTML: context.webDebugDumpHTML,
-            verbose: context.verbose)
-        let result = try await Self.fetchOpenAIWebCodex(
-            context: context,
-            options: options,
-            browserDetection: context.browserDetection)
+        let result: OpenAIWebCodexResult
+        do {
+            result = try await Self.fetchOpenAIWebCodex(
+                context: context,
+                options: options,
+                browserDetection: context.browserDetection)
+        } catch let error as URLError where error.code == .timedOut {
+            throw OpenAIWebCodexError.timedOut(seconds: context.webTimeout)
+        }
         return self.makeResult(
             usage: result.usage,
             credits: result.credits,
@@ -69,11 +75,14 @@ struct OpenAIWebCodexResult {
 enum OpenAIWebCodexError: LocalizedError, Equatable {
     case missingUsage
     case policyRejected(CodexDashboardAuthorityDecision)
+    case timedOut(seconds: TimeInterval)
 
     var errorDescription: String? {
         switch self {
         case .missingUsage:
             return "OpenAI web dashboard did not include usage limits."
+        case let .timedOut(seconds):
+            return "OpenAI web dashboard fetch timed out after \(seconds.formatted()) seconds."
         case let .policyRejected(decision):
             switch decision.reason {
             case let .wrongEmail(expected, actual):
@@ -107,7 +116,7 @@ enum OpenAIWebCodexError: LocalizedError, Equatable {
 }
 
 private struct OpenAIWebOptions {
-    let timeout: TimeInterval
+    let deadline: Date
     let debugDumpHTML: Bool
     let verbose: Bool
 }
@@ -165,6 +174,7 @@ extension CodexWebDashboardStrategy {
             guard Self.shouldRetryWithFreshBrowserImport(after: error) else {
                 throw error
             }
+            _ = try OpenAIDashboardBrowserCookieImporter.remainingTimeout(until: options.deadline)
             log("Retrying OpenAI web dashboard with a fresh browser cookie import.")
             let result = try await Self.fetchOpenAIWebDashboard(
                 context: context,
@@ -285,6 +295,7 @@ extension CodexWebDashboardStrategy {
                 intoAccountEmail: routingTargetEmail,
                 allowAnyAccount: allowAnyAccount,
                 preferCachedCookieHeader: preferCachedCookieHeader,
+                deadline: options.deadline,
                 logger: logger)
         let effectiveEmail = routingTargetEmail ?? importResult.signedInEmail?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -293,7 +304,7 @@ extension CodexWebDashboardStrategy {
             accountEmail: effectiveEmail,
             logger: logger,
             debugDumpHTML: options.debugDumpHTML,
-            timeout: options.timeout)
+            timeout: OpenAIDashboardBrowserCookieImporter.remainingTimeout(until: options.deadline))
         return OpenAIWebDashboardFetchResult(
             dashboard: dashboard,
             routingTargetEmail: routingTargetEmail)

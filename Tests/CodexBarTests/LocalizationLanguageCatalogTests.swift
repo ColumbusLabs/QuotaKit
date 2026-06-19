@@ -254,6 +254,8 @@ struct LocalizationLanguageCatalogTests {
         #expect(italian["display_mode_reset_time_desc"]?.contains("↻ 15:56") == true)
         #expect(italian["ory_session_…=…; csrftoken=…"] == "ory_session_…=…; csrftoken=…")
         #expect(italian["quota_warning_notifications_subtitle"]?.contains("scende sotto") == true)
+        #expect(italian["metric_mistral_payg"] == "A consumo")
+        #expect(italian["metric_mistral_monthly_plan"] == "Piano mensile")
 
         let intentionallyUnchanged: Set = [
             "Account",
@@ -272,36 +274,17 @@ struct LocalizationLanguageCatalogTests {
             "Password",
             "Provider",
             "Token",
+            "byte_unit_byte",
+            "byte_unit_gigabyte",
+            "byte_unit_kilobyte",
+            "byte_unit_megabyte",
             "language_arabic",
             "language_italian",
             "language_persian",
             "language_thai",
             "link_email",
             "link_github",
-            "mobile_button_sync_now",
-            "mobile_dev_depleted",
-            "mobile_dev_restored",
-            "mobile_dev_test_intro",
-            "mobile_dev_verify_push",
-            "mobile_dev_warning",
-            "mobile_mock_cost_note",
-            "mobile_mock_reference_header",
-            "mobile_section_dev_test",
-            "mobile_section_icloud_sync",
-            "mobile_section_mock_data",
-            "mobile_section_push",
-            "mobile_sync_status_last_attempt_format",
-            "mobile_sync_status_last_sync_format",
-            "mobile_sync_status_no_sync",
-            "mobile_sync_status_syncing",
-            "mobile_toggle_mock_subtitle",
-            "mobile_toggle_mock_title",
-            "mobile_toggle_push_subtitle",
-            "mobile_toggle_push_title",
-            "mobile_toggle_sync_subtitle",
-            "mobile_toggle_sync_title",
             "ory_session_…=…; csrftoken=…",
-            "tab_mobile",
         ]
         let unchanged = Set(english.keys.filter { italian[$0] == english[$0] })
         #expect(unchanged == intentionallyUnchanged)
