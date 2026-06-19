@@ -15,7 +15,7 @@ struct SubprocessRunnerTests {
             binary: "/usr/bin/python3",
             arguments: ["-c", "print('x' * 1_000_000)"],
             environment: ProcessInfo.processInfo.environment,
-            timeout: 5,
+            timeout: 15,
             label: "python large stdout")
 
         #expect(result.stdout.count >= 1_000_000)

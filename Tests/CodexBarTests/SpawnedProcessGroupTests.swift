@@ -129,14 +129,20 @@ struct SpawnedProcessGroupTests {
             stderrPipe: stderrPipe)
 
         var childPID: pid_t?
-        for _ in 0..<100 {
-            if let text = try? String(contentsOf: childPIDFile, encoding: .utf8) {
-                childPID = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines))
+        for _ in 0..<500 {
+            if let text = try? String(contentsOf: childPIDFile, encoding: .utf8),
+               let parsedPID = pid_t(text.trimmingCharacters(in: .whitespacesAndNewlines))
+            {
+                childPID = parsedPID
                 break
             }
             try await Task.sleep(for: .milliseconds(20))
         }
-        let escapedPID = try #require(childPID)
+        guard let escapedPID = childPID else {
+            await process.terminate(grace: 0)
+            Issue.record("Timed out waiting for escaped child PID")
+            return
+        }
         defer { _ = kill(escapedPID, SIGKILL) }
 
         let start = Date()

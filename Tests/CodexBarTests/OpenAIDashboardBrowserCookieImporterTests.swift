@@ -148,45 +148,48 @@ struct OpenAIDashboardBrowserCookieImporterTests {
     @Test
     func `timed out cookie cache work stays ordered before retry`() async throws {
         let log = CookieOperationLog()
-        let releaseFirst = DispatchSemaphore(value: 0)
+        let firstOperationStarted = DispatchSemaphore(value: 0)
+        let allowFirstOperationToFinish = DispatchSemaphore(value: 0)
 
-        let firstResult = Task { () -> Result<Bool, Error> in
-            do {
-                let value = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
-                    deadline: Date().addingTimeInterval(1))
-                {
-                    log.append("first-start")
-                    _ = releaseFirst.wait(timeout: .now() + 5)
-                    log.append("first-end")
-                    return true
-                }
-                return .success(value)
-            } catch {
-                return .failure(error)
+        do {
+            _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
+                deadline: Date().addingTimeInterval(0.05))
+            {
+                log.append("first-start")
+                firstOperationStarted.signal()
+                _ = allowFirstOperationToFinish.wait(timeout: .now() + 5)
+                log.append("first-end")
+                return true
             }
-        }
-        let startWaitDeadline = ContinuousClock.now.advanced(by: .seconds(2))
-        while log.snapshot != ["first-start"], ContinuousClock.now < startWaitDeadline {
-            try await Task.sleep(for: .milliseconds(10))
-        }
-        #expect(log.snapshot == ["first-start"])
-
-        switch await firstResult.value {
-        case .success:
             Issue.record("Expected first cache operation timeout")
-        case let .failure(error as URLError):
+        } catch let error as URLError {
             #expect(error.code == .timedOut)
-        case let .failure(error):
+        } catch {
             Issue.record("Unexpected error: \(error)")
         }
-        releaseFirst.signal()
+        let firstOperationStartResult = await withCheckedContinuation { continuation in
+            DispatchQueue.global(qos: .userInitiated).async {
+                continuation.resume(returning: firstOperationStarted.wait(timeout: .now() + 5))
+            }
+        }
+        #expect(firstOperationStartResult == .success)
+        do {
+            _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
+                deadline: Date().addingTimeInterval(0.05))
+            {
+                log.append("second")
+                return true
+            }
+            Issue.record("Expected retry to wait behind first cache operation")
+        } catch let error as URLError {
+            #expect(error.code == .timedOut)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+        allowFirstOperationToFinish.signal()
 
         _ = try await OpenAIDashboardBrowserCookieImporter.runBoundedCookieCacheOperation(
-            deadline: Date().addingTimeInterval(1))
-        {
-            log.append("second")
-            return true
-        }
+            deadline: Date().addingTimeInterval(1)) { true }
         #expect(log.snapshot == ["first-start", "first-end", "second"])
     }
 

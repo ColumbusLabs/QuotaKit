@@ -9,14 +9,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `92da482c`
-  (`05545feb..92da482c`), including Codex reset-credit display, Cursor
+- Synced upstream CodexBar Mac improvements through `2fd5bccf`
+  (`05545feb..2fd5bccf`), including Codex reset-credit display, Cursor
   personal spend beside team pools, Mistral monthly usage, storage breakdown
   details, provider-sidebar sorting, usage-confidence metadata, memory-pressure
   cache trimming, process-output bounds, Kiro/Cursor/Antigravity quota fixes,
   Windsurf Devin import updates, Codex web timeout hardening, localization
   updates, Antigravity highest-usage ranking alignment, provider-colored inline
-  usage dashboard bars, and broader provider/runtime test coverage.
+  usage dashboard bars, MiMo auth-redirect retries, cookie-cache timeout
+  ordering stabilization, and broader provider/runtime test coverage.
 
 ### Fixed
 
