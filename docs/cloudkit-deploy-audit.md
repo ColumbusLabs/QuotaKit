@@ -66,7 +66,8 @@ git diff "$LAST_TAG"..HEAD -- Shared/Models/UsageSnapshot.swift \
 If there is no previous Columbus Labs release tag yet, compare against the last known release baseline in `version.env` and inspect the same paths manually.
 
 `Scripts/verify-cloudkit-schema.sh` is read-only. It requires a CloudKit
-Management Token saved with `xcrun cktool save-token --type management --token
-"<token>"` or provided through cktool's supported token mechanisms. Mac release
+Management Token saved with `xcrun cktool save-token "<token>" --type
+management`, saved through the secure interactive prompt with `xcrun cktool
+save-token --type management`, or provided through cktool's supported token mechanisms. Mac release
 phase 1 runs this verifier automatically. To bypass it for a documented
 emergency release only, set `QUOTAKIT_SKIP_CLOUDKIT_SCHEMA_VERIFY=1`.

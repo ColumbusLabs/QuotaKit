@@ -39,12 +39,16 @@ ERROR: Could not export CloudKit schema.
 
 cktool requires a CloudKit Management Token. Save one with:
 
-  xcrun cktool save-token --type management --token "<token>"
+  xcrun cktool save-token "<token>" --type management
+
+Or use the secure interactive prompt:
+
+  xcrun cktool save-token --type management
 
 Create the token in CloudKit Dashboard:
   https://icloud.developer.apple.com
   Container: ${CONTAINER_ID}
-  Tokens -> Create Management Token
+  Account Menu -> Settings -> Tokens -> Create Management Token
 
 If this is an emergency release, set QUOTAKIT_SKIP_CLOUDKIT_SCHEMA_VERIFY=1
 and document why in the release notes/checklist.
