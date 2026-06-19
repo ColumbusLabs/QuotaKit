@@ -417,40 +417,6 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(clearCount, 0)
     }
 
-    func testBackgroundWidgetRefreshAppliesDeviceStatusBeforePublishing() throws {
-        var publishedSnapshots: [SyncedUsageSnapshot] = []
-        let base = SyncedUsageSnapshot(
-            providers: PreviewData.sampleSnapshot.providers,
-            syncTimestamp: Date(timeIntervalSince1970: 1_800_000_000),
-            deviceName: "Old Mac",
-            deviceID: "mac-A",
-            appVersion: "0.32.0",
-            mobileVersion: "1.11.0")
-        let powerStatus = SyncDevicePowerStatus(
-            batteryPercent: 64,
-            state: .charging,
-            updatedAt: Date(timeIntervalSince1970: 1_800_000_300))
-        let status = SyncDeviceStatus(
-            deviceID: "mac-A",
-            deviceName: "MacBook Pro",
-            appVersion: "0.33.0",
-            mobileVersion: "1.11.1",
-            syncTimestamp: Date(timeIntervalSince1970: 1_800_000_300),
-            powerStatus: powerStatus)
-
-        let result = WidgetBackgroundSnapshotRefresh.apply(
-            perProvider: .success([base]),
-            legacy: .empty,
-            deviceStatuses: [status],
-            publishSnapshot: { publishedSnapshots.append($0) })
-
-        XCTAssertEqual(result, .newData)
-        let published = try XCTUnwrap(publishedSnapshots.first)
-        XCTAssertEqual(published.syncTimestamp, status.syncTimestamp)
-        XCTAssertEqual(published.powerStatus, powerStatus)
-        XCTAssertEqual(published.appVersion, "0.33.0")
-    }
-
     func testBackgroundWidgetRefreshClearsOnlyWhenCloudKitIsAuthoritativelyEmpty() {
         var publishedSnapshots: [SyncedUsageSnapshot] = []
         var clearCount = 0

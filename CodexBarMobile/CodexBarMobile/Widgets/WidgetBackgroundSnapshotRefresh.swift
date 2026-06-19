@@ -17,13 +17,11 @@ enum WidgetBackgroundSnapshotRefresh {
         async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
         async let legacyResult = reader.fetchLegacyDeviceSnapshots()
         async let linkagesResult = reader.fetchProviderAccountLinkages()
-        async let deviceStatusesResult = reader.fetchDeviceStatuses()
 
         return await Self.apply(
             perProvider: perProviderResult,
             legacy: legacyResult,
             linkages: linkagesResult,
-            deviceStatuses: deviceStatusesResult,
             kvsFallback: kvsFallback ?? reader.latestKVSSnapshot(),
             publishSnapshot: publishSnapshot,
             clearSnapshot: clearSnapshot)
@@ -33,7 +31,6 @@ enum WidgetBackgroundSnapshotRefresh {
         perProvider: MultiDeviceSyncResult,
         legacy: MultiDeviceSyncResult,
         linkages: [ProviderAccountLinkage] = [],
-        deviceStatuses: [SyncDeviceStatus] = [],
         kvsFallback: SyncedUsageSnapshot? = nil,
         publishSnapshot: (SyncedUsageSnapshot) -> Void = { WidgetSnapshotPublisher.publish(from: $0) },
         clearSnapshot: () -> Void = { WidgetSnapshotPublisher.clear() }) -> WidgetBackgroundSnapshotRefreshResult
@@ -42,10 +39,10 @@ enum WidgetBackgroundSnapshotRefresh {
         let legacySnapshots = Self.snapshots(from: legacy)
         let firstError = Self.error(from: perProvider) ?? Self.error(from: legacy)
 
-        let fetchedSnapshots = Self.applyDeviceStatuses(
-            deviceStatuses,
-            to: perProviderSnapshots + legacySnapshots)
-        if let merged = CloudSyncReader.mergeSnapshots(fetchedSnapshots, linkages: linkages) {
+        if let merged = CloudSyncReader.mergeSnapshots(
+            perProviderSnapshots + legacySnapshots,
+            linkages: linkages)
+        {
             publishSnapshot(merged)
             return .newData
         }
@@ -78,43 +75,6 @@ enum WidgetBackgroundSnapshotRefresh {
             error
         case .success, .empty:
             nil
-        }
-    }
-
-    private static func applyDeviceStatuses(
-        _ statuses: [SyncDeviceStatus],
-        to snapshots: [SyncedUsageSnapshot]) -> [SyncedUsageSnapshot]
-    {
-        guard !statuses.isEmpty, !snapshots.isEmpty else { return snapshots }
-        var latestStatusByDeviceID: [String: SyncDeviceStatus] = [:]
-        for status in statuses {
-            let current = latestStatusByDeviceID[status.deviceID]
-            if current == nil || status.syncTimestamp >= (current?.syncTimestamp ?? status.syncTimestamp) {
-                latestStatusByDeviceID[status.deviceID] = status
-            }
-        }
-
-        return snapshots.map { snapshot in
-            guard let deviceID = snapshot.deviceID,
-                  let status = latestStatusByDeviceID[deviceID]
-            else {
-                return snapshot
-            }
-
-            let statusIsFreshest = status.syncTimestamp >= snapshot.syncTimestamp
-            return SyncedUsageSnapshot(
-                providers: snapshot.providers,
-                syncTimestamp: max(snapshot.syncTimestamp, status.syncTimestamp),
-                deviceName: statusIsFreshest ? status.deviceName : snapshot.deviceName,
-                deviceID: snapshot.deviceID,
-                appVersion: statusIsFreshest
-                    ? (status.appVersion ?? snapshot.appVersion)
-                    : snapshot.appVersion,
-                mobileVersion: statusIsFreshest
-                    ? (status.mobileVersion ?? snapshot.mobileVersion)
-                    : snapshot.mobileVersion,
-                notificationPushEnabled: snapshot.notificationPushEnabled,
-                powerStatus: status.powerStatus)
         }
     }
 }

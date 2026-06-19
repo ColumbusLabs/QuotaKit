@@ -26,6 +26,8 @@ final class SyncCoordinator {
     private var isObserving = false
     private var deviceStatusLoopTask: Task<Void, Never>?
     private var lastPushedDeviceStatus: SyncDeviceStatus?
+    private var isPushingDeviceStatus = false
+    private var pendingDeviceStatusPush: DeviceStatusPushRequest?
 
     // Observable sync status for UI
     private(set) var lastSyncTime: Date?
@@ -36,6 +38,11 @@ final class SyncCoordinator {
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
+
+    private struct DeviceStatusPushRequest {
+        let status: SyncDeviceStatus
+        let force: Bool
+    }
 
     /// Per-provider content-hash cache (P4). Keyed by composite
     /// `providerID|accountEmail`, value is a stable hash of the provider's
@@ -402,14 +409,56 @@ final class SyncCoordinator {
         _ status: SyncDeviceStatus,
         force: Bool) async -> SyncPushResult
     {
-        guard force || Self.shouldPushDeviceStatus(status, after: self.lastPushedDeviceStatus) else {
+        let request = DeviceStatusPushRequest(status: status, force: force)
+        guard Self.shouldEnqueueDeviceStatusPush(
+            request,
+            after: self.lastPushedDeviceStatus)
+        else {
             return .success
         }
-        let result = await self.syncManager.pushDeviceStatus(status)
-        if result.succeeded {
-            self.lastPushedDeviceStatus = status
+
+        if self.isPushingDeviceStatus {
+            self.pendingDeviceStatusPush = Self.coalescedDeviceStatusPush(
+                self.pendingDeviceStatusPush,
+                with: request)
+            return .success
         }
-        return result
+
+        self.isPushingDeviceStatus = true
+        defer { self.isPushingDeviceStatus = false }
+
+        var nextRequest: DeviceStatusPushRequest? = request
+        var lastResult: SyncPushResult = .success
+        while let current = nextRequest {
+            self.pendingDeviceStatusPush = nil
+            guard Self.shouldEnqueueDeviceStatusPush(
+                current,
+                after: self.lastPushedDeviceStatus)
+            else {
+                nextRequest = self.pendingDeviceStatusPush
+                continue
+            }
+
+            let result = await self.syncManager.pushDeviceStatus(current.status)
+            lastResult = result
+            if result.succeeded {
+                self.lastPushedDeviceStatus = current.status
+            } else {
+                print(
+                    "[CodexBar Sync] device-status write failed: " +
+                        Self.syncMessage(result))
+            }
+            nextRequest = self.pendingDeviceStatusPush
+        }
+        return lastResult
+    }
+
+    @discardableResult
+    func pushDeviceStatusForTesting(
+        _ status: SyncDeviceStatus,
+        force: Bool) async -> SyncPushResult
+    {
+        await self.pushDeviceStatus(status, force: force)
     }
 
     static func shouldPushDeviceStatus(
@@ -425,6 +474,32 @@ final class SyncCoordinator {
             return true
         }
         return false
+    }
+
+    private static func shouldEnqueueDeviceStatusPush(
+        _ request: DeviceStatusPushRequest,
+        after previous: SyncDeviceStatus?) -> Bool
+    {
+        if let previous,
+           request.status.syncTimestamp < previous.syncTimestamp
+        {
+            return false
+        }
+        return request.force
+            || Self.shouldPushDeviceStatus(request.status, after: previous)
+    }
+
+    private static func coalescedDeviceStatusPush(
+        _ existing: DeviceStatusPushRequest?,
+        with incoming: DeviceStatusPushRequest) -> DeviceStatusPushRequest
+    {
+        guard let existing else { return incoming }
+        let selected = incoming.status.syncTimestamp >= existing.status.syncTimestamp
+            ? incoming
+            : existing
+        return DeviceStatusPushRequest(
+            status: selected.status,
+            force: existing.force || incoming.force)
     }
 
     private static func samePowerReading(

@@ -40,7 +40,8 @@ struct SnapshotCacheTests {
         deviceID: String?,
         deviceName: String,
         providers: [ProviderUsageSnapshot],
-        timestamp: Date) -> SyncedUsageSnapshot
+        timestamp: Date,
+        powerStatus: SyncDevicePowerStatus? = nil) -> SyncedUsageSnapshot
     {
         SyncedUsageSnapshot(
             providers: providers,
@@ -48,7 +49,8 @@ struct SnapshotCacheTests {
             deviceName: deviceName,
             deviceID: deviceID,
             appVersion: "0.20.1",
-            mobileVersion: "1.3.0")
+            mobileVersion: "1.3.0",
+            powerStatus: powerStatus)
     }
 
     private func envelope(
@@ -172,7 +174,7 @@ struct SnapshotCacheTests {
         #expect(mac.deviceName == "MacBook Pro")
         #expect(mac.appVersion == "0.33.0")
         #expect(mac.mobileVersion == "1.11.1")
-        #expect(mac.syncTimestamp == self.t2)
+        #expect(mac.syncTimestamp == self.t1)
         #expect(mac.powerStatus == statusPower)
     }
 
@@ -215,6 +217,139 @@ struct SnapshotCacheTests {
             .first(where: { $0.deviceID == "mac-A" }))
         #expect(mac.deviceName == "Mac A")
         #expect(mac.powerStatus == nil)
+    }
+
+    @Test("DeviceStatus nil power does not clear current power status")
+    func deviceStatusNilPowerPreservesCurrentPowerStatus() throws {
+        var cache = SnapshotCache()
+        let currentPower = self.powerStatus(percent: 82, state: .charging, updatedAt: self.t2)
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1,
+                powerStatus: currentPower)],
+            legacySnapshots: [])
+
+        cache.applyDeviceStatuses([
+            SyncDeviceStatus(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.33.0",
+                mobileVersion: "1.11.1",
+                syncTimestamp: self.t3,
+                powerStatus: nil),
+        ])
+
+        let mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.syncTimestamp == self.t1)
+        #expect(mac.powerStatus == currentPower)
+    }
+
+    @Test("Older DeviceStatus power does not replace newer snapshot power")
+    func olderDeviceStatusPowerDoesNotReplaceNewerPower() throws {
+        var cache = SnapshotCache()
+        let newerPower = self.powerStatus(percent: 82, state: .charging, updatedAt: self.t3)
+        let olderPower = self.powerStatus(percent: 31, state: .battery, updatedAt: self.t2)
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1,
+                powerStatus: newerPower)],
+            legacySnapshots: [])
+
+        cache.applyDeviceStatuses([
+            SyncDeviceStatus(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.33.0",
+                mobileVersion: "1.11.1",
+                syncTimestamp: self.t2,
+                powerStatus: olderPower),
+        ])
+
+        let mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.powerStatus == newerPower)
+    }
+
+    @Test("Newer no-battery DeviceStatus replaces older displayable power")
+    func newerNoBatteryDeviceStatusReplacesOlderDisplayablePower() throws {
+        var cache = SnapshotCache()
+        let olderPower = self.powerStatus(percent: 82, state: .charging, updatedAt: self.t1)
+        let noBattery = SyncDevicePowerStatus(
+            batteryPercent: nil,
+            state: .noBattery,
+            updatedAt: self.t2)
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1,
+                powerStatus: olderPower)],
+            legacySnapshots: [])
+
+        cache.applyDeviceStatuses([
+            SyncDeviceStatus(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.33.0",
+                mobileVersion: "1.11.1",
+                syncTimestamp: self.t2,
+                powerStatus: noBattery),
+        ])
+
+        let mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.powerStatus == noBattery)
+        #expect(mac.powerStatus?.isDisplayable == false)
+    }
+
+    @Test("DeviceStatus deletion falls back to snapshot power")
+    func deviceStatusDeletionFallsBackToSnapshotPower() throws {
+        var cache = SnapshotCache()
+        let snapshotPower = self.powerStatus(percent: 82, state: .charging, updatedAt: self.t1)
+        let statusPower = self.powerStatus(percent: 21, state: .battery, updatedAt: self.t2)
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1)],
+            legacySnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1,
+                powerStatus: snapshotPower)])
+
+        cache.applyDeviceStatuses([
+            SyncDeviceStatus(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.33.0",
+                mobileVersion: "1.11.1",
+                syncTimestamp: self.t2,
+                powerStatus: statusPower),
+        ])
+        var mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.powerStatus == statusPower)
+
+        cache.applyDelta(
+            upserted: [],
+            deletedRecordNames: [],
+            deletedDeviceStatusIDs: ["mac-A"])
+
+        mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.syncTimestamp == self.t1)
+        #expect(mac.powerStatus == snapshotPower)
     }
 
     // MARK: - Priority merge

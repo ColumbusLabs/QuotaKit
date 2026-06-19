@@ -22,7 +22,30 @@ struct SnapshotCache: Sendable {
         let mobileVersion: String?
         let syncTimestamp: Date
         let notificationPushEnabled: Bool?
-        let powerStatus: SyncDevicePowerStatus?
+        let snapshotPowerStatus: SyncDevicePowerStatus?
+        let deviceStatusPowerStatus: SyncDevicePowerStatus?
+
+        var powerStatus: SyncDevicePowerStatus? {
+            Self.newestPowerStatus(
+                self.snapshotPowerStatus,
+                self.deviceStatusPowerStatus)
+        }
+
+        static func newestPowerStatus(
+            _ lhs: SyncDevicePowerStatus?,
+            _ rhs: SyncDevicePowerStatus?) -> SyncDevicePowerStatus?
+        {
+            switch (lhs, rhs) {
+            case (nil, nil):
+                nil
+            case let (.some(lhs), nil):
+                lhs
+            case let (nil, .some(rhs)):
+                rhs
+            case let (.some(lhs), .some(rhs)):
+                rhs.updatedAt >= lhs.updatedAt ? rhs : lhs
+            }
+        }
     }
 
     /// Per-provider zone data. Keyed `deviceID → compositeKey → provider`.
@@ -99,13 +122,17 @@ struct SnapshotCache: Sendable {
                 }
                 guard !byComposite.isEmpty else { continue }
                 self.perProviderByDevice[deviceID] = byComposite
+                let current = self.deviceMetadata[deviceID]
                 self.deviceMetadata[deviceID] = Metadata(
                     deviceName: snapshot.deviceName,
                     appVersion: snapshot.appVersion,
                     mobileVersion: snapshot.mobileVersion,
                     syncTimestamp: snapshot.syncTimestamp,
                     notificationPushEnabled: snapshot.notificationPushEnabled,
-                    powerStatus: snapshot.powerStatus)
+                    snapshotPowerStatus: Metadata.newestPowerStatus(
+                        current?.snapshotPowerStatus,
+                        snapshot.powerStatus),
+                    deviceStatusPowerStatus: current?.deviceStatusPowerStatus)
             }
         }
 
@@ -124,7 +151,19 @@ struct SnapshotCache: Sendable {
                         mobileVersion: snapshot.mobileVersion,
                         syncTimestamp: snapshot.syncTimestamp,
                         notificationPushEnabled: snapshot.notificationPushEnabled,
-                        powerStatus: snapshot.powerStatus)
+                        snapshotPowerStatus: snapshot.powerStatus,
+                        deviceStatusPowerStatus: nil)
+                } else if let current = self.deviceMetadata[deviceID] {
+                    self.deviceMetadata[deviceID] = Metadata(
+                        deviceName: current.deviceName,
+                        appVersion: current.appVersion,
+                        mobileVersion: current.mobileVersion,
+                        syncTimestamp: current.syncTimestamp,
+                        notificationPushEnabled: current.notificationPushEnabled,
+                        snapshotPowerStatus: Metadata.newestPowerStatus(
+                            current.snapshotPowerStatus,
+                            snapshot.powerStatus),
+                        deviceStatusPowerStatus: current.deviceStatusPowerStatus)
                 }
             }
         }
@@ -144,13 +183,15 @@ struct SnapshotCache: Sendable {
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
+            let current = self.deviceMetadata[envelope.deviceID]
             self.deviceMetadata[envelope.deviceID] = Metadata(
                 deviceName: envelope.deviceName,
                 appVersion: envelope.appVersion,
                 mobileVersion: envelope.mobileVersion,
                 syncTimestamp: envelope.syncTimestamp,
                 notificationPushEnabled: envelope.notificationPushEnabled,
-                powerStatus: self.deviceMetadata[envelope.deviceID]?.powerStatus)
+                snapshotPowerStatus: current?.snapshotPowerStatus,
+                deviceStatusPowerStatus: current?.deviceStatusPowerStatus)
         }
 
         self.applyDeviceStatuses(deviceStatuses)
@@ -186,13 +227,15 @@ struct SnapshotCache: Sendable {
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
+            let current = self.deviceMetadata[envelope.deviceID]
             self.deviceMetadata[envelope.deviceID] = Metadata(
                 deviceName: envelope.deviceName,
                 appVersion: envelope.appVersion,
                 mobileVersion: envelope.mobileVersion,
                 syncTimestamp: envelope.syncTimestamp,
                 notificationPushEnabled: envelope.notificationPushEnabled,
-                powerStatus: self.deviceMetadata[envelope.deviceID]?.powerStatus)
+                snapshotPowerStatus: current?.snapshotPowerStatus,
+                deviceStatusPowerStatus: current?.deviceStatusPowerStatus)
         }
     }
 
@@ -212,9 +255,12 @@ struct SnapshotCache: Sendable {
                 mobileVersion: statusIsFreshest
                     ? (status.mobileVersion ?? current?.mobileVersion)
                     : (current?.mobileVersion ?? status.mobileVersion),
-                syncTimestamp: max(current?.syncTimestamp ?? status.syncTimestamp, status.syncTimestamp),
+                syncTimestamp: current?.syncTimestamp ?? status.syncTimestamp,
                 notificationPushEnabled: current?.notificationPushEnabled,
-                powerStatus: status.powerStatus)
+                snapshotPowerStatus: current?.snapshotPowerStatus,
+                deviceStatusPowerStatus: Metadata.newestPowerStatus(
+                    current?.deviceStatusPowerStatus,
+                    status.powerStatus))
         }
     }
 
@@ -228,7 +274,8 @@ struct SnapshotCache: Sendable {
                 mobileVersion: current.mobileVersion,
                 syncTimestamp: current.syncTimestamp,
                 notificationPushEnabled: current.notificationPushEnabled,
-                powerStatus: nil)
+                snapshotPowerStatus: current.snapshotPowerStatus,
+                deviceStatusPowerStatus: nil)
         }
     }
 
@@ -246,7 +293,8 @@ struct SnapshotCache: Sendable {
                 mobileVersion: snapshot.mobileVersion,
                 syncTimestamp: snapshot.syncTimestamp,
                 notificationPushEnabled: snapshot.notificationPushEnabled,
-                powerStatus: snapshot.powerStatus)
+                snapshotPowerStatus: snapshot.powerStatus,
+                deviceStatusPowerStatus: nil)
         }
     }
 
@@ -286,7 +334,10 @@ struct SnapshotCache: Sendable {
                     // disappear entirely. Apply the same filter to legacy
                     // for consistency.
                     if let legacy = self.legacyByDevice[deviceID] {
-                        result.append(Self.filterSnapshotProviders(legacy))
+                        let filtered = Self.filterSnapshotProviders(legacy)
+                        result.append(Self.applyingMetadata(
+                            self.deviceMetadata[deviceID],
+                            to: filtered))
                     }
                     continue
                 }
@@ -304,12 +355,31 @@ struct SnapshotCache: Sendable {
                     notificationPushEnabled: meta?.notificationPushEnabled,
                     powerStatus: meta?.powerStatus))
             } else if let legacy = self.legacyByDevice[deviceID] {
-                result.append(Self.filterSnapshotProviders(legacy))
+                let filtered = Self.filterSnapshotProviders(legacy)
+                result.append(Self.applyingMetadata(
+                    self.deviceMetadata[deviceID],
+                    to: filtered))
             }
         }
 
         result.sort { $0.syncTimestamp > $1.syncTimestamp }
         return result
+    }
+
+    private static func applyingMetadata(
+        _ metadata: Metadata?,
+        to snapshot: SyncedUsageSnapshot) -> SyncedUsageSnapshot
+    {
+        guard let metadata else { return snapshot }
+        return SyncedUsageSnapshot(
+            providers: snapshot.providers,
+            syncTimestamp: snapshot.syncTimestamp,
+            deviceName: metadata.deviceName,
+            deviceID: snapshot.deviceID,
+            appVersion: metadata.appVersion,
+            mobileVersion: metadata.mobileVersion,
+            notificationPushEnabled: metadata.notificationPushEnabled,
+            powerStatus: metadata.powerStatus)
     }
 
     /// Apply `dropOrphansAndStale` to a `SyncedUsageSnapshot.providers` list

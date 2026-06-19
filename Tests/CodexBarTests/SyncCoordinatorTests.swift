@@ -28,7 +28,11 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     // DeviceStatus write tracking
     var deviceStatusPushCount = 0
     var lastDeviceStatus: SyncDeviceStatus?
+    var deviceStatusPushes: [SyncDeviceStatus] = []
+    var deviceStatusPushesInFlight = 0
+    var maxConcurrentDeviceStatusPushes = 0
     var nextDeviceStatusResult: SyncPushResult = .success
+    var deviceStatusPushDelay: (() async -> Void)?
 
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
@@ -63,6 +67,15 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     func pushDeviceStatus(_ status: SyncDeviceStatus) async -> SyncPushResult {
         self.deviceStatusPushCount += 1
         self.lastDeviceStatus = status
+        self.deviceStatusPushes.append(status)
+        self.deviceStatusPushesInFlight += 1
+        self.maxConcurrentDeviceStatusPushes = max(
+            self.maxConcurrentDeviceStatusPushes,
+            self.deviceStatusPushesInFlight)
+        if let deviceStatusPushDelay {
+            await deviceStatusPushDelay()
+        }
+        self.deviceStatusPushesInFlight -= 1
         return self.nextDeviceStatusResult
     }
 }
