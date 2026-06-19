@@ -69,10 +69,12 @@ struct AboutSyncDetailView: View {
             } header: {
                 Text("Remote Config")
             } footer: {
-                Text("Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
+                Text(
+                    "Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
             }
 
             // MARK: Mac Update Prompt
+
             if self.usageData.usingKVSFallback {
                 Section {
                     HStack(spacing: 12) {
@@ -82,7 +84,8 @@ struct AboutSyncDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Update QuotaKit on your Mac")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.")
+                            Text(
+                                "Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -92,6 +95,7 @@ struct AboutSyncDetailView: View {
             }
 
             // MARK: Sync Status
+
             Section {
                 TimelineView(.periodic(
                     from: .now,
@@ -132,6 +136,7 @@ struct AboutSyncDetailView: View {
             }
 
             // MARK: Devices
+
             Section {
                 if self.usageData.deviceSnapshots.isEmpty {
                     Text("No devices synced yet")
@@ -154,6 +159,13 @@ struct AboutSyncDetailView: View {
                                     Text("\(device.providers.count) providers")
                                         .font(.caption)
                                         .foregroundStyle(.secondary)
+                                    if let powerStatus = device.powerStatus,
+                                       powerStatus.isDisplayable
+                                    {
+                                        Text("·")
+                                            .foregroundStyle(.quaternary)
+                                        DevicePowerStatusChip(status: powerStatus)
+                                    }
                                 }
                                 // Per-device Mac version line. Appears only
                                 // when the device reported a version (pre-1.1
@@ -288,7 +300,7 @@ struct AboutSyncDetailView: View {
 
     private var syncStatusTimelineReferenceDate: Date? {
         switch self.usageData.syncStatus {
-        case .synced(let lastConfirmedSync):
+        case let .synced(lastConfirmedSync):
             lastConfirmedSync
         case .syncing, .error:
             self.usageData.snapshot?.syncTimestamp
@@ -299,20 +311,114 @@ struct AboutSyncDetailView: View {
 
     private func syncStatusDetail(now: Date) -> String? {
         switch self.usageData.syncStatus {
-        case .synced(let lastConfirmedSync):
-            return SyncFreshnessFormatter.lastSyncedText(
+        case let .synced(lastConfirmedSync):
+            SyncFreshnessFormatter.lastSyncedText(
                 since: lastConfirmedSync,
                 now: now)
         case .syncing:
-            return SyncFreshnessFormatter.refreshingText(
+            SyncFreshnessFormatter.refreshingText(
                 lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
                 now: now)
-        case .noData: return String(localized: "Waiting for Mac to push data")
-        case .incompatibleData: return String(localized: "Please update QuotaKit on Mac")
+        case .noData: String(localized: "Waiting for Mac to push data")
+        case .incompatibleData: String(localized: "Please update QuotaKit on Mac")
         case .error:
-            return SyncFreshnessFormatter.refreshFailedText(
+            SyncFreshnessFormatter.refreshFailedText(
                 lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
                 now: now)
+        }
+    }
+}
+
+private struct DevicePowerStatusChip: View {
+    let status: SyncDevicePowerStatus
+
+    private var percentText: String? {
+        self.status.batteryPercent.map { "\($0)%" }
+    }
+
+    private var displayText: String? {
+        guard let percentText else { return nil }
+        switch self.status.state {
+        case .charging:
+            return String(format: String(localized: "%@ charging"), percentText)
+        case .charged:
+            return String(format: String(localized: "%@ charged"), percentText)
+        case .pluggedIn:
+            return String(format: String(localized: "%@ plugged in"), percentText)
+        case .battery, .unknown:
+            return percentText
+        case .noBattery:
+            return nil
+        }
+    }
+
+    private var symbolName: String {
+        switch self.status.state {
+        case .charging:
+            "battery.100.bolt"
+        case .charged, .pluggedIn:
+            self.status.state == .pluggedIn ? "powerplug.fill" : "battery.100"
+        case .battery:
+            self.batterySymbolName
+        case .noBattery, .unknown:
+            "battery.0"
+        }
+    }
+
+    private var batterySymbolName: String {
+        guard let percent = self.status.batteryPercent else { return "battery.0" }
+        switch percent {
+        case 76...100: return "battery.100"
+        case 51...75: return "battery.75"
+        case 26...50: return "battery.50"
+        case 11...25: return "battery.25"
+        default: return "battery.0"
+        }
+    }
+
+    private var tint: Color {
+        switch self.status.state {
+        case .charging, .charged, .pluggedIn:
+            .green
+        case .battery:
+            (self.status.batteryPercent ?? 100) <= 20 ? .orange : .secondary
+        case .noBattery, .unknown:
+            .secondary
+        }
+    }
+
+    private var stateText: String {
+        switch self.status.state {
+        case .battery:
+            String(localized: "On Battery")
+        case .charging:
+            String(localized: "Charging")
+        case .charged:
+            String(localized: "Charged")
+        case .pluggedIn:
+            String(localized: "Plugged In")
+        case .noBattery:
+            String(localized: "No Battery")
+        case .unknown:
+            String(localized: "Unknown")
+        }
+    }
+
+    var body: some View {
+        if let displayText, let percentText {
+            HStack(spacing: 3) {
+                Image(systemName: self.symbolName)
+                    .font(.caption2.weight(.semibold))
+                Text(displayText)
+                    .font(.caption)
+            }
+            .foregroundStyle(self.tint)
+            .accessibilityElement(children: .ignore)
+            .accessibilityLabel(
+                Text(String(
+                    format: String(localized: "Battery %@, %@"),
+                    percentText,
+                    self.stateText)))
         }
     }
 }

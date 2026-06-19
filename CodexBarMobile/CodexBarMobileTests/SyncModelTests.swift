@@ -96,6 +96,28 @@ struct SyncModelTests {
 
         #expect(decoded.deviceName == "Old Mac")
         #expect(decoded.deviceID == nil)
+        #expect(decoded.powerStatus == nil)
+    }
+
+    @Test("SyncDevicePowerStatus clamps percentage and decodes unknown states")
+    func powerStatusClampsAndDecodesUnknownState() throws {
+        let clamped = SyncDevicePowerStatus(
+            batteryPercent: 140,
+            state: .battery,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        #expect(clamped.batteryPercent == 100)
+
+        let json = """
+        {
+            "batteryPercent": 61,
+            "state": "solar",
+            "updatedAt": "2023-11-14T22:13:20Z"
+        }
+        """
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(SyncDevicePowerStatus.self, from: Data(json.utf8))
+        #expect(decoded.batteryPercent == 61)
+        #expect(decoded.state == .unknown)
     }
 
     @Test("SyncRateWindow remainingPercent clamps to zero")
@@ -160,7 +182,7 @@ struct SyncModelTests {
 
         #expect(window.identity == nil)
         #expect(window.usedPercent == 37)
-        #expect(window.windowMinutes == 43_200)
+        #expect(window.windowMinutes == 43200)
         #expect(window.resetsAt == Date(timeIntervalSince1970: 1_700_000_000))
     }
 
@@ -176,7 +198,7 @@ struct SyncModelTests {
         let window = SyncRateWindow(
             label: "Weekly",
             usedPercent: 50,
-            windowMinutes: 10_080,
+            windowMinutes: 10080,
             resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
             resetDescription: nil,
             pace: pace)
@@ -491,6 +513,7 @@ struct SyncModelTests {
     }
 
     // MARK: - Future-field resilience (Build 78 · Fix C)
+
     //
     // Scenario: Mac 0.21 (hypothetical future version) adds a new field to
     // `ProviderUsageSnapshot` or `SyncedUsageSnapshot` that iOS 1.3.0 doesn't
@@ -509,12 +532,14 @@ struct SyncModelTests {
 
     private static func injectFutureFields(
         into data: Data,
-        extras: [String: Any]
-    ) throws -> Data {
+        extras: [String: Any]) throws -> Data
+    {
         guard var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw FutureFieldTestError.notATopLevelDictionary
         }
-        for (key, value) in extras { dict[key] = value }
+        for (key, value) in extras {
+            dict[key] = value
+        }
         return try JSONSerialization.data(withJSONObject: dict)
     }
 

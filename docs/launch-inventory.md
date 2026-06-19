@@ -103,6 +103,7 @@ Defined in `Shared/iCloud/CloudConstants.swift`.
 | --- | --- | --- | --- | --- |
 | `DeviceSnapshotsZone` | `DeviceSnapshot` | Mac | iOS | Legacy per-device monolithic snapshot. Payload is JSON `SyncedUsageSnapshot` stored in `payload`. |
 | `DeviceProvidersZone` | `DeviceProviderSnapshot` | Mac | iOS | Current per-provider incremental sync. One record per `(deviceID, providerID, accountEmail)`. Payload is zlib-compressed JSON `ProviderUsageEnvelope` stored in `payload`. |
+| `DeviceProvidersZone` | `DeviceStatus` | Mac | iOS | Device-level status such as Mac battery state. Payload is zlib-compressed JSON `SyncDeviceStatus` stored in `payload`. |
 | `DeviceProvidersZone` | `ProviderAccountLinkage` | iOS | iOS | User-confirmed account merge/unmerge records. Record name format `linkage-{UUID}`. |
 | default private database zone | `DeviceSnapshot` | older Macs | iOS fallback | Pre-custom-zone legacy fallback. |
 | `QuotaTransitionsZone` | `QuotaTransition` | legacy only | iOS cleanup only | Legacy Build 42-49 transition zone; no new records should be written. |
@@ -124,6 +125,15 @@ Current top-level `DeviceProviderSnapshot` fields:
 - `providerName`
 - `accountEmail`
 - `lastUpdated`
+- `encodingVersion`
+- `payload`
+
+Current top-level `DeviceStatus` fields:
+
+- `deviceID`
+- `deviceName`
+- `appVersion`
+- `syncTimestamp`
 - `encodingVersion`
 - `payload`
 

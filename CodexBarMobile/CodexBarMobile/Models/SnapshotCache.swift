@@ -22,6 +22,7 @@ struct SnapshotCache: Sendable {
         let mobileVersion: String?
         let syncTimestamp: Date
         let notificationPushEnabled: Bool?
+        let powerStatus: SyncDevicePowerStatus?
     }
 
     /// Per-provider zone data. Keyed `deviceID → compositeKey → provider`.
@@ -81,8 +82,8 @@ struct SnapshotCache: Sendable {
     /// `legacySnapshots` = monolithic snapshots from the legacy zones.
     mutating func replaceFromFullFetch(
         perProviderSnapshots: [SyncedUsageSnapshot]?,
-        legacySnapshots: [SyncedUsageSnapshot]?
-    ) {
+        legacySnapshots: [SyncedUsageSnapshot]?)
+    {
         if let perProviderSnapshots {
             self.perProviderByDevice.removeAll(keepingCapacity: true)
 
@@ -103,7 +104,8 @@ struct SnapshotCache: Sendable {
                     appVersion: snapshot.appVersion,
                     mobileVersion: snapshot.mobileVersion,
                     syncTimestamp: snapshot.syncTimestamp,
-                    notificationPushEnabled: snapshot.notificationPushEnabled)
+                    notificationPushEnabled: snapshot.notificationPushEnabled,
+                    powerStatus: snapshot.powerStatus)
             }
         }
 
@@ -121,7 +123,8 @@ struct SnapshotCache: Sendable {
                         appVersion: snapshot.appVersion,
                         mobileVersion: snapshot.mobileVersion,
                         syncTimestamp: snapshot.syncTimestamp,
-                        notificationPushEnabled: snapshot.notificationPushEnabled)
+                        notificationPushEnabled: snapshot.notificationPushEnabled,
+                        powerStatus: snapshot.powerStatus)
                 }
             }
         }
@@ -132,8 +135,10 @@ struct SnapshotCache: Sendable {
     /// data is still as-of-last-full-fetch.
     mutating func applyDelta(
         upserted: [ProviderUsageEnvelope],
-        deletedRecordNames: [String]
-    ) {
+        deletedRecordNames: [String],
+        deviceStatuses: [SyncDeviceStatus] = [],
+        deletedDeviceStatusIDs: [String] = [])
+    {
         for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
@@ -144,8 +149,12 @@ struct SnapshotCache: Sendable {
                 appVersion: envelope.appVersion,
                 mobileVersion: envelope.mobileVersion,
                 syncTimestamp: envelope.syncTimestamp,
-                notificationPushEnabled: envelope.notificationPushEnabled)
+                notificationPushEnabled: envelope.notificationPushEnabled,
+                powerStatus: self.deviceMetadata[envelope.deviceID]?.powerStatus)
         }
+
+        self.applyDeviceStatuses(deviceStatuses)
+        self.clearDeviceStatuses(for: deletedDeviceStatusIDs)
 
         for recordName in deletedRecordNames {
             // CloudKit record name format is "deviceID|providerID|accountEmail".
@@ -182,7 +191,44 @@ struct SnapshotCache: Sendable {
                 appVersion: envelope.appVersion,
                 mobileVersion: envelope.mobileVersion,
                 syncTimestamp: envelope.syncTimestamp,
-                notificationPushEnabled: envelope.notificationPushEnabled)
+                notificationPushEnabled: envelope.notificationPushEnabled,
+                powerStatus: self.deviceMetadata[envelope.deviceID]?.powerStatus)
+        }
+    }
+
+    mutating func applyDeviceStatuses(_ statuses: [SyncDeviceStatus]) {
+        guard !statuses.isEmpty else { return }
+        for status in statuses {
+            let current = self.deviceMetadata[status.deviceID]
+            let statusIsFreshest = current == nil
+                || status.syncTimestamp >= (current?.syncTimestamp ?? status.syncTimestamp)
+            self.deviceMetadata[status.deviceID] = Metadata(
+                deviceName: statusIsFreshest
+                    ? status.deviceName
+                    : (current?.deviceName ?? status.deviceName),
+                appVersion: statusIsFreshest
+                    ? (status.appVersion ?? current?.appVersion)
+                    : (current?.appVersion ?? status.appVersion),
+                mobileVersion: statusIsFreshest
+                    ? (status.mobileVersion ?? current?.mobileVersion)
+                    : (current?.mobileVersion ?? status.mobileVersion),
+                syncTimestamp: max(current?.syncTimestamp ?? status.syncTimestamp, status.syncTimestamp),
+                notificationPushEnabled: current?.notificationPushEnabled,
+                powerStatus: status.powerStatus)
+        }
+    }
+
+    private mutating func clearDeviceStatuses(for deviceIDs: [String]) {
+        guard !deviceIDs.isEmpty else { return }
+        for deviceID in deviceIDs {
+            guard let current = self.deviceMetadata[deviceID] else { continue }
+            self.deviceMetadata[deviceID] = Metadata(
+                deviceName: current.deviceName,
+                appVersion: current.appVersion,
+                mobileVersion: current.mobileVersion,
+                syncTimestamp: current.syncTimestamp,
+                notificationPushEnabled: current.notificationPushEnabled,
+                powerStatus: nil)
         }
     }
 
@@ -199,7 +245,8 @@ struct SnapshotCache: Sendable {
                 appVersion: snapshot.appVersion,
                 mobileVersion: snapshot.mobileVersion,
                 syncTimestamp: snapshot.syncTimestamp,
-                notificationPushEnabled: snapshot.notificationPushEnabled)
+                notificationPushEnabled: snapshot.notificationPushEnabled,
+                powerStatus: snapshot.powerStatus)
         }
     }
 
@@ -254,7 +301,8 @@ struct SnapshotCache: Sendable {
                     deviceID: deviceID,
                     appVersion: meta?.appVersion,
                     mobileVersion: meta?.mobileVersion,
-                    notificationPushEnabled: meta?.notificationPushEnabled))
+                    notificationPushEnabled: meta?.notificationPushEnabled,
+                    powerStatus: meta?.powerStatus))
             } else if let legacy = self.legacyByDevice[deviceID] {
                 result.append(Self.filterSnapshotProviders(legacy))
             }
@@ -269,8 +317,8 @@ struct SnapshotCache: Sendable {
     /// the per-provider path uses. Returns a snapshot identical to the
     /// input except with orphan / stale providers removed.
     private static func filterSnapshotProviders(
-        _ snapshot: SyncedUsageSnapshot
-    ) -> SyncedUsageSnapshot {
+        _ snapshot: SyncedUsageSnapshot) -> SyncedUsageSnapshot
+    {
         guard !snapshot.providers.isEmpty else { return snapshot }
         var byComposite: [String: ProviderUsageSnapshot] = [:]
         for provider in snapshot.providers {
@@ -291,7 +339,8 @@ struct SnapshotCache: Sendable {
             deviceID: snapshot.deviceID,
             appVersion: snapshot.appVersion,
             mobileVersion: snapshot.mobileVersion,
-            notificationPushEnabled: snapshot.notificationPushEnabled)
+            notificationPushEnabled: snapshot.notificationPushEnabled,
+            powerStatus: snapshot.powerStatus)
     }
 
     /// Drop per-provider entries that are almost certainly orphan / stale
@@ -332,8 +381,8 @@ struct SnapshotCache: Sendable {
     /// - Toggling Mac on/off clears stale records as soon as Mac resumes
     ///   writing (deviceFreshest moves forward, stale cutoff slides up).
     static func dropOrphansAndStale(
-        _ byComposite: [String: ProviderUsageSnapshot]
-    ) -> [String: ProviderUsageSnapshot] {
+        _ byComposite: [String: ProviderUsageSnapshot]) -> [String: ProviderUsageSnapshot]
+    {
         guard !byComposite.isEmpty else { return [:] }
 
         // Rule 1: group by providerID; drop nil-email when a REAL (non-mock)

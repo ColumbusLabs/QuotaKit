@@ -140,6 +140,10 @@ struct JSONCodecConsistencyTests {
 
     @Test("SyncedUsageSnapshot round-trips with syncTimestamp")
     func syncedUsageSnapshotRoundTrip() throws {
+        let powerStatus = SyncDevicePowerStatus(
+            batteryPercent: 83,
+            state: .charging,
+            updatedAt: date2)
         let original = SyncedUsageSnapshot(
             providers: [],
             syncTimestamp: date1,
@@ -147,10 +151,42 @@ struct JSONCodecConsistencyTests {
             deviceID: "abc-123",
             appVersion: "0.20.2",
             mobileVersion: "1.3.0",
-            notificationPushEnabled: true)
+            notificationPushEnabled: true,
+            powerStatus: powerStatus)
         let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
         let decoded = try CloudSyncConstants.makeJSONDecoder().decode(SyncedUsageSnapshot.self, from: encoded)
         #expect(decoded.syncTimestamp == original.syncTimestamp)
+        #expect(decoded.powerStatus == powerStatus)
+    }
+
+    @Test("SyncDevicePowerStatus round-trips with updatedAt")
+    func syncDevicePowerStatusRoundTrip() throws {
+        let original = SyncDevicePowerStatus(
+            batteryPercent: 19,
+            state: .battery,
+            updatedAt: date1)
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(SyncDevicePowerStatus.self, from: encoded)
+        #expect(decoded == original)
+    }
+
+    @Test("SyncDeviceStatus round-trips with nested power status")
+    func syncDeviceStatusRoundTrip() throws {
+        let original = SyncDeviceStatus(
+            deviceID: "abc-123",
+            deviceName: "MacBook Pro",
+            appVersion: "0.33.0",
+            mobileVersion: "1.11.1",
+            syncTimestamp: date1,
+            powerStatus: SyncDevicePowerStatus(
+                batteryPercent: 100,
+                state: .charged,
+                updatedAt: date2))
+        let encoded = try CloudSyncConstants.makeJSONEncoder().encode(original)
+        let decoded = try CloudSyncConstants.makeJSONDecoder()
+            .decode(SyncDeviceStatus.self, from: encoded)
+        #expect(decoded == original)
     }
 
     @Test("ProviderUsageEnvelope round-trips with syncTimestamp")

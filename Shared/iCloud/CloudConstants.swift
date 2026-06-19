@@ -60,6 +60,16 @@ public enum CloudSyncConstants {
     /// decoding garbage.
     public static let providerPayloadVersion = 1
 
+    /// Record type for device-level status records in `DeviceProvidersZone`.
+    /// These records are keyed by `deviceID` and carry metadata that is not
+    /// specific to any provider, such as Mac battery state. They intentionally
+    /// live in the provider zone so the existing zone subscription wakes iOS
+    /// for status-only changes.
+    public static let deviceStatusRecordType = "DeviceStatus"
+
+    /// Version for the JSON+zlib `SyncDeviceStatus` payload.
+    public static let deviceStatusPayloadVersion = 1
+
     /// Record type for user-confirmed account linkages between provider
     /// snapshots whose union-find identifiers DON'T overlap on their own
     /// (e.g. one Mac is too old to emit `accountIdentities` and the other
@@ -77,6 +87,7 @@ public enum CloudSyncConstants {
     public static let providerAccountLinkageRecordType = "ProviderAccountLinkage"
 
     // MARK: - JSON codec factories
+
     //
     // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go
     // through these factories. The Build 66 root cause was a `JSONEncoder()`

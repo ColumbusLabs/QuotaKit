@@ -16,8 +16,8 @@ struct SnapshotCacheTests {
         id: String,
         name: String? = nil,
         email: String? = nil,
-        lastUpdated: Date
-    ) -> ProviderUsageSnapshot {
+        lastUpdated: Date) -> ProviderUsageSnapshot
+    {
         // Include a non-empty primary rate window so the provider does NOT
         // trip the ghost filter — test fixtures represent real providers.
         ProviderUsageSnapshot(
@@ -40,8 +40,8 @@ struct SnapshotCacheTests {
         deviceID: String?,
         deviceName: String,
         providers: [ProviderUsageSnapshot],
-        timestamp: Date
-    ) -> SyncedUsageSnapshot {
+        timestamp: Date) -> SyncedUsageSnapshot
+    {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp,
@@ -57,8 +57,8 @@ struct SnapshotCacheTests {
         providerID: String,
         email: String? = nil,
         providerLastUpdated: Date,
-        syncTimestamp: Date
-    ) -> ProviderUsageEnvelope {
+        syncTimestamp: Date) -> ProviderUsageEnvelope
+    {
         ProviderUsageEnvelope(
             deviceID: deviceID,
             deviceName: deviceName,
@@ -66,10 +66,21 @@ struct SnapshotCacheTests {
             mobileVersion: "1.3.0",
             syncTimestamp: syncTimestamp,
             notificationPushEnabled: true,
-            provider: provider(
+            provider: self.provider(
                 id: providerID,
                 email: email,
                 lastUpdated: providerLastUpdated))
+    }
+
+    private func powerStatus(
+        percent: Int = 82,
+        state: SyncDevicePowerStatus.State = .charging,
+        updatedAt: Date? = nil) -> SyncDevicePowerStatus
+    {
+        SyncDevicePowerStatus(
+            batteryPercent: percent,
+            state: state,
+            updatedAt: updatedAt ?? self.t2)
     }
 
     // MARK: - Basic cache operations
@@ -84,9 +95,9 @@ struct SnapshotCacheTests {
     func applyDeltaIsolated() {
         var cache = SnapshotCache()
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providerID: "codex", providerLastUpdated: t1, syncTimestamp: t1)],
+                providerID: "codex", providerLastUpdated: self.t1, syncTimestamp: self.t1)],
             deletedRecordNames: [])
 
         #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
@@ -99,12 +110,12 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
-                    providerID: "codex", providerLastUpdated: t1, syncTimestamp: t1),
-                envelope(
+                    providerID: "codex", providerLastUpdated: self.t1, syncTimestamp: self.t1),
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
-                    providerID: "claude", providerLastUpdated: t1, syncTimestamp: t1),
+                    providerID: "claude", providerLastUpdated: self.t1, syncTimestamp: self.t1),
             ],
             deletedRecordNames: [])
         #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
@@ -121,9 +132,9 @@ struct SnapshotCacheTests {
     func applyDeltaDeleteLastRemovesDevice() {
         var cache = SnapshotCache()
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providerID: "codex", providerLastUpdated: t1, syncTimestamp: t1)],
+                providerID: "codex", providerLastUpdated: self.t1, syncTimestamp: self.t1)],
             deletedRecordNames: [])
         cache.applyDelta(
             upserted: [],
@@ -134,20 +145,92 @@ struct SnapshotCacheTests {
         #expect(cache.deviceMetadata["mac-A"] != nil)
     }
 
+    @Test("DeviceStatus overlay updates metadata and power status")
+    func deviceStatusOverlayUpdatesMetadataAndPowerStatus() throws {
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Old Mac",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+
+        let statusPower = self.powerStatus(percent: 77, state: .pluggedIn, updatedAt: self.t2)
+        cache.applyDeviceStatuses([
+            SyncDeviceStatus(
+                deviceID: "mac-A",
+                deviceName: "MacBook Pro",
+                appVersion: "0.33.0",
+                mobileVersion: "1.11.1",
+                syncTimestamp: self.t2,
+                powerStatus: statusPower),
+        ])
+
+        let result = cache.buildDeviceSnapshots()
+        let mac = try #require(result.first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.deviceName == "MacBook Pro")
+        #expect(mac.appVersion == "0.33.0")
+        #expect(mac.mobileVersion == "1.11.1")
+        #expect(mac.syncTimestamp == self.t2)
+        #expect(mac.powerStatus == statusPower)
+    }
+
+    @Test("DeviceStatus delta applies and deletion clears only power status")
+    func deviceStatusDeltaAppliesAndDeletionClearsPowerStatus() throws {
+        var cache = SnapshotCache()
+        cache.applyDelta(
+            upserted: [self.envelope(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providerID: "codex",
+                providerLastUpdated: self.t1,
+                syncTimestamp: self.t1)],
+            deletedRecordNames: [])
+
+        let statusPower = self.powerStatus(percent: 21, state: .battery, updatedAt: self.t2)
+        cache.applyDelta(
+            upserted: [],
+            deletedRecordNames: [],
+            deviceStatuses: [
+                SyncDeviceStatus(
+                    deviceID: "mac-A",
+                    deviceName: "Mac A",
+                    appVersion: "0.33.0",
+                    mobileVersion: "1.11.1",
+                    syncTimestamp: self.t2,
+                    powerStatus: statusPower),
+            ])
+
+        var mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.powerStatus == statusPower)
+
+        cache.applyDelta(
+            upserted: [],
+            deletedRecordNames: [],
+            deletedDeviceStatusIDs: ["mac-A"])
+
+        mac = try #require(cache.buildDeviceSnapshots()
+            .first(where: { $0.deviceID == "mac-A" }))
+        #expect(mac.deviceName == "Mac A")
+        #expect(mac.powerStatus == nil)
+    }
+
     // MARK: - Priority merge
 
     @Test("Device in per-provider bucket wins over legacy bucket")
     func priorityPerProviderWins() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "codex", lastUpdated: t3)],
-                timestamp: t3)],
-            legacySnapshots: [snapshot(
+                providers: [self.provider(id: "codex", lastUpdated: self.t3)],
+                timestamp: self.t3)],
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "claude", lastUpdated: t1)],
-                timestamp: t1)])
+                providers: [self.provider(id: "claude", lastUpdated: self.t1)],
+                timestamp: self.t1)])
 
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
@@ -159,10 +242,10 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-B", deviceName: "Mac B",
-                providers: [provider(id: "claude", lastUpdated: t1)],
-                timestamp: t1)])
+                providers: [self.provider(id: "claude", lastUpdated: self.t1)],
+                timestamp: self.t1)])
 
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
@@ -178,43 +261,43 @@ struct SnapshotCacheTests {
         // are in legacy (because P4 is dual-write; Mac A still writes legacy
         // too).
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "codex", lastUpdated: t3)],
-                timestamp: t3)],
+                providers: [self.provider(id: "codex", lastUpdated: self.t3)],
+                timestamp: self.t3)],
             legacySnapshots: [
-                snapshot(
+                self.snapshot(
                     deviceID: "mac-A", deviceName: "Mac A",
-                    providers: [provider(id: "codex", lastUpdated: t2)], // older than per-provider
-                    timestamp: t2),
-                snapshot(
+                    providers: [self.provider(id: "codex", lastUpdated: self.t2)], // older than per-provider
+                    timestamp: self.t2),
+                self.snapshot(
                     deviceID: "mac-B", deviceName: "Mac B",
-                    providers: [provider(id: "claude", lastUpdated: t2)],
-                    timestamp: t2),
+                    providers: [self.provider(id: "claude", lastUpdated: self.t2)],
+                    timestamp: self.t2),
             ])
 
         var result = cache.buildDeviceSnapshots()
         #expect(result.count == 2)
         let macA = try? #require(result.first(where: { $0.deviceID == "mac-A" }))
         let macB = try? #require(result.first(where: { $0.deviceID == "mac-B" }))
-        #expect(macA?.syncTimestamp == t3) // per-provider won
-        #expect(macB?.syncTimestamp == t2) // legacy path
+        #expect(macA?.syncTimestamp == self.t3) // per-provider won
+        #expect(macB?.syncTimestamp == self.t2) // legacy path
 
         // Now a silent push from Mac A with a newer codex provider.
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providerID: "codex",
-                providerLastUpdated: t3.addingTimeInterval(100),
-                syncTimestamp: t3.addingTimeInterval(100))],
+                providerLastUpdated: self.t3.addingTimeInterval(100),
+                syncTimestamp: self.t3.addingTimeInterval(100))],
             deletedRecordNames: [])
 
         result = cache.buildDeviceSnapshots()
         #expect(result.count == 2) // Mac B still there, not touched
         let macBAfter = try? #require(result.first(where: { $0.deviceID == "mac-B" }))
-        #expect(macBAfter?.syncTimestamp == t2) // UNCHANGED — incremental never touched legacy
+        #expect(macBAfter?.syncTimestamp == self.t2) // UNCHANGED — incremental never touched legacy
         let macAAfter = try? #require(result.first(where: { $0.deviceID == "mac-A" }))
-        #expect(macAAfter?.syncTimestamp == t3.addingTimeInterval(100))
+        #expect(macAAfter?.syncTimestamp == self.t3.addingTimeInterval(100))
     }
 
     @Test("Scenario 2: Both Macs on new zone — both refresh independently")
@@ -222,31 +305,31 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [
-                snapshot(
+                self.snapshot(
                     deviceID: "mac-A", deviceName: "Mac A",
-                    providers: [provider(id: "codex", lastUpdated: t1)],
-                    timestamp: t1),
-                snapshot(
+                    providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                    timestamp: self.t1),
+                self.snapshot(
                     deviceID: "mac-B", deviceName: "Mac B",
-                    providers: [provider(id: "claude", lastUpdated: t1)],
-                    timestamp: t1),
+                    providers: [self.provider(id: "claude", lastUpdated: self.t1)],
+                    timestamp: self.t1),
             ],
             legacySnapshots: [])
 
         // Silent push from Mac A.
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providerID: "codex",
-                providerLastUpdated: t2, syncTimestamp: t2)],
+                providerLastUpdated: self.t2, syncTimestamp: self.t2)],
             deletedRecordNames: [])
 
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 2)
         let macA = try? #require(result.first(where: { $0.deviceID == "mac-A" }))
         let macB = try? #require(result.first(where: { $0.deviceID == "mac-B" }))
-        #expect(macA?.syncTimestamp == t2)
-        #expect(macB?.syncTimestamp == t1) // Mac B stays until its own push
+        #expect(macA?.syncTimestamp == self.t2)
+        #expect(macB?.syncTimestamp == self.t1) // Mac B stays until its own push
     }
 
     @Test("Scenario 3: Both Macs legacy-only — per-provider bucket stays empty")
@@ -255,14 +338,14 @@ struct SnapshotCacheTests {
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
             legacySnapshots: [
-                snapshot(
+                self.snapshot(
                     deviceID: "mac-A", deviceName: "Mac A",
-                    providers: [provider(id: "codex", lastUpdated: t1)],
-                    timestamp: t1),
-                snapshot(
+                    providers: [self.provider(id: "codex", lastUpdated: self.t1)],
+                    timestamp: self.t1),
+                self.snapshot(
                     deviceID: "mac-B", deviceName: "Mac B",
-                    providers: [provider(id: "claude", lastUpdated: t1)],
-                    timestamp: t1),
+                    providers: [self.provider(id: "claude", lastUpdated: self.t1)],
+                    timestamp: self.t1),
             ])
 
         let result = cache.buildDeviceSnapshots()
@@ -274,17 +357,17 @@ struct SnapshotCacheTests {
     func tokenExpiredReplay() {
         var cache = SnapshotCache()
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providerID: "codex", providerLastUpdated: t1, syncTimestamp: t1)],
+                providerID: "codex", providerLastUpdated: self.t1, syncTimestamp: self.t1)],
             deletedRecordNames: [])
 
         // Token expires; server replays everything. Say Mac A's codex is
         // gone (user disabled it) and only Mac B exists now.
         cache.replacePerProviderFromReplay([
-            envelope(
+            self.envelope(
                 deviceID: "mac-B", deviceName: "Mac B",
-                providerID: "claude", providerLastUpdated: t2, syncTimestamp: t2),
+                providerID: "claude", providerLastUpdated: self.t2, syncTimestamp: self.t2),
         ])
 
         #expect(cache.perProviderByDevice["mac-A"] == nil) // gone
@@ -332,7 +415,7 @@ struct SnapshotCacheTests {
             isError: false,
             lastUpdated: t1,
             rateWindows: [])
-        let real = provider(id: "codex", email: "user@example.com", lastUpdated: t3)
+        let real = self.provider(id: "codex", email: "user@example.com", lastUpdated: self.t3)
         let fake = SyncedUsageSnapshot(
             providers: [ghost, real],
             syncTimestamp: t3,
@@ -372,10 +455,10 @@ struct SnapshotCacheTests {
     func nilPerProviderArgPreserves() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "codex", lastUpdated: t3)],
-                timestamp: t3)],
+                providers: [self.provider(id: "codex", lastUpdated: self.t3)],
+                timestamp: self.t3)],
             legacySnapshots: [])
         let before = cache.perProviderByDevice["mac-A"]?.count
         #expect(before == 1)
@@ -383,8 +466,8 @@ struct SnapshotCacheTests {
         // Transient legacy error: pass nil for legacy. Per-provider bucket
         // is refreshed with empty, legacy bucket preserved.
         cache.replaceFromFullFetch(
-            perProviderSnapshots: nil,  // transient error on per-provider zone
-            legacySnapshots: [])        // legacy authoritatively empty
+            perProviderSnapshots: nil, // transient error on per-provider zone
+            legacySnapshots: []) // legacy authoritatively empty
 
         // Per-provider bucket preserved as-is.
         #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
@@ -397,10 +480,10 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-B", deviceName: "Mac B",
-                providers: [provider(id: "claude", lastUpdated: t1)],
-                timestamp: t1)])
+                providers: [self.provider(id: "claude", lastUpdated: self.t1)],
+                timestamp: self.t1)])
         #expect(cache.legacyByDevice["mac-B"] != nil)
 
         cache.replaceFromFullFetch(
@@ -438,8 +521,8 @@ struct SnapshotCacheTests {
     @Test("Same provider with two account emails on one device — both kept")
     func multiAccountSameProvider() {
         var cache = SnapshotCache()
-        let codexAlice = provider(id: "codex", email: "alice@example.com", lastUpdated: t1)
-        let codexBob   = provider(id: "codex", email: "bob@example.com",   lastUpdated: t2)
+        let codexAlice = self.provider(id: "codex", email: "alice@example.com", lastUpdated: self.t1)
+        let codexBob = self.provider(id: "codex", email: "bob@example.com", lastUpdated: self.t2)
         let snap = SyncedUsageSnapshot(
             providers: [codexAlice, codexBob],
             syncTimestamp: t2,
@@ -469,8 +552,8 @@ struct SnapshotCacheTests {
         // provider. (Real-world this might be a stale legacy record from
         // before account-email-aware code; behavior under test is "no
         // collapse, no overwrite".)
-        let codexNoEmail = provider(id: "codex", email: nil, lastUpdated: t1)
-        let codexEmailed = provider(id: "codex", email: "user@example.com", lastUpdated: t2)
+        let codexNoEmail = self.provider(id: "codex", email: nil, lastUpdated: self.t1)
+        let codexEmailed = self.provider(id: "codex", email: "user@example.com", lastUpdated: self.t2)
         let snap = SyncedUsageSnapshot(
             providers: [codexNoEmail, codexEmailed],
             syncTimestamp: t2,
@@ -491,7 +574,7 @@ struct SnapshotCacheTests {
         // Build 67 hardening: SwiftDataSchema.makeCompositeKey was using ""
         // while SnapshotCache + CloudSyncManager.perProviderRecordName used
         // "_" — silent format mismatch. This test pins the contract.
-        let p = provider(id: "codex", email: nil, lastUpdated: t1)
+        let p = self.provider(id: "codex", email: nil, lastUpdated: self.t1)
         let cacheKey = SnapshotCache.compositeKey(for: p)
         let cloudKitName = CloudSyncManager.perProviderRecordName(
             deviceID: "ignored", providerID: "codex", accountEmail: nil)
@@ -516,10 +599,10 @@ struct SnapshotCacheTests {
         // Apply delta: same providerID but with an email. Different composite
         // key — should ADD an entry, not replace.
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providerID: "codex", email: "u@x.com",
-                providerLastUpdated: t2, syncTimestamp: t2)],
+                providerLastUpdated: self.t2, syncTimestamp: self.t2)],
             deletedRecordNames: [])
 
         #expect(cache.perProviderByDevice["mac-A"]?.count == 2)
@@ -531,15 +614,15 @@ struct SnapshotCacheTests {
     func burstyActiveAndIdleStaleBothPresent() {
         var cache = SnapshotCache()
         // Mac A is active: recent timestamp + bursty 30-day Codex history.
-        let mac_a_env = envelope(
+        let mac_a_env = self.envelope(
             deviceID: "mac-a", deviceName: "Mac A (active)",
             providerID: "codex", email: "alice@example.com",
-            providerLastUpdated: t3, syncTimestamp: t3)
+            providerLastUpdated: self.t3, syncTimestamp: self.t3)
         // Mac B is idle: 20-day-old timestamp, same codex account seen there.
-        let mac_b_env = envelope(
+        let mac_b_env = self.envelope(
             deviceID: "mac-b", deviceName: "Mac B (stale)",
             providerID: "codex", email: "alice@example.com",
-            providerLastUpdated: t1, syncTimestamp: t1)
+            providerLastUpdated: self.t1, syncTimestamp: self.t1)
 
         cache.applyDelta(upserted: [mac_a_env, mac_b_env], deletedRecordNames: [])
 
@@ -561,12 +644,20 @@ struct SnapshotCacheTests {
         // Seed: two Codex accounts on Mac A, both at t1.
         cache.applyDelta(
             upserted: [
-                envelope(deviceID: "mac-a", deviceName: "Mac A",
-                         providerID: "codex", email: "alice@example.com",
-                         providerLastUpdated: t1, syncTimestamp: t1),
-                envelope(deviceID: "mac-a", deviceName: "Mac A",
-                         providerID: "codex", email: "bob@example.com",
-                         providerLastUpdated: t1, syncTimestamp: t1),
+                self.envelope(
+                    deviceID: "mac-a",
+                    deviceName: "Mac A",
+                    providerID: "codex",
+                    email: "alice@example.com",
+                    providerLastUpdated: self.t1,
+                    syncTimestamp: self.t1),
+                self.envelope(
+                    deviceID: "mac-a",
+                    deviceName: "Mac A",
+                    providerID: "codex",
+                    email: "bob@example.com",
+                    providerLastUpdated: self.t1,
+                    syncTimestamp: self.t1),
             ],
             deletedRecordNames: [])
         #expect(cache.perProviderByDevice["mac-a"]?.count == 2)
@@ -574,9 +665,13 @@ struct SnapshotCacheTests {
         // Delta: alice gets fresh data at t2. Bob untouched.
         cache.applyDelta(
             upserted: [
-                envelope(deviceID: "mac-a", deviceName: "Mac A",
-                         providerID: "codex", email: "alice@example.com",
-                         providerLastUpdated: t2, syncTimestamp: t2),
+                self.envelope(
+                    deviceID: "mac-a",
+                    deviceName: "Mac A",
+                    providerID: "codex",
+                    email: "alice@example.com",
+                    providerLastUpdated: self.t2,
+                    syncTimestamp: self.t2),
             ],
             deletedRecordNames: [])
 
@@ -586,8 +681,8 @@ struct SnapshotCacheTests {
         let bobCodex = cache.perProviderByDevice["mac-a"]?.values.first(where: {
             $0.accountEmail == "bob@example.com"
         })
-        #expect(aliceCodex?.lastUpdated == t2)
-        #expect(bobCodex?.lastUpdated == t1)
+        #expect(aliceCodex?.lastUpdated == self.t2)
+        #expect(bobCodex?.lastUpdated == self.t1)
         // Regression: a cache that re-keys by providerID alone would
         // overwrite bob's entry with alice's on delta apply.
         #expect(cache.perProviderByDevice["mac-a"]?.count == 2)
@@ -604,14 +699,14 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope( // orphan from pre-upgrade Mac, no email
+                self.envelope( // orphan from pre-upgrade Mac, no email
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "codex", email: nil,
-                    providerLastUpdated: t3, syncTimestamp: t3),
-                envelope( // real account from post-upgrade Mac
+                    providerLastUpdated: self.t3, syncTimestamp: self.t3),
+                self.envelope( // real account from post-upgrade Mac
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "codex", email: "user@example.com",
-                    providerLastUpdated: t3, syncTimestamp: t3),
+                    providerLastUpdated: self.t3, syncTimestamp: self.t3),
             ],
             deletedRecordNames: [])
 
@@ -638,25 +733,25 @@ struct SnapshotCacheTests {
                 ProviderUsageEnvelope(
                     deviceID: "mac-a", deviceName: "Mac A",
                     appVersion: "0.20.1", mobileVersion: "1.3.0",
-                    syncTimestamp: t3, notificationPushEnabled: true,
+                    syncTimestamp: self.t3, notificationPushEnabled: true,
                     provider: ProviderUsageSnapshot(
                         providerID: "codex", providerName: "Codex",
                         primary: SyncRateWindow(
                             usedPercent: 23.0, windowMinutes: 60,
                             resetsAt: nil, resetDescription: nil),
                         secondary: nil, accountEmail: nil, loginMethod: nil,
-                        statusMessage: nil, isError: false, lastUpdated: t3)),
+                        statusMessage: nil, isError: false, lastUpdated: self.t3)),
                 ProviderUsageEnvelope(
                     deviceID: "mac-a", deviceName: "Mac A",
                     appVersion: "0.20.1", mobileVersion: "1.3.0",
-                    syncTimestamp: t3, notificationPushEnabled: true,
+                    syncTimestamp: self.t3, notificationPushEnabled: true,
                     provider: ProviderUsageSnapshot(
                         providerID: "codex", providerName: "Codex",
                         primary: SyncRateWindow(
                             usedPercent: 50.0, windowMinutes: 60,
                             resetsAt: nil, resetDescription: nil),
                         secondary: nil, accountEmail: nil, loginMethod: nil,
-                        statusMessage: nil, isError: false, lastUpdated: t3)),
+                        statusMessage: nil, isError: false, lastUpdated: self.t3)),
             ],
             deletedRecordNames: [])
 
@@ -684,11 +779,11 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope( // active Codex, just refreshed
+                self.envelope( // active Codex, just refreshed
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "codex", email: "user@example.com",
                     providerLastUpdated: fresh, syncTimestamp: fresh),
-                envelope( // disabled Perplexity ghost, never refreshed since
+                self.envelope( // disabled Perplexity ghost, never refreshed since
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "perplexity", email: nil,
                     providerLastUpdated: stale, syncTimestamp: stale),
@@ -715,7 +810,7 @@ struct SnapshotCacheTests {
         let staleSingle = now.addingTimeInterval(-3 * 60 * 60) // 3 hours ago
         var cache = SnapshotCache()
         cache.applyDelta(
-            upserted: [envelope(
+            upserted: [self.envelope(
                 deviceID: "mac-offline", deviceName: "Offline Mac",
                 providerID: "claude", email: nil,
                 providerLastUpdated: staleSingle, syncTimestamp: staleSingle)],
@@ -736,11 +831,11 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mbp", deviceName: "Mac",
                     providerID: "codex", email: "u@x.com",
                     providerLastUpdated: codexUpdated, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mbp", deviceName: "Mac",
                     providerID: "claude", email: nil,
                     providerLastUpdated: claudeUpdated, syncTimestamp: now),
@@ -768,12 +863,12 @@ struct SnapshotCacheTests {
         cache.applyDelta(
             upserted: [
                 // Real active Codex with email
-                envelope(
+                self.envelope(
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "codex", email: "user@example.com",
                     providerLastUpdated: active, syncTimestamp: now),
                 // Real active Claude (accountless)
-                envelope(
+                self.envelope(
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "claude", email: nil,
                     providerLastUpdated: active, syncTimestamp: now),
@@ -796,7 +891,7 @@ struct SnapshotCacheTests {
                         statusMessage: "Codex returned invalid data: codex app-server closed stdout",
                         isError: true, lastUpdated: postUpgradeOrphan)),
                 // Perplexity ghost (disabled but record persists)
-                envelope(
+                self.envelope(
                     deviceID: "mbp", deviceName: "the mbp 26 m5 pro",
                     providerID: "perplexity", email: nil,
                     providerLastUpdated: perplexityGhost,
@@ -821,7 +916,7 @@ struct SnapshotCacheTests {
         //   - Real Codex + Claude remain
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
-        let providerIDs = Set(result[0].providers.map { $0.providerID })
+        let providerIDs = Set(result[0].providers.map(\.providerID))
         #expect(providerIDs == ["codex", "claude"])
         let codex = result[0].providers.first(where: { $0.providerID == "codex" })
         #expect(codex?.accountEmail == "user@example.com")
@@ -829,13 +924,13 @@ struct SnapshotCacheTests {
 
     // MARK: - Build 94 hotfix · expanded coverage matrix (Round 1)
 
-    // Helper to build a fresh-now-relative envelope with a specific lag.
+    /// Helper to build a fresh-now-relative envelope with a specific lag.
     private func envelopeAged(
         deviceID: String, providerID: String, email: String?,
-        lagSeconds: TimeInterval, now: Date = Date()
-    ) -> ProviderUsageEnvelope {
+        lagSeconds: TimeInterval, now: Date = Date()) -> ProviderUsageEnvelope
+    {
         let updated = now.addingTimeInterval(-lagSeconds)
-        return envelope(
+        return self.envelope(
             deviceID: deviceID, deviceName: deviceID,
             providerID: providerID, email: email,
             providerLastUpdated: updated, syncTimestamp: updated)
@@ -864,7 +959,7 @@ struct SnapshotCacheTests {
                             resetsAt: nil, resetDescription: nil),
                         secondary: nil, accountEmail: "", loginMethod: nil,
                         statusMessage: nil, isError: false, lastUpdated: now)),
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: "real@x.com",
                     providerLastUpdated: now, syncTimestamp: now),
@@ -886,15 +981,15 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: "alice@x.com",
                     providerLastUpdated: now, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: "bob@x.com",
                     providerLastUpdated: now, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: nil,
                     providerLastUpdated: now, syncTimestamp: now),
@@ -903,7 +998,7 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"]?.count == 3)
         let result = cache.buildDeviceSnapshots()
         #expect(result[0].providers.count == 2)
-        let emails = Set(result[0].providers.compactMap { $0.accountEmail })
+        let emails = Set(result[0].providers.compactMap(\.accountEmail))
         #expect(emails == ["alice@x.com", "bob@x.com"])
     }
 
@@ -916,15 +1011,15 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: "alice@x.com",
                     providerLastUpdated: now, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: nil,
                     providerLastUpdated: now, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mac-B", deviceName: "Mac B",
                     providerID: "codex", email: nil,
                     providerLastUpdated: now, syncTimestamp: now),
@@ -951,10 +1046,18 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "alice@x.com", lagSeconds: 5 * 3600, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "claude",
-                            email: nil, lagSeconds: 5, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "alice@x.com",
+                    lagSeconds: 5 * 3600,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 5,
+                    now: now),
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
@@ -969,16 +1072,28 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "fresh@x.com", lagSeconds: 0, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "claude",
-                            email: nil, lagSeconds: 30 * 60 - 1, now: now), // 29:59
-                envelopeAged(deviceID: "mac-A", providerID: "perplexity",
-                            email: nil, lagSeconds: 30 * 60 + 1, now: now), // 30:01
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "fresh@x.com",
+                    lagSeconds: 0,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 30 * 60 - 1,
+                    now: now), // 29:59
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "perplexity",
+                    email: nil,
+                    lagSeconds: 30 * 60 + 1,
+                    now: now), // 30:01
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
-        let providerIDs = Set(result[0].providers.map { $0.providerID })
+        let providerIDs = Set(result[0].providers.map(\.providerID))
         #expect(providerIDs == ["codex", "claude"])
         // Perplexity at 30:01 dropped; Claude at 29:59 kept.
     }
@@ -993,15 +1108,23 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "alice@x.com", lagSeconds: 30, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "bob@x.com", lagSeconds: 4 * 3600, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "alice@x.com",
+                    lagSeconds: 30,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "bob@x.com",
+                    lagSeconds: 4 * 3600,
+                    now: now),
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
         #expect(result[0].providers.count == 2)
-        let emails = Set(result[0].providers.compactMap { $0.accountEmail })
+        let emails = Set(result[0].providers.compactMap(\.accountEmail))
         #expect(emails == ["alice@x.com", "bob@x.com"])
     }
 
@@ -1013,7 +1136,7 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
-            upserted: [envelopeAged(
+            upserted: [self.envelopeAged(
                 deviceID: "mac-A", providerID: "claude", email: nil,
                 lagSeconds: 6 * 3600, now: now)],
             deletedRecordNames: [])
@@ -1027,18 +1150,34 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "claude",
-                            email: nil, lagSeconds: 5, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "cursor",
-                            email: nil, lagSeconds: 10 * 60, now: now), // 10 min — kept
-                envelopeAged(deviceID: "mac-A", providerID: "perplexity",
-                            email: nil, lagSeconds: 60 * 60, now: now), // 1 h — dropped
-                envelopeAged(deviceID: "mac-A", providerID: "abacus",
-                            email: nil, lagSeconds: 5 * 60, now: now), // 5 min — kept
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 5,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "cursor",
+                    email: nil,
+                    lagSeconds: 10 * 60,
+                    now: now), // 10 min — kept
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "perplexity",
+                    email: nil,
+                    lagSeconds: 60 * 60,
+                    now: now), // 1 h — dropped
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "abacus",
+                    email: nil,
+                    lagSeconds: 5 * 60,
+                    now: now), // 5 min — kept
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
-        let providerIDs = Set(result[0].providers.map { $0.providerID })
+        let providerIDs = Set(result[0].providers.map(\.providerID))
         #expect(providerIDs == ["claude", "cursor", "abacus"])
     }
 
@@ -1059,18 +1198,27 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-B", deviceName: "Mac Studio",
                 providers: [
                     // Real Claude — nil email, this is the data we MUST keep.
-                    provider(id: "claude", name: "Claude",
-                            email: nil, lastUpdated: now),
+                    self.provider(
+                        id: "claude",
+                        name: "Claude",
+                        email: nil,
+                        lastUpdated: now),
                     // Mock Claude entries — synthetic emails matching
                     // MockProviderDetector pattern (`*-mock@*.test`).
-                    provider(id: "claude", name: "Claude (Personal · Mock)",
-                            email: "personal-mock@claude.test", lastUpdated: now),
-                    provider(id: "claude", name: "Claude (Work · Mock)",
-                            email: "work-mock@claude.test", lastUpdated: now),
+                    self.provider(
+                        id: "claude",
+                        name: "Claude (Personal · Mock)",
+                        email: "personal-mock@claude.test",
+                        lastUpdated: now),
+                    self.provider(
+                        id: "claude",
+                        name: "Claude (Work · Mock)",
+                        email: "work-mock@claude.test",
+                        lastUpdated: now),
                 ],
                 timestamp: now)],
             legacySnapshots: [])
@@ -1094,17 +1242,21 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-B", deviceName: "Mac Studio",
                 providers: [
-                    provider(id: "claude", email: nil,
-                            lastUpdated: now.addingTimeInterval(-35 * 60)),
-                    provider(id: "claude",
-                            email: "personal-mock@claude.test",
-                            lastUpdated: now),
-                    provider(id: "claude",
-                            email: "work-mock@claude.test",
-                            lastUpdated: now),
+                    self.provider(
+                        id: "claude",
+                        email: nil,
+                        lastUpdated: now.addingTimeInterval(-35 * 60)),
+                    self.provider(
+                        id: "claude",
+                        email: "personal-mock@claude.test",
+                        lastUpdated: now),
+                    self.provider(
+                        id: "claude",
+                        email: "work-mock@claude.test",
+                        lastUpdated: now),
                 ],
                 timestamp: now)],
             legacySnapshots: [])
@@ -1124,15 +1276,17 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-CI", deviceName: "CI Mac",
                 providers: [
-                    provider(id: "codex",
-                            email: "alice-mock@codex.test",
-                            lastUpdated: now),
-                    provider(id: "_mock_synthetic_unknown",
-                            email: "lanes-mock@synthetic.test",
-                            lastUpdated: now.addingTimeInterval(-2 * 3600)),
+                    self.provider(
+                        id: "codex",
+                        email: "alice-mock@codex.test",
+                        lastUpdated: now),
+                    self.provider(
+                        id: "_mock_synthetic_unknown",
+                        email: "lanes-mock@synthetic.test",
+                        lastUpdated: now.addingTimeInterval(-2 * 3600)),
                 ],
                 timestamp: now)],
             legacySnapshots: [])
@@ -1149,15 +1303,17 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providers: [
-                    provider(id: "_mock_codex_unknown",
-                            email: nil,  // nil-email mock (synthetic ID prefix detects)
-                            lastUpdated: now),
-                    provider(id: "_mock_codex_unknown",
-                            email: "expired-mock@codex.test",
-                            lastUpdated: now),
+                    self.provider(
+                        id: "_mock_codex_unknown",
+                        email: nil, // nil-email mock (synthetic ID prefix detects)
+                        lastUpdated: now),
+                    self.provider(
+                        id: "_mock_codex_unknown",
+                        email: "expired-mock@codex.test",
+                        lastUpdated: now),
                 ],
                 timestamp: now)],
             legacySnapshots: [])
@@ -1177,10 +1333,18 @@ struct SnapshotCacheTests {
         // Pre-seed per-provider with all-stale ghosts.
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: nil, lagSeconds: 10 * 3600, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "perplexity",
-                            email: nil, lagSeconds: 5 * 3600, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: nil,
+                    lagSeconds: 10 * 3600,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "perplexity",
+                    email: nil,
+                    lagSeconds: 5 * 3600,
+                    now: now),
             ],
             deletedRecordNames: [])
         // Wait — Rule 2 needs deviceFreshest. With both at 5h+10h, freshest
@@ -1193,7 +1357,7 @@ struct SnapshotCacheTests {
         // dropped, plus legacy fallback for that device.
         cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providers: [
                     // Real-email codex (won't drop), so device isn't all-filtered.
@@ -1203,15 +1367,19 @@ struct SnapshotCacheTests {
                     // Simulate: legitimately fresh codex sets the device
                     // freshness, then a stale nil-email sibling gets dropped
                     // by Rule 1, leaving only the fresh codex.
-                    provider(id: "codex", email: "alice@x.com",
-                            lastUpdated: now),
-                    provider(id: "codex", email: nil,
-                            lastUpdated: now.addingTimeInterval(-3600)),
+                    self.provider(
+                        id: "codex",
+                        email: "alice@x.com",
+                        lastUpdated: now),
+                    self.provider(
+                        id: "codex",
+                        email: nil,
+                        lastUpdated: now.addingTimeInterval(-3600)),
                 ],
                 timestamp: now)],
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "claude", lastUpdated: now)],
+                providers: [self.provider(id: "claude", lastUpdated: now)],
                 timestamp: now)])
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
@@ -1253,9 +1421,9 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "claude", lastUpdated: now)],
+                providers: [self.provider(id: "claude", lastUpdated: now)],
                 timestamp: now)])
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
@@ -1272,17 +1440,37 @@ struct SnapshotCacheTests {
         cache.applyDelta(
             upserted: [
                 // Mac A: real Codex + orphan Codex (post-upgrade dirt)
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "user@x.com", lagSeconds: 5, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: nil, lagSeconds: 60 * 60, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "claude",
-                            email: nil, lagSeconds: 5, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "user@x.com",
+                    lagSeconds: 5,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: nil,
+                    lagSeconds: 60 * 60,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 5,
+                    now: now),
                 // Mac B: clean — Codex + Claude with no orphans
-                envelopeAged(deviceID: "mac-B", providerID: "codex",
-                            email: "user@x.com", lagSeconds: 10, now: now),
-                envelopeAged(deviceID: "mac-B", providerID: "claude",
-                            email: nil, lagSeconds: 10, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-B",
+                    providerID: "codex",
+                    email: "user@x.com",
+                    lagSeconds: 10,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-B",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 10,
+                    now: now),
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
@@ -1300,14 +1488,18 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providers: [
-                    provider(id: "codex", email: "user@x.com", lastUpdated: now),
-                    provider(id: "codex", email: nil,
-                            lastUpdated: now.addingTimeInterval(-3600)),
-                    provider(id: "perplexity", email: nil,
-                            lastUpdated: now.addingTimeInterval(-3600)),
+                    self.provider(id: "codex", email: "user@x.com", lastUpdated: now),
+                    self.provider(
+                        id: "codex",
+                        email: nil,
+                        lastUpdated: now.addingTimeInterval(-3600)),
+                    self.provider(
+                        id: "perplexity",
+                        email: nil,
+                        lastUpdated: now.addingTimeInterval(-3600)),
                 ],
                 timestamp: now)],
             legacySnapshots: [])
@@ -1324,12 +1516,24 @@ struct SnapshotCacheTests {
         let now = Date()
         var cache = SnapshotCache()
         cache.replacePerProviderFromReplay([
-            envelopeAged(deviceID: "mac-A", providerID: "codex",
-                        email: "user@x.com", lagSeconds: 0, now: now),
-            envelopeAged(deviceID: "mac-A", providerID: "codex",
-                        email: nil, lagSeconds: 60 * 60, now: now),
-            envelopeAged(deviceID: "mac-A", providerID: "perplexity",
-                        email: nil, lagSeconds: 90 * 60, now: now),
+            self.envelopeAged(
+                deviceID: "mac-A",
+                providerID: "codex",
+                email: "user@x.com",
+                lagSeconds: 0,
+                now: now),
+            self.envelopeAged(
+                deviceID: "mac-A",
+                providerID: "codex",
+                email: nil,
+                lagSeconds: 60 * 60,
+                now: now),
+            self.envelopeAged(
+                deviceID: "mac-A",
+                providerID: "perplexity",
+                email: nil,
+                lagSeconds: 90 * 60,
+                now: now),
         ])
         #expect(cache.perProviderByDevice["mac-A"]?.count == 3)
         let result = cache.buildDeviceSnapshots()
@@ -1344,14 +1548,14 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         // Initial state from full fetch: clean.
         cache.replaceFromFullFetch(
-            perProviderSnapshots: [snapshot(
+            perProviderSnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
-                providers: [provider(id: "codex", email: "user@x.com", lastUpdated: now)],
+                providers: [self.provider(id: "codex", email: "user@x.com", lastUpdated: now)],
                 timestamp: now)],
             legacySnapshots: [])
         // Delta brings a ghost from a Mac state transition.
         cache.applyDelta(
-            upserted: [envelopeAged(
+            upserted: [self.envelopeAged(
                 deviceID: "mac-A", providerID: "codex",
                 email: nil, lagSeconds: 60 * 60, now: now)],
             deletedRecordNames: [])
@@ -1381,12 +1585,16 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: nil,
                     providerLastUpdated: future, syncTimestamp: future),
-                envelopeAged(deviceID: "mac-A", providerID: "claude",
-                            email: nil, lagSeconds: 60, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "claude",
+                    email: nil,
+                    lagSeconds: 60,
+                    now: now),
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
@@ -1399,12 +1607,24 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "alice@x.com", lagSeconds: 0, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "bob@x.com", lagSeconds: 12 * 3600, now: now),
-                envelopeAged(deviceID: "mac-A", providerID: "perplexity",
-                            email: "carol@x.com", lagSeconds: 5 * 3600, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "alice@x.com",
+                    lagSeconds: 0,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "bob@x.com",
+                    lagSeconds: 12 * 3600,
+                    now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "perplexity",
+                    email: "carol@x.com",
+                    lagSeconds: 5 * 3600,
+                    now: now),
             ],
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
@@ -1430,8 +1650,12 @@ struct SnapshotCacheTests {
                         primary: nil, secondary: nil,
                         accountEmail: nil, loginMethod: nil,
                         statusMessage: nil, isError: false, lastUpdated: now)),
-                envelopeAged(deviceID: "mac-A", providerID: "codex",
-                            email: "user@x.com", lagSeconds: 5, now: now),
+                self.envelopeAged(
+                    deviceID: "mac-A",
+                    providerID: "codex",
+                    email: "user@x.com",
+                    lagSeconds: 5,
+                    now: now),
             ],
             deletedRecordNames: [])
         // The all-nil ghost was dropped at write time by Build 66's isGhost.
@@ -1452,20 +1676,24 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [], // device only in legacy
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-A", deviceName: "Mac A",
                 providers: [
-                    provider(id: "codex", email: "user@x.com", lastUpdated: now),
-                    provider(id: "codex", email: nil, // orphan from pre-94 SwiftData
-                            lastUpdated: now.addingTimeInterval(-3600)),
-                    provider(id: "claude", email: nil, lastUpdated: now),
-                    provider(id: "perplexity", email: nil, // ghost from pre-94 SwiftData
-                            lastUpdated: now.addingTimeInterval(-90 * 60)),
+                    self.provider(id: "codex", email: "user@x.com", lastUpdated: now),
+                    self.provider(
+                        id: "codex",
+                        email: nil, // orphan from pre-94 SwiftData
+                        lastUpdated: now.addingTimeInterval(-3600)),
+                    self.provider(id: "claude", email: nil, lastUpdated: now),
+                    self.provider(
+                        id: "perplexity",
+                        email: nil, // ghost from pre-94 SwiftData
+                        lastUpdated: now.addingTimeInterval(-90 * 60)),
                 ],
                 timestamp: now)])
         let result = cache.buildDeviceSnapshots()
         #expect(result.count == 1)
-        let providerIDs = Set(result[0].providers.map { $0.providerID })
+        let providerIDs = Set(result[0].providers.map(\.providerID))
         // codex (orphan dropped, real-email kept), claude (kept, accountless lone),
         // perplexity (dropped, nil-email + lagging > 30 min)
         #expect(providerIDs == ["codex", "claude"])
@@ -1482,11 +1710,11 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
-            legacySnapshots: [snapshot(
+            legacySnapshots: [self.snapshot(
                 deviceID: "mac-clean", deviceName: "Clean Mac",
                 providers: [
-                    provider(id: "codex", email: "user@x.com", lastUpdated: now),
-                    provider(id: "claude", email: nil, lastUpdated: now),
+                    self.provider(id: "codex", email: "user@x.com", lastUpdated: now),
+                    self.provider(id: "claude", email: nil, lastUpdated: now),
                 ],
                 timestamp: now)])
         let result = cache.buildDeviceSnapshots()
@@ -1504,11 +1732,11 @@ struct SnapshotCacheTests {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: nil,
                     providerLastUpdated: now, syncTimestamp: now),
-                envelope(
+                self.envelope(
                     deviceID: "mac-A", deviceName: "Mac A",
                     providerID: "codex", email: "user@x.com",
                     providerLastUpdated: now, syncTimestamp: now),

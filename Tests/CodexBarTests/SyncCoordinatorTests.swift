@@ -25,6 +25,11 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var fetchRecordNamesLastDeviceID: String?
     var nextFetchRecordNamesResult: [String] = []
 
+    // DeviceStatus write tracking
+    var deviceStatusPushCount = 0
+    var lastDeviceStatus: SyncDeviceStatus?
+    var nextDeviceStatusResult: SyncPushResult = .success
+
     @discardableResult
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
@@ -52,6 +57,13 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
         self.fetchRecordNamesCallCount += 1
         self.fetchRecordNamesLastDeviceID = deviceID
         return self.nextFetchRecordNamesResult
+    }
+
+    @discardableResult
+    func pushDeviceStatus(_ status: SyncDeviceStatus) async -> SyncPushResult {
+        self.deviceStatusPushCount += 1
+        self.lastDeviceStatus = status
+        return self.nextDeviceStatusResult
     }
 }
 

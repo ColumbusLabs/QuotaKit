@@ -108,7 +108,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
     }
 
-    func testWidgetSnapshotMovesSelectedProviderFirst() throws {
+    func testWidgetSnapshotMovesSelectedProviderFirst() {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
             generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
@@ -120,7 +120,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(snapshot.primaryProvider?.providerName, "Claude")
     }
 
-    func testWidgetSnapshotUsesProviderOrderWhenSelectionIsMissing() throws {
+    func testWidgetSnapshotUsesProviderOrderWhenSelectionIsMissing() {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
             generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
@@ -132,7 +132,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(snapshot.providers.dropFirst().first?.id, "claude")
     }
 
-    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() throws {
+    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() {
         let now = Date(timeIntervalSince1970: 1_803_000_000)
         let snapshot = QuotaKitWidgetSnapshot(
             generatedAt: now,
@@ -415,6 +415,40 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(publishedSnapshots.count, 1)
         XCTAssertEqual(publishedSnapshots.first?.syncTimestamp, PreviewData.sampleSnapshot.syncTimestamp)
         XCTAssertEqual(clearCount, 0)
+    }
+
+    func testBackgroundWidgetRefreshAppliesDeviceStatusBeforePublishing() throws {
+        var publishedSnapshots: [SyncedUsageSnapshot] = []
+        let base = SyncedUsageSnapshot(
+            providers: PreviewData.sampleSnapshot.providers,
+            syncTimestamp: Date(timeIntervalSince1970: 1_800_000_000),
+            deviceName: "Old Mac",
+            deviceID: "mac-A",
+            appVersion: "0.32.0",
+            mobileVersion: "1.11.0")
+        let powerStatus = SyncDevicePowerStatus(
+            batteryPercent: 64,
+            state: .charging,
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_300))
+        let status = SyncDeviceStatus(
+            deviceID: "mac-A",
+            deviceName: "MacBook Pro",
+            appVersion: "0.33.0",
+            mobileVersion: "1.11.1",
+            syncTimestamp: Date(timeIntervalSince1970: 1_800_000_300),
+            powerStatus: powerStatus)
+
+        let result = WidgetBackgroundSnapshotRefresh.apply(
+            perProvider: .success([base]),
+            legacy: .empty,
+            deviceStatuses: [status],
+            publishSnapshot: { publishedSnapshots.append($0) })
+
+        XCTAssertEqual(result, .newData)
+        let published = try XCTUnwrap(publishedSnapshots.first)
+        XCTAssertEqual(published.syncTimestamp, status.syncTimestamp)
+        XCTAssertEqual(published.powerStatus, powerStatus)
+        XCTAssertEqual(published.appVersion, "0.33.0")
     }
 
     func testBackgroundWidgetRefreshClearsOnlyWhenCloudKitIsAuthoritativelyEmpty() {
@@ -800,7 +834,9 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "Weekly Sonnet")
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title,
+            "Weekly Sonnet")
     }
 
     func testWidgetWeeklyResolutionSkipsDailyAndMonthlyDayCounts() {

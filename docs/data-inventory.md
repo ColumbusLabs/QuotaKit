@@ -46,6 +46,7 @@ This inventory classifies data that QuotaKit may read, store, sync, or display. 
 | --- | --- | --- | --- |
 | `DeviceSnapshot` | `deviceName`, `deviceID`, `appVersion`, `syncTimestamp`, JSON `payload` | Sanitized sync | Yes, legacy compatibility only. |
 | `DeviceProviderSnapshot` | `deviceID`, `deviceName`, `providerID`, `providerName`, `accountEmail`, `lastUpdated`, `encodingVersion`, compressed JSON `payload` | Sanitized sync | Yes. |
+| `DeviceStatus` | `deviceID`, `deviceName`, `appVersion`, `syncTimestamp`, compressed JSON `payload` with battery percent/state | Sanitized device telemetry | Yes. |
 | `ProviderAccountLinkage` | `providerID`, `linkedIdentifiers`, `confirmedAt`, `confirmedFromDeviceID`, `unmerge` | Sanitized sync | Yes, user-confirmed account merge state. |
 | `QuotaTransition` | `providerName`, `providerID`, `state`, `transitionAt`, `deviceID`, optional `accountEmail` | Sanitized sync / notification | Yes. |
 | `com.columbuslabs.quotakit.usage.snapshot` | JSON `SyncedUsageSnapshot` | Sanitized sync | Yes, legacy KVS compatibility. |

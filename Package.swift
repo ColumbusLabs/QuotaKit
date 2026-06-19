@@ -107,6 +107,9 @@ let package = Package(
                     // Opt into Swift 6 strict concurrency (approachable migration path).
                     .enableUpcomingFeature("StrictConcurrency"),
                     .define("ENABLE_SPARKLE"),
+                ],
+                linkerSettings: [
+                    .linkedFramework("IOKit"),
                 ]),
             .executableTarget(
                 name: "CodexBarWidget",

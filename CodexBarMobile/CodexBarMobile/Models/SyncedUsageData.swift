@@ -289,6 +289,7 @@ final class SyncedUsageData {
         async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
         async let legacyResult = reader.fetchLegacyDeviceSnapshots()
         async let linkagesResult = reader.fetchProviderAccountLinkages()
+        async let deviceStatusesResult = reader.fetchDeviceStatuses()
 
         let per = await perProviderResult
         let legacy = await legacyResult
@@ -341,14 +342,16 @@ final class SyncedUsageData {
         self.applyFullFetchResults(
             perProvider: per,
             legacy: legacy,
-            kvsFallback: reader.latestKVSSnapshot())
+            kvsFallback: reader.latestKVSSnapshot(),
+            deviceStatuses: await deviceStatusesResult)
         self.lastRefreshCompletedAt = Date()
     }
 
     func applyFullFetchResults(
         perProvider per: MultiDeviceSyncResult,
         legacy: MultiDeviceSyncResult,
-        kvsFallback: SyncedUsageSnapshot?
+        kvsFallback: SyncedUsageSnapshot?,
+        deviceStatuses: [SyncDeviceStatus] = []
     ) {
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
@@ -386,6 +389,7 @@ final class SyncedUsageData {
         self.cache.replaceFromFullFetch(
             perProviderSnapshots: perArg,
             legacySnapshots: legacyArg)
+        self.cache.applyDeviceStatuses(deviceStatuses)
 
         self.usingKVSFallback = false
 
@@ -520,6 +524,7 @@ final class SyncedUsageData {
             delta = await reader.fetchPerProviderZoneChanges(since: nil)
             if !delta.tokenExpired, !delta.zoneMissing {
                 self.cache.replacePerProviderFromReplay(delta.upserted)
+                self.cache.applyDeviceStatuses(delta.upsertedDeviceStatuses)
             }
         } else if delta.zoneMissing {
             // No zone yet — nothing to apply. The priority merge will fall
@@ -529,7 +534,9 @@ final class SyncedUsageData {
             // Normal incremental apply. Only touches perProviderByDevice.
             self.cache.applyDelta(
                 upserted: delta.upserted,
-                deletedRecordNames: delta.deletedRecordNames)
+                deletedRecordNames: delta.deletedRecordNames,
+                deviceStatuses: delta.upsertedDeviceStatuses,
+                deletedDeviceStatusIDs: delta.deletedDeviceStatusIDs)
         }
 
         // 4. Persist the new token.

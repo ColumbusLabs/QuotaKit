@@ -394,6 +394,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public var quotaWarnings: SyncQuotaWarningConfig?
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions
+
     //
     // All six fields are optional + `decodeIfPresent` so pre-1.7.0 iOS
     // clients (and the inverse — Mac builds that don't have the upstream
@@ -437,6 +438,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let antigravityAccounts: SyncMultiAccountList?
 
     // MARK: - iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions
+
     //
     // All five fields are optional + `decodeIfPresent` so pre-1.8.0
     // iOS clients keep decoding payloads without errors. Wire schema
@@ -476,6 +478,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let llmProxyStats: SyncLLMProxyStats?
 
     // MARK: - iOS 1.8.0 build 134 / Mac 0.27.0 — existing-provider extensions
+
     //
     // Added after the initial 1.8.0 ship to bring v0.27.0 parity for
     // Anthropic Admin API, Enterprise spend-limit, MiniMax 30-day
@@ -513,6 +516,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let codexWorkspace: SyncCodexWorkspaceContext?
 
     // MARK: - iOS 1.9.0 / Mac 0.29.0 — parity-gap envelope extensions
+
     // Additive optionals (decodeIfPresent); no wire-schema bump.
 
     /// OpenRouter balance + credits + per-key usage windows (gap D).
@@ -528,6 +532,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let alibabaTokenPlan: SyncAlibabaTokenPlan?
 
     // MARK: - iOS 1.10.0 / Mac 0.31.0 — v0.30/v0.31 sync (025)
+
     // Additive optional (decodeIfPresent); no wire-schema bump.
 
     /// DeepSeek web-session usage + cost summary + balance (upstream v0.30.0
@@ -617,7 +622,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepSeekUsage = deepSeekUsage
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
+    /// Backward-compatible decoder: old payloads without
+    /// `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -632,19 +638,27 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.lastUpdated = try container.decode(Date.self, forKey: .lastUpdated)
         self.costSummary = try container.decodeIfPresent(SyncCostSummary.self, forKey: .costSummary)
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
-        self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
-        self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
+        self.utilizationHistory = try container.decodeIfPresent(
+            [SyncUtilizationSeries].self,
+            forKey: .utilizationHistory)
+        self.perplexityCredits = try container.decodeIfPresent(
+            SyncPerplexityCreditSummary.self,
+            forKey: .perplexityCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
         self.quotaWarnings = try container.decodeIfPresent(SyncQuotaWarningConfig.self, forKey: .quotaWarnings)
         // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. All
         // `decodeIfPresent` so old Mac payloads (without these keys)
         // decode cleanly into `nil`.
-        self.openAIAPIDashboard = try container.decodeIfPresent(SyncOpenAIAPIDashboard.self, forKey: .openAIAPIDashboard)
+        self.openAIAPIDashboard = try container.decodeIfPresent(
+            SyncOpenAIAPIDashboard.self,
+            forKey: .openAIAPIDashboard)
         self.zaiHourlyUsage = try container.decodeIfPresent(SyncZaiHourlyUsage.self, forKey: .zaiHourlyUsage)
         self.kiroCredits = try container.decodeIfPresent(SyncKiroCredits.self, forKey: .kiroCredits)
         self.bedrockCost = try container.decodeIfPresent(SyncBedrockCost.self, forKey: .bedrockCost)
         self.moonshotBalance = try container.decodeIfPresent(SyncMoonshotBalance.self, forKey: .moonshotBalance)
-        self.antigravityAccounts = try container.decodeIfPresent(SyncMultiAccountList.self, forKey: .antigravityAccounts)
+        self.antigravityAccounts = try container.decodeIfPresent(
+            SyncMultiAccountList.self,
+            forKey: .antigravityAccounts)
         // iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions.
         self.grokBilling = try container.decodeIfPresent(SyncGrokBilling.self, forKey: .grokBilling)
         self.elevenLabsCredits = try container.decodeIfPresent(SyncElevenLabsCredits.self, forKey: .elevenLabsCredits)
@@ -654,7 +668,9 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         // iOS 1.8.0 build 134 — existing-provider extensions.
         self.claudeAdminUsage = try container.decodeIfPresent(SyncClaudeAdminUsage.self, forKey: .claudeAdminUsage)
         self.claudeExtraUsage = try container.decodeIfPresent(SyncClaudeExtraUsage.self, forKey: .claudeExtraUsage)
-        self.openCodeGoZenBalance = try container.decodeIfPresent(SyncOpenCodeGoZenBalance.self, forKey: .openCodeGoZenBalance)
+        self.openCodeGoZenBalance = try container.decodeIfPresent(
+            SyncOpenCodeGoZenBalance.self,
+            forKey: .openCodeGoZenBalance)
         self.minimaxBilling = try container.decodeIfPresent(SyncMiniMaxBillingHistory.self, forKey: .minimaxBilling)
         self.codexWorkspace = try container.decodeIfPresent(SyncCodexWorkspaceContext.self, forKey: .codexWorkspace)
         // iOS 1.9.0 / Mac 0.29.0 — parity-gap extensions.
@@ -662,6 +678,73 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = try container.decodeIfPresent(SyncAzureOpenAIInfo.self, forKey: .azureOpenAIInfo)
         self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
         self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
+    }
+}
+
+/// Device power status synced from the Mac app for iPhone-only display.
+public struct SyncDevicePowerStatus: Codable, Sendable, Equatable {
+    public enum State: String, Codable, Sendable, Equatable {
+        case battery
+        case charging
+        case charged
+        case pluggedIn
+        case noBattery
+        case unknown
+
+        public init(from decoder: Decoder) throws {
+            let container = try decoder.singleValueContainer()
+            let rawValue = try container.decode(String.self)
+            self = State(rawValue: rawValue) ?? .unknown
+        }
+
+        public func encode(to encoder: Encoder) throws {
+            var container = encoder.singleValueContainer()
+            try container.encode(self.rawValue)
+        }
+    }
+
+    public let batteryPercent: Int?
+    public let state: State
+    public let updatedAt: Date
+
+    public init(
+        batteryPercent: Int?,
+        state: State,
+        updatedAt: Date)
+    {
+        self.batteryPercent = batteryPercent.map { min(max($0, 0), 100) }
+        self.state = state
+        self.updatedAt = updatedAt
+    }
+
+    public var isDisplayable: Bool {
+        self.batteryPercent != nil && self.state != .noBattery
+    }
+}
+
+/// Device-level metadata record stored beside per-provider records.
+public struct SyncDeviceStatus: Codable, Sendable, Equatable {
+    public let deviceID: String
+    public let deviceName: String
+    public let appVersion: String?
+    public let mobileVersion: String?
+    public let syncTimestamp: Date
+    public let powerStatus: SyncDevicePowerStatus?
+
+    public init(
+        deviceID: String,
+        deviceName: String,
+        appVersion: String?,
+        mobileVersion: String?,
+        syncTimestamp: Date,
+        powerStatus: SyncDevicePowerStatus?)
+    {
+        self.deviceID = deviceID
+        self.deviceName = deviceName
+        self.appVersion = appVersion
+        self.mobileVersion = mobileVersion
+        self.syncTimestamp = syncTimestamp
+        self.powerStatus = powerStatus
     }
 }
 
@@ -678,10 +761,12 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
     public let mobileVersion: String?
     /// When false, iOS should suppress push notifications for this snapshot.
     public let notificationPushEnabled: Bool?
+    /// Optional device battery/power status for iPhone-side device rows.
+    public let powerStatus: SyncDevicePowerStatus?
 
     private enum CodingKeys: String, CodingKey {
         case providers, syncTimestamp, deviceName, deviceID, appVersion
-        case mobileVersion, notificationPushEnabled
+        case mobileVersion, notificationPushEnabled, powerStatus
         /// Legacy key for backward compatibility with older synced data.
         ///
         /// **DO NOT REMOVE.** Mac builds 0.17.x–0.19.x wrote this field name
@@ -702,7 +787,8 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         deviceID: String? = nil,
         appVersion: String? = nil,
         mobileVersion: String? = nil,
-        notificationPushEnabled: Bool? = nil)
+        notificationPushEnabled: Bool? = nil,
+        powerStatus: SyncDevicePowerStatus? = nil)
     {
         self.providers = providers
         self.syncTimestamp = syncTimestamp
@@ -711,6 +797,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.appVersion = appVersion
         self.mobileVersion = mobileVersion
         self.notificationPushEnabled = notificationPushEnabled
+        self.powerStatus = powerStatus
     }
 
     public init(from decoder: Decoder) throws {
@@ -727,6 +814,7 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         self.mobileVersion = try container.decodeIfPresent(String.self, forKey: .mobileVersion)
             ?? container.decodeIfPresent(String.self, forKey: .syncVersion)
         self.notificationPushEnabled = try container.decodeIfPresent(Bool.self, forKey: .notificationPushEnabled)
+        self.powerStatus = try container.decodeIfPresent(SyncDevicePowerStatus.self, forKey: .powerStatus)
     }
 
     public func encode(to encoder: Encoder) throws {
@@ -738,5 +826,6 @@ public struct SyncedUsageSnapshot: Codable, Sendable, Equatable {
         try container.encodeIfPresent(self.appVersion, forKey: .appVersion)
         try container.encodeIfPresent(self.mobileVersion, forKey: .mobileVersion)
         try container.encodeIfPresent(self.notificationPushEnabled, forKey: .notificationPushEnabled)
+        try container.encodeIfPresent(self.powerStatus, forKey: .powerStatus)
     }
 }

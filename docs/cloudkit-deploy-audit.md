@@ -28,14 +28,16 @@ Mac-to-iOS sync depends on these Production record types in
 
 - `DeviceSnapshot`: `deviceName`, `deviceID`, `appVersion`, `syncTimestamp`, `payload`
 - `DeviceProviderSnapshot`: `deviceID`, `deviceName`, `providerID`, `providerName`, `accountEmail`, `lastUpdated`, `encodingVersion`, `payload`
+- `DeviceStatus`: `deviceID`, `deviceName`, `appVersion`, `syncTimestamp`, `encodingVersion`, `payload`
 - `ProviderAccountLinkage`: `providerID`, `linkedIdentifiers`, `confirmedAt`, `confirmedFromDeviceID`, `unmerge`
 - `QuotaTransition`: `providerName`, `providerID`, `state`, `transitionAt`, `deviceID`, `accountEmail`
 
 `DeviceProviderSnapshot.deviceID` must be queryable because the Mac startup
 reconcile queries provider records for the current device.
 
-`DeviceSnapshot.recordName`, `DeviceProviderSnapshot.recordName`, and
-`ProviderAccountLinkage.recordName` must also be queryable. iOS full-refresh
+`DeviceSnapshot.recordName`, `DeviceProviderSnapshot.recordName`,
+`DeviceStatus.recordName`, and `ProviderAccountLinkage.recordName` must also be
+queryable. iOS full-refresh
 paths issue whole-record-type CloudKit queries for those records, and
 Production rejects those reads with `Field 'recordName' is not marked
 queryable` when the built-in record-name index is missing. CloudKit Dashboard

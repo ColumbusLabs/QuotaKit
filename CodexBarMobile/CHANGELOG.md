@@ -5,6 +5,14 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## Unreleased
+
+### Added
+
+- Settings -> About & Sync -> Devices now shows the synced Mac battery
+  percentage and charging/plugged-in state when a Mac provides it through
+  iCloud sync. The Mac app has no new UI for this side addition.
+
 ## [1.11.1 (169)] — 2026-06-18 — Provider logos in app and widgets
 
 ### Changed

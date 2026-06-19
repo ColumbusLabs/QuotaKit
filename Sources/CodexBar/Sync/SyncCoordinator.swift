@@ -24,6 +24,8 @@ final class SyncCoordinator {
     private let settings: SettingsStore
     private let syncManager: any SyncPushing
     private var isObserving = false
+    private var deviceStatusLoopTask: Task<Void, Never>?
+    private var lastPushedDeviceStatus: SyncDeviceStatus?
 
     // Observable sync status for UI
     private(set) var lastSyncTime: Date?
@@ -111,6 +113,8 @@ final class SyncCoordinator {
     /// `@MainActor` test suites.
     private let mockInjector: @MainActor () -> [ProviderUsageSnapshot]
 
+    private static let deviceStatusRefreshInterval: Duration = .seconds(300)
+
     /// **Default**: empty closure. The default is intentionally NOT
     /// `MockProviderInjector.injectedSnapshots()` so test suites that
     /// don't care about mock injection never accidentally pick it up
@@ -148,7 +152,24 @@ final class SyncCoordinator {
         Task { @MainActor [weak self] in
             await self?.reconcileLastPushedRecordNamesWithCloudKit()
         }
+        self.startDeviceStatusLoop()
         self.observeLoop()
+    }
+
+    private func startDeviceStatusLoop() {
+        guard self.deviceStatusLoopTask == nil else { return }
+        self.deviceStatusLoopTask = Task { @MainActor [weak self] in
+            guard let self else { return }
+            await self.pushCurrentDeviceStatusIfNeeded(force: true)
+            while !Task.isCancelled {
+                do {
+                    try await Task.sleep(for: Self.deviceStatusRefreshInterval)
+                } catch {
+                    return
+                }
+                await self.pushCurrentDeviceStatusIfNeeded(force: false)
+            }
+        }
     }
 
     /// One-shot startup reconcile. Replaces the in-memory empty
@@ -265,15 +286,26 @@ final class SyncCoordinator {
         let deviceName = Host.current().localizedName ?? "Mac"
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String
+        let powerStatus = MacPowerStatusProvider.currentStatus()
         let synced = SyncedUsageSnapshot(
             providers: providerSnapshots,
             syncTimestamp: Date(),
             deviceName: deviceName,
             deviceID: self.deviceID,
             appVersion: appVersion,
-            mobileVersion: mobileVersion)
+            mobileVersion: mobileVersion,
+            powerStatus: powerStatus)
 
         let legacyResult = await self.syncManager.pushSnapshot(synced)
+        _ = await self.pushDeviceStatus(
+            SyncDeviceStatus(
+                deviceID: self.deviceID,
+                deviceName: deviceName,
+                appVersion: appVersion,
+                mobileVersion: mobileVersion,
+                syncTimestamp: synced.syncTimestamp,
+                powerStatus: powerStatus),
+            force: true)
 
         // P4: additive per-provider write to DeviceProvidersZone. Diff against
         // the in-memory hash cache so unchanged providers are skipped.
@@ -347,6 +379,67 @@ final class SyncCoordinator {
         }
         self.lastPushedRecordNames = currentRecordNames
         self.pushHistorySeeded = true
+    }
+
+    private func pushCurrentDeviceStatusIfNeeded(force: Bool) async {
+        guard self.settings.iCloudSyncEnabled else { return }
+        let deviceName = Host.current().localizedName ?? "Mac"
+        let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
+        let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String
+        _ = await self.pushDeviceStatus(
+            SyncDeviceStatus(
+                deviceID: self.deviceID,
+                deviceName: deviceName,
+                appVersion: appVersion,
+                mobileVersion: mobileVersion,
+                syncTimestamp: Date(),
+                powerStatus: MacPowerStatusProvider.currentStatus()),
+            force: force)
+    }
+
+    @discardableResult
+    private func pushDeviceStatus(
+        _ status: SyncDeviceStatus,
+        force: Bool) async -> SyncPushResult
+    {
+        guard force || Self.shouldPushDeviceStatus(status, after: self.lastPushedDeviceStatus) else {
+            return .success
+        }
+        let result = await self.syncManager.pushDeviceStatus(status)
+        if result.succeeded {
+            self.lastPushedDeviceStatus = status
+        }
+        return result
+    }
+
+    static func shouldPushDeviceStatus(
+        _ status: SyncDeviceStatus,
+        after previous: SyncDeviceStatus?) -> Bool
+    {
+        guard let previous else { return true }
+        guard previous.deviceName == status.deviceName,
+              previous.appVersion == status.appVersion,
+              previous.mobileVersion == status.mobileVersion,
+              Self.samePowerReading(previous.powerStatus, status.powerStatus)
+        else {
+            return true
+        }
+        return false
+    }
+
+    private static func samePowerReading(
+        _ lhs: SyncDevicePowerStatus?,
+        _ rhs: SyncDevicePowerStatus?) -> Bool
+    {
+        switch (lhs, rhs) {
+        case (nil, nil):
+            true
+        case let (.some(lhs), .some(rhs)):
+            lhs.batteryPercent == rhs.batteryPercent
+                && lhs.state == rhs.state
+        default:
+            false
+        }
     }
 
     private func updateSyncStatus(
@@ -1224,6 +1317,8 @@ final class SyncCoordinator {
 
     func stopObserving() {
         self.isObserving = false
+        self.deviceStatusLoopTask?.cancel()
+        self.deviceStatusLoopTask = nil
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
