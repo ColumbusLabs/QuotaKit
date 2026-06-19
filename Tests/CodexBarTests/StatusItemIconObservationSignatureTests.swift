@@ -187,7 +187,7 @@ struct StatusItemIconObservationSignatureTests {
     }
 
     @Test
-    func `merged store icon observation signature changes when non primary status changes`() throws {
+    func `merged store icon observation signature ignores non primary status changes`() throws {
         let (settings, store, controller) = self.makeController(
             suiteName: "StatusItemIconObservationSignatureTests-merged-secondary-status")
         defer { controller.releaseStatusItemsForTesting() }
@@ -202,7 +202,7 @@ struct StatusItemIconObservationSignatureTests {
             description: "Claude status issue",
             updatedAt: Date(timeIntervalSince1970: 20))
 
-        #expect(controller.storeIconObservationSignature() != baseline)
+        #expect(controller.storeIconObservationSignature() == baseline)
     }
 
     @Test
@@ -221,6 +221,20 @@ struct StatusItemIconObservationSignatureTests {
             indicator: .major,
             description: "major outage",
             updatedAt: Date(timeIntervalSince1970: 20))
+
+        #expect(controller.storeIconObservationSignature() != baseline)
+    }
+
+    @Test
+    func `store icon observation signature changes when hide critters toggles`() {
+        let (settings, _, controller) = self.makeController(
+            suiteName: "StatusItemIconObservationSignatureTests-hide-critters")
+        defer { controller.releaseStatusItemsForTesting() }
+
+        settings.menuBarHidesCritters = false
+        let baseline = controller.storeIconObservationSignature()
+
+        settings.menuBarHidesCritters = true
 
         #expect(controller.storeIconObservationSignature() != baseline)
     }

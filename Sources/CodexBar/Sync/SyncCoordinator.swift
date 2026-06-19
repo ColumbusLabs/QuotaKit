@@ -614,7 +614,8 @@ final class SyncCoordinator {
                 limitAmount: pc.limit,
                 currencyCode: pc.currencyCode,
                 period: pc.period,
-                resetsAt: pc.resetsAt)
+                resetsAt: pc.resetsAt,
+                personalUsedAmount: pc.personalUsed)
         }
 
         // Perplexity rich structured credit breakdown (only for Perplexity).
@@ -701,6 +702,7 @@ final class SyncCoordinator {
             workspaceID: openCodeGoWorkspaceID)
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
+        let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -717,6 +719,7 @@ final class SyncCoordinator {
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
             perplexityCredits: perplexityCredits,
+            codexResetCredits: codexResetCredits,
             accountIdentities: accountIdentities,
             openAIAPIDashboard: openAIAPIDashboard,
             zaiHourlyUsage: zaiHourlyUsage,
@@ -741,6 +744,30 @@ final class SyncCoordinator {
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot))
+    }
+
+    private static func mapCodexResetCredits(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCodexResetCredits?
+    {
+        guard provider == .codex,
+              let resetCredits = snapshot?.codexResetCredits
+        else { return nil }
+        return SyncCodexResetCredits(
+            credits: resetCredits.credits.map { credit in
+                SyncCodexResetCredit(
+                    id: credit.id,
+                    resetType: credit.resetType,
+                    status: credit.status.rawValue,
+                    grantedAt: credit.grantedAt,
+                    expiresAt: credit.expiresAt,
+                    redeemStartedAt: credit.redeemStartedAt,
+                    redeemedAt: credit.redeemedAt,
+                    title: credit.title,
+                    description: credit.description)
+            },
+            availableCount: resetCredits.availableCount,
+            updatedAt: resetCredits.updatedAt)
     }
 
     private enum SyncPaceWindowRole {

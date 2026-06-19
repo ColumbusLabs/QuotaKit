@@ -17,7 +17,7 @@
 "Add Workspace" = "إضافة مساحة العمل";
 "Advanced" = "متقدمة";
 "All" = "الجميع";
-"Always allow on user actions" = "السماح دائمًا عند إجراءات المستخدم";
+"Always allow prompts" = "دائما اسمح بالمحفزات";
 "Animation pattern" = "نمط الرسوم المتحركة";
 "Antigravity login is managed in the app" = "يتم إدارة Antigravity تسجيل الدخول في التطبيق";
 "Applies only to the Security.framework OAuth keychain reader." = "ينطبق فقط على قارئ سلسلة مفاتيح Security.framework OAuth.";
@@ -79,7 +79,7 @@
 "Codex login failed" = "فشل تسجيل الدخول Codex";
 "Codex login timed out" = "انتهى وقت تسجيل الدخول Codex";
 "CodexBar Lifecycle Keepalive" = "QuotaKit دورة الحياة في العيش";
-"QuotaKit can't show its menu bar icon" = "لا يمكن QuotaKit عرض أيقونة شريط القائمة";
+"CodexBar can't show its menu bar icon" = "لا يمكن QuotaKit عرض أيقونة شريط القائمة";
 "CodexBar could not read managed account storage. " = "لم يكن QuotaKit قادرا على قراءة تخزين الحساب المدار.  ";
 "Configure…" = "تكوين...";
 "Connected" = "متصل";
@@ -304,7 +304,7 @@
 "Subscription Utilization" = "استخدام الاشتراكات";
 "Surprise me" = "فاجئني";
 "Switcher shows icons" = "المحول يعرض الأيقونات";
-"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI إلى /usr/local/bin و /opt/homebrew/bin ك quotakit.";
+"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink QuotaKitCLI إلى /usr/local/bin و /opt/homebrew/bin ك quotakit.";
 "System" = "النظام";
 "Temporarily shows the loading animation after the next refresh." = "يعرض مؤقتا حركة التحميل بعد التحديث التالي.";
 "terminal_app_subtitle" = "الطرفية المستخدمة في إجراء الطرفية المفتوحة";
@@ -498,6 +498,8 @@
 "show_most_used_provider_subtitle" = "شريط القوائم يعرض تلقائيا مزود الخدمة الأقرب إلى حد السعر.";
 "menu_bar_shows_percent_title" = "شريط القائمة يعرض النسبة المئوية";
 "menu_bar_shows_percent_subtitle" = "استبدل ألواح الحيوانات بأيقونات علامة مزودة ونسبة مئوية.";
+"hide_critters_title" = "إخفاء الكائنات الصغيرة";
+"hide_critters_subtitle" = "عرض أشرطة القياس البسيطة بدون الوجه والزخارف.";
 "display_mode_title" = "وضع العرض";
 "display_mode_subtitle" = "اختر ما تريد عرضه في شريط القائمة (Pace يظهر الاستخدام مقابل المتوقع).";
 "section_menu_content" = "محتوى القائمة";
@@ -617,7 +619,7 @@
 "login_shell_path" = "PATH shell تسجيل الدخول (التقاط بدء التشغيل)";
 "cleared" = "تم الموافقة.";
 "no_fetch_attempts" = "لم تحاول الجلب حتى الآن.";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe يمكنها حظر تطبيقات شريط القوائم في إعدادات النظام → شريط القوائم → السماح في شريط القوائم. QuotaKit قيد التشغيل، لكن قد يكون macOS يخفي أيقونته. افتح إعدادات شريط القوائم وفعل QuotaKit.";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe يمكنها حظر تطبيقات شريط القوائم في إعدادات النظام → شريط القوائم → السماح في شريط القوائم. QuotaKit قيد التشغيل، لكن قد يكون macOS يخفي أيقونته. افتح إعدادات شريط القوائم وفعل QuotaKit.";
 
 /* Metric preferences */
 "metric_pref_automatic" = "أوتوماتيكي";
@@ -626,6 +628,8 @@
 "metric_pref_tertiary" = "الدرجة الثالثة";
 "metric_pref_extra_usage" = "الاستخدام الإضافي";
 "metric_pref_average" = "المتوسط";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "النسبة المئوية";
@@ -806,6 +810,7 @@
 "API spend" = "API تنفق";
 "Extra usage" = "الاستخدام الإضافي";
 "Quota usage" = "استخدام الحصص";
+"Your spend" = "إنفاقك";
 "%.0f%% used" = "%.0f%% مستخدمة";
 "Usage history (today)" = "تاريخ الاستخدام (اليوم)";
 "Usage history (%d days)" = "تاريخ الاستخدام (%d أيام)";
@@ -875,6 +880,9 @@
 "Clearing removes local temporary provider data." = "المسح يزيل بيانات مقدم الخدمة المؤقت المحلي.";
 "Total: %@" = "المجموع: %@";
 "%d more items" = "%d المزيد من العناصر";
+"Other (%d items)" = "أخرى (%d عناصر)";
+"Expand" = "توسيع";
+"Collapse" = "طيّ";
 "Cleanup ideas" = "أفكار التنظيف";
 "%d unreadable item(s) skipped" = "%d العناصر غير القابلة للقراءة تم تخطيها";
 
@@ -970,6 +978,9 @@
 "Day" = "اليوم";
 "Deployment" = "النشر";
 "Drag to reorder" = "سحب لإعادة ترتيب";
+"Sort providers alphabetically" = "فرز المزوّدين أبجديًا";
+"Sort providers alphabetically (enabled first)" = "فرز المزوّدين أبجديًا (المفعّلون أولاً)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "مرتّبة أبجديًا (المفعّلون أولاً) — انقر لاستخدام ترتيبك المخصّص";
 "Endpoint" = "نقطة النهاية";
 "Enterprise host" = "مضيف مؤسسي";
 "Extra usage balance: %@" = "توازن الاستخدام الإضافي: %@";
@@ -1085,28 +1096,15 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
-
-/* QuotaKit inherited source keys */
-"mobile_button_sync_now" = "Sync Now";
-"mobile_dev_depleted" = "Depleted";
-"mobile_dev_restored" = "Restored";
-"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
-"mobile_dev_verify_push" = "Verify Push Setup";
-"mobile_dev_warning" = "Warning";
-"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
-"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (35 simple mocks omitted for brevity):";
-"mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_section_icloud_sync" = "iCloud Sync";
-"mobile_section_mock_data" = "Debug · Mock Provider Data";
-"mobile_section_push" = "iOS Push Notifications";
-"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
-"mobile_sync_status_last_sync_format" = "Last sync: %@";
-"mobile_sync_status_no_sync" = "No sync yet";
-"mobile_sync_status_syncing" = "Syncing…";
-"mobile_toggle_mock_subtitle" = "Pushes 60 synthetic providers across 50 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 52 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy and 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
-"mobile_toggle_mock_title" = "Inject mock provider data";
-"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
-"mobile_toggle_push_title" = "Push notifications to iOS";
-"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
-"mobile_toggle_sync_title" = "Sync usage to iCloud";
-"tab_mobile" = "Mobile";
+"Limit Reset Credits" = "أرصدة إعادة تعيين الحد";
+"1 manual reset available" = "تتوفر إعادة تعيين يدوية واحدة";
+"%d manual resets available" = "تتوفر %d عمليات إعادة تعيين يدوية";
+"Next expires %@" = "تنتهي صلاحية التالية %@";
+"byte_unit_byte" = "بايت";
+"byte_unit_bytes" = "بايتات";
+"byte_unit_kilobyte" = "كيلوبايت";
+"byte_unit_kilobytes" = "كيلوبايتات";
+"byte_unit_megabyte" = "ميغابايت";
+"byte_unit_megabytes" = "ميغابايتات";
+"byte_unit_gigabyte" = "غيغابايت";
+"byte_unit_gigabytes" = "غيغابايتات";

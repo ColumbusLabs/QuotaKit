@@ -70,7 +70,8 @@ struct SyncWireFormatRoundTripTests {
                 limitAmount: 100,
                 currencyCode: "USD",
                 period: "monthly",
-                resetsAt: Date(timeIntervalSince1970: 1_800_000_000)),
+                resetsAt: Date(timeIntervalSince1970: 1_800_000_000),
+                personalUsedAmount: 4.56),
             rateWindows: [
                 SyncRateWindow(
                     label: "5h",
@@ -96,6 +97,19 @@ struct SyncWireFormatRoundTripTests {
                     ]),
             ],
             perplexityCredits: nil,
+            codexResetCredits: SyncCodexResetCredits(
+                credits: [
+                    SyncCodexResetCredit(
+                        id: "credit-1",
+                        resetType: "rate_limit",
+                        status: "available",
+                        grantedAt: Date(timeIntervalSince1970: 1_700_000_100),
+                        expiresAt: Date(timeIntervalSince1970: 1_700_086_400),
+                        title: "Manual reset",
+                        description: "Resets a rate limit window"),
+                ],
+                availableCount: 1,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_200)),
             accountIdentities: accountIdentities)
     }
 
@@ -121,6 +135,9 @@ struct SyncWireFormatRoundTripTests {
         let decoded = try self.decoder().decode(
             ProviderUsageSnapshot.self, from: firstPass)
         let secondPass = try self.encoder().encode(decoded)
+        #expect(decoded.budget?.personalUsedAmount == 4.56)
+        #expect(decoded.codexResetCredits?.availableCount == 1)
+        #expect(decoded.codexResetCredits?.credits.first?.status == "available")
         #expect(
             firstPass == secondPass,
             "encode → decode → re-encode must produce byte-identical output")
@@ -144,6 +161,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.providerID == "codex")
         #expect(decoded.accountEmail == nil)
         #expect(decoded.accountIdentities == nil)
+        #expect(decoded.codexResetCredits == nil)
+        #expect(decoded.budget?.personalUsedAmount == nil)
         #expect(decoded.rateWindows.isEmpty)
     }
 

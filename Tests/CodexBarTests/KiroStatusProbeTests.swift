@@ -7,7 +7,231 @@ import Darwin
 import Glibc
 #endif
 
+private func waitForFile(_ url: URL) async throws {
+    for _ in 0..<100 where !FileManager.default.fileExists(atPath: url.path) {
+        try await Task.sleep(for: .milliseconds(20))
+    }
+    #expect(FileManager.default.fileExists(atPath: url.path))
+}
+
+@Suite(.serialized)
 struct KiroStatusProbeTests {
+    @Test
+    func `fetch returns usage when account probe times out`() async throws {
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              sleep 5
+              printf 'Logged in with Google\\nEmail: person@example.com\\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              printf 'Estimated Usage | resets on 2026-06-01 | KIRO FREE\\n'
+              printf 'Credits (12.50 of 50 covered in plan)\\n'
+              printf '████████████████████ 25%%\\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              exit 0
+            fi
+
+            exit 1
+            """)
+        defer { try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent()) }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path }, accountProbeTimeout: 0.2)
+        let snapshot = try await probe.fetch()
+
+        #expect(snapshot.planName == "KIRO FREE")
+        #expect(snapshot.creditsUsed == 12.50)
+        #expect(snapshot.accountEmail == nil)
+        #expect(snapshot.authMethod == nil)
+    }
+
+    @Test
+    func `fetch preserves account info when account probe succeeds`() async throws {
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              printf 'Logged in with Google\\nEmail: person@example.com\\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              printf 'Estimated Usage | resets on 2026-06-01 | KIRO FREE\\n'
+              printf 'Credits (12.50 of 50 covered in plan)\\n'
+              printf '████████████████████ 25%%\\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              exit 0
+            fi
+
+            exit 1
+            """)
+        defer { try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent()) }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path })
+        let snapshot = try await probe.fetch()
+
+        #expect(snapshot.accountEmail == "person@example.com")
+        #expect(snapshot.authMethod == "Google")
+    }
+
+    @Test
+    func `fetch preserves not logged in when usage fails without auth detail`() async throws {
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              printf 'Not logged in\\n'
+              exit 1
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              exit 1
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              exit 0
+            fi
+
+            exit 1
+            """)
+        defer { try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent()) }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path })
+        await #expect {
+            _ = try await probe.fetch()
+        } throws: { error in
+            guard case KiroStatusProbeError.notLoggedIn = error else { return false }
+            return true
+        }
+    }
+
+    @Test
+    func `fetch preserves not logged in when usage output cannot be parsed`() async throws {
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              printf 'Not logged in\\n'
+              exit 1
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              exit 0
+            fi
+
+            exit 1
+            """)
+        defer { try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent()) }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path })
+        await #expect {
+            _ = try await probe.fetch()
+        } throws: { error in
+            guard case KiroStatusProbeError.notLoggedIn = error else { return false }
+            return true
+        }
+    }
+
+    @Test
+    func `fetch cancellation during context probe is preserved`() async throws {
+        let contextStarted = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-kiro-context-\(UUID().uuidString).started")
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              printf 'Logged in with Google\nEmail: person@example.com\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              printf 'Estimated Usage | resets on 2026-06-01 | KIRO FREE\n'
+              printf 'Credits (12.50 of 50 covered in plan)\n'
+              printf '████████████████████ 25%%\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              : > '\(contextStarted.path)'
+              trap '' TERM
+              while true; do sleep 1; done
+            fi
+
+            exit 1
+            """)
+        defer {
+            try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: contextStarted)
+        }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path })
+        let task = Task { try await probe.fetch() }
+        defer { task.cancel() }
+
+        try await waitForFile(contextStarted)
+
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+    }
+
+    @Test
+    func `fetch cancellation while waiting for account probe is preserved`() async throws {
+        let accountStarted = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-kiro-account-\(UUID().uuidString).started")
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              : > '\(accountStarted.path)'
+              trap '' TERM
+              while true; do sleep 1; done
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              printf 'Estimated Usage | resets on 2026-06-01 | KIRO FREE\\n'
+              printf 'Credits (12.50 of 50 covered in plan)\\n'
+              printf '████████████████████ 25%%\\n'
+              exit 0
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
+              exit 0
+            fi
+
+            exit 1
+            """)
+        defer {
+            try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: accountStarted)
+        }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path })
+        let task = Task { try await probe.fetch() }
+        defer { task.cancel() }
+
+        try await waitForFile(accountStarted)
+
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
+    }
+
     @Test
     func `fetch returns when usage helper leaves inherited pipes open`() async throws {
         let root = FileManager.default.temporaryDirectory
@@ -265,7 +489,9 @@ struct KiroStatusProbeTests {
         }
         #expect(kill(processID, 0) == -1)
     }
+}
 
+extension KiroStatusProbeTests {
     // MARK: - Happy Path Parsing
 
     @Test
@@ -748,5 +974,44 @@ struct KiroStatusProbeTests {
 
         #expect(account.authMethod == nil)
         #expect(account.email == "user@example.com")
+    }
+}
+
+extension KiroStatusProbeTests {
+    @Test
+    func `fetch cancellation while joining account after usage failure is preserved`() async throws {
+        let accountStarted = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-kiro-failed-usage-account-\(UUID().uuidString).started")
+        let cliURL = try self.makeCLI(
+            """
+            #!/bin/sh
+            if [ "$1" = "whoami" ]; then
+              : > '\(accountStarted.path)'
+              trap '' TERM
+              while true; do sleep 1; done
+            fi
+
+            if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
+              exit 1
+            fi
+
+            exit 1
+            """)
+        defer {
+            try? FileManager.default.removeItem(at: cliURL.deletingLastPathComponent())
+            try? FileManager.default.removeItem(at: accountStarted)
+        }
+
+        let probe = KiroStatusProbe(cliBinaryResolver: { cliURL.path }, accountProbeTimeout: 2.0)
+        let task = Task { try await probe.fetch() }
+        defer { task.cancel() }
+
+        try await waitForFile(accountStarted)
+        try await Task.sleep(for: .milliseconds(300))
+
+        task.cancel()
+        await #expect(throws: CancellationError.self) {
+            try await task.value
+        }
     }
 }

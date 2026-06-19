@@ -45,6 +45,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
     case tertiary
     case extraUsage
     case average
+    case monthlyPlan
 
     var id: String {
         self.rawValue
@@ -58,6 +59,7 @@ enum MenuBarMetricPreference: String, CaseIterable, Identifiable {
         case .tertiary: L("metric_pref_tertiary")
         case .extraUsage: L("metric_pref_extra_usage")
         case .average: L("metric_pref_average")
+        case .monthlyPlan: L("metric_mistral_monthly_plan")
         }
     }
 }
@@ -360,6 +362,7 @@ extension SettingsStore {
             forKey: "providerChangelogLinksEnabled") as? Bool ?? false
         let menuBarShowsBrandIconWithPercent = userDefaults.object(
             forKey: "menuBarShowsBrandIconWithPercent") as? Bool ?? false
+        let menuBarHidesCritters = userDefaults.object(forKey: "menuBarHidesCritters") as? Bool ?? false
         let menuBarDisplayModeRaw = userDefaults.string(forKey: "menuBarDisplayMode")
             ?? MenuBarDisplayMode.percent.rawValue
         let kiroMenuBarDisplayModeRaw = userDefaults.string(forKey: "kiroMenuBarDisplayMode")
@@ -412,6 +415,8 @@ extension SettingsStore {
             forKey: "mergedOverviewSelectedProviders") as? [String] ?? []
         let selectedMenuProviderRaw = userDefaults.string(forKey: "selectedMenuProvider")
         let providerDetectionCompleted = userDefaults.object(forKey: "providerDetectionCompleted") as? Bool ?? false
+        let providersSortedAlphabetically = userDefaults.object(
+            forKey: "providersSortedAlphabetically") as? Bool ?? false
         let appLanguageRaw = userDefaults.string(forKey: "appLanguage")
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
@@ -437,6 +442,7 @@ extension SettingsStore {
             resetTimesShowAbsolute: resetTimesShowAbsolute,
             providerChangelogLinksEnabled: providerChangelogLinksEnabled,
             menuBarShowsBrandIconWithPercent: menuBarShowsBrandIconWithPercent,
+            menuBarHidesCritters: menuBarHidesCritters,
             menuBarDisplayModeRaw: menuBarDisplayModeRaw,
             kiroMenuBarDisplayModeRaw: kiroMenuBarDisplayModeRaw,
             historicalTrackingEnabled: historicalTrackingEnabled,
@@ -466,6 +472,7 @@ extension SettingsStore {
             mergedOverviewSelectedProvidersRaw: mergedOverviewSelectedProvidersRaw,
             selectedMenuProviderRaw: selectedMenuProviderRaw,
             providerDetectionCompleted: providerDetectionCompleted,
+            providersSortedAlphabetically: providersSortedAlphabetically,
             appLanguageRaw: appLanguageRaw,
             terminalAppRaw: userDefaults.string(forKey: "terminalApp"))
     }
@@ -496,7 +503,7 @@ extension SettingsStore {
             migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
         case .tertiary:
             migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
-        case .automatic, .extraUsage, .average, .none:
+        case .automatic, .extraUsage, .average, .monthlyPlan, .none:
             break
         }
         userDefaults.set(migrated, forKey: "menuBarMetricPreferences")

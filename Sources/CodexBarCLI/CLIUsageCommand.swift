@@ -548,6 +548,14 @@ extension CodexBarCLI {
         guard provider != .grok, provider != .amp else {
             return false
         }
+        if provider == .codex, sourceMode == .auto {
+            return false
+        }
+        if provider == .opencodego,
+           settings?.opencodego?.cookieSource == .manual
+        {
+            return false
+        }
         if provider == .ollama,
            sourceMode == .auto
         {

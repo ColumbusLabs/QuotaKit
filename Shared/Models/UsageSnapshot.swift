@@ -235,19 +235,75 @@ public struct SyncBudgetSnapshot: Codable, Sendable, Equatable {
     public let currencyCode: String
     public let period: String?
     public let resetsAt: Date?
+    /// This account's own contribution when used/limit represent a shared pool.
+    public let personalUsedAmount: Double?
 
     public init(
         usedAmount: Double,
         limitAmount: Double,
         currencyCode: String,
         period: String?,
-        resetsAt: Date?)
+        resetsAt: Date?,
+        personalUsedAmount: Double? = nil)
     {
         self.usedAmount = usedAmount
         self.limitAmount = limitAmount
         self.currencyCode = currencyCode
         self.period = period
         self.resetsAt = resetsAt
+        self.personalUsedAmount = personalUsedAmount
+    }
+}
+
+/// Codex manual rate-limit reset credit synced for companion surfaces.
+public struct SyncCodexResetCredit: Codable, Sendable, Equatable, Identifiable {
+    public let id: String
+    public let resetType: String
+    public let status: String
+    public let grantedAt: Date
+    public let expiresAt: Date?
+    public let redeemStartedAt: Date?
+    public let redeemedAt: Date?
+    public let title: String?
+    public let description: String?
+
+    public init(
+        id: String,
+        resetType: String,
+        status: String,
+        grantedAt: Date,
+        expiresAt: Date? = nil,
+        redeemStartedAt: Date? = nil,
+        redeemedAt: Date? = nil,
+        title: String? = nil,
+        description: String? = nil)
+    {
+        self.id = id
+        self.resetType = resetType
+        self.status = status
+        self.grantedAt = grantedAt
+        self.expiresAt = expiresAt
+        self.redeemStartedAt = redeemStartedAt
+        self.redeemedAt = redeemedAt
+        self.title = title
+        self.description = description
+    }
+}
+
+/// Codex manual rate-limit reset credit summary.
+public struct SyncCodexResetCredits: Codable, Sendable, Equatable {
+    public let credits: [SyncCodexResetCredit]
+    public let availableCount: Int
+    public let updatedAt: Date
+
+    public init(
+        credits: [SyncCodexResetCredit],
+        availableCount: Int,
+        updatedAt: Date)
+    {
+        self.credits = credits
+        self.availableCount = availableCount
+        self.updatedAt = updatedAt
     }
 }
 
@@ -351,6 +407,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// providers and for older Mac clients — iOS falls back to the generic
     /// `rateWindows` rendering in that case.
     public let perplexityCredits: SyncPerplexityCreditSummary?
+
+    /// Codex manual rate-limit reset credits. Populated only on Codex
+    /// snapshots when Mac can read signed-in OAuth reset-credit data.
+    public let codexResetCredits: SyncCodexResetCredits?
 
     /// Mac-side stable identifiers for the logical account this snapshot
     /// represents. iOS uses these as grouping evidence: any two snapshots
@@ -556,6 +616,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         rateWindows: [SyncRateWindow] = [],
         utilizationHistory: [SyncUtilizationSeries]? = nil,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
+        codexResetCredits: SyncCodexResetCredits? = nil,
         accountIdentities: [String]? = nil,
         quotaWarnings: SyncQuotaWarningConfig? = nil,
         openAIAPIDashboard: SyncOpenAIAPIDashboard? = nil,
@@ -593,6 +654,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.budget = budget
         self.utilizationHistory = utilizationHistory
         self.perplexityCredits = perplexityCredits
+        self.codexResetCredits = codexResetCredits
         self.accountIdentities = accountIdentities
         self.quotaWarnings = quotaWarnings
         self.openAIAPIDashboard = openAIAPIDashboard
@@ -617,7 +679,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.deepSeekUsage = deepSeekUsage
     }
 
-    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`accountIdentities`/`quotaWarnings` still decode.
+    /// Backward-compatible decoder: old payloads without `rateWindows`/`costSummary`/`budget`/`perplexityCredits`/`codexResetCredits`/`accountIdentities`/`quotaWarnings` still decode.
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.providerID = try container.decode(String.self, forKey: .providerID)
@@ -634,6 +696,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.budget = try container.decodeIfPresent(SyncBudgetSnapshot.self, forKey: .budget)
         self.utilizationHistory = try container.decodeIfPresent([SyncUtilizationSeries].self, forKey: .utilizationHistory)
         self.perplexityCredits = try container.decodeIfPresent(SyncPerplexityCreditSummary.self, forKey: .perplexityCredits)
+        self.codexResetCredits = try container.decodeIfPresent(SyncCodexResetCredits.self, forKey: .codexResetCredits)
         self.accountIdentities = try container.decodeIfPresent([String].self, forKey: .accountIdentities)
         self.quotaWarnings = try container.decodeIfPresent(SyncQuotaWarningConfig.self, forKey: .quotaWarnings)
         // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. All

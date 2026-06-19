@@ -183,6 +183,10 @@ check_codex_parser_hash() {
   "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
 }
 
+check_package_product_paths() {
+  "${ROOT_DIR}/Scripts/test_package_product_paths.sh"
+}
+
 audit_customer_branding() {
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py" --self-test
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py"
@@ -236,23 +240,47 @@ check_app_locales() {
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
 }
 
+run_portable_checks() {
+  check_codex_parser_hash
+  check_package_product_paths
+  check_release_dsym_paths
+  check_sparkle_signing_paths
+  check_swift_test_sharding
+  check_release_feed_url
+  ensure_tools
+}
+
+run_swiftformat_lint() {
+  "${BIN_DIR}/swiftformat" Sources Tests --lint
+}
+
+run_swiftlint() {
+  "${BIN_DIR}/swiftlint" --strict
+}
+
 cmd="${1:-lint}"
 
 case "$cmd" in
   lint)
-    check_release_dsym_paths
-    check_sparkle_signing_paths
-    check_release_feed_url
-    check_swift_test_sharding
     check_app_locales
-    ensure_tools
-    "${BIN_DIR}/swiftformat" Sources Tests --lint
-    "${BIN_DIR}/swiftlint" --strict
+    run_portable_checks
+    run_swiftformat_lint
+    run_swiftlint
     audit_xcstrings
     audit_customer_branding
     audit_provider_palette
     audit_parser_version
-    check_codex_parser_hash
+    ;;
+  lint-linux)
+    run_portable_checks
+    run_swiftlint
+    audit_customer_branding
+    audit_provider_palette
+    ;;
+  lint-macos)
+    check_app_locales
+    run_portable_checks
+    run_swiftformat_lint
     ;;
   format)
     ensure_tools
@@ -277,7 +305,7 @@ case "$cmd" in
     check_release_feed_url
     ;;
   *)
-    printf 'Usage: %s [lint|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding|audit-provider-palette|audit-release-feed]\n' "$(basename "$0")" >&2
+    printf 'Usage: %s [lint|lint-linux|lint-macos|format|audit-i18n|audit-parser-version|audit-parser-hash|audit-customer-branding|audit-provider-palette|audit-release-feed]\n' "$(basename "$0")" >&2
     exit 2
     ;;
 esac

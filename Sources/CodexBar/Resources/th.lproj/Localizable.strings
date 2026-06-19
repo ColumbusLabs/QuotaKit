@@ -17,7 +17,7 @@
 "Add Workspace" = "เพิ่มพื้นที่ทํางาน";
 "Advanced" = "ขั้นสูง";
 "All" = "ทั้งหมด";
-"Always allow on user actions" = "อนุญาตเสมอเมื่อผู้ใช้สั่งการ";
+"Always allow prompts" = "อนุญาตข้อความแจ้งเสมอ";
 "Animation pattern" = "รูปแบบแอนิเมชั่น";
 "Antigravity login is managed in the app" = "Antigravity เข้าสู่ระบบได้รับการจัดการในแอป";
 "Applies only to the Security.framework OAuth keychain reader." = "นําไปใช้กับโปรแกรมอ่านพวงกุญแจ Security.framework OAuth เท่านั้น";
@@ -79,7 +79,7 @@
 "Codex login failed" = "การเข้าสู่ระบบ Codex ล้มเหลว";
 "Codex login timed out" = "Codex เข้าสู่ระบบหมดเวลา";
 "CodexBar Lifecycle Keepalive" = "QuotaKit วงจรชีวิต Keepalive";
-"QuotaKit can't show its menu bar icon" = "QuotaKit ไม่สามารถแสดงไอคอนแถบเมนูได้";
+"CodexBar can't show its menu bar icon" = "QuotaKit ไม่สามารถแสดงไอคอนแถบเมนูได้";
 "CodexBar could not read managed account storage. " = "QuotaKit อ่านพื้นที่เก็บข้อมูลของบัญชีที่มีการจัดการไม่ได้  ";
 "Configure…" = "กําหนดค่า...";
 "Connected" = "เชื่อมต่อ";
@@ -304,7 +304,7 @@
 "Subscription Utilization" = "การใช้การสมัครสมาชิก";
 "Surprise me" = "ทําให้ฉันประหลาดใจ";
 "Switcher shows icons" = "ตัวสลับแสดงไอคอน";
-"Symlink QuotaKitCLI to /usr/local/bin and /opt/homebrew/bin as quotakit." = "Symlink QuotaKitCLI เป็น /usr/local/bin และ /opt/homebrew/bin เป็น quotakit";
+"Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink QuotaKitCLI เป็น /usr/local/bin และ /opt/homebrew/bin เป็น quotakit";
 "System" = "ระบบ";
 "Temporarily shows the loading animation after the next refresh." = "แสดงภาพเคลื่อนไหวการโหลดชั่วคราวหลังจากการรีเฟรชครั้งถัดไป";
 "terminal_app_subtitle" = "เทอร์มินัลที่ใช้โดยการดําเนินการ Open Terminal";
@@ -498,6 +498,8 @@
 "show_most_used_provider_subtitle" = "แถบเมนูจะแสดงผู้ให้บริการที่ใกล้เคียงกับขีดจํากัดอัตรามากที่สุดโดยอัตโนมัติ";
 "menu_bar_shows_percent_title" = "แถบเมนูแสดงเปอร์เซ็นต์";
 "menu_bar_shows_percent_subtitle" = "แทนที่แถบสัตว์ด้วยไอคอนการสร้างแบรนด์ของผู้ให้บริการและเปอร์เซ็นต์";
+"hide_critters_title" = "ซ่อนตัวการ์ตูน";
+"hide_critters_subtitle" = "แสดงแถบวัดแบบเรียบโดยไม่มีหน้าและการตกแต่ง";
 "display_mode_title" = "โหมดการแสดงผล";
 "display_mode_subtitle" = "เลือกสิ่งที่จะแสดงในแถบเมนู (อัตราก้าวแสดงการใช้งานเทียบกับที่คาดไว้)";
 "section_menu_content" = "เนื้อหาเมนู";
@@ -617,7 +619,7 @@
 "login_shell_path" = "PATH เชลล์เข้าสู่ระบบ (การจับภาพการเริ่มต้น)";
 "cleared" = "เคลียร์แล้ว";
 "no_fetch_attempts" = "ยังไม่มีความพยายามในการดึงข้อมูล";
-"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. QuotaKit is running, but macOS may be hiding its icon. Open Menu Bar settings and turn QuotaKit on." = "macOS Tahoe สามารถบล็อกแอปแถบเมนูในการตั้งค่าระบบ→แถบเมนู→อนุญาตในแถบเมนู QuotaKit กําลังทํางานอยู่ แต่ macOS อาจซ่อนไอคอนไว้ เปิดการตั้งค่าแถบเมนู แล้วเปิด QuotaKit";
+"macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe สามารถบล็อกแอปแถบเมนูในการตั้งค่าระบบ→แถบเมนู→อนุญาตในแถบเมนู QuotaKit กําลังทํางานอยู่ แต่ macOS อาจซ่อนไอคอนไว้ เปิดการตั้งค่าแถบเมนู แล้วเปิด QuotaKit";
 
 /* Metric preferences */
 "metric_pref_automatic" = "อัตโนมัติ";
@@ -626,6 +628,8 @@
 "metric_pref_tertiary" = "ระดับอุดมศึกษา";
 "metric_pref_extra_usage" = "การใช้งานเพิ่มเติม";
 "metric_pref_average" = "ค่าเฉลี่ย";
+"metric_mistral_payg" = "Pay-as-you-go";
+"metric_mistral_monthly_plan" = "Monthly Plan";
 
 /* Display modes */
 "display_mode_percent" = "เปอร์เซ็นต์";
@@ -806,6 +810,7 @@
 "API spend" = "API ใช้จ่าย";
 "Extra usage" = "การใช้งานเพิ่มเติม";
 "Quota usage" = "การใช้โควต้า";
+"Your spend" = "การใช้จ่ายของคุณ";
 "%.0f%% used" = "%.0f%% ใช้แล้ว";
 "Usage history (today)" = "ประวัติการใช้งาน (วันนี้)";
 "Usage history (%d days)" = "ประวัติการใช้งาน (%d วัน)";
@@ -875,6 +880,9 @@
 "Clearing removes local temporary provider data." = "การหักล้างจะลบข้อมูลผู้ให้บริการชั่วคราวในเครื่อง";
 "Total: %@" = "ทั้งหมด: %@";
 "%d more items" = "%d รายการเพิ่มเติม";
+"Other (%d items)" = "อื่น ๆ (%d รายการ)";
+"Expand" = "ขยาย";
+"Collapse" = "ยุบ";
 "Cleanup ideas" = "ไอเดียการล้างข้อมูล";
 "%d unreadable item(s) skipped" = "ข้ามรายการที่อ่านไม่ได้ %d รายการ";
 
@@ -970,6 +978,9 @@
 "Day" = "วัน";
 "Deployment" = "การปรับใช้";
 "Drag to reorder" = "ลากเพื่อจัดลําดับใหม่";
+"Sort providers alphabetically" = "เรียงผู้ให้บริการตามตัวอักษร";
+"Sort providers alphabetically (enabled first)" = "เรียงผู้ให้บริการตามตัวอักษร (ที่เปิดใช้ก่อน)";
+"Sorted alphabetically (enabled first) — click to use your custom order" = "เรียงตามตัวอักษรแล้ว (ที่เปิดใช้ก่อน) — คลิกเพื่อใช้ลำดับที่กำหนดเอง";
 "Endpoint" = "ปลายทาง";
 "Enterprise host" = "โฮสต์องค์กร";
 "Extra usage balance: %@" = "ยอดการใช้งานเพิ่มเติม: %@";
@@ -1085,28 +1096,15 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
-
-/* QuotaKit inherited source keys */
-"mobile_button_sync_now" = "Sync Now";
-"mobile_dev_depleted" = "Depleted";
-"mobile_dev_restored" = "Restored";
-"mobile_dev_test_intro" = "Writes a real `QuotaTransition` record to CloudKit, which fires the same alert push the iOS app would receive in production. Subject to the toggle above (must be ON).";
-"mobile_dev_verify_push" = "Verify Push Setup";
-"mobile_dev_warning" = "Warning";
-"mobile_mock_cost_note" = "Mocks add ~$85 to your 30-day cost dashboard while active. Toggle off to restore real numbers.";
-"mobile_mock_reference_header" = "Reference — most-tested 8 mocks (35 simple mocks omitted for brevity):";
-"mobile_section_dev_test" = "DEV — iOS Push Test";
-"mobile_section_icloud_sync" = "iCloud Sync";
-"mobile_section_mock_data" = "Debug · Mock Provider Data";
-"mobile_section_push" = "iOS Push Notifications";
-"mobile_sync_status_last_attempt_format" = "Last attempt: %@";
-"mobile_sync_status_last_sync_format" = "Last sync: %@";
-"mobile_sync_status_no_sync" = "No sync yet";
-"mobile_sync_status_syncing" = "Syncing…";
-"mobile_toggle_mock_subtitle" = "Pushes 60 synthetic providers across 50 IDs (6 rich mocks for codex/claude/perplexity multi-account paths, 52 simple mocks including 7 multi-account second-tab pairs for openai/deepseek/antigravity/manus/copilot/venice/stepfun, 5 v0.27.0 single-account providers for grok/groq/elevenlabs/deepgram/llmproxy and 3 v0.28/v0.29 single-account providers for azureopenai/alibabatokenplan/t3chat, 2 unknown-ID mocks for fallback rendering) on every sync. All mock emails use the `.test` TLD so iPhone (1.5.2+) renders them with a MOCK badge. Toggle off and CloudKit automatically purges them within ~1 cycle. Default OFF.";
-"mobile_toggle_mock_title" = "Inject mock provider data";
-"mobile_toggle_push_subtitle" = "When a session quota is depleted or restored, send a visible alert push to the iOS companion app via iCloud. This is independent of Mac local notifications — you can keep Mac quiet but still get alerts on your iPhone.";
-"mobile_toggle_push_title" = "Push notifications to iOS";
-"mobile_toggle_sync_subtitle" = "Pushes usage data to iCloud so the iOS companion app can display it.";
-"mobile_toggle_sync_title" = "Sync usage to iCloud";
-"tab_mobile" = "Mobile";
+"Limit Reset Credits" = "เครดิตรีเซ็ตขีดจำกัด";
+"1 manual reset available" = "มีการรีเซ็ตด้วยตนเอง 1 ครั้ง";
+"%d manual resets available" = "มีการรีเซ็ตด้วยตนเอง %d ครั้ง";
+"Next expires %@" = "รายการถัดไปหมดอายุ %@";
+"byte_unit_byte" = "ไบต์";
+"byte_unit_bytes" = "ไบต์";
+"byte_unit_kilobyte" = "กิโลไบต์";
+"byte_unit_kilobytes" = "กิโลไบต์";
+"byte_unit_megabyte" = "เมกะไบต์";
+"byte_unit_megabytes" = "เมกะไบต์";
+"byte_unit_gigabyte" = "กิกะไบต์";
+"byte_unit_gigabytes" = "กิกะไบต์";

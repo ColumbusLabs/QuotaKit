@@ -35,12 +35,18 @@ final class MenuCardRefreshMonitor {
         fallback: UsageMenuCardView.Model) -> UsageMenuCardView.Model
     {
         guard !self.isManualRefreshInFlight else {
-            guard let frozen = self.frozenManualRefreshModels[provider],
-                  fallback.hasCompatibleTrackedLayout(with: frozen)
-            else {
+            guard let frozen = self.frozenManualRefreshModels[provider] else {
                 return fallback
             }
-            return frozen
+            if fallback.hasCompatibleTrackedLayout(with: frozen) {
+                return frozen
+            }
+            // A rebuilding menu may temporarily lose some metric rows, but retained rows and other sections
+            // must still match the frozen layout.
+            if fallback.hasCompatibleTrackedMetricSubset(of: frozen) {
+                return frozen
+            }
+            return fallback
         }
 
         guard let resolved = self.resolveModel(provider),
