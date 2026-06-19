@@ -42,7 +42,9 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
             }
         }
 
-        XCTAssertNotNil(self.renderToImage(view))
+        let image = self.renderToImage(view)
+        XCTAssertNotNil(image)
+        self.attachIAPReviewScreenshot(from: self.iapReviewScreenshotView())
     }
 
     func testUnlockedSettingsProSectionRenders() {
@@ -214,5 +216,43 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
             .quotaKitThemed())
         renderer.scale = 2.0
         return renderer.uiImage
+    }
+
+    private func attachIAPReviewScreenshot<V: View>(from view: V) {
+        let renderer = ImageRenderer(content: view
+            .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
+            .preferredColorScheme(.dark)
+            .frame(width: 320, height: 460)
+            .quotaKitThemed())
+        renderer.scale = 2.0
+
+        guard let image = renderer.uiImage else {
+            XCTFail("Could not render IAP review screenshot")
+            return
+        }
+
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "iap_review_screenshot"
+        attachment.lifetime = .keepAlways
+        self.add(attachment)
+    }
+
+    private func iapReviewScreenshotView() -> some View {
+        VStack(alignment: .leading, spacing: 16) {
+            VStack(alignment: .leading, spacing: 4) {
+                Text("QuotaKit Pro")
+                    .font(.title2.weight(.bold))
+                    .foregroundStyle(QuotaKitTheme.dark.textPrimary)
+                Text("Lifetime unlock")
+                    .font(.subheadline)
+                    .foregroundStyle(QuotaKitTheme.dark.textMuted)
+            }
+
+            QuotaKitProSettingsView(store: .preview(state: .locked))
+
+            Spacer(minLength: 0)
+        }
+        .padding(16)
+        .background(QuotaKitTheme.dark.canvas)
     }
 }

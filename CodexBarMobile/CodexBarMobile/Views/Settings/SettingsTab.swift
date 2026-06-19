@@ -125,6 +125,7 @@ struct SettingsTab: View {
                         .padding(16)
                     }
 
+                    #if DEBUG
                     QKSectionHeader(title: "Developer")
                     QKSurfaceCard {
                         NavigationLink {
@@ -137,6 +138,7 @@ struct SettingsTab: View {
                         }
                         .padding(16)
                     }
+                    #endif
 
                     if MockProviderDetector.hasAnyMock(in: self.usageData.snapshot) {
                         QKSectionHeader(title: "Diagnostics")
