@@ -42,6 +42,43 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
+    func performStoreRefresh(
+        for provider: UsageProvider,
+        refreshOpenMenusWhenComplete: Bool,
+        interaction: ProviderInteraction) async
+    {
+        await ProviderInteractionContext.$current.withValue(interaction) {
+            let refreshStartedAt = Date()
+            await self.store.refreshProvider(provider)
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+            await self.store.refreshProviderStatus(provider)
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+            await self.store.refreshTokenUsageNow(for: provider, force: true)
+            guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+            if provider == .codex {
+                await self.store.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
+                guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                await self.store.refreshOpenAIDashboardIfNeeded(
+                    force: true,
+                    expectedGuard: self.store.freshCodexOpenAIWebRefreshGuard())
+                guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                if self.store.openAIDashboardRequiresLogin {
+                    await self.store.refreshProvider(.codex)
+                    guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                    await self.store.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
+                    guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
+                }
+            }
+            self.store.scheduleStorageFootprintRefresh(for: [provider], force: true)
+            self.store.persistWidgetSnapshot(reason: "provider-refresh")
+            if refreshOpenMenusWhenComplete {
+                self.refreshOpenMenusAfterExplicitStoreAction()
+            } else {
+                self.invalidateMenus()
+            }
+        }
+    }
+
     func refreshOpenMenusAfterExplicitStoreAction() {
         self.invalidateMenus(
             refreshOpenMenus: true,
@@ -49,9 +86,40 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
     }
 
     @objc func refreshNow() {
+        self.startManualRefresh(for: nil)
+    }
+
+    @objc func refreshMenuItem(_ sender: NSMenuItem) {
+        self.refreshMenuProviderNow(in: sender.menu)
+    }
+
+    func refreshMenuProviderNow(in menu: NSMenu?) {
+        guard let provider = self.manualRefreshProvider(for: menu) else {
+            self.startManualRefresh(for: nil)
+            return
+        }
+        self.startManualRefresh(for: provider)
+    }
+
+    private func refreshMenuProviderNow(menuID: ObjectIdentifier) {
+        if let menu = self.openMenus[menuID] {
+            self.refreshMenuProviderNow(in: menu)
+        } else if let mergedMenu = self.mergedMenu, ObjectIdentifier(mergedMenu) == menuID {
+            self.refreshMenuProviderNow(in: mergedMenu)
+        } else if let provider = self.menuProviders[menuID] {
+            self.startManualRefresh(for: provider)
+        } else {
+            self.startManualRefresh(for: nil)
+        }
+    }
+
+    private func startManualRefresh(for provider: UsageProvider?) {
+        let scopedRefreshInFlight = provider.map { self.store.refreshingProviders.contains($0) }
+            ?? !self.store.refreshingProviders.isEmpty
         guard !self.hasPreparedForAppShutdown,
               self.manualRefreshTask == nil,
-              !self.store.isRefreshing
+              !self.store.isRefreshing,
+              !scopedRefreshInFlight
         else { return }
 
         let frozenModels = self.frozenManualRefreshMenuCardModels()
@@ -59,8 +127,10 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             guard let self else { return }
             defer {
                 self.manualRefreshTask = nil
+                self.manualRefreshProvider = nil
                 self.menuCardRefreshMonitor.endManualRefresh()
-                self.updatePersistentRefreshRowsInProgress()
+                self.updatePersistentRefreshItemsEnabled()
+                self.prepareAttachedClosedMenusIfNeeded()
             }
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             #if DEBUG
@@ -70,14 +140,32 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                 return
             }
             #endif
-            await self.performStoreRefresh(
-                forceTokenUsage: true,
-                refreshOpenMenusWhenComplete: true,
-                interaction: .userInitiated)
+            if let provider {
+                await self.performStoreRefresh(
+                    for: provider,
+                    refreshOpenMenusWhenComplete: true,
+                    interaction: .userInitiated)
+            } else {
+                await self.performStoreRefresh(
+                    forceTokenUsage: true,
+                    refreshOpenMenusWhenComplete: true,
+                    interaction: .userInitiated)
+            }
         }
+        self.manualRefreshProvider = provider
         self.manualRefreshTask = task
-        self.menuCardRefreshMonitor.beginManualRefresh(frozenModels: frozenModels)
-        self.updatePersistentRefreshRowsInProgress()
+        self.menuCardRefreshMonitor.beginManualRefresh(frozenModels: frozenModels, provider: provider)
+        self.updatePersistentRefreshItemsEnabled()
+    }
+
+    private func manualRefreshProvider(for menu: NSMenu?) -> UsageProvider? {
+        guard let menu else { return nil }
+        if self.shouldMergeIcons {
+            guard self.mergedMenu == nil || menu === self.mergedMenu else { return nil }
+            guard !self.isMergedOverviewSelected(in: menu) else { return nil }
+            return self.resolvedMenuProvider()
+        }
+        return self.menuProviders[ObjectIdentifier(menu)]
     }
 
     private func frozenManualRefreshMenuCardModels() -> [UsageProvider: UsageMenuCardView.Model] {
@@ -100,9 +188,10 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         return models
     }
 
-    nonisolated func performPersistentRefreshAction() {
+    nonisolated func performPersistentRefreshAction(in menuID: ObjectIdentifier) {
         Task { @MainActor [weak self] in
-            self?.refreshNow()
+            guard let self else { return }
+            self.refreshMenuProviderNow(menuID: menuID)
         }
     }
 
@@ -198,8 +287,21 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
         let autoStart = true
         let accountEmail = self.store.codexAccountEmailForOpenAIDashboard()
+        let cacheScope = self.store.codexCookieCacheScopeForOpenAIWeb()
+        guard OpenAICreditsPurchaseWindowController.canOpenPurchaseWindow(
+            accountEmail: accountEmail,
+            cacheScope: cacheScope)
+        else {
+            self.creditsPurchaseWindow?.close()
+            self.creditsPurchaseWindow = nil
+            return
+        }
         let controller = self.creditsPurchaseWindow ?? OpenAICreditsPurchaseWindowController()
-        controller.show(purchaseURL: url, accountEmail: accountEmail, autoStartPurchase: autoStart)
+        controller.show(
+            purchaseURL: url,
+            accountEmail: accountEmail,
+            cacheScope: cacheScope,
+            autoStartPurchase: autoStart)
         self.creditsPurchaseWindow = controller
     }
 

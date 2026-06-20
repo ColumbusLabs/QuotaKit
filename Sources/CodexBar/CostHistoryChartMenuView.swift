@@ -6,6 +6,12 @@ import SwiftUI
 struct CostHistoryChartMenuView: View {
     typealias DailyEntry = CostUsageDailyReport.Entry
 
+    enum AxisLabelPlacement: Equatable {
+        case hidden
+        case centered
+        case edges
+    }
+
     private struct Point: Identifiable {
         let id: String
         let date: Date
@@ -92,15 +98,7 @@ struct CostHistoryChartMenuView: View {
                     }
                 }
                 .chartYAxis(.hidden)
-                .chartXAxis {
-                    AxisMarks(values: model.axisDates) { _ in
-                        AxisGridLine().foregroundStyle(Color.clear)
-                        AxisTick().foregroundStyle(Color.clear)
-                        AxisValueLabel(format: .dateTime.month(.abbreviated).day())
-                            .font(.caption2)
-                            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
-                    }
-                }
+                .chartXAxis(.hidden)
                 .chartLegend(.hidden)
                 .frame(height: Self.chartHeight)
                 .accessibilityLabel(L("Cost history chart"))
@@ -125,6 +123,28 @@ struct CostHistoryChartMenuView: View {
                             .contentShape(Rectangle())
                         }
                     }
+                }
+
+                let axisLabelPlacement = Self.axisLabelPlacement(for: model.axisDates)
+                if axisLabelPlacement != .hidden {
+                    HStack {
+                        if axisLabelPlacement == .centered {
+                            Spacer()
+                        }
+                        Text(model.axisDates[0], format: .dateTime.month(.abbreviated).day())
+                            .font(.caption2)
+                            .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                        Spacer()
+                        if axisLabelPlacement == .edges {
+                            Text(
+                                model.axisDates[model.axisDates.count - 1],
+                                format: .dateTime.month(.abbreviated).day())
+                                .font(.caption2)
+                                .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
+                        }
+                    }
+                    .frame(height: Self.axisLabelAreaHeight)
+                    .padding(.top, -Self.outerSpacing)
                 }
 
                 let detail = self.detailContent(selectedDateKey: selectedDateKey, model: model)
@@ -229,7 +249,8 @@ struct CostHistoryChartMenuView: View {
     private static let compactDetailRowHeight: CGFloat = 36
     private static let expandedDetailRowHeight: CGFloat = 44
     private static let detailSpacing: CGFloat = 6
-    private static let chartHeight: CGFloat = 130
+    private static let chartHeight: CGFloat = 114
+    private static let axisLabelAreaHeight: CGFloat = 16
     private static let outerSpacing: CGFloat = 10
     static let verticalPadding: CGFloat = 10
 
@@ -240,6 +261,7 @@ struct CostHistoryChartMenuView: View {
     private static func totalCardHeight(rows: [DetailRow], hasTotal: Bool) -> CGFloat {
         var height = self.verticalPadding * 2
         height += self.chartHeight
+        height += self.axisLabelAreaHeight
         height += self.outerSpacing
         height += self.detailBlockHeight(rows: rows)
         if hasTotal {
@@ -326,6 +348,14 @@ struct CostHistoryChartMenuView: View {
             maxCostUSD: maxCostUSD)
     }
 
+    private static func axisLabelPlacement(for dates: [Date]) -> AxisLabelPlacement {
+        switch dates.count {
+        case 0: .hidden
+        case 1: .centered
+        default: .edges
+        }
+    }
+
     private static func barColor(for provider: UsageProvider) -> Color {
         let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
         return Color(red: color.red, green: color.green, blue: color.blue)
@@ -385,32 +415,13 @@ struct CostHistoryChartMenuView: View {
         let date = model.dateKeys[index].date
         guard let x = proxy.position(forX: date) else { return nil }
 
-        func xForIndex(_ idx: Int) -> CGFloat? {
-            guard idx >= 0, idx < model.dateKeys.count else { return nil }
-            return proxy.position(forX: model.dateKeys[idx].date)
-        }
+        // Use the calendar day slot width so the band stays the same size regardless of data gaps.
+        let nextDayX = proxy.position(forX: ChartBarHoverSelection.nextCalendarDay(after: date)) ?? (x + 20)
+        let slotWidth = abs(nextDayX - x)
+        let barHalfWidth = slotWidth * 0.25 + 2
 
-        let xPrev = xForIndex(index - 1)
-        let xNext = xForIndex(index + 1)
-
-        let leftInPlot: CGFloat = if let xPrev {
-            (xPrev + x) / 2
-        } else if let xNext {
-            x - (xNext - x) / 2
-        } else {
-            x - 8
-        }
-
-        let rightInPlot: CGFloat = if let xNext {
-            (xNext + x) / 2
-        } else if let xPrev {
-            x + (x - xPrev) / 2
-        } else {
-            x + 8
-        }
-
-        let left = plotFrame.origin.x + min(leftInPlot, rightInPlot)
-        let right = plotFrame.origin.x + max(leftInPlot, rightInPlot)
+        let left = plotFrame.origin.x + x - barHalfWidth
+        let right = plotFrame.origin.x + x + barHalfWidth
         return CGRect(x: left, y: plotFrame.origin.y, width: right - left, height: plotFrame.height)
     }
 
@@ -431,6 +442,20 @@ struct CostHistoryChartMenuView: View {
         let xInPlot = location.x - plotFrame.origin.x
         guard let date: Date = proxy.value(atX: xInPlot) else { return }
         guard let nearest = self.nearestDateKey(to: date, model: model) else { return }
+
+        // Stay on the last selected bar when cursor is in the gap between bars.
+        if let nearestEntry = model.dateKeys.first(where: { $0.key == nearest }),
+           let barX = proxy.position(forX: nearestEntry.date)
+        {
+            let nextDayX = proxy.position(forX: ChartBarHoverSelection.nextCalendarDay(after: nearestEntry.date)) ??
+                (barX + 20)
+            let slotWidth = abs(nextDayX - barX)
+            guard ChartBarHoverSelection.accepts(
+                distanceFromBarCenter: abs(location.x - (plotFrame.origin.x + barX)),
+                barHalfWidth: slotWidth * 0.25 + 2,
+                selectableCount: model.dateKeys.count)
+            else { return }
+        }
 
         if self.selectedDateKey != nearest {
             self.selectedDateKey = nearest
@@ -563,6 +588,17 @@ struct CostHistoryChartMenuView: View {
 extension CostHistoryChartMenuView {
     static func _defaultSelectedDateKeyForTesting(provider: UsageProvider, daily: [DailyEntry]) -> String? {
         self.defaultSelectedDateKey(model: self.makeModel(provider: provider, daily: daily))
+    }
+
+    static func _axisDatesForTesting(provider: UsageProvider, daily: [DailyEntry]) -> [Date] {
+        self.makeModel(provider: provider, daily: daily).axisDates
+    }
+
+    static func _axisLabelPlacementForTesting(
+        provider: UsageProvider,
+        daily: [DailyEntry]) -> AxisLabelPlacement
+    {
+        self.axisLabelPlacement(for: self.makeModel(provider: provider, daily: daily).axisDates)
     }
 
     static func _detailViewportHeightForTesting(modeSubtitlePresence: [Bool]) -> CGFloat {

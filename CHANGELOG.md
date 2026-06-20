@@ -9,6 +9,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `3f3e2f4a`
+  (`2fd5bccf..3f3e2f4a`), including Burn Down widgets, Codex profile-home
+  accounts and combined menu metrics, Bedrock CloudWatch activity, Claude web
+  session renewal persistence, MiniMax/Command Code/OpenCode Go fixes, compact
+  native menu action rows, menu/chart responsiveness fixes, package-size
+  stripping, static Linux CLI build support, localization updates, and broader
+  provider/runtime/widget test coverage.
 - Synced upstream CodexBar Mac improvements through `2fd5bccf`
   (`05545feb..2fd5bccf`), including Codex reset-credit display, Cursor
   personal spend beside team pools, Mistral monthly usage, storage breakdown

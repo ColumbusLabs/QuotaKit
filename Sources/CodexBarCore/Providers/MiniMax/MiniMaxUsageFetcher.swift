@@ -98,7 +98,11 @@ public struct MiniMaxUsageFetcher: Sendable {
         }
 
         do {
-            return try await self.fetchUsageOnce(apiToken: cleaned, region: .global, now: now, transport: transport)
+            return try await self.fetchUsageOnce(
+                apiToken: cleaned,
+                region: .global,
+                now: now,
+                transport: transport)
         } catch let error as MiniMaxUsageError {
             guard case .invalidCredentials = error else { throw error }
             Self.log.debug("MiniMax API token rejected for global host, retrying China mainland host")
@@ -123,6 +127,7 @@ public struct MiniMaxUsageFetcher: Sendable {
         transport: any ProviderHTTPTransport) async throws -> MiniMaxUsageSnapshot
     {
         var lastError: Error?
+        var tokenPlanCredentialFailure = false
         for remainsURL in [region.tokenPlanRemainsURL, region.apiRemainsURL] {
             do {
                 return try await self.fetchAPIUsageOnce(
@@ -135,7 +140,13 @@ public struct MiniMaxUsageFetcher: Sendable {
                 guard remainsURL == region.tokenPlanRemainsURL,
                       self.shouldTryLegacyAPIEndpoint(after: error)
                 else {
+                    if tokenPlanCredentialFailure {
+                        throw MiniMaxUsageError.invalidCredentials
+                    }
                     throw error
+                }
+                if case .invalidCredentials = error {
+                    tokenPlanCredentialFailure = true
                 }
                 Self.log.debug("MiniMax token-plan API failed, trying legacy coding-plan endpoint")
             }
@@ -177,7 +188,7 @@ public struct MiniMaxUsageFetcher: Sendable {
         do {
             snapshot = try MiniMaxUsageParser.parseCodingPlanRemains(data: response.data, now: now)
         } catch let error as MiniMaxUsageError {
-            throw error
+            throw self.normalizedAPITokenError(error)
         } catch {
             throw MiniMaxUsageError.parseFailed(error.localizedDescription)
         }
@@ -185,6 +196,12 @@ public struct MiniMaxUsageFetcher: Sendable {
             Self.log.debug("MiniMax multi-service response detected: \(services.count) services")
         }
         return snapshot
+    }
+
+    private static func normalizedAPITokenError(_ error: MiniMaxUsageError) -> MiniMaxUsageError {
+        guard case let .apiError(message) = error else { return error }
+        let normalizedMessage = message.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        return normalizedMessage == "invalid api key" ? .invalidCredentials : error
     }
 
     private static func shouldTryLegacyAPIEndpoint(after error: MiniMaxUsageError) -> Bool {

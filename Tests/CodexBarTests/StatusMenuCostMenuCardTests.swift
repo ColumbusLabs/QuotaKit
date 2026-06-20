@@ -8,7 +8,7 @@ import Testing
 @Suite(.serialized)
 struct StatusMenuCostMenuCardTests {
     @Test
-    func `cost menu fallback keeps visible details in attributed title`() {
+    func `cost menu shows no detail lines`() {
         let tokenUsage = UsageMenuCardView.Model.TokenUsageSection(
             sessionLine: "Today: $74.83 - 87M tokens",
             monthLine: "Last 30 days: $4,279.64 - 5.7B tokens",
@@ -16,7 +16,27 @@ struct StatusMenuCostMenuCardTests {
             errorLine: "Cost refresh failed.",
             errorCopyText: nil)
 
-        let visibleLines = StatusItemController.costMenuVisibleDetailLines(tokenUsage: tokenUsage)
+        let visibleLines = StatusItemController.costMenuVisibleDetailLines(
+            tokenUsage: tokenUsage,
+            hasSubmenu: true)
+        #expect(visibleLines == [])
+
+        let fallbackTitle = StatusItemController.costMenuFallbackAttributedTitle(visibleDetailLines: visibleLines)
+        #expect(fallbackTitle.string == "Cost")
+    }
+
+    @Test
+    func `cost menu preserves summary lines without history submenu`() {
+        let tokenUsage = UsageMenuCardView.Model.TokenUsageSection(
+            sessionLine: "Today: $74.83 - 87M tokens",
+            monthLine: "Last 30 days: $4,279.64 - 5.7B tokens",
+            hintLine: "Costs are estimated from local usage.",
+            errorLine: "Cost refresh failed.",
+            errorCopyText: nil)
+
+        let visibleLines = StatusItemController.costMenuVisibleDetailLines(
+            tokenUsage: tokenUsage,
+            hasSubmenu: false)
         #expect(visibleLines == [
             "Today: $74.83 - 87M tokens",
             "Last 30 days: $4,279.64 - 5.7B tokens",
@@ -24,7 +44,6 @@ struct StatusMenuCostMenuCardTests {
         ])
 
         let fallbackTitle = StatusItemController.costMenuFallbackAttributedTitle(visibleDetailLines: visibleLines)
-        #expect(fallbackTitle.string.contains("Cost"))
         #expect(fallbackTitle.string.contains("Today: $74.83 - 87M tokens"))
         #expect(fallbackTitle.string.contains("Last 30 days: $4,279.64 - 5.7B tokens"))
         #expect(fallbackTitle.string.contains("Cost refresh failed."))
@@ -76,11 +95,11 @@ struct StatusMenuCostMenuCardTests {
             errorLine: nil,
             errorCopyText: nil)
         let model = self.makeModel(tokenUsage: tokenUsage)
-        let submenu = NSMenu()
 
+        // No history submenu — detail lines are visible and must be clipped to the row width.
         let item = controller.makeCostMenuCardItem(
             model: model,
-            submenu: submenu,
+            submenu: nil,
             width: width)
         let view = try #require(item.view)
 
@@ -88,9 +107,7 @@ struct StatusMenuCostMenuCardTests {
         #expect(abs(view.frame.width - width) <= 0.5)
         #expect(item.title == "Cost")
         #expect(item.toolTip?.contains("$52,431.09") == true)
-        #expect(item.submenu === submenu)
-        #expect(item.target === controller)
-        #expect(item.action.map(NSStringFromSelector) == "menuCardNoOp:")
+        #expect(item.submenu == nil)
     }
 
     private func makeSettings() -> SettingsStore {

@@ -287,12 +287,23 @@ struct SyncCoordinatorV026MapperTests {
             updatedAt: Self.now)
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil,
+            bedrockUsage: BedrockUsageSnapshot(
+                monthlySpend: 19.10,
+                monthlyBudget: 50,
+                inputTokens: 4_200_000,
+                outputTokens: 1_100_000,
+                requestCount: 321,
+                region: "ignored",
+                updatedAt: Self.now),
             updatedAt: Self.now,
             identity: Self.makeIdentity(provider: .bedrock, loginMethod: "Spend: $19.10 - Budget: $50.00"))
         let result = SyncCoordinator.mapBedrockCost(
             provider: .bedrock, snapshot: snapshot, providerCost: pc, region: "us-east-1")
         #expect(result?.monthlySpendUSD == 19.10)
         #expect(result?.monthlyBudgetUSD == 50)
+        #expect(result?.inputTokens == 4_200_000)
+        #expect(result?.outputTokens == 1_100_000)
+        #expect(result?.requestCount == 321)
         // Region comes from the caller (SettingsStore.bedrockRegion),
         // NOT from the composite loginMethod display string.
         #expect(result?.region == "us-east-1")

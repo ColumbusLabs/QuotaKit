@@ -9,6 +9,29 @@ extension UsageStore {
         let shouldConsumeClaudeKeychainFingerprint: Bool
     }
 
+    static func commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
+        current: UsageSnapshot,
+        previous: UsageSnapshot?) -> UsageSnapshot
+    {
+        let previousProvesPaidDepletion = previous?.commandCodeHasSubscriptionPlan == true ||
+            (previous?.commandCodeSubscriptionEnrichmentUnavailable == true &&
+                previous?.commandCodeMonthlyGrantDepleted == true &&
+                previous?.primary?.usedPercent == 100)
+        guard current.commandCodeSubscriptionEnrichmentUnavailable,
+              current.commandCodeMonthlyGrantDepleted,
+              previousProvesPaidDepletion,
+              let previousPrimary = previous?.primary
+        else {
+            return current
+        }
+        let depleted = RateWindow(
+            usedPercent: 100,
+            windowMinutes: previousPrimary.windowMinutes,
+            resetsAt: previousPrimary.resetsAt,
+            resetDescription: previousPrimary.resetDescription)
+        return current.with(primary: depleted, secondary: current.secondary)
+    }
+
     func refreshForSettingsChange() async {
         await self.runRefresh(
             startupConnectivityRetryAttempt: nil,
@@ -218,7 +241,10 @@ extension UsageStore {
                 let resetBackfillSource = provider == .codex
                     ? self.codexLastKnownResetSnapshot(matching: context.codexExpectedGuard)
                     : self.lastKnownResetSnapshots[provider]
-                let backfilled = scoped.backfillingResetTimes(from: resetBackfillSource)
+                let stabilized = Self.commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
+                    current: scoped,
+                    previous: self.snapshots[provider])
+                let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
                 self.lastKnownResetSnapshots[provider] = backfilled

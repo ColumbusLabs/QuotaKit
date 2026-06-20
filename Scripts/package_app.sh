@@ -337,6 +337,17 @@ install_binary() {
   verify_binary_arches "$dest" "${ARCH_LIST[@]}"
 }
 
+strip_release_binary() {
+  local binary="$1"
+  if [[ "$LOWER_CONF" != "release" ]]; then
+    return 0
+  fi
+  if [[ ! -f "$binary" ]]; then
+    return 0
+  fi
+  xcrun strip -x "$binary"
+}
+
 ensure_widget_extension_project() {
   local spec="$ROOT/WidgetExtension/project.yml"
   local project_dir="$ROOT/WidgetExtension/${WIDGET_EXTENSION_PROJECT_NAME}.xcodeproj"
@@ -424,15 +435,19 @@ install_widget_extension() {
 }
 
 install_binary "$APP_SWIFTPM_PRODUCT" "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
+strip_release_binary "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
 # Ship QuotaKitCLI alongside the app for easy symlinking.
 if [[ -n "$(resolve_binary_path "$CLI_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")" ]]; then
   install_binary "$CLI_SWIFTPM_PRODUCT" "$APP/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
+  strip_release_binary "$APP/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
 fi
 # Watchdog helper: ensures `claude` probes die when QuotaKit crashes/gets killed.
 if [[ -n "$(resolve_binary_path "$WATCHDOG_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")" ]]; then
   install_binary "$WATCHDOG_SWIFTPM_PRODUCT" "$APP/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
+  strip_release_binary "$APP/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
 fi
 install_widget_extension
+strip_release_binary "$APP/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex/Contents/MacOS/${WIDGET_PRODUCT_NAME}"
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"

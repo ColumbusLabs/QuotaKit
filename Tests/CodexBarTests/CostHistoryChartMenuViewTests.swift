@@ -89,6 +89,82 @@ struct CostHistoryChartMenuViewTests {
 
     @Test
     @MainActor
+    func `axis dates span first to last for multi-day data`() {
+        let daily = [
+            CostUsageDailyReport.Entry(
+                date: "2026-05-21",
+                inputTokens: nil,
+                outputTokens: nil,
+                totalTokens: nil,
+                costUSD: 1.0,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+            CostUsageDailyReport.Entry(
+                date: "2026-06-17",
+                inputTokens: nil,
+                outputTokens: nil,
+                totalTokens: nil,
+                costUSD: 2.0,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+        ]
+        let dates = CostHistoryChartMenuView._axisDatesForTesting(provider: .codex, daily: daily)
+        let cal = Calendar.current
+        #expect(dates.count == 2)
+        #expect(cal.component(.month, from: dates[0]) == 5)
+        #expect(cal.component(.day, from: dates[0]) == 21)
+        #expect(cal.component(.month, from: dates[1]) == 6)
+        #expect(cal.component(.day, from: dates[1]) == 17)
+        #expect(
+            CostHistoryChartMenuView._axisLabelPlacementForTesting(
+                provider: .codex,
+                daily: daily) == .edges)
+    }
+
+    @Test
+    @MainActor
+    func `axis dates collapse to one for single-day data`() {
+        let daily = [
+            CostUsageDailyReport.Entry(
+                date: "2026-06-17",
+                inputTokens: nil,
+                outputTokens: nil,
+                totalTokens: nil,
+                costUSD: 1.0,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+        ]
+        let dates = CostHistoryChartMenuView._axisDatesForTesting(provider: .codex, daily: daily)
+        #expect(dates.count == 1)
+        #expect(
+            CostHistoryChartMenuView._axisLabelPlacementForTesting(
+                provider: .codex,
+                daily: daily) == .centered)
+    }
+
+    @Test
+    @MainActor
+    func `axis dates are empty when there is no cost data`() {
+        let daily = [
+            CostUsageDailyReport.Entry(
+                date: "2026-06-17",
+                inputTokens: nil,
+                outputTokens: nil,
+                totalTokens: nil,
+                costUSD: nil,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+        ]
+        let dates = CostHistoryChartMenuView._axisDatesForTesting(provider: .codex, daily: daily)
+        #expect(dates.isEmpty)
+        #expect(
+            CostHistoryChartMenuView._axisLabelPlacementForTesting(
+                provider: .codex,
+                daily: daily) == .hidden)
+    }
+
+    @Test
+    @MainActor
     func `cost history total card height grows with rows and the total line`() {
         let oneRow = CostHistoryChartMenuView._totalCardHeightForTesting(
             modeSubtitlePresence: [false],

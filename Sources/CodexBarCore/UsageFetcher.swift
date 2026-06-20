@@ -139,6 +139,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let openRouterUsage: OpenRouterUsageSnapshot?
     public let perplexityUsage: PerplexityUsageSnapshot?
     public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
+    public let bedrockUsage: BedrockUsageSnapshot?
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
@@ -159,6 +160,12 @@ public struct UsageSnapshot: Codable, Sendable {
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
     /// gap G — transient, like azureOpenAIUsage.
     public let alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot?
+    /// Live-only marker for optional Command Code subscription lookup failure.
+    public let commandCodeSubscriptionEnrichmentUnavailable: Bool
+    /// Live-only marker that Command Code returned a recognized subscription plan.
+    public let commandCodeHasSubscriptionPlan: Bool
+    /// Live-only marker that Command Code's monthly grant has no remaining credits.
+    public let commandCodeMonthlyGrantDepleted: Bool
     public let subscriptionExpiresAt: Date?
     public let subscriptionRenewsAt: Date?
     public let updatedAt: Date
@@ -176,6 +183,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case mimoUsage
         case openRouterUsage
         case openAIAPIUsage
+        case bedrockUsage
         case codexResetCredits
         case claudeAdminAPIUsage
         case mistralUsage
@@ -210,6 +218,7 @@ public struct UsageSnapshot: Codable, Sendable {
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
         perplexityUsage: PerplexityUsageSnapshot? = nil,
         openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
+        bedrockUsage: BedrockUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
@@ -222,6 +231,9 @@ public struct UsageSnapshot: Codable, Sendable {
         cursorRequests: CursorRequestUsage? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
+        commandCodeSubscriptionEnrichmentUnavailable: Bool = false,
+        commandCodeHasSubscriptionPlan: Bool = false,
+        commandCodeMonthlyGrantDepleted: Bool = false,
         subscriptionExpiresAt: Date? = nil,
         subscriptionRenewsAt: Date? = nil,
         updatedAt: Date,
@@ -242,6 +254,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.openRouterUsage = openRouterUsage
         self.perplexityUsage = perplexityUsage
         self.openAIAPIUsage = openAIAPIUsage
+        self.bedrockUsage = bedrockUsage
         self.codexResetCredits = codexResetCredits
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
@@ -254,6 +267,9 @@ public struct UsageSnapshot: Codable, Sendable {
         self.cursorRequests = cursorRequests
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
+        self.commandCodeSubscriptionEnrichmentUnavailable = commandCodeSubscriptionEnrichmentUnavailable
+        self.commandCodeHasSubscriptionPlan = commandCodeHasSubscriptionPlan
+        self.commandCodeMonthlyGrantDepleted = commandCodeMonthlyGrantDepleted
         self.subscriptionExpiresAt = subscriptionExpiresAt
         self.subscriptionRenewsAt = subscriptionRenewsAt
         self.updatedAt = updatedAt
@@ -291,6 +307,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
         self.perplexityUsage = nil // Not persisted, fetched fresh each time
         self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
+        self.bedrockUsage = try container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
         self.codexResetCredits = try container.decodeIfPresent(
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
@@ -312,6 +329,9 @@ public struct UsageSnapshot: Codable, Sendable {
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
+        self.commandCodeSubscriptionEnrichmentUnavailable = false // Live-only fetch state
+        self.commandCodeHasSubscriptionPlan = false // Live-only fetch state
+        self.commandCodeMonthlyGrantDepleted = false // Live-only fetch state
         self.subscriptionExpiresAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionExpiresAt)
         self.subscriptionRenewsAt = try container.decodeIfPresent(Date.self, forKey: .subscriptionRenewsAt)
         self.updatedAt = try container.decode(Date.self, forKey: .updatedAt)
@@ -351,6 +371,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.mimoUsage, forKey: .mimoUsage)
         try container.encodeIfPresent(self.openRouterUsage, forKey: .openRouterUsage)
         try container.encodeIfPresent(self.openAIAPIUsage, forKey: .openAIAPIUsage)
+        try container.encodeIfPresent(self.bedrockUsage, forKey: .bedrockUsage)
         try container.encodeIfPresent(self.codexResetCredits, forKey: .codexResetCredits)
         try container.encodeIfPresent(self.claudeAdminAPIUsage, forKey: .claudeAdminAPIUsage)
         try container.encodeIfPresent(self.mistralUsage, forKey: .mistralUsage)
@@ -533,12 +554,22 @@ public struct UsageSnapshot: Codable, Sendable {
             mimoUsage: self.mimoUsage,
             openRouterUsage: self.openRouterUsage,
             openAIAPIUsage: self.openAIAPIUsage,
+            bedrockUsage: self.bedrockUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
+            grokUsage: self.grokUsage,
+            elevenLabsUsage: self.elevenLabsUsage,
+            groqUsage: self.groqUsage,
+            llmProxyUsage: self.llmProxyUsage,
             poeUsage: self.poeUsage,
             cursorRequests: self.cursorRequests,
+            azureOpenAIUsage: self.azureOpenAIUsage,
+            alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
+            commandCodeSubscriptionEnrichmentUnavailable: self.commandCodeSubscriptionEnrichmentUnavailable,
+            commandCodeHasSubscriptionPlan: self.commandCodeHasSubscriptionPlan,
+            commandCodeMonthlyGrantDepleted: self.commandCodeMonthlyGrantDepleted,
             subscriptionExpiresAt: self.subscriptionExpiresAt,
             subscriptionRenewsAt: self.subscriptionRenewsAt,
             updatedAt: self.updatedAt,
@@ -607,7 +638,7 @@ public enum UsageLimitsAvailability: Equatable, Sendable {
         account: AccountInfo? = nil,
         lastErrorDescription: String? = nil) -> Self
     {
-        if provider == .doubao {
+        if provider == .doubao || provider == .antigravity {
             guard let snapshot,
                   snapshot.identity(for: provider) != nil
             else {

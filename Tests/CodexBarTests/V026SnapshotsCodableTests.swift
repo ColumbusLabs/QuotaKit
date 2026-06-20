@@ -149,6 +149,7 @@ struct V026SnapshotsCodableTests {
             monthlyBudgetUSD: 50.0,
             inputTokens: 4_200_000,
             outputTokens: 1_100_000,
+            requestCount: 321,
             region: "us-east-1",
             budgetUsedPercent: 38.2,
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000))

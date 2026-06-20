@@ -108,13 +108,9 @@ extension SyncCoordinator {
         providerCost: ProviderCostSnapshot?,
         region: String? = nil) -> SyncBedrockCost?
     {
-        // Bedrock data arrives via the generic `providerCost` lane —
-        // there is no dedicated `bedrockUsage` snapshot field on
-        // `UsageSnapshot`. The upstream `BedrockUsageSnapshot.toUsageSnapshot()`
-        // packs region + spend + tokens into `loginMethod` as a single
-        // composite display string ("Spend: $X - Budget: $Y - Tokens: $Z"),
-        // so we CANNOT read region from there. The caller passes
-        // `region` from `SettingsStore.bedrockRegion` for that.
+        // Region comes from SettingsStore.bedrockRegion, not the composite
+        // loginMethod display string. Token/request activity is preserved as a
+        // structured BedrockUsageSnapshot when upstream publishes it.
         guard provider == .bedrock, let pc = providerCost else { return nil }
         let percent: Double? = pc.limit > 0
             ? min(max((pc.used / pc.limit) * 100, 0), 100)
@@ -122,8 +118,9 @@ extension SyncCoordinator {
         return SyncBedrockCost(
             monthlySpendUSD: pc.used,
             monthlyBudgetUSD: pc.limit > 0 ? pc.limit : nil,
-            inputTokens: nil,
-            outputTokens: nil,
+            inputTokens: snapshot?.bedrockUsage?.inputTokens,
+            outputTokens: snapshot?.bedrockUsage?.outputTokens,
+            requestCount: snapshot?.bedrockUsage?.requestCount,
             region: region,
             budgetUsedPercent: percent,
             updatedAt: snapshot?.updatedAt ?? Date())

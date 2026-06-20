@@ -162,7 +162,8 @@ extension StatusItemController {
         }
 
         self.clearMergedSwitcherContentCache(for: menu)
-        self.openMenus.removeValue(forKey: key)
+        let wasTracked = self.openMenus.removeValue(forKey: key) != nil
+        let menuTrackingEnded = wasTracked && self.openMenus.isEmpty
         if self.openMenus.isEmpty {
             self.parentMenuRebuildPendingAfterHostedSubviewClose = false
         }
@@ -181,6 +182,9 @@ extension StatusItemController {
         self.scheduleDeferredMenuInteractionRefreshIfNeeded()
         if wasMergedMenu {
             self.applyDeferredMergedIconRenderAfterTrackingIfNeeded()
+        }
+        if menuTrackingEnded {
+            self.prepareAttachedClosedMenusIfNeeded()
         }
     }
 
@@ -711,7 +715,9 @@ extension StatusItemController {
                 _ = self.addCostHistorySubmenu(to: menu, provider: currentProvider)
             }
         }
-        menu.addItem(.separator())
+        if menu.items.last?.isSeparatorItem != true {
+            menu.addItem(.separator())
+        }
     }
 
     func addPrimaryMenuContent(
@@ -792,15 +798,6 @@ extension StatusItemController {
                     menu.addItem(item)
                 case let .action(title, action):
                     let localizedTitle = L(title)
-                    if self.usesPersistentMenuActionItem(for: action) {
-                        menu.addItem(self.makePersistentMenuActionItem(
-                            title: localizedTitle,
-                            action: action,
-                            menu: captureMenu ?? menu,
-                            width: width))
-                        continue
-                    }
-
                     let (selector, represented) = self.selector(for: action)
                     let item = NSMenuItem(title: localizedTitle, action: selector, keyEquivalent: "")
                     item.target = self
@@ -826,6 +823,11 @@ extension StatusItemController {
                     {
                         item.isEnabled = false
                         self.applySubtitle(subtitle, to: item, title: localizedTitle)
+                    }
+                    if action == .refresh {
+                        let targetMenu = captureMenu ?? menu
+                        item.isEnabled = !self.isRefreshActionInFlight(for: targetMenu)
+                        self.persistentRefreshItems.add(item)
                     }
                     menu.addItem(item)
                 case let .submenu(title, systemImageName, submenuItems):
@@ -861,59 +863,6 @@ extension StatusItemController {
                 menu.addItem(.separator())
             }
         }
-    }
-
-    private func makePersistentMenuActionItem(
-        title: String,
-        action: MenuDescriptor.MenuAction,
-        menu: NSMenu,
-        width: CGFloat) -> NSMenuItem
-    {
-        let shortcut = self.shortcut(for: action)
-        let row = PersistentMenuActionItemView(
-            title: title,
-            systemImageName: self.persistentMenuActionSystemImageName(for: action),
-            shortcutText: shortcut.map { self.shortcutLabel(for: $0) },
-            width: width,
-            onClick: { [weak self, weak menu] in
-                self?.performPersistentMenuAction(action, in: menu)
-            })
-
-        if action == .refresh {
-            row.setInProgress(self.manualRefreshTask != nil || self.store.isRefreshing)
-            self.persistentRefreshRows.add(row)
-        }
-
-        let item = NSMenuItem(title: title, action: nil, keyEquivalent: shortcut?.key ?? "")
-        item.keyEquivalentModifierMask = shortcut?.modifiers ?? NSEvent.ModifierFlags()
-        item.isEnabled = true
-        item.view = row
-        item.toolTip = title
-        if action != .refresh {
-            let (selector, represented) = self.selector(for: action)
-            item.action = selector
-            item.target = self
-            item.representedObject = represented
-        }
-        return item
-    }
-
-    private func shortcutLabel(for shortcut: (key: String, modifiers: NSEvent.ModifierFlags)) -> String {
-        var label = ""
-        if shortcut.modifiers.contains(.control) {
-            label += "^"
-        }
-        if shortcut.modifiers.contains(.option) {
-            label += "⌥"
-        }
-        if shortcut.modifiers.contains(.shift) {
-            label += "⇧"
-        }
-        if shortcut.modifiers.contains(.command) {
-            label += "⌘"
-        }
-        label += shortcut.key.uppercased()
-        return label
     }
 
     private func makeWrappedSecondaryTextItem(text: String, width: CGFloat) -> NSMenuItem {
@@ -1259,6 +1208,10 @@ extension StatusItemController {
         let sectionSpacing = CGFloat(6)
         let usageBottomPadding = bottomPadding
         let creditsBottomPadding = bottomPadding
+        func addSectionSeparator() {
+            guard menu.items.last?.isSeparatorItem != true else { return }
+            menu.addItem(.separator())
+        }
 
         if hasUsageBlock {
             let usageView = UsageMenuCardHeaderAndUsageSectionView(
@@ -1294,18 +1247,18 @@ extension StatusItemController {
         }
 
         if hasStorage || hasCredits || hasExtraUsage || hasCost {
-            menu.addItem(.separator())
+            addSectionSeparator()
         }
 
         if self.addStorageMenuCardSection(to: menu, provider: provider, width: width),
-           hasCredits || hasExtraUsage || hasCost
+           hasCredits || hasExtraUsage
         {
-            menu.addItem(.separator())
+            addSectionSeparator()
         }
 
         if hasCredits {
             if hasExtraUsage || hasCost {
-                menu.addItem(.separator())
+                addSectionSeparator()
             }
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
@@ -1328,7 +1281,7 @@ extension StatusItemController {
         }
         if hasExtraUsage {
             if hasCredits {
-                menu.addItem(.separator())
+                addSectionSeparator()
             }
             let extraUsageSubmenu = self.makeOpenAIAPIUsageSubmenu(provider: provider, width: width)
             let extraUsageView = UsageMenuCardExtraUsageSectionView(
@@ -1346,7 +1299,7 @@ extension StatusItemController {
         }
         if hasCost {
             if hasCredits || hasExtraUsage {
-                menu.addItem(.separator())
+                addSectionSeparator()
             }
             let costSubmenu = webItems.hasCostHistory ? self
                 .makeCostHistorySubmenu(provider: provider, width: width) : nil
@@ -1360,19 +1313,18 @@ extension StatusItemController {
     @discardableResult
     func addStorageMenuCardSection(to menu: NSMenu, provider: UsageProvider, width: CGFloat) -> Bool {
         guard let storageText = self.store.storageFootprintText(for: provider) else { return false }
-        let storageView = StorageMenuCardSectionView(
-            storageText: storageText,
-            topPadding: 6,
-            bottomPadding: 6,
-            width: width)
         let storageSubmenu = self.makeStorageBreakdownSubmenu(provider: provider, width: width)
-        menu.addItem(self.makeMenuCardItem(
-            storageView,
-            id: "menuCardStorage",
-            width: width,
-            heightCacheScope: provider.rawValue,
-            heightCacheFingerprint: UsageMenuCardView.Model.heightFingerprintField("storage", storageText),
-            submenu: storageSubmenu))
+        let menuFont = NSFont.menuFont(ofSize: 0)
+        let title = NSMutableAttributedString(string: L("Storage"), attributes: [.font: menuFont])
+        title.append(NSAttributedString(
+            string: "  \(storageText)",
+            attributes: [.font: menuFont, .foregroundColor: NSColor.secondaryLabelColor]))
+        let item = NSMenuItem(title: L("Storage"), action: nil, keyEquivalent: "")
+        item.attributedTitle = title
+        item.isEnabled = storageSubmenu != nil
+        item.representedObject = "menuCardStorage"
+        item.submenu = storageSubmenu
+        menu.addItem(item)
         return true
     }
 
