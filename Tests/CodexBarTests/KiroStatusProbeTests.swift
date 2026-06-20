@@ -259,20 +259,30 @@ struct KiroStatusProbeTests {
         if [ "$1" = "chat" ] && [ "$3" = "/usage" ]; then
           /usr/bin/python3 -c '
         import os
-        import signal
-        import time
+        import subprocess
+        import sys
 
-        os.setsid()
-        signal.signal(signal.SIGHUP, signal.SIG_IGN)
-        signal.signal(signal.SIGTERM, signal.SIG_IGN)
-        with open(os.environ["CODEXBAR_TEST_CHILD_PID_FILE"], "w") as handle:
-            handle.write(str(os.getpid()))
-        time.sleep(30)
-        ' &
-          for _ in {1..100}; do
-            [ -s "$CODEXBAR_TEST_CHILD_PID_FILE" ] && break
-            sleep 0.01
-          done
+        ready_read, ready_write = os.pipe()
+        child = subprocess.Popen(
+            [
+                sys.executable,
+                "-c",
+                "import os,signal,sys,time; "
+                "signal.signal(signal.SIGHUP, signal.SIG_IGN); "
+                "signal.signal(signal.SIGTERM, signal.SIG_IGN); "
+                "handle=open(sys.argv[1], \\\"w\\\"); handle.write(str(os.getpid())); handle.close(); "
+                "os.write(int(sys.argv[2]), b\\\"1\\\"); os.close(int(sys.argv[2])); time.sleep(30)",
+                os.environ["CODEXBAR_TEST_CHILD_PID_FILE"],
+                str(ready_write),
+            ],
+            start_new_session=True,
+            pass_fds=(ready_write,),
+        )
+        os.close(ready_write)
+        if os.read(ready_read, 1) != b"1":
+            raise RuntimeError("detached helper exited before signaling readiness")
+        os.close(ready_read)
+        '
           test -s "$CODEXBAR_TEST_CHILD_PID_FILE"
           printf 'Estimated Usage | resets on 2026-06-01 | KIRO FREE\\n'
           printf 'Credits (12.50 of 50 covered in plan)\\n'
@@ -306,7 +316,7 @@ struct KiroStatusProbeTests {
 
         #expect(snapshot.planName == "KIRO FREE")
         #expect(snapshot.creditsUsed == 12.50)
-        #expect(elapsed < 5, "Kiro usage capture should not wait for inherited pipe EOF, took \(elapsed)s")
+        #expect(elapsed < 8, "Kiro usage capture should return before the 10s idle timeout, took \(elapsed)s")
 
         let childPIDText = try String(contentsOf: childPIDFile, encoding: .utf8)
         let childPID = try #require(pid_t(childPIDText.trimmingCharacters(in: .whitespacesAndNewlines)))

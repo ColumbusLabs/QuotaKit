@@ -246,6 +246,7 @@ public struct SyncBedrockCost: Codable, Sendable, Equatable {
     public let monthlyBudgetUSD: Double?
     public let inputTokens: Int?
     public let outputTokens: Int?
+    public let requestCount: Int?
     public let region: String?
     /// Optional pre-computed `(monthlySpend / monthlyBudget) * 100`,
     /// clamped to 0..<100. iOS can compute this locally too but Mac
@@ -258,6 +259,7 @@ public struct SyncBedrockCost: Codable, Sendable, Equatable {
         monthlyBudgetUSD: Double?,
         inputTokens: Int?,
         outputTokens: Int?,
+        requestCount: Int? = nil,
         region: String?,
         budgetUsedPercent: Double?,
         updatedAt: Date)
@@ -266,9 +268,22 @@ public struct SyncBedrockCost: Codable, Sendable, Equatable {
         self.monthlyBudgetUSD = monthlyBudgetUSD
         self.inputTokens = inputTokens
         self.outputTokens = outputTokens
+        self.requestCount = requestCount
         self.region = region
         self.budgetUsedPercent = budgetUsedPercent
         self.updatedAt = updatedAt
+    }
+
+    public init(from decoder: Decoder) throws {
+        let c = try decoder.container(keyedBy: CodingKeys.self)
+        self.monthlySpendUSD = try c.decode(Double.self, forKey: .monthlySpendUSD)
+        self.monthlyBudgetUSD = try c.decodeIfPresent(Double.self, forKey: .monthlyBudgetUSD)
+        self.inputTokens = try c.decodeIfPresent(Int.self, forKey: .inputTokens)
+        self.outputTokens = try c.decodeIfPresent(Int.self, forKey: .outputTokens)
+        self.requestCount = try c.decodeIfPresent(Int.self, forKey: .requestCount)
+        self.region = try c.decodeIfPresent(String.self, forKey: .region)
+        self.budgetUsedPercent = try c.decodeIfPresent(Double.self, forKey: .budgetUsedPercent)
+        self.updatedAt = try c.decode(Date.self, forKey: .updatedAt)
     }
 }
 

@@ -20,7 +20,7 @@ private struct CostMenuCardRowView: View {
                     .truncationMode(.tail)
             }
         }
-        .padding(.leading, 14)
+        .padding(.leading, 20)
         .padding(.trailing, 28)
         .padding(.vertical, 6)
         .frame(width: self.width, alignment: .leading)
@@ -38,8 +38,10 @@ extension StatusItemController {
         width: CGFloat) -> NSMenuItem
     {
         let tooltipLines = Self.costMenuTooltipLines(tokenUsage: model.tokenUsage)
-        let visibleDetailLines = Self.costMenuVisibleDetailLines(tokenUsage: model.tokenUsage)
-        guard self.menuCardRenderingEnabledForController else {
+        let visibleDetailLines = Self.costMenuVisibleDetailLines(
+            tokenUsage: model.tokenUsage,
+            hasSubmenu: submenu != nil)
+        guard visibleDetailLines.isEmpty == false, self.menuCardRenderingEnabledForController else {
             return Self.makeNativeCostMenuCardItem(
                 visibleDetailLines: visibleDetailLines,
                 tooltipLines: tooltipLines,
@@ -92,7 +94,11 @@ extension StatusItemController {
             .filter { !$0.isEmpty }
     }
 
-    static func costMenuVisibleDetailLines(tokenUsage: UsageMenuCardView.Model.TokenUsageSection?) -> [String] {
+    static func costMenuVisibleDetailLines(
+        tokenUsage: UsageMenuCardView.Model.TokenUsageSection?,
+        hasSubmenu: Bool) -> [String]
+    {
+        guard !hasSubmenu else { return [] }
         let primaryLines = [
             tokenUsage?.sessionLine,
             tokenUsage?.monthLine,

@@ -388,24 +388,76 @@ struct ProviderDiagnosticExportTests {
     func `service usage maps from MiniMaxServiceUsage correctly`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let service = MiniMaxServiceUsage(
-            serviceType: "Text Generation",
-            windowType: "5 hours",
-            timeRange: "10:00-15:00(UTC+8)",
-            usage: 750,
-            limit: 1000,
-            percent: 75,
+            serviceType: "General",
+            windowType: "Weekly",
+            timeRange: "Jun 15-Jun 22",
+            usage: 6,
+            limit: 150,
+            percent: 4,
             resetsAt: now.addingTimeInterval(18000),
-            resetDescription: "5 hours")
+            resetDescription: "Weekly")
 
         let diagService = MiniMaxDiagnosticServiceUsage(from: service)
-        #expect(diagService.displayName == "Text Generation")
-        #expect(diagService.percent == 75)
-        #expect(diagService.windowType == "5 hours")
+        #expect(diagService.displayName == "General")
+        #expect(diagService.percent == 4)
+        #expect(diagService.usage == 6)
+        #expect(diagService.limit == 150)
+        #expect(diagService.remaining == 144)
+        #expect(diagService.isUnlimited == false)
+        #expect(diagService.windowType == "Weekly")
         #expect(diagService.hasResetDescription == true)
 
         let json = try self.json(diagService)
         #expect(json.contains("hasResetDescription"))
+        #expect(json.contains(#""usage" : 6"#))
+        #expect(json.contains(#""limit" : 150"#))
+        #expect(json.contains(#""remaining" : 144"#))
         #expect(!json.contains("resetDescription"))
+    }
+
+    @Test
+    func `unlimited MiniMax diagnostic omits remaining quota`() throws {
+        let service = MiniMaxServiceUsage(
+            serviceType: "General",
+            windowType: "Weekly",
+            timeRange: "",
+            usage: 0,
+            limit: 0,
+            percent: 0,
+            isUnlimited: true,
+            resetsAt: nil,
+            resetDescription: "Unlimited")
+
+        let diagnostic = MiniMaxDiagnosticServiceUsage(from: service)
+        #expect(diagnostic.isUnlimited)
+        #expect(diagnostic.remaining == nil)
+
+        let json = try self.json(diagnostic)
+        #expect(!json.contains("remaining"))
+    }
+
+    @Test
+    func `legacy MiniMax service diagnostic decodes without quota values`() throws {
+        let data = Data(#"""
+        {
+          "displayName": "General",
+          "percent": 4,
+          "windowType": "Weekly",
+          "resetsAt": null,
+          "hasResetDescription": true
+        }
+        """#.utf8)
+
+        let diagnostic = try JSONDecoder().decode(MiniMaxDiagnosticServiceUsage.self, from: data)
+
+        #expect(diagnostic.displayName == "General")
+        #expect(diagnostic.percent == 4)
+        #expect(diagnostic.usage == 0)
+        #expect(diagnostic.limit == 0)
+        #expect(diagnostic.remaining == nil)
+        #expect(!diagnostic.isUnlimited)
+        #expect(diagnostic.windowType == "Weekly")
+        #expect(diagnostic.hasResetDescription)
     }
 
     @Test

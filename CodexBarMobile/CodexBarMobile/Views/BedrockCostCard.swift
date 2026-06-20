@@ -34,6 +34,12 @@ struct BedrockCostCard: View {
                 self.budgetProgress
             }
 
+            if let activityText = Self.activityLineText(for: cost) {
+                Text(activityText)
+                    .font(.caption2)
+                    .foregroundStyle(.tertiary)
+            }
+
             if let region = cost.region, !region.isEmpty {
                 Text(String(format: String(localized: "bedrock_region_format", defaultValue: "Region: %@"), region))
                     .font(.caption2)
@@ -115,6 +121,32 @@ struct BedrockCostCard: View {
         guard let budget = cost.monthlyBudgetUSD else { return spend }
         return "\(spend) / \(Self.formatUSD(budget))"
     }
+
+    static func activityLineText(for cost: SyncBedrockCost) -> String? {
+        var parts: [String] = []
+        if let input = cost.inputTokens, let output = cost.outputTokens {
+            parts.append(String(
+                format: String(localized: "bedrock_tokens_format", defaultValue: "%@ tokens"),
+                Self.formatCount(input + output)))
+        }
+        if let requestCount = cost.requestCount {
+            parts.append(String(
+                format: String(localized: "bedrock_requests_format", defaultValue: "%@ requests"),
+                Self.formatCount(requestCount)))
+        }
+        guard !parts.isEmpty else { return nil }
+        return parts.joined(separator: " · ")
+    }
+
+    private static func formatCount(_ value: Int) -> String {
+        if value >= 1_000_000 {
+            return String(format: "%.1fM", Double(value) / 1_000_000)
+        }
+        if value >= 1000 {
+            return String(format: "%.1fK", Double(value) / 1000)
+        }
+        return "\(value)"
+    }
 }
 
 #Preview {
@@ -124,6 +156,7 @@ struct BedrockCostCard: View {
             monthlyBudgetUSD: 50.0,
             inputTokens: 4_200_000,
             outputTokens: 1_100_000,
+            requestCount: 321,
             region: "us-east-1",
             budgetUsedPercent: 38.2,
             updatedAt: Date()),

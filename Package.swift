@@ -52,9 +52,17 @@ let package = Package(
     ],
     targets: {
         var targets: [Target] = [
+            // Host pkg-config paths contaminate cross-musl links; the module map supplies sqlite3 linkage.
+            .systemLibrary(
+                name: "CSQLite3",
+                providers: [
+                    .apt(["libsqlite3-dev"]),
+                    .brew(["sqlite3"]),
+                ]),
             .target(
                 name: "CodexBarCore",
                 dependencies: [
+                    .target(name: "CSQLite3", condition: .when(platforms: [.linux])),
                     .product(name: "Crypto", package: "swift-crypto"),
                     .product(name: "Logging", package: "swift-log"),
                     .product(name: "SweetCookieKit", package: "SweetCookieKit"),
@@ -76,7 +84,11 @@ let package = Package(
                 linkerSettings: sqlite3LinkerSettings),
             .testTarget(
                 name: "CodexBarLinuxTests",
-                dependencies: ["CodexBarCore", "CodexBarCLI"],
+                dependencies: [
+                    "CodexBarCore",
+                    "CodexBarCLI",
+                    .target(name: "CSQLite3", condition: .when(platforms: [.linux])),
+                ],
                 path: "TestsLinux",
                 swiftSettings: [
                     .enableUpcomingFeature("StrictConcurrency"),

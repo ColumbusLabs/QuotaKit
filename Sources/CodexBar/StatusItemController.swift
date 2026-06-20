@@ -126,9 +126,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var menuSession = MenuSessionCoordinator<ObjectIdentifier>()
     var menuReadinessSignatures: [ObjectIdentifier: String] = [:]
     let hostedSubviewRenderSignatures = NSMapTable<NSMenu, NSString>.weakToStrongObjects()
-    /// Live persistent Refresh rows, tracked weakly so they can be given in-place in-flight
-    /// feedback (spinner) while the menu stays open, without rebuilding the menu.
-    let persistentRefreshRows = NSHashTable<PersistentMenuActionItemView>.weakObjects()
+    /// Native Refresh items are weakly tracked so their enabled state can change during menu tracking.
+    let persistentRefreshItems = NSHashTable<NSMenuItem>.weakObjects()
     var menuCardHeightCache: [MenuCardHeightCacheKey: CGFloat] = [:]
     var measuredStandardMenuWidthCache: [String: CGFloat] = [:]
     var lastMenuAdjunctReadinessSignature = ""
@@ -140,6 +139,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
     var openMenus: [ObjectIdentifier: NSMenu] = [:]
     var menuRefreshTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var manualRefreshTask: Task<Void, Never>?
+    var manualRefreshProvider: UsageProvider?
     var closedMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
     var closedMenuRebuildRequests = MenuRebuildRequestRegistry<ObjectIdentifier>()
     var openMenuRebuildTasks: [ObjectIdentifier: Task<Void, Never>] = [:]
@@ -367,6 +367,8 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             let usedPercent = (primary.usedPercent + secondary.usedPercent) / 2
             return RateWindow(
                 usedPercent: usedPercent, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
+        case .primaryAndSecondary:
+            return [first, second].compactMap(\.self).max(by: { $0.usedPercent < $1.usedPercent })
         case .automatic, .primary, .monthlyPlan:
             return first
         }
@@ -510,9 +512,7 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
 
     func handleObservedStoreMenuChange() {
         self.observeStoreChanges()
-        // In-place spinner sync for the persistent Refresh rows. Safe during menu tracking:
-        // it mutates existing row views only and never rebuilds the menu.
-        self.updatePersistentRefreshRowsInProgress()
+        self.updatePersistentRefreshItemsEnabled()
         let rootOpenHandledReadiness = self.consumeRootOpenHandledMenuObservationIfNeeded()
         // `refreshOpenMenus` is only consulted when a menu is currently open.
         // Computing the readiness signature serializes every enabled provider's

@@ -187,6 +187,10 @@ check_package_product_paths() {
   "${ROOT_DIR}/Scripts/test_package_product_paths.sh"
 }
 
+check_package_strip() {
+  "${ROOT_DIR}/Scripts/test_package_strip.sh"
+}
+
 audit_customer_branding() {
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py" --self-test
   python3 "${ROOT_DIR}/Scripts/audit_customer_branding.py"
@@ -235,6 +239,14 @@ check_swift_test_sharding() {
   "${ROOT_DIR}/Scripts/test_swift_test_sharding.sh"
 }
 
+check_ci_path_gate() {
+  "${ROOT_DIR}/Scripts/test_ci_path_gate.sh"
+}
+
+check_documentation_links() {
+  node "${ROOT_DIR}/Scripts/check-documentation-links.mjs"
+}
+
 check_app_locales() {
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs" --test
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
@@ -243,10 +255,13 @@ check_app_locales() {
 run_portable_checks() {
   check_codex_parser_hash
   check_package_product_paths
+  check_package_strip
   check_release_dsym_paths
   check_sparkle_signing_paths
   check_swift_test_sharding
   check_release_feed_url
+  check_ci_path_gate
+  check_documentation_links
   ensure_tools
 }
 

@@ -52,6 +52,7 @@ struct V026EndToEndPipelineTests {
             monthlyBudget: 50.0,
             inputTokens: 4_200_000,
             outputTokens: 1_100_000,
+            requestCount: 321,
             region: "us-east-1",
             updatedAt: Self.now)
         let upstreamSnapshot = bedrock.toUsageSnapshot()
@@ -64,6 +65,9 @@ struct V026EndToEndPipelineTests {
         // And providerCost carries the spend / budget correctly.
         #expect(upstreamSnapshot.providerCost?.used == 19.10)
         #expect(upstreamSnapshot.providerCost?.limit == 50.0)
+        #expect(upstreamSnapshot.bedrockUsage?.inputTokens == 4_200_000)
+        #expect(upstreamSnapshot.bedrockUsage?.outputTokens == 1_100_000)
+        #expect(upstreamSnapshot.bedrockUsage?.requestCount == 321)
 
         // Step 2 — mapper. Region is passed in explicitly (the way
         // `SyncCoordinator.buildProviderUsageSnapshot` plumbs
@@ -93,6 +97,9 @@ struct V026EndToEndPipelineTests {
         #expect(received.region?.contains("Spend:") == false)
         #expect(received.monthlySpendUSD == 19.10)
         #expect(received.monthlyBudgetUSD == 50.0)
+        #expect(received.inputTokens == 4_200_000)
+        #expect(received.outputTokens == 1_100_000)
+        #expect(received.requestCount == 321)
         #expect(received.budgetUsedPercent != nil)
         #expect((received.budgetUsedPercent ?? 0) > 38.0)
         #expect((received.budgetUsedPercent ?? 0) < 39.0)

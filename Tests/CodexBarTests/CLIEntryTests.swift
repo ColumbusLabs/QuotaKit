@@ -340,7 +340,7 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .manual,
                     manualCookieHeader: "auth=manual",
                     workspaceID: nil))))
-        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencodego,
             settings: ProviderSettingsSnapshot.make(
@@ -348,6 +348,35 @@ final class CLIEntryTests: XCTestCase {
                     cookieSource: .auto,
                     manualCookieHeader: nil,
                     workspaceID: nil))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .opencodego,
+            settings: ProviderSettingsSnapshot.make(
+                opencodego: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil,
+                    workspaceID: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "session=manual"))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "session=manual"))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .commandcode,
+            settings: ProviderSettingsSnapshot.make(
+                commandcode: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil))))
         XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencode,
