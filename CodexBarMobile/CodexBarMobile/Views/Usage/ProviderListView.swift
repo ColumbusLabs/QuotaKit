@@ -103,13 +103,17 @@ struct ProviderListView: View {
                         if self.isDemoMode {
                             DemoPreviewBanner(snapshot: self.snapshot)
                         } else {
-                            SyncStatusChipView(
-                                placement: .header,
-                                isDemoMode: false,
+                            ProviderListHeaderRow(
                                 snapshot: self.usageData.snapshot,
                                 syncStatus: self.usageData.syncStatus,
+                                showsProviderOrderButton: access.visibleGroups.count > 1,
                                 refreshAction: {
                                     Task { await self.usageData.refresh() }
+                                },
+                                providerOrderAction: {
+                                    withAnimation(.easeInOut(duration: 0.18)) {
+                                        self.isReorderingProviders = true
+                                    }
                                 })
                         }
 
@@ -221,16 +225,14 @@ struct ProviderListView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text("Search providers"))
         .toolbar {
-            if access.visibleGroups.count > 1 {
+            if self.isReorderingProviders, access.visibleGroups.count > 1 {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {
-                            self.isReorderingProviders.toggle()
+                            self.isReorderingProviders = false
                         }
                     } label: {
-                        Label(
-                            self.isReorderingProviders ? String(localized: "Done") : String(localized: "Reorder"),
-                            systemImage: self.isReorderingProviders ? "checkmark" : "arrow.up.arrow.down")
+                        Label(String(localized: "Done"), systemImage: "checkmark")
                     }
                     .accessibilityIdentifier("provider-reorder-toggle")
                 }
@@ -297,6 +299,42 @@ struct ProviderListView: View {
             return visibleIDs[replacementIndex]
         }
         self.saveProviderOrder(orderedIDs)
+    }
+}
+
+private struct ProviderListHeaderRow: View {
+    @Environment(\.quotaKitTheme) private var theme
+    let snapshot: SyncedUsageSnapshot?
+    let syncStatus: SyncStatus
+    let showsProviderOrderButton: Bool
+    let refreshAction: () -> Void
+    let providerOrderAction: () -> Void
+
+    var body: some View {
+        HStack(alignment: .center, spacing: 10) {
+            SyncStatusChipView(
+                placement: .header,
+                isDemoMode: false,
+                snapshot: self.snapshot,
+                syncStatus: self.syncStatus,
+                refreshAction: self.refreshAction)
+                .layoutPriority(1)
+
+            if self.showsProviderOrderButton {
+                Button(action: self.providerOrderAction) {
+                    Label(String(localized: "Provider order"), systemImage: "arrow.up.arrow.down")
+                        .font(.caption.weight(.semibold))
+                        .lineLimit(1)
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .foregroundStyle(self.theme.accent)
+                        .background(self.theme.accent.opacity(0.12), in: Capsule())
+                }
+                .buttonStyle(.plain)
+                .accessibilityIdentifier("provider-reorder-toggle")
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
     }
 }
 

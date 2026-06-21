@@ -25,6 +25,8 @@ current Columbus Labs product surface and recent release history.
   and reorder providers directly in the app. Widgets follow the selected
   provider immediately; if no provider is selected, they fall back to the saved
   Usage order.
+- The provider reorder control now sits beside the live sync status as a labeled
+  "Provider order" button, making the action clearer on the Usage tab.
 
 ## [1.11.1 (167)] — 2026-06-12 — Widget quota window controls
 
