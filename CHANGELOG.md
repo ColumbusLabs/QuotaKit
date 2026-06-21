@@ -9,6 +9,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `9e7a70a`
+  (`3f3e2f4a..9e7a70a`), including usage-card spacing parity with the Overview
+  layout, locale-checker diagnostics, Linux Swift toolchain CI caching, and
+  upstream 0.37.1 changelog provenance.
 - Synced upstream CodexBar Mac improvements through `3f3e2f4a`
   (`2fd5bccf..3f3e2f4a`), including Burn Down widgets, Codex profile-home
   accounts and combined menu metrics, Bedrock CloudWatch activity, Claude web
