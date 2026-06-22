@@ -24,7 +24,7 @@ export OPENROUTER_API_KEY="sk-or-v1-..."
 
 ### Settings
 
-You can also configure the API key in CodexBar Settings → Providers → OpenRouter.
+You can also configure the API key in QuotaKit Settings → Providers → OpenRouter.
 
 ### CLI config
 

@@ -177,6 +177,7 @@ extension CodexBarCLI {
           quotakit diagnose --provider <name|all> --format json
                            [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                            [-v|--verbose]
+                           [--redact] [--output <path>]
                            [--pretty]
 
         Description:
@@ -185,6 +186,7 @@ extension CodexBarCLI {
           account IDs, org IDs, raw responses, and billing-history records.
 
         Examples:
+          quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
           quotakit diagnose --provider minimax --format json --pretty
           quotakit diagnose --provider claude --format json --pretty
           quotakit diagnose --provider all --format json
@@ -222,7 +224,7 @@ extension CodexBarCLI {
           quotakit config disable --provider <name>
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
           quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
-          quotakit diagnose --provider <name|all> --format json [--pretty]
+          quotakit diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
 
         Global flags:
           -h, --help      Show help
@@ -243,6 +245,7 @@ extension CodexBarCLI {
           quotakit config enable --provider grok
           quotakit config set-api-key --provider elevenlabs --stdin
           quotakit cache clear --cookies
+          quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
           quotakit diagnose --provider minimax --format json --pretty
           quotakit diagnose --provider all --format json
         """

@@ -252,6 +252,10 @@ check_app_locales() {
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
 }
 
+check_llms_index() {
+  node "${ROOT_DIR}/Scripts/generate-llms.mjs" --check
+}
+
 run_portable_checks() {
   check_codex_parser_hash
   check_package_product_paths
@@ -262,6 +266,7 @@ run_portable_checks() {
   check_release_feed_url
   check_ci_path_gate
   check_documentation_links
+  check_llms_index
   ensure_tools
 }
 

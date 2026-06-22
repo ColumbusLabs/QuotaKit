@@ -545,11 +545,19 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private func loadViaCLI(model: String, timeout: TimeInterval) async throws -> ClaudeUsageSnapshot {
+            if ClaudeCLIRateLimitGate.blockedUntil() != nil {
+                throw ClaudeUsageError.parseFailed(ClaudeCLIRateLimitGate.message)
+            }
+
             var snapshot: ClaudeUsageSnapshot
             do {
                 snapshot = try await self.fetcher.loadViaPTY(model: model, timeout: timeout)
             } catch {
                 if error is CancellationError { throw error }
+                if ClaudeUsageFetcher.isCLIRateLimitError(error) {
+                    ClaudeCLIRateLimitGate.recordRateLimit()
+                    throw error
+                }
                 guard Self.shouldTryDirectCLIUsage(after: error) else { throw error }
                 let ptyError = error
                 do {
@@ -557,10 +565,15 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                         timeout: Self.directCLIUsageTimeout(for: timeout))
                 } catch let directError {
                     if directError is CancellationError { throw directError }
+                    if ClaudeUsageFetcher.isCLIRateLimitError(directError) {
+                        ClaudeCLIRateLimitGate.recordRateLimit()
+                        throw directError
+                    }
                     guard Self.directCLIErrorShouldReplacePTYError(directError) else { throw ptyError }
                     throw directError
                 }
             }
+            ClaudeCLIRateLimitGate.recordSuccess()
             snapshot = await self.fetcher.applyWebExtrasIfNeeded(to: snapshot)
             return snapshot
         }
@@ -730,6 +743,10 @@ extension ClaudeUsageFetcher {
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
         try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
+    }
+
+    public static func isCLIRateLimitError(_ error: Error) -> Bool {
+        ClaudeCLIRateLimitGate.isRateLimitError(error)
     }
 }
 

@@ -28,7 +28,7 @@ Set the base URL with `LLM_PROXY_BASE_URL`, or add `enterpriseHost` to the provi
 }
 ```
 
-The base URL may point at either the service root or `/v1`; CodexBar normalizes both to `/v1/quota-stats`.
+The base URL may point at either the service root or `/v1`; QuotaKit normalizes both to `/v1/quota-stats`.
 
 ## Menu display
 
