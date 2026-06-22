@@ -333,6 +333,7 @@ public struct ZaiUsageFetcher: Sendable {
         guard !apiKey.isEmpty else {
             throw ZaiUsageError.invalidCredentials
         }
+        try ZaiSettingsReader.validateQuotaEndpointOverride(environment: environment)
 
         let quotaURL = self.resolveQuotaURL(region: region, environment: environment)
 
@@ -439,13 +440,13 @@ public struct ZaiUsageFetcher: Sendable {
     private static func quotaURL(baseURLString: String) -> URL? {
         guard let cleaned = ZaiSettingsReader.cleaned(baseURLString) else { return nil }
 
-        if let url = URL(string: cleaned), url.scheme != nil {
+        if let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: cleaned) {
             if url.path.isEmpty || url.path == "/" {
                 return url.appendingPathComponent(Self.quotaAPIPath)
             }
             return url
         }
-        guard let base = URL(string: "https://\(cleaned)") else { return nil }
+        guard let base = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: cleaned) else { return nil }
         if base.path.isEmpty || base.path == "/" {
             return base.appendingPathComponent(Self.quotaAPIPath)
         }
@@ -571,6 +572,7 @@ extension ZaiUsageFetcher {
         guard !apiKey.isEmpty else {
             throw ZaiUsageError.invalidCredentials
         }
+        try ZaiSettingsReader.validateAPIHostEndpointOverride(environment: environment)
 
         let baseURL: URL = if let host = ZaiSettingsReader.apiHost(environment: environment),
                               let resolved = Self.modelUsageURL(baseURLString: host)
@@ -660,6 +662,7 @@ extension ZaiUsageFetcher {
         region: ZaiAPIRegion = .global,
         environment: [String: String] = ProcessInfo.processInfo.environment) async throws -> ZaiUsageSnapshot
     {
+        try ZaiSettingsReader.validateEndpointOverrides(environment: environment)
         let snapshot = try await Self.fetchUsage(apiKey: apiKey, region: region, environment: environment)
         let modelUsage: ZaiModelUsageData?
         do {

@@ -9,6 +9,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `ef8007fc`
+  (`9e7a70a..ef8007fc`), including endpoint-override hardening for Azure
+  OpenAI, Deepgram, z.ai, and MiMo, private Codex OAuth auth-file writes,
+  redacted diagnostic output files, CLI `/health` build-version reporting,
+  Claude CLI rate-limit backoff, MiniMax token-plan recovery, menu refresh
+  behavior, generated `llms.txt` linting, and broader provider/runtime test
+  coverage.
 - Synced upstream CodexBar Mac improvements through `9e7a70a`
   (`3f3e2f4a..9e7a70a`), including usage-card spacing parity with the Overview
   layout, locale-checker diagnostics, Linux Swift toolchain CI caching, and
