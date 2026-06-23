@@ -5,6 +5,47 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.8</title>
+            <pubDate>Tue, 23 Jun 2026 18:58:21 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.8.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.8</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.8 Mobile 1.11.1</h2>
+<h3>Changed</h3>
+<ul>
+<li>Synced upstream CodexBar Mac improvements through <code>af13c528</code></li>
+</ul>
+  (<code>ef8007fc..af13c528</code>), including CLI pace output, CI observability and
+  dependency updates, stricter blank-localization checks, and broader
+  provider/runtime test coverage.
+<h3>Fixed</h3>
+<ul>
+<li>Claude: stop installed-version checks from invoking a login shell and</li>
+</ul>
+  triggering unwanted Keychain prompts.
+<ul>
+<li>Usage totals: keep Today tied to the current local calendar day across cost,</li>
+</ul>
+  Admin API, and Poe surfaces instead of showing the latest historical bucket.
+<ul>
+<li>Antigravity: align compact icons and automatic highest-usage selection with</li>
+</ul>
+  grouped Gemini and Claude/GPT quota lanes while ignoring non-renderable
+  cadences.
+<ul>
+<li>Memory pressure: finish isolating utility-queue source reads from main-actor</li>
+</ul>
+  state to prevent the remaining callback crash.
+<ul>
+<li>Localization: reject blank translated values and restore affected Vietnamese</li>
+</ul>
+  provider prompts.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.8/QuotaKit-macos-universal-0.32.4.8.zip" length="44704278" type="application/octet-stream" sparkle:edSignature="yBUgdBrXIelYNfnf21umlK4fYqloPQh2FCN1fNJH/6O0LogEzb29V7FkbLleSdPU6fV3rgsAxfp1XBuxc+9UBA=="/>
+        </item>
+        <item>
             <title>0.32.4.7</title>
             <pubDate>Thu, 18 Jun 2026 15:07:59 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -103,36 +144,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.6/QuotaKit-macos-universal-0.32.4.6.zip" length="54258841" type="application/octet-stream" sparkle:edSignature="zU4vdF4gTP7aWajz9/LSLVbN9hruZfz9wdNUtsJQZyZvzbirz4cQIwBxD72nn0LDAUcKgkjU7cezYZUX9WFACw=="/>
-        </item>
-        <item>
-            <title>0.32.4.5</title>
-            <pubDate>Thu, 11 Jun 2026 13:06:33 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.5.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.5</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.5 Mobile 1.11.1</h2>
-<h3>Changed</h3>
-<ul>
-<li>Synced trusted upstream CodexBar Mac improvements after <code>v0.32.4</code>, including</li>
-</ul>
-  Codex account/auth hardening, MiniMax quota fixes, menu performance updates,
-  merged provider-switching hang fixes, Claude probe cleanup,
-  Antigravity/Alibaba/Cursor fixes, and additional Mac localizations.
-<ul>
-<li>Synced upstream CodexBar Mac improvements through <code>0.33.1</code> development,</li>
-</ul>
-  including a security fix that blocks credentialed provider redirects leaving
-  the original HTTPS origin, a new Devin usage provider, Cursor legacy
-  request-quota and Full Disk Access hint fixes, Copilot unlimited chat quota
-  display, Codex cost visibility without quotas, updated Claude usage pricing
-  and web session recovery, Doubao false-exhaustion fixes, cost scanner
-  threading and cancellation overhauls, broad menu performance and
-  width-stability work, a configurable terminal app for Open Terminal, expanded
-  MiMo browser support, and Japanese localization.
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.5/QuotaKit-macos-universal-0.32.4.5.zip" length="49625514" type="application/octet-stream" sparkle:edSignature="FiQICfRrzoMA0xnfGd6G4J6Xhdz5lOqi3kRmPxhP6TfzXH54QUYYnyOuR6bFD3V2oIK7foPChL203WhOPyI8AQ=="/>
         </item>
     </channel>
 </rss>
