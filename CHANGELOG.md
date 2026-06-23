@@ -5,6 +5,29 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.8 / iOS 1.11.1 — 2026-06-23
+
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `af13c528`
+  (`ef8007fc..af13c528`), including CLI pace output, CI observability and
+  dependency updates, stricter blank-localization checks, and broader
+  provider/runtime test coverage.
+
+### Fixed
+
+- Claude: stop installed-version checks from invoking a login shell and
+  triggering unwanted Keychain prompts.
+- Usage totals: keep Today tied to the current local calendar day across cost,
+  Admin API, and Poe surfaces instead of showing the latest historical bucket.
+- Antigravity: align compact icons and automatic highest-usage selection with
+  grouped Gemini and Claude/GPT quota lanes while ignoring non-renderable
+  cadences.
+- Memory pressure: finish isolating utility-queue source reads from main-actor
+  state to prevent the remaining callback crash.
+- Localization: reject blank translated values and restore affected Vietnamese
+  provider prompts.
+
 ## 0.32.4.7 / iOS 1.11.1 — 2026-06-18
 
 ### Changed
