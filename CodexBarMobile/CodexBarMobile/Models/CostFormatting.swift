@@ -34,12 +34,14 @@ enum CostFormatting {
     }
 
     /// Format a raw token count into a compact labeled string:
-    /// `1,234 tokens` · `45.6K tokens` · `12.3M tokens`.
-    /// Labels pass through the app's localized `tokens` / `K tokens` / `M tokens`
+    /// `1,234 tokens` · `45.6K tokens` · `12.3M tokens` · `8.5B tokens`.
+    /// Labels pass through the app's localized `tokens` / `K tokens` / `M tokens` / `B tokens`
     /// string keys (en / zh-Hans / zh-Hant / ja already defined in
     /// `Localizable.xcstrings`).
     static func tokens(_ count: Int) -> String {
-        if count >= 1_000_000 {
+        if count >= 1_000_000_000 {
+            return "\(Self.compactNumber(Double(count) / 1_000_000_000)) \(String(localized: "B tokens"))"
+        } else if count >= 1_000_000 {
             return "\(Self.compactNumber(Double(count) / 1_000_000)) \(String(localized: "M tokens"))"
         } else if count >= 1000 {
             return "\(Self.compactNumber(Double(count) / 1000)) \(String(localized: "K tokens"))"

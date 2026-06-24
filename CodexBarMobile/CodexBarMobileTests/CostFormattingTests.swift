@@ -66,6 +66,14 @@ struct CostFormattingTests {
         #expect(s.contains("1.2") || s.contains("1,2"))
     }
 
+    @Test("tokens in billions uses `B tokens`")
+    func tokensBillions() {
+        let s = CostFormatting.tokens(8_525_000_000)
+        #expect(s.contains("8.5") || s.contains("8,5"))
+        #expect(s.contains("B tokens"))
+        #expect(!s.contains("M tokens"))
+    }
+
     @Test("tokens optional overload returns — for nil")
     func tokensNil() {
         #expect(CostFormatting.tokens(nil as Int?) == "—")
@@ -80,5 +88,6 @@ struct CostFormattingTests {
         #expect(CostFormatting.tokens(500).contains("M") == false)
         #expect(CostFormatting.tokens(1500).contains("K"))
         #expect(CostFormatting.tokens(1_500_000).contains("M"))
+        #expect(CostFormatting.tokens(1_500_000_000).contains("B"))
     }
 }

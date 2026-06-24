@@ -6,6 +6,32 @@ enum UsageCardLayout {
     case compact
 }
 
+enum MobileResetCountdownFormatter {
+    static func resetLine(from date: Date, now: Date = .init()) -> String {
+        String(format: String(localized: "Resets %@"), self.countdownDescription(from: date, now: now))
+    }
+
+    static func countdownDescription(from date: Date, now: Date = .init()) -> String {
+        let seconds = max(0, date.timeIntervalSince(now))
+        if seconds < 1 { return "now" }
+
+        let totalMinutes = max(1, Int(ceil(seconds / 60.0)))
+        let days = totalMinutes / (24 * 60)
+        let hours = (totalMinutes / 60) % 24
+        let minutes = totalMinutes % 60
+
+        if days > 0 {
+            if hours > 0 { return "in \(days)d \(hours)h" }
+            return "in \(days)d"
+        }
+        if hours > 0 {
+            if minutes > 0 { return "in \(hours)h \(minutes)m" }
+            return "in \(hours)h"
+        }
+        return "in \(totalMinutes)m"
+    }
+}
+
 struct UsageCardView: View {
     @Environment(\.quotaKitTheme) private var theme
     let label: String
@@ -60,21 +86,13 @@ struct UsageCardView: View {
 
             // Reset info
             if let resetsAt = self.window.resetsAt {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.caption)
-                    Text("\(String(localized: "Resets")) \(resetsAt.formatted(.relative(presentation: .named)))")
-                        .font(.caption)
+                TimelineView(.periodic(from: .now, by: 60)) { context in
+                    self.resetInfo(text: MobileResetCountdownFormatter.resetLine(
+                        from: resetsAt,
+                        now: context.date))
                 }
-                .foregroundStyle(.secondary)
             } else if let description = self.window.resetDescription {
-                HStack(spacing: 6) {
-                    Image(systemName: "clock.arrow.circlepath")
-                        .font(.caption)
-                    Text(description)
-                        .font(.caption)
-                }
-                .foregroundStyle(.secondary)
+                self.resetInfo(text: description)
             }
 
             if let pace = self.window.pace {
@@ -146,6 +164,16 @@ struct UsageCardView: View {
             .fontWeight(.medium)
             .foregroundStyle(Color.primary.opacity(0.72))
             .lineLimit(1)
+    }
+
+    private func resetInfo(text: String) -> some View {
+        HStack(spacing: 6) {
+            Image(systemName: "clock.arrow.circlepath")
+                .font(.caption)
+            Text(text)
+                .font(.caption)
+        }
+        .foregroundStyle(.secondary)
     }
 
     /// Marker x-positions on the bar, in **used percent** units (0…100).
