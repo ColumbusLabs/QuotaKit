@@ -107,7 +107,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 - Details: `docs/claude.md`.
 
 ## z.ai
-- API token from `~/.codexbar/config.json` (`providers[].apiKey`) or `Z_AI_API_KEY` env var.
+- API token from `~/.quotakit/config.json` (`providers[].apiKey`) or `Z_AI_API_KEY` env var.
 - Supports global and BigModel CN quota hosts; override with `Z_AI_API_HOST` or `Z_AI_QUOTA_URL`.
 - z.ai endpoint overrides must be HTTPS or bare hosts normalized to HTTPS. `Z_AI_QUOTA_URL` takes precedence for
   quota resolution; combined usage validates both configured endpoints before sending bearer auth.
@@ -324,7 +324,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 ## Mistral
 - Session cookie (`ory_session_*`) from browser auto-import or manual `Cookie:` header.
 - CSRF token (`csrftoken` cookie) sent as `X-CSRFTOKEN` for billing and Vibe usage requests.
-- Domains: `admin.mistral.ai` for API billing and `console.mistral.ai` for optional Vibe subscription usage. Admin Ory cookies are never forwarded to the console origin.
+- Domains: `admin.mistral.ai` for API billing and `console.mistral.ai` for optional Vibe subscription usage. Console requests forward only `csrftoken` and `ory_session_*`; all other admin cookies stay origin-bound.
 - Reads monthly usage and pricing from the Mistral billing API.
 - Cost is computed client-side from token counts and response pricing.
 - Reads Vibe monthly-plan usage percentage and reset time when the console endpoint is available.
