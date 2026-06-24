@@ -1,5 +1,5 @@
 ---
-summary: "CodexBar CLI configuration commands for provider toggles, API keys, and isolated config files."
+summary: "QuotaKit CLI configuration commands for provider toggles, API keys, and isolated config files."
 read_when:
   - Using quotakit config from scripts or CI
   - Enabling or disabling providers without opening Settings
@@ -61,13 +61,25 @@ printf '%s' "$LLM_PROXY_API_KEY" | quotakit config set-api-key --provider llmpro
 printf '%s' "$Z_AI_API_KEY" | quotakit config set-api-key --provider zai --stdin
 ```
 
+For a z.ai team account:
+
+```bash
+printf '%s' "$Z_AI_API_KEY" | quotakit config set-api-key --provider zai --stdin \
+  --label Team \
+  --usage-scope team \
+  --organization-id org_... \
+  --workspace-id proj_...
+```
+
+Use single-line BigModel organization/project IDs; see [z.ai](zai.md).
+
 Only providers that consume config-backed API keys accept this command. Admin API providers may require a key with
 organization/usage permissions, not a normal inference key. Browser/OAuth providers such as Grok use their own provider
-sessions instead of an xAI API key for CodexBar's billing view, so enable them with
+sessions instead of an xAI API key for QuotaKit's billing view, so enable them with
 `quotakit config enable --provider grok`.
 
 LLM Proxy also needs a base URL. Use `LLM_PROXY_BASE_URL` for CLI runs, or add `"enterpriseHost"` to the provider entry
-in the CodexBar config file.
+in the QuotaKit config file.
 
 ## Isolated config files
 

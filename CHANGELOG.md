@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `ada3660e`
+  (`af13c528..ada3660e`), including z.ai team token-account usage,
+  Mistral Vibe cookie restoration, and native-style Refresh menu rows.
 - Synced upstream CodexBar Mac improvements through `af13c528`
   (`ef8007fc..af13c528`), including CLI pace output, CI observability and
   dependency updates, stricter blank-localization checks, and broader
