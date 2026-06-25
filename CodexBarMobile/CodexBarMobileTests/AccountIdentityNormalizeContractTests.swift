@@ -38,10 +38,34 @@ struct AccountIdentityNormalizeContractTests {
         #expect(AccountIdentityNormalize.maxAccountIdentifierLength == 256)
     }
 
-    @Test("normalize truncates to maxAccountIdentifierLength")
-    func truncatesAtCap() {
+    @Test("boundary-length values stay unchanged")
+    func boundaryLengthValueIsUnchanged() throws {
+        let exact = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength)
+        let value = try #require(AccountIdentityNormalize.normalize(exact))
+
+        #expect(value == exact)
+        #expect(!value.contains("#sha256#"))
+    }
+
+    @Test("normalize caps to maxAccountIdentifierLength with digest")
+    func capsAtMaxLengthWithDigest() throws {
         let huge = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 100)
         let result = AccountIdentityNormalize.normalize(huge)
-        #expect(result?.count == AccountIdentityNormalize.maxAccountIdentifierLength)
+        let value = try #require(result)
+        #expect(value.count == AccountIdentityNormalize.maxAccountIdentifierLength)
+        #expect(value.hasSuffix("#sha256#9bad493076a15c3d04cb2e1f41607ef0f47270f8a79ebf1620bbb9d3e31e191e"))
+    }
+
+    @Test("over-limit values with the same prefix do not collide")
+    func overLimitValuesDoNotPrefixCollide() throws {
+        let sharedPrefix = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 20)
+        let first = AccountIdentityNormalize.normalize(sharedPrefix + "1")
+        let second = AccountIdentityNormalize.normalize(sharedPrefix + "2")
+
+        let firstValue = try #require(first)
+        let secondValue = try #require(second)
+        #expect(firstValue.count == AccountIdentityNormalize.maxAccountIdentifierLength)
+        #expect(secondValue.count == AccountIdentityNormalize.maxAccountIdentifierLength)
+        #expect(firstValue != secondValue)
     }
 }

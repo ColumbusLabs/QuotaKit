@@ -13,9 +13,12 @@ public enum PayloadCompression {
     public enum Error: Swift.Error, Equatable {
         case compressionFailed
         case malformedHeader
+        case payloadTooLarge
         case decompressionFailed
         case sizeMismatch
     }
+
+    public static let maxDecompressedSize = 1_048_576
 
     private static let headerSize = 4
 
@@ -28,6 +31,8 @@ public enum PayloadCompression {
         }
 
         let originalCount = data.count
+        guard originalCount <= Self.maxDecompressedSize else { throw Error.payloadTooLarge }
+
         // zlib can inflate small or incompressible input; 1.5× + 64 covers the
         // worst-case envelope without heap churn on the typical path.
         let destinationCapacity = max(originalCount + 64, originalCount * 3 / 2)
@@ -59,6 +64,7 @@ public enum PayloadCompression {
         if originalCount == 0 {
             return Data()
         }
+        guard originalCount <= Self.maxDecompressedSize else { throw Error.payloadTooLarge }
         guard data.count > headerSize else { throw Error.malformedHeader }
 
         let body = data.suffix(from: headerSize)

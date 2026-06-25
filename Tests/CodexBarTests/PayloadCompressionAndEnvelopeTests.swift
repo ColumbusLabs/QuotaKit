@@ -49,6 +49,37 @@ struct PayloadCompressionTests {
             _ = try PayloadCompression.decompress(data)
         }
     }
+
+    @Test
+    func decompressRejectsOversizedHeaderBeforeInflating() {
+        var header = UInt32(PayloadCompression.maxDecompressedSize + 1).littleEndian
+        var data = Data(bytes: &header, count: 4)
+        data.append(0x78)
+        data.append(0x9C)
+
+        #expect(throws: PayloadCompression.Error.payloadTooLarge) {
+            _ = try PayloadCompression.decompress(data)
+        }
+    }
+
+    @Test
+    func compressRejectsOversizedPayload() {
+        let data = Data(repeating: 0x41, count: PayloadCompression.maxDecompressedSize + 1)
+
+        #expect(throws: PayloadCompression.Error.payloadTooLarge) {
+            _ = try PayloadCompression.compress(data)
+        }
+    }
+
+    @Test
+    func roundTripsPayloadAtMaximumDecodedSize() throws {
+        let data = Data(repeating: 0x41, count: PayloadCompression.maxDecompressedSize)
+
+        let compressed = try PayloadCompression.compress(data)
+        let decompressed = try PayloadCompression.decompress(compressed)
+
+        #expect(decompressed == data)
+    }
 }
 
 @Suite

@@ -168,6 +168,43 @@ struct AccountIdentityMergeTests {
                 "Synthesized legacy `codex:email:u@x.com` bridges to new explicit identifier.")
     }
 
+    @Test("Over-limit legacy emails with the same prefix stay separate")
+    func overLimitLegacyEmailsDoNotPrefixCollide() throws {
+        let sharedPrefix = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 20)
+        let firstEmail = sharedPrefix + "1@example.com"
+        let secondEmail = sharedPrefix + "2@example.com"
+
+        let mA = Self.makeMac(deviceID: "A", providers: [
+            Self.makeProvider(id: "codex", email: firstEmail, identifiers: nil),
+        ])
+        let mB = Self.makeMac(deviceID: "B", providers: [
+            Self.makeProvider(id: "codex", email: secondEmail, identifiers: nil),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
+        #expect(merged.providers.count == 2,
+                "Distinct over-limit emails must hash to distinct synthesized identifiers.")
+    }
+
+    @Test("Modern explicit hashed email matches legacy synthesis")
+    func modernExplicitHashedEmailMatchesLegacySynthesis() throws {
+        let longEmail = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 100)
+            + "@example.com"
+        let normalized = try #require(AccountIdentityNormalize.normalize(longEmail))
+
+        let legacy = Self.makeMac(deviceID: "legacy", providers: [
+            Self.makeProvider(id: "codex", email: longEmail, identifiers: nil),
+        ])
+        let modern = Self.makeMac(deviceID: "modern", providers: [
+            Self.makeProvider(id: "codex", email: longEmail,
+                              identifiers: ["codex:email:\(normalized)"]),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([legacy, modern]))
+        #expect(merged.providers.count == 1,
+                "Legacy synthesis must still bridge to the modern explicit hashed identifier.")
+    }
+
     @Test("§8.8 — Different accounts on same provider: keep separate")
     func differentAccountsLookSimilar() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [

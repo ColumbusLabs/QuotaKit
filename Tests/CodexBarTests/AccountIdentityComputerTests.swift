@@ -189,6 +189,39 @@ struct AccountIdentityComputerTests {
         #expect(value.count <= AccountIdentityComputer.maxIdentifierLength)
     }
 
+    @Test("Boundary-length values stay unchanged")
+    func boundaryLengthValueIsUnchanged() throws {
+        let exact = String(repeating: "a", count: AccountIdentityComputer.maxIdentifierLength)
+        let value = try #require(AccountIdentityComputer.normalize(exact))
+
+        #expect(value == exact)
+        #expect(!value.contains("#sha256#"))
+    }
+
+    @Test("Over-limit value cap uses stable SHA-256 suffix")
+    func overLimitValueCapUsesStableDigest() throws {
+        let huge = String(repeating: "a", count: AccountIdentityComputer.maxIdentifierLength + 100)
+        let value = try #require(AccountIdentityComputer.normalize(huge))
+
+        #expect(value.count == AccountIdentityComputer.maxIdentifierLength)
+        #expect(value.hasSuffix("#sha256#9bad493076a15c3d04cb2e1f41607ef0f47270f8a79ebf1620bbb9d3e31e191e"))
+    }
+
+    @Test("Over-limit values keep distinct SHA-256 suffixes")
+    func overLimitValuesDoNotPrefixCollide() throws {
+        let sharedPrefix = String(repeating: "a", count: AccountIdentityComputer.maxIdentifierLength + 20)
+        let first = AccountIdentityComputer.normalize(sharedPrefix + "1")
+        let second = AccountIdentityComputer.normalize(sharedPrefix + "2")
+
+        let firstValue = try #require(first)
+        let secondValue = try #require(second)
+        #expect(firstValue.count == AccountIdentityComputer.maxIdentifierLength)
+        #expect(secondValue.count == AccountIdentityComputer.maxIdentifierLength)
+        #expect(firstValue.contains("#sha256#"))
+        #expect(secondValue.contains("#sha256#"))
+        #expect(firstValue != secondValue)
+    }
+
     @Test("normalize rejects nil")
     func normalizeNil() {
         #expect(AccountIdentityComputer.normalize(nil) == nil)

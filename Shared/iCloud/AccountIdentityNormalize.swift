@@ -1,3 +1,4 @@
+import CryptoKit
 import Foundation
 
 /// Shared normalization for account-identity strings used in
@@ -17,10 +18,13 @@ import Foundation
 /// - trim whitespace
 /// - URL-percent-encode (so `:` / `|` / `/` can't accidentally collide
 ///   with the `{provider}:{scheme}:{value}` separator)
-/// - cap at `maxAccountIdentifierLength` (256 chars) to bound cache
-///   growth on pathological inputs
+/// - cap at `maxAccountIdentifierLength` (256 chars) using a readable
+///   prefix plus SHA-256 suffix, so pathological inputs stay bounded
+///   without allowing prefix collisions
 public enum AccountIdentityNormalize {
     public static let maxAccountIdentifierLength = 256
+    private static let hashMarker = "#sha256#"
+    private static let sha256HexLength = 64
 
     public static func normalize(_ raw: String?) -> String? {
         guard let raw else { return nil }
@@ -33,8 +37,18 @@ public enum AccountIdentityNormalize {
             return nil
         }
         if encoded.count > Self.maxAccountIdentifierLength {
-            return String(encoded.prefix(Self.maxAccountIdentifierLength))
+            return Self.capWithDigest(encoded)
         }
         return encoded
+    }
+
+    private static func capWithDigest(_ encoded: String) -> String {
+        let digest = SHA256.hash(data: Data(encoded.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let prefixLength = Self.maxAccountIdentifierLength
+            - Self.hashMarker.count
+            - Self.sha256HexLength
+        return String(encoded.prefix(prefixLength)) + Self.hashMarker + digest
     }
 }

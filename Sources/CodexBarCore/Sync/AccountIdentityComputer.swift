@@ -1,3 +1,8 @@
+#if canImport(CryptoKit)
+import CryptoKit
+#else
+import Crypto
+#endif
 import Foundation
 
 /// Computes a stable identifier set for a provider snapshot, used by iOS
@@ -19,9 +24,9 @@ import Foundation
 /// - **Group / shared aliases** (`team@company.com`, etc.) MUST NOT be
 ///   written. Only authenticated primary identifiers.
 public enum AccountIdentityComputer {
-    /// Maximum length of any single identifier string. Truncating beyond
-    /// this is silent — the truncated value still groups across Macs that
-    /// hit the same truncation, but warn in logs so we can fix the source.
+    /// Maximum length of any single identifier string. Over-limit values keep
+    /// a readable prefix plus SHA-256 suffix so distinct long identifiers do
+    /// not collapse into the same merge key.
     ///
     /// **Must equal** `AccountIdentityNormalize.maxAccountIdentifierLength`
     /// in `Shared/iCloud/AccountIdentityNormalize.swift` so iOS legacy-email
@@ -138,7 +143,7 @@ public enum AccountIdentityComputer {
     /// - trim whitespace
     /// - URL-percent-encode the value (safe across `:` / `|` / `/` etc.)
     /// - skip empty / whitespace-only
-    /// - cap at `maxIdentifierLength` bytes
+    /// - cap at `maxIdentifierLength` chars using prefix + SHA-256 suffix
     ///
     /// **Mirrors `AccountIdentityNormalize.normalize`** in Shared/ —
     /// iOS uses that copy to synthesize the legacy-email fallback so
@@ -155,8 +160,21 @@ public enum AccountIdentityComputer {
             return nil
         }
         if encoded.count > Self.maxIdentifierLength {
-            return String(encoded.prefix(Self.maxIdentifierLength))
+            return Self.capWithDigest(encoded)
         }
         return encoded
+    }
+
+    private static let hashMarker = "#sha256#"
+    private static let sha256HexLength = 64
+
+    private static func capWithDigest(_ encoded: String) -> String {
+        let digest = SHA256.hash(data: Data(encoded.utf8))
+            .map { String(format: "%02x", $0) }
+            .joined()
+        let prefixLength = Self.maxIdentifierLength
+            - Self.hashMarker.count
+            - Self.sha256HexLength
+        return String(encoded.prefix(prefixLength)) + Self.hashMarker + digest
     }
 }
