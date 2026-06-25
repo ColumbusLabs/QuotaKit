@@ -129,6 +129,8 @@ extension UsageMenuCardView.Model {
             L("Estimated from local Codex logs for the selected account.")
         case .claude:
             UsageFormatter.costEstimateHint(provider: provider)
+        case .cursor:
+            UsageFormatter.costEstimateHint(provider: provider)
         case .vertexai:
             L("cost_estimate_hint")
         case .bedrock:
