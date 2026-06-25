@@ -1511,7 +1511,16 @@ extension UsageStore {
             ? CookieHeaderNormalizer.normalize(self.settings.cursorCookieHeader)
             : nil
         let costScope = self.tokenCostScope(for: provider)
-        let cursorScopeSuffix = provider == .cursor ? "|cursorCookie=\(cursorCookieSource.rawValue)" : ""
+        // Fold the manual cookie into the cache key (via an in-process hash, never the raw header) so
+        // pasting a different Cursor cookie invalidates a snapshot fetched within the TTL instead of
+        // showing the previous account's data.
+        let cursorScopeSuffix: String = if provider != .cursor {
+            ""
+        } else if let override = cursorCookieHeaderOverride {
+            "|cursorCookie=manual:\(override.hashValue)"
+        } else {
+            "|cursorCookie=\(cursorCookieSource.rawValue)"
+        }
         let costScopeSignature =
             "\(costScope.signature)|historyDays=\(historyDays)\(cursorScopeSuffix)"
         if !force,
