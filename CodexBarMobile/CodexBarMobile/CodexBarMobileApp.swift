@@ -10,7 +10,7 @@ struct CodexBarMobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var usageData: SyncedUsageData
-    @State private var proEntitlementStore = ProEntitlementStore()
+    @State private var proEntitlementStore: ProEntitlementStore
     @State private var remoteConfigStore = RemoteConfigStore()
 
     init() {
@@ -46,6 +46,13 @@ struct CodexBarMobileApp: App {
             _usageData = State(initialValue: PreviewData.makeSyncedUsageData())
         } else {
             _usageData = State(initialValue: SyncedUsageData())
+        }
+
+        if arguments.contains("UI_TEST_UNLOCK_PRO") {
+            _proEntitlementStore = State(initialValue: ProEntitlementStore.preview(
+                state: .unlocked(source: .storeKit)))
+        } else {
+            _proEntitlementStore = State(initialValue: ProEntitlementStore())
         }
     }
 
