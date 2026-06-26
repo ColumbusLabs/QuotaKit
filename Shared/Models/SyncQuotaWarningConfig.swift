@@ -79,10 +79,10 @@ public struct SyncQuotaWarningConfig: Codable, Sendable, Equatable {
     }
 
     private static func resolved(_ raw: [Int]?) -> [Int] {
-        guard let raw, !raw.isEmpty else { return Self.macDefaults }
+        guard let raw, !raw.isEmpty else { return self.macDefaults }
         // Defensive sanitize: clamp to 0…99 and dedupe (mirrors Mac's
         // QuotaWarningThresholds.sanitized).
         let clamped = raw.map { max(0, min(99, $0)) }
-        return Array(Set(clamped)).sorted(by: >)  // descending so [50, 20]
+        return Array(Set(clamped)).sorted(by: >) // descending so [50, 20]
     }
 }

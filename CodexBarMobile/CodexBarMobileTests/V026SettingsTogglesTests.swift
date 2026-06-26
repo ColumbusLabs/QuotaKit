@@ -1,6 +1,5 @@
 import Foundation
 import XCTest
-
 @testable import CodexBarMobile
 
 /// Pins the UserDefaults persistence contract for the two new settings
@@ -13,7 +12,6 @@ import XCTest
 /// new value and the markers would keep showing. Pin the exact keys
 /// and the default-false behavior to catch that regression class.
 final class V026SettingsTogglesTests: XCTestCase {
-
     override func setUp() {
         super.setUp()
         let d = UserDefaults.standard

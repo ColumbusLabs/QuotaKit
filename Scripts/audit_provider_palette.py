@@ -17,7 +17,7 @@ COLOR_RE = re.compile(
     r"ProviderColor\(\s*red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)"
 )
 MOBILE_ENTRY_RE = re.compile(
-    r'\(\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\)'
+    r'\(\s*\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\s*\)'
 )
 MOBILE_ALIAS_TARGETS = {
     "11labs": "elevenlabs",

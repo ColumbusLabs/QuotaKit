@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Source-level audit that prevents anyone from adding a CKRecord
@@ -26,7 +25,6 @@ import Testing
 /// portable equivalent.
 @Suite("CKRecord reserved field-name source audit")
 struct CKRecordReservedKeyAuditTests {
-
     /// Names that CKRecord reserves. Setting any of these via subscript
     /// on a CKRecord raises an `NSException`.
     static let reservedNames: [String] = [
@@ -66,9 +64,9 @@ struct CKRecordReservedKeyAuditTests {
                 if matches > 0 {
                     print(
                         "[CKRecordReservedKeyAudit] FOUND CKRecord reserved-name assignment in \(relativePath): " +
-                        "`record[\"\(reserved)\"] = ...` raises an ObjC NSException at runtime. " +
-                        "Use a non-reserved field name, or encode the value in the CKRecord's `recordName` instead. " +
-                        "See feedback_ckrecord_reserved_field_names.md.")
+                            "`record[\"\(reserved)\"] = ...` raises an ObjC NSException at runtime. " +
+                            "Use a non-reserved field name, or encode the value in the CKRecord's `recordName` instead. " +
+                            "See feedback_ckrecord_reserved_field_names.md.")
                 }
                 #expect(matches == 0)
             }
@@ -123,8 +121,8 @@ struct CKRecordReservedKeyAuditTests {
         if !missing.isEmpty {
             print(
                 "[CKRecordReservedKeyAudit] These source files write CKRecord fields but are NOT in `auditedRelativePaths`. " +
-                "Add them to the audit so reserved-name violations are caught:\n" +
-                missing.sorted().joined(separator: "\n"))
+                    "Add them to the audit so reserved-name violations are caught:\n" +
+                    missing.sorted().joined(separator: "\n"))
         }
         #expect(missing.isEmpty)
     }
@@ -133,7 +131,7 @@ struct CKRecordReservedKeyAuditTests {
 
     /// Resolve a path relative to the project root.
     static func sourceFileURL(forRelative path: String) -> URL {
-        Self.projectRoot().appendingPathComponent(path)
+        self.projectRoot().appendingPathComponent(path)
     }
 
     /// Walks up from this test file's location to the project root
@@ -145,9 +143,9 @@ struct CKRecordReservedKeyAuditTests {
         // `#filePath` =
         // .../CodexBar/CodexBarMobile/CodexBarMobileTests/CKRecordReservedKeyAuditTests.swift
         // Walk up 3 dirs to land at `.../CodexBar/`.
-        url.deleteLastPathComponent()  // remove file
-        url.deleteLastPathComponent()  // remove CodexBarMobileTests
-        url.deleteLastPathComponent()  // remove CodexBarMobile
+        url.deleteLastPathComponent() // remove file
+        url.deleteLastPathComponent() // remove CodexBarMobileTests
+        url.deleteLastPathComponent() // remove CodexBarMobile
         return url
     }
 }

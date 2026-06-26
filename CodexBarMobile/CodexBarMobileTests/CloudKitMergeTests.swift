@@ -13,8 +13,8 @@ struct CloudKitMergeTests {
         name: String,
         email: String? = nil,
         lastUpdated: Date,
-        usedPercent: Double = 50.0
-    ) -> ProviderUsageSnapshot {
+        usedPercent: Double = 50.0) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -35,8 +35,8 @@ struct CloudKitMergeTests {
         deviceName: String,
         deviceID: String,
         providers: [ProviderUsageSnapshot],
-        timestamp: Date? = nil
-    ) -> SyncedUsageSnapshot {
+        timestamp: Date? = nil) -> SyncedUsageSnapshot
+    {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp ?? providers.map(\.lastUpdated).max() ?? Date(),
@@ -48,8 +48,8 @@ struct CloudKitMergeTests {
 
     @Test("Single device returns its data unchanged")
     func singleDevice() throws {
-        let provider = makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: olderDate)
-        let snapshot = makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-1", providers: [provider])
+        let provider = self.makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: self.olderDate)
+        let snapshot = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-1", providers: [provider])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([snapshot]))
         #expect(merged.providers.count == 1)
@@ -62,15 +62,15 @@ struct CloudKitMergeTests {
 
     @Test("Same provider + same account deduplicates to most recent")
     func sameProviderSameAccount() throws {
-        let oldProvider = makeProvider(
+        let oldProvider = self.makeProvider(
             id: "claude", name: "Claude", email: "user@a.com",
-            lastUpdated: olderDate, usedPercent: 30.0)
-        let newProvider = makeProvider(
+            lastUpdated: self.olderDate, usedPercent: 30.0)
+        let newProvider = self.makeProvider(
             id: "claude", name: "Claude", email: "user@a.com",
-            lastUpdated: newerDate, usedPercent: 80.0)
+            lastUpdated: self.newerDate, usedPercent: 80.0)
 
-        let macA = makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [oldProvider])
-        let macB = makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [newProvider])
+        let macA = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [oldProvider])
+        let macB = self.makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [newProvider])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.count == 1)
@@ -81,13 +81,13 @@ struct CloudKitMergeTests {
 
     @Test("Same provider + different accounts are preserved as separate entries")
     func sameProviderDifferentAccounts() throws {
-        let accountA = makeProvider(
-            id: "claude", name: "Claude", email: "personal@a.com", lastUpdated: olderDate)
-        let accountB = makeProvider(
-            id: "claude", name: "Claude", email: "work@b.com", lastUpdated: newerDate)
+        let accountA = self.makeProvider(
+            id: "claude", name: "Claude", email: "personal@a.com", lastUpdated: self.olderDate)
+        let accountB = self.makeProvider(
+            id: "claude", name: "Claude", email: "work@b.com", lastUpdated: self.newerDate)
 
-        let macA = makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [accountA])
-        let macB = makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [accountB])
+        let macA = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [accountA])
+        let macB = self.makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [accountB])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.count == 2)
@@ -100,12 +100,12 @@ struct CloudKitMergeTests {
 
     @Test("Different providers from different Macs are combined")
     func differentProviders() throws {
-        let claude = makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)
-        let cursor = makeProvider(id: "cursor", name: "Cursor", lastUpdated: olderDate)
-        let codex = makeProvider(id: "codex", name: "Codex", lastUpdated: newerDate)
+        let claude = self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)
+        let cursor = self.makeProvider(id: "cursor", name: "Cursor", lastUpdated: self.olderDate)
+        let codex = self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.newerDate)
 
-        let macA = makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [claude, cursor])
-        let macB = makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [codex])
+        let macA = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-a", providers: [claude, cursor])
+        let macB = self.makeSnapshot(deviceName: "Mac Mini", deviceID: "uuid-b", providers: [codex])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.count == 3)
@@ -118,12 +118,12 @@ struct CloudKitMergeTests {
 
     @Test("Merged snapshot combines device names")
     func combinedDeviceName() throws {
-        let macA = makeSnapshot(
+        let macA = self.makeSnapshot(
             deviceName: "MacBook Air", deviceID: "uuid-a",
-            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)])
-        let macB = makeSnapshot(
+            providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)])
+        let macB = self.makeSnapshot(
             deviceName: "Mac Mini", deviceID: "uuid-b",
-            providers: [makeProvider(id: "codex", name: "Codex", lastUpdated: newerDate)])
+            providers: [self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.newerDate)])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.deviceName.contains("MacBook Air"))
@@ -142,11 +142,11 @@ struct CloudKitMergeTests {
 
     @Test("Provider with nil email is treated as separate from one with email")
     func nilVsNonNilEmail() throws {
-        let noEmail = makeProvider(id: "claude", name: "Claude", email: nil, lastUpdated: olderDate)
-        let withEmail = makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: newerDate)
+        let noEmail = self.makeProvider(id: "claude", name: "Claude", email: nil, lastUpdated: self.olderDate)
+        let withEmail = self.makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: self.newerDate)
 
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [noEmail])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [withEmail])
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [noEmail])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [withEmail])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.count == 2) // Different keys: "claude|" vs "claude|a@b.com"
@@ -156,10 +156,10 @@ struct CloudKitMergeTests {
 
     @Test("Merged providers are sorted alphabetically by name")
     func sortedByName() throws {
-        let zProvider = makeProvider(id: "z-tool", name: "Z Tool", lastUpdated: olderDate)
-        let aProvider = makeProvider(id: "a-tool", name: "A Tool", lastUpdated: newerDate)
+        let zProvider = self.makeProvider(id: "z-tool", name: "Z Tool", lastUpdated: self.olderDate)
+        let aProvider = self.makeProvider(id: "a-tool", name: "A Tool", lastUpdated: self.newerDate)
 
-        let snapshot = makeSnapshot(
+        let snapshot = self.makeSnapshot(
             deviceName: "Mac", deviceID: "uuid-1",
             providers: [zProvider, aProvider])
 
@@ -172,17 +172,17 @@ struct CloudKitMergeTests {
 
     @Test("Merged snapshot uses the most recent syncTimestamp across devices")
     func latestTimestamp() throws {
-        let macA = makeSnapshot(
+        let macA = self.makeSnapshot(
             deviceName: "Mac A", deviceID: "uuid-a",
-            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)],
-            timestamp: olderDate)
-        let macB = makeSnapshot(
+            providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)],
+            timestamp: self.olderDate)
+        let macB = self.makeSnapshot(
             deviceName: "Mac B", deviceID: "uuid-b",
-            providers: [makeProvider(id: "codex", name: "Codex", lastUpdated: newerDate)],
-            timestamp: newerDate)
+            providers: [self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.newerDate)],
+            timestamp: self.newerDate)
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
-        #expect(merged.syncTimestamp == newerDate)
+        #expect(merged.syncTimestamp == self.newerDate)
     }
 
     // MARK: - Cost aggregation for local-cost providers
@@ -193,8 +193,8 @@ struct CloudKitMergeTests {
         email: String? = nil,
         lastUpdated: Date,
         sessionCost: Double,
-        daily: [SyncDailyPoint]
-    ) -> ProviderUsageSnapshot {
+        daily: [SyncDailyPoint]) -> ProviderUsageSnapshot
+    {
         let totalCost = daily.reduce(0) { $0 + $1.costUSD }
         let totalTokens = daily.reduce(0) { $0 + $1.totalTokens }
         return ProviderUsageSnapshot(
@@ -226,13 +226,23 @@ struct CloudKitMergeTests {
             SyncDailyPoint(dayKey: "2024-01-17", costUSD: 3.00, totalTokens: 20000),
         ]
 
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
-                                 lastUpdated: olderDate, sessionCost: 0.50, daily: dailyA),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                email: "user@a.com",
+                lastUpdated: self.olderDate,
+                sessionCost: 0.50,
+                daily: dailyA),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
-                                 lastUpdated: newerDate, sessionCost: 0.30, daily: dailyB),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                email: "user@a.com",
+                lastUpdated: self.newerDate,
+                sessionCost: 0.30,
+                daily: dailyB),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -264,13 +274,23 @@ struct CloudKitMergeTests {
     func accountCostDeduped() throws {
         let daily = [SyncDailyPoint(dayKey: "2024-01-15", costUSD: 5.00, totalTokens: 50000)]
 
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeProviderWithCost(id: "augment", name: "Augment", email: "user@a.com",
-                                 lastUpdated: olderDate, sessionCost: 1.00, daily: daily),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "augment",
+                name: "Augment",
+                email: "user@a.com",
+                lastUpdated: self.olderDate,
+                sessionCost: 1.00,
+                daily: daily),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeProviderWithCost(id: "augment", name: "Augment", email: "user@a.com",
-                                 lastUpdated: newerDate, sessionCost: 2.00, daily: daily),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "augment",
+                name: "Augment",
+                email: "user@a.com",
+                lastUpdated: self.newerDate,
+                sessionCost: 2.00,
+                daily: daily),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -296,13 +316,21 @@ struct CloudKitMergeTests {
                 SyncCostBreakdown(label: "claude-4-haiku", costUSD: 0.20),
             ])]
 
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", lastUpdated: olderDate,
-                                 sessionCost: 0, daily: dailyA),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", lastUpdated: newerDate,
-                                 sessionCost: 0, daily: dailyB),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -322,13 +350,21 @@ struct CloudKitMergeTests {
 
     @Test("Provider without cost data is unaffected by merge")
     func noCostDataUnaffected() throws {
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeProvider(id: "copilot", name: "Copilot", email: "user@a.com",
-                         lastUpdated: olderDate, usedPercent: 40),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProvider(
+                id: "copilot",
+                name: "Copilot",
+                email: "user@a.com",
+                lastUpdated: self.olderDate,
+                usedPercent: 40),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeProvider(id: "copilot", name: "Copilot", email: "user@a.com",
-                         lastUpdated: newerDate, usedPercent: 60),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProvider(
+                id: "copilot",
+                name: "Copilot",
+                email: "user@a.com",
+                lastUpdated: self.newerDate,
+                usedPercent: 60),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -338,6 +374,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - Perplexity credits passthrough (T3 · Build 71 / Mac 0.20.3)
+
     //
     // Regression guard: `mergeProviderEntries` rebuilds
     // `ProviderUsageSnapshot` for multi-device scenarios. Build 71's new
@@ -351,8 +388,8 @@ struct CloudKitMergeTests {
     private func makePerplexitySnapshot(
         email: String? = "user@example.com",
         lastUpdated: Date,
-        credits: SyncPerplexityCreditSummary?
-    ) -> ProviderUsageSnapshot {
+        credits: SyncPerplexityCreditSummary?) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: "perplexity",
             providerName: "Perplexity",
@@ -383,11 +420,11 @@ struct CloudKitMergeTests {
             renewalAt: Date(timeIntervalSince1970: 1_700_500_000),
             planName: "Pro",
             balanceCents: 3000)
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makePerplexitySnapshot(lastUpdated: olderDate, credits: nil),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makePerplexitySnapshot(lastUpdated: self.olderDate, credits: nil),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makePerplexitySnapshot(lastUpdated: newerDate, credits: credits),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makePerplexitySnapshot(lastUpdated: self.newerDate, credits: credits),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -399,6 +436,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - Cross-version data-loss regression (Build 76)
+
     //
     // The scenario: user has 2 Macs on different CodexBar versions. The
     // older Mac (e.g. 0.20.2) doesn't know about `perplexityCredits` /
@@ -426,11 +464,11 @@ struct CloudKitMergeTests {
             planName: "Pro")
         // Key twist: Mac A (with data) is OLDER; Mac B (without) is NEWER.
         // Naive take-latest would return Mac B's nil credits.
-        let macAWithCreditsOlder = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makePerplexitySnapshot(lastUpdated: olderDate, credits: credits),
+        let macAWithCreditsOlder = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makePerplexitySnapshot(lastUpdated: self.olderDate, credits: credits),
         ])
-        let macBNoCreditsNewer = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makePerplexitySnapshot(lastUpdated: newerDate, credits: nil),
+        let macBNoCreditsNewer = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makePerplexitySnapshot(lastUpdated: self.newerDate, credits: nil),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots(
             [macAWithCreditsOlder, macBNoCreditsNewer]))
@@ -450,7 +488,7 @@ struct CloudKitMergeTests {
             currencyCode: "USD",
             period: "monthly",
             resetsAt: nil)
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude",
                 providerName: "Claude",
@@ -460,10 +498,10 @@ struct CloudKitMergeTests {
                 loginMethod: nil,
                 statusMessage: nil,
                 isError: false,
-                lastUpdated: olderDate,
+                lastUpdated: self.olderDate,
                 budget: budget),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude",
                 providerName: "Claude",
@@ -473,7 +511,7 @@ struct CloudKitMergeTests {
                 loginMethod: nil,
                 statusMessage: nil,
                 isError: false,
-                lastUpdated: newerDate,
+                lastUpdated: self.newerDate,
                 budget: nil),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -494,7 +532,7 @@ struct CloudKitMergeTests {
             last30DaysCostUSD: 45.67,
             last30DaysTokens: 0,
             daily: [])
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "cursor",
                 providerName: "Cursor",
@@ -504,10 +542,10 @@ struct CloudKitMergeTests {
                 loginMethod: nil,
                 statusMessage: nil,
                 isError: false,
-                lastUpdated: olderDate,
+                lastUpdated: self.olderDate,
                 costSummary: cost),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             ProviderUsageSnapshot(
                 providerID: "cursor",
                 providerName: "Cursor",
@@ -517,7 +555,7 @@ struct CloudKitMergeTests {
                 loginMethod: nil,
                 statusMessage: nil,
                 isError: false,
-                lastUpdated: newerDate,
+                lastUpdated: self.newerDate,
                 costSummary: nil),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -543,22 +581,22 @@ struct CloudKitMergeTests {
             last30DaysCostUSD: 100,
             last30DaysTokens: 0,
             daily: [])
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude", providerName: "Claude",
                 primary: nil, secondary: nil,
                 accountEmail: "user@example.com",
                 loginMethod: nil, statusMessage: nil,
-                isError: false, lastUpdated: olderDate,
+                isError: false, lastUpdated: self.olderDate,
                 costSummary: costA),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             ProviderUsageSnapshot(
                 providerID: "claude", providerName: "Claude",
                 primary: nil, secondary: nil,
                 accountEmail: "user@example.com",
                 loginMethod: nil, statusMessage: nil,
-                isError: false, lastUpdated: newerDate,
+                isError: false, lastUpdated: self.newerDate,
                 costSummary: costB),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -568,23 +606,23 @@ struct CloudKitMergeTests {
 
     @Test("loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan")
     func loginMethodInvertedFreshnessKeepsData() throws {
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
                 primary: nil, secondary: nil,
                 accountEmail: "user@example.com",
                 loginMethod: "Pro",
                 statusMessage: nil, isError: false,
-                lastUpdated: olderDate),
+                lastUpdated: self.olderDate),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
                 primary: nil, secondary: nil,
                 accountEmail: "user@example.com",
                 loginMethod: nil,
                 statusMessage: nil, isError: false,
-                lastUpdated: newerDate),
+                lastUpdated: self.newerDate),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.first?.loginMethod == "Pro")
@@ -597,8 +635,8 @@ struct CloudKitMergeTests {
         // so this verifies the field survives even the trivial passthrough.
         let credits = SyncPerplexityCreditSummary(
             recurringTotalCents: 7500, renewalAt: Date(timeIntervalSince1970: 1_700_600_000), planName: "Max")
-        let mac = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makePerplexitySnapshot(lastUpdated: olderDate, credits: credits),
+        let mac = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makePerplexitySnapshot(lastUpdated: self.olderDate, credits: credits),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
@@ -607,6 +645,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - App/mobile version: take highest across devices (Build 77)
+
     //
     // Reported scenario: user has two Macs on different CodexBar versions
     // (e.g. 0.19.0 and 0.20.3). The "Mac App" field in iOS Settings used
@@ -671,6 +710,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - Utilization history: cross-version series merge (Build 77)
+
     //
     // Reported scenario: iPhone Cost tab's "Subscription Utilization"
     // section showed Codex at 0% even though the Codex detail page rendered
@@ -689,8 +729,8 @@ struct CloudKitMergeTests {
         email: String = "user@example.com",
         lastUpdated: Date,
         windowMinutes: Int = 300,
-        entries: [SyncUtilizationEntry]
-    ) -> ProviderUsageSnapshot {
+        entries: [SyncUtilizationEntry]) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -706,16 +746,16 @@ struct CloudKitMergeTests {
     func utilizationMismatchedWindowMinutesUnion() throws {
         let hourAgo = Date().addingTimeInterval(-3600)
         let twoHoursAgo = Date().addingTimeInterval(-7200)
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeCodexWithSession(
-                lastUpdated: olderDate,
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeCodexWithSession(
+                lastUpdated: self.olderDate,
                 windowMinutes: 300,
                 entries: [SyncUtilizationEntry(
                     capturedAt: twoHoursAgo, usedPercent: 25, resetsAt: nil)]),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeCodexWithSession(
-                lastUpdated: newerDate,
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeCodexWithSession(
+                lastUpdated: self.newerDate,
                 // Different windowMinutes — pre-fix, this created a SECOND
                 // "session" series that downstream code could pick instead.
                 windowMinutes: 180,
@@ -725,7 +765,7 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let codex = try #require(merged.providers.first { $0.providerID == "codex" })
         let sessions = codex.utilizationHistory?.filter { $0.name == "session" } ?? []
-        #expect(sessions.count == 1)  // Unioned, not split
+        #expect(sessions.count == 1) // Unioned, not split
         // The newer Mac's windowMinutes wins (180), because its entry was
         // captured more recently.
         #expect(sessions.first?.windowMinutes == 180)
@@ -735,6 +775,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - notificationPushEnabled merge (Build 78)
+
     //
     // Reported class: Build 77 fixed appVersion picking `snapshots.first?` which
     // flipped non-deterministically with CloudKit iteration order. The same
@@ -750,8 +791,8 @@ struct CloudKitMergeTests {
 
     private func pushSnapshot(deviceID: String, value: Bool?) -> SyncedUsageSnapshot {
         SyncedUsageSnapshot(
-            providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: newerDate)],
-            syncTimestamp: newerDate,
+            providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.newerDate)],
+            syncTimestamp: self.newerDate,
             deviceName: "Mac \(deviceID)",
             deviceID: deviceID,
             notificationPushEnabled: value)
@@ -760,8 +801,8 @@ struct CloudKitMergeTests {
     @Test("notificationPushEnabled: all true → true")
     func pushEnabledAllTrue() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "a", value: true),
-            pushSnapshot(deviceID: "b", value: true),
+            self.pushSnapshot(deviceID: "a", value: true),
+            self.pushSnapshot(deviceID: "b", value: true),
         ]))
         #expect(merged.notificationPushEnabled == true)
     }
@@ -769,8 +810,8 @@ struct CloudKitMergeTests {
     @Test("notificationPushEnabled: any false → false (conservative)")
     func pushEnabledAnyFalseWins() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "a", value: true),
-            pushSnapshot(deviceID: "b", value: false),
+            self.pushSnapshot(deviceID: "a", value: true),
+            self.pushSnapshot(deviceID: "b", value: false),
         ]))
         #expect(merged.notificationPushEnabled == false)
     }
@@ -781,12 +822,12 @@ struct CloudKitMergeTests {
         // `true` and `nil` depending on which snapshot CloudKit returned first.
         // Post-fix: explicit true always surfaces.
         let merged1 = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "true-mac", value: true),
-            pushSnapshot(deviceID: "nil-mac", value: nil),
+            self.pushSnapshot(deviceID: "true-mac", value: true),
+            self.pushSnapshot(deviceID: "nil-mac", value: nil),
         ]))
         let merged2 = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "nil-mac", value: nil),
-            pushSnapshot(deviceID: "true-mac", value: true),
+            self.pushSnapshot(deviceID: "nil-mac", value: nil),
+            self.pushSnapshot(deviceID: "true-mac", value: true),
         ]))
         #expect(merged1.notificationPushEnabled == true)
         #expect(merged2.notificationPushEnabled == true)
@@ -795,12 +836,12 @@ struct CloudKitMergeTests {
     @Test("notificationPushEnabled: false + nil → false (order-independent)")
     func pushEnabledFalseWinsOverNil() throws {
         let merged1 = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "false-mac", value: false),
-            pushSnapshot(deviceID: "nil-mac", value: nil),
+            self.pushSnapshot(deviceID: "false-mac", value: false),
+            self.pushSnapshot(deviceID: "nil-mac", value: nil),
         ]))
         let merged2 = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "nil-mac", value: nil),
-            pushSnapshot(deviceID: "false-mac", value: false),
+            self.pushSnapshot(deviceID: "nil-mac", value: nil),
+            self.pushSnapshot(deviceID: "false-mac", value: false),
         ]))
         #expect(merged1.notificationPushEnabled == false)
         #expect(merged2.notificationPushEnabled == false)
@@ -809,13 +850,14 @@ struct CloudKitMergeTests {
     @Test("notificationPushEnabled: all nil → nil (no opinion)")
     func pushEnabledAllNil() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
-            pushSnapshot(deviceID: "a", value: nil),
-            pushSnapshot(deviceID: "b", value: nil),
+            self.pushSnapshot(deviceID: "a", value: nil),
+            self.pushSnapshot(deviceID: "b", value: nil),
         ]))
         #expect(merged.notificationPushEnabled == nil)
     }
 
     // MARK: - SyncCostSummary.todayCostUSD prefers daily[today] over session (Build 78)
+
     //
     // Reported class: same as Subscription Utilization aggregate/detail mismatch
     // — Cost tab's summary card used `daily[today].costUSD ?? sessionCostUSD`
@@ -838,11 +880,13 @@ struct CloudKitMergeTests {
             last30DaysCostUSD: 50,
             last30DaysTokens: 30000,
             daily: [
-                SyncDailyPoint(dayKey: Self.pinnedTodayKey,
-                               costUSD: 4.56, totalTokens: 4000),
+                SyncDailyPoint(
+                    dayKey: Self.pinnedTodayKey,
+                    costUSD: 4.56,
+                    totalTokens: 4000),
             ])
         let today = cost.todayTotals(now: Self.pinnedToday)
-        #expect(today.costUSD == 4.56)   // daily[today], not session
+        #expect(today.costUSD == 4.56) // daily[today], not session
         #expect(today.tokens == 4000)
     }
 
@@ -854,11 +898,13 @@ struct CloudKitMergeTests {
             last30DaysCostUSD: 50,
             last30DaysTokens: 30000,
             daily: [
-                SyncDailyPoint(dayKey: "2020-01-01",  // far from pinnedToday
-                               costUSD: 99, totalTokens: 9999),
+                SyncDailyPoint(
+                    dayKey: "2020-01-01", // far from pinnedToday
+                    costUSD: 99,
+                    totalTokens: 9999),
             ])
         let today = cost.todayTotals(now: Self.pinnedToday)
-        #expect(today.costUSD == 1.23)   // session fallback
+        #expect(today.costUSD == 1.23) // session fallback
         #expect(today.tokens == 1000)
     }
 
@@ -893,7 +939,7 @@ struct CloudKitMergeTests {
                 SyncDailyPoint(dayKey: key, costUSD: 12.34, totalTokens: 5000),
             ])
         let today = cost.todayTotals(now: justBeforeMidnight)
-        #expect(today.costUSD == 12.34)   // both come from the same daily point
+        #expect(today.costUSD == 12.34) // both come from the same daily point
         #expect(today.tokens == 5000)
     }
 
@@ -905,19 +951,23 @@ struct CloudKitMergeTests {
         // data when picking windowMinutes or when downstream views filter
         // for `!entries.isEmpty`.
         let now = Date()
-        let macARealData = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeCodexWithSession(
-                lastUpdated: newerDate,
+        let macARealData = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeCodexWithSession(
+                lastUpdated: self.newerDate,
                 entries: [
-                    SyncUtilizationEntry(capturedAt: now.addingTimeInterval(-3600),
-                                         usedPercent: 30, resetsAt: nil),
-                    SyncUtilizationEntry(capturedAt: now.addingTimeInterval(-7200),
-                                         usedPercent: 50, resetsAt: nil),
+                    SyncUtilizationEntry(
+                        capturedAt: now.addingTimeInterval(-3600),
+                        usedPercent: 30,
+                        resetsAt: nil),
+                    SyncUtilizationEntry(
+                        capturedAt: now.addingTimeInterval(-7200),
+                        usedPercent: 50,
+                        resetsAt: nil),
                 ]),
         ])
-        let macBEmpty = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeCodexWithSession(
-                lastUpdated: olderDate,
+        let macBEmpty = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeCodexWithSession(
+                lastUpdated: self.olderDate,
                 entries: []),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([macARealData, macBEmpty]))
@@ -928,6 +978,7 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - Realistic-distribution regression fixtures (Build 80 · Fix D)
+
     //
     // Round 3 of the 5-round audit found every pre-Build-78 merge test ran on
     // "toy" data: `usedPercent: 50.0`, `costUSD: $1.50`, three rate-limit
@@ -954,15 +1005,15 @@ struct CloudKitMergeTests {
         daysCount: Int,
         peakHour: Int,
         peakPercent: Double,
-        deviceOffsetMinutes: Int = 0
-    ) -> SyncUtilizationSeries {
+        deviceOffsetMinutes: Int = 0) -> SyncUtilizationSeries
+    {
         var entries: [SyncUtilizationEntry] = []
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(identifier: "UTC")!
         let anchorStartOfDay = calendar.startOfDay(for: anchor)
-        for dayOffset in 0 ..< daysCount {
+        for dayOffset in 0..<daysCount {
             let day = calendar.date(byAdding: .day, value: -dayOffset, to: anchorStartOfDay)!
-            for hour in 0 ..< 24 {
+            for hour in 0..<24 {
                 let captured = calendar.date(
                     byAdding: .minute, value: deviceOffsetMinutes,
                     to: calendar.date(byAdding: .hour, value: hour, to: day)!)!
@@ -1023,7 +1074,7 @@ struct CloudKitMergeTests {
         // entries and confirm they're 16%, not 0% (that would indicate the
         // bursty-merge regression).
         let peakValues = session.entries.filter { $0.usedPercent > 0 }.map(\.usedPercent)
-        #expect(peakValues.count == 30)  // one peak per day
+        #expect(peakValues.count == 30) // one peak per day
         #expect(peakValues.allSatisfy { $0 == 16 })
     }
 
@@ -1045,12 +1096,12 @@ struct CloudKitMergeTests {
         // feeding two Macs, we force the dedup code path that actually
         // applies the BucketKey separation under audit.
         let anchor = Date(timeIntervalSince1970: 1_745_500_000)
-        let resetT = Date(timeIntervalSince1970: 1_745_502_000)          // reset happens at T
+        let resetT = Date(timeIntervalSince1970: 1_745_502_000) // reset happens at T
         let resetTPlus5 = Date(timeIntervalSince1970: 1_745_502_000 + 5 * 3600)
         let preReset = SyncUtilizationEntry(
             capturedAt: anchor, usedPercent: 90, resetsAt: resetT)
         let postReset = SyncUtilizationEntry(
-            capturedAt: anchor.addingTimeInterval(600),  // same clock hour, 10 min later
+            capturedAt: anchor.addingTimeInterval(600), // same clock hour, 10 min later
             usedPercent: 5, resetsAt: resetTPlus5)
 
         func provider(entries: [SyncUtilizationEntry]) -> ProviderUsageSnapshot {
@@ -1101,7 +1152,7 @@ struct CloudKitMergeTests {
         // multi-device path, since that's where dedup order matters.
         let base = Date(timeIntervalSince1970: 1_745_500_000)
         func disorderedEntries(offsetMinutes: Int) -> [SyncUtilizationEntry] {
-            (0 ..< 10).shuffled().map { i in
+            (0..<10).shuffled().map { i in
                 SyncUtilizationEntry(
                     capturedAt: base.addingTimeInterval(
                         Double(i) * 3600 + Double(offsetMinutes * 60)),
@@ -1146,14 +1197,14 @@ struct CloudKitMergeTests {
         // for `>= last30Start`; the merger itself must preserve everything).
         let today = Date()
         let calendar = Calendar.current
-        let thirtyDaysAgo = calendar.date(byAdding: .day, value: -30, to: today)!
+        let thirtyDaysAgo = try #require(calendar.date(byAdding: .day, value: -30, to: today))
 
-        let oldEntries = (0 ..< 5).map { i in
+        let oldEntries = (0..<5).map { i in
             SyncUtilizationEntry(
                 capturedAt: thirtyDaysAgo.addingTimeInterval(Double(i) * 3600),
                 usedPercent: 42, resetsAt: nil)
         }
-        let newEntries = (0 ..< 5).map { i in
+        let newEntries = (0..<5).map { i in
             SyncUtilizationEntry(
                 capturedAt: today.addingTimeInterval(-Double(i) * 3600),
                 usedPercent: 18, resetsAt: nil)
@@ -1195,7 +1246,7 @@ struct CloudKitMergeTests {
         // whether to show the provider at all, and dropping zero-only
         // providers would hide them from Subscription Utilization.
         let anchor = Date(timeIntervalSince1970: 1_745_500_000)
-        let entries = (0 ..< 720).map { i in
+        let entries = (0..<720).map { i in
             SyncUtilizationEntry(
                 capturedAt: anchor.addingTimeInterval(Double(i) * 3600),
                 usedPercent: 0, resetsAt: nil)
@@ -1232,13 +1283,23 @@ struct CloudKitMergeTests {
             SyncDailyPoint(dayKey: "2026-01-31", costUSD: 1.50, totalTokens: 1500),
             SyncDailyPoint(dayKey: "2026-02-02", costUSD: 3.00, totalTokens: 3000),
         ]
-        let macA = makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
-                                 lastUpdated: olderDate, sessionCost: 0, daily: dailyA),
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                email: "user@a.com",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
         ])
-        let macB = makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
-            makeProviderWithCost(id: "claude", name: "Claude", email: "user@a.com",
-                                 lastUpdated: newerDate, sessionCost: 0, daily: dailyB),
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                email: "user@a.com",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
@@ -1248,6 +1309,6 @@ struct CloudKitMergeTests {
 
         // 2026-01-31 is the overlap day — costs from both Macs sum.
         let jan31 = try #require(cost.daily.first { $0.dayKey == "2026-01-31" })
-        #expect(jan31.costUSD == 4.00)  // 2.50 + 1.50
+        #expect(jan31.costUSD == 4.00) // 2.50 + 1.50
     }
 }

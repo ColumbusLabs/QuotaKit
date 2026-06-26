@@ -56,12 +56,16 @@ struct AccountIdentityMergeTests {
     @Test("§8.1 — All Macs on same version: 1 group")
     func allOnSameVersion() throws {
         let s1 = Self.makeMac(deviceID: "mac-A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let s2 = Self.makeMac(deviceID: "mac-B", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([s1, s2]))
         #expect(merged.providers.count == 1, "Same email → 1 card.")
@@ -73,8 +77,10 @@ struct AccountIdentityMergeTests {
         // and nil email. They DON'T share an identifier → 2 cards (correct;
         // user can L3 confirm or upgrade old Mac to break ambiguity).
         let modern = Self.makeMac(deviceID: "mac-A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:account:org-x", "codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:account:org-x", "codex:email:u@x.com"]),
         ])
         let legacy = Self.makeMac(deviceID: "mac-B", providers: [
             Self.makeProvider(id: "codex", email: nil, identifiers: nil),
@@ -86,12 +92,16 @@ struct AccountIdentityMergeTests {
     @Test("§8.3 — One version ahead (newer Mac added a field): 1 group via shared email")
     func oneVersionAhead() throws {
         let baseline = Self.makeMac(deviceID: "mac-A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let ahead = Self.makeMac(deviceID: "mac-B", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com", "codex:account:org-x"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com", "codex:account:org-x"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([baseline, ahead]))
         #expect(merged.providers.count == 1, "Shared email bridges old + new → 1 card.")
@@ -100,16 +110,22 @@ struct AccountIdentityMergeTests {
     @Test("§8.4 — Transition period (3-Mac, 3 versions, all double-write email)")
     func transitionPeriod() throws {
         let m1 = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let m2 = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com", "codex:account:org-x"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com", "codex:account:org-x"]),
         ])
         let m3 = Self.makeMac(deviceID: "C", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com", "codex:account:org-x", "codex:phone:+1-555"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com", "codex:account:org-x", "codex:phone:+1-555"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([m1, m2, m3]))
         #expect(merged.providers.count == 1, "Shared email or shared org bridges all 3 → 1 card.")
@@ -121,12 +137,16 @@ struct AccountIdentityMergeTests {
         // writing email. Mac-A still writes both (running 0.27); Mac-B writes
         // sub-only (running 0.30+). Shared sub → merge.
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com", "codex:sub:s1"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com", "codex:sub:s1"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: nil,
-                              identifiers: ["codex:sub:s1"]),
+            Self.makeProvider(
+                id: "codex",
+                email: nil,
+                identifiers: ["codex:sub:s1"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
         #expect(merged.providers.count == 1, "Shared sub merges across old + post-deprecation Macs.")
@@ -137,16 +157,21 @@ struct AccountIdentityMergeTests {
         // Mac 0.27 hard-removed email without overlap with sub. Mac-A writes
         // only email; Mac-B and Mac-C write only sub. No overlap → 2 groups.
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: nil,
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: nil,
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: nil,
-                              identifiers: ["codex:sub:s1"]),
+            Self.makeProvider(
+                id: "codex",
+                email: nil,
+                identifiers: ["codex:sub:s1"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
-        #expect(merged.providers.count == 2,
-                "No shared identifier → 2 separate cards. L3 user-merge would be the cure.")
+        #expect(
+            merged.providers.count == 2,
+            "No shared identifier → 2 separate cards. L3 user-merge would be the cure.")
     }
 
     @Test("§8.7 — Legacy + new Mac with same accountEmail: 1 group via synthesized email")
@@ -160,12 +185,15 @@ struct AccountIdentityMergeTests {
             Self.makeProvider(id: "codex", email: "u@x.com", identifiers: nil),
         ])
         let modern = Self.makeMac(deviceID: "studio", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:account:org-x", "codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:account:org-x", "codex:email:u@x.com"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([legacy, modern]))
-        #expect(merged.providers.count == 1,
-                "Synthesized legacy `codex:email:u@x.com` bridges to new explicit identifier.")
+        #expect(
+            merged.providers.count == 1,
+            "Synthesized legacy `codex:email:u@x.com` bridges to new explicit identifier.")
     }
 
     @Test("Over-limit legacy emails with the same prefix stay separate")
@@ -182,8 +210,9 @@ struct AccountIdentityMergeTests {
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
-        #expect(merged.providers.count == 2,
-                "Distinct over-limit emails must hash to distinct synthesized identifiers.")
+        #expect(
+            merged.providers.count == 2,
+            "Distinct over-limit emails must hash to distinct synthesized identifiers.")
     }
 
     @Test("Modern explicit hashed email matches legacy synthesis")
@@ -196,24 +225,31 @@ struct AccountIdentityMergeTests {
             Self.makeProvider(id: "codex", email: longEmail, identifiers: nil),
         ])
         let modern = Self.makeMac(deviceID: "modern", providers: [
-            Self.makeProvider(id: "codex", email: longEmail,
-                              identifiers: ["codex:email:\(normalized)"]),
+            Self.makeProvider(
+                id: "codex",
+                email: longEmail,
+                identifiers: ["codex:email:\(normalized)"]),
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([legacy, modern]))
-        #expect(merged.providers.count == 1,
-                "Legacy synthesis must still bridge to the modern explicit hashed identifier.")
+        #expect(
+            merged.providers.count == 1,
+            "Legacy synthesis must still bridge to the modern explicit hashed identifier.")
     }
 
     @Test("§8.8 — Different accounts on same provider: keep separate")
     func differentAccountsLookSimilar() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "userA@x.com",
-                              identifiers: ["codex:email:usera@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "userA@x.com",
+                identifiers: ["codex:email:usera@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: "userB@x.com",
-                              identifiers: ["codex:email:userb@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "userB@x.com",
+                identifiers: ["codex:email:userb@x.com"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
         #expect(merged.providers.count == 2, "Genuinely different emails → 2 cards.")
@@ -222,20 +258,27 @@ struct AccountIdentityMergeTests {
     @Test("§8.9 — Transitive merge (Mac B asserts both emails are same account)")
     func transitiveMerge() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u1@x.com",
-                              identifiers: ["codex:email:u1@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u1@x.com",
+                identifiers: ["codex:email:u1@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: "u1@x.com",
-                              identifiers: ["codex:email:u1@x.com", "codex:email:u2@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u1@x.com",
+                identifiers: ["codex:email:u1@x.com", "codex:email:u2@x.com"]),
         ])
         let mC = Self.makeMac(deviceID: "C", providers: [
-            Self.makeProvider(id: "codex", email: "u2@x.com",
-                              identifiers: ["codex:email:u2@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u2@x.com",
+                identifiers: ["codex:email:u2@x.com"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([mA, mB, mC]))
-        #expect(merged.providers.count == 1,
-                "A↔B share u1; B↔C share u2; transitive closure → 1 card.")
+        #expect(
+            merged.providers.count == 1,
+            "A↔B share u1; B↔C share u2; transitive closure → 1 card.")
     }
 
     @Test("§8.10 — All legacy with nil email: single shared bucket (current behavior preserved)")
@@ -250,8 +293,9 @@ struct AccountIdentityMergeTests {
             ])
         }
         let merged = try #require(CloudSyncReader.mergeSnapshots(macs))
-        #expect(merged.providers.count == 1,
-                "All legacy with nil email → single bucket (pre-019 behavior preserved).")
+        #expect(
+            merged.providers.count == 1,
+            "All legacy with nil email → single bucket (pre-019 behavior preserved).")
     }
 
     @Test("§8.11 — Two-provider isolation: codex and claude never cross-merge")
@@ -260,10 +304,14 @@ struct AccountIdentityMergeTests {
         // identifiers carry different `providerID:` prefixes so the strings
         // never match.
         let snapshot = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
-            Self.makeProvider(id: "claude", email: "u@x.com",
-                              identifiers: ["claude:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "claude",
+                email: "u@x.com",
+                identifiers: ["claude:email:u@x.com"]),
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots([snapshot]))
         #expect(merged.providers.count == 2, "Different providers never merge.")

@@ -199,8 +199,7 @@ struct SettingsTab: View {
     }
 
     private var mobileVersionSummary: String {
-        let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
-        return version
+        Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
     }
 
     private var macVersionSummary: String {

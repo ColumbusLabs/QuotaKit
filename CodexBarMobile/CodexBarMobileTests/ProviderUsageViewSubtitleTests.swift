@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the subtitle selection rule for multi-account provider cards
@@ -29,8 +28,8 @@ struct ProviderUsageViewSubtitleTests {
     private func makeSnapshot(
         providerID: String = "codex",
         providerName: String = "Codex",
-        accountEmail: String?
-    ) -> ProviderUsageSnapshot {
+        accountEmail: String?) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: providerID,
             providerName: providerName,

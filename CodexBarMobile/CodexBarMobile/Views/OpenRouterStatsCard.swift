@@ -10,7 +10,9 @@ struct OpenRouterStatsCard: View {
     let stats: SyncOpenRouterStats
     var tintColor: Color = .indigo
 
-    private func usd(_ value: Double) -> String { String(format: "$%.2f", value) }
+    private func usd(_ value: Double) -> String {
+        String(format: "$%.2f", value)
+    }
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -74,7 +76,6 @@ struct OpenRouterStatsCard: View {
             || self.stats.keyUsageMonthlyUSD != nil
     }
 
-    @ViewBuilder
     private func usageStat(label: String, value: String) -> some View {
         VStack(alignment: .leading, spacing: 2) {
             Text(label)

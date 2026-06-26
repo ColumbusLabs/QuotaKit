@@ -1,12 +1,10 @@
+import CodexBarSync
 import Foundation
 import XCTest
-
-import CodexBarSync
 @testable import CodexBarMobile
 
 @MainActor
 final class RemoteConfigTests: XCTestCase {
-
     func testDecodesSupportedConfigAndIgnoresUnknownFields() throws {
         let data = Data("""
         {
@@ -62,24 +60,24 @@ final class RemoteConfigTests: XCTestCase {
         XCTAssertEqual(config.effectiveMacSetupDisplayURL, ProductConfig.macSetupDisplayURL)
     }
 
-    func testRefreshCachesLastValidConfigAndFailedRefreshKeepsCache() async {
+    func testRefreshCachesLastValidConfigAndFailedRefreshKeepsCache() async throws {
         let defaults = Self.makeDefaults()
         defer { defaults.clear() }
 
-        let first = RemoteConfigStore(
+        let first = try RemoteConfigStore(
             defaults: defaults.store,
             fetcher: FakeRemoteConfigFetcher(result: .success(Self.configData(version: "remote.1"))),
-            configURL: URL(string: "https://example.com/config.json")!)
+            configURL: XCTUnwrap(URL(string: "https://example.com/config.json")))
 
         await first.refresh()
 
         XCTAssertEqual(first.source, .remote)
         XCTAssertEqual(first.config.configVersion, "remote.1")
 
-        let second = RemoteConfigStore(
+        let second = try RemoteConfigStore(
             defaults: defaults.store,
             fetcher: FakeRemoteConfigFetcher(result: .invalidResponse),
-            configURL: URL(string: "https://example.com/config.json")!)
+            configURL: XCTUnwrap(URL(string: "https://example.com/config.json")))
 
         XCTAssertEqual(second.source, .cache)
         XCTAssertEqual(second.config.configVersion, "remote.1")
@@ -91,11 +89,11 @@ final class RemoteConfigTests: XCTestCase {
         XCTAssertEqual(second.lastError, String(localized: "Invalid remote config response"))
     }
 
-    func testBundledDefaultsPreserveSetupURLAndNoDisabledFeatures() {
-        let store = RemoteConfigStore(
+    func testBundledDefaultsPreserveSetupURLAndNoDisabledFeatures() throws {
+        let store = try RemoteConfigStore(
             defaults: Self.makeDefaults().store,
             fetcher: FakeRemoteConfigFetcher(result: .invalidResponse),
-            configURL: URL(string: "https://example.com/config.json")!)
+            configURL: XCTUnwrap(URL(string: "https://example.com/config.json")))
 
         XCTAssertEqual(store.source, .bundled)
         XCTAssertEqual(store.setupURL, ProductConfig.macSetupURL)
@@ -153,7 +151,7 @@ private struct FakeRemoteConfigFetcher: RemoteConfigFetching {
 
     func data(from _: URL) async throws -> Data {
         switch self.result {
-        case .success(let data):
+        case let .success(data):
             data
         case .invalidResponse:
             throw RemoteConfigStore.Error.invalidResponse

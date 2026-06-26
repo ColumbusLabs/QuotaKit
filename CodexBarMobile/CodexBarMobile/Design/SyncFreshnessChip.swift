@@ -22,7 +22,7 @@ struct SyncFreshnessState {
         switch self.kind {
         case .demo:
             false
-        case .synced(_, let isStale):
+        case let .synced(_, isStale):
             isStale
         case .refreshing:
             false
@@ -48,7 +48,7 @@ struct SyncFreshnessState {
             guard let snapshot else { return nil }
             return SyncFreshnessState(kind: .failed(
                 lastConfirmedSync: snapshot.syncTimestamp))
-        case .synced(let lastConfirmedSync):
+        case let .synced(lastConfirmedSync):
             let age = now.timeIntervalSince(lastConfirmedSync)
             return SyncFreshnessState(kind: .synced(
                 syncTimestamp: lastConfirmedSync,
@@ -145,7 +145,7 @@ struct SyncStatusChipView: View {
 
     private var timelineReferenceDate: Date? {
         switch self.syncStatus {
-        case .synced(let lastConfirmedSync):
+        case let .synced(lastConfirmedSync):
             lastConfirmedSync
         case .syncing, .error:
             self.snapshot?.syncTimestamp
@@ -180,8 +180,8 @@ struct SyncStatusChipView: View {
     }
 
     @ViewBuilder
-    private func interactiveChip<Content: View>(
-        @ViewBuilder content: () -> Content) -> some View
+    private func interactiveChip(
+        @ViewBuilder content: () -> some View) -> some View
     {
         if let refreshAction, !self.isDemoMode {
             Button(action: refreshAction) {
@@ -204,7 +204,7 @@ struct SyncStatusChipView: View {
                 style: .demo,
                 systemImage: "play.circle.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .synced(_, let isStale):
+        case let .synced(_, isStale):
             QKStatusChip(
                 text: isStale
                     ? String(localized: "Stale · tap or pull to refresh")
@@ -212,7 +212,7 @@ struct SyncStatusChipView: View {
                 style: isStale ? .stale : .live,
                 systemImage: isStale ? "clock.badge.exclamationmark" : "checkmark.circle.fill")
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .refreshing(let lastConfirmedSync):
+        case let .refreshing(lastConfirmedSync):
             QKStatusChip(
                 text: SyncFreshnessFormatter.refreshingText(
                     lastConfirmedSync: lastConfirmedSync,
@@ -220,7 +220,7 @@ struct SyncStatusChipView: View {
                 style: .stale,
                 isLoading: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
-        case .failed(let lastConfirmedSync):
+        case let .failed(lastConfirmedSync):
             QKStatusChip(
                 text: SyncFreshnessFormatter.refreshFailedText(
                     lastConfirmedSync: lastConfirmedSync,
@@ -236,21 +236,21 @@ struct SyncStatusChipView: View {
         switch state.kind {
         case .demo:
             EmptyView()
-        case .synced(let syncTimestamp, let isStale):
+        case let .synced(syncTimestamp, isStale):
             QKStatusChip(
                 text: SyncFreshnessFormatter.syncedText(
                     since: syncTimestamp,
                     now: now),
                 style: isStale ? .stale : .live,
                 systemImage: "arrow.triangle.2.circlepath")
-        case .refreshing(let lastConfirmedSync):
+        case let .refreshing(lastConfirmedSync):
             QKStatusChip(
                 text: SyncFreshnessFormatter.refreshingText(
                     lastConfirmedSync: lastConfirmedSync,
                     now: now),
                 style: .stale,
                 isLoading: true)
-        case .failed(let lastConfirmedSync):
+        case let .failed(lastConfirmedSync):
             QKStatusChip(
                 text: SyncFreshnessFormatter.refreshFailedText(
                     lastConfirmedSync: lastConfirmedSync,

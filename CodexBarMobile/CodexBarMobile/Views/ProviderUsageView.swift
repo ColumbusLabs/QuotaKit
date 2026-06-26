@@ -110,7 +110,6 @@ struct ProviderUsageView: View {
 
     // MARK: - Provider Header
 
-    @ViewBuilder
     private var providerHeader: some View {
         VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .center, spacing: 8) {
@@ -180,7 +179,6 @@ struct ProviderUsageView: View {
         }
     }
 
-    @ViewBuilder
     private var usageMetricsSection: some View {
         VStack(spacing: 10) {
             ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
@@ -190,7 +188,7 @@ struct ProviderUsageView: View {
                     window: window,
                     tintColor: self.providerColor,
                     percentageAccessibilityIdentifier:
-                        "usage-card-percent-\(self.provider.providerID)-\(index)",
+                    "usage-card-percent-\(self.provider.providerID)-\(index)",
                     quotaWarningThresholds: warning.thresholds,
                     quotaWarningsEnabled: warning.enabled)
             }
@@ -230,12 +228,11 @@ struct ProviderUsageView: View {
 
     // MARK: - Linkage prompt (Research/019 §7 + §9)
 
-    @ViewBuilder
     private func linkagePromptSection(
         candidate: MultiAccountLinkageCandidate,
         onConfirm: @escaping (MultiAccountLinkageCandidate) -> Void,
-        onDismiss: @escaping (MultiAccountLinkageCandidate) -> Void
-    ) -> some View {
+        onDismiss: @escaping (MultiAccountLinkageCandidate) -> Void) -> some View
+    {
         VStack(alignment: .leading, spacing: 8) {
             HStack(alignment: .top, spacing: 8) {
                 Image(systemName: "questionmark.circle.fill")
@@ -316,7 +313,7 @@ struct ProviderUsageView: View {
         let parts: [String] = [
             today.costUSD.map { "\(String(localized: "Today")): \(Self.formatUSD($0))" },
             cost.last30DaysCostUSD.map { "\(String(localized: "30d")): \(Self.formatUSD($0))" },
-        ].compactMap { $0 }
+        ].compactMap(\.self)
 
         if !parts.isEmpty {
             Text(parts.joined(separator: " · "))
@@ -327,13 +324,15 @@ struct ProviderUsageView: View {
 
     private func defaultLabel(at index: Int) -> String {
         switch index {
-        case 0: return String(localized: "Session")
-        case 1: return String(localized: "Weekly")
-        default: return "\(String(localized: "Limit")) \(index + 1)"
+        case 0: String(localized: "Session")
+        case 1: String(localized: "Weekly")
+        default: "\(String(localized: "Limit")) \(index + 1)"
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
 }
 
 // MARK: - Previews

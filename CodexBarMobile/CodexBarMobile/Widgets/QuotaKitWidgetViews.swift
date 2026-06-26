@@ -477,7 +477,7 @@ private struct QuotaKitWidgetAccessoryRectangularView: View {
                     providerID: self.provider.id,
                     size: 11,
                     tint: ProviderColorPalette.color(for: self.provider.id))
-                Text(provider.providerName)
+                Text(self.provider.providerName)
                     .font(.headline)
                     .lineLimit(1)
             }
@@ -512,7 +512,7 @@ private struct QuotaKitWidgetAccessoryCircularView: View {
             }
             .gaugeStyle(.accessoryCircularCapacity)
         } else {
-            Image(systemName: provider.isError ? "exclamationmark.triangle" : "minus")
+            Image(systemName: self.provider.isError ? "exclamationmark.triangle" : "minus")
         }
     }
 }
@@ -660,8 +660,8 @@ enum QuotaKitWidgetPreviewData {
     }
 }
 
-private extension SyncUsagePace {
-    var widgetDisplayText: String {
+extension SyncUsagePace {
+    private var widgetDisplayText: String {
         if let rightLabel, !rightLabel.isEmpty {
             return "\(self.leftLabel) · \(rightLabel)"
         }
@@ -670,13 +670,13 @@ private extension SyncUsagePace {
 
     /// Unsigned delta magnitude ("11%"); the chip's triangle carries the
     /// direction (up = reserve, down = deficit). Nil when on pace.
-    var widgetDeltaText: String? {
+    fileprivate var widgetDeltaText: String? {
         let reserve = Int((-self.deltaPercent).rounded())
         guard reserve != 0 else { return nil }
         return "\(abs(reserve))%"
     }
 
-    var widgetColor: Color {
+    fileprivate var widgetColor: Color {
         if self.deltaPercent > 0 { return .red }
         if self.deltaPercent < 0 { return .green }
         return .secondary
@@ -684,13 +684,13 @@ private extension SyncUsagePace {
 
     /// Marker x-position on the widget's remaining-percent bar; mirrors
     /// `UsageCardView.paceDisplayPercent` in `.remaining` display mode.
-    var widgetMarkerRemainingPercent: Double? {
+    fileprivate var widgetMarkerRemainingPercent: Double? {
         guard self.stage != .onTrack else { return nil }
         return 100 - self.expectedUsedPercent.clamped(to: 0...100)
     }
 
     /// Mirrors `UsageCardView.paceStripeColor`.
-    func widgetStripeColor(onTrackTint: Color) -> Color {
+    fileprivate func widgetStripeColor(onTrackTint: Color) -> Color {
         if self.deltaPercent > 0 { return .red }
         if self.deltaPercent < 0 { return .green }
         return onTrackTint

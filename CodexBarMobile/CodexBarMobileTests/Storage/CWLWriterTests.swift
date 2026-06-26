@@ -33,7 +33,7 @@ struct CWLWriterTests {
     // MARK: - T2
 
     @Test("T2: same (deviceID, providerID, dayKey) written twice → 1 row")
-    func testCompositeKeyDedupe() throws {
+    func compositeKeyDedupe() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -66,7 +66,7 @@ struct CWLWriterTests {
     }
 
     @Test("T2: different (providerID, dayKey) under same device → separate rows")
-    func testDistinctKeysAreSeparateRows() throws {
+    func distinctKeysAreSeparateRows() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -100,7 +100,7 @@ struct CWLWriterTests {
     }
 
     @Test("T2 (multi-account): two accounts, same providerID + dayKey → separate rows (no collide)")
-    func testMultiAccountDoesNotCollide() throws {
+    func multiAccountDoesNotCollide() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -128,7 +128,7 @@ struct CWLWriterTests {
     // MARK: - T3
 
     @Test("T3: incoming with strictly newer lastUpdated → overwrites")
-    func testNewerWins() throws {
+    func newerWins() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -156,7 +156,7 @@ struct CWLWriterTests {
     }
 
     @Test("T3: incoming with older lastUpdated → skipped (existing kept)")
-    func testOlderSkipped() throws {
+    func olderSkipped() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -183,7 +183,7 @@ struct CWLWriterTests {
     }
 
     @Test("T3: incoming with equal lastUpdated → skipped (existing kept, no churn)")
-    func testEqualLastUpdatedSkipped() throws {
+    func equalLastUpdatedSkipped() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -211,7 +211,7 @@ struct CWLWriterTests {
     // MARK: - Gate (`isEnabled`)
 
     @Test("Gate: isEnabled returns false when flag absent on a fresh UserDefaults")
-    func testGateDefaultsToFalse() throws {
+    func gateDefaultsToFalse() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -220,7 +220,7 @@ struct CWLWriterTests {
     }
 
     @Test("Gate: isEnabled returns true when flag set")
-    func testGateRespectsFlag() throws {
+    func gateRespectsFlag() throws {
         let suite = "CWLTestSuite-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defer { defaults.removePersistentDomain(forName: suite) }
@@ -235,7 +235,7 @@ struct CWLWriterTests {
     // MARK: - `upsertFromSnapshot` wrapper
 
     @Test("upsertFromSnapshot: iterates daily[] and writes one row per day")
-    func testUpsertFromSnapshotIterates() throws {
+    func upsertFromSnapshotIterates() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -287,7 +287,7 @@ struct CWLWriterTests {
     }
 
     @Test("upsertFromSnapshot: nil costSummary → no rows written")
-    func testNoSummaryNoRows() throws {
+    func noSummaryNoRows() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)

@@ -30,7 +30,6 @@ struct PerplexityCreditsCard: View {
 
     // MARK: - Header (title + Pro/Max badge + renewal countdown)
 
-    @ViewBuilder
     private var header: some View {
         HStack(alignment: .firstTextBaseline) {
             Text("Credits")
@@ -127,7 +126,9 @@ struct PerplexityCreditsCard: View {
             self.total > 0 ? min(1, self.used / self.total) : 0
         }
 
-        var id: String { self.kind.rawValue }
+        var id: String {
+            self.kind.rawValue
+        }
     }
 
     /// Non-nil, positive-total pools in display order (recurring → promo → purchased).
@@ -146,6 +147,7 @@ struct PerplexityCreditsCard: View {
     }
 
     // MARK: - Formatting helpers
+
     //
     // `private` is mandatory here: the `PoolSegment.Kind` parameter is a
     // private nested type, so any caller with broader visibility would be

@@ -33,7 +33,11 @@ struct CostHeroStrip: View {
 
             ScrollView(.horizontal, showsIndicators: false) {
                 HStack(spacing: 10) {
-                    self.chip(title: String(localized: "Today"), value: self.todayValue, subtitle: self.todaySubtitle, tint: self.theme.spendWarm)
+                    self.chip(
+                        title: String(localized: "Today"),
+                        value: self.todayValue,
+                        subtitle: self.todaySubtitle,
+                        tint: self.theme.spendWarm)
                     self.chip(
                         title: String(localized: "Top driver"),
                         value: self.topDriverValue,

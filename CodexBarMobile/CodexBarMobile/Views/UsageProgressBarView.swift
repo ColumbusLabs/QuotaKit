@@ -7,7 +7,7 @@ import SwiftUI
 struct UsageProgressBarView: View {
     let progressFraction: Double
     let tintColor: Color
-    var trackColor: Color = Color.secondary.opacity(0.18)
+    var trackColor: Color = .secondary.opacity(0.18)
     let markerPercents: [Double]
     let pacePercent: Double?
     let paceColor: Color

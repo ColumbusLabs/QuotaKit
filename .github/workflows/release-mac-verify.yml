@@ -17,13 +17,13 @@ name: Mac Release Verify
 on:
   push:
     tags:
-      - 'v*-mobile.*'
+      - 'v*'
   release:
     types: [published]
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Tag to verify (e.g. v0.23.4-mobile.1.5.1)'
+        description: 'Tag to verify (e.g. v0.32.4.7)'
         required: true
 
 permissions:
@@ -50,14 +50,11 @@ jobs:
         id: ver
         run: |
           set -euo pipefail
-          # Tag shape: v<MARKETING>-mobile.<MOBILE>
+          # Tag shape: v<MARKETING_VERSION>
           TAG="${{ steps.tag.outputs.tag }}"
-          REST="${TAG#v}"
-          MARKETING="${REST%-mobile.*}"
-          MOBILE="${REST#*-mobile.}"
-          ZIP="CodexBar-${MARKETING}-mobile.${MOBILE}.zip"
-          echo "marketing=$MARKETING" >> "$GITHUB_OUTPUT"
-          echo "mobile=$MOBILE" >> "$GITHUB_OUTPUT"
+          VERSION="${TAG#v}"
+          ZIP="QuotaKit-macos-universal-${VERSION}.zip"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
           echo "zip=$ZIP" >> "$GITHUB_OUTPUT"
           echo "Will verify: $ZIP"
 

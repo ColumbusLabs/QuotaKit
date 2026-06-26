@@ -25,35 +25,35 @@ struct DeepgramUsageCard: View {
 
             self.hoursRow
 
-            if usage.requests > 0 {
+            if self.usage.requests > 0 {
                 HStack {
                     Text(String(localized: "deepgram_requests_label", defaultValue: "Requests"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(Self.formatInt(usage.requests))
+                    Text(Self.formatInt(self.usage.requests))
                         .font(.caption.bold().monospacedDigit())
                 }
             }
 
-            if usage.tokensIn > 0 || usage.tokensOut > 0 {
+            if self.usage.tokensIn > 0 || self.usage.tokensOut > 0 {
                 HStack {
                     Text(String(localized: "deepgram_agent_tokens_label", defaultValue: "Agent tokens"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text("\(Self.formatInt(usage.tokensIn)) → \(Self.formatInt(usage.tokensOut))")
+                    Text("\(Self.formatInt(self.usage.tokensIn)) → \(Self.formatInt(self.usage.tokensOut))")
                         .font(.caption.bold().monospacedDigit())
                 }
             }
 
-            if usage.ttsCharacters > 0 {
+            if self.usage.ttsCharacters > 0 {
                 HStack {
                     Text(String(localized: "deepgram_tts_characters_label", defaultValue: "TTS characters"))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
-                    Text(Self.formatInt(usage.ttsCharacters))
+                    Text(Self.formatInt(self.usage.ttsCharacters))
                         .font(.caption.bold().monospacedDigit())
                 }
             }
@@ -65,8 +65,8 @@ struct DeepgramUsageCard: View {
     }
 
     private func projectBadge(_ name: String) -> some View {
-        let suffix = usage.projectCount > 1
-            ? " · \(usage.projectCount)"
+        let suffix = self.usage.projectCount > 1
+            ? " · \(self.usage.projectCount)"
             : ""
         return Text(name + suffix)
             .font(.caption.bold())
@@ -77,9 +77,9 @@ struct DeepgramUsageCard: View {
     }
 
     private var hoursRow: some View {
-        let speech = usage.speechHours
-        let agent = usage.agentHours
-        let total = usage.totalHours
+        let speech = self.usage.speechHours
+        let agent = self.usage.agentHours
+        let total = self.usage.totalHours
         return VStack(alignment: .leading, spacing: 4) {
             HStack {
                 Text(String(localized: "deepgram_speech_hours_label", defaultValue: "Speech / Agent / Total"))
@@ -116,10 +116,10 @@ struct DeepgramUsageCard: View {
             speechHours: 8.4,
             totalHours: 12.7,
             agentHours: 4.3,
-            requests: 1_215,
+            requests: 1215,
             tokensIn: 320_000,
             tokensOut: 180_000,
-            ttsCharacters: 45_000,
+            ttsCharacters: 45000,
             updatedAt: Date()),
         tintColor: Color(red: 0.49, green: 0.23, blue: 0.93))
         .padding()

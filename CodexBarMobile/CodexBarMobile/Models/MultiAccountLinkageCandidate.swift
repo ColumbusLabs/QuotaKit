@@ -90,11 +90,10 @@ struct MultiAccountLinkageCandidate: Equatable {
 /// 5. If 0 named + any number of legacy → all-legacy multi-Mac, already
 ///    merges via the shared legacy-no-identity bucket. No candidates.
 enum MultiAccountLinkageDetector {
-
     static func candidates(
         among providers: [ProviderUsageSnapshot],
-        appVersionForProvider: ((ProviderUsageSnapshot) -> String?)? = nil
-    ) -> [MultiAccountLinkageCandidate] {
+        appVersionForProvider: ((ProviderUsageSnapshot) -> String?)? = nil) -> [MultiAccountLinkageCandidate]
+    {
         var byProviderID: [String: [ProviderUsageSnapshot]] = [:]
         for provider in providers {
             byProviderID[provider.providerID, default: []].append(provider)

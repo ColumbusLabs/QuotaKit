@@ -434,7 +434,8 @@ private struct ProviderOrderModeView: View {
             } header: {
                 Text("Provider order")
             } footer: {
-                Text("Drag providers into the order you want in the app. Widgets use this order when no provider is selected.")
+                Text(
+                    "Drag providers into the order you want in the app. Widgets use this order when no provider is selected.")
             }
         }
         .listStyle(.insetGrouped)

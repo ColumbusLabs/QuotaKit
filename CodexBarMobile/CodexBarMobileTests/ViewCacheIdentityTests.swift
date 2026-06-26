@@ -15,8 +15,8 @@ struct ViewCacheIdentityTests {
         id: String = "claude",
         name: String = "Claude",
         lastUpdated: Date = Date(timeIntervalSince1970: 1_700_000_000),
-        utilization: [SyncUtilizationSeries]? = nil
-    ) -> ProviderUsageSnapshot {
+        utilization: [SyncUtilizationSeries]? = nil) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -41,16 +41,16 @@ struct ViewCacheIdentityTests {
                 capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
                 usedPercent: 42,
                 resetsAt: nil),
-        ]
-    ) -> SyncUtilizationSeries {
+        ]) -> SyncUtilizationSeries
+    {
         SyncUtilizationSeries(name: name, windowMinutes: windowMinutes, entries: entries)
     }
 
     private static func makeSnapshot(
         providers: [ProviderUsageSnapshot] = [makeProvider()],
         syncTimestamp: Date = Date(timeIntervalSince1970: 1_700_000_000),
-        deviceID: String? = "mac-1"
-    ) -> SyncedUsageSnapshot {
+        deviceID: String? = "mac-1") -> SyncedUsageSnapshot
+    {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: syncTimestamp,
@@ -159,7 +159,7 @@ struct ViewCacheIdentityTests {
             ShareCardData.ProviderRow(name: "D", cost: 1, share: 0.05, color: .orange),
         ]
         let data = ShareCardData(
-            totalCost: 20, todayCost: 5, totalTokens: 1_000, activeDays: 7, avgDailyCost: 3,
+            totalCost: 20, todayCost: 5, totalTokens: 1000, activeDays: 7, avgDailyCost: 3,
             providers: providers, topModels: [], dailyBars: [])
         let first = data.displayProviders
         let second = data.displayProviders
@@ -171,7 +171,7 @@ struct ViewCacheIdentityTests {
     @Test("ShareCardData.displayProviders collapses tail to 'Others' when 6 or more providers")
     func displayProviders_collapsesTail() {
         // iOS 1.9.0 cap: top 5 + an aggregated "Others" row, only when count >= 6.
-        let rows: [ShareCardData.ProviderRow] = (0 ..< 6).map {
+        let rows: [ShareCardData.ProviderRow] = (0..<6).map {
             ShareCardData.ProviderRow(name: "P\($0)", cost: Double(6 - $0), share: 0.1, color: .gray)
         }
         let data = ShareCardData(
@@ -187,7 +187,7 @@ struct ViewCacheIdentityTests {
 
     @Test("ShareCardData.displayProviders shows all when 5 or fewer providers (no 'Others')")
     func displayProviders_noCollapseAtFive() {
-        let rows: [ShareCardData.ProviderRow] = (0 ..< 5).map {
+        let rows: [ShareCardData.ProviderRow] = (0..<5).map {
             ShareCardData.ProviderRow(name: "P\($0)", cost: Double(5 - $0), share: 0.2, color: .gray)
         }
         let data = ShareCardData(
@@ -199,6 +199,7 @@ struct ViewCacheIdentityTests {
     }
 
     // MARK: - Hotspot 5: CostTab insights memo key
+
     //
     // History: the first CostTab cache attempt used async `.task(id:)` and was
     // reverted — first render had cachedInsights=nil and rendered nothing until

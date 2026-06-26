@@ -1,6 +1,5 @@
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the `CostFormatting` single-source-of-truth contract.
@@ -55,7 +54,7 @@ struct CostFormattingTests {
 
     @Test("tokens in 1K–1M uses `K tokens`")
     func tokensThousands() {
-        let s = CostFormatting.tokens(12_345)
+        let s = CostFormatting.tokens(12345)
         // 12345 / 1000 = 12.3
         #expect(s.contains("12.3") || s.contains("12,3"))
     }

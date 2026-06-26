@@ -15,7 +15,7 @@ enum MobileSettingsKeys {
     /// Unix timestamp until which the Free real-data provider selection cannot
     /// be changed again. Empty/0 means the user has not locked in a choice.
     static let freeSelectedProviderLockedUntil = "freeSelectedProviderLockedUntil"
-    // iOS 1.7.0 — mirrors upstream v0.26.0 / v0.26.1 settings.
+    /// iOS 1.7.0 — mirrors upstream v0.26.0 / v0.26.1 settings.
     /// When `true`, the warning tick-marks on each usage bar are
     /// suppressed (the quota warning notification still fires — only
     /// the visual marker is hidden). Mirrors the Mac toggle added in
@@ -26,7 +26,7 @@ enum MobileSettingsKeys {
     /// (Codex CLI, Claude Code, Gemini CLI). Mirrors upstream PR #929.
     static let showProviderChangelogLinks = "showProviderChangelogLinks"
 
-    // iOS 1.9.0 + Round 2 (research doc 024) — Cost Window Ledger.
+    /// iOS 1.9.0 + Round 2 (research doc 024) — Cost Window Ledger.
     /// When `true`, `SwiftDataBridge.upsertProvider` also writes each
     /// per-day cost point into the `DailyCostPoint` ledger (via
     /// `CostLedgerService.upsertFromSnapshot`). When `false` (default), the
@@ -40,7 +40,7 @@ enum MobileSettingsKeys {
     /// 7 / 30 / 90 / 365; default 30 (matches the historical blob window).
     static let cwlWindowDays = "cwlWindowDays"
 
-    // Observatory UI remodel
+    /// Observatory UI remodel
     static let appearanceMode = "appearanceMode"
 }
 

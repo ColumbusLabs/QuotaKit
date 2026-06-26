@@ -12,13 +12,14 @@ struct UtilizationAggregateView: View {
     @State private var cachedKey: String = ""
     @State private var cachedModel: UtilizationAggregateModel?
 
-    // Honor the Usage tab's "Show remaining usage" toggle here too — pre-fix
-    // the share row always rendered "86% avg use" even when the user had
-    // flipped the toggle and every other card on the Usage tab was showing
-    // "14% remaining". Matches `UsageCardView`'s own @AppStorage declaration
-    // (including the legacy-key migration default) so we toggle in lockstep.
+    /// Honor the Usage tab's "Show remaining usage" toggle here too — pre-fix
+    /// the share row always rendered "86% avg use" even when the user had
+    /// flipped the toggle and every other card on the Usage tab was showing
+    /// "14% remaining". Matches `UsageCardView`'s own @AppStorage declaration
+    /// (including the legacy-key migration default) so we toggle in lockstep.
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode
+            .remaining.rawValue
 
     /// Bar width in points. Tuned with `windowSize` so 30 bars + their
     /// inter-bar padding fit within the Cost tab's card width on a 390pt
@@ -61,72 +62,73 @@ struct UtilizationAggregateView: View {
         }
         .onChange(of: currentKey, initial: true) { _, newKey in
             if self.cachedKey != newKey {
-                self.cachedModel = UtilizationAggregateModelBuilder.buildModel(from: self.providers, windowSize: self.windowSize)
+                self.cachedModel = UtilizationAggregateModelBuilder.buildModel(
+                    from: self.providers,
+                    windowSize: self.windowSize)
                 self.cachedKey = newKey
             }
         }
     }
 
-    @ViewBuilder
     private func content(_ m: UtilizationAggregateModel) -> some View {
         VStack(alignment: .leading, spacing: 10) {
-                // Title — matches other Cost-tab section headers (.headline)
-                Text("Subscription Utilization")
-                    .font(.headline)
-                    .padding(.top, 4)
+            // Title — matches other Cost-tab section headers (.headline)
+            Text("Subscription Utilization")
+                .font(.headline)
+                .padding(.top, 4)
 
-                Text("Session quota usage trend across synced providers.")
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+            Text("Session quota usage trend across synced providers.")
+                .font(.caption)
+                .foregroundStyle(.secondary)
 
-                // 4 Summary Cards
-                self.summaryCards(m)
+            // 4 Summary Cards
+            self.summaryCards(m)
 
-                // Daily Trend Chart + Detail Line
-                if !m.dayBars.isEmpty {
-                    VStack(alignment: .leading, spacing: 6) {
-                        self.dailyChart(m)
-                            .frame(height: 120)
-                        self.detailLine(m)
-                            .frame(height: 16)
+            // Daily Trend Chart + Detail Line
+            if !m.dayBars.isEmpty {
+                VStack(alignment: .leading, spacing: 6) {
+                    self.dailyChart(m)
+                        .frame(height: 120)
+                    self.detailLine(m)
+                        .frame(height: 16)
+                }
+            }
+
+            // Provider cards — merged directly into this section (no sub-header).
+            // iOS 1.9.0+: cap to top 5 + Others when 6 or more providers
+            // contributed; otherwise show all. The Others row aggregates the
+            // tail's sharePercent (additive across providers, so the sum is
+            // meaningful) and is wrapped in a NavigationLink that drills
+            // into FullProviderUtilizationListView listing every provider
+            // in the same row style.
+            if !m.providerShares.isEmpty {
+                let cap = 5
+                let usesOthers = m.providerShares.count >= cap + 1
+                let visibleShares = usesOthers
+                    ? Array(m.providerShares.prefix(cap))
+                    : m.providerShares
+                let tailShares = usesOthers
+                    ? Array(m.providerShares.dropFirst(cap))
+                    : []
+                let tailShareSum = tailShares.reduce(0.0) { $0 + $1.sharePercent }
+
+                VStack(spacing: 12) {
+                    ForEach(visibleShares) { row in
+                        self.providerShareRow(row)
+                    }
+                    if usesOthers {
+                        NavigationLink {
+                            FullProviderUtilizationListView(
+                                shares: m.providerShares)
+                        } label: {
+                            self.othersUtilizationRow(
+                                count: tailShares.count,
+                                sharePercent: tailShareSum)
+                        }
+                        .buttonStyle(.plain)
                     }
                 }
-
-                // Provider cards — merged directly into this section (no sub-header).
-                // iOS 1.9.0+: cap to top 5 + Others when 6 or more providers
-                // contributed; otherwise show all. The Others row aggregates the
-                // tail's sharePercent (additive across providers, so the sum is
-                // meaningful) and is wrapped in a NavigationLink that drills
-                // into FullProviderUtilizationListView listing every provider
-                // in the same row style.
-                if !m.providerShares.isEmpty {
-                    let cap = 5
-                    let usesOthers = m.providerShares.count >= cap + 1
-                    let visibleShares = usesOthers
-                        ? Array(m.providerShares.prefix(cap))
-                        : m.providerShares
-                    let tailShares = usesOthers
-                        ? Array(m.providerShares.dropFirst(cap))
-                        : []
-                    let tailShareSum = tailShares.reduce(0.0) { $0 + $1.sharePercent }
-
-                    VStack(spacing: 12) {
-                        ForEach(visibleShares) { row in
-                            self.providerShareRow(row)
-                        }
-                        if usesOthers {
-                            NavigationLink {
-                                FullProviderUtilizationListView(
-                                    shares: m.providerShares)
-                            } label: {
-                                self.othersUtilizationRow(
-                                    count: tailShares.count,
-                                    sharePercent: tailShareSum)
-                            }
-                            .buttonStyle(.plain)
-                        }
-                    }
-                }
+            }
         }
     }
 
@@ -213,7 +215,7 @@ struct UtilizationAggregateView: View {
             }
         }
         .chartLegend(.hidden)
-        .chartXScale(domain: 0 ... max(m.dayBars.count - 1, self.windowSize - 1))
+        .chartXScale(domain: 0...max(m.dayBars.count - 1, self.windowSize - 1))
         .chartXSelection(value: self.$selectedIndex)
     }
 
@@ -359,7 +361,7 @@ struct UtilizationAggregateView: View {
             #if !os(macOS)
                 .navigationBarTitleDisplayMode(.inline)
             #endif
-            .background(self.theme.canvas)
+                .background(self.theme.canvas)
         }
 
         private static func shareRow(_ row: UtilizationProviderShare) -> some View {
@@ -393,6 +395,4 @@ struct UtilizationAggregateView: View {
             .qkCardBackground(cornerRadius: 16)
         }
     }
-
-
 }

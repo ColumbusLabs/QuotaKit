@@ -17,10 +17,10 @@ struct ClaudeAdminUsageCard: View {
         VStack(alignment: .leading, spacing: 12) {
             self.header
             self.summaryGrid
-            if !usage.topModels.isEmpty {
+            if !self.usage.topModels.isEmpty {
                 self.topModelsSection
             }
-            if !usage.topCostItems.isEmpty {
+            if !self.usage.topCostItems.isEmpty {
                 self.topCostItemsSection
             }
         }
@@ -45,13 +45,13 @@ struct ClaudeAdminUsageCard: View {
         {
             self.summaryCard(
                 title: String(localized: "claude_admin_today", defaultValue: "Today"),
-                summary: usage.latestDay)
+                summary: self.usage.latestDay)
             self.summaryCard(
                 title: String(localized: "claude_admin_7days", defaultValue: "7 Days"),
-                summary: usage.last7Days)
+                summary: self.usage.last7Days)
             self.summaryCard(
                 title: String(localized: "claude_admin_30days", defaultValue: "30 Days"),
-                summary: usage.last30Days)
+                summary: self.usage.last30Days)
         }
     }
 
@@ -83,7 +83,7 @@ struct ClaudeAdminUsageCard: View {
             Text(String(localized: "claude_admin_top_models", defaultValue: "Top models"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
-            ForEach(usage.topModels.prefix(5)) { model in
+            ForEach(self.usage.topModels.prefix(5)) { model in
                 HStack {
                     Text(model.name)
                         .font(.caption.monospacedDigit())
@@ -103,7 +103,7 @@ struct ClaudeAdminUsageCard: View {
             Text(String(localized: "claude_admin_top_cost_items", defaultValue: "Top cost items"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
-            ForEach(usage.topCostItems.prefix(5)) { item in
+            ForEach(self.usage.topCostItems.prefix(5)) { item in
                 HStack {
                     Text(item.name)
                         .font(.caption)
@@ -118,8 +118,13 @@ struct ClaudeAdminUsageCard: View {
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
 }
 
 #Preview {
@@ -137,14 +142,14 @@ struct ClaudeAdminUsageCard: View {
                 totalTokens: 2_140_000,
                 inputTokens: 980_000,
                 outputTokens: 310_000,
-                cacheCreationInputTokens: 60_000,
+                cacheCreationInputTokens: 60000,
                 cacheReadInputTokens: 790_000),
             latestDay: SyncClaudeAdminWindowSummary(
                 costUSD: 11.42,
                 totalTokens: 320_000,
                 inputTokens: 142_000,
-                outputTokens: 48_000,
-                cacheCreationInputTokens: 9_000,
+                outputTokens: 48000,
+                cacheCreationInputTokens: 9000,
                 cacheReadInputTokens: 121_000),
             topModels: [
                 SyncClaudeAdminModelBreakdown(name: "claude-sonnet-4-6", totalTokens: 4_220_000),

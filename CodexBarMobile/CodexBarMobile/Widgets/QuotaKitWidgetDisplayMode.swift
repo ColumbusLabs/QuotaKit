@@ -98,10 +98,10 @@ enum QuotaKitWidgetProviderPreferencesStore {
         -> QuotaKitWidgetProviderPreferences
     {
         QuotaKitWidgetProviderPreferences(
-            providerOrderIDs: Self.loadProviderOrderIDs(
+            providerOrderIDs: self.loadProviderOrderIDs(
                 defaults: defaults,
                 appGroupDefaults: appGroupDefaults),
-            selectedProviderID: Self.loadSelectedProviderID(
+            selectedProviderID: self.loadSelectedProviderID(
                 defaults: defaults,
                 appGroupDefaults: appGroupDefaults))
     }
@@ -128,7 +128,7 @@ enum QuotaKitWidgetProviderPreferencesStore {
         appGroupDefaults: () -> UserDefaults? = { Self.appGroupDefaults() }) -> String?
     {
         guard let storage = defaults ?? appGroupDefaults(),
-              let providerID = Self.sanitizedProviderID(storage.string(forKey: Self.selectedProviderKey))
+              let providerID = sanitizedProviderID(storage.string(forKey: selectedProviderKey))
         else {
             return nil
         }
@@ -212,7 +212,7 @@ enum QuotaKitWidgetProviderPreferencesStore {
         preferences: QuotaKitWidgetProviderPreferences,
         providerID: (T) -> String) -> [T]
     {
-        guard let selected = Self.selectedProviderID(
+        guard let selected = selectedProviderID(
             availableProviderIDs: items.map { providerID($0) },
             preferences: preferences),
             let selectedIndex = items.firstIndex(where: { providerID($0) == selected })

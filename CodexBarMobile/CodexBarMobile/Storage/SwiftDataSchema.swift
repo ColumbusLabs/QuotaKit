@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 // MARK: - SwiftData Schema (Contract C1 · research doc 009)
+
 //
 // P2a scope: introduce SwiftData as the iOS local persistent store.
 // Views still read from the legacy `@Observable SyncedUsageData` path;
@@ -42,8 +43,8 @@ final class DeviceRecord {
         deviceID: String,
         deviceName: String,
         appVersion: String? = nil,
-        lastSyncAt: Date = .now
-    ) {
+        lastSyncAt: Date = .now)
+    {
         self.deviceID = deviceID
         self.deviceName = deviceName
         self.appVersion = appVersion
@@ -99,8 +100,8 @@ final class ProviderSnapshotModel {
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
         perplexityCreditsData: Data? = nil,
-        device: DeviceRecord? = nil
-    ) {
+        device: DeviceRecord? = nil)
+    {
         self.compositeKey = Self.makeCompositeKey(
             deviceID: deviceID,
             providerID: providerID,
@@ -131,8 +132,8 @@ final class ProviderSnapshotModel {
     static func makeCompositeKey(
         deviceID: String,
         providerID: String,
-        accountEmail: String?
-    ) -> String {
+        accountEmail: String?) -> String
+    {
         "\(deviceID)|\(providerID)|\(accountEmail ?? "_")"
     }
 }
@@ -158,8 +159,8 @@ final class UtilizationEntryModel {
         usedPercent: Double,
         resetsAt: Date? = nil,
         windowMinutes: Int = 0,
-        provider: ProviderSnapshotModel? = nil
-    ) {
+        provider: ProviderSnapshotModel? = nil)
+    {
         self.seriesName = seriesName
         self.capturedAt = capturedAt
         self.usedPercent = usedPercent
@@ -221,16 +222,11 @@ struct SnapshotIdentityKey: Hashable, Sendable {
     let providerIDs: String
     let lastUpdated: Date
 
-    init(providerIDs: String, lastUpdated: Date) {
-        self.providerIDs = providerIDs
-        self.lastUpdated = lastUpdated
-    }
-
     /// Build from an arbitrary collection of providers.
-    static func make<S: Sequence>(
-        providerIDs: S,
-        lastUpdated: Date
-    ) -> SnapshotIdentityKey where S.Element == String {
+    static func make(
+        providerIDs: some Sequence<String>,
+        lastUpdated: Date) -> SnapshotIdentityKey
+    {
         SnapshotIdentityKey(
             providerIDs: providerIDs.sorted().joined(separator: ","),
             lastUpdated: lastUpdated)

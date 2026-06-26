@@ -43,17 +43,15 @@ enum MobileChartAxisFormatter {
         let rawStep = maxValue / Double(clampedTickCount)
         let magnitude = pow(10, floor(log10(rawStep)))
         let normalizedStep = rawStep / magnitude
-        let niceStep: Double
-
-        switch normalizedStep {
+        let niceStep: Double = switch normalizedStep {
         case ..<1.5:
-            niceStep = 1
+            1
         case ..<3:
-            niceStep = 2
+            2
         case ..<7:
-            niceStep = 5
+            5
         default:
-            niceStep = 10
+            10
         }
 
         return max(1, niceStep * magnitude)

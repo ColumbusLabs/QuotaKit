@@ -41,7 +41,6 @@ import UserNotifications
 /// queue and may call `serviceExtensionTimeWillExpire()` from a different
 /// thread than `didReceive(...)`.
 final class NotificationService: UNNotificationServiceExtension {
-
     /// Wraps the system-provided callback so it can survive a Swift 6 closure
     /// capture into a `Task`. The system promises the handler is callable from
     /// any thread, so the `@unchecked Sendable` is sound in practice.
@@ -82,8 +81,8 @@ final class NotificationService: UNNotificationServiceExtension {
 
     override func didReceive(
         _ request: UNNotificationRequest,
-        withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void
-    ) {
+        withContentHandler contentHandler: @escaping (UNNotificationContent) -> Void)
+    {
         guard let best = request.content.mutableCopy()
             as? UNMutableNotificationContent
         else {
@@ -144,7 +143,7 @@ final class NotificationService: UNNotificationServiceExtension {
         content: ContentBox,
         latch: DeliveryLatch) -> Task<Void, Never>
     {
-        return Task {
+        Task {
             let parsed = QuotaZoneNotificationParser.parseQuotaZoneName(zoneID.zoneName)
             if parsed?.state == .warning {
                 let result = await Self.fetchLatestWarningInfoDiagnostic(in: zoneID)
@@ -213,8 +212,8 @@ final class NotificationService: UNNotificationServiceExtension {
     }
 
     static func fetchLatestWarningInfoDiagnostic(
-        in zoneID: CKRecordZone.ID
-    ) async -> WarningFetchResult {
+        in zoneID: CKRecordZone.ID) async -> WarningFetchResult
+    {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
@@ -312,7 +311,7 @@ final class NotificationService: UNNotificationServiceExtension {
     static func fetchLatestProviderName(
         in zoneID: CKRecordZone.ID) async -> String?
     {
-        await Self.fetchLatestProviderInfo(in: zoneID)?.providerName
+        await self.fetchLatestProviderInfo(in: zoneID)?.providerName
     }
 
     /// Returns the most recent record's providerName + optional
@@ -323,8 +322,8 @@ final class NotificationService: UNNotificationServiceExtension {
     /// sees `accountEmail == nil` and falls back to the bare provider
     /// name.
     static func fetchLatestProviderInfo(
-        in zoneID: CKRecordZone.ID
-    ) async -> (providerName: String, accountEmail: String?)? {
+        in zoneID: CKRecordZone.ID) async -> (providerName: String, accountEmail: String?)?
+    {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
@@ -369,8 +368,8 @@ final class NotificationService: UNNotificationServiceExtension {
     /// which still gives the user an actionable signal. No regression
     /// vs not having NSE enrichment at all.
     static func fetchLatestWarningInfo(
-        in zoneID: CKRecordZone.ID
-    ) async -> (providerName: String, window: String, threshold: Int)? {
+        in zoneID: CKRecordZone.ID) async -> (providerName: String, window: String, threshold: Int)?
+    {
         let container = CKContainer(identifier: CloudSyncConstants.containerIdentifier)
         let query = CKQuery(
             recordType: CloudSyncConstants.quotaTransitionRecordType,
@@ -414,8 +413,8 @@ final class NotificationService: UNNotificationServiceExtension {
         providerName: String,
         window: String,
         threshold: Int,
-        accountEmail _: String? = nil
-    ) -> String {
+        accountEmail _: String? = nil) -> String
+    {
         let windowLabel = self.localizedWindowLabel(window)
         let template = String(localized: "Push.QuotaWarning.detailBody")
         // %1$@ providerName · %2$@ windowLabel · %3$lld threshold
@@ -443,9 +442,9 @@ final class NotificationService: UNNotificationServiceExtension {
 
     private static func localizedWindowLabel(_ window: String) -> String {
         switch window {
-        case "session": return String(localized: "Push.QuotaWarning.window.session")
-        case "weekly":  return String(localized: "Push.QuotaWarning.window.weekly")
-        default:        return window
+        case "session": String(localized: "Push.QuotaWarning.window.session")
+        case "weekly": String(localized: "Push.QuotaWarning.window.weekly")
+        default: window
         }
     }
 }

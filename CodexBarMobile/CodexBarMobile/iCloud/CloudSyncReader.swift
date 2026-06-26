@@ -16,26 +16,26 @@ final class CloudSyncReader: @unchecked Sendable {
 
     /// Fetches snapshots from all devices via CloudKit.
     func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
-        await syncManager.fetchAllDeviceSnapshots()
+        await self.syncManager.fetchAllDeviceSnapshots()
     }
 
     // MARK: - Cache-based flow (v2 — Research/011)
 
     /// Per-provider zone only. Caller owns the priority-merge decision.
     func fetchPerProviderDeviceSnapshots() async -> MultiDeviceSyncResult {
-        await syncManager.fetchPerProviderDeviceSnapshots()
+        await self.syncManager.fetchPerProviderDeviceSnapshots()
     }
 
     /// Legacy zones only (custom zone + default zone).
     func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
-        await syncManager.fetchLegacyDeviceSnapshots()
+        await self.syncManager.fetchLegacyDeviceSnapshots()
     }
 
     /// Incremental change-token fetch for the per-provider zone.
     func fetchPerProviderZoneChanges(
-        since token: CKServerChangeToken?
-    ) async -> CloudSyncManager.PerProviderZoneChanges {
-        await syncManager.fetchPerProviderZoneChanges(since: token)
+        since token: CKServerChangeToken?) async -> CloudSyncManager.PerProviderZoneChanges
+    {
+        await self.syncManager.fetchPerProviderZoneChanges(since: token)
     }
 
     // MARK: - Account linkage (Research/019 §7)
@@ -44,60 +44,60 @@ final class CloudSyncReader: @unchecked Sendable {
     /// empty when the zone or record type doesn't exist yet (= no user
     /// has confirmed a merge on this iCloud account).
     func fetchProviderAccountLinkages() async -> [ProviderAccountLinkage] {
-        await syncManager.fetchProviderAccountLinkages()
+        await self.syncManager.fetchProviderAccountLinkages()
     }
 
     /// Save a user-confirmed merge or unmerge to CloudKit.
     @discardableResult
     func saveProviderAccountLinkage(
-        _ linkage: ProviderAccountLinkage
-    ) async -> SyncPushResult {
-        await syncManager.saveProviderAccountLinkage(linkage)
+        _ linkage: ProviderAccountLinkage) async -> SyncPushResult
+    {
+        await self.syncManager.saveProviderAccountLinkage(linkage)
     }
 
     /// Stable iPhone UUID for stamping LinkageRecord `confirmedFromDeviceID`.
     func currentDeviceID() -> String {
-        syncManager.stableDeviceID()
+        self.syncManager.stableDeviceID()
     }
 
     // MARK: - Legacy KVS (backward compatibility)
 
     /// Returns the most recently synced snapshot from KVS (fallback).
     func latestKVSSnapshot() -> SyncedUsageSnapshot? {
-        syncManager.fetchKVSSnapshot()
+        self.syncManager.fetchKVSSnapshot()
     }
 
     /// Starts observing KVS changes (backward compat with older Mac apps).
     func startKVSObserving(handler: @escaping @MainActor (SyncResult) -> Void) {
-        syncManager.startKVSObserving(handler: handler)
+        self.syncManager.startKVSObserving(handler: handler)
     }
 
     @discardableResult
     func synchronizeKVS() -> Bool {
-        syncManager.synchronizeKVSStore()
+        self.syncManager.synchronizeKVSStore()
     }
 
     func stopKVSObserving() {
-        syncManager.stopKVSObserving()
+        self.syncManager.stopKVSObserving()
     }
 
     // MARK: - Deprecated shims (keep callers compiling during transition)
 
     func latestSnapshot() -> SyncedUsageSnapshot? {
-        syncManager.fetchKVSSnapshot()
+        self.syncManager.fetchKVSSnapshot()
     }
 
     func startObserving(handler: @escaping @MainActor (SyncResult) -> Void) {
-        syncManager.startKVSObserving(handler: handler)
+        self.syncManager.startKVSObserving(handler: handler)
     }
 
     @discardableResult
     func synchronize() -> Bool {
-        syncManager.synchronizeKVSStore()
+        self.syncManager.synchronizeKVSStore()
     }
 
     func stopObserving() {
-        syncManager.stopKVSObserving()
+        self.syncManager.stopKVSObserving()
     }
 
     // MARK: - SwiftData parallel write (P2a)
@@ -119,8 +119,8 @@ final class CloudSyncReader: @unchecked Sendable {
     static func persistToSwiftData(
         deviceSnapshots: [SyncedUsageSnapshot],
         merged _: SyncedUsageSnapshot?,
-        context: ModelContext
-    ) {
+        context: ModelContext)
+    {
         do {
             try SwiftDataBridge.upsert(deviceSnapshots: deviceSnapshots, into: context)
         } catch {
@@ -173,8 +173,8 @@ final class CloudSyncReader: @unchecked Sendable {
     /// false merges are structurally impossible.
     static func mergeSnapshots(
         _ snapshots: [SyncedUsageSnapshot],
-        linkages: [ProviderAccountLinkage] = []
-    ) -> SyncedUsageSnapshot? {
+        linkages: [ProviderAccountLinkage] = []) -> SyncedUsageSnapshot?
+    {
         guard !snapshots.isEmpty else { return nil }
 
         // 1. Flatten to (entry index → ProviderUsageSnapshot)
@@ -266,7 +266,7 @@ final class CloudSyncReader: @unchecked Sendable {
             if group.count == 1 {
                 mergedProviders.append(group[0])
             } else {
-                mergedProviders.append(mergeProviderEntries(group))
+                mergedProviders.append(self.mergeProviderEntries(group))
             }
         }
 
@@ -358,7 +358,7 @@ final class CloudSyncReader: @unchecked Sendable {
         let lhsParts = lhs.split(separator: ".").map(String.init)
         let rhsParts = rhs.split(separator: ".").map(String.init)
         let count = max(lhsParts.count, rhsParts.count)
-        for i in 0 ..< count {
+        for i in 0..<count {
             let l = i < lhsParts.count ? lhsParts[i] : "0"
             let r = i < rhsParts.count ? rhsParts[i] : "0"
             if let li = Int(l), let ri = Int(r) {
@@ -387,8 +387,8 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Returns nil only when every entry has nil for the keypath.
     private static func latestNonNil<T>(
         _ entries: [ProviderUsageSnapshot],
-        _ keyPath: KeyPath<ProviderUsageSnapshot, T?>
-    ) -> T? {
+        _ keyPath: KeyPath<ProviderUsageSnapshot, T?>) -> T?
+    {
         entries
             .sorted(by: { $0.lastUpdated > $1.lastUpdated })
             .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
@@ -425,12 +425,11 @@ final class CloudSyncReader: @unchecked Sendable {
         // as nil — summing over an empty prefix is 0, which is the right
         // answer. `flatMap` here would trap on nil; `compactMap` is required
         // for cross-version / partial-install robustness.
-        let isLocalCost = localCostProviders.contains(base.providerID)
-        let mergedCost: SyncCostSummary?
-        if isLocalCost {
-            mergedCost = mergeCostSummaries(entries.compactMap(\.costSummary))
+        let isLocalCost = self.localCostProviders.contains(base.providerID)
+        let mergedCost: SyncCostSummary? = if isLocalCost {
+            self.mergeCostSummaries(entries.compactMap(\.costSummary))
         } else {
-            mergedCost = Self.latestNonNil(entries, \.costSummary)
+            Self.latestNonNil(entries, \.costSummary)
         }
 
         // Utilization history: merge across ALL devices, dedup by hour.
@@ -475,8 +474,12 @@ final class CloudSyncReader: @unchecked Sendable {
                     existing.totalTokens += point.totalTokens
                     // Combine model breakdowns (merge by label, sum costs)
                     var breakdownByLabel: [String: Double] = [:]
-                    for b in existing.modelBreakdowns { breakdownByLabel[b.label, default: 0] += b.costUSD }
-                    for b in point.modelBreakdowns { breakdownByLabel[b.label, default: 0] += b.costUSD }
+                    for b in existing.modelBreakdowns {
+                        breakdownByLabel[b.label, default: 0] += b.costUSD
+                    }
+                    for b in point.modelBreakdowns {
+                        breakdownByLabel[b.label, default: 0] += b.costUSD
+                    }
                     existing.modelBreakdowns = breakdownByLabel
                         .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
                         .sorted { $0.costUSD > $1.costUSD }
@@ -532,9 +535,9 @@ final class CloudSyncReader: @unchecked Sendable {
     ///    captured most recently — that's the newest-Mac reading
     /// 4. Result: clean hourly data regardless of device count
     private static func mergeUtilizationHistories(
-        _ histories: [[SyncUtilizationSeries]]
-    ) -> [SyncUtilizationSeries]? {
-        let allSeries = histories.flatMap { $0 }
+        _ histories: [[SyncUtilizationSeries]]) -> [SyncUtilizationSeries]?
+    {
+        let allSeries = histories.flatMap(\.self)
         guard !allSeries.isEmpty else { return nil }
 
         var entriesByName: [String: [SyncUtilizationEntry]] = [:]
@@ -599,7 +602,7 @@ final class CloudSyncReader: @unchecked Sendable {
         // Key: (hourSlot, resetBoundary) — different reset windows in the same hour stay separate
         struct BucketKey: Hashable {
             let hourSlot: Int
-            let resetEpoch: Int  // floor(resetsAt / hourInterval), or -1 if nil
+            let resetEpoch: Int // floor(resetsAt / hourInterval), or -1 if nil
         }
 
         var buckets: [BucketKey: (totalPercent: Double, count: Int, latestReset: Date?, latestCaptured: Date)] = [:]
@@ -654,8 +657,9 @@ final class CloudSyncReader: @unchecked Sendable {
 
     /// Splits the linkage list into merge edges and unmerge edges.
     static func partitionLinkages(
-        _ linkages: [ProviderAccountLinkage]
-    ) -> (merges: [ProviderAccountLinkage], unmerges: [ProviderAccountLinkage]) {
+        _ linkages: [ProviderAccountLinkage]) -> (merges: [ProviderAccountLinkage], unmerges: [
+        ProviderAccountLinkage
+    ]) {
         var merges: [ProviderAccountLinkage] = []
         var unmerges: [ProviderAccountLinkage] = []
         for linkage in linkages {
@@ -676,8 +680,8 @@ final class CloudSyncReader: @unchecked Sendable {
     ///
     /// Returned key shape: `"providerID|sorted-linked-ids-joined"`.
     static func suppressedEdges(
-        unmergeLinkages: [ProviderAccountLinkage]
-    ) -> Set<String> {
+        unmergeLinkages: [ProviderAccountLinkage]) -> Set<String>
+    {
         var keys = Set<String>()
         for record in unmergeLinkages {
             keys.insert(Self.linkageKey(record))
@@ -689,9 +693,9 @@ final class CloudSyncReader: @unchecked Sendable {
     /// same provider + linkedIdentifiers set.
     static func isLinkageSuppressed(
         _ linkage: ProviderAccountLinkage,
-        by suppressedKeys: Set<String>
-    ) -> Bool {
-        suppressedKeys.contains(Self.linkageKey(linkage))
+        by suppressedKeys: Set<String>) -> Bool
+    {
+        suppressedKeys.contains(self.linkageKey(linkage))
     }
 
     /// Canonicalize a linkage's content for set-equality comparison
@@ -704,8 +708,8 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Return indices of providers in `allProviders` whose providerID matches.
     static func indices(
         forProviderID providerID: String,
-        in allProviders: [ProviderUsageSnapshot]
-    ) -> [Int] {
+        in allProviders: [ProviderUsageSnapshot]) -> [Int]
+    {
         var indices: [Int] = []
         for (idx, provider) in allProviders.enumerated()
             where provider.providerID == providerID

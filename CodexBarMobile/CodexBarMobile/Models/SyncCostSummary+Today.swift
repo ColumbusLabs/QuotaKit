@@ -29,14 +29,14 @@ extension SyncCostSummary {
     /// yielding an inconsistent `CostMetricCard`. Codex-reviewer caught this
     /// P3 issue in the initial Build 78 patch.
     struct TodayTotals: Equatable, Sendable {
-        public let costUSD: Double?
-        public let tokens: Int?
+        let costUSD: Double?
+        let tokens: Int?
         /// `true` when today's cost row was computed via the Mac-side
         /// fallback resolver (model name not in the local pricing
         /// table). `nil` for old payloads from Mac < 0.23 and for the
         /// `sessionCostUSD` fallback path (session totals don't carry
         /// per-model estimation flags).
-        public let isEstimated: Bool?
+        let isEstimated: Bool?
     }
 
     /// Returns the cost/tokens for today in the user's current timezone,
@@ -78,7 +78,7 @@ extension SyncCostSummary {
     /// to resolve many dates at once should batch through
     /// `iso8601DayKeyFormatter()` once, not via this helper.
     static func iso8601DayKey(for date: Date) -> String {
-        Self.iso8601DayKeyFormatter().string(from: date)
+        self.iso8601DayKeyFormatter().string(from: date)
     }
 
     /// Returns a fresh `DateFormatter` configured for the day-key wire

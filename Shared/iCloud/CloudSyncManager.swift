@@ -21,16 +21,16 @@ import Security
 /// on the private database — the default zone of the private database does not deliver
 /// silent push reliably (see `apple/sample-cloudkit-privatedb-sync` and Apple's
 /// "Remote Records" documentation).
-// `@unchecked Sendable` rationale:
-// - `_container` / `_privateDatabase` are set once in init and never mutated;
-//   CloudKit's CKContainer + CKDatabase are documented thread-safe per Apple.
-// - `encoder` / `decoder` are factory-built `let` values whose only instance
-//   methods we call (`encode`/`decode`) don't mutate shared state.
-// - `shared` is a single instance; there is no cross-instance aliasing.
-// We don't cleanly express these constraints in Swift 6's checked `Sendable`
-// (CKContainer isn't annotated), so `@unchecked` is deliberate. If any
-// mutable stored property is added here in the future, switch to an actor
-// rather than relaxing this comment.
+/// `@unchecked Sendable` rationale:
+/// - `_container` / `_privateDatabase` are set once in init and never mutated;
+///   CloudKit's CKContainer + CKDatabase are documented thread-safe per Apple.
+/// - `encoder` / `decoder` are factory-built `let` values whose only instance
+///   methods we call (`encode`/`decode`) don't mutate shared state.
+/// - `shared` is a single instance; there is no cross-instance aliasing.
+/// We don't cleanly express these constraints in Swift 6's checked `Sendable`
+/// (CKContainer isn't annotated), so `@unchecked` is deliberate. If any
+/// mutable stored property is added here in the future, switch to an actor
+/// rather than relaxing this comment.
 public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static let shared = CloudSyncManager()
 
@@ -122,7 +122,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         // 1. Push to CloudKit (primary) — skipped if entitlement not available
         let result: SyncPushResult
-        if cloudKitAvailable {
+        if self.cloudKitAvailable {
             result = await self.pushToCloudKit(snapshot: snapshot, data: data)
         } else {
             self.logInfo("CloudKit not available (missing entitlement), using KVS only")
@@ -146,7 +146,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     private func ensureCustomZoneExists() async throws {
         // Fast path: zone already exists on server.
         do {
-            _ = try await _privateDatabase!.recordZone(for: customZone.zoneID)
+            _ = try await self._privateDatabase!.recordZone(for: self.customZone.zoneID)
             return
         } catch let error as CKError {
             if error.code != .zoneNotFound {
@@ -156,10 +156,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             // Fall through to create
         }
 
-        _ = try await _privateDatabase!.modifyRecordZones(
-            saving: [customZone], deleting: [])
+        _ = try await self._privateDatabase!.modifyRecordZones(
+            saving: [self.customZone], deleting: [])
         self.logInfo("Custom zone created", metadata: [
-            "zone": customZone.zoneID.zoneName,
+            "zone": self.customZone.zoneID.zoneName,
         ])
     }
 
@@ -173,7 +173,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // Ensure the custom zone exists before writing into it. Without this, the first
         // write to a non-existent zone fails with .zoneNotFound.
         do {
-            try await ensureCustomZoneExists()
+            try await self.ensureCustomZoneExists()
         } catch {
             let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
             let message = "Failed to create custom zone: \(syncError.description)"
@@ -181,12 +181,12 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return .failure(message)
         }
 
-        let recordID = CKRecord.ID(recordName: deviceID, zoneID: customZone.zoneID)
+        let recordID = CKRecord.ID(recordName: deviceID, zoneID: self.customZone.zoneID)
 
         // Fetch existing record to avoid conflicts, or create new
         let record: CKRecord
         do {
-            record = try await _privateDatabase!.record(for: recordID)
+            record = try await self._privateDatabase!.record(for: recordID)
         } catch let error as CKError where error.code == .unknownItem {
             record = CKRecord(recordType: CloudSyncConstants.recordType, recordID: recordID)
         } catch {
@@ -202,7 +202,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         record["payload"] = data as CKRecordValue
 
         do {
-            try await _privateDatabase!.save(record)
+            try await self._privateDatabase!.save(record)
             self.logInfo("Pushed snapshot to CloudKit", metadata: [
                 "deviceID": deviceID,
                 "providers": "\(snapshot.providers.count)",
@@ -221,7 +221,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             serverRecord["syncTimestamp"] = snapshot.syncTimestamp as CKRecordValue
             serverRecord["payload"] = data as CKRecordValue
             do {
-                try await _privateDatabase!.save(serverRecord)
+                try await self._privateDatabase!.save(serverRecord)
                 self.logInfo("CloudKit conflict resolved, snapshot saved")
                 return .success
             } catch {
@@ -253,15 +253,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// diff produced no changes this cycle).
     @discardableResult
     public func pushPerProviderRecords(
-        _ envelopes: [ProviderUsageEnvelope]
-    ) async -> SyncPushResult {
+        _ envelopes: [ProviderUsageEnvelope]) async -> SyncPushResult
+    {
         guard !envelopes.isEmpty else { return .success }
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
         do {
-            try await ensureProviderZoneExists()
+            try await self.ensureProviderZoneExists()
         } catch {
             let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
             let message = "Failed to create provider zone: \(syncError.description)"
@@ -311,7 +311,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         self.logInfo("Pushed per-provider records to CloudKit", metadata: [
             "count": "\(records.count)",
             "encodeFailures": "\(encodeFailures.count)",
-            "zone": providerZone.zoneID.zoneName,
+            "zone": self.providerZone.zoneID.zoneName,
         ])
         if !encodeFailures.isEmpty {
             // Partial-encode failures: return `.failure` so the coordinator
@@ -341,15 +341,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// (Build 94) is the L2 backup.
     @discardableResult
     public func deletePerProviderRecords(
-        recordNames: [String]
-    ) async -> SyncPushResult {
+        recordNames: [String]) async -> SyncPushResult
+    {
         guard !recordNames.isEmpty else { return .success }
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
         let recordIDs = recordNames.map { name in
-            CKRecord.ID(recordName: name, zoneID: providerZone.zoneID)
+            CKRecord.ID(recordName: name, zoneID: self.providerZone.zoneID)
         }
 
         // Same 200-record batch limit as `pushPerProviderRecords`. Apple's
@@ -369,7 +369,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                         switch result {
                         case .success:
                             continuation.resume()
-                        case .failure(let error):
+                        case let .failure(error):
                             continuation.resume(throwing: error)
                         }
                     }
@@ -397,7 +397,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         self.logInfo("Deleted per-provider records from CloudKit", metadata: [
             "count": "\(recordIDs.count)",
-            "zone": providerZone.zoneID.zoneName,
+            "zone": self.providerZone.zoneID.zoneName,
         ])
         return .success
     }
@@ -413,9 +413,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// the network cost is just the result-set metadata regardless of
     /// how many records exist.
     public func fetchPerProviderRecordNames(
-        forDeviceID deviceID: String
-    ) async -> [String] {
-        guard cloudKitAvailable, _privateDatabase != nil else { return [] }
+        forDeviceID deviceID: String) async -> [String]
+    {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else { return [] }
         // Query by deviceID field, filter server-side. The Production
         // schema indexes `deviceID` as Queryable (verified via Capabilities
         // in CloudKit Console). Empty deviceID would be invalid here so
@@ -429,10 +429,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         do {
             let (results, _) = try await _privateDatabase!.records(
                 matching: query,
-                inZoneWith: providerZone.zoneID,
-                desiredKeys: [],  // metadata only — payload not needed
+                inZoneWith: self.providerZone.zoneID,
+                desiredKeys: [], // metadata only — payload not needed
                 resultsLimit: CKQueryOperation.maximumResults)
-            let recordNames = results.compactMap { (recordID, result) -> String? in
+            let recordNames = results.compactMap { recordID, result -> String? in
                 guard case .success = result else { return nil }
                 return recordID.recordName
             }
@@ -459,15 +459,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// as `ensureCustomZoneExists`.
     private func ensureProviderZoneExists() async throws {
         do {
-            _ = try await _privateDatabase!.recordZone(for: providerZone.zoneID)
+            _ = try await self._privateDatabase!.recordZone(for: self.providerZone.zoneID)
             return
         } catch let error as CKError {
             if error.code != .zoneNotFound { throw error }
         }
-        _ = try await _privateDatabase!.modifyRecordZones(
-            saving: [providerZone], deleting: [])
+        _ = try await self._privateDatabase!.modifyRecordZones(
+            saving: [self.providerZone], deleting: [])
         self.logInfo("Provider zone created", metadata: [
-            "zone": providerZone.zoneID.zoneName,
+            "zone": self.providerZone.zoneID.zoneName,
         ])
     }
 
@@ -481,7 +481,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             deviceID: envelope.deviceID,
             providerID: envelope.provider.providerID,
             accountEmail: envelope.provider.accountEmail)
-        let recordID = CKRecord.ID(recordName: recordName, zoneID: providerZone.zoneID)
+        let recordID = CKRecord.ID(recordName: recordName, zoneID: self.providerZone.zoneID)
         let record = CKRecord(
             recordType: CloudSyncConstants.providerRecordType, recordID: recordID)
         record["deviceID"] = envelope.deviceID as CKRecordValue
@@ -517,8 +517,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     public static func perProviderRecordName(
         deviceID: String,
         providerID: String,
-        accountEmail: String?
-    ) -> String {
+        accountEmail: String?) -> String
+    {
         "\(deviceID)|\(providerID)|\(accountEmail ?? "_")"
     }
 
@@ -535,7 +535,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                     switch result {
                     case .success:
                         continuation.resume(returning: nil)
-                    case .failure(let error):
+                    case let .failure(error):
                         continuation.resume(throwing: error)
                     }
                 }
@@ -590,15 +590,15 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Fetch per-provider record changes since `token`. Pass `nil` for a full
     /// replay (first sync on this device, or after a prior token expiry).
     public func fetchPerProviderZoneChanges(
-        since token: CKServerChangeToken?
-    ) async -> PerProviderZoneChanges {
-        guard cloudKitAvailable, let db = _privateDatabase else {
+        since token: CKServerChangeToken?) async -> PerProviderZoneChanges
+    {
+        guard self.cloudKitAvailable, let db = _privateDatabase else {
             return .init(
                 upserted: [], deletedRecordNames: [],
                 newToken: token, tokenExpired: false, zoneMissing: false)
         }
 
-        let zoneID = providerZone.zoneID
+        let zoneID = self.providerZone.zoneID
         let config = CKFetchRecordZoneChangesOperation.ZoneConfiguration()
         config.previousServerChangeToken = token
         let op = CKFetchRecordZoneChangesOperation(
@@ -615,7 +615,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         op.recordWasChangedBlock = { _, result in
             switch result {
-            case .success(let record):
+            case let .success(record):
                 if let envelope = Self.decodeEnvelopeStatic(from: record) {
                     upserted.append(envelope)
                 }
@@ -630,7 +630,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             if let newToken { capturedToken = newToken }
         }
         op.recordZoneFetchResultBlock = { _, result in
-            if case .success(let fetchResult) = result {
+            if case let .success(fetchResult) = result {
                 capturedToken = fetchResult.serverChangeToken
             }
         }
@@ -641,7 +641,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                     switch result {
                     case .success:
                         continuation.resume()
-                    case .failure(let error):
+                    case let .failure(error):
                         continuation.resume(throwing: error)
                     }
                 }
@@ -702,12 +702,12 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Same fetch-first pattern as `ensureCustomZoneExists`.
     private func ensureQuotaZoneExists(_ zone: CKRecordZone) async throws {
         do {
-            _ = try await _privateDatabase!.recordZone(for: zone.zoneID)
+            _ = try await self._privateDatabase!.recordZone(for: zone.zoneID)
             return
         } catch let error as CKError {
             if error.code != .zoneNotFound { throw error }
         }
-        _ = try await _privateDatabase!.modifyRecordZones(
+        _ = try await self._privateDatabase!.modifyRecordZones(
             saving: [zone], deleting: [])
         self.logInfo("\(zone.zoneID.zoneName) created")
     }
@@ -745,7 +745,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         transitionAt: Date,
         accountEmail: String? = nil) async -> SyncPushResult
     {
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
@@ -754,7 +754,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let zone = CKRecordZone(zoneName: zoneName)
 
         do {
-            try await ensureQuotaZoneExists(zone)
+            try await self.ensureQuotaZoneExists(zone)
         } catch {
             let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
             return .failure("Failed to create \(zone.zoneID.zoneName): \(syncError.description)")
@@ -781,7 +781,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         }
 
         do {
-            try await _privateDatabase!.save(record)
+            try await self._privateDatabase!.save(record)
             self.logInfo("QuotaTransition record written", metadata: [
                 "providerName": providerName,
                 "state": state,
@@ -837,7 +837,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         transitionAt: Date,
         accountEmail: String? = nil) async -> SyncPushResult
     {
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
 
@@ -846,7 +846,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let zone = CKRecordZone(zoneName: zoneName)
 
         do {
-            try await ensureQuotaZoneExists(zone)
+            try await self.ensureQuotaZoneExists(zone)
         } catch {
             let syncError = CloudSyncError(from: error as? CKError ?? CKError(.internalError))
             return .failure("Failed to create \(zone.zoneID.zoneName): \(syncError.description)")
@@ -876,7 +876,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         }
 
         do {
-            try await _privateDatabase!.save(record)
+            try await self._privateDatabase!.save(record)
             self.logInfo("QuotaWarning record written", metadata: [
                 "providerName": providerName,
                 "window": window,
@@ -917,8 +917,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// path snapshot records use.
     @discardableResult
     public func saveProviderAccountLinkage(
-        _ linkage: ProviderAccountLinkage
-    ) async -> SyncPushResult {
+        _ linkage: ProviderAccountLinkage) async -> SyncPushResult
+    {
         guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
         }
@@ -998,14 +998,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         linkages.reserveCapacity(matchResults.count)
         for (recordID, result) in matchResults {
             switch result {
-            case .success(let record):
+            case let .success(record):
                 if let linkage = Self.decodeLinkage(from: record) {
                     linkages.append(linkage)
                 } else {
                     self.logError(
                         "Failed to decode linkage record \(recordID.recordName)")
                 }
-            case .failure(let error):
+            case let .failure(error):
                 self.logError(
                     "Failed to fetch linkage record \(recordID.recordName): " +
                         error.localizedDescription)
@@ -1034,15 +1034,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             return nil
         }
         let unmergeValue = record["unmerge"]
-        let unmerge: Bool
-        if let bool = unmergeValue as? Bool {
-            unmerge = bool
+        let unmerge: Bool = if let bool = unmergeValue as? Bool {
+            bool
         } else if let int = unmergeValue as? Int {
-            unmerge = int != 0
+            int != 0
         } else if let num = unmergeValue as? NSNumber {
-            unmerge = num.boolValue
+            num.boolValue
         } else {
-            unmerge = false
+            false
         }
         return ProviderAccountLinkage(
             recordID: recordID,
@@ -1087,7 +1086,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// for the same device across the Build 48 migration). `.empty` from the
     /// new zone is normal pre-P4 and does not cascade into the overall result.
     public func fetchAllDeviceSnapshots() async -> MultiDeviceSyncResult {
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
         }
 
@@ -1097,11 +1096,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         var perProviderSnapshots: [SyncedUsageSnapshot] = []
         var perProviderError: CloudSyncError?
         switch perProviderResult {
-        case .success(let snaps):
+        case let .success(snaps):
             perProviderSnapshots = snaps
         case .empty:
             break
-        case .error(let error):
+        case let .error(error):
             perProviderError = error
         }
 
@@ -1109,11 +1108,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         var legacySnapshots: [SyncedUsageSnapshot] = []
         var legacyError: CloudSyncError?
         switch legacyResult {
-        case .success(let snaps):
+        case let .success(snaps):
             legacySnapshots = snaps
         case .empty:
             break
-        case .error(let error):
+        case let .error(error):
             legacyError = error
         }
 
@@ -1145,7 +1144,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Public so iOS's cache-based flow (v2 — Research/011) can pull ONLY the
     /// legacy slice without re-querying the per-provider zone.
     public func fetchLegacyDeviceSnapshots() async -> MultiDeviceSyncResult {
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
         }
         let query = CKQuery(
@@ -1159,7 +1158,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // .zoneNotFound is an expected first-run condition — treat it as empty, not error.
         do {
             let (matchResults, _) = try await _privateDatabase!.records(
-                matching: query, inZoneWith: customZone.zoneID)
+                matching: query, inZoneWith: self.customZone.zoneID)
             snapshots.append(contentsOf: self.decodeSnapshots(matchResults, source: "custom"))
         } catch let error as CKError where error.code == .zoneNotFound {
             self.logInfo("Custom zone does not exist yet (first run on this device)")
@@ -1238,7 +1237,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// one bad record never fails the whole fetch, matching the legacy
     /// `decodeSnapshots` behavior.
     public func fetchPerProviderDeviceSnapshots() async -> MultiDeviceSyncResult {
-        guard cloudKitAvailable, _privateDatabase != nil else {
+        guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .error(CloudSyncError(from: CKError(.serviceUnavailable)))
         }
 
@@ -1249,7 +1248,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         let matchResults: [(CKRecord.ID, Result<CKRecord, Error>)]
         do {
             let (results, _) = try await _privateDatabase!.records(
-                matching: query, inZoneWith: providerZone.zoneID)
+                matching: query, inZoneWith: self.providerZone.zoneID)
             matchResults = results
         } catch let error as CKError where error.code == .zoneNotFound {
             self.logInfo("Provider zone does not exist yet (no P4 Mac has uploaded)")
@@ -1272,14 +1271,14 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         var envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [:]
         for (recordID, result) in matchResults {
             switch result {
-            case .success(let record):
+            case let .success(record):
                 guard let envelope = self.decodeEnvelope(from: record) else {
                     self.logError(
                         "Failed to decode provider envelope from \(recordID.recordName)")
                     continue
                 }
                 envelopesByDeviceID[envelope.deviceID, default: []].append(envelope)
-            case .failure(let error):
+            case let .failure(error):
                 self.logError(
                     "Failed to fetch provider record \(recordID.recordName): " +
                         error.localizedDescription)
@@ -1305,8 +1304,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// by `lastUpdated` descending so the most-recently-refreshed provider
     /// bubbles up. Pure function — lifted out for unit testing.
     public static func reconstructSnapshots(
-        envelopesByDeviceID: [String: [ProviderUsageEnvelope]]
-    ) -> [SyncedUsageSnapshot] {
+        envelopesByDeviceID: [String: [ProviderUsageEnvelope]]) -> [SyncedUsageSnapshot]
+    {
         var snapshots: [SyncedUsageSnapshot] = []
         snapshots.reserveCapacity(envelopesByDeviceID.count)
         for (_, envelopes) in envelopesByDeviceID {
@@ -1338,8 +1337,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// through unchanged.
     public static func prioritiseByDevice(
         perProvider: [SyncedUsageSnapshot],
-        legacy: [SyncedUsageSnapshot]
-    ) -> [SyncedUsageSnapshot] {
+        legacy: [SyncedUsageSnapshot]) -> [SyncedUsageSnapshot]
+    {
         var byKey: [String: SyncedUsageSnapshot] = [:]
         for snapshot in perProvider {
             let key = snapshot.deviceID ?? snapshot.deviceName
@@ -1379,7 +1378,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         var result: [SyncedUsageSnapshot] = []
         for (recordID, queryResult) in matchResults {
             switch queryResult {
-            case .success(let record):
+            case let .success(record):
                 if let data = record["payload"] as? Data,
                    let snapshot = try? decoder.decode(SyncedUsageSnapshot.self, from: data)
                 {
@@ -1388,7 +1387,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                     self.logError(
                         "Failed to decode snapshot from \(source) record \(recordID.recordName)")
                 }
-            case .failure(let error):
+            case let .failure(error):
                 self.logError(
                     "Failed to fetch \(source) record \(recordID.recordName): " +
                         error.localizedDescription)
@@ -1402,12 +1401,12 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Fetches the latest snapshot from KVS (fallback for when CloudKit has no data).
     public func fetchKVSSnapshot() -> SyncedUsageSnapshot? {
         guard let data = kvsStore.data(forKey: CloudSyncConstants.kvsSnapshotKey) else { return nil }
-        return try? decoder.decode(SyncedUsageSnapshot.self, from: data)
+        return try? self.decoder.decode(SyncedUsageSnapshot.self, from: data)
     }
 
     @discardableResult
     public func synchronizeKVSStore() -> Bool {
-        let result = kvsStore.synchronize()
+        let result = self.kvsStore.synchronize()
         if !result {
             self.logError("iCloud Key-Value Store synchronize() returned unavailable")
         }
@@ -1419,7 +1418,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         self.stopKVSObserving()
         self.kvsObserverToken = NotificationCenter.default.addObserver(
             forName: NSUbiquitousKeyValueStore.didChangeExternallyNotification,
-            object: kvsStore,
+            object: self.kvsStore,
             queue: .main)
         { [weak self] notification in
             let result = self?.parseKVSSyncResult(from: notification) ?? .empty
@@ -1441,23 +1440,23 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     /// Legacy fetch — reads from KVS. Prefer `fetchAllDeviceSnapshots()` for CloudKit.
     public func fetchSnapshot() -> SyncedUsageSnapshot? {
-        fetchKVSSnapshot()
+        self.fetchKVSSnapshot()
     }
 
     /// Legacy observe — uses KVS. Prefer CloudKit subscription for real-time updates.
     public func startObserving(handler: @escaping @MainActor (SyncResult) -> Void) {
-        startKVSObserving(handler: handler)
+        self.startKVSObserving(handler: handler)
     }
 
     /// Legacy stop — stops KVS observation.
     public func stopObserving() {
-        stopKVSObserving()
+        self.stopKVSObserving()
     }
 
     /// Legacy synchronize — triggers KVS sync.
     @discardableResult
     public func synchronizeStore() -> Bool {
-        synchronizeKVSStore()
+        self.synchronizeKVSStore()
     }
 
     // MARK: - Private
@@ -1467,8 +1466,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
             self.logError("Snapshot too large for KVS fallback (\(data.count) bytes)")
             return
         }
-        kvsStore.set(data, forKey: CloudSyncConstants.kvsSnapshotKey)
-        kvsStore.synchronize()
+        self.kvsStore.set(data, forKey: CloudSyncConstants.kvsSnapshotKey)
+        self.kvsStore.synchronize()
     }
 
     private func parseKVSSyncResult(from notification: Notification) -> SyncResult {
@@ -1502,16 +1501,16 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 .sorted(by: { $0.key < $1.key })
                 .map { "\($0.key)=\($0.value)" }
                 .joined(separator: " ")
-            logger.info("\(message, privacy: .public) \(rendered, privacy: .public)")
+            self.logger.info("\(message, privacy: .public) \(rendered, privacy: .public)")
         } else {
-            logger.info("\(message, privacy: .public)")
+            self.logger.info("\(message, privacy: .public)")
         }
         #endif
     }
 
     private func logError(_ message: String) {
         #if canImport(OSLog)
-        logger.error("\(message, privacy: .public)")
+        self.logger.error("\(message, privacy: .public)")
         #endif
     }
 }

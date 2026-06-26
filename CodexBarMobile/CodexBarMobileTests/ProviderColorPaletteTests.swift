@@ -1,5 +1,4 @@
 import Testing
-
 @testable import CodexBarMobile
 
 @Suite("Provider color palette")
@@ -137,8 +136,8 @@ private let knownDistinctProviders = [
 
 private func expectDistinctColors(
     providers: [String],
-    color: (String) -> ProviderColorPalette.RawColor
-) {
+    color: (String) -> ProviderColorPalette.RawColor)
+{
     for leftIndex in providers.indices {
         for rightIndex in providers.index(after: leftIndex)..<providers.endIndex {
             let left = providers[leftIndex]

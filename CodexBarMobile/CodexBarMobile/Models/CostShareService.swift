@@ -1,5 +1,5 @@
-import SwiftUI
 import CoreImage.CIFilterBuiltins
+import SwiftUI
 
 // MARK: - Share Period
 
@@ -9,7 +9,9 @@ enum ShareCardStyleOption: String, CaseIterable, Identifiable {
     case classic
     case cyber
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
@@ -24,7 +26,9 @@ enum SharePeriod: String, CaseIterable, Identifiable {
     case week
     case month
 
-    var id: String { rawValue }
+    var id: String {
+        rawValue
+    }
 
     var displayName: String {
         switch self {
@@ -46,14 +50,14 @@ enum SharePeriod: String, CaseIterable, Identifiable {
 // MARK: - Data model for share card
 
 struct ShareCardData {
-    let totalCost: Double          // total for the selected period
+    let totalCost: Double // total for the selected period
     let todayCost: Double
     let totalTokens: Int
     let activeDays: Int
     let avgDailyCost: Double
     let providers: [ProviderRow]
     let topModels: [BreakdownRow]
-    let dailyBars: [DailyBar]      // bars for chart (7 or 30 entries)
+    let dailyBars: [DailyBar] // bars for chart (7 or 30 entries)
 
     struct ProviderRow {
         let name: String
@@ -78,16 +82,15 @@ struct ShareCardData {
     /// cap. Threshold is `count >= 6` — a list of exactly 5 just shows 5, no
     /// Others bucket).
     var displayProviders: [ProviderRow] {
-        guard providers.count > 5 else { return providers }
+        guard self.providers.count > 5 else { return self.providers }
         let top5 = Array(providers.prefix(5))
-        let othersShare = providers.dropFirst(5).reduce(0.0) { $0 + $1.share }
-        let othersCost = providers.dropFirst(5).reduce(0.0) { $0 + $1.cost }
+        let othersShare = self.providers.dropFirst(5).reduce(0.0) { $0 + $1.share }
+        let othersCost = self.providers.dropFirst(5).reduce(0.0) { $0 + $1.cost }
         let others = ProviderRow(
             name: String(localized: "Others"),
             cost: othersCost,
             share: othersShare,
-            color: .gray
-        )
+            color: .gray)
         return top5 + [others]
     }
 }
@@ -121,7 +124,12 @@ enum QRCodeGenerator {
 
 @MainActor
 enum CostShareService {
-    static func renderImage(period: SharePeriod, data: ShareCardData, theme: ShareCardTheme = .light, style: ShareCardStyleOption = .classic) -> UIImage? {
+    static func renderImage(
+        period: SharePeriod,
+        data: ShareCardData,
+        theme: ShareCardTheme = .light,
+        style: ShareCardStyleOption = .classic) -> UIImage?
+    {
         let view = CostShareCardView(period: period, data: data, theme: theme, style: style)
         let renderer = ImageRenderer(content: view)
         renderer.scale = 3.0
@@ -154,19 +162,17 @@ extension ShareCardData {
 
         // Provider rows (sorted by cost descending already)
         let providerRows: [ProviderRow] = insights.providerRows.map { row in
-            let cost: Double
-            switch period {
+            let cost: Double = switch period {
             case .today:
-                cost = row.todayCost
+                row.todayCost
             case .week, .month:
-                cost = row.thirtyDayCost // we'll recalculate for 7d below
+                row.thirtyDayCost // we'll recalculate for 7d below
             }
             return ProviderRow(
                 name: row.provider.providerName,
                 cost: cost,
                 share: 0, // computed below
-                color: Self.providerColor(for: row.provider.providerID)
-            )
+                color: Self.providerColor(for: row.provider.providerID))
         }
 
         // Filter daily points by period
@@ -211,8 +217,7 @@ extension ShareCardData {
                     name: p.name,
                     cost: cost,
                     share: periodCost > 0 ? cost / periodCost : 0,
-                    color: p.color
-                )
+                    color: p.color)
             }
         } else {
             adjustedProviders = providerRows.map { p in
@@ -220,16 +225,14 @@ extension ShareCardData {
                     name: p.name,
                     cost: p.cost,
                     share: periodCost > 0 ? p.cost / periodCost : 0,
-                    color: p.color
-                )
+                    color: p.color)
             }
         }
 
-        let activeDays: Int
-        switch period {
-        case .today: activeDays = 1
-        case .week: activeDays = filteredDays.count(where: { $0.costUSD > 0 })
-        case .month: activeDays = insights.activeDayCount
+        let activeDays: Int = switch period {
+        case .today: 1
+        case .week: filteredDays.count(where: { $0.costUSD > 0 })
+        case .month: insights.activeDayCount
         }
 
         self.totalCost = periodCost
@@ -245,8 +248,7 @@ extension ShareCardData {
             return BreakdownRow(
                 label: row.label,
                 cost: row.amountUSD,
-                share: totalModel > 0 ? row.amountUSD / totalModel : 0
-            )
+                share: totalModel > 0 ? row.amountUSD / totalModel : 0)
         }
 
         // Daily bars
@@ -317,8 +319,7 @@ extension ShareCardData {
                 let showLabel = i == 0 || (i + 1) % 7 == 0 || i == 29
                 return DailyBar(label: showLabel ? "\(i + 1)" : "", cost: cost)
             }
-        }()
-    )
+        }())
 
     static let previewToday = ShareCardData(
         totalCost: 78.56,
@@ -336,8 +337,7 @@ extension ShareCardData {
             .init(label: "claude-sonnet-4", cost: 13.04, share: 0.17),
             .init(label: "gpt-5.4", cost: 12.30, share: 0.16),
         ],
-        dailyBars: []
-    )
+        dailyBars: [])
 
     static let preview7d = ShareCardData(
         totalCost: 184.26,
@@ -363,6 +363,5 @@ extension ShareCardData {
             .init(label: "Mon", cost: 28.60),
             .init(label: "Tue", cost: 31.50),
             .init(label: "Wed", cost: 78.56),
-        ]
-    )
+        ])
 }

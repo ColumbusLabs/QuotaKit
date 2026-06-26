@@ -8,7 +8,7 @@ enum CostInsightsCacheKey {
         cwlWindowDays: Int,
         todayKey: String) -> String
     {
-        let snapshotPart: String = if isDemoMode {
+        let snapshotPart = if isDemoMode {
             "demo"
         } else if let snapshotKey {
             "\(snapshotKey.providerIDs)@\(snapshotKey.lastUpdated.timeIntervalSince1970)"

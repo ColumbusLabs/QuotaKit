@@ -1,12 +1,10 @@
 import CodexBarSync
 import Foundation
 import XCTest
-
 @testable import CodexBarMobile
 
 @MainActor
 final class ProEntitlementStoreTests: XCTestCase {
-
     func testProductIDMatchesProductConfig() {
         XCTAssertEqual(
             ProductConfig.storeKitLifetimeProductID,
@@ -189,7 +187,8 @@ final class ProEntitlementStoreTests: XCTestCase {
     func testSharedSchemeUsesStoreKitConfigurationForRunAction() throws {
         let schemeXML = try String(
             contentsOf: Self.projectRoot()
-                .appendingPathComponent("CodexBarMobile/CodexBarMobile.xcodeproj/xcshareddata/xcschemes/CodexBarMobile.xcscheme"),
+                .appendingPathComponent(
+                    "CodexBarMobile/CodexBarMobile.xcodeproj/xcshareddata/xcschemes/CodexBarMobile.xcscheme"),
             encoding: .utf8)
         guard let launchActionRange = schemeXML.range(of: "<LaunchAction"),
               let profileActionRange = schemeXML.range(of: "<ProfileAction")

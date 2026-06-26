@@ -2,6 +2,7 @@ import Foundation
 import SwiftData
 
 // MARK: - DailyCostPoint (Cost Window Ledger · research doc 024)
+
 //
 // Per-device, per-provider, per-day cost ledger entry. Together these rows
 // form the iOS-side append + dedupe ledger that lets the Cost dashboard show

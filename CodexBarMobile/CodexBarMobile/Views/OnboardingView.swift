@@ -8,9 +8,15 @@ struct OnboardingView: View {
     var onDemo: (() -> Void)?
 
     private let steps: [(icon: String, title: LocalizedStringResource, detail: LocalizedStringResource)] = [
-        ("laptopcomputer.and.arrow.down", "Open setup on your Mac", "Open the setup link on your Mac, then download QuotaKit and move it to Applications."),
+        (
+            "laptopcomputer.and.arrow.down",
+            "Open setup on your Mac",
+            "Open the setup link on your Mac, then download QuotaKit and move it to Applications."),
         ("gearshape", "Enable iCloud Sync", "Open QuotaKit on your Mac → Settings → turn on iCloud Sync."),
-        ("icloud.and.arrow.up", "Wait for Sync", "Usage data will appear here automatically once your Mac pushes data to iCloud."),
+        (
+            "icloud.and.arrow.up",
+            "Wait for Sync",
+            "Usage data will appear here automatically once your Mac pushes data to iCloud."),
     ]
 
     var body: some View {
@@ -37,7 +43,8 @@ struct OnboardingView: View {
                     Text("Mac setup required")
                         .font(.subheadline.weight(.semibold))
                         .foregroundStyle(self.theme.textPrimary)
-                    Text("QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.")
+                    Text(
+                        "QuotaKit needs the Mac app to collect usage. Share this setup link to your Mac or copy it to open there.")
                         .font(.caption)
                         .foregroundStyle(self.theme.textMuted)
                         .multilineTextAlignment(.center)

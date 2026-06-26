@@ -28,15 +28,15 @@ struct DeepSeekUsageCard: View {
 
             self.usageRow(
                 label: String(localized: "deepseek_today_label", defaultValue: "Today"),
-                tokens: usage.todayTokens,
-                cost: usage.todayCost,
-                requests: usage.todayRequests)
+                tokens: self.usage.todayTokens,
+                cost: self.usage.todayCost,
+                requests: self.usage.todayRequests)
 
             self.usageRow(
                 label: String(localized: "deepseek_month_label", defaultValue: "This month"),
-                tokens: usage.monthTokens,
-                cost: usage.monthCost,
-                requests: usage.monthRequests)
+                tokens: self.usage.monthTokens,
+                cost: self.usage.monthCost,
+                requests: self.usage.monthRequests)
 
             if let balance = self.balanceText {
                 HStack {
@@ -49,7 +49,7 @@ struct DeepSeekUsageCard: View {
                 }
             }
 
-            if !usage.daily.isEmpty {
+            if !self.usage.daily.isEmpty {
                 self.sparkline
             }
         }
@@ -69,7 +69,7 @@ struct DeepSeekUsageCard: View {
     }
 
     private func usageRow(label: String, tokens: Int, cost: Double?, requests: Int) -> some View {
-        let symbol = Self.currencySymbol(usage.currency)
+        let symbol = Self.currencySymbol(self.usage.currency)
         var parts = ["\(Self.formatTokens(tokens)) tok"]
         if let cost { parts.append("\(symbol)\(String(format: "%.2f", cost))") }
         parts.append("\(Self.formatInt(requests)) req")
@@ -85,12 +85,12 @@ struct DeepSeekUsageCard: View {
 
     private var balanceText: String? {
         guard let total = usage.totalBalanceUSD else { return nil }
-        let symbol = Self.currencySymbol(usage.currency)
+        let symbol = Self.currencySymbol(self.usage.currency)
         return "\(symbol)\(String(format: "%.2f", total))"
     }
 
     private var sparkline: some View {
-        let values = usage.daily.map(\.totalTokens)
+        let values = self.usage.daily.map(\.totalTokens)
         let maxValue = max(values.max() ?? 1, 1)
         return HStack(alignment: .bottom, spacing: 2) {
             ForEach(Array(values.enumerated()), id: \.offset) { _, value in
@@ -109,7 +109,7 @@ struct DeepSeekUsageCard: View {
 
     private static func formatTokens(_ value: Int) -> String {
         if value >= 1_000_000 { return String(format: "%.1fM", Double(value) / 1_000_000) }
-        if value >= 1_000 { return String(format: "%.0fK", Double(value) / 1_000) }
+        if value >= 1000 { return String(format: "%.0fK", Double(value) / 1000) }
         return "\(value)"
     }
 
@@ -126,11 +126,15 @@ struct DeepSeekUsageCard: View {
         usage: SyncDeepSeekUsage(
             todayTokens: 1_250_000, monthTokens: 28_400_000,
             todayCost: 0.42, monthCost: 9.85,
-            todayRequests: 312, monthRequests: 7_240,
+            todayRequests: 312, monthRequests: 7240,
             topModel: "deepseek-chat", currency: "USD",
             totalBalanceUSD: 12.5, grantedBalanceUSD: 5.0, toppedUpBalanceUSD: 7.5,
             daily: (0..<14).map {
-                SyncDeepSeekDaily(dayKey: "2025-11-\($0 + 1)", totalTokens: 1_000_000 + $0 * 90000, cost: 0.3, requestCount: 240)
+                SyncDeepSeekDaily(
+                    dayKey: "2025-11-\($0 + 1)",
+                    totalTokens: 1_000_000 + $0 * 90000,
+                    cost: 0.3,
+                    requestCount: 240)
             },
             updatedAt: Date()),
         tintColor: Color(red: 0.30, green: 0.42, blue: 1.0))

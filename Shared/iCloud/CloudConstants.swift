@@ -77,6 +77,7 @@ public enum CloudSyncConstants {
     public static let providerAccountLinkageRecordType = "ProviderAccountLinkage"
 
     // MARK: - JSON codec factories
+
     //
     // ALL CloudKit / SwiftData blob encode-decode in this codebase MUST go
     // through these factories. The Build 66 root cause was a `JSONEncoder()`

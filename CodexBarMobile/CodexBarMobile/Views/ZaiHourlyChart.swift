@@ -24,8 +24,8 @@ struct ZaiHourlyChart: View {
 
     private var points: [Point] {
         var out: [Point] = []
-        for (hourIndex, hour) in usage.xTime.enumerated() {
-            for series in usage.modelSeries {
+        for (hourIndex, hour) in self.usage.xTime.enumerated() {
+            for series in self.usage.modelSeries {
                 guard hourIndex < series.tokens.count else { continue }
                 guard let value = series.tokens[hourIndex], value > 0 else { continue }
                 out.append(Point(
@@ -39,7 +39,7 @@ struct ZaiHourlyChart: View {
     }
 
     private var totalTokens: Int {
-        usage.modelSeries.reduce(0) { acc, series in
+        self.usage.modelSeries.reduce(0) { acc, series in
             acc + series.tokens.compactMap(\.self).reduce(0, +)
         }
     }
@@ -68,7 +68,7 @@ struct ZaiHourlyChart: View {
                         y: .value("Tokens", point.tokens))
                         .foregroundStyle(by: .value("Model", point.model))
                 }
-                .chartForegroundStyleScale(domain: usage.modelSeries.map(\.modelName))
+                .chartForegroundStyleScale(domain: self.usage.modelSeries.map(\.modelName))
                 .chartLegend(position: .bottom, alignment: .leading, spacing: 6)
                 .chartXAxis {
                     AxisMarks(values: .stride(by: .hour, count: 4)) {

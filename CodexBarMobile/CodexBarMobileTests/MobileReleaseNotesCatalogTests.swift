@@ -49,8 +49,8 @@ struct MobileReleaseNotesCatalogTests {
     }
 
     private static func versionDescending(_ lhs: String, _ rhs: String) -> Bool {
-        Self.versionComponents(lhs).lexicographicallyPrecedes(Self.versionComponents(rhs)) == false
-            && Self.versionComponents(lhs) != Self.versionComponents(rhs)
+        self.versionComponents(lhs).lexicographicallyPrecedes(self.versionComponents(rhs)) == false
+            && self.versionComponents(lhs) != self.versionComponents(rhs)
     }
 
     private static func versionComponents(_ value: String) -> [Int] {

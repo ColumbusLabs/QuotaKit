@@ -158,7 +158,7 @@ enum QuotaKitWidgetSnapshotBuilder {
             id: provider.providerID,
             providerName: provider.providerName,
             lastUpdated: provider.lastUpdated,
-            statusMessage: Self.sanitizedStatusMessage(provider.statusMessage),
+            statusMessage: self.sanitizedStatusMessage(provider.statusMessage),
             isError: provider.isError,
             windows: provider.allRateWindows.prefix(3).map { window in
                 QuotaKitWidgetSnapshot.Provider.Window(
@@ -167,7 +167,7 @@ enum QuotaKitWidgetSnapshotBuilder {
                     remainingPercent: window.remainingPercent,
                     resetsAt: window.resetsAt,
                     pace: window.pace,
-                    identity: window.identity ?? Self.legacyIdentity(for: window))
+                    identity: window.identity ?? self.legacyIdentity(for: window))
             })
     }
 
@@ -193,7 +193,7 @@ enum QuotaKitWidgetSnapshotBuilder {
     private static let weeklyDayCountRange = 5...9
 
     private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
-        Self.numericDayCount(in: title).map(Self.weeklyDayCountRange.contains) ?? false
+        self.numericDayCount(in: title).map(self.weeklyDayCountRange.contains) ?? false
     }
 
     private static func numericDayCount(in title: String) -> Int? {
@@ -207,7 +207,7 @@ enum QuotaKitWidgetSnapshotBuilder {
         var previousToken: Substring?
         for token in tokens {
             let tokenText = String(token)
-            if (tokenText == "day" || tokenText == "days"),
+            if tokenText == "day" || tokenText == "days",
                previousToken?.allSatisfy(\.isNumber) == true,
                let count = previousToken.flatMap({ Int($0) })
             {
@@ -288,10 +288,10 @@ enum QuotaKitWidgetSnapshotStore {
         fileManager: FileManager = .default,
         appGroupIdentifier: String = ProductConfig.appGroupIdentifier) -> QuotaKitWidgetSnapshot?
     {
-        guard let url = Self.snapshotURL(
+        guard let url = snapshotURL(
             fileManager: fileManager,
             appGroupIdentifier: appGroupIdentifier),
-              let data = try? Data(contentsOf: url)
+            let data = try? Data(contentsOf: url)
         else {
             return nil
         }
@@ -303,11 +303,11 @@ enum QuotaKitWidgetSnapshotStore {
         fileManager: FileManager = .default,
         appGroupIdentifier: String = ProductConfig.appGroupIdentifier)
     {
-        guard let url = Self.snapshotURL(
+        guard let url = snapshotURL(
             fileManager: fileManager,
             appGroupIdentifier: appGroupIdentifier)
         else {
-            Self.logger.error("Widget snapshot save failed: app group container unavailable")
+            self.logger.error("Widget snapshot save failed: app group container unavailable")
             return
         }
         Self.write(snapshot, to: url, fileManager: fileManager)
@@ -317,7 +317,7 @@ enum QuotaKitWidgetSnapshotStore {
         fileManager: FileManager = .default,
         appGroupIdentifier: String = ProductConfig.appGroupIdentifier)
     {
-        guard let url = Self.snapshotURL(
+        guard let url = snapshotURL(
             fileManager: fileManager,
             appGroupIdentifier: appGroupIdentifier)
         else {
@@ -332,7 +332,7 @@ enum QuotaKitWidgetSnapshotStore {
     {
         fileManager
             .containerURL(forSecurityApplicationGroupIdentifier: appGroupIdentifier)?
-            .appendingPathComponent(Self.filename, isDirectory: false)
+            .appendingPathComponent(self.filename, isDirectory: false)
     }
 
     private static func write(
@@ -347,7 +347,7 @@ enum QuotaKitWidgetSnapshotStore {
             let data = try Self.encoder.encode(snapshot)
             try data.write(to: url, options: [.atomic])
         } catch {
-            Self.logger.error("Widget snapshot save failed: \(error.localizedDescription, privacy: .public)")
+            self.logger.error("Widget snapshot save failed: \(error.localizedDescription, privacy: .public)")
         }
     }
 

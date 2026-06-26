@@ -156,8 +156,8 @@ enum ProviderDetailSectionDispatcher {
         }
         if provider.providerID == "codex",
            let value = provider.codexWorkspace,
-           (value.workspaceName?.isEmpty == false ||
-               (!hasRateWindowPace && value.weeklyPaceLabel?.isEmpty == false))
+           value.workspaceName?.isEmpty == false ||
+           (!hasRateWindowPace && value.weeklyPaceLabel?.isEmpty == false)
         {
             sections.append(.codexWorkspace(value, showsPace: !hasRateWindowPace))
         }
@@ -182,21 +182,11 @@ enum ProviderDetailSectionDispatcher {
 struct ProviderDetailPrimarySectionView<GenericContent: View>: View {
     let section: ProviderDetailPrimarySection
     let tintColor: Color
-    let genericContent: GenericContent
-
-    init(
-        section: ProviderDetailPrimarySection,
-        tintColor: Color,
-        @ViewBuilder genericContent: () -> GenericContent)
-    {
-        self.section = section
-        self.tintColor = tintColor
-        self.genericContent = genericContent()
-    }
+    @ViewBuilder let genericContent: GenericContent
 
     var body: some View {
         switch self.section {
-        case .perplexity(let credits):
+        case let .perplexity(credits):
             PerplexityCreditsCard(credits: credits, tintColor: self.tintColor)
         case .suppressedByDedicatedCard:
             EmptyView()
@@ -212,45 +202,45 @@ struct ProviderDetailSectionView: View {
 
     var body: some View {
         switch self.section {
-        case .kiro(let credits):
+        case let .kiro(credits):
             KiroCreditsCard(credits: credits, tintColor: self.tintColor)
-        case .bedrock(let cost):
+        case let .bedrock(cost):
             BedrockCostCard(cost: cost, tintColor: self.tintColor)
-        case .moonshot(let balance):
+        case let .moonshot(balance):
             MoonshotBalanceCard(balance: balance, tintColor: self.tintColor)
-        case .zai(let usage):
+        case let .zai(usage):
             ZaiHourlyChart(usage: usage, tintColor: self.tintColor)
-        case .openAI(let dashboard):
+        case let .openAI(dashboard):
             OpenAIDashboardSection(dashboard: dashboard, tintColor: self.tintColor)
-        case .antigravity(let accounts):
+        case let .antigravity(accounts):
             AntigravityAccountSwitcher(accounts: accounts, tintColor: self.tintColor)
-        case .grok(let billing):
+        case let .grok(billing):
             GrokBillingCard(billing: billing, tintColor: self.tintColor)
-        case .elevenLabs(let credits):
+        case let .elevenLabs(credits):
             ElevenLabsCreditsCard(credits: credits, tintColor: self.tintColor)
-        case .deepgram(let usage):
+        case let .deepgram(usage):
             DeepgramUsageCard(usage: usage, tintColor: self.tintColor)
-        case .groq(let metrics):
+        case let .groq(metrics):
             GroqMetricsCard(metrics: metrics, tintColor: self.tintColor)
-        case .llmProxy(let stats):
+        case let .llmProxy(stats):
             LLMProxyStatsCard(stats: stats, tintColor: self.tintColor)
-        case .openRouter(let stats):
+        case let .openRouter(stats):
             OpenRouterStatsCard(stats: stats, tintColor: self.tintColor)
-        case .azureOpenAI(let info):
+        case let .azureOpenAI(info):
             AzureOpenAIInfoCard(info: info, tintColor: self.tintColor)
-        case .alibabaTokenPlan(let plan):
+        case let .alibabaTokenPlan(plan):
             AlibabaTokenPlanCard(plan: plan, tintColor: self.tintColor)
-        case .deepSeek(let usage):
+        case let .deepSeek(usage):
             DeepSeekUsageCard(usage: usage, tintColor: self.tintColor)
-        case .claudeAdmin(let usage):
+        case let .claudeAdmin(usage):
             ClaudeAdminUsageCard(usage: usage, tintColor: self.tintColor)
-        case .claudeExtra(let extraUsage):
+        case let .claudeExtra(extraUsage):
             ClaudeExtraUsageCard(extraUsage: extraUsage, tintColor: self.tintColor)
-        case .openCodeGoZen(let balance):
+        case let .openCodeGoZen(balance):
             OpenCodeGoZenBalanceCard(balance: balance, tintColor: self.tintColor)
-        case .minimax(let billing):
+        case let .minimax(billing):
             MiniMaxBillingCard(billing: billing, tintColor: self.tintColor)
-        case .codexWorkspace(let context, let showsPace):
+        case let .codexWorkspace(context, showsPace):
             CodexWorkspaceBadge(
                 context: context,
                 tintColor: self.tintColor,

@@ -11,7 +11,7 @@ struct MiniMaxBillingCard: View {
     let tintColor: Color
 
     private var sortedDaily: [SyncMiniMaxBillingDay] {
-        billing.daily.sorted { $0.day < $1.day }
+        self.billing.daily.sorted { $0.day < $1.day }
     }
 
     var body: some View {
@@ -21,15 +21,15 @@ struct MiniMaxBillingCard: View {
             if !self.sortedDaily.isEmpty {
                 self.dailyChart
             }
-            if !billing.topMethods.isEmpty {
+            if !self.billing.topMethods.isEmpty {
                 self.topSection(
                     title: String(localized: "minimax_billing_top_methods", defaultValue: "Top methods"),
-                    rows: billing.topMethods)
+                    rows: self.billing.topMethods)
             }
-            if !billing.topModels.isEmpty {
+            if !self.billing.topModels.isEmpty {
                 self.topSection(
                     title: String(localized: "minimax_billing_top_models", defaultValue: "Top models"),
-                    rows: billing.topModels)
+                    rows: self.billing.topModels)
             }
         }
         .padding(16)
@@ -53,12 +53,12 @@ struct MiniMaxBillingCard: View {
         {
             self.summaryCard(
                 title: String(localized: "minimax_billing_today", defaultValue: "Today"),
-                tokens: billing.todayTokens,
-                cashUSD: billing.todayCashUSD)
+                tokens: self.billing.todayTokens,
+                cashUSD: self.billing.todayCashUSD)
             self.summaryCard(
                 title: String(localized: "minimax_billing_30days", defaultValue: "30 Days"),
-                tokens: billing.last30DaysTokens,
-                cashUSD: billing.last30DaysCashUSD)
+                tokens: self.billing.last30DaysTokens,
+                cashUSD: self.billing.last30DaysCashUSD)
         }
     }
 
@@ -145,8 +145,13 @@ struct MiniMaxBillingCard: View {
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
 }
 
 #Preview {
@@ -159,7 +164,7 @@ struct MiniMaxBillingCard: View {
             daily: (1...30).map { day in
                 SyncMiniMaxBillingDay(
                     day: String(format: "2026-04-%02d", day),
-                    tokens: Int.random(in: 50_000...300_000),
+                    tokens: Int.random(in: 50000...300_000),
                     cashUSD: Double.random(in: 0.5...4.0))
             },
             topMethods: [

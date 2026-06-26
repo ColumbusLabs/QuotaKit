@@ -271,7 +271,16 @@ run_portable_checks() {
 }
 
 run_swiftformat_lint() {
-  "${BIN_DIR}/swiftformat" Sources Tests --lint
+  "${BIN_DIR}/swiftformat" \
+    Sources \
+    Tests \
+    Shared \
+    CodexBarMobile/CodexBarMobile \
+    CodexBarMobile/CodexBarMobileTests \
+    CodexBarMobile/CodexBarMobileUITests \
+    CodexBarMobile/CodexBarMobileWidgets \
+    CodexBarMobile/CodexBarMobilePushExtension \
+    --lint
 }
 
 run_swiftlint() {
@@ -304,7 +313,15 @@ case "$cmd" in
     ;;
   format)
     ensure_tools
-    "${BIN_DIR}/swiftformat" Sources Tests
+    "${BIN_DIR}/swiftformat" \
+      Sources \
+      Tests \
+      Shared \
+      CodexBarMobile/CodexBarMobile \
+      CodexBarMobile/CodexBarMobileTests \
+      CodexBarMobile/CodexBarMobileUITests \
+      CodexBarMobile/CodexBarMobileWidgets \
+      CodexBarMobile/CodexBarMobilePushExtension
     ;;
   audit-i18n)
     audit_xcstrings

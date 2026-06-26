@@ -33,13 +33,13 @@ struct OpenAIDashboardSection: View {
     /// window larger than what Mac actually has data for, so the
     /// picker never shows phantom days.
     private var availableWindowOptions: [Int] {
-        Self.windowOptions.filter { $0 <= dashboard.historyDays }
+        Self.windowOptions.filter { $0 <= self.dashboard.historyDays }
     }
 
     private var effectiveWindow: Int {
         Self.snapToOption(
             self.selectedWindow,
-            availableMax: dashboard.historyDays)
+            availableMax: self.dashboard.historyDays)
     }
 
     private static func snapToOption(_ desired: Int, availableMax: Int) -> Int {
@@ -49,7 +49,7 @@ struct OpenAIDashboardSection: View {
     }
 
     private var sortedBuckets: [SyncOpenAIDailyBucket] {
-        let buckets = dashboard.dailyBuckets.sorted { $0.dayKey < $1.dayKey }
+        let buckets = self.dashboard.dailyBuckets.sorted { $0.dayKey < $1.dayKey }
         return Array(buckets.suffix(self.effectiveWindow))
     }
 
@@ -59,8 +59,8 @@ struct OpenAIDashboardSection: View {
     /// totals match Mac's menu bar.
     private var selectedWindowSummary: SyncOpenAISummary {
         switch self.effectiveWindow {
-        case 7: return dashboard.last7Days
-        case 30: return dashboard.last30Days
+        case 7: return self.dashboard.last7Days
+        case 30: return self.dashboard.last30Days
         default:
             let buckets = self.sortedBuckets
             return SyncOpenAISummary(
@@ -77,10 +77,10 @@ struct OpenAIDashboardSection: View {
             if !self.sortedBuckets.isEmpty {
                 self.dailyChart
             }
-            if !dashboard.topModels.isEmpty {
+            if !self.dashboard.topModels.isEmpty {
                 self.topModelsSection
             }
-            if !dashboard.topLineItems.isEmpty {
+            if !self.dashboard.topLineItems.isEmpty {
                 self.topLineItemsSection
             }
         }
@@ -142,13 +142,13 @@ struct OpenAIDashboardSection: View {
         {
             self.summaryCard(
                 title: String(localized: "openai_dashboard_today", defaultValue: "Today"),
-                summary: dashboard.latestDay)
+                summary: self.dashboard.latestDay)
             self.summaryCard(
                 title: String(localized: "openai_dashboard_7days", defaultValue: "7 Days"),
-                summary: dashboard.last7Days)
+                summary: self.dashboard.last7Days)
             self.summaryCard(
                 title: String(localized: "openai_dashboard_30days", defaultValue: "30 Days"),
-                summary: dashboard.last30Days)
+                summary: self.dashboard.last30Days)
         }
     }
 
@@ -162,7 +162,9 @@ struct OpenAIDashboardSection: View {
                 .font(.subheadline.bold().monospacedDigit())
                 .foregroundStyle(self.tintColor)
             if let summary {
-                Text(String(format: String(localized: "openai_dashboard_requests_format", defaultValue: "%@ req"), Self.formatCount(summary.totalRequests)))
+                Text(String(
+                    format: String(localized: "openai_dashboard_requests_format", defaultValue: "%@ req"),
+                    Self.formatCount(summary.totalRequests)))
                     .font(.caption2.monospacedDigit())
                     .foregroundStyle(.secondary)
             }
@@ -177,7 +179,9 @@ struct OpenAIDashboardSection: View {
 
     private var dailyChart: some View {
         VStack(alignment: .leading, spacing: 4) {
-            Text(String(format: String(localized: "openai_dashboard_window_chart_format", defaultValue: "Last %d days spend"), self.effectiveWindow))
+            Text(String(
+                format: String(localized: "openai_dashboard_window_chart_format", defaultValue: "Last %d days spend"),
+                self.effectiveWindow))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
             Chart(self.sortedBuckets, id: \.dayKey) { bucket in
@@ -213,14 +217,16 @@ struct OpenAIDashboardSection: View {
             Text(String(localized: "openai_dashboard_top_models", defaultValue: "Top models"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
-            ForEach(dashboard.topModels.prefix(5), id: \.modelName) { model in
+            ForEach(self.dashboard.topModels.prefix(5), id: \.modelName) { model in
                 HStack {
                     Text(model.modelName)
                         .font(.caption.monospacedDigit())
                         .lineLimit(1)
                         .truncationMode(.middle)
                     Spacer()
-                    Text(String(format: String(localized: "openai_dashboard_requests_format", defaultValue: "%@ req"), Self.formatCount(model.requests)))
+                    Text(String(
+                        format: String(localized: "openai_dashboard_requests_format", defaultValue: "%@ req"),
+                        Self.formatCount(model.requests)))
                         .font(.caption.monospacedDigit())
                         .foregroundStyle(.secondary)
                     Text("·")
@@ -238,7 +244,7 @@ struct OpenAIDashboardSection: View {
             Text(String(localized: "openai_dashboard_top_line_items", defaultValue: "Top line items"))
                 .font(.caption.bold())
                 .foregroundStyle(.secondary)
-            ForEach(dashboard.topLineItems.prefix(5), id: \.name) { item in
+            ForEach(self.dashboard.topLineItems.prefix(5), id: \.name) { item in
                 HStack {
                     Text(item.name)
                         .font(.caption)
@@ -253,8 +259,14 @@ struct OpenAIDashboardSection: View {
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
+
     private static func formatCount(_ count: Int) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .decimal
@@ -265,9 +277,9 @@ struct OpenAIDashboardSection: View {
 #Preview {
     OpenAIDashboardSection(
         dashboard: SyncOpenAIAPIDashboard(
-            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4_201, totalTokens: 1_234_567),
-            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1_103, totalTokens: 312_000),
-            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45_321),
+            last30Days: SyncOpenAISummary(totalCostUSD: 142.33, totalRequests: 4201, totalTokens: 1_234_567),
+            last7Days: SyncOpenAISummary(totalCostUSD: 38.50, totalRequests: 1103, totalTokens: 312_000),
+            latestDay: SyncOpenAISummary(totalCostUSD: 5.21, totalRequests: 142, totalTokens: 45321),
             dailyBuckets: (1...30).map { day in
                 SyncOpenAIDailyBucket(
                     dayKey: String(format: "2026-04-%02d", day),
@@ -279,8 +291,8 @@ struct OpenAIDashboardSection: View {
                     totalTokens: Int.random(in: 1200...60000))
             },
             topModels: [
-                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2_100, totalTokens: 800_000, costUSD: 0),
-                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1_400, totalTokens: 380_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5", requests: 2100, totalTokens: 800_000, costUSD: 0),
+                SyncOpenAIModelBreakdown(modelName: "gpt-5.5", requests: 1400, totalTokens: 380_000, costUSD: 0),
             ],
             topLineItems: [
                 SyncOpenAILineItem(name: "Completions", costUSD: 100.40),

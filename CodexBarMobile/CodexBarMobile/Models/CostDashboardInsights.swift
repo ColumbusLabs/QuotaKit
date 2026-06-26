@@ -306,7 +306,7 @@ struct CostDashboardInsights {
     /// aggregation — a divergent formatter could cache stale "today" totals
     /// across the day rollover. Main-actor only (see formatter doc above).
     static func todayDayKey(now: Date = Date()) -> String {
-        Self.dayKeyFormatter.string(from: now)
+        self.dayKeyFormatter.string(from: now)
     }
 }
 

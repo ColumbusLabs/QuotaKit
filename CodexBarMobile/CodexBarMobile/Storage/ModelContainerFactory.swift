@@ -1,5 +1,5 @@
-import Foundation
 import CodexBarSync
+import Foundation
 import SwiftData
 
 /// Builds and caches the app-wide `ModelContainer`.
@@ -33,23 +33,23 @@ enum ModelContainerFactory {
     // stored state `nonisolated(unsafe)` is correct under Swift 6 strict
     // concurrency.
     private static let lock = NSLock()
-    nonisolated(unsafe) private static var sharedContainer: ModelContainer?
+    private nonisolated(unsafe) static var sharedContainer: ModelContainer?
 
     /// Returns a lazily-constructed app-wide container. Thread-safe.
     static func shared() -> ModelContainer {
-        lock.lock()
+        self.lock.lock()
         defer { lock.unlock() }
         if let existing = sharedContainer { return existing }
         Self.migrateLegacyStoreIfNeeded()
         let container = Self.makeContainer(at: Self.defaultStoreURL())
-        sharedContainer = container
+        self.sharedContainer = container
         return container
     }
 
     /// Main-actor convenience for view code that wants a `ModelContext` directly.
     @MainActor
     static func sharedMainContext() -> ModelContext {
-        Self.shared().mainContext
+        self.shared().mainContext
     }
 
     /// Exposed for tests: build a container at an explicit URL (typically a
@@ -115,7 +115,7 @@ enum ModelContainerFactory {
         fileManager: FileManager = .default,
         defaults: UserDefaults = .standard)
     {
-        guard !defaults.bool(forKey: Self.storeMigrationFlagKey) else { return }
+        guard !defaults.bool(forKey: self.storeMigrationFlagKey) else { return }
 
         let targetURL = Self.defaultStoreURL()
         if fileManager.fileExists(atPath: targetURL.path) {
@@ -203,8 +203,8 @@ enum ModelContainerFactory {
 
     /// Test hook to clear the cached singleton between test cases.
     static func _resetSharedForTests() {
-        lock.lock()
-        sharedContainer = nil
-        lock.unlock()
+        self.lock.lock()
+        self.sharedContainer = nil
+        self.lock.unlock()
     }
 }

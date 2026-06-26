@@ -32,7 +32,8 @@ Before a pushed iOS release change:
 1. Increment every `CURRENT_PROJECT_VERSION`.
 2. Run `cd CodexBarMobile && xcodegen generate`.
 3. Run `./Scripts/lint.sh lint`.
-4. Build with the iPhone simulator command in `AGENTS.md`.
+4. Run the full iPhone simulator test command in `AGENTS.md`.
+5. Archive/upload with `./Scripts/ios_testflight_xcode.sh`.
 
 ## CloudKit
 

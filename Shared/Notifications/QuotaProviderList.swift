@@ -16,7 +16,6 @@ import Foundation
 /// Used on Mac to pick the destination zone from a transition's provider ID
 /// (e.g. `codex` depleted → `Quota-codex-depletedZone`).
 public enum QuotaProviderList {
-
     public struct Provider: Sendable, Equatable {
         public let id: String
         public let displayName: String
@@ -124,6 +123,6 @@ public enum QuotaProviderList {
     /// user manually reinstall / re-subscribe. Mac-side writes and iOS-side
     /// subscriptions must compute the same string byte-for-byte.
     public static func quotaZoneName(providerID: String, state: String) -> String {
-        return "Quota-\(providerID)-\(state)Zone"
+        "Quota-\(providerID)-\(state)Zone"
     }
 }

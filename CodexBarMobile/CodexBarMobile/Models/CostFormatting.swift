@@ -22,7 +22,7 @@ enum CostFormatting {
     /// Optional variant so `LabeledContent(...)` call sites (which already pass
     /// `Int?`) don't each invent their own nil-guard.
     static func usd(_ value: Double?) -> String {
-        value.map { Self.usd($0) } ?? "—"
+        value.map { self.usd($0) } ?? "—"
     }
 
     /// Currency-aware cost formatter (upstream #1163). Uses the synced
@@ -40,18 +40,18 @@ enum CostFormatting {
     /// `Localizable.xcstrings`).
     static func tokens(_ count: Int) -> String {
         if count >= 1_000_000_000 {
-            return "\(Self.compactNumber(Double(count) / 1_000_000_000)) \(String(localized: "B tokens"))"
+            return "\(self.compactNumber(Double(count) / 1_000_000_000)) \(String(localized: "B tokens"))"
         } else if count >= 1_000_000 {
-            return "\(Self.compactNumber(Double(count) / 1_000_000)) \(String(localized: "M tokens"))"
+            return "\(self.compactNumber(Double(count) / 1_000_000)) \(String(localized: "M tokens"))"
         } else if count >= 1000 {
-            return "\(Self.compactNumber(Double(count) / 1000)) \(String(localized: "K tokens"))"
+            return "\(self.compactNumber(Double(count) / 1000)) \(String(localized: "K tokens"))"
         }
         return "\(count.formatted()) \(String(localized: "tokens"))"
     }
 
     /// Optional variant for `LabeledContent`-style call sites.
     static func tokens(_ count: Int?) -> String {
-        count.map { Self.tokens($0) } ?? "—"
+        count.map { self.tokens($0) } ?? "—"
     }
 
     private static func compactNumber(_ value: Double) -> String {

@@ -29,7 +29,7 @@ struct CWLMigrationTests {
     }
 
     @Test("Old-style DeviceRecord + ProviderSnapshotModel data survives reopen under new schema")
-    func testExistingDataSurvivesReopen() throws {
+    func existingDataSurvivesReopen() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -91,7 +91,7 @@ struct CWLMigrationTests {
     }
 
     @Test("DailyCostPoint inserted in upgraded store survives a subsequent reopen")
-    func testNewLedgerEntryPersistsAcrossReopen() throws {
+    func newLedgerEntryPersistsAcrossReopen() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

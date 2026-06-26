@@ -44,10 +44,11 @@ struct MoonshotBalanceCard: View {
     }
 
     private var formattedAmount: String {
-        Self.formattedAmount(balance.balanceAmount)
+        Self.formattedAmount(self.balance.balanceAmount)
     }
 
     // MARK: - Text helpers (introspectable for C2 regression tests)
+
     //
     // These produce the exact strings the SwiftUI body renders. Tests
     // pin them so a future regression of C2 (balance always 0) or a

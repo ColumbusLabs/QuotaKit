@@ -51,7 +51,7 @@ struct CodexBarMobileApp: App {
 
     var body: some Scene {
         WindowGroup {
-            ContentView(usageData: usageData)
+            ContentView(usageData: self.usageData)
                 .environment(self.proEntitlementStore)
                 .environment(self.remoteConfigStore)
                 .quotaKitThemed()
@@ -59,7 +59,7 @@ struct CodexBarMobileApp: App {
                     guard !Self.isAutomatedTestLaunch else { return }
                     self.remoteConfigStore.start()
                     self.proEntitlementStore.start()
-                    usageData.startObserving()
+                    self.usageData.startObserving()
                     if self.proEntitlementStore.isProUnlocked {
                         WidgetTimelineRefresher.reloadAllTimelines()
                     }
@@ -111,8 +111,8 @@ extension Notification.Name {
         "com.columbuslabs.quotakit.providerZoneDidChange")
 }
 
-private extension WidgetBackgroundSnapshotRefreshResult {
-    var backgroundFetchResult: UIBackgroundFetchResult {
+extension WidgetBackgroundSnapshotRefreshResult {
+    fileprivate var backgroundFetchResult: UIBackgroundFetchResult {
         switch self {
         case .newData:
             .newData
@@ -138,11 +138,10 @@ private extension WidgetBackgroundSnapshotRefreshResult {
 /// 6. Allow alert-push to display in foreground via
 ///    `UNUserNotificationCenterDelegate`.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
-
     func application(
         _ application: UIApplication,
-        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil
-    ) -> Bool {
+        didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool
+    {
         UNUserNotificationCenter.current().delegate = self
 
         let environment = ProcessInfo.processInfo.environment
@@ -181,8 +180,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     func application(
         _: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
-        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void
-    ) {
+        fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void)
+    {
         guard DeviceProviderZoneSubscription.isPushForThisSubscription(userInfo: userInfo) else {
             completionHandler(.noData)
             return
@@ -197,8 +196,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func application(
         _ application: UIApplication,
-        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data
-    ) {
+        didRegisterForRemoteNotificationsWithDeviceToken deviceToken: Data)
+    {
         let token = deviceToken.map { String(format: "%02x", $0) }.joined()
         let prefix = String(token.prefix(16))
         print("[CodexBar Push v2] Remote notification registration succeeded. Token: \(prefix)…")
@@ -209,8 +208,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
 
     func application(
         _ application: UIApplication,
-        didFailToRegisterForRemoteNotificationsWithError error: Error
-    ) {
+        didFailToRegisterForRemoteNotificationsWithError error: Error)
+    {
         print("[CodexBar Push v2] Remote notification registration FAILED: " +
             "\(error.localizedDescription)")
         Task { @MainActor in
@@ -231,7 +230,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     /// initial launch"). The body still hops to `@MainActor` via
     /// `Task { @MainActor in ... }` so the actual subscription setup
     /// is properly main-isolated.
-    @objc nonisolated private func iCloudAccountChanged() {
+    @objc private nonisolated func iCloudAccountChanged() {
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
             await ProNotificationCoordinator.shared.reconcile(
@@ -243,8 +242,8 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     /// iOS silently suppresses the notification UI for the currently active app.
     nonisolated func userNotificationCenter(
         _ center: UNUserNotificationCenter,
-        willPresent notification: UNNotification
-    ) async -> UNNotificationPresentationOptions {
+        willPresent notification: UNNotification) async -> UNNotificationPresentationOptions
+    {
         [.banner, .sound, .badge]
     }
 }

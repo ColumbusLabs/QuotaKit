@@ -102,7 +102,7 @@ final class ProEntitlementStore {
 
         do {
             switch try await self.service.purchase() {
-            case .purchased(let status):
+            case let .purchased(status):
                 await self.apply(status)
             case .pending:
                 self.state = .pending
@@ -122,7 +122,7 @@ final class ProEntitlementStore {
         defer { self.isRestoring = false }
 
         do {
-            await self.apply(try await self.service.restorePurchases())
+            try await self.apply(self.service.restorePurchases())
         } catch {
             self.state = .error(error.localizedDescription)
         }
@@ -134,13 +134,13 @@ final class ProEntitlementStore {
 
     func apply(_ status: StoreKitEntitlementStatus) async {
         switch status {
-        case .verified(let productID, let verifiedAt)
+        case let .verified(productID, verifiedAt)
             where productID == ProductConfig.storeKitLifetimeProductID:
             ProEntitlementCacheStore.save(
                 ProEntitlementCache(productID: productID, verifiedAt: verifiedAt),
                 defaults: self.defaults)
             self.state = .unlocked(source: .storeKit)
-        case .unverified(let productID)
+        case let .unverified(productID)
             where productID == ProductConfig.storeKitLifetimeProductID:
             ProEntitlementCacheStore.clear(defaults: self.defaults)
             self.state = .locked
@@ -166,10 +166,6 @@ extension ProEntitlementStore {
 
 private struct PreviewProPurchaseService: ProPurchaseServicing {
     let product: ProProductInfo?
-
-    init(product: ProProductInfo?) {
-        self.product = product
-    }
 
     func loadProduct() async throws -> ProProductInfo? {
         self.product

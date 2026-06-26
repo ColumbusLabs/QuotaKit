@@ -16,11 +16,13 @@ struct OpenCodeGoZenBalanceCard: View {
                 Text(String(localized: "opencodego_zen_balance_title", defaultValue: "Zen balance"))
                     .font(.caption.bold())
                     .foregroundStyle(.secondary)
-                Text(Self.formatUSD(balance.balanceUSD))
+                Text(Self.formatUSD(self.balance.balanceUSD))
                     .font(.title3.bold().monospacedDigit())
                     .foregroundStyle(self.tintColor)
                 if let workspace = balance.workspaceID, !workspace.isEmpty {
-                    Text(String(format: String(localized: "opencodego_zen_workspace_format", defaultValue: "Workspace · %@"), workspace))
+                    Text(String(
+                        format: String(localized: "opencodego_zen_workspace_format", defaultValue: "Workspace · %@"),
+                        workspace))
                         .font(.caption2)
                         .foregroundStyle(.tertiary)
                         .lineLimit(1)
@@ -38,7 +40,9 @@ struct OpenCodeGoZenBalanceCard: View {
         .accessibilityIdentifier("opencodego-zen-balance-card")
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
 }
 
 #Preview {

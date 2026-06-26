@@ -10,9 +10,13 @@ enum FeatureGate: String, CaseIterable, Identifiable, Sendable {
     case shareCards
     case advancedMergeViews
 
-    var id: String { self.rawValue }
+    var id: String {
+        self.rawValue
+    }
 
-    var requiresPro: Bool { true }
+    var requiresPro: Bool {
+        true
+    }
 
     var title: String {
         switch self {

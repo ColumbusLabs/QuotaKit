@@ -18,10 +18,10 @@ struct BedrockCostCard: View {
     }
 
     private var statusColor: Color {
-        guard let percent = cost.budgetUsedPercent else { return tintColor }
+        guard let percent = cost.budgetUsedPercent else { return self.tintColor }
         if percent >= 90 { return .red }
         if percent >= 75 { return .orange }
-        return tintColor
+        return self.tintColor
     }
 
     var body: some View {
@@ -30,7 +30,7 @@ struct BedrockCostCard: View {
 
             self.spendRow
 
-            if cost.monthlyBudgetUSD != nil {
+            if self.cost.monthlyBudgetUSD != nil {
                 self.budgetProgress
             }
 
@@ -62,7 +62,7 @@ struct BedrockCostCard: View {
 
     private var spendRow: some View {
         HStack(alignment: .firstTextBaseline) {
-            Text(Self.formatUSD(cost.monthlySpendUSD))
+            Text(Self.formatUSD(self.cost.monthlySpendUSD))
                 .font(.title2.monospacedDigit().bold())
                 .foregroundStyle(self.statusColor)
             if let budget = cost.monthlyBudgetUSD {
@@ -81,13 +81,17 @@ struct BedrockCostCard: View {
                 .tint(self.statusColor)
             if let percent = cost.budgetUsedPercent {
                 HStack {
-                    Text(String(format: String(localized: "bedrock_budget_used_format", defaultValue: "%d%% of monthly budget"), Int(percent.rounded())))
+                    Text(String(
+                        format: String(localized: "bedrock_budget_used_format", defaultValue: "%d%% of monthly budget"),
+                        Int(percent.rounded())))
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     Spacer()
                     if let budget = cost.monthlyBudgetUSD {
-                        let remaining = max(budget - cost.monthlySpendUSD, 0)
-                        Text(String(format: String(localized: "bedrock_budget_remaining_format", defaultValue: "%@ left"), Self.formatUSD(remaining)))
+                        let remaining = max(budget - self.cost.monthlySpendUSD, 0)
+                        Text(String(
+                            format: String(localized: "bedrock_budget_remaining_format", defaultValue: "%@ left"),
+                            Self.formatUSD(remaining)))
                             .font(.caption.monospacedDigit())
                             .foregroundStyle(.secondary)
                     }
@@ -101,6 +105,7 @@ struct BedrockCostCard: View {
     }
 
     // MARK: - Text helpers (introspectable for C1 regression tests)
+
     //
     // These produce the exact strings the SwiftUI body renders. Tests
     // pin them so a future format-string drift (or a re-introduction

@@ -44,14 +44,11 @@ phase1() {
 
   "$ROOT/Scripts/lint.sh" lint
 
-  # `swift test` is authoritatively gated by CI on every push to
-  # main; re-running it here is belt-and-suspenders. Some tests
-  # (Claude OAuth delegated-refresh, credential prompts) block on real
-  # keychain on a developer Mac and hang indefinitely, unlike the
-  # sandboxed CI environment where they run to completion. Opt in via
-  # RUN_SWIFT_TEST=1 on machines where it works.
+  # Swift tests are authoritatively gated by CI on every push to main;
+  # re-running them here is belt-and-suspenders. Keep the opt-in local
+  # path on the sharded runner so a single slow suite is isolated.
   if [[ "${RUN_SWIFT_TEST:-0}" == "1" ]]; then
-    swift test
+    "$ROOT/Scripts/test.sh"
   else
     echo "Skipping swift test locally (CI gates it on every push; set RUN_SWIFT_TEST=1 to run)."
   fi

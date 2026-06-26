@@ -13,7 +13,7 @@ struct ProviderDetailSectionDispatcherTests {
             providerName: "Perplexity",
             perplexityCredits: credits)
 
-        if case .perplexity(let actual) = ProviderDetailSectionDispatcher.primarySection(for: provider) {
+        if case let .perplexity(actual) = ProviderDetailSectionDispatcher.primarySection(for: provider) {
             #expect(actual == credits)
         } else {
             Issue.record("Expected Perplexity primary section")
@@ -51,7 +51,8 @@ struct ProviderDetailSectionDispatcherTests {
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
         let provider = Self.snapshot(providerID: "codex", providerName: "Codex", codexWorkspace: context)
 
-        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).map(\.id) == ["codex-workspace"])
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false)
+            .map(\.id) == ["codex-workspace"])
         #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: true).isEmpty)
     }
 
@@ -71,7 +72,8 @@ struct ProviderDetailSectionDispatcherTests {
         let multiple = Self.snapshot(providerID: "antigravity", providerName: "Antigravity", antigravityAccounts: two)
 
         #expect(ProviderDetailSectionDispatcher.sections(for: single, hasRateWindowPace: false).isEmpty)
-        #expect(ProviderDetailSectionDispatcher.sections(for: multiple, hasRateWindowPace: false).map(\.id) == ["antigravity"])
+        #expect(ProviderDetailSectionDispatcher.sections(for: multiple, hasRateWindowPace: false)
+            .map(\.id) == ["antigravity"])
     }
 
     private static func snapshot(

@@ -16,11 +16,13 @@ struct ClaudeExtraUsageCard: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             self.header
-            if extraUsage.isEnabled {
+            if self.extraUsage.isEnabled {
                 self.gauge
                 self.detailRow
             } else {
-                Text(String(localized: "claude_extra_usage_disabled", defaultValue: "Extra usage is disabled on the Anthropic console."))
+                Text(String(
+                    localized: "claude_extra_usage_disabled",
+                    defaultValue: "Extra usage is disabled on the Anthropic console."))
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
@@ -73,7 +75,10 @@ struct ClaudeExtraUsageCard: View {
         HStack {
             if let spend = extraUsage.monthlySpendUSD {
                 if let limit = extraUsage.monthlyLimitUSD {
-                    Text(String(format: String(localized: "claude_extra_usage_spend_limit_format", defaultValue: "%@ / %@"), Self.formatUSD(spend), Self.formatUSD(limit)))
+                    Text(String(
+                        format: String(localized: "claude_extra_usage_spend_limit_format", defaultValue: "%@ / %@"),
+                        Self.formatUSD(spend),
+                        Self.formatUSD(limit)))
                         .font(.subheadline.bold().monospacedDigit())
                         .foregroundStyle(self.tintColor)
                 } else {
@@ -89,7 +94,9 @@ struct ClaudeExtraUsageCard: View {
         }
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
 }
 
 #Preview {

@@ -160,7 +160,7 @@ struct SyncModelTests {
 
         #expect(window.identity == nil)
         #expect(window.usedPercent == 37)
-        #expect(window.windowMinutes == 43_200)
+        #expect(window.windowMinutes == 43200)
         #expect(window.resetsAt == Date(timeIntervalSince1970: 1_700_000_000))
     }
 
@@ -176,7 +176,7 @@ struct SyncModelTests {
         let window = SyncRateWindow(
             label: "Weekly",
             usedPercent: 50,
-            windowMinutes: 10_080,
+            windowMinutes: 10080,
             resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
             resetDescription: nil,
             pace: pace)
@@ -491,6 +491,7 @@ struct SyncModelTests {
     }
 
     // MARK: - Future-field resilience (Build 78 · Fix C)
+
     //
     // Scenario: Mac 0.21 (hypothetical future version) adds a new field to
     // `ProviderUsageSnapshot` or `SyncedUsageSnapshot` that iOS 1.3.0 doesn't
@@ -509,12 +510,14 @@ struct SyncModelTests {
 
     private static func injectFutureFields(
         into data: Data,
-        extras: [String: Any]
-    ) throws -> Data {
+        extras: [String: Any]) throws -> Data
+    {
         guard var dict = try JSONSerialization.jsonObject(with: data) as? [String: Any] else {
             throw FutureFieldTestError.notATopLevelDictionary
         }
-        for (key, value) in extras { dict[key] = value }
+        for (key, value) in extras {
+            dict[key] = value
+        }
         return try JSONSerialization.data(withJSONObject: dict)
     }
 

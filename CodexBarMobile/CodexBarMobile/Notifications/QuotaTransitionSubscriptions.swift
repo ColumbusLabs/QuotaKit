@@ -195,13 +195,13 @@ final class QuotaTransitionSubscriptions {
             if let zoneSub = existing.first(where: {
                 $0.subscriptionID == config.subscriptionID
             }) as? CKRecordZoneSubscription,
-               zoneSub.zoneID == zoneID,
-               zoneSub.recordType == recordType,
-               let info = zoneSub.notificationInfo,
-               info.alertBody == expectedBody,
-               info.shouldSendMutableContent,
-               (info.titleLocalizationArgs ?? []).isEmpty,
-               (info.alertLocalizationArgs ?? []).isEmpty
+                zoneSub.zoneID == zoneID,
+                zoneSub.recordType == recordType,
+                let info = zoneSub.notificationInfo,
+                info.alertBody == expectedBody,
+                info.shouldSendMutableContent,
+                (info.titleLocalizationArgs ?? []).isEmpty,
+                (info.alertLocalizationArgs ?? []).isEmpty
             {
                 alreadyCorrect += 1
                 continue
@@ -333,7 +333,7 @@ final class QuotaTransitionSubscriptions {
         do {
             _ = try? await database.deleteSubscription(withID: testID)
             let sub = CKRecordZoneSubscription(zoneID: zoneID, subscriptionID: testID)
-            sub.recordType = recordType
+            sub.recordType = self.recordType
             sub.notificationInfo = Self.makeNotificationInfo(alertBody: "Persistence test")
             _ = try await database.modifySubscriptions(saving: [sub], deleting: [])
         } catch {

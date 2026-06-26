@@ -1,7 +1,6 @@
 import CodexBarSync
 import SwiftUI
 import XCTest
-
 @testable import CodexBarMobile
 
 /// Smoke tests for the six new provider-detail cards introduced in
@@ -18,10 +17,9 @@ import XCTest
 /// those without needing the full simulator + UITests harness.
 @MainActor
 final class V026ViewSmokeTests: XCTestCase {
-
     private static let tintColor = Color.purple
 
-    private func renderToImage<V: View>(_ view: V) -> UIImage? {
+    private func renderToImage(_ view: some View) -> UIImage? {
         let renderer = ImageRenderer(content: view.frame(width: 360, height: 600))
         renderer.scale = 2.0
         return renderer.uiImage
@@ -30,8 +28,8 @@ final class V026ViewSmokeTests: XCTestCase {
     // MARK: - Cards
 
     func testKiroCreditsCardRenders() throws {
-        let view = KiroCreditsCard(
-            credits: PreviewData.kiroProvider.kiroCredits!,
+        let view = try KiroCreditsCard(
+            credits: XCTUnwrap(PreviewData.kiroProvider.kiroCredits),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -40,8 +38,8 @@ final class V026ViewSmokeTests: XCTestCase {
     }
 
     func testBedrockCostCardRenders() throws {
-        let view = BedrockCostCard(
-            cost: PreviewData.bedrockProvider.bedrockCost!,
+        let view = try BedrockCostCard(
+            cost: XCTUnwrap(PreviewData.bedrockProvider.bedrockCost),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -49,8 +47,8 @@ final class V026ViewSmokeTests: XCTestCase {
     }
 
     func testMoonshotBalanceCardRenders() throws {
-        let view = MoonshotBalanceCard(
-            balance: PreviewData.moonshotProvider.moonshotBalance!,
+        let view = try MoonshotBalanceCard(
+            balance: XCTUnwrap(PreviewData.moonshotProvider.moonshotBalance),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -58,8 +56,8 @@ final class V026ViewSmokeTests: XCTestCase {
     }
 
     func testZaiHourlyChartRenders() throws {
-        let view = ZaiHourlyChart(
-            usage: PreviewData.zaiProvider.zaiHourlyUsage!,
+        let view = try ZaiHourlyChart(
+            usage: XCTUnwrap(PreviewData.zaiProvider.zaiHourlyUsage),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -67,8 +65,8 @@ final class V026ViewSmokeTests: XCTestCase {
     }
 
     func testOpenAIDashboardSectionRenders() throws {
-        let view = OpenAIDashboardSection(
-            dashboard: PreviewData.openAIDashboardProvider.openAIAPIDashboard!,
+        let view = try OpenAIDashboardSection(
+            dashboard: XCTUnwrap(PreviewData.openAIDashboardProvider.openAIAPIDashboard),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -76,8 +74,8 @@ final class V026ViewSmokeTests: XCTestCase {
     }
 
     func testAntigravityAccountSwitcherRenders() throws {
-        let view = AntigravityAccountSwitcher(
-            accounts: PreviewData.antigravityMultiAccountProvider.antigravityAccounts!,
+        let view = try AntigravityAccountSwitcher(
+            accounts: XCTUnwrap(PreviewData.antigravityMultiAccountProvider.antigravityAccounts),
             tintColor: Self.tintColor)
         let image = self.renderToImage(view)
         XCTAssertNotNil(image)
@@ -86,7 +84,7 @@ final class V026ViewSmokeTests: XCTestCase {
 
     // MARK: - Edge cases
 
-    func testZaiHourlyChartRendersWithEmptyDataFallback() throws {
+    func testZaiHourlyChartRendersWithEmptyDataFallback() {
         // Mac may send an empty/sparse modelSeries during a fetch
         // gap — the chart must show the "no data" placeholder rather
         // than crash the row.
@@ -98,7 +96,7 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertNotNil(image)
     }
 
-    func testBedrockCostCardRendersWithoutBudget() throws {
+    func testBedrockCostCardRendersWithoutBudget() {
         // Bedrock fetcher may surface monthly spend but no budget when
         // the AWS account hasn't configured one. Card must still show
         // the spend without the progress gauge.
@@ -115,7 +113,7 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertNotNil(image)
     }
 
-    func testKiroCreditsCardRendersWithoutBonus() throws {
+    func testKiroCreditsCardRendersWithoutBonus() {
         let noBonus = SyncKiroCredits(
             planName: "Free",
             creditsUsed: 5,
@@ -130,7 +128,7 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertNotNil(image)
     }
 
-    func testAntigravityAccountSwitcherRendersSingleAccount() throws {
+    func testAntigravityAccountSwitcherRendersSingleAccount() {
         // When only one Google account is wired, the switcher should
         // still render the row (caller already gates count > 1 in the
         // dispatch path, but the view must be safe in isolation).

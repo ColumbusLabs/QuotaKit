@@ -51,7 +51,7 @@ struct SyncErrorTests {
     func unknownError() {
         let ckError = CKError(.internalError)
         let syncError = CloudSyncError(from: ckError)
-        if case .unknown(let msg) = syncError {
+        if case let .unknown(msg) = syncError {
             #expect(!msg.isEmpty)
         } else {
             Issue.record("Expected .unknown, got \(syncError)")
@@ -67,7 +67,7 @@ struct SyncErrorTests {
             ])
         let syncError = CloudSyncError(from: ckError)
 
-        if case .productionSchemaMissingQueryableIndex(let fieldName) = syncError {
+        if case let .productionSchemaMissingQueryableIndex(fieldName) = syncError {
             #expect(fieldName == "recordName")
         } else {
             Issue.record("Expected .productionSchemaMissingQueryableIndex, got \(syncError)")
@@ -152,7 +152,7 @@ struct SyncErrorTests {
             kvsFallback: nil)
 
         #expect(data.snapshot == nil)
-        if case .error(let message) = data.syncStatus {
+        if case let .error(message) = data.syncStatus {
             #expect(message.contains("recordName"))
         } else {
             Issue.record("Expected .error, got \(data.syncStatus)")
@@ -243,7 +243,7 @@ struct SyncErrorTests {
     @Test("MultiDeviceSyncResult.error carries CloudSyncError")
     func errorResult() {
         let result = MultiDeviceSyncResult.error(.networkUnavailable)
-        if case .error(let error) = result {
+        if case let .error(error) = result {
             #expect(error.description == "Network unavailable")
         } else {
             Issue.record("Expected .error")

@@ -146,7 +146,8 @@ struct ProviderDetailView: View {
                     ProFeatureLockedCard(
                         store: self.proEntitlementStore,
                         feature: .usageHistory,
-                        message: String(localized: "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider."))
+                        message: String(
+                            localized: "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider."))
                 }
             }
             .padding(.horizontal, 20)
@@ -244,7 +245,6 @@ struct ProviderDetailView: View {
     /// `MockProviderBanner` in spirit (so users hitting the detail page
     /// directly without seeing the global banner still understand) but
     /// scoped to this single provider.
-    @ViewBuilder
     private var mockBanner: some View {
         HStack(spacing: 10) {
             Image(systemName: "testtube.2")
@@ -253,7 +253,8 @@ struct ProviderDetailView: View {
             VStack(alignment: .leading, spacing: 2) {
                 Text("This is mock data")
                     .font(.caption.bold())
-                Text("Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
+                Text(
+                    "Synthetic provider injected by Mac for testing. Real numbers are restored ~30s after Mac toggles mock off.")
                     .font(.caption2)
                     .foregroundStyle(.secondary)
                     .fixedSize(horizontal: false, vertical: true)
@@ -294,8 +295,7 @@ struct ProviderDetailView: View {
         .padding(.vertical, 10)
         .background(
             RoundedRectangle(cornerRadius: 10, style: .continuous)
-                .fill(Color.secondary.opacity(0.08))
-        )
+                .fill(Color.secondary.opacity(0.08)))
     }
 
     private var hasRateWindowPace: Bool {
@@ -491,7 +491,7 @@ struct ProviderDetailView: View {
     private static let chartVisibleDays = 30
 
     private static func chartScrollInitialDayKey(daily: [SyncDailyPoint]) -> String {
-        let startIndex = max(0, daily.count - chartVisibleDays)
+        let startIndex = max(0, daily.count - self.chartVisibleDays)
         return daily[startIndex].dayKey
     }
 
@@ -509,8 +509,13 @@ struct ProviderDetailView: View {
         }
     }
 
-    static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
 
     /// Cost-card subtitle combining the token count with an optional request
     /// count (upstream #1163; nil for providers/Mac builds without it).

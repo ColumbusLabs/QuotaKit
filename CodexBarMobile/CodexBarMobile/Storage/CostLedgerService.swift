@@ -3,6 +3,7 @@ import Foundation
 import SwiftData
 
 // MARK: - CostLedgerService (Cost Window Ledger · research doc 024)
+
 //
 // Round 2 / P2: writer half of the ledger. Reader (`aggregate(...)`),
 // diagnostics, clear, seed-from-existing-blobs come in later rounds.
@@ -87,7 +88,6 @@ struct CostLedgerDiagnostics: Equatable {
 // MARK: - CostLedgerService
 
 enum CostLedgerService {
-
     /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
     /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
     /// for read-only use after configuration.

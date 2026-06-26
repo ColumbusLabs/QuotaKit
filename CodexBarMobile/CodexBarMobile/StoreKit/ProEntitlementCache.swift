@@ -66,10 +66,10 @@ enum ProEntitlementCacheStore {
     }
 
     private static func load(from defaults: UserDefaults) -> ProEntitlementCache? {
-        guard let data = defaults.data(forKey: Self.key),
+        guard let data = defaults.data(forKey: key),
               let cache = try? JSONDecoder().decode(ProEntitlementCache.self, from: data)
         else {
-            if let migrated = Self.migrateLegacyWidgetProCache(into: defaults) {
+            if let migrated = migrateLegacyWidgetProCache(into: defaults) {
                 return migrated
             }
             return nil
@@ -88,7 +88,7 @@ enum ProEntitlementCacheStore {
     }
 
     private static func migrateLegacyWidgetProCache(into defaults: UserDefaults) -> ProEntitlementCache? {
-        guard let data = defaults.data(forKey: Self.legacyWidgetProCacheKey),
+        guard let data = defaults.data(forKey: legacyWidgetProCacheKey),
               let legacy = try? JSONDecoder().decode(LegacyWidgetProCache.self, from: data),
               legacy.isProUnlocked,
               legacy.productID == ProductConfig.storeKitLifetimeProductID
@@ -103,6 +103,6 @@ enum ProEntitlementCacheStore {
     }
 
     private static func clearLegacyWidgetProCache() {
-        self.appGroupDefaults()?.removeObject(forKey: Self.legacyWidgetProCacheKey)
+        self.appGroupDefaults()?.removeObject(forKey: self.legacyWidgetProCacheKey)
     }
 }

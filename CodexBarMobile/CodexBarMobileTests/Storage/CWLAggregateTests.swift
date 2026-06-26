@@ -81,22 +81,52 @@ struct CWLAggregateTests {
     // MARK: - T4
 
     @Test("T4: single-device aggregate — totals, activeDayCount, providerRollups")
-    func testSingleDeviceAggregate() throws {
+    func singleDeviceAggregate() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         // 3 days × 2 providers, all from one device.
         let t = Date(timeIntervalSince1970: 1_700_000_000)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 2, cost: 3.0, tokens: 300, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "claude",
-            daysAgo: 0, cost: 0.5, tokens: 50, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "claude",
-            daysAgo: 1, cost: 0.0, tokens: 0, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 1,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 2,
+            cost: 3.0,
+            tokens: 300,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "claude",
+            daysAgo: 0,
+            cost: 0.5,
+            tokens: 50,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "claude",
+            daysAgo: 1,
+            cost: 0.0,
+            tokens: 0,
+            lastUpdated: t)
         try context.save()
 
         let agg = try CostLedgerService.aggregate(
@@ -130,7 +160,7 @@ struct CWLAggregateTests {
     // MARK: - T5
 
     @Test("T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)")
-    func testCrossDeviceLatestWins() throws {
+    func crossDeviceLatestWins() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -138,10 +168,22 @@ struct CWLAggregateTests {
         let t1 = t0.addingTimeInterval(3600) // 1 hour later
 
         // Same (providerID, dayKey), two devices, different lastUpdated + values.
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t0)
-        try self.insert(context, device: "dev-B", provider: "codex",
-            daysAgo: 0, cost: 9.0, tokens: 900, lastUpdated: t1)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t0)
+        try self.insert(
+            context,
+            device: "dev-B",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 9.0,
+            tokens: 900,
+            lastUpdated: t1)
         try context.save()
 
         let agg = try CostLedgerService.aggregate(
@@ -156,17 +198,29 @@ struct CWLAggregateTests {
     }
 
     @Test("T5: cross-device different (providerID, dayKey) → both kept (no merge)")
-    func testCrossDeviceDistinctKeysCoexist() throws {
+    func crossDeviceDistinctKeysCoexist() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
 
         // 2 devices, different providers + days — nothing to merge.
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
-        try self.insert(context, device: "dev-B", provider: "claude",
-            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-B",
+            provider: "claude",
+            daysAgo: 1,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t)
         try context.save()
 
         let agg = try CostLedgerService.aggregate(
@@ -180,7 +234,7 @@ struct CWLAggregateTests {
     // MARK: - T6
 
     @Test("T6: window filter — 7d returns only days within last 7, 30d within 30, 90d within 90")
-    func testWindowFilter() throws {
+    func windowFilter() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -188,8 +242,14 @@ struct CWLAggregateTests {
 
         // Insert 100 days of data, $1 each.
         for daysAgo in 0..<100 {
-            try self.insert(context, device: "dev-A", provider: "codex",
-                daysAgo: daysAgo, cost: 1.0, tokens: 100, lastUpdated: t)
+            try self.insert(
+                context,
+                device: "dev-A",
+                provider: "codex",
+                daysAgo: daysAgo,
+                cost: 1.0,
+                tokens: 100,
+                lastUpdated: t)
         }
         try context.save()
 
@@ -216,13 +276,19 @@ struct CWLAggregateTests {
     }
 
     @Test("T6: window clamps to [1, 365] — too-small input clamped to 1, too-large to 365")
-    func testWindowClamp() throws {
+    func windowClamp() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
         try context.save()
 
         let aggZero = try CostLedgerService.aggregate(
@@ -230,7 +296,7 @@ struct CWLAggregateTests {
         #expect(aggZero.windowDays == 1)
 
         let aggHuge = try CostLedgerService.aggregate(
-            windowDays: 10_000, in: context, asOf: Self.asOf)
+            windowDays: 10000, in: context, asOf: Self.asOf)
         #expect(aggHuge.windowDays == 365)
     }
 
@@ -246,15 +312,27 @@ struct CWLAggregateTests {
     // MARK: - aggregateProvider
 
     @Test("aggregateProvider: returns rollup for the requested provider only")
-    func testAggregateProviderFilters() throws {
+    func aggregateProviderFilters() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "claude",
-            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "claude",
+            daysAgo: 0,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t)
         try context.save()
 
         let codex = try CostLedgerService.aggregateProvider(
@@ -265,7 +343,7 @@ struct CWLAggregateTests {
     }
 
     @Test("aggregateProvider: missing provider returns empty rollup (not nil)")
-    func testAggregateProviderMissing() throws {
+    func aggregateProviderMissing() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -280,16 +358,30 @@ struct CWLAggregateTests {
     // MARK: - Multi-account (Round 4 — account-aware key)
 
     @Test("Multi-account: two accounts of same provider → separate rollups, summed totals")
-    func testMultiAccountSeparateRollups() throws {
+    func multiAccountSeparateRollups() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
         // Two Codex accounts, same device + same day.
-        try self.insert(context, device: "dev-A", provider: "codex",
-            account: "alice@codex.test", daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            account: "bob@codex.test", daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            account: "alice@codex.test",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            account: "bob@codex.test",
+            daysAgo: 0,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t)
         try context.save()
 
         let agg = try CostLedgerService.aggregate(
@@ -334,12 +426,30 @@ struct CWLAggregateTests {
 
         let t0 = Date(timeIntervalSince1970: 1_700_000_000)
         let t1 = t0.addingTimeInterval(3600)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 5, cost: 1.0, tokens: 100, lastUpdated: t0)
-        try self.insert(context, device: "dev-A", provider: "claude",
-            daysAgo: 0, cost: 2.0, tokens: 200, lastUpdated: t1)
-        try self.insert(context, device: "dev-B", provider: "codex",
-            daysAgo: 2, cost: 3.0, tokens: 300, lastUpdated: t1)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 5,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t0)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "claude",
+            daysAgo: 0,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t1)
+        try self.insert(
+            context,
+            device: "dev-B",
+            provider: "codex",
+            daysAgo: 2,
+            cost: 3.0,
+            tokens: 300,
+            lastUpdated: t1)
         try context.save()
 
         let d = try CostLedgerService.diagnostics(in: context)
@@ -360,10 +470,22 @@ struct CWLAggregateTests {
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
         let t = Date(timeIntervalSince1970: 1_700_000_000)
-        try self.insert(context, device: "dev-A", provider: "codex",
-            daysAgo: 0, cost: 1.0, tokens: 100, lastUpdated: t)
-        try self.insert(context, device: "dev-A", provider: "claude",
-            daysAgo: 1, cost: 2.0, tokens: 200, lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 1.0,
+            tokens: 100,
+            lastUpdated: t)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "claude",
+            daysAgo: 1,
+            cost: 2.0,
+            tokens: 200,
+            lastUpdated: t)
         // A different entity that clearAll must NOT touch.
         context.insert(DeviceRecord(
             deviceID: "dev-A", deviceName: "Test", lastSyncAt: t))
@@ -372,9 +494,11 @@ struct CWLAggregateTests {
 
         try CostLedgerService.clearAll(in: context)
 
-        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty,
+        #expect(
+            try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty,
             "ledger must be empty after clearAll")
-        #expect(try context.fetch(FetchDescriptor<DeviceRecord>()).count == 1,
+        #expect(
+            try context.fetch(FetchDescriptor<DeviceRecord>()).count == 1,
             "clearAll must only delete DailyCostPoint, not other entities")
     }
 }

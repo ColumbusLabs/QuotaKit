@@ -72,14 +72,14 @@ struct CWLEquivalenceTests {
             costSummary: SyncCostSummary(
                 sessionCostUSD: nil,
                 sessionTokens: nil,
-                last30DaysCostUSD: nil,   // force blob to reduce from daily[]
+                last30DaysCostUSD: nil, // force blob to reduce from daily[]
                 last30DaysTokens: nil,
                 daily: daily,
                 isEstimated: false))
     }
 
     @Test("Ledger insights numerically match blob insights for the same data")
-    func testEquivalence() throws {
+    func equivalence() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)
@@ -152,7 +152,7 @@ struct CWLEquivalenceTests {
     }
 
     @Test("CWL ON: Overview window follows the selected window, not max provider historyDays")
-    func testLedgerHistoryDaysFollowsSelectedWindow() throws {
+    func ledgerHistoryDaysFollowsSelectedWindow() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
@@ -181,7 +181,7 @@ struct CWLEquivalenceTests {
     }
 
     @Test("Equivalence holds with multi-account providers (two Codex accounts)")
-    func testEquivalenceMultiAccount() throws {
+    func equivalenceMultiAccount() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
         let container = ModelContainerFactory.makeContainer(at: url)

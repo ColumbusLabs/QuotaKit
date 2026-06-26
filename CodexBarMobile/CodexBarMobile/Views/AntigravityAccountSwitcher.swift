@@ -15,7 +15,7 @@ struct AntigravityAccountSwitcher: View {
     let tintColor: Color
 
     private var sortedAccounts: [SyncMultiAccountEntry] {
-        accounts.accounts.sorted { lhs, rhs in
+        self.accounts.accounts.sorted { lhs, rhs in
             if lhs.isActive != rhs.isActive { return lhs.isActive }
             return lhs.email < rhs.email
         }
@@ -27,7 +27,7 @@ struct AntigravityAccountSwitcher: View {
                 Text(String(localized: "antigravity_accounts_title", defaultValue: "Linked Google accounts"))
                     .font(.headline)
                 Spacer()
-                Text("\(accounts.accounts.count)")
+                Text("\(self.accounts.accounts.count)")
                     .font(.caption.bold().monospacedDigit())
                     .foregroundStyle(self.tintColor)
                     .padding(.horizontal, 8)
@@ -79,7 +79,9 @@ struct AntigravityAccountSwitcher: View {
     private func expiryText(for date: Date) -> String {
         let formatter = RelativeDateTimeFormatter()
         formatter.unitsStyle = .short
-        return String(format: String(localized: "antigravity_token_expires_format", defaultValue: "Token %@"), formatter.localizedString(for: date, relativeTo: Date()))
+        return String(
+            format: String(localized: "antigravity_token_expires_format", defaultValue: "Token %@"),
+            formatter.localizedString(for: date, relativeTo: Date()))
     }
 }
 
@@ -87,8 +89,14 @@ struct AntigravityAccountSwitcher: View {
     AntigravityAccountSwitcher(
         accounts: SyncMultiAccountList(
             accounts: [
-                SyncMultiAccountEntry(email: "primary@example.com", isActive: true, expiresAt: Date().addingTimeInterval(3_600 * 12)),
-                SyncMultiAccountEntry(email: "team-alt@example.com", isActive: false, expiresAt: Date().addingTimeInterval(3_600 * 36)),
+                SyncMultiAccountEntry(
+                    email: "primary@example.com",
+                    isActive: true,
+                    expiresAt: Date().addingTimeInterval(3600 * 12)),
+                SyncMultiAccountEntry(
+                    email: "team-alt@example.com",
+                    isActive: false,
+                    expiresAt: Date().addingTimeInterval(3600 * 36)),
             ],
             activeIndex: 0),
         tintColor: Color(red: 0.78, green: 0.21, blue: 0.54))

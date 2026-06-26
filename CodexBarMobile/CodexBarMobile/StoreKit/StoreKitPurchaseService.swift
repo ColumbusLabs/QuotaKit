@@ -66,9 +66,9 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         }
 
         switch try await product.purchase() {
-        case .success(let result):
+        case let .success(result):
             let status = Self.entitlementStatus(from: result)
-            if case .verified = status, case .verified(let transaction) = result {
+            if case .verified = status, case let .verified(transaction) = result {
                 await transaction.finish()
             }
             return .purchased(status)
@@ -105,7 +105,7 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
                         continue
                     }
                     continuation.yield(status)
-                    if case .verified(let transaction) = result {
+                    if case let .verified(transaction) = result {
                         await transaction.finish()
                     }
                 }
@@ -119,9 +119,9 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         from result: VerificationResult<Transaction>) -> StoreKitEntitlementStatus
     {
         switch result {
-        case .verified(let transaction):
+        case let .verified(transaction):
             .verified(productID: transaction.productID, verifiedAt: Date())
-        case .unverified(let transaction, _):
+        case let .unverified(transaction, _):
             .unverified(productID: transaction.productID)
         }
     }
@@ -131,7 +131,7 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         productID: String) -> Bool
     {
         switch status {
-        case .verified(let id, _), .unverified(let id):
+        case let .verified(id, _), let .unverified(id):
             id == productID
         case .none:
             false

@@ -42,7 +42,7 @@ final class RemoteConfigStore {
         let schemaVersion: Int
     }
 
-    nonisolated private static let cacheKey = "com.columbuslabs.quotakit.remoteConfig.v1"
+    private nonisolated static let cacheKey = "com.columbuslabs.quotakit.remoteConfig.v1"
 
     private let defaults: UserDefaults
     private let fetcher: any RemoteConfigFetching
@@ -141,8 +141,7 @@ final class RemoteConfigStore {
                 throw Error.unsupportedSchema(schema.schemaVersion)
             }
 
-            let config = try decoder.decode(RemoteConfig.self, from: data)
-            return config
+            return try decoder.decode(RemoteConfig.self, from: data)
         } catch let error as Error {
             throw error
         } catch {
@@ -151,13 +150,13 @@ final class RemoteConfigStore {
     }
 
     nonisolated static func appGroupDefaults(
-        appGroupIdentifier: String = ProductConfig.appGroupIdentifier
-    ) -> UserDefaults? {
+        appGroupIdentifier: String = ProductConfig.appGroupIdentifier) -> UserDefaults?
+    {
         UserDefaults(suiteName: appGroupIdentifier)
     }
 
     private nonisolated static func loadCache(defaults: UserDefaults) -> CacheEnvelope? {
-        guard let data = defaults.data(forKey: Self.cacheKey),
+        guard let data = defaults.data(forKey: cacheKey),
               let envelope = try? JSONDecoder().decode(CacheEnvelope.self, from: data),
               envelope.config.isSupported
         else {
@@ -175,7 +174,7 @@ final class RemoteConfigStore {
         switch error {
         case Error.invalidResponse:
             String(localized: "Invalid remote config response")
-        case Error.unsupportedSchema(let version):
+        case let Error.unsupportedSchema(version):
             String(format: String(localized: "Unsupported remote config schema %lld"), version)
         case Error.decodeFailed:
             String(localized: "Remote config could not be decoded")

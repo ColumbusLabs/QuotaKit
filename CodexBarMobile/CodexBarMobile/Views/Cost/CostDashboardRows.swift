@@ -177,7 +177,7 @@ struct FullBreakdownListView: View {
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(self.theme.canvas)
+            .background(self.theme.canvas)
     }
 }
 
@@ -190,7 +190,7 @@ struct BudgetRowView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 8) {
             HStack {
-                Text(row.provider.providerName)
+                Text(self.row.provider.providerName)
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
@@ -202,8 +202,8 @@ struct BudgetRowView: View {
             }
 
             BudgetProgressView(
-                budget: row.budget,
-                tintColor: providerTint(for: row.provider))
+                budget: self.row.budget,
+                tintColor: providerTint(for: self.row.provider))
         }
     }
 }
@@ -221,7 +221,7 @@ struct OthersBudgetRowView: View {
                 .font(.subheadline)
                 .fontWeight(.semibold)
             Spacer()
-            Text("+\(count) more")
+            Text("+\(self.count) more")
                 .font(.caption)
                 .foregroundStyle(.secondary)
             Image(systemName: "chevron.right")
@@ -251,7 +251,7 @@ struct FullBudgetListView: View {
         #if !os(macOS)
             .navigationBarTitleDisplayMode(.inline)
         #endif
-        .background(self.theme.canvas)
+            .background(self.theme.canvas)
     }
 }
 

@@ -53,11 +53,11 @@ enum ProviderColorPalette {
     }
 
     static func color(for providerIdentifier: String) -> Color {
-        (self.rawColor(for: providerIdentifier) ?? Self.fallback).color
+        (self.rawColor(for: providerIdentifier) ?? self.fallback).color
     }
 
     static func rawColor(for providerIdentifier: String) -> RawColor? {
-        Self.palette[Self.normalized(providerIdentifier)]
+        self.palette[self.normalized(providerIdentifier)]
     }
 
     static func normalized(_ value: String) -> String {
@@ -79,7 +79,9 @@ enum ProviderColorPalette {
             (["opencode"], RawColor(red: 14 / 255, green: 165 / 255, blue: 233 / 255)),
             (["opencodego"], RawColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255)),
             (["alibaba", "bailian"], RawColor(red: 1, green: 106 / 255, blue: 0)),
-            (["alibabatokenplan", "alibabatoken", "bailiantokenplan"], RawColor(red: 1, green: 176 / 255, blue: 32 / 255)),
+            (
+                ["alibabatokenplan", "alibabatoken", "bailiantokenplan"],
+                RawColor(red: 1, green: 176 / 255, blue: 32 / 255)),
             (["factory", "droid"], RawColor(red: 255 / 255, green: 107 / 255, blue: 53 / 255)),
             (["gemini"], RawColor(red: 171 / 255, green: 135 / 255, blue: 234 / 255)),
             (["antigravity"], RawColor(red: 96 / 255, green: 186 / 255, blue: 126 / 255)),

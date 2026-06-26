@@ -82,7 +82,7 @@ struct SameMacMultiAccountMergeTests {
 
     @Test("R5 D2: Single Mac with 3 Codex accounts → 3 distinct merged cards")
     func singleMacThreeCodexAccountsKeptDistinct() throws {
-        let providers = (1 ... 3).map { i in
+        let providers = (1...3).map { i in
             self.makeProvider(
                 id: "codex", email: "user\(i)@example.com",
                 usedPercent: Double(i) * 20,
@@ -244,7 +244,9 @@ struct SameMacMultiAccountMergeTests {
         // unfortunately collapse. We avoid this by always emitting
         // accountIdentities for Codex (Tier-A provider), so this is
         // structural protection.
-        #expect(merged.providers.count == 1, "all-nil-email same-provider entries collapse to legacy bucket (documented behavior)")
+        #expect(
+            merged.providers.count == 1,
+            "all-nil-email same-provider entries collapse to legacy bucket (documented behavior)")
     }
 
     @Test("R5 D8: Same Mac, 2 codex accounts, one with empty-string email + one with real email → 2 cards")
@@ -289,12 +291,12 @@ struct SameMacMultiAccountMergeTests {
         // Real-world R5 scenario: user has 3 Codex accounts AND 2 Claude
         // accounts on a single Mac with R1+R2. Single push contains
         // 3+2=5 ProviderUsageSnapshots. iOS must render 5 cards.
-        let codexProviders = (1 ... 3).map { i in
+        let codexProviders = (1...3).map { i in
             self.makeProvider(
                 id: "codex", email: "codex\(i)@x.com",
                 accountIdentities: ["codex:email:codex\(i)%40x.com"])
         }
-        let claudeProviders = (1 ... 2).map { i in
+        let claudeProviders = (1...2).map { i in
             self.makeProvider(
                 id: "claude", email: "claude\(i)@x.com",
                 accountIdentities: ["claude:email:claude\(i)%40x.com"])
@@ -306,20 +308,20 @@ struct SameMacMultiAccountMergeTests {
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
         #expect(merged.providers.count == 5, "3 codex + 2 claude all distinct")
-        let codexCount = merged.providers.filter { $0.providerID == "codex" }.count
-        let claudeCount = merged.providers.filter { $0.providerID == "claude" }.count
+        let codexCount = merged.providers.count(where: { $0.providerID == "codex" })
+        let claudeCount = merged.providers.count(where: { $0.providerID == "claude" })
         #expect(codexCount == 3)
         #expect(claudeCount == 2)
     }
 
     @Test("R5 D11: Two-Mac × multi-account each — 2-2-1 = 5 cards (no overlap)")
     func twoMacEachMultiAccountAllDistinct() throws {
-        let macAProviders = (1 ... 2).map { i in
+        let macAProviders = (1...2).map { i in
             self.makeProvider(
                 id: "codex", email: "macA-\(i)@x.com",
                 accountIdentities: ["codex:email:maca-\(i)%40x.com"])
         }
-        let macBProviders = (3 ... 5).map { i in
+        let macBProviders = (3...5).map { i in
             self.makeProvider(
                 id: "codex", email: "macB-\(i)@x.com",
                 accountIdentities: ["codex:email:macb-\(i)%40x.com"])

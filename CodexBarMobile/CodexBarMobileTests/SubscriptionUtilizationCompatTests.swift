@@ -3,7 +3,6 @@ import Foundation
 import SwiftUI
 import Testing
 import UIKit
-
 @testable import CodexBarMobile
 
 /// Guards `UtilizationAggregateView` (the Cost-tab 30-day subscription
@@ -30,8 +29,8 @@ struct SubscriptionUtilizationCompatTests {
     private func makeProvider(
         id: String,
         name: String,
-        utilization: [SyncUtilizationSeries]? = nil
-    ) -> ProviderUsageSnapshot {
+        utilization: [SyncUtilizationSeries]? = nil) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -88,7 +87,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(k1 != k2)
     }
 
-    @Test("Mixed providers (some with history, some without) produce a stable key that reflects ONLY history-bearing entries")
+    @Test(
+        "Mixed providers (some with history, some without) produce a stable key that reflects ONLY history-bearing entries")
     func identityKeyEntryCountIgnoresNoHistoryProviders() {
         // OpenCode Go and Perplexity contribute 0 entries. Only Claude's
         // single entry counts. The `n=1` suffix proves the guard actually
@@ -134,6 +134,7 @@ struct SubscriptionUtilizationCompatTests {
     }
 
     // MARK: - Daily-peak semantics (Build 77)
+
     //
     // Reported bug: iPhone Cost tab showed Codex at 0% in Subscription
     // Utilization while the Codex detail page rendered clear session bars
@@ -148,8 +149,8 @@ struct SubscriptionUtilizationCompatTests {
         id: String = "codex",
         name: String = "Codex",
         peakPercentPerDay: Double,
-        samplesPerDay: Int = 24
-    ) -> ProviderUsageSnapshot {
+        samplesPerDay: Int = 24) -> ProviderUsageSnapshot
+    {
         // Simulates a provider sampled hourly for 30 days, with `peakPercentPerDay`
         // hit for exactly ONE sample per day and 0% for the rest — matches a
         // user doing short bursts of activity inside a session quota that
@@ -157,9 +158,9 @@ struct SubscriptionUtilizationCompatTests {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var entries: [SyncUtilizationEntry] = []
-        for dayOffset in 0 ..< 30 {
+        for dayOffset in 0..<30 {
             let day = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
-            for hour in 0 ..< samplesPerDay {
+            for hour in 0..<samplesPerDay {
                 let captured = calendar.date(byAdding: .hour, value: hour, to: day)!
                 let percent = (hour == 12) ? peakPercentPerDay : 0.0
                 entries.append(SyncUtilizationEntry(
@@ -236,7 +237,7 @@ struct SubscriptionUtilizationCompatTests {
         // Post-fix, aggregate unions entries across ALL series named "session".
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
-        let realEntries = (0 ..< 5).map { dayOffset -> SyncUtilizationEntry in
+        let realEntries = (0..<5).map { dayOffset -> SyncUtilizationEntry in
             let date = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
             return SyncUtilizationEntry(capturedAt: date, usedPercent: 42, resetsAt: nil)
         }
@@ -267,11 +268,11 @@ struct SubscriptionUtilizationCompatTests {
         // iOS — could crash. Build 81 replaced with a per-call formatter.
         // Stress this by calling from many concurrent tasks and asserting
         // all results match the single-threaded reference.
-        let dates = (0 ..< 30).map { Date(timeIntervalSince1970: TimeInterval(1_745_500_000 + $0 * 86400)) }
+        let dates = (0..<30).map { Date(timeIntervalSince1970: TimeInterval(1_745_500_000 + $0 * 86400)) }
         let expected = dates.map { SyncCostSummary.iso8601DayKey(for: $0) }
 
         await withTaskGroup(of: [String].self) { group in
-            for _ in 0 ..< 64 {
+            for _ in 0..<64 {
                 group.addTask {
                     dates.map { SyncCostSummary.iso8601DayKey(for: $0) }
                 }

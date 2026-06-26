@@ -19,8 +19,9 @@ struct GroqMetricsCard: View {
                     .font(.headline)
                 Spacer()
                 if let pct = metrics.cacheHitPercent {
-                    Text(String(format: String(localized: "groq_cache_hit_format", defaultValue: "%d%% cache"),
-                                Int(pct.rounded())))
+                    Text(String(
+                        format: String(localized: "groq_cache_hit_format", defaultValue: "%d%% cache"),
+                        Int(pct.rounded())))
                         .font(.caption.bold().monospacedDigit())
                         .padding(.horizontal, 8)
                         .padding(.vertical, 3)
@@ -32,15 +33,15 @@ struct GroqMetricsCard: View {
             HStack {
                 self.metricColumn(
                     label: String(localized: "groq_requests_per_min", defaultValue: "Req/min"),
-                    value: Self.formatRate(metrics.requestsPerMinute))
+                    value: Self.formatRate(self.metrics.requestsPerMinute))
                 Divider().frame(height: 28)
                 self.metricColumn(
                     label: String(localized: "groq_tokens_per_min", defaultValue: "Tok/min"),
-                    value: Self.formatRate(metrics.tokensPerMinute))
+                    value: Self.formatRate(self.metrics.tokensPerMinute))
                 Divider().frame(height: 28)
                 self.metricColumn(
                     label: String(localized: "groq_cache_per_min", defaultValue: "Cache/min"),
-                    value: Self.formatRate(metrics.cacheHitsPerMinute))
+                    value: Self.formatRate(self.metrics.cacheHitsPerMinute))
             }
         }
         .padding(16)
@@ -65,8 +66,8 @@ struct GroqMetricsCard: View {
         if value >= 1_000_000 {
             return String(format: "%.1fM", value / 1_000_000)
         }
-        if value >= 1_000 {
-            return String(format: "%.1fk", value / 1_000)
+        if value >= 1000 {
+            return String(format: "%.1fk", value / 1000)
         }
         if value >= 10 {
             return String(format: "%.0f", value)
@@ -82,7 +83,7 @@ struct GroqMetricsCard: View {
     GroqMetricsCard(
         metrics: SyncGroqMetrics(
             requestsPerMinute: 42,
-            tokensPerMinute: 18_500,
+            tokensPerMinute: 18500,
             cacheHitsPerMinute: 28,
             updatedAt: Date()),
         tintColor: Color(red: 0.96, green: 0.31, blue: 0.21))

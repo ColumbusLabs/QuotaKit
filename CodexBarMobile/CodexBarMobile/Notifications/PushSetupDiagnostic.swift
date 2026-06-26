@@ -110,7 +110,7 @@ final class PushSetupDiagnostic {
             }
         }
 
-        var lines: [String] = ["\(subs.count) subscription(s):"]
+        var lines = ["\(subs.count) subscription(s):"]
         Self.appendGroup(
             label: "device-snapshot-changes",
             subs: deviceSnapshot, to: &lines)

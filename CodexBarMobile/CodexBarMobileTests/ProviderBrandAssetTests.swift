@@ -1,6 +1,5 @@
 import CodexBarSync
 import Testing
-
 @testable import CodexBarMobile
 
 @Suite("Provider brand assets")

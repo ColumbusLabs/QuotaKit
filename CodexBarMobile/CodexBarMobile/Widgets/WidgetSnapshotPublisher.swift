@@ -2,7 +2,7 @@ import CodexBarSync
 import Foundation
 
 enum WidgetSnapshotPublisher {
-    nonisolated(unsafe) private static var lastPublishedSnapshot: QuotaKitWidgetSnapshot?
+    private nonisolated(unsafe) static var lastPublishedSnapshot: QuotaKitWidgetSnapshot?
 
     static func publish(
         from snapshot: SyncedUsageSnapshot,

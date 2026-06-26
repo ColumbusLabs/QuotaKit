@@ -40,7 +40,7 @@ final class DeviceProviderZoneSubscription {
         // fail with .zoneNotFound.
         do {
             _ = try await database.recordZone(for: CKRecordZone.ID(
-                zoneName: zoneName, ownerName: CKCurrentUserDefaultName))
+                zoneName: self.zoneName, ownerName: CKCurrentUserDefaultName))
         } catch let error as CKError where error.code == .zoneNotFound {
             let zone = CKRecordZone(zoneName: zoneName)
             _ = try? await database.modifyRecordZones(saving: [zone], deleting: [])
@@ -58,12 +58,12 @@ final class DeviceProviderZoneSubscription {
         }
 
         let zoneID = CKRecordZone.ID(
-            zoneName: zoneName, ownerName: CKCurrentUserDefaultName)
+            zoneName: self.zoneName, ownerName: CKCurrentUserDefaultName)
         if let zoneSub = existing.first(where: {
             $0.subscriptionID == Self.subscriptionID
         }) as? CKRecordZoneSubscription,
-           zoneSub.zoneID == zoneID,
-           zoneSub.notificationInfo?.shouldSendContentAvailable == true
+            zoneSub.zoneID == zoneID,
+            zoneSub.notificationInfo?.shouldSendContentAvailable == true
         {
             print("[CodexBar P7 v2] device-provider subscription already correct")
             return

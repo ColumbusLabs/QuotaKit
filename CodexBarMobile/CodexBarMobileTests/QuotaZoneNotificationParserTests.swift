@@ -5,7 +5,6 @@ import Testing
 
 @Suite("QuotaZoneNotificationParser Tests")
 struct QuotaZoneNotificationParserTests {
-
     @Test("isQuotaPushZone accepts depleted zone")
     func acceptsDepletedZone() {
         let zoneID = CKRecordZone.ID(

@@ -49,8 +49,8 @@ final class SyncedUsageData {
 
     /// Legacy error string (kept for backward compat with existing UI).
     var lastSyncError: String? {
-        switch syncStatus {
-        case .error(let message): message
+        switch self.syncStatus {
+        case let .error(message): message
         case .noData: String(localized: "No Mac data found")
         case .incompatibleData: String(localized: "Data format incompatible. Please update Mac app.")
         default: nil
@@ -58,7 +58,9 @@ final class SyncedUsageData {
     }
 
     /// Number of Mac devices contributing data.
-    var deviceCount: Int { deviceSnapshots.count }
+    var deviceCount: Int {
+        self.deviceSnapshots.count
+    }
 
     /// True while a user-visible full refresh is in flight.
     var isRefreshing: Bool {
@@ -146,11 +148,11 @@ final class SyncedUsageData {
     /// UserDefaults key for the local linkage cache. Re-derived from
     /// CloudKit on every full fetch; the local copy exists only to bridge
     /// the cold-start gap before that first CloudKit round-trip returns.
-    nonisolated private static let linkageCacheDefaultsKey = "com.columbuslabs.quotakit.linkageCache.v1"
-    nonisolated private static let legacyLinkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
+    private nonisolated static let linkageCacheDefaultsKey = "com.columbuslabs.quotakit.linkageCache.v1"
+    private nonisolated static let legacyLinkageCacheDefaultsKey = "com.codexbar.linkageCache.v1"
 
     nonisolated static func loadCachedLinkages() -> [ProviderAccountLinkage] {
-        if let linkages = Self.decodeCachedLinkages(forKey: Self.linkageCacheDefaultsKey) {
+        if let linkages = decodeCachedLinkages(forKey: linkageCacheDefaultsKey) {
             return linkages
         }
         if let legacy = Self.decodeCachedLinkages(forKey: Self.legacyLinkageCacheDefaultsKey) {
@@ -161,7 +163,7 @@ final class SyncedUsageData {
         return []
     }
 
-    nonisolated private static func decodeCachedLinkages(forKey key: String) -> [ProviderAccountLinkage]? {
+    private nonisolated static func decodeCachedLinkages(forKey key: String) -> [ProviderAccountLinkage]? {
         guard let data = UserDefaults.standard.data(forKey: key) else {
             return nil
         }
@@ -179,8 +181,8 @@ final class SyncedUsageData {
     /// Reads SwiftData's per-device rows + the standard merge. Returns nil
     /// when the store is empty or any decode fails.
     private static func hydrateFromSwiftData(
-        context: ModelContext
-    ) -> (devices: [SyncedUsageSnapshot], merged: SyncedUsageSnapshot)? {
+        context: ModelContext) -> (devices: [SyncedUsageSnapshot], merged: SyncedUsageSnapshot)?
+    {
         do {
             let devices = try SwiftDataBridge.readAllDeviceSnapshots(from: context)
             guard !devices.isEmpty, let merged = CloudSyncReader.mergeSnapshots(devices) else {
@@ -197,15 +199,15 @@ final class SyncedUsageData {
     func startObserving() {
         // 1. Start KVS observation (backward compat with old Mac apps that
         //    only write KVS, pre-CloudKit).
-        if !isObservingKVS {
-            isObservingKVS = true
-            reader.startKVSObserving { [weak self] result in
+        if !self.isObservingKVS {
+            self.isObservingKVS = true
+            self.reader.startKVSObserving { [weak self] result in
                 guard let self else { return }
                 // KVS is a last-resort fallback; only use it if we have no
                 // CloudKit data at all.
                 if self.cache.legacyByDevice.isEmpty, self.cache.perProviderByDevice.isEmpty {
                     switch result {
-                    case .success(let kvsSnapshot):
+                    case let .success(kvsSnapshot):
                         self.cache.seedFromColdStart([kvsSnapshot])
                         self.republishFromCache()
                     case .empty, .initialSync:
@@ -226,8 +228,8 @@ final class SyncedUsageData {
         //    AppDelegate posts .quotaKitProviderZoneDidChange on every
         //    DeviceProvidersZone push. Token retained on `silentPushObserver`
         //    so deinit can remove it cleanly.
-        if !isObservingSilentPush {
-            isObservingSilentPush = true
+        if !self.isObservingSilentPush {
+            self.isObservingSilentPush = true
             self.silentPushObserver = NotificationCenter.default.addObserver(
                 forName: .quotaKitProviderZoneDidChange,
                 object: nil,
@@ -286,9 +288,9 @@ final class SyncedUsageData {
         // Linkages share the per-provider zone so they ride the same
         // CKQuery surface; isolated as a third async let to keep the
         // existing per/legacy unpacking logic untouched.
-        async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
-        async let legacyResult = reader.fetchLegacyDeviceSnapshots()
-        async let linkagesResult = reader.fetchProviderAccountLinkages()
+        async let perProviderResult = self.reader.fetchPerProviderDeviceSnapshots()
+        async let legacyResult = self.reader.fetchLegacyDeviceSnapshots()
+        async let linkagesResult = self.reader.fetchProviderAccountLinkages()
 
         let per = await perProviderResult
         let legacy = await legacyResult
@@ -341,15 +343,15 @@ final class SyncedUsageData {
         self.applyFullFetchResults(
             perProvider: per,
             legacy: legacy,
-            kvsFallback: reader.latestKVSSnapshot())
+            kvsFallback: self.reader.latestKVSSnapshot())
         self.lastRefreshCompletedAt = Date()
     }
 
     func applyFullFetchResults(
         perProvider per: MultiDeviceSyncResult,
         legacy: MultiDeviceSyncResult,
-        kvsFallback: SyncedUsageSnapshot?
-    ) {
+        kvsFallback: SyncedUsageSnapshot?)
+    {
         // Unpack results per zone. `.error` means transient failure — DO NOT
         // wipe that bucket, preserve whatever was cached before (Codex
         // review P1). `.empty` / `.success` are authoritative and DO replace
@@ -357,17 +359,17 @@ final class SyncedUsageData {
         let perArg: [SyncedUsageSnapshot]?
         var firstError: CloudSyncError?
         switch per {
-        case .success(let snaps): perArg = snaps
+        case let .success(snaps): perArg = snaps
         case .empty: perArg = []
-        case .error(let e):
+        case let .error(e):
             perArg = nil
             firstError = e
         }
         let legacyArg: [SyncedUsageSnapshot]?
         switch legacy {
-        case .success(let snaps): legacyArg = snaps
+        case let .success(snaps): legacyArg = snaps
         case .empty: legacyArg = []
-        case .error(let e):
+        case let .error(e):
             legacyArg = nil
             firstError = firstError ?? e
         }
@@ -376,7 +378,7 @@ final class SyncedUsageData {
         // user blank content just because CloudKit was momentarily
         // unreachable. Surface the error in status but leave `snapshot`
         // pointing at whatever was hydrated / from last successful fetch.
-        if perArg == nil && legacyArg == nil {
+        if perArg == nil, legacyArg == nil {
             self.applyRefreshFailureStatus(firstError)
             return
         }
@@ -441,8 +443,8 @@ final class SyncedUsageData {
     /// CloudKit round-trip + zone change-token push to fire.
     func confirmLinkage(
         providerID: String,
-        linkedIdentifiers: [String]
-    ) async {
+        linkedIdentifiers: [String]) async
+    {
         let linkage = ProviderAccountLinkage(
             providerID: providerID,
             linkedIdentifiers: linkedIdentifiers,
@@ -463,8 +465,8 @@ final class SyncedUsageData {
     /// (never deletes the original) so the audit trail survives.
     func revokeLinkage(
         providerID: String,
-        linkedIdentifiers: [String]
-    ) async {
+        linkedIdentifiers: [String]) async
+    {
         let inverse = ProviderAccountLinkage(
             providerID: providerID,
             linkedIdentifiers: linkedIdentifiers,
@@ -517,7 +519,7 @@ final class SyncedUsageData {
         if delta.tokenExpired {
             try? SwiftDataBridge.saveChangeToken(
                 forZone: zoneName, tokenData: nil, context: context)
-            delta = await reader.fetchPerProviderZoneChanges(since: nil)
+            delta = await self.reader.fetchPerProviderZoneChanges(since: nil)
             if !delta.tokenExpired, !delta.zoneMissing {
                 self.cache.replacePerProviderFromReplay(delta.upserted)
             }
@@ -598,7 +600,7 @@ final class SyncedUsageData {
 
     /// Force-refreshes data from CloudKit (full fetch).
     func refresh() async {
-        await fetchFromCloudKit()
+        await self.fetchFromCloudKit()
     }
 
     /// Default foreground-staleness threshold for `refreshIfStale()`.
@@ -647,7 +649,7 @@ final class SyncedUsageData {
 
     /// Names of all Mac devices contributing data.
     var deviceNames: [String] {
-        deviceSnapshots.map(\.deviceName)
+        self.deviceSnapshots.map(\.deviceName)
     }
 
     /// Stable identity for view-layer cache invalidation (Contract C3).

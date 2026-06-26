@@ -39,14 +39,20 @@ struct ProviderAccountGroup: Identifiable {
 
     /// Identifier-stable across renders: `providerID` is unique per
     /// group (the whole point of grouping).
-    var id: String { self.providerID }
+    var id: String {
+        self.providerID
+    }
 
-    var hasMultipleAccounts: Bool { self.accounts.count > 1 }
+    var hasMultipleAccounts: Bool {
+        self.accounts.count > 1
+    }
 
     /// First account in the group — used for list-row preview
     /// (`ProviderUsageView` rendering) and as the default initially-
     /// selected tab in the detail view.
-    var representative: ProviderUsageSnapshot { self.accounts[0] }
+    var representative: ProviderUsageSnapshot {
+        self.accounts[0]
+    }
 
     /// Short label for tab `index`. Used by the segmented control at
     /// the top of `ProviderDetailView` when `hasMultipleAccounts`.
@@ -77,7 +83,7 @@ struct ProviderAccountGroup: Identifiable {
     }
 }
 
-extension Array where Element == ProviderUsageSnapshot {
+extension [ProviderUsageSnapshot] {
     /// Group post-merge snapshots by `providerID`, preserving first-
     /// appearance order so the resulting Usage list mirrors the
     /// Mac-side provider enable order (which the wire format already

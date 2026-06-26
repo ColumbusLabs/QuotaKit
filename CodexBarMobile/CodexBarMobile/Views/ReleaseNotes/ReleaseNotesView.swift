@@ -32,7 +32,7 @@ struct ReleaseNotesView: View {
                         } label: {
                             VStack(alignment: .leading, spacing: 4) {
                                 HStack(spacing: 8) {
-                    Text("\(String(localized: "Version")) \(version.version)")
+                                    Text("\(String(localized: "Version")) \(version.version)")
                                         .fontWeight(.semibold)
                                     ReleaseNotesBadge(title: version.status)
                                 }

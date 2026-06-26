@@ -61,7 +61,9 @@ private struct RawDeviceSection: View {
             LabeledContent("Device ID", value: self.device.deviceID ?? "N/A")
             LabeledContent("Device Name", value: self.device.deviceName)
             LabeledContent("App Version", value: self.device.appVersion ?? "Unknown")
-            LabeledContent("Sync Time", value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
+            LabeledContent(
+                "Sync Time",
+                value: self.device.syncTimestamp.formatted(date: .abbreviated, time: .shortened))
             LabeledContent("Providers", value: "\(self.device.providers.count)")
 
             // Use cardIdentityKey (providerID|accountEmail) so multi-account
@@ -100,7 +102,9 @@ private struct RawProviderRow: View {
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     } else {
-                        Text("(no email)", comment: "Raw Sync Data row subtitle when provider has no account email (e.g. Claude / Ollama / Copilot)")
+                        Text(
+                            "(no email)",
+                            comment: "Raw Sync Data row subtitle when provider has no account email (e.g. Claude / Ollama / Copilot)")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -113,12 +117,16 @@ private struct RawProviderRow: View {
                         // bugs are visible at a glance instead of needing
                         // a tap into detail.
                         Text(String(
-                            format: String(localized: "$%.2f / 30d", comment: "Raw Sync Data row trailing label — 30-day cost"),
+                            format: String(
+                                localized: "$%.2f / 30d",
+                                comment: "Raw Sync Data row trailing label — 30-day cost"),
                             cost.last30DaysCostUSD ?? 0))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                         Text(String(
-                            format: String(localized: "$%.2f / today", comment: "Raw Sync Data row trailing label — today's cost"),
+                            format: String(
+                                localized: "$%.2f / today",
+                                comment: "Raw Sync Data row trailing label — today's cost"),
                             cost.sessionCostUSD ?? 0))
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
@@ -148,7 +156,9 @@ private struct RawProviderDetailView: View {
                 if let login = self.provider.loginMethod {
                     LabeledContent("Login", value: login)
                 }
-                LabeledContent("Last Updated", value: self.provider.lastUpdated.formatted(date: .abbreviated, time: .shortened))
+                LabeledContent(
+                    "Last Updated",
+                    value: self.provider.lastUpdated.formatted(date: .abbreviated, time: .shortened))
                 if self.provider.isError {
                     LabeledContent("Status", value: self.provider.statusMessage ?? "Error")
                         .foregroundStyle(.red)
@@ -204,8 +214,8 @@ private struct RawProviderDetailView: View {
         guard let value else { return "N/A" }
         if value >= 1_000_000 {
             return String(format: "%.1fM", Double(value) / 1_000_000)
-        } else if value >= 1_000 {
-            return String(format: "%.1fK", Double(value) / 1_000)
+        } else if value >= 1000 {
+            return String(format: "%.1fK", Double(value) / 1000)
         }
         return "\(value)"
     }
@@ -280,7 +290,9 @@ private struct RawDailyPointRow: View {
         }
     }
 
-    private func formatTokens(_ value: Int) -> String { CostFormatting.tokens(value) }
+    private func formatTokens(_ value: Int) -> String {
+        CostFormatting.tokens(value)
+    }
 }
 
 private struct PushSetupDiagnosticView: View {
@@ -404,12 +416,12 @@ private struct NSEInvocationLogSection: View {
     let entries: [NSEInvocationEntry]
 
     var body: some View {
-        if entries.isEmpty {
+        if self.entries.isEmpty {
             Text("No NSE invocations recorded. Trigger a push from the Mac DEV menu, then tap Refresh.")
                 .font(.caption2)
                 .foregroundStyle(.secondary)
         } else {
-            ForEach(Array(entries.reversed().enumerated()), id: \.offset) { _, entry in
+            ForEach(Array(self.entries.reversed().enumerated()), id: \.offset) { _, entry in
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(entry.event.rawValue.uppercased())

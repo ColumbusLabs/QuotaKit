@@ -34,8 +34,11 @@ struct CWLSeedTests {
         return (try? CloudSyncConstants.makeJSONEncoder().encode(summary)) ?? Data()
     }
 
-    private func day(_ key: String, _ cost: Double, _ tokens: Int,
-                     models: [SyncCostBreakdown] = []) -> SyncDailyPoint
+    private func day(
+        _ key: String,
+        _ cost: Double,
+        _ tokens: Int,
+        models: [SyncCostBreakdown] = []) -> SyncDailyPoint
     {
         SyncDailyPoint(
             dayKey: key, costUSD: cost, totalTokens: tokens,
@@ -45,7 +48,7 @@ struct CWLSeedTests {
     // MARK: - T10
 
     @Test("T10: seed imports daily points from ProviderSnapshotModel blobs, carrying account + device")
-    func testSeedImports() throws {
+    func seedImports() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -77,7 +80,7 @@ struct CWLSeedTests {
     }
 
     @Test("T10: seed is idempotent — second run is a no-op")
-    func testSeedIdempotent() throws {
+    func seedIdempotent() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -99,7 +102,7 @@ struct CWLSeedTests {
     // MARK: - T11
 
     @Test("T11: corrupt blob is skipped, valid rows still seed, no crash")
-    func testSeedSkipsCorruptBlob() throws {
+    func seedSkipsCorruptBlob() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -126,7 +129,7 @@ struct CWLSeedTests {
     }
 
     @Test("T11: row with nil costSummaryData is skipped")
-    func testSeedSkipsNilBlob() throws {
+    func seedSkipsNilBlob() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

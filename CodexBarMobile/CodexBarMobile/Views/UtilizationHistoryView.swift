@@ -198,7 +198,7 @@ struct UtilizationHistoryView: View {
         var points: [DisplayPoint] = []
         var idx = 0
 
-        for key in minKey ... maxKey {
+        for key in minKey...maxKey {
             if let observed = bestByPeriod[key] {
                 points.append(DisplayPoint(
                     id: idx, date: observed.date,
@@ -231,14 +231,14 @@ struct UtilizationHistoryView: View {
     /// Result always has at least windowSize items (or more for scrollable).
     private static func rightAlignPoints(_ data: [DisplayPoint], windowSize: Int) -> [DisplayPoint] {
         if data.count >= windowSize {
-            return data  // Enough data, scrolling handles the rest
+            return data // Enough data, scrolling handles the rest
         }
 
         // Pad left with empty slots
         let paddingCount = windowSize - data.count
         var result: [DisplayPoint] = []
 
-        for i in 0 ..< paddingCount {
+        for i in 0..<paddingCount {
             result.append(DisplayPoint(
                 id: i, date: nil,
                 usedPercent: 0, isObserved: false, isPadding: true))
@@ -286,12 +286,12 @@ struct UtilizationHistoryView: View {
                     .lineStyle(StrokeStyle(lineWidth: 1, dash: [3, 3]))
             }
         }
-        .chartYScale(domain: 0 ... 100)
+        .chartYScale(domain: 0...100)
         .chartYAxis(.hidden)
         // Widen the trailing edge by 1 slot so the rightmost bar + label get
         // fully painted when the chart is scrolled to the right edge (fixed-width
         // BarMarks clip at the chartXVisibleDomain boundary otherwise).
-        .chartXScale(domain: 0 ... max(points.count, self.windowSize))
+        .chartXScale(domain: 0...max(points.count, self.windowSize))
         .chartXAxis {
             // `desiredCount: 4` → ~4 date labels across 30 bars. Lower
             // (2-3) feels sparse on a 10pt-bar chart; higher (5+) crowds
@@ -391,11 +391,11 @@ struct UtilizationHistoryView: View {
     }()
 
     private static func axisLabel(for date: Date) -> String {
-        Self.axisLabelFormatter.string(from: date)
+        self.axisLabelFormatter.string(from: date)
     }
 
     private static func fullDateLabel(_ date: Date) -> String {
-        Self.fullDateFormatter.string(from: date)
+        self.fullDateFormatter.string(from: date)
     }
 }
 

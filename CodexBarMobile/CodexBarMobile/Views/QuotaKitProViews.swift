@@ -86,7 +86,8 @@ struct QuotaKitProSettingsView: View {
         QuotaKitProPanel(
             store: self.store,
             title: "QuotaKit Pro",
-            lockedMessage: String(localized: "Unlock the official iOS companion features, including Home Screen and Lock Screen widgets, and support ongoing QuotaKit maintenance."),
+            lockedMessage: String(
+                localized: "Unlock the official iOS companion features, including Home Screen and Lock Screen widgets, and support ongoing QuotaKit maintenance."),
             unlockedMessage: String(localized: "Lifetime unlock is active on this Apple ID."),
             showsFeatureList: true)
             .padding(.vertical, 4)
@@ -108,7 +109,8 @@ struct QuotaKitProLockedSummaryView: View {
     }
 
     private var lockedMessage: String {
-        String(localized: "Free mode shows one synced provider. Pro unlocks all providers you've connected, plus widgets, cost history, sharing, and alerts.")
+        String(
+            localized: "Free mode shows one synced provider. Pro unlocks all providers you've connected, plus widgets, cost history, sharing, and alerts.")
     }
 }
 
@@ -173,7 +175,7 @@ private struct QuotaKitProPanel: View {
                     .foregroundStyle(self.theme.textMuted)
             }
 
-            if case .error(let message) = self.store.state {
+            if case let .error(message) = self.store.state {
                 Label(message, systemImage: "exclamationmark.triangle.fill")
                     .font(.caption)
                     .foregroundStyle(.red)

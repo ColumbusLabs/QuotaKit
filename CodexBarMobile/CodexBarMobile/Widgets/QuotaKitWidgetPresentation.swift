@@ -21,11 +21,11 @@ enum QuotaKitWidgetPresentation {
     {
         switch displayMode {
         case .both:
-            return Self.sessionWindow(for: provider, allowPrimaryFallback: true)
+            self.sessionWindow(for: provider, allowPrimaryFallback: true)
         case .session:
-            return Self.sessionWindow(for: provider, allowPrimaryFallback: true)
+            self.sessionWindow(for: provider, allowPrimaryFallback: true)
         case .weekly:
-            return Self.weeklyWindow(for: provider, allowPrimaryFallback: true)
+            self.weeklyWindow(for: provider, allowPrimaryFallback: true)
         }
     }
 
@@ -47,7 +47,7 @@ enum QuotaKitWidgetPresentation {
             }
             return result
         case .session, .weekly:
-            return Self.primaryWindow(for: provider, displayMode: displayMode).map {
+            return self.primaryWindow(for: provider, displayMode: displayMode).map {
                 [QuotaKitWidgetDisplayWindow(mode: displayMode, window: $0)]
             } ?? []
         }
@@ -70,7 +70,7 @@ enum QuotaKitWidgetPresentation {
             }.joined(separator: " · ")
         }
 
-        guard let window = Self.primaryWindow(for: provider, displayMode: displayMode) else {
+        guard let window = primaryWindow(for: provider, displayMode: displayMode) else {
             return provider.statusMessage ?? String(localized: "No quota window")
         }
         return String(
@@ -84,7 +84,7 @@ enum QuotaKitWidgetPresentation {
         allowPrimaryFallback: Bool) -> QuotaKitWidgetSnapshot.Provider.Window?
     {
         provider.windows.first(where: { $0.identity == .session })
-            ?? provider.windows.first(where: Self.isSessionWindow)
+            ?? provider.windows.first(where: self.isSessionWindow)
             ?? (allowPrimaryFallback ? provider.windows.first : nil)
     }
 
@@ -112,8 +112,8 @@ enum QuotaKitWidgetPresentation {
         allowPrimaryFallback: Bool) -> QuotaKitWidgetSnapshot.Provider.Window?
     {
         provider.windows.first(where: { $0.identity == .weekly })
-            ?? provider.windows.first(where: Self.isWeeklyWindow)
-            ?? Self.fallbackWeeklyWindow(for: provider)
+            ?? provider.windows.first(where: self.isWeeklyWindow)
+            ?? self.fallbackWeeklyWindow(for: provider)
             ?? (allowPrimaryFallback ? provider.windows.first : nil)
     }
 
@@ -146,7 +146,7 @@ enum QuotaKitWidgetPresentation {
     private static let weeklyDayCountRange = 5...9
 
     private static func hasWeeklyDayCountLabel(_ title: String) -> Bool {
-        Self.numericDayCount(in: title).map(Self.weeklyDayCountRange.contains) ?? false
+        self.numericDayCount(in: title).map(self.weeklyDayCountRange.contains) ?? false
     }
 
     private static func numericDayCount(in title: String) -> Int? {
@@ -160,7 +160,7 @@ enum QuotaKitWidgetPresentation {
         var previousToken: Substring?
         for token in tokens {
             let tokenText = String(token)
-            if (tokenText == "day" || tokenText == "days"),
+            if tokenText == "day" || tokenText == "days",
                previousToken?.allSatisfy(\.isNumber) == true,
                let count = previousToken.flatMap({ Int($0) })
             {

@@ -10,18 +10,18 @@ struct CostShareSheet: View {
     @State private var showingActivitySheet = false
 
     private var theme: ShareCardTheme {
-        .from(colorScheme)
+        .from(self.colorScheme)
     }
 
     private var shareData: ShareCardData {
-        ShareCardData(insights: insights, period: selectedPeriod)
+        ShareCardData(insights: self.insights, period: self.selectedPeriod)
     }
 
     var body: some View {
         NavigationStack {
             VStack(spacing: 12) {
                 // Style picker
-                Picker(String(localized: "Style"), selection: $selectedStyle) {
+                Picker(String(localized: "Style"), selection: self.$selectedStyle) {
                     ForEach(ShareCardStyleOption.allCases) { style in
                         Text(style.displayName).tag(style)
                     }
@@ -30,7 +30,7 @@ struct CostShareSheet: View {
                 .padding(.horizontal)
 
                 // Period picker
-                Picker(String(localized: "Period"), selection: $selectedPeriod) {
+                Picker(String(localized: "Period"), selection: self.$selectedPeriod) {
                     ForEach(SharePeriod.allCases) { period in
                         Text(period.displayName).tag(period)
                     }
@@ -41,20 +41,19 @@ struct CostShareSheet: View {
                 // Card preview
                 ScrollView {
                     CostShareCardView(
-                        period: selectedPeriod,
-                        data: shareData,
-                        theme: theme,
-                        style: selectedStyle
-                    )
-                    .clipShape(RoundedRectangle(cornerRadius: 16))
-                    .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
-                    .padding(.horizontal)
+                        period: self.selectedPeriod,
+                        data: self.shareData,
+                        theme: self.theme,
+                        style: self.selectedStyle)
+                        .clipShape(RoundedRectangle(cornerRadius: 16))
+                        .shadow(color: .black.opacity(0.15), radius: 8, y: 4)
+                        .padding(.horizontal)
                 }
 
                 // Share button
                 Button {
-                    renderImage()
-                    showingActivitySheet = true
+                    self.renderImage()
+                    self.showingActivitySheet = true
                 } label: {
                     Label(String(localized: "Share"), systemImage: "square.and.arrow.up")
                         .font(.headline)
@@ -62,7 +61,7 @@ struct CostShareSheet: View {
                         .padding(.vertical, 12)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(selectedStyle == .cyber ? CyberTint.accent : .orange)
+                .tint(self.selectedStyle == .cyber ? CyberTint.accent : .orange)
                 .padding(.horizontal)
                 .padding(.bottom, 8)
             }
@@ -71,11 +70,11 @@ struct CostShareSheet: View {
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
                     Button(String(localized: "Cancel")) {
-                        dismiss()
+                        self.dismiss()
                     }
                 }
             }
-            .sheet(isPresented: $showingActivitySheet) {
+            .sheet(isPresented: self.$showingActivitySheet) {
                 if let image = renderedImage {
                     ActivityViewController(activityItems: [image])
                         .presentationDetents([.medium, .large])
@@ -87,9 +86,8 @@ struct CostShareSheet: View {
 
     @MainActor
     private func renderImage() {
-        renderedImage = CostShareService.renderImage(
-            period: selectedPeriod, data: shareData, theme: theme, style: selectedStyle
-        )
+        self.renderedImage = CostShareService.renderImage(
+            period: self.selectedPeriod, data: self.shareData, theme: self.theme, style: self.selectedStyle)
     }
 }
 
@@ -103,7 +101,7 @@ private struct ActivityViewController: UIViewControllerRepresentable {
     let activityItems: [Any]
 
     func makeUIViewController(context: Context) -> UIActivityViewController {
-        UIActivityViewController(activityItems: activityItems, applicationActivities: nil)
+        UIActivityViewController(activityItems: self.activityItems, applicationActivities: nil)
     }
 
     func updateUIViewController(_ uiViewController: UIActivityViewController, context: Context) {}
@@ -111,6 +109,5 @@ private struct ActivityViewController: UIViewControllerRepresentable {
 
 #Preview {
     CostShareSheet(
-        insights: CostDashboardInsights(snapshot: PreviewData.sampleSnapshot)
-    )
+        insights: CostDashboardInsights(snapshot: PreviewData.sampleSnapshot))
 }

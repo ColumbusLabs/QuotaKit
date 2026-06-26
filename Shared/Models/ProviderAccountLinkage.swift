@@ -46,7 +46,9 @@ public struct ProviderAccountLinkage: Codable, Sendable, Equatable, Identifiable
     /// unmerge is order-independent.
     public let unmerge: Bool
 
-    public var id: String { self.recordID }
+    public var id: String {
+        self.recordID
+    }
 
     public init(
         recordID: String = UUID().uuidString,

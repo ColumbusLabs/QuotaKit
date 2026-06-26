@@ -16,7 +16,8 @@ struct ContentView: View {
 
     init(usageData: SyncedUsageData) {
         self.usageData = usageData
-        _selectedTab = State(initialValue: UserDefaults.standard.bool(forKey: MobileSettingsKeys.openCostByDefault) ? .cost : .usage)
+        _selectedTab = State(initialValue: UserDefaults.standard
+            .bool(forKey: MobileSettingsKeys.openCostByDefault) ? .cost : .usage)
     }
 
     private var currentVersion: String {
@@ -33,7 +34,7 @@ struct ContentView: View {
 
     var body: some View {
         Group {
-            if !self.hasSyncedData && !self.isDemoMode {
+            if !self.hasSyncedData, !self.isDemoMode {
                 NavigationStack {
                     OnboardingView(onDemo: {
                         self.onboardingSeenVersion = self.currentVersion

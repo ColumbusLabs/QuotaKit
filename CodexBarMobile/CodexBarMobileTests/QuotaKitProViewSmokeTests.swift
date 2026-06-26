@@ -1,12 +1,11 @@
 import SwiftData
 import SwiftUI
 import XCTest
-
 @testable import CodexBarMobile
 
 @MainActor
 final class QuotaKitProViewSmokeTests: XCTestCase {
-    nonisolated private static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.pro-smoke"
+    private nonisolated static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.pro-smoke"
 
     override func setUp() {
         super.setUp()
@@ -194,8 +193,8 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         XCTAssertEqual(savedModes, [.weekly])
     }
 
-    func testUsageSettingsWidgetDisplaySaveWritesRawValueAndReloadsTimelines() {
-        let defaults = UserDefaults(suiteName: "quotakit.usage-settings.\(UUID().uuidString)")!
+    func testUsageSettingsWidgetDisplaySaveWritesRawValueAndReloadsTimelines() throws {
+        let defaults = try XCTUnwrap(UserDefaults(suiteName: "quotakit.usage-settings.\(UUID().uuidString)"))
         var reloadCount = 0
 
         UsageSettingsView.saveWidgetDisplayMode(
@@ -209,7 +208,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         XCTAssertEqual(reloadCount, 1)
     }
 
-    private func renderToImage<V: View>(_ view: V) -> UIImage? {
+    private func renderToImage(_ view: some View) -> UIImage? {
         let renderer = ImageRenderer(content: view
             .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
             .frame(width: 390, height: 900)
@@ -218,7 +217,7 @@ final class QuotaKitProViewSmokeTests: XCTestCase {
         return renderer.uiImage
     }
 
-    private func attachIAPReviewScreenshot<V: View>(from view: V) {
+    private func attachIAPReviewScreenshot(from view: some View) {
         let renderer = ImageRenderer(content: view
             .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
             .preferredColorScheme(.dark)

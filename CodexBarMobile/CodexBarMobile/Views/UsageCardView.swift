@@ -50,7 +50,8 @@ struct UsageCardView: View {
     /// (provider, window) enable flag.
     var quotaWarningsEnabled: Bool = true
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode
+            .remaining.rawValue
     /// Global "hide warning markers" toggle (iOS 1.7.0, mirrors upstream
     /// PR #918). The quota-warning notification is unaffected — only the
     /// tick-mark on the usage bar is hidden when true.
@@ -122,7 +123,6 @@ struct UsageCardView: View {
         .padding(.vertical, 8)
     }
 
-    @ViewBuilder
     private var percentageLabel: some View {
         ViewThatFits(in: .horizontal) {
             HStack(alignment: .firstTextBaseline, spacing: 4) {
@@ -184,11 +184,10 @@ struct UsageCardView: View {
     /// render even if the wire payload contains out-of-range values
     /// from a future Mac config schema.
     private var markerUsedPercents: [Int] {
-        let raw: [Int]
-        if let configured = self.quotaWarningThresholds {
-            raw = configured
+        let raw: [Int] = if let configured = self.quotaWarningThresholds {
+            configured
         } else {
-            raw = SyncQuotaWarningConfig.macDefaults
+            SyncQuotaWarningConfig.macDefaults
         }
         let mapped = raw
             .map { 100 - max(0, min(100, $0)) }
@@ -267,7 +266,7 @@ struct UsageCardView: View {
             resetDescription: nil),
         tintColor: Color(red: 0.82, green: 0.55, blue: 0.28),
         quotaWarningThresholds: [50, 20])
-    .padding()
+        .padding()
 }
 
 #Preview("High Usage") {
@@ -275,12 +274,12 @@ struct UsageCardView: View {
         label: "Weekly",
         window: SyncRateWindow(
             usedPercent: 92,
-            windowMinutes: 10_080,
+            windowMinutes: 10080,
             resetsAt: Date().addingTimeInterval(3600 * 24),
             resetDescription: nil),
         tintColor: .purple,
         quotaWarningThresholds: [50, 20])
-    .padding()
+        .padding()
 }
 
 #Preview("Custom Thresholds") {
@@ -293,5 +292,5 @@ struct UsageCardView: View {
             resetDescription: nil),
         tintColor: .indigo,
         quotaWarningThresholds: [70, 40, 10])
-    .padding()
+        .padding()
 }

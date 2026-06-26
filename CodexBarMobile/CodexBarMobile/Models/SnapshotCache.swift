@@ -81,8 +81,8 @@ struct SnapshotCache: Sendable {
     /// `legacySnapshots` = monolithic snapshots from the legacy zones.
     mutating func replaceFromFullFetch(
         perProviderSnapshots: [SyncedUsageSnapshot]?,
-        legacySnapshots: [SyncedUsageSnapshot]?
-    ) {
+        legacySnapshots: [SyncedUsageSnapshot]?)
+    {
         if let perProviderSnapshots {
             self.perProviderByDevice.removeAll(keepingCapacity: true)
 
@@ -132,8 +132,8 @@ struct SnapshotCache: Sendable {
     /// data is still as-of-last-full-fetch.
     mutating func applyDelta(
         upserted: [ProviderUsageEnvelope],
-        deletedRecordNames: [String]
-    ) {
+        deletedRecordNames: [String])
+    {
         for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
             byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
@@ -269,8 +269,8 @@ struct SnapshotCache: Sendable {
     /// the per-provider path uses. Returns a snapshot identical to the
     /// input except with orphan / stale providers removed.
     private static func filterSnapshotProviders(
-        _ snapshot: SyncedUsageSnapshot
-    ) -> SyncedUsageSnapshot {
+        _ snapshot: SyncedUsageSnapshot) -> SyncedUsageSnapshot
+    {
         guard !snapshot.providers.isEmpty else { return snapshot }
         var byComposite: [String: ProviderUsageSnapshot] = [:]
         for provider in snapshot.providers {
@@ -332,8 +332,8 @@ struct SnapshotCache: Sendable {
     /// - Toggling Mac on/off clears stale records as soon as Mac resumes
     ///   writing (deviceFreshest moves forward, stale cutoff slides up).
     static func dropOrphansAndStale(
-        _ byComposite: [String: ProviderUsageSnapshot]
-    ) -> [String: ProviderUsageSnapshot] {
+        _ byComposite: [String: ProviderUsageSnapshot]) -> [String: ProviderUsageSnapshot]
+    {
         guard !byComposite.isEmpty else { return [:] }
 
         // Rule 1: group by providerID; drop nil-email when a REAL (non-mock)

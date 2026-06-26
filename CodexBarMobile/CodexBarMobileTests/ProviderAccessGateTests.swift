@@ -1,11 +1,9 @@
 import CodexBarSync
 import Foundation
 import XCTest
-
 @testable import CodexBarMobile
 
 final class ProviderAccessGateTests: XCTestCase {
-
     func testFreeRealDataWithNoGroupsShowsNone() {
         let result = ProviderAccessGate.resolve(
             groups: [],

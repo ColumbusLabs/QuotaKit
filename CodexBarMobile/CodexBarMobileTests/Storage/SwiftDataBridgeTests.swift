@@ -6,7 +6,6 @@ import Testing
 
 @Suite("SwiftDataBridge Tests")
 struct SwiftDataBridgeTests {
-
     // MARK: - Fixtures
 
     private func makeContainer() -> ModelContainer {
@@ -27,8 +26,8 @@ struct SwiftDataBridgeTests {
         name: String = "Claude",
         email: String? = "user@example.com",
         lastUpdated: Date,
-        utilization: [SyncUtilizationSeries]? = nil
-    ) -> ProviderUsageSnapshot {
+        utilization: [SyncUtilizationSeries]? = nil) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name,
@@ -47,8 +46,8 @@ struct SwiftDataBridgeTests {
         deviceID: String?,
         deviceName: String = "Mac",
         providers: [ProviderUsageSnapshot],
-        timestamp: Date
-    ) -> SyncedUsageSnapshot {
+        timestamp: Date) -> SyncedUsageSnapshot
+    {
         SyncedUsageSnapshot(
             providers: providers,
             syncTimestamp: timestamp,
@@ -60,7 +59,7 @@ struct SwiftDataBridgeTests {
     // MARK: - Tests
 
     @Test("Upserting the same snapshot twice does not duplicate rows")
-    func testUpsertIdempotency() throws {
+    func upsertIdempotency() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -79,7 +78,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Two devices with the same provider produce two distinct rows")
-    func testMultiDeviceInsert() throws {
+    func multiDeviceInsert() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -105,7 +104,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Utilization entries dedup on (seriesName, capturedAt)")
-    func testUtilizationEntryDedup() throws {
+    func utilizationEntryDedup() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -132,7 +131,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Updating a provider field is reflected on the existing row")
-    func testUpsertUpdatesInPlace() throws {
+    func upsertUpdatesInPlace() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -155,7 +154,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Snapshots without deviceID map to a deterministic fallback row")
-    func testLegacySnapshotFallbackDeviceID() throws {
+    func legacySnapshotFallbackDeviceID() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -175,7 +174,7 @@ struct SwiftDataBridgeTests {
     }
 
     @Test("Utilization entries aged out upstream are pruned locally")
-    func testUtilizationEntriesPruned() throws {
+    func utilizationEntriesPruned() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -207,6 +206,7 @@ struct SwiftDataBridgeTests {
     }
 
     // MARK: - Realistic-distribution fixtures (Build 83 · Agent C)
+
     //
     // Round 3 of the 5-round audit flagged SwiftDataBridge's Storage layer
     // as under-tested on production-shaped data. These 3 tests exercise

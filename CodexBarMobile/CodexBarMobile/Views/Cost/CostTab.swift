@@ -40,18 +40,18 @@ struct CostTab: View {
     /// The expensive aggregation. Callers go through `resolvedInsights()`.
     private func computeInsights() -> CostDashboardInsights? {
         guard let snapshot = self.displaySnapshot else { return nil }
-        let insights: CostDashboardInsights
-        // CWL path only outside demo mode (demo uses a synthetic snapshot with
-        // no ledger). `try?` falls back to the blob path on any ledger error.
-        if self.cwlEnabled,
-           !self.isDemoMode,
-           let aggregation = try? CostLedgerService.aggregate(
-               windowDays: self.cwlWindowDays, in: self.modelContext)
+        let insights
+            // CWL path only outside demo mode (demo uses a synthetic snapshot with
+            // no ledger). `try?` falls back to the blob path on any ledger error.
+            = if self.cwlEnabled,
+            !self.isDemoMode,
+            let aggregation = try? CostLedgerService.aggregate(
+                windowDays: self.cwlWindowDays, in: self.modelContext)
         {
-            insights = CostDashboardInsights.fromLedger(
+            CostDashboardInsights.fromLedger(
                 aggregation: aggregation, snapshot: snapshot)
         } else {
-            insights = CostDashboardInsights(snapshot: snapshot)
+            CostDashboardInsights(snapshot: snapshot)
         }
         return insights.hasDisplayData ? insights : nil
     }
@@ -132,7 +132,8 @@ struct CostTab: View {
                             ProFeatureLockedStateView(
                                 store: self.proEntitlementStore,
                                 feature: .fullCostDashboard,
-                                message: String(localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data."))
+                                message: String(
+                                    localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data."))
                         }
                     } else {
                         EmptyStateView(
@@ -172,7 +173,7 @@ struct CostTab: View {
                     }
                 }
             }
-            .sheet(isPresented: $showShareSheet) {
+            .sheet(isPresented: self.$showShareSheet) {
                 if let insights, self.isShareUnlocked {
                     CostShareSheet(insights: insights)
                 }

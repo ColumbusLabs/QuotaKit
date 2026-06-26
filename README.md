@@ -48,7 +48,7 @@ Common checks:
 xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=NO test
 ```
 
 Generate the iOS project after editing `CodexBarMobile/project.yml`:

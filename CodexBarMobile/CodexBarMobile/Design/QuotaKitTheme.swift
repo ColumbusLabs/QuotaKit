@@ -6,7 +6,9 @@ enum AppearanceMode: String, CaseIterable, Identifiable {
     case light
     case system
 
-    var id: String { self.rawValue }
+    var id: String {
+        self.rawValue
+    }
 
     var title: String {
         switch self {
@@ -104,15 +106,8 @@ struct QuotaKitTheme: Equatable {
     }
 }
 
-private struct QuotaKitThemeKey: EnvironmentKey {
-    static let defaultValue = QuotaKitTheme.dark
-}
-
 extension EnvironmentValues {
-    var quotaKitTheme: QuotaKitTheme {
-        get { self[QuotaKitThemeKey.self] }
-        set { self[QuotaKitThemeKey.self] = newValue }
-    }
+    @Entry var quotaKitTheme: QuotaKitTheme = .dark
 }
 
 struct QuotaKitThemeProvider: ViewModifier {

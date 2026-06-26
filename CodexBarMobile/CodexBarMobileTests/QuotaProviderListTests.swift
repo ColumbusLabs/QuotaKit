@@ -1,6 +1,5 @@
 import CodexBarSync
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the push-notification subscription provider list. iOS 1.5.0 added
@@ -18,7 +17,6 @@ import Testing
 /// update here.
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
-
     @Test("Total count is 48 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27 + 3 v0.28/v0.29)")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
@@ -87,9 +85,11 @@ struct QuotaProviderListTests {
     @Test("Cause: every provider ID is lowercase and contains no whitespace")
     func providerIDFormatInvariant() {
         for provider in QuotaProviderList.providers {
-            #expect(provider.id == provider.id.lowercased(),
+            #expect(
+                provider.id == provider.id.lowercased(),
                 "Provider ID '\(provider.id)' must be lowercase")
-            #expect(!provider.id.contains(" "),
+            #expect(
+                !provider.id.contains(" "),
                 "Provider ID '\(provider.id)' must not contain spaces")
             #expect(!provider.id.isEmpty, "Provider ID must not be empty")
         }

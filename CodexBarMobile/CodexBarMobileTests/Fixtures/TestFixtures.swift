@@ -38,13 +38,13 @@ enum TestFixtures {
         daysCount: Int = 30,
         peakHour: Int = 14,
         peakPercent: Double = 16,
-        deviceOffsetMinutes: Int = 0
-    ) -> SyncUtilizationSeries {
+        deviceOffsetMinutes: Int = 0) -> SyncUtilizationSeries
+    {
         var entries: [SyncUtilizationEntry] = []
         let anchorStartOfDay = Self.utcCalendar.startOfDay(for: anchor)
-        for dayOffset in 0 ..< daysCount {
+        for dayOffset in 0..<daysCount {
             let day = Self.utcCalendar.date(byAdding: .day, value: -dayOffset, to: anchorStartOfDay)!
-            for hour in 0 ..< 24 {
+            for hour in 0..<24 {
                 let captured = Self.utcCalendar.date(
                     byAdding: .minute, value: deviceOffsetMinutes,
                     to: Self.utcCalendar.date(byAdding: .hour, value: hour, to: day)!)!
@@ -63,10 +63,10 @@ enum TestFixtures {
     /// providers would hide them from Subscription Utilization.
     static func allZeroSessionSeries(
         anchor: Date,
-        daysCount: Int = 30
-    ) -> SyncUtilizationSeries {
+        daysCount: Int = 30) -> SyncUtilizationSeries
+    {
         let anchorStartOfDay = Self.utcCalendar.startOfDay(for: anchor)
-        let entries = (0 ..< daysCount * 24).map { i in
+        let entries = (0..<daysCount * 24).map { i in
             SyncUtilizationEntry(
                 capturedAt: anchorStartOfDay.addingTimeInterval(TimeInterval(i) * 3600),
                 usedPercent: 0,
@@ -104,8 +104,8 @@ enum TestFixtures {
         name: String? = nil,
         email: String? = "user@example.com",
         lastUpdated: Date,
-        utilizationHistory: [SyncUtilizationSeries]? = nil
-    ) -> ProviderUsageSnapshot {
+        utilizationHistory: [SyncUtilizationSeries]? = nil) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: id,
             providerName: name ?? id.capitalized,
@@ -123,10 +123,10 @@ enum TestFixtures {
     static func multiAccountProviders(
         id: String = "codex",
         emails: [String],
-        lastUpdated: Date
-    ) -> [ProviderUsageSnapshot] {
+        lastUpdated: Date) -> [ProviderUsageSnapshot]
+    {
         emails.map { email in
-            Self.provider(id: id, email: email, lastUpdated: lastUpdated)
+            self.provider(id: id, email: email, lastUpdated: lastUpdated)
         }
     }
 }

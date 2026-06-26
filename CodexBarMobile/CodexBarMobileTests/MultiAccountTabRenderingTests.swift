@@ -1,7 +1,6 @@
 import CodexBarSync
 import SwiftUI
 import XCTest
-
 @testable import CodexBarMobile
 
 /// Smoke + state tests for the Phase G `ProviderDetailView` account
@@ -19,7 +18,7 @@ import XCTest
 /// new `group: ProviderAccountGroup` parameter.
 @MainActor
 final class MultiAccountTabRenderingTests: XCTestCase {
-    nonisolated private static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.multi-account"
+    private nonisolated static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.multi-account"
 
     override func setUp() {
         super.setUp()
@@ -46,7 +45,7 @@ final class MultiAccountTabRenderingTests: XCTestCase {
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
     }
 
-    private func renderToImage<V: View>(_ view: V) -> UIImage? {
+    private func renderToImage(_ view: some View) -> UIImage? {
         let renderer = ImageRenderer(content: view
             .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
             .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
@@ -111,8 +110,16 @@ final class MultiAccountTabRenderingTests: XCTestCase {
             providerID: "antigravity",
             providerName: "Antigravity",
             accounts: [
-                self.snapshot(providerID: "antigravity", providerName: "Antigravity", accountEmail: nil, loginMethod: "OAuth"),
-                self.snapshot(providerID: "antigravity", providerName: "Antigravity", accountEmail: nil, loginMethod: "Team"),
+                self.snapshot(
+                    providerID: "antigravity",
+                    providerName: "Antigravity",
+                    accountEmail: nil,
+                    loginMethod: "OAuth"),
+                self.snapshot(
+                    providerID: "antigravity",
+                    providerName: "Antigravity",
+                    accountEmail: nil,
+                    loginMethod: "Team"),
             ])
         XCTAssertEqual(group.tabLabel(forIndex: 0), "OAuth")
         XCTAssertEqual(group.tabLabel(forIndex: 1), "Team")

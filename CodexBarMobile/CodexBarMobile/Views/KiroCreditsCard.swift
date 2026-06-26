@@ -14,7 +14,7 @@ struct KiroCreditsCard: View {
 
     private var creditsFraction: Double {
         guard let total = credits.creditsTotal, total > 0 else { return 0 }
-        return min(max(credits.creditsUsed / total, 0), 1)
+        return min(max(self.credits.creditsUsed / total, 0), 1)
     }
 
     private var bonusFraction: Double? {
@@ -26,12 +26,12 @@ struct KiroCreditsCard: View {
     }
 
     private var hasBonus: Bool {
-        credits.bonusTotal != nil && (credits.bonusTotal ?? 0) > 0
+        self.credits.bonusTotal != nil && (self.credits.bonusTotal ?? 0) > 0
     }
 
     private var hasOverage: Bool {
-        (credits.overageCreditsUsed ?? 0) > 0
-            || (credits.estimatedOverageCostUSD ?? 0) > 0
+        (self.credits.overageCreditsUsed ?? 0) > 0
+            || (self.credits.estimatedOverageCostUSD ?? 0) > 0
     }
 
     var body: some View {
@@ -67,8 +67,9 @@ struct KiroCreditsCard: View {
                 .foregroundStyle(.secondary)
             Spacer()
             if let usedCredits = credits.overageCreditsUsed, usedCredits > 0 {
-                Text(String(format: String(localized: "kiro_overage_credits_format", defaultValue: "+%@ credits"),
-                            Self.formatCredits(usedCredits)))
+                Text(String(
+                    format: String(localized: "kiro_overage_credits_format", defaultValue: "+%@ credits"),
+                    Self.formatCredits(usedCredits)))
                     .font(.caption.bold().monospacedDigit())
                     .foregroundStyle(.orange)
             }
@@ -102,7 +103,8 @@ struct KiroCreditsCard: View {
                         Capsule()
                             .fill(self.tintColor.opacity(0.16)))
                     .foregroundStyle(self.tintColor)
-                    .accessibilityLabel(Text(String(localized: "kiro_plan_label", defaultValue: "Plan")) + Text(": ") + Text(plan))
+                    .accessibilityLabel(Text(String(localized: "kiro_plan_label", defaultValue: "Plan")) + Text(": ") +
+                        Text(plan))
             }
             Spacer()
         }
@@ -127,7 +129,7 @@ struct KiroCreditsCard: View {
     }
 
     private var creditsLabelText: String {
-        let used = Self.formatCredits(credits.creditsUsed)
+        let used = Self.formatCredits(self.credits.creditsUsed)
         if let total = credits.creditsTotal, total > 0 {
             return "\(used) / \(Self.formatCredits(total))"
         }
@@ -162,7 +164,7 @@ struct KiroCreditsCard: View {
     }
 
     private var bonusLabelText: String {
-        let used = Self.formatCredits(credits.bonusUsed ?? 0)
+        let used = Self.formatCredits(self.credits.bonusUsed ?? 0)
         if let total = credits.bonusTotal, total > 0 {
             return "\(used) / \(Self.formatCredits(total))"
         }
@@ -176,7 +178,9 @@ struct KiroCreditsCard: View {
         if days == 1 {
             return String(localized: "kiro_bonus_expiring_one_day", defaultValue: "expires in 1 day")
         }
-        return String(format: String(localized: "kiro_bonus_expiring_days_format", defaultValue: "expires in %d days"), days)
+        return String(
+            format: String(localized: "kiro_bonus_expiring_days_format", defaultValue: "expires in %d days"),
+            days)
     }
 
     private static func formatCredits(_ value: Double) -> String {

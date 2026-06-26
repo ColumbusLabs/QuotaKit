@@ -30,7 +30,7 @@ xcodegen generate
 xcodebuild -project CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=NO test
 ```
 
 For Mac local development:

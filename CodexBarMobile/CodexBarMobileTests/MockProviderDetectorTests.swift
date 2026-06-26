@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the iOS-side mock detection contract introduced in iOS 1.5.2.
@@ -24,8 +23,8 @@ struct MockProviderDetectorTests {
 
     private func makeSnapshot(
         providerID: String,
-        accountEmail: String?
-    ) -> ProviderUsageSnapshot {
+        accountEmail: String?) -> ProviderUsageSnapshot
+    {
         ProviderUsageSnapshot(
             providerID: providerID,
             providerName: providerID,

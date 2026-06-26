@@ -2,7 +2,6 @@ import CloudKit
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the Research/019 §7 (L3 user-confirmed LinkageRecord) + §7.4
@@ -14,7 +13,6 @@ import Testing
 /// account.
 @Suite("LinkageRecord (§7 L3 user-confirmed merge)")
 struct LinkageRecordMergeTests {
-
     // MARK: - §8.11 linkageRecordOverride
 
     @Test("§8.11 — User-confirmed LinkageRecord unions disjoint groups")
@@ -23,18 +21,23 @@ struct LinkageRecordMergeTests {
         // shared identifier, L1+L2 produces 2 groups. A LinkageRecord
         // listing both anchor IDs unions them into 1.
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: nil,
-                              identifiers: ["codex:sub:abc123"]),
+            Self.makeProvider(
+                id: "codex",
+                email: nil,
+                identifiers: ["codex:sub:abc123"]),
         ])
 
         // Without linkage: 2 groups (pre-condition).
         let before = try #require(CloudSyncReader.mergeSnapshots([mA, mB]))
-        #expect(before.providers.count == 2,
-                "Pre-condition: disjoint identifiers → 2 cards.")
+        #expect(
+            before.providers.count == 2,
+            "Pre-condition: disjoint identifiers → 2 cards.")
 
         // With linkage: 1 group.
         let linkage = ProviderAccountLinkage(
@@ -44,8 +47,9 @@ struct LinkageRecordMergeTests {
             unmerge: false)
         let after = try #require(
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [linkage]))
-        #expect(after.providers.count == 1,
-                "LinkageRecord unions disjoint groups via shared providerID + listed identifiers.")
+        #expect(
+            after.providers.count == 1,
+            "LinkageRecord unions disjoint groups via shared providerID + listed identifiers.")
     }
 
     // MARK: - §7.4 Unmerge
@@ -53,8 +57,10 @@ struct LinkageRecordMergeTests {
     @Test("§7.4 — Inverse `unmerge=true` record nullifies the merge")
     func unmergeNullifiesMerge() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
             Self.makeProvider(id: "codex", email: nil, identifiers: nil),
@@ -76,15 +82,18 @@ struct LinkageRecordMergeTests {
         // Merge + unmerge → back to 2 groups.
         let after = try #require(
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [merge, unmerge]))
-        #expect(after.providers.count == 2,
-                "Inverse `unmerge=true` linkage with matching identifier set cancels the merge.")
+        #expect(
+            after.providers.count == 2,
+            "Inverse `unmerge=true` linkage with matching identifier set cancels the merge.")
     }
 
     @Test("§7.4 — Unmerge order doesn't matter (inverse applies after all merges)")
     func unmergeOrderIndependent() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
             Self.makeProvider(id: "codex", email: nil, identifiers: nil),
@@ -109,8 +118,9 @@ struct LinkageRecordMergeTests {
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [unmerge, merge]))
 
         #expect(forward.providers.count == backward.providers.count)
-        #expect(forward.providers.count == 2,
-                "Set-equality canonical key matches reversed identifier lists; unmerge cancels regardless of order.")
+        #expect(
+            forward.providers.count == 2,
+            "Set-equality canonical key matches reversed identifier lists; unmerge cancels regardless of order.")
     }
 
     // MARK: - Concurrency (§11.5 row M)
@@ -118,8 +128,10 @@ struct LinkageRecordMergeTests {
     @Test("Two concurrent merge LinkageRecords from different iPhones are idempotent")
     func concurrentMergesIdempotent() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
             Self.makeProvider(id: "codex", email: nil, identifiers: nil),
@@ -142,8 +154,9 @@ struct LinkageRecordMergeTests {
 
         let merged = try #require(
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [phone1, phone2]))
-        #expect(merged.providers.count == 1,
-                "Duplicate merge edges in union-find are no-ops — both records produce 1 group.")
+        #expect(
+            merged.providers.count == 1,
+            "Duplicate merge edges in union-find are no-ops — both records produce 1 group.")
     }
 
     // MARK: - No-op cases
@@ -151,32 +164,39 @@ struct LinkageRecordMergeTests {
     @Test("Linkage with non-matching providerID is no-op")
     func linkageWrongProviderID() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
             Self.makeProvider(id: "codex", email: nil, identifiers: nil),
         ])
 
         let linkage = ProviderAccountLinkage(
-            providerID: "claude",  // wrong provider
+            providerID: "claude", // wrong provider
             linkedIdentifiers: ["codex:email:u@x.com", "codex:legacy-no-identity"],
             confirmedFromDeviceID: "iPhone-A")
         let merged = try #require(
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [linkage]))
-        #expect(merged.providers.count == 2,
-                "Linkage for `claude` cannot touch codex snapshots.")
+        #expect(
+            merged.providers.count == 2,
+            "Linkage for `claude` cannot touch codex snapshots.")
     }
 
     @Test("Linkage with no overlapping identifier is no-op")
     func linkageNoOverlap() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
-            Self.makeProvider(id: "codex", email: "u@x.com",
-                              identifiers: ["codex:email:u@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "u@x.com",
+                identifiers: ["codex:email:u@x.com"]),
         ])
         let mB = Self.makeMac(deviceID: "B", providers: [
-            Self.makeProvider(id: "codex", email: "v@x.com",
-                              identifiers: ["codex:email:v@x.com"]),
+            Self.makeProvider(
+                id: "codex",
+                email: "v@x.com",
+                identifiers: ["codex:email:v@x.com"]),
         ])
 
         let linkage = ProviderAccountLinkage(
@@ -186,8 +206,9 @@ struct LinkageRecordMergeTests {
             confirmedFromDeviceID: "iPhone-A")
         let merged = try #require(
             CloudSyncReader.mergeSnapshots([mA, mB], linkages: [linkage]))
-        #expect(merged.providers.count == 2,
-                "Linkage that doesn't match any actual identifier is a no-op.")
+        #expect(
+            merged.providers.count == 2,
+            "Linkage that doesn't match any actual identifier is a no-op.")
     }
 
     // MARK: - Codable round-trip
@@ -222,8 +243,9 @@ struct LinkageRecordMergeTests {
         let data = try JSONSerialization.data(withJSONObject: payload)
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let decoded = try decoder.decode(ProviderAccountLinkage.self, from: data)
-        #expect(decoded.unmerge == false,
-                "Decoder treats missing unmerge field as merge (additive).")
+        #expect(
+            decoded.unmerge == false,
+            "Decoder treats missing unmerge field as merge (additive).")
     }
 
     // MARK: - Inverse helper
@@ -240,8 +262,9 @@ struct LinkageRecordMergeTests {
         #expect(inverse.providerID == original.providerID)
         #expect(inverse.linkedIdentifiers == original.linkedIdentifiers)
         #expect(inverse.confirmedFromDeviceID == "iPhone-B")
-        #expect(inverse.recordID != original.recordID,
-                "Inverse has its own UUID so both records survive in CloudKit.")
+        #expect(
+            inverse.recordID != original.recordID,
+            "Inverse has its own UUID so both records survive in CloudKit.")
     }
 
     // MARK: - CKRecord encoding (regression for build 115 ObjC-exception crash)
@@ -284,8 +307,9 @@ struct LinkageRecordMergeTests {
         record["unmerge"] = (original.unmerge ? 1 : 0) as CKRecordValue
 
         let decoded = try? #require(CloudSyncManager.decodeLinkage(from: record))
-        #expect(decoded?.recordID == original.recordID,
-                "Linkage UUID survived round-trip via the `linkage-{UUID}` recordName.")
+        #expect(
+            decoded?.recordID == original.recordID,
+            "Linkage UUID survived round-trip via the `linkage-{UUID}` recordName.")
         #expect(decoded?.providerID == original.providerID)
         #expect(decoded?.linkedIdentifiers == original.linkedIdentifiers)
         #expect(decoded?.confirmedFromDeviceID == original.confirmedFromDeviceID)
@@ -310,8 +334,9 @@ struct LinkageRecordMergeTests {
         record["unmerge"] = 0 as CKRecordValue
 
         let decoded = CloudSyncManager.decodeLinkage(from: record)
-        #expect(decoded == nil,
-                "Defensive: records that hit our query but don't follow the linkage-{UUID} naming aren't ours.")
+        #expect(
+            decoded == nil,
+            "Defensive: records that hit our query but don't follow the linkage-{UUID} naming aren't ours.")
     }
 
     // MARK: - Cold-start cache
@@ -348,7 +373,7 @@ struct LinkageRecordMergeTests {
     }
 
     @Test("Legacy linkage cache migrates to QuotaKit key")
-    func legacyLinkageCacheMigration() {
+    func legacyLinkageCacheMigration() throws {
         let newKey = "com.columbuslabs.quotakit.linkageCache.v1"
         let legacyKey = "com.codexbar.linkageCache.v1"
         let defaults = UserDefaults.standard
@@ -365,7 +390,7 @@ struct LinkageRecordMergeTests {
             confirmedAt: Date(timeIntervalSince1970: 1_700_000_100),
             confirmedFromDeviceID: "iPhone-Legacy",
             unmerge: false)
-        let data = try! CloudSyncConstants.makeJSONEncoder().encode([original])
+        let data = try CloudSyncConstants.makeJSONEncoder().encode([original])
         defaults.set(data, forKey: legacyKey)
 
         let loaded = SyncedUsageData.loadCachedLinkages()

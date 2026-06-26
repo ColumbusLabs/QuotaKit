@@ -29,8 +29,7 @@ struct ShareCardTheme {
         tertiary: Color(red: 0.78, green: 0.78, blue: 0.80),
         cardBackground: Color(red: 0.95, green: 0.95, blue: 0.97),
         divider: Color(red: 0.78, green: 0.78, blue: 0.78),
-        isDark: false
-    )
+        isDark: false)
 
     static let dark = ShareCardTheme(
         background: Color(red: 0.08, green: 0.08, blue: 0.10),
@@ -39,8 +38,7 @@ struct ShareCardTheme {
         tertiary: Color(red: 0.44, green: 0.44, blue: 0.46),
         cardBackground: Color.white.opacity(0.08),
         divider: Color.white.opacity(0.12),
-        isDark: true
-    )
+        isDark: true)
 
     static func from(_ colorScheme: ColorScheme) -> ShareCardTheme {
         colorScheme == .dark ? .dark : .light
@@ -56,22 +54,24 @@ struct CostShareCardView: View {
     var style: ShareCardStyleOption = .classic
 
     var body: some View {
-        switch style {
+        switch self.style {
         case .classic:
-            switch period {
-            case .today: TodayCard(data: data, theme: theme)
-            case .week: ChartCard(data: data, periodLabel: String(localized: "7 Days"), theme: theme)
-            case .month: ChartCard(data: data, periodLabel: String(localized: "30 Days"), theme: theme)
+            switch self.period {
+            case .today: TodayCard(data: self.data, theme: self.theme)
+            case .week: ChartCard(data: self.data, periodLabel: String(localized: "7 Days"), theme: self.theme)
+            case .month: ChartCard(data: self.data, periodLabel: String(localized: "30 Days"), theme: self.theme)
             }
         case .cyber:
-            CyberShareCardView(period: period, data: data, theme: theme.isDark ? .dark : .light)
+            CyberShareCardView(period: self.period, data: self.data, theme: self.theme.isDark ? .dark : .light)
         }
     }
 }
 
 // MARK: - Shared Components
 
-private func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
+private func formatUSD(_ value: Double) -> String {
+    CostFormatting.usd(value)
+}
 
 // Share cards use a visually-compact token glyph (no "tokens" suffix — the
 // suffix is implied by the card layout). Kept separate from
@@ -79,8 +79,8 @@ private func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
 private func formatTokens(_ count: Int) -> String {
     if count >= 1_000_000 {
         return String(format: "%.1fM", Double(count) / 1_000_000)
-    } else if count >= 1_000 {
-        return String(format: "%.0fK", Double(count) / 1_000)
+    } else if count >= 1000 {
+        return String(format: "%.0fK", Double(count) / 1000)
     }
     return "\(count)"
 }
@@ -94,24 +94,34 @@ private struct QRFooter: View {
 
     var body: some View {
         HStack(spacing: 14) {
-            Image(uiImage: QRCodeGenerator.generate(from: qrURL, size: 64))
-                .interpolation(.none)
-                .resizable()
-                .frame(width: 64, height: 64)
-                .if(theme.isDark) { $0.colorInvert() }
+            self.qrCode
                 .clipShape(RoundedRectangle(cornerRadius: 6))
             VStack(alignment: .leading, spacing: 3) {
                 Text("QuotaKit")
                     .font(.subheadline.bold())
-                    .foregroundStyle(theme.foreground)
+                    .foregroundStyle(self.theme.foreground)
                 Text(String(localized: "Track your AI coding costs"))
                     .font(.caption)
-                    .foregroundStyle(theme.secondary)
+                    .foregroundStyle(self.theme.secondary)
                 Text("github.com/ColumbusLabs/QuotaKit")
                     .font(.caption2)
-                    .foregroundStyle(theme.tertiary)
+                    .foregroundStyle(self.theme.tertiary)
             }
             Spacer()
+        }
+    }
+
+    @ViewBuilder
+    private var qrCode: some View {
+        let image = Image(uiImage: QRCodeGenerator.generate(from: qrURL, size: 64))
+            .interpolation(.none)
+            .resizable()
+            .frame(width: 64, height: 64)
+
+        if self.theme.isDark {
+            image.colorInvert()
+        } else {
+            image
         }
     }
 }
@@ -123,23 +133,12 @@ private struct MetricPill: View {
 
     var body: some View {
         VStack(spacing: 2) {
-            Text(title)
+            Text(self.title)
                 .font(.caption2)
-                .foregroundStyle(theme.secondary)
-            Text(value)
+                .foregroundStyle(self.theme.secondary)
+            Text(self.value)
                 .font(.subheadline.bold().monospacedDigit())
-                .foregroundStyle(theme.foreground)
-        }
-    }
-}
-
-private extension View {
-    @ViewBuilder
-    func `if`<Transform: View>(_ condition: Bool, transform: (Self) -> Transform) -> some View {
-        if condition {
-            transform(self)
-        } else {
-            self
+                .foregroundStyle(self.theme.foreground)
         }
     }
 }
@@ -154,19 +153,20 @@ private struct StackedBar: View {
     var body: some View {
         // Largest at bottom (stable baseline), smallest at top
         VStack(spacing: 0) {
-            ForEach(Array(providers.reversed().enumerated()), id: \.offset) { _, p in
+            ForEach(Array(self.providers.reversed().enumerated()), id: \.offset) { _, p in
                 Rectangle()
                     .fill(p.color)
-                    .frame(height: max(0, totalHeight * p.share))
+                    .frame(height: max(0, self.totalHeight * p.share))
             }
         }
-        .frame(height: totalHeight)
-        .clipShape(RoundedRectangle(cornerRadius: cornerRadius))
+        .frame(height: self.totalHeight)
+        .clipShape(RoundedRectangle(cornerRadius: self.cornerRadius))
     }
 }
 
 // ────────────────────────────────────────────────────────────────
 // MARK: - Today Card (Provider-focused, Style 7 based)
+
 // ────────────────────────────────────────────────────────────────
 
 private struct TodayCard: View {
@@ -176,19 +176,19 @@ private struct TodayCard: View {
     var body: some View {
         // Compute once per render; `displayProviders` is O(providers.count) but is invoked
         // in multiple ForEach blocks below — cache locally to avoid repeated recomputation.
-        let providers = data.displayProviders
+        let providers = self.data.displayProviders
         return VStack(spacing: 0) {
             // Header
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "AI Coding Spend"))
                         .font(.caption)
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(self.theme.secondary)
                         .textCase(.uppercase)
                         .tracking(1.2)
                     Text(String(localized: "Today"))
                         .font(.title3.bold())
-                        .foregroundStyle(theme.foreground)
+                        .foregroundStyle(self.theme.foreground)
                 }
                 Spacer()
                 Image(systemName: "chart.bar.fill")
@@ -198,16 +198,16 @@ private struct TodayCard: View {
             .padding(.bottom, 16)
 
             // Hero number
-            Text(formatUSD(data.todayCost))
+            Text(formatUSD(self.data.todayCost))
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(theme.foreground)
+                .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 2)
 
-            if data.totalTokens > 0 {
-                Text("\(formatTokens(data.totalTokens)) tokens")
+            if self.data.totalTokens > 0 {
+                Text("\(formatTokens(self.data.totalTokens)) tokens")
                     .font(.caption)
-                    .foregroundStyle(theme.secondary)
+                    .foregroundStyle(self.theme.secondary)
                     .frame(maxWidth: .infinity, alignment: .leading)
             }
             Spacer().frame(height: 18)
@@ -221,14 +221,14 @@ private struct TodayCard: View {
                             .frame(width: 8, height: 8)
                         Text(provider.name)
                             .font(.subheadline)
-                            .foregroundStyle(theme.foreground)
+                            .foregroundStyle(self.theme.foreground)
                         Spacer()
                         Text(formatUSD(provider.cost))
                             .font(.subheadline.monospacedDigit())
-                            .foregroundStyle(theme.secondary)
+                            .foregroundStyle(self.theme.secondary)
                         Text(formatPercent(provider.share))
                             .font(.caption.bold().monospacedDigit())
-                            .foregroundStyle(theme.foreground)
+                            .foregroundStyle(self.theme.foreground)
                             .frame(width: 36, alignment: .trailing)
                     }
                 }
@@ -249,43 +249,44 @@ private struct TodayCard: View {
             .padding(.bottom, 14)
 
             // Top models (compact)
-            if !data.topModels.isEmpty {
+            if !self.data.topModels.isEmpty {
                 VStack(alignment: .leading, spacing: 5) {
                     Text(String(localized: "Top Models"))
                         .font(.caption.bold())
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(self.theme.secondary)
                     // iOS 1.9.0+: top 5 (was 3) to match the rest of the cap rule.
-                    ForEach(Array(data.topModels.prefix(5).enumerated()), id: \.offset) { _, model in
+                    ForEach(Array(self.data.topModels.prefix(5).enumerated()), id: \.offset) { _, model in
                         HStack {
                             Text(model.label)
                                 .font(.caption)
-                                .foregroundStyle(theme.foreground)
+                                .foregroundStyle(self.theme.foreground)
                                 .lineLimit(1)
                             Spacer()
                             Text(formatPercent(model.share))
                                 .font(.caption.bold().monospacedDigit())
-                                .foregroundStyle(theme.secondary)
+                                .foregroundStyle(self.theme.secondary)
                         }
                     }
                 }
                 .padding(10)
-                .background(theme.cardBackground)
+                .background(self.theme.cardBackground)
                 .clipShape(RoundedRectangle(cornerRadius: 10))
             }
 
             Spacer()
 
-            theme.divider.frame(height: 0.5).padding(.vertical, 10)
-            QRFooter(theme: theme)
+            self.theme.divider.frame(height: 0.5).padding(.vertical, 10)
+            QRFooter(theme: self.theme)
         }
         .padding(24)
         .frame(width: cardWidth, height: cardHeight)
-        .background(theme.background)
+        .background(self.theme.background)
     }
 }
 
 // ────────────────────────────────────────────────────────────────
 // MARK: - Chart Card (7-day / 30-day, Style 6 based)
+
 // ────────────────────────────────────────────────────────────────
 
 private struct ChartCard: View {
@@ -294,27 +295,32 @@ private struct ChartCard: View {
     let theme: ShareCardTheme
 
     private var maxCost: Double {
-        data.dailyBars.map(\.cost).max() ?? 1
+        self.data.dailyBars.map(\.cost).max() ?? 1
     }
 
-    private var is30Day: Bool { data.dailyBars.count > 10 }
-    private var barHeight: CGFloat { is30Day ? 140 : 150 }
+    private var is30Day: Bool {
+        self.data.dailyBars.count > 10
+    }
+
+    private var barHeight: CGFloat {
+        self.is30Day ? 140 : 150
+    }
 
     var body: some View {
         // Compute once per render; referenced in 30+ StackedBar instantiations plus legend row.
-        let providers = data.displayProviders
+        let providers = self.data.displayProviders
         return VStack(spacing: 0) {
             // Header — matches Today card style
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 2) {
                     Text(String(localized: "AI Coding Spend"))
                         .font(.caption)
-                        .foregroundStyle(theme.secondary)
+                        .foregroundStyle(self.theme.secondary)
                         .textCase(.uppercase)
                         .tracking(1.2)
-                    Text(periodLabel)
+                    Text(self.periodLabel)
                         .font(.title3.bold())
-                        .foregroundStyle(theme.foreground)
+                        .foregroundStyle(self.theme.foreground)
                 }
                 Spacer()
                 Image(systemName: "chart.bar.fill")
@@ -324,31 +330,30 @@ private struct ChartCard: View {
             .padding(.bottom, 14)
 
             // Hero number
-            Text(formatUSD(data.totalCost))
+            Text(formatUSD(self.data.totalCost))
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
-                .foregroundStyle(theme.foreground)
+                .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 12)
 
             // Chart area — stacked bars by provider color
             VStack(spacing: 0) {
-                HStack(alignment: .bottom, spacing: is30Day ? 2 : 6) {
-                    ForEach(Array(data.dailyBars.enumerated()), id: \.offset) { _, day in
-                        let totalH = max(2, CGFloat(day.cost / maxCost) * barHeight)
+                HStack(alignment: .bottom, spacing: self.is30Day ? 2 : 6) {
+                    ForEach(Array(self.data.dailyBars.enumerated()), id: \.offset) { _, day in
+                        let totalH = max(2, CGFloat(day.cost / self.maxCost) * self.barHeight)
                         StackedBar(
                             providers: providers,
                             totalHeight: totalH,
-                            cornerRadius: is30Day ? 2 : 4
-                        )
-                        .frame(maxWidth: .infinity)
+                            cornerRadius: self.is30Day ? 2 : 4)
+                            .frame(maxWidth: .infinity)
                     }
                 }
-                .frame(height: barHeight)
-                .padding(.horizontal, is30Day ? 6 : 10)
+                .frame(height: self.barHeight)
+                .padding(.horizontal, self.is30Day ? 6 : 10)
                 .padding(.top, 10)
 
                 // X-axis labels — separate row below bars
-                if is30Day {
+                if self.is30Day {
                     HStack {
                         Text("1")
                         Spacer()
@@ -359,16 +364,16 @@ private struct ChartCard: View {
                         Text("30")
                     }
                     .font(.system(size: 8))
-                    .foregroundStyle(theme.tertiary)
+                    .foregroundStyle(self.theme.tertiary)
                     .padding(.horizontal, 6)
                     .padding(.top, 4)
                     .padding(.bottom, 6)
                 } else {
                     HStack(spacing: 6) {
-                        ForEach(Array(data.dailyBars.enumerated()), id: \.offset) { _, day in
+                        ForEach(Array(self.data.dailyBars.enumerated()), id: \.offset) { _, day in
                             Text(day.label)
                                 .font(.system(size: 9))
-                                .foregroundStyle(theme.secondary)
+                                .foregroundStyle(self.theme.secondary)
                                 .frame(maxWidth: .infinity)
                         }
                     }
@@ -377,7 +382,7 @@ private struct ChartCard: View {
                     .padding(.bottom, 8)
                 }
             }
-            .background(theme.cardBackground)
+            .background(self.theme.cardBackground)
             .clipShape(RoundedRectangle(cornerRadius: 12))
             .padding(.bottom, 12)
 
@@ -385,26 +390,23 @@ private struct ChartCard: View {
             HStack(spacing: 0) {
                 MetricPill(
                     title: String(localized: "Tokens"),
-                    value: formatTokens(data.totalTokens),
-                    theme: theme
-                )
-                .frame(maxWidth: .infinity)
-                theme.divider.frame(width: 0.5, height: 28)
-                if is30Day {
+                    value: formatTokens(self.data.totalTokens),
+                    theme: self.theme)
+                    .frame(maxWidth: .infinity)
+                self.theme.divider.frame(width: 0.5, height: 28)
+                if self.is30Day {
                     MetricPill(
                         title: String(localized: "Active Days"),
-                        value: "\(data.activeDays)",
-                        theme: theme
-                    )
-                    .frame(maxWidth: .infinity)
-                    theme.divider.frame(width: 0.5, height: 28)
+                        value: "\(self.data.activeDays)",
+                        theme: self.theme)
+                        .frame(maxWidth: .infinity)
+                    self.theme.divider.frame(width: 0.5, height: 28)
                 }
                 MetricPill(
                     title: String(localized: "Avg/Day"),
-                    value: formatUSD(data.avgDailyCost),
-                    theme: theme
-                )
-                .frame(maxWidth: .infinity)
+                    value: formatUSD(self.data.avgDailyCost),
+                    theme: self.theme)
+                    .frame(maxWidth: .infinity)
             }
             .padding(.bottom, 8)
 
@@ -415,11 +417,11 @@ private struct ChartCard: View {
                         Circle().fill(p.color).frame(width: 6, height: 6)
                         Text(p.name)
                             .font(.system(size: 10))
-                            .foregroundStyle(theme.foreground)
+                            .foregroundStyle(self.theme.foreground)
                             .lineLimit(1)
                         Text(formatPercent(p.share))
                             .font(.system(size: 10))
-                            .foregroundStyle(theme.secondary)
+                            .foregroundStyle(self.theme.secondary)
                     }
                 }
                 Spacer()
@@ -427,12 +429,12 @@ private struct ChartCard: View {
 
             Spacer()
 
-            theme.divider.frame(height: 0.5).padding(.vertical, 8)
-            QRFooter(theme: theme)
+            self.theme.divider.frame(height: 0.5).padding(.vertical, 8)
+            QRFooter(theme: self.theme)
         }
         .padding(24)
         .frame(width: cardWidth, height: cardHeight)
-        .background(theme.background)
+        .background(self.theme.background)
     }
 }
 

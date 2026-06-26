@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the rules in `MultiAccountLinkageDetector` that decide WHEN iOS
@@ -13,7 +12,6 @@ import Testing
 /// wrongly merging two real accounts.
 @Suite("Multi-account linkage detector")
 struct MultiAccountLinkageDetectorTests {
-
     @Test("One named + one legacy → 1 candidate")
     func unambiguousPairEmitsCandidate() {
         let named = Self.makeProvider(
@@ -40,11 +38,11 @@ struct MultiAccountLinkageDetectorTests {
         // a synthetic ambiguity. Pinning the rule for completeness.
         let legacy1 = Self.makeProvider(id: "codex", email: nil, identifiers: nil)
         let legacy2 = Self.makeProvider(
-            id: "codex", email: " ", identifiers: nil)  // empty-after-trim email
+            id: "codex", email: " ", identifiers: nil) // empty-after-trim email
         let candidates = MultiAccountLinkageDetector.candidates(
             among: [named, legacy1, legacy2])
         #expect(candidates.count == 2)
-        let legacyKeys = Set(candidates.map { $0.legacy.cardIdentityKey })
+        let legacyKeys = Set(candidates.map(\.legacy.cardIdentityKey))
         #expect(legacyKeys.contains(legacy1.cardIdentityKey))
         #expect(legacyKeys.contains(legacy2.cardIdentityKey))
     }
@@ -60,8 +58,9 @@ struct MultiAccountLinkageDetectorTests {
         let legacy = Self.makeProvider(id: "codex", email: nil, identifiers: nil)
         let candidates = MultiAccountLinkageDetector.candidates(
             among: [alice, bob, legacy])
-        #expect(candidates.isEmpty,
-                "Two real Codex accounts (alice + bob) + 1 nameless = iOS can't pick; skip auto-prompt.")
+        #expect(
+            candidates.isEmpty,
+            "Two real Codex accounts (alice + bob) + 1 nameless = iOS can't pick; skip auto-prompt.")
     }
 
     @Test("Zero named + many legacy → 0 candidates (no auto-merge offered)")
@@ -92,8 +91,9 @@ struct MultiAccountLinkageDetectorTests {
         let claudeLegacy = Self.makeProvider(id: "claude", email: nil, identifiers: nil)
         let candidates = MultiAccountLinkageDetector.candidates(
             among: [codexNamed, claudeLegacy])
-        #expect(candidates.isEmpty,
-                "Different providerID never pairs into a candidate.")
+        #expect(
+            candidates.isEmpty,
+            "Different providerID never pairs into a candidate.")
     }
 
     @Test("appVersionForProvider supplies legacyMacVersion for §9 inline hint")
@@ -107,8 +107,9 @@ struct MultiAccountLinkageDetectorTests {
             appVersionForProvider: { provider in
                 provider.cardIdentityKey == legacy.cardIdentityKey ? "0.23.6" : "0.25.1"
             })
-        #expect(candidates.first?.legacyMacVersion == "0.23.6",
-                "Detector forwards the legacy snapshot's Mac version for the inline hint.")
+        #expect(
+            candidates.first?.legacyMacVersion == "0.23.6",
+            "Detector forwards the legacy snapshot's Mac version for the inline hint.")
     }
 
     @Test("MultiAccountLinkageCandidate.linkedIdentifiers carries anchor IDs from both sides")
@@ -120,10 +121,12 @@ struct MultiAccountLinkageDetectorTests {
         let candidate = MultiAccountLinkageCandidate(
             named: named, legacy: legacy, legacyMacVersion: nil)
         let linked = candidate.linkedIdentifiers
-        #expect(linked.contains("codex:account:org-123"),
-                "Named-side anchor (first explicit identifier) included.")
-        #expect(linked.contains("codex:legacy-no-identity"),
-                "Legacy-side bucket key included so union-find can find both sides.")
+        #expect(
+            linked.contains("codex:account:org-123"),
+            "Named-side anchor (first explicit identifier) included.")
+        #expect(
+            linked.contains("codex:legacy-no-identity"),
+            "Legacy-side bucket key included so union-find can find both sides.")
     }
 
     @Test("Candidate emission order is deterministic (sorted by hashKey)")
@@ -139,8 +142,9 @@ struct MultiAccountLinkageDetectorTests {
         let runB = MultiAccountLinkageDetector.candidates(among: [l2, l1, named])
         let keysA = runA.map(\.hashKey)
         let keysB = runB.map(\.hashKey)
-        #expect(keysA == keysB,
-                "Different input orderings produce the same candidate list — UI doesn't flicker between renders.")
+        #expect(
+            keysA == keysB,
+            "Different input orderings produce the same candidate list — UI doesn't flicker between renders.")
     }
 
     // MARK: - Helpers

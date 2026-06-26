@@ -14,8 +14,7 @@ public protocol SyncPushing: Sendable {
     /// downloading the whole monolithic blob.
     @discardableResult
     func pushPerProviderRecords(
-        _ envelopes: [ProviderUsageEnvelope]
-    ) async -> SyncPushResult
+        _ envelopes: [ProviderUsageEnvelope]) async -> SyncPushResult
 
     /// Delete per-provider records by their composite recordName
     /// (`{deviceID}|{providerID}|{accountEmail-or-_}`). Called when a
@@ -26,8 +25,7 @@ public protocol SyncPushing: Sendable {
     /// display-time filter as L2; this is L1, the root-cause fix).
     @discardableResult
     func deletePerProviderRecords(
-        recordNames: [String]
-    ) async -> SyncPushResult
+        recordNames: [String]) async -> SyncPushResult
 
     /// Fetches the recordNames of every per-provider record currently in
     /// `DeviceProvidersZone` whose `deviceID` field matches the caller's
@@ -41,24 +39,23 @@ public protocol SyncPushing: Sendable {
     /// `pushHistorySeeded`'s first-cycle guard hides any pre-existing
     /// stranded record from the diff forever.
     func fetchPerProviderRecordNames(
-        forDeviceID deviceID: String
-    ) async -> [String]
+        forDeviceID deviceID: String) async -> [String]
 }
 
 extension SyncPushing {
     /// Default no-op so existing test doubles don't have to implement the new
     /// method. CloudSyncManager overrides with the real CloudKit write.
     public func pushPerProviderRecords(
-        _: [ProviderUsageEnvelope]
-    ) async -> SyncPushResult {
+        _: [ProviderUsageEnvelope]) async -> SyncPushResult
+    {
         .success
     }
 
     /// Default no-op for delete path — test doubles that don't track CKRecord
     /// state get a successful no-op.
     public func deletePerProviderRecords(
-        recordNames _: [String]
-    ) async -> SyncPushResult {
+        recordNames _: [String]) async -> SyncPushResult
+    {
         .success
     }
 
@@ -66,8 +63,8 @@ extension SyncPushing {
     /// state report no pre-existing records, which makes startup reconcile
     /// a no-op. Real CloudSyncManager overrides with the live query.
     public func fetchPerProviderRecordNames(
-        forDeviceID _: String
-    ) async -> [String] {
+        forDeviceID _: String) async -> [String]
+    {
         []
     }
 }
@@ -109,19 +106,19 @@ public enum CloudSyncError: Error, Sendable, CustomStringConvertible {
             "iCloud account not signed in"
         case .quotaExceeded:
             "iCloud storage quota exceeded"
-        case .productionSchemaMissingRecordType(let recordType):
+        case let .productionSchemaMissingRecordType(recordType):
             "CloudKit Production schema is missing record type \(recordType). " +
                 "Deploy CloudKit schema changes to Production for " +
                 "\(CloudSyncConstants.containerIdentifier), then try Sync Now again."
-        case .productionSchemaMissingQueryableIndex(let fieldName):
+        case let .productionSchemaMissingQueryableIndex(fieldName):
             "CloudKit Production index for \(fieldName) is not ready yet. " +
                 "Deploy the queryable index for " +
                 "\(CloudSyncConstants.containerIdentifier), then try Sync Now again."
-        case .serverError(let msg):
+        case let .serverError(msg):
             "Server error: \(msg)"
-        case .decodingFailed(let msg):
+        case let .decodingFailed(msg):
             "Data format error: \(msg)"
-        case .unknown(let msg):
+        case let .unknown(msg):
             msg
         }
     }

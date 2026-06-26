@@ -1,6 +1,5 @@
 import CodexBarSync
 import XCTest
-
 @testable import CodexBarMobile
 
 /// Pin the **visible text** the iOS cards render for C1 (Bedrock
@@ -20,10 +19,9 @@ import XCTest
 /// composite "Spend: $X - Budget: $Y" into `region`) shows up here as
 /// a textual mismatch on the asserted string.
 final class V026RenderedTextTests: XCTestCase {
-
     // MARK: - C1: Bedrock region must display the AWS region, NOT the composite cost string
 
-    func testBedrockRenderedRegionShowsCleanAWSRegion() {
+    func testBedrockRenderedRegionShowsCleanAWSRegion() throws {
         let cost = SyncBedrockCost(
             monthlySpendUSD: 19.10,
             monthlyBudgetUSD: 50.0,
@@ -37,14 +35,22 @@ final class V026RenderedTextTests: XCTestCase {
         // Locale-agnostic: assert the AWS region substring appears.
         // (The wrapping format "Region: %@" / "区域:%@" / "リージョン:%@"
         // varies by simulator locale; the data payload doesn't.)
-        XCTAssertTrue(line!.contains("us-east-1"), "Rendered line must show the AWS region — got: \(line!)")
+        XCTAssertTrue(
+            try XCTUnwrap(line?.contains("us-east-1")),
+            "Rendered line must show the AWS region — got: \(line!)")
         // C1 regression guard: the line must NOT contain the composite
         // cost-display tokens. If a future change wires `region` back
         // to the Bedrock `loginMethod` (which packs "Spend: $X -
         // Budget: $Y - Tokens: $Z"), these asserts flip.
-        XCTAssertFalse(line!.contains("Spend:"), "C1 regression: region must not contain the composite cost string")
-        XCTAssertFalse(line!.contains("Budget:"), "C1 regression: region must not contain the composite cost string")
-        XCTAssertFalse(line!.contains("Tokens:"), "C1 regression: region must not contain the composite cost string")
+        XCTAssertFalse(
+            try XCTUnwrap(line?.contains("Spend:")),
+            "C1 regression: region must not contain the composite cost string")
+        XCTAssertFalse(
+            try XCTUnwrap(line?.contains("Budget:")),
+            "C1 regression: region must not contain the composite cost string")
+        XCTAssertFalse(
+            try XCTUnwrap(line?.contains("Tokens:")),
+            "C1 regression: region must not contain the composite cost string")
     }
 
     func testBedrockRenderedRegionLineOmittedWhenRegionMissing() {
@@ -56,7 +62,9 @@ final class V026RenderedTextTests: XCTestCase {
             region: nil,
             budgetUsedPercent: nil,
             updatedAt: Date())
-        XCTAssertNil(BedrockCostCard.regionLineText(for: cost), "Region line must be omitted entirely when region is nil")
+        XCTAssertNil(
+            BedrockCostCard.regionLineText(for: cost),
+            "Region line must be omitted entirely when region is nil")
     }
 
     func testBedrockRenderedRegionLineOmittedWhenRegionEmpty() {
@@ -68,7 +76,9 @@ final class V026RenderedTextTests: XCTestCase {
             region: "",
             budgetUsedPercent: nil,
             updatedAt: Date())
-        XCTAssertNil(BedrockCostCard.regionLineText(for: cost), "Empty-string region must be treated as missing (skip the line)")
+        XCTAssertNil(
+            BedrockCostCard.regionLineText(for: cost),
+            "Empty-string region must be treated as missing (skip the line)")
     }
 
     func testBedrockRenderedSpendRowShowsSpendAndBudget() {
@@ -116,7 +126,7 @@ final class V026RenderedTextTests: XCTestCase {
         XCTAssertEqual(MoonshotBalanceCard.formattedAmount(1234.567), "1,234.57")
     }
 
-    func testMoonshotRenderedRegionShowsCleanRegion() {
+    func testMoonshotRenderedRegionShowsCleanRegion() throws {
         let balance = SyncMoonshotBalance(
             balanceAmount: 58.40,
             balanceCurrency: "USD",
@@ -125,10 +135,10 @@ final class V026RenderedTextTests: XCTestCase {
         let line = MoonshotBalanceCard.regionLineText(for: balance)
         XCTAssertNotNil(line)
         // Locale-agnostic: assert the region substring appears.
-        XCTAssertTrue(line!.contains("cn-default"), "Rendered line must show the region — got: \(line!)")
+        XCTAssertTrue(try XCTUnwrap(line?.contains("cn-default")), "Rendered line must show the region — got: \(line!)")
         // Same C1-style guard — make sure no upstream "Balance: $..."
         // string ends up here by accident.
-        XCTAssertFalse(line!.contains("Balance:"))
+        XCTAssertFalse(try XCTUnwrap(line?.contains("Balance:")))
     }
 
     func testMoonshotRenderedRegionLineOmittedWhenMissing() {

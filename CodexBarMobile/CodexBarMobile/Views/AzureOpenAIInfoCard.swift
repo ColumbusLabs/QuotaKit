@@ -32,7 +32,6 @@ struct AzureOpenAIInfoCard: View {
         .qkCardBackground(cornerRadius: 14)
     }
 
-    @ViewBuilder
     private func infoRow(label: String, value: String) -> some View {
         HStack(alignment: .firstTextBaseline) {
             Text(label)

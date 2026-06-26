@@ -69,10 +69,12 @@ struct AboutSyncDetailView: View {
             } header: {
                 Text("Remote Config")
             } footer: {
-                Text("Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
+                Text(
+                    "Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
             }
 
             // MARK: Mac Update Prompt
+
             if self.usageData.usingKVSFallback {
                 Section {
                     HStack(spacing: 12) {
@@ -82,7 +84,8 @@ struct AboutSyncDetailView: View {
                         VStack(alignment: .leading, spacing: 4) {
                             Text("Update QuotaKit on your Mac")
                                 .font(.subheadline.weight(.semibold))
-                            Text("Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.")
+                            Text(
+                                "Your Mac is using legacy sync. Open the setup link on your Mac to install the current QuotaKit build and enable CloudKit multi-device sync.")
                                 .font(.caption)
                                 .foregroundStyle(.secondary)
                         }
@@ -92,6 +95,7 @@ struct AboutSyncDetailView: View {
             }
 
             // MARK: Sync Status
+
             Section {
                 TimelineView(.periodic(
                     from: .now,
@@ -132,6 +136,7 @@ struct AboutSyncDetailView: View {
             }
 
             // MARK: Devices
+
             Section {
                 if self.usageData.deviceSnapshots.isEmpty {
                     Text("No devices synced yet")
@@ -288,7 +293,7 @@ struct AboutSyncDetailView: View {
 
     private var syncStatusTimelineReferenceDate: Date? {
         switch self.usageData.syncStatus {
-        case .synced(let lastConfirmedSync):
+        case let .synced(lastConfirmedSync):
             lastConfirmedSync
         case .syncing, .error:
             self.usageData.snapshot?.syncTimestamp
@@ -299,18 +304,18 @@ struct AboutSyncDetailView: View {
 
     private func syncStatusDetail(now: Date) -> String? {
         switch self.usageData.syncStatus {
-        case .synced(let lastConfirmedSync):
-            return SyncFreshnessFormatter.lastSyncedText(
+        case let .synced(lastConfirmedSync):
+            SyncFreshnessFormatter.lastSyncedText(
                 since: lastConfirmedSync,
                 now: now)
         case .syncing:
-            return SyncFreshnessFormatter.refreshingText(
+            SyncFreshnessFormatter.refreshingText(
                 lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
                 now: now)
-        case .noData: return String(localized: "Waiting for Mac to push data")
-        case .incompatibleData: return String(localized: "Please update QuotaKit on Mac")
+        case .noData: String(localized: "Waiting for Mac to push data")
+        case .incompatibleData: String(localized: "Please update QuotaKit on Mac")
         case .error:
-            return SyncFreshnessFormatter.refreshFailedText(
+            SyncFreshnessFormatter.refreshFailedText(
                 lastConfirmedSync: self.usageData.snapshot?.syncTimestamp,
                 now: now)
         }

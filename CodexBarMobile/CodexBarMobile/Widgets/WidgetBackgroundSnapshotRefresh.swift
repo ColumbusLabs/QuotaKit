@@ -12,8 +12,8 @@ enum WidgetBackgroundSnapshotRefresh {
         reader: CloudSyncReader = CloudSyncReader(),
         kvsFallback: SyncedUsageSnapshot? = nil,
         publishSnapshot: (SyncedUsageSnapshot) -> Void = { WidgetSnapshotPublisher.publish(from: $0) },
-        clearSnapshot: () -> Void = { WidgetSnapshotPublisher.clear() }
-    ) async -> WidgetBackgroundSnapshotRefreshResult {
+        clearSnapshot: () -> Void = { WidgetSnapshotPublisher.clear() }) async -> WidgetBackgroundSnapshotRefreshResult
+    {
         async let perProviderResult = reader.fetchPerProviderDeviceSnapshots()
         async let legacyResult = reader.fetchLegacyDeviceSnapshots()
         async let linkagesResult = reader.fetchProviderAccountLinkages()
@@ -33,8 +33,8 @@ enum WidgetBackgroundSnapshotRefresh {
         linkages: [ProviderAccountLinkage] = [],
         kvsFallback: SyncedUsageSnapshot? = nil,
         publishSnapshot: (SyncedUsageSnapshot) -> Void = { WidgetSnapshotPublisher.publish(from: $0) },
-        clearSnapshot: () -> Void = { WidgetSnapshotPublisher.clear() }
-    ) -> WidgetBackgroundSnapshotRefreshResult {
+        clearSnapshot: () -> Void = { WidgetSnapshotPublisher.clear() }) -> WidgetBackgroundSnapshotRefreshResult
+    {
         let perProviderSnapshots = Self.snapshots(from: perProvider)
         let legacySnapshots = Self.snapshots(from: legacy)
         let firstError = Self.error(from: perProvider) ?? Self.error(from: legacy)
@@ -60,7 +60,7 @@ enum WidgetBackgroundSnapshotRefresh {
 
     private static func snapshots(from result: MultiDeviceSyncResult) -> [SyncedUsageSnapshot] {
         switch result {
-        case .success(let snapshots):
+        case let .success(snapshots):
             snapshots
         case .empty, .error:
             []
@@ -69,7 +69,7 @@ enum WidgetBackgroundSnapshotRefresh {
 
     private static func error(from result: MultiDeviceSyncResult) -> CloudSyncError? {
         switch result {
-        case .error(let error):
+        case let .error(error):
             error
         case .success, .empty:
             nil

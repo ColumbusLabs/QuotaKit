@@ -6,8 +6,8 @@ struct BudgetProgressView: View {
     var tintColor: Color = .blue
 
     private var progress: Double {
-        guard budget.limitAmount > 0 else { return 0 }
-        return min(budget.usedAmount / budget.limitAmount, 1.0)
+        guard self.budget.limitAmount > 0 else { return 0 }
+        return min(self.budget.usedAmount / self.budget.limitAmount, 1.0)
     }
 
     private var progressColor: Color {

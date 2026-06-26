@@ -60,7 +60,8 @@ struct UsageSettingsView: View {
     @AppStorage(MobileSettingsKeys.usageCostChartStyle) private var usageCostChartStyleRawValue = CostChartStyle.bars
         .rawValue
     @AppStorage(MobileSettingsKeys.showRemainingUsage) private var showRemainingUsage =
-        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode.remaining.rawValue
+        UserDefaults.standard.string(forKey: MobileSettingsKeys.usagePercentDisplayMode) == UsagePercentDisplayMode
+            .remaining.rawValue
     @AppStorage(MobileSettingsKeys.hidePersonalInfo) private var hidePersonalInfo = false
     @AppStorage(MobileSettingsKeys.hideQuotaWarningMarkers) private var hideQuotaWarningMarkers = false
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
@@ -69,7 +70,8 @@ struct UsageSettingsView: View {
 
     init(
         initialWidgetDisplayMode: QuotaKitWidgetDisplayMode = QuotaKitWidgetDisplayModeStore.load(),
-        saveWidgetDisplayMode: @escaping (QuotaKitWidgetDisplayMode) -> Void = { UsageSettingsView.saveWidgetDisplayMode($0) })
+        saveWidgetDisplayMode: @escaping (QuotaKitWidgetDisplayMode)
+            -> Void = { UsageSettingsView.saveWidgetDisplayMode($0) })
     {
         _widgetDisplayMode = State(initialValue: initialWidgetDisplayMode)
         self.saveWidgetDisplayModeAction = saveWidgetDisplayMode
@@ -230,7 +232,8 @@ struct CostSettingsView: View {
                             ProFeatureLockedCard(
                                 store: self.proEntitlementStore,
                                 feature: .usageHistory,
-                                message: String(localized: "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."))
+                                message: String(
+                                    localized: "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."))
                         }
                     }
                     .padding(16)
@@ -268,7 +271,8 @@ struct CostSettingsView: View {
                         }
                         Button("Cancel", role: .cancel) {}
                     } message: {
-                        Text("Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
+                        Text(
+                            "Deletes the on-device cost ledger only. Synced data is unaffected; history rebuilds as the Mac keeps syncing.")
                     }
                 }
 

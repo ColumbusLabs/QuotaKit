@@ -26,8 +26,8 @@ extension View {
     func qkCardBackground(
         elevation: QKElevation = .surface,
         cornerRadius: CGFloat = 14,
-        dashed: Bool = false
-    ) -> some View {
+        dashed: Bool = false) -> some View
+    {
         self.modifier(QKCardBackgroundModifier(
             elevation: elevation,
             cornerRadius: cornerRadius,

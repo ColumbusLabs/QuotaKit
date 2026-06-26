@@ -1,6 +1,5 @@
 import CloudKit
 import Testing
-
 @testable import CodexBarMobile
 
 /// Pins the `CKSubscription.NotificationInfo` payload used by every quota

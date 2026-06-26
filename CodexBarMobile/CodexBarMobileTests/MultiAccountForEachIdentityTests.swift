@@ -2,7 +2,6 @@ import CodexBarSync
 import Foundation
 import SwiftUI
 import Testing
-
 @testable import CodexBarMobile
 
 /// Regression tests for the iOS 1.5.3 multi-account `ForEach` id collision.
@@ -22,7 +21,6 @@ import Testing
 /// corrupting the Cost dashboard.
 @Suite("Multi-account ForEach identity (1.5.3 collision fix)")
 struct MultiAccountForEachIdentityTests {
-
     // MARK: - Test fixtures
 
     private static func makeCodexSnapshot(accountEmail: String?, thirtyDayCost: Double) -> ProviderUsageSnapshot {
@@ -57,7 +55,7 @@ struct MultiAccountForEachIdentityTests {
         let calendar = Calendar.current
         let today = calendar.startOfDay(for: Date())
         var entries: [SyncUtilizationEntry] = []
-        for dayOffset in 0 ..< 5 {
+        for dayOffset in 0..<5 {
             let day = calendar.date(byAdding: .day, value: -dayOffset, to: today)!
             entries.append(SyncUtilizationEntry(
                 capturedAt: day,
@@ -94,7 +92,8 @@ struct MultiAccountForEachIdentityTests {
         #expect(insights.providerRows.count == 2)
 
         let ids = Set(insights.providerRows.map(\.id))
-        #expect(ids.count == 2,
+        #expect(
+            ids.count == 2,
             "ProviderRow.id must be unique across multi-account same-provider rows; got duplicates: \(insights.providerRows.map(\.id))")
         #expect(ids.contains("codex|user@example.com"))
         #expect(ids.contains("codex|"))
@@ -120,7 +119,8 @@ struct MultiAccountForEachIdentityTests {
             amountUSD: 100,
             subtitle: nil,
             color: .blue)
-        #expect(row.id == "claude-opus-4-7",
+        #expect(
+            row.id == "claude-opus-4-7",
             "Existing Model Mix / Service Mix call sites still key on label")
     }
 
@@ -132,7 +132,8 @@ struct MultiAccountForEachIdentityTests {
             subtitle: nil,
             color: .purple,
             identityOverride: "codex|user@example.com")
-        #expect(row.id == "codex|user@example.com",
+        #expect(
+            row.id == "codex|user@example.com",
             "Provider Share call site must supply cardIdentityKey to avoid multi-account collision")
     }
 
@@ -145,23 +146,25 @@ struct MultiAccountForEachIdentityTests {
             label: "Codex", amountUSD: 1592.89, subtitle: nil, color: .purple,
             identityOverride: "codex|")
 
-        #expect(withEmail.id != noEmail.id,
+        #expect(
+            withEmail.id != noEmail.id,
             "Identity override must keep multi-account Codex rows distinguishable in ForEach")
     }
 
     // MARK: - CostBudgetRow
 
     @Test("CostBudgetRow.id uses cardIdentityKey, not raw providerID")
-    func budgetRowMultiAccountDistinctIDs() {
+    func budgetRowMultiAccountDistinctIDs() throws {
         let withEmail = Self.makeCodexSnapshot(accountEmail: "user@example.com", thirtyDayCost: 18.40)
         let noEmail = Self.makeCodexSnapshot(accountEmail: nil, thirtyDayCost: 1592.89)
 
-        let budget1 = CostBudgetRow(provider: withEmail, budget: withEmail.budget!)
-        let budget2 = CostBudgetRow(provider: noEmail, budget: noEmail.budget!)
+        let budget1 = try CostBudgetRow(provider: withEmail, budget: #require(withEmail.budget))
+        let budget2 = try CostBudgetRow(provider: noEmail, budget: #require(noEmail.budget))
 
         #expect(budget1.id == "codex|user@example.com")
         #expect(budget2.id == "codex|")
-        #expect(budget1.id != budget2.id,
+        #expect(
+            budget1.id != budget2.id,
             "Two Codex budgets from different accounts must not collide on a single ForEach slot")
     }
 
@@ -177,10 +180,12 @@ struct MultiAccountForEachIdentityTests {
         let model = try #require(UtilizationAggregateModelBuilder.buildModel(
             from: [withEmail, noEmail], windowSize: 30))
 
-        #expect(model.providerShares.count == 2,
+        #expect(
+            model.providerShares.count == 2,
             "Both Codex accounts must surface as separate share entries")
         let ids = Set(model.providerShares.map(\.id))
-        #expect(ids.count == 2,
+        #expect(
+            ids.count == 2,
             "ProviderShare.id must be unique across multi-account rows; got \(model.providerShares.map(\.id))")
         #expect(ids.contains("codex|user@example.com"))
         #expect(ids.contains("codex|"))
@@ -200,7 +205,8 @@ struct MultiAccountForEachIdentityTests {
         // `providerID` field now carries cardIdentityKey for uniqueness.
         for bar in model.dayBars where !bar.isPadding && !bar.segments.isEmpty {
             let segmentIDs = bar.segments.map(\.providerID)
-            #expect(Set(segmentIDs).count == segmentIDs.count,
+            #expect(
+                Set(segmentIDs).count == segmentIDs.count,
                 "Day \(bar.dayLabel ?? "?") has duplicate segment ids: \(segmentIDs)")
             // Both Codex accounts must have contributed to this day's stack.
             #expect(segmentIDs.contains("codex|user@example.com"))

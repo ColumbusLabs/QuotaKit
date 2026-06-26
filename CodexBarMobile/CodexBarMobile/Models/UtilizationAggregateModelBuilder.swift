@@ -30,8 +30,8 @@ struct UtilizationProviderShare: Identifiable {
     let providerID: String
     let name: String
     let color: Color
-    let rawAvgPercent: Double  // 30-day raw average usage %
-    let sharePercent: Double   // proportional share, sums to 100% across providers
+    let rawAvgPercent: Double // 30-day raw average usage %
+    let sharePercent: Double // proportional share, sums to 100% across providers
 }
 
 struct UtilizationAggregateModel {
@@ -103,7 +103,10 @@ enum UtilizationAggregateModelBuilder {
     /// their entries BEFORE collapsing to daily peaks — one Mac's stale/empty
     /// "session" can no longer mask the other's real data, because the daily
     /// max picks the highest observed value regardless of which device captured it.
-    nonisolated static func buildModel(from providers: [ProviderUsageSnapshot], windowSize: Int) -> UtilizationAggregateModel? {
+    nonisolated static func buildModel(
+        from providers: [ProviderUsageSnapshot],
+        windowSize: Int) -> UtilizationAggregateModel?
+    {
         let calendar = Calendar.current
 
         // Collect providers that have any session-window utilization history.
@@ -116,7 +119,12 @@ enum UtilizationAggregateModelBuilder {
         // accounts after Mac ≥ 0.25 starts extracting accountEmail) would
         // otherwise collide on `id` here and propagate the collision into the
         // chart segment ForEach and the UtilizationProviderShare list. 1.5.3 fix.
-        let providerData = providers.compactMap { provider -> (id: String, providerID: String, name: String, color: Color, dayMaxes: [Date: Double])? in
+        let providerData = providers.compactMap { provider -> (
+            id: String,
+            providerID: String,
+            name: String,
+            color: Color,
+            dayMaxes: [Date: Double])? in
             guard let history = provider.utilizationHistory else { return nil }
             let sessionSeries = history.filter { $0.name == "session" }
             let chosen = sessionSeries.isEmpty ? Array(history.prefix(1)) : sessionSeries
@@ -130,9 +138,12 @@ enum UtilizationAggregateModelBuilder {
                 dayMaxes[day] = max(dayMaxes[day] ?? 0, entry.usedPercent)
             }
             guard !dayMaxes.isEmpty else { return nil }
-            return (id: provider.cardIdentityKey, providerID: provider.providerID, name: provider.providerName,
-                    color: Self.providerColor(for: provider.providerID),
-                    dayMaxes: dayMaxes)
+            return (
+                id: provider.cardIdentityKey,
+                providerID: provider.providerID,
+                name: provider.providerName,
+                color: Self.providerColor(for: provider.providerID),
+                dayMaxes: dayMaxes)
         }
 
         guard !providerData.isEmpty else { return nil }
@@ -195,7 +206,7 @@ enum UtilizationAggregateModelBuilder {
         // === Daily Bars (height = daily peak per provider) ===
 
         // Collect all unique days across providers, keep only the last `windowSize` days
-        let allDaysSorted = Set(providerData.flatMap { $0.dayMaxes.keys }).sorted()
+        let allDaysSorted = Set(providerData.flatMap(\.dayMaxes.keys)).sorted()
         let recentDays = allDaysSorted.filter { $0 >= last30Start }
         guard !recentDays.isEmpty else { return nil }
 
@@ -228,7 +239,7 @@ enum UtilizationAggregateModelBuilder {
                 }
             }
             realBars.append(UtilizationDayBar(
-                id: 0,  // re-assigned below
+                id: 0, // re-assigned below
                 dayLabel: dayLabelFormatter.string(from: day),
                 segments: segments,
                 isPadding: false))
@@ -238,7 +249,7 @@ enum UtilizationAggregateModelBuilder {
         var dayBars: [UtilizationDayBar]
         if realBars.count < windowSize {
             let pad = windowSize - realBars.count
-            var padded: [UtilizationDayBar] = (0 ..< pad).map {
+            var padded: [UtilizationDayBar] = (0..<pad).map {
                 UtilizationDayBar(id: $0, dayLabel: nil, segments: [], isPadding: true)
             }
             for (off, bar) in realBars.enumerated() {
@@ -257,12 +268,13 @@ enum UtilizationAggregateModelBuilder {
 
         // === Provider Share (30-day avg of daily peaks) ===
 
-        let providerThirtyDayRaw: [(id: String, providerID: String, name: String, color: Color, avg: Double)] = providerData.compactMap { pd in
-            let recent = pd.dayMaxes.filter { $0.key >= last30Start }.values
-            guard !recent.isEmpty else { return nil }
-            let avg = recent.reduce(0, +) / Double(recent.count)
-            return (id: pd.id, providerID: pd.providerID, name: pd.name, color: pd.color, avg: avg)
-        }
+        let providerThirtyDayRaw: [(id: String, providerID: String, name: String, color: Color, avg: Double)] =
+            providerData.compactMap { pd in
+                let recent = pd.dayMaxes.filter { $0.key >= last30Start }.values
+                guard !recent.isEmpty else { return nil }
+                let avg = recent.reduce(0, +) / Double(recent.count)
+                return (id: pd.id, providerID: pd.providerID, name: pd.name, color: pd.color, avg: avg)
+            }
 
         let totalRaw = providerThirtyDayRaw.reduce(0) { $0 + $1.avg }
         let providerShares: [UtilizationProviderShare] = providerThirtyDayRaw
@@ -292,8 +304,7 @@ enum UtilizationAggregateModelBuilder {
 
     // MARK: - Colors
 
-    nonisolated private static func providerColor(for id: String) -> Color {
+    private nonisolated static func providerColor(for id: String) -> Color {
         ProviderColorPalette.color(for: id)
     }
-
 }

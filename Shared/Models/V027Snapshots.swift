@@ -326,7 +326,9 @@ public struct SyncClaudeAdminModelBreakdown: Codable, Sendable, Equatable, Ident
     public let name: String
     public let totalTokens: Int
 
-    public var id: String { self.name }
+    public var id: String {
+        self.name
+    }
 
     public init(name: String, totalTokens: Int) {
         self.name = name
@@ -338,7 +340,9 @@ public struct SyncClaudeAdminCostItem: Codable, Sendable, Equatable, Identifiabl
     public let name: String
     public let costUSD: Double
 
-    public var id: String { self.name }
+    public var id: String {
+        self.name
+    }
 
     public init(name: String, costUSD: Double) {
         self.name = name
@@ -466,7 +470,9 @@ public struct SyncMiniMaxBillingDay: Codable, Sendable, Equatable, Identifiable 
     public let tokens: Int
     public let cashUSD: Double?
 
-    public var id: String { self.day }
+    public var id: String {
+        self.day
+    }
 
     public init(day: String, tokens: Int, cashUSD: Double?) {
         self.day = day
@@ -481,7 +487,9 @@ public struct SyncMiniMaxBillingBreakdown: Codable, Sendable, Equatable, Identif
     public let tokens: Int
     public let cashUSD: Double?
 
-    public var id: String { self.name }
+    public var id: String {
+        self.name
+    }
 
     public init(name: String, tokens: Int, cashUSD: Double?) {
         self.name = name

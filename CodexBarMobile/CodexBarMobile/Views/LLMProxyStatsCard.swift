@@ -50,7 +50,7 @@ struct LLMProxyStatsCard: View {
                 }
             }
 
-            if !stats.topProviders.isEmpty {
+            if !self.stats.topProviders.isEmpty {
                 Divider()
                 self.topProvidersList
             }
@@ -62,32 +62,35 @@ struct LLMProxyStatsCard: View {
     }
 
     private var credentialSummary: String {
-        let total = stats.credentialCount
-        let active = stats.activeCredentialCount
-        let exhausted = stats.exhaustedCredentialCount
+        let total = self.stats.credentialCount
+        let active = self.stats.activeCredentialCount
+        let exhausted = self.stats.exhaustedCredentialCount
         if exhausted > 0 {
             return String(
-                format: String(localized: "llmproxy_credentials_with_exhausted_format",
-                               defaultValue: "%d / %d keys active · %d exhausted"),
+                format: String(
+                    localized: "llmproxy_credentials_with_exhausted_format",
+                    defaultValue: "%d / %d keys active · %d exhausted"),
                 active, total, exhausted)
         }
         return String(
-            format: String(localized: "llmproxy_credentials_active_format",
-                           defaultValue: "%d / %d keys active"),
+            format: String(
+                localized: "llmproxy_credentials_active_format",
+                defaultValue: "%d / %d keys active"),
             active, total)
     }
 
     private var requestTokenSummary: String {
-        "\(Self.formatInt(stats.totalRequests)) req · \(Self.formatInt(stats.totalTokens)) tok"
+        "\(Self.formatInt(self.stats.totalRequests)) req · \(Self.formatInt(self.stats.totalTokens)) tok"
     }
 
     private var topProvidersList: some View {
         VStack(alignment: .leading, spacing: 6) {
-            Text(String(localized: "llmproxy_top_providers_label",
-                        defaultValue: "Top providers (by requests)"))
+            Text(String(
+                localized: "llmproxy_top_providers_label",
+                defaultValue: "Top providers (by requests)"))
                 .font(.caption)
                 .foregroundStyle(.secondary)
-            ForEach(stats.topProviders, id: \.name) { p in
+            ForEach(self.stats.topProviders, id: \.name) { p in
                 HStack {
                     Text(p.name)
                         .font(.caption.bold())
@@ -119,8 +122,8 @@ struct LLMProxyStatsCard: View {
         if value >= 1_000_000 {
             return String(format: "%.1fM", Double(value) / 1_000_000)
         }
-        if value >= 1_000 {
-            return String(format: "%.1fk", Double(value) / 1_000)
+        if value >= 1000 {
+            return String(format: "%.1fk", Double(value) / 1000)
         }
         return "\(value)"
     }
@@ -133,15 +136,15 @@ struct LLMProxyStatsCard: View {
             credentialCount: 6,
             activeCredentialCount: 5,
             exhaustedCredentialCount: 1,
-            totalRequests: 12_300,
+            totalRequests: 12300,
             totalTokens: 4_500_000,
             approximateCostUSD: 8.40,
             minimumRemainingPercent: 54,
             nextResetAt: Date().addingTimeInterval(9 * 3600),
             topProviders: [
-                .init(name: "anthropic", requests: 5_200, tokens: 2_100_000, approximateCostUSD: 4.10),
-                .init(name: "openai", requests: 4_100, tokens: 1_700_000, approximateCostUSD: 3.30),
-                .init(name: "groq", requests: 3_000, tokens: 700_000, approximateCostUSD: 1.00),
+                .init(name: "anthropic", requests: 5200, tokens: 2_100_000, approximateCostUSD: 4.10),
+                .init(name: "openai", requests: 4100, tokens: 1_700_000, approximateCostUSD: 3.30),
+                .init(name: "groq", requests: 3000, tokens: 700_000, approximateCostUSD: 1.00),
             ],
             updatedAt: Date()),
         tintColor: Color(red: 0.36, green: 0.48, blue: 0.60))

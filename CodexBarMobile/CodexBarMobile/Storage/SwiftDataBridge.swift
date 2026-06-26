@@ -41,8 +41,8 @@ enum SwiftDataBridge {
     /// for a single device.
     static func upsert(
         deviceSnapshots: [SyncedUsageSnapshot],
-        into context: ModelContext
-    ) throws {
+        into context: ModelContext) throws
+    {
         // Build the set of deviceIDs that should exist after this upsert. Anything
         // currently in the store but NOT in this set has been removed upstream
         // (user disconnected a Mac, reset sync, etc.) and must be pruned. Without
@@ -73,8 +73,8 @@ enum SwiftDataBridge {
 
     private static func upsertSnapshot(
         _ snapshot: SyncedUsageSnapshot,
-        into context: ModelContext
-    ) throws {
+        into context: ModelContext) throws
+    {
         let deviceID = snapshot.deviceID ?? Self.deviceIDFallback(for: snapshot)
         let device = try Self.fetchOrCreateDevice(
             deviceID: deviceID,
@@ -119,8 +119,8 @@ enum SwiftDataBridge {
         deviceName: String,
         appVersion: String?,
         lastSyncAt: Date,
-        in context: ModelContext
-    ) throws -> DeviceRecord {
+        in context: ModelContext) throws -> DeviceRecord
+    {
         let descriptor = FetchDescriptor<DeviceRecord>(
             predicate: #Predicate { $0.deviceID == deviceID })
         if let existing = try context.fetch(descriptor).first {
@@ -142,8 +142,8 @@ enum SwiftDataBridge {
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
         device: DeviceRecord,
-        in context: ModelContext
-    ) throws {
+        in context: ModelContext) throws
+    {
         let compositeKey = ProviderSnapshotModel.makeCompositeKey(
             deviceID: deviceID,
             providerID: provider.providerID,
@@ -213,8 +213,8 @@ enum SwiftDataBridge {
     private static func upsertUtilization(
         history: [SyncUtilizationSeries],
         into provider: ProviderSnapshotModel,
-        context: ModelContext
-    ) throws {
+        context: ModelContext) throws
+    {
         // Upstream utilization history is a rolling window on Mac (session cap 730 entries).
         // Entries that age out upstream must also be pruned locally, otherwise the mirror
         // grows forever and P2b @Query charts would show stale buckets. If the incoming
@@ -376,6 +376,7 @@ enum SwiftDataBridge {
     }
 
     // MARK: - Change-token persistence (v2 P6 re-introduction)
+
     //
     // v1 P6 (Build 59) stored the token here AND also wrote incremental
     // per-provider rows here via applyPerProviderDelta. The delta writer was
@@ -387,8 +388,8 @@ enum SwiftDataBridge {
     /// Returns `nil` on first-ever sync or after a token-expiry reset.
     static func loadChangeToken(
         forZone zoneName: String,
-        from context: ModelContext
-    ) throws -> Data? {
+        from context: ModelContext) throws -> Data?
+    {
         let descriptor = FetchDescriptor<SyncStateRecord>(
             predicate: #Predicate { $0.zoneName == zoneName })
         return try context.fetch(descriptor).first?.changeTokenData
@@ -400,8 +401,8 @@ enum SwiftDataBridge {
     static func saveChangeToken(
         forZone zoneName: String,
         tokenData: Data?,
-        context: ModelContext
-    ) throws {
+        context: ModelContext) throws
+    {
         let descriptor = FetchDescriptor<SyncStateRecord>(
             predicate: #Predicate { $0.zoneName == zoneName })
         if let existing = try context.fetch(descriptor).first {

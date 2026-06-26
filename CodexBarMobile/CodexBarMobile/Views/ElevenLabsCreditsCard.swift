@@ -9,12 +9,12 @@ struct ElevenLabsCreditsCard: View {
     let tintColor: Color
 
     private var hasVoiceSlots: Bool {
-        (credits.voiceLimit ?? 0) > 0 || (credits.professionalVoiceLimit ?? 0) > 0
+        (self.credits.voiceLimit ?? 0) > 0 || (self.credits.professionalVoiceLimit ?? 0) > 0
     }
 
     private var characterFraction: Double {
-        guard credits.characterLimit > 0 else { return 0 }
-        return min(max(Double(credits.characterCount) / Double(credits.characterLimit), 0), 1)
+        guard self.credits.characterLimit > 0 else { return 0 }
+        return min(max(Double(self.credits.characterCount) / Double(self.credits.characterLimit), 0), 1)
     }
 
     var body: some View {
@@ -31,7 +31,7 @@ struct ElevenLabsCreditsCard: View {
                         .foregroundStyle(self.tintColor)
                 }
                 Spacer()
-                Text("\(Int(credits.usedPercent.rounded()))%")
+                Text("\(Int(self.credits.usedPercent.rounded()))%")
                     .font(.subheadline.bold().monospacedDigit())
                     .foregroundStyle(self.tintColor)
             }
@@ -73,10 +73,10 @@ struct ElevenLabsCreditsCard: View {
     }
 
     private var characterLabel: String {
-        if credits.characterLimit > 0 {
-            return "\(Self.formatInt(credits.characterCount)) / \(Self.formatInt(credits.characterLimit))"
+        if self.credits.characterLimit > 0 {
+            return "\(Self.formatInt(self.credits.characterCount)) / \(Self.formatInt(self.credits.characterLimit))"
         }
-        return Self.formatInt(credits.characterCount)
+        return Self.formatInt(self.credits.characterCount)
     }
 
     @ViewBuilder
@@ -118,7 +118,7 @@ struct ElevenLabsCreditsCard: View {
     ElevenLabsCreditsCard(
         credits: SyncElevenLabsCredits(
             tier: "creator",
-            characterCount: 30_500,
+            characterCount: 30500,
             characterLimit: 100_000,
             usedPercent: 30.5,
             voiceSlotsUsed: 4,

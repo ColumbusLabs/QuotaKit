@@ -1,7 +1,6 @@
 import CodexBarSync
 import Foundation
 import Testing
-
 @testable import CodexBarMobile
 
 /// Unit tests for the Phase G grouping primitive that collapses
@@ -93,7 +92,7 @@ struct ProviderAccountGroupTests {
         ]
         let groups = snaps.groupedByProvider()
         #expect(groups.map(\.providerID) == ["codex", "openai", "claude"])
-        #expect(groups[0].accounts.count == 2)  // codex alice + bob
+        #expect(groups[0].accounts.count == 2) // codex alice + bob
         #expect(groups[0].hasMultipleAccounts == true)
         #expect(groups[1].accounts.count == 1)
         #expect(groups[1].hasMultipleAccounts == false)

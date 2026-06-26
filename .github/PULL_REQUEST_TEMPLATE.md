@@ -37,12 +37,12 @@ Tick the appropriate boxes:
 
 ## Other Quality Gates
 
-- [ ] `swift test` passes (full suite).
+- [ ] `make test` passes (sharded full SwiftPM suite).
 - [ ] `./Scripts/lint.sh lint` passes (0 violations).
 - [ ] `./Scripts/lint.sh format` shows no changes (or commits the
   format result).
-- [ ] If touching iOS, `xcodebuild build` and full iOS test suite
-  pass on iPhone 17 Pro simulator.
+- [ ] If touching iOS, the full `xcodebuild test` suite passes on
+  iPhone 17 Pro simulator.
 - [ ] If touching the cost JSONL parser, `parserLogicVersion` was
   bumped (CI lint enforces this).
 

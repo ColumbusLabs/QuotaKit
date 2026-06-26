@@ -17,7 +17,7 @@ This repository is the Columbus Labs QuotaKit codebase. QuotaKit tracks AI quota
 - Current upstream alignment is recorded in `version.env` through `UPSTREAM_VERSION` and `UPSTREAM_SYNC_DATE`.
 
 ## Testing Guidelines
-- Add/extend XCTest cases under `Tests/CodexBarTests/*Tests.swift` (`FeatureNameTests` with `test_caseDescription` methods).
+- Add/extend Swift Testing or XCTest cases under `Tests/CodexBarTests/*Tests.swift` (`FeatureNameTests` with descriptive test methods).
 - Model names in tests/code: released models or clearly fictitious names only; never expose unreleased names.
 - Always run `make test` before handoff; add focused `swift test --filter ...` runs for parser/provider fixes when possible.
 - After any code change, run the relevant lint/build checks and fix reported format/lint issues before handoff.
@@ -85,7 +85,7 @@ Common checks:
 xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
-  CODE_SIGNING_ALLOWED=NO build
+  CODE_SIGNING_ALLOWED=NO test
 ```
 
 Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts unless the user explicitly asks for live provider validation; use parser tests, stubs, test stores, or `KeychainNoUIQuery`.

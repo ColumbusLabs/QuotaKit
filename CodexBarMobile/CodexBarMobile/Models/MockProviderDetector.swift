@@ -39,7 +39,7 @@ enum MockProviderDetector {
     /// `MockProviderInjector`. Either the email TLD OR the providerID
     /// prefix is sufficient; both are typically present.
     static func isMock(_ snapshot: ProviderUsageSnapshot) -> Bool {
-        if snapshot.providerID.hasPrefix(Self.mockProviderIDPrefix) {
+        if snapshot.providerID.hasPrefix(self.mockProviderIDPrefix) {
             return true
         }
         if let email = snapshot.accountEmail, email.hasSuffix(Self.mockEmailTLD) {
@@ -57,13 +57,13 @@ enum MockProviderDetector {
     /// True when at least one provider in this snapshot is a mock.
     /// Drives the top banner + Settings Diagnostics row visibility.
     static func hasAnyMock(in snapshot: SyncedUsageSnapshot?) -> Bool {
-        !Self.mockSnapshots(in: snapshot).isEmpty
+        !self.mockSnapshots(in: snapshot).isEmpty
     }
 
     /// Counts mock providers in the current snapshot. Used by the
     /// Settings Diagnostics row ("Mock data: 8 active").
     static func mockCount(in snapshot: SyncedUsageSnapshot?) -> Int {
-        Self.mockSnapshots(in: snapshot).count
+        self.mockSnapshots(in: snapshot).count
     }
 
     /// Extinct mock providerIDs from earlier mock-injector designs that
@@ -102,7 +102,7 @@ enum MockProviderDetector {
         from snapshot: SyncedUsageSnapshot) -> [ProviderUsageSnapshot]
     {
         snapshot.providers.filter { provider in
-            !Self.extinctMockProviderIDs.contains(provider.providerID)
+            !self.extinctMockProviderIDs.contains(provider.providerID)
         }
     }
 }

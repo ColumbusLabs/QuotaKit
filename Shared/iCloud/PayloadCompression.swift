@@ -27,7 +27,7 @@ public enum PayloadCompression {
             // Preserve empty-in → empty-out so callers can round-trip without a
             // special case; just emit a zero-length header + no body.
             var header = UInt32(0).littleEndian
-            return Data(bytes: &header, count: headerSize)
+            return Data(bytes: &header, count: self.headerSize)
         }
 
         let originalCount = data.count
@@ -50,24 +50,24 @@ public enum PayloadCompression {
 
         var header = UInt32(originalCount).littleEndian
         var output = Data(capacity: headerSize + compressedCount)
-        output.append(Data(bytes: &header, count: headerSize))
+        output.append(Data(bytes: &header, count: self.headerSize))
         output.append(destination, count: compressedCount)
         return output
     }
 
     public static func decompress(_ data: Data) throws -> Data {
-        guard data.count >= headerSize else { throw Error.malformedHeader }
+        guard data.count >= self.headerSize else { throw Error.malformedHeader }
 
-        let originalCount: Int = data.prefix(headerSize).withUnsafeBytes { raw in
+        let originalCount: Int = data.prefix(self.headerSize).withUnsafeBytes { raw in
             Int(UInt32(littleEndian: raw.load(as: UInt32.self)))
         }
         if originalCount == 0 {
             return Data()
         }
         guard originalCount <= Self.maxDecompressedSize else { throw Error.payloadTooLarge }
-        guard data.count > headerSize else { throw Error.malformedHeader }
+        guard data.count > self.headerSize else { throw Error.malformedHeader }
 
-        let body = data.suffix(from: headerSize)
+        let body = data.suffix(from: self.headerSize)
         let destination = UnsafeMutablePointer<UInt8>.allocate(capacity: originalCount)
         defer { destination.deallocate() }
 

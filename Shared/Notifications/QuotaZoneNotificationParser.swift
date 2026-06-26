@@ -6,7 +6,6 @@ import Foundation
 /// `UNNotificationServiceExtension` to decide whether to enrich the push with
 /// provider data — and unit-testable independent of the extension target.
 public enum QuotaZoneNotificationParser {
-
     /// Quota states the parser recognizes — must stay in lockstep with the
     /// states `QuotaTransitionSubscriptions` registers and the `state`
     /// strings Mac writes in `QuotaTransition` records.
@@ -30,7 +29,7 @@ public enum QuotaZoneNotificationParser {
     public static func isQuotaPushZone(_ zoneID: CKRecordZone.ID) -> Bool {
         let name = zoneID.zoneName
         if name == CloudSyncConstants.quotaDepletedZoneName ||
-           name == CloudSyncConstants.quotaRestoredZoneName
+            name == CloudSyncConstants.quotaRestoredZoneName
         {
             return true
         }
@@ -69,8 +68,8 @@ public enum QuotaZoneNotificationParser {
     /// Used by the iOS NSE to format the push body with the specific
     /// window + threshold without needing extra CKRecord fields.
     public static func parseWarningRecordName(
-        _ recordName: String
-    ) -> (providerID: String, window: String, threshold: Int)? {
+        _ recordName: String) -> (providerID: String, window: String, threshold: Int)?
+    {
         // Split on `-`. Need at least 4 components: providerID-window-tN-hourBucket.
         // providerID itself could theoretically contain a hyphen but doesn't
         // today; assume the simple split is sufficient.

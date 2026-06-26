@@ -108,7 +108,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(decoded.primaryProvider?.primaryWindow?.identity, .weekly)
     }
 
-    func testWidgetSnapshotMovesSelectedProviderFirst() throws {
+    func testWidgetSnapshotMovesSelectedProviderFirst() {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
             generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
@@ -120,7 +120,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(snapshot.primaryProvider?.providerName, "Claude")
     }
 
-    func testWidgetSnapshotUsesProviderOrderWhenSelectionIsMissing() throws {
+    func testWidgetSnapshotUsesProviderOrderWhenSelectionIsMissing() {
         let snapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: PreviewData.sampleSnapshot,
             generatedAt: Date(timeIntervalSince1970: 1_803_000_000),
@@ -132,7 +132,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(snapshot.providers.dropFirst().first?.id, "claude")
     }
 
-    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() throws {
+    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() {
         let now = Date(timeIntervalSince1970: 1_803_000_000)
         let snapshot = QuotaKitWidgetSnapshot(
             generatedAt: now,
@@ -800,7 +800,9 @@ final class QuotaKitWidgetTests: XCTestCase {
                     pace: nil),
             ])
 
-        XCTAssertEqual(QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title, "Weekly Sonnet")
+        XCTAssertEqual(
+            QuotaKitWidgetPresentation.primaryWindow(for: provider, displayMode: .weekly)?.title,
+            "Weekly Sonnet")
     }
 
     func testWidgetWeeklyResolutionSkipsDailyAndMonthlyDayCounts() {

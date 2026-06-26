@@ -30,8 +30,8 @@ struct DualZoneReaderTests {
         deviceName: String,
         syncTimestamp: Date,
         providerID: String,
-        providerLastUpdated: Date
-    ) -> ProviderUsageEnvelope {
+        providerLastUpdated: Date) -> ProviderUsageEnvelope
+    {
         ProviderUsageEnvelope(
             deviceID: deviceID,
             deviceName: deviceName,
@@ -39,7 +39,7 @@ struct DualZoneReaderTests {
             mobileVersion: "1.3.0",
             syncTimestamp: syncTimestamp,
             notificationPushEnabled: true,
-            provider: makeProvider(id: providerID, lastUpdated: providerLastUpdated))
+            provider: self.makeProvider(id: providerID, lastUpdated: providerLastUpdated))
     }
 
     // MARK: - reconstructSnapshots
@@ -64,7 +64,7 @@ struct DualZoneReaderTests {
         #expect(snapshot.deviceID == "mac-1")
         #expect(snapshot.providers.count == 2)
         // Device-level timestamp = max of constituent envelopes.
-        #expect(snapshot.syncTimestamp == t2)
+        #expect(snapshot.syncTimestamp == self.t2)
         // Providers sorted by lastUpdated desc.
         #expect(snapshot.providers.first?.providerID == "claude")
         #expect(snapshot.providers.last?.providerID == "codex")
@@ -111,7 +111,7 @@ struct DualZoneReaderTests {
         // wins because the rule is priority by tier, not by timestamp.
         let legacy = SyncedUsageSnapshot(
             providers: [makeProvider(id: "claude", lastUpdated: t3.addingTimeInterval(1000))],
-            syncTimestamp: t3.addingTimeInterval(1000),
+            syncTimestamp: self.t3.addingTimeInterval(1000),
             deviceName: "Mac A",
             deviceID: "mac-a")
 
@@ -186,6 +186,7 @@ struct DualZoneReaderTests {
     }
 
     // MARK: - Realistic-distribution fixtures (Build 83 · Agent C)
+
     //
     // Round 3 audit + Agent C flagged: dual-zone reconstruction has been
     // tested only on toy 1-2-provider snapshots. Real sparse-legacy +

@@ -40,7 +40,7 @@ struct QuotaKitWidgetProvider: TimelineProvider {
         let snapshot = isPreview
             ? QuotaKitWidgetPreviewData.snapshot
             : storedSnapshot ?? QuotaKitWidgetPreviewData.simulatorSnapshot
-                .applyingProviderPreferences(preferences)
+            .applyingProviderPreferences(preferences)
         #else
         let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : storedSnapshot
         #endif
