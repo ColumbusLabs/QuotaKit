@@ -67,6 +67,36 @@ struct UsagePaceTextTests {
     }
 
     @Test
+    func `on track pace detail still reports rounded visible delta`() {
+        let now = Date(timeIntervalSince1970: 0)
+        let deficit = UsagePace(
+            stage: .onTrack,
+            deltaPercent: 0.6,
+            expectedUsedPercent: 40,
+            actualUsedPercent: 40.6,
+            etaSeconds: nil,
+            willLastToReset: true)
+        let reserve = UsagePace(
+            stage: .onTrack,
+            deltaPercent: -0.6,
+            expectedUsedPercent: 40,
+            actualUsedPercent: 39.4,
+            etaSeconds: nil,
+            willLastToReset: true)
+        let roundedZero = UsagePace(
+            stage: .onTrack,
+            deltaPercent: 0.4,
+            expectedUsedPercent: 40,
+            actualUsedPercent: 40.4,
+            etaSeconds: nil,
+            willLastToReset: true)
+
+        #expect(UsagePaceText.weeklyDetail(pace: deficit, now: now).leftLabel == "1% in deficit")
+        #expect(UsagePaceText.weeklyDetail(pace: reserve, now: now).leftLabel == "1% in reserve")
+        #expect(UsagePaceText.weeklyDetail(pace: roundedZero, now: now).leftLabel == "On pace")
+    }
+
+    @Test
     func `reported weekly state renders deficit and run out headline`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let window = RateWindow(
