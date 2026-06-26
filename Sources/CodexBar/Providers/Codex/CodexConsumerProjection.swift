@@ -168,7 +168,11 @@ struct CodexConsumerProjection {
         let userFacingError: String?
 
         var remaining: Double? {
-            self.snapshot?.remaining
+            self.snapshot?.codexCreditLimit?.remaining ?? self.snapshot?.remaining
+        }
+
+        var remainingPercent: Double? {
+            self.snapshot?.codexCreditLimit?.remainingPercent
         }
     }
 
@@ -429,5 +433,14 @@ extension UsageStore {
             now: now)
         guard projection.menuBarFallback == .creditsBalance else { return nil }
         return projection.credits?.remaining
+    }
+
+    func codexMenuBarCreditsRemainingPercent(snapshotOverride: UsageSnapshot? = nil, now: Date = Date()) -> Double? {
+        let projection = self.codexConsumerProjection(
+            surface: .menuBar,
+            snapshotOverride: snapshotOverride,
+            now: now)
+        guard projection.menuBarFallback == .creditsBalance else { return nil }
+        return projection.credits?.remainingPercent
     }
 }

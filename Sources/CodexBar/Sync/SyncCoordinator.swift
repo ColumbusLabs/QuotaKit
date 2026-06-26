@@ -234,6 +234,7 @@ final class SyncCoordinator {
             let providerSnapshot = self.buildProviderUsageSnapshot(
                 for: provider,
                 snapshot: snapshot,
+                codexCredits: provider == .codex ? self.store.credits : nil,
                 error: error,
                 metadata: meta,
                 sharedCostSummary: sharedCostSummary,
@@ -558,6 +559,7 @@ final class SyncCoordinator {
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
+        codexCredits: CreditsSnapshot? = nil,
         error: String?,
         metadata: ProviderMetadata?,
         sharedCostSummary: SyncCostSummary?,
@@ -703,6 +705,7 @@ final class SyncCoordinator {
         let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
+        let codexCreditLimit = Self.mapCodexCreditLimit(provider: provider, credits: codexCredits)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -720,6 +723,7 @@ final class SyncCoordinator {
             utilizationHistory: sharedUtilizationHistory,
             perplexityCredits: perplexityCredits,
             codexResetCredits: codexResetCredits,
+            codexCreditLimit: codexCreditLimit,
             accountIdentities: accountIdentities,
             openAIAPIDashboard: openAIAPIDashboard,
             zaiHourlyUsage: zaiHourlyUsage,
@@ -768,6 +772,23 @@ final class SyncCoordinator {
             },
             availableCount: resetCredits.availableCount,
             updatedAt: resetCredits.updatedAt)
+    }
+
+    static func mapCodexCreditLimit(
+        provider: UsageProvider,
+        credits: CreditsSnapshot?) -> SyncCodexCreditLimit?
+    {
+        guard provider == .codex,
+              let limit = credits?.codexCreditLimit
+        else { return nil }
+        return SyncCodexCreditLimit(
+            title: limit.title,
+            used: limit.used,
+            limit: limit.limit,
+            remaining: limit.remaining,
+            remainingPercent: limit.remainingPercent,
+            resetsAt: limit.resetsAt,
+            updatedAt: limit.updatedAt)
     }
 
     private enum SyncPaceWindowRole {
@@ -1001,6 +1022,7 @@ final class SyncCoordinator {
                 let perAccount = self.buildProviderUsageSnapshot(
                     for: tokenProvider,
                     snapshot: entry.snapshot,
+                    codexCredits: nil,
                     error: entry.error,
                     metadata: meta,
                     sharedCostSummary: sharedCostSummary,
@@ -1210,6 +1232,7 @@ final class SyncCoordinator {
             && provider.rateWindows.isEmpty
             && provider.costSummary == nil
             && provider.budget == nil
+            && provider.codexCreditLimit == nil
             && !provider.isError
             && provider.statusMessage == nil
     }

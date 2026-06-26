@@ -9,6 +9,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `516615424`
+  (`ada3660e..516615424`), including Codex enterprise monthly credit limits,
+  OAuth/dashboard credit-limit mapping, menu/widget credit rows, and usage
+  percentage display fixes.
 - Synced upstream CodexBar Mac improvements through `ada3660e`
   (`af13c528..ada3660e`), including z.ai team token-account usage,
   Mistral Vibe cookie restoration, and native-style Refresh menu rows.
@@ -19,6 +23,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Usage pace: keep rounded on-track deficit and reserve labels visible instead
+  of collapsing all on-track deltas to "On pace".
+- Usage display: keep positive values below one percent visible instead of
+  rounding them to zero.
 - Claude: stop installed-version checks from invoking a login shell and
   triggering unwanted Keychain prompts.
 - Usage totals: keep Today tied to the current local calendar day across cost,

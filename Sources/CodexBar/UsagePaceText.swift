@@ -32,14 +32,16 @@ enum UsagePaceText {
 
     private static func detailLeftLabel(for pace: UsagePace) -> String {
         let deltaValue = Int(abs(pace.deltaPercent).rounded())
-        switch pace.stage {
-        case .onTrack:
+        guard deltaValue != 0 else {
             return L("On pace")
-        case .slightlyAhead, .ahead, .farAhead:
+        }
+        if pace.deltaPercent > 0 {
             return L("%d%% in deficit", deltaValue)
-        case .slightlyBehind, .behind, .farBehind:
+        }
+        if pace.deltaPercent < 0 {
             return L("%d%% in reserve", deltaValue)
         }
+        return L("On pace")
     }
 
     private static func detailRightLabel(for pace: UsagePace, context: DetailContext, now: Date) -> String? {

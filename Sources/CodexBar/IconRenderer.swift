@@ -114,6 +114,7 @@ enum IconRenderer {
         primaryRemaining: Double?,
         weeklyRemaining: Double?,
         creditsRemaining: Double?,
+        creditsRemainingPercent: Double? = nil,
         stale: Bool,
         style: IconStyle,
         blink: CGFloat = 0,
@@ -123,6 +124,9 @@ enum IconRenderer {
         hideCritters: Bool = false) -> NSImage
     {
         let shouldCache = blink <= 0.0001 && wiggle <= 0.0001 && tilt <= 0.0001
+        let creditsRatio = Self.creditsFillPercent(
+            remaining: creditsRemaining,
+            explicitPercent: creditsRemainingPercent)
         let render = {
             self.renderImage {
                 // Keep monochrome template icons; Claude uses subtle shape cues only.
@@ -644,7 +648,6 @@ enum IconRenderer {
                 }()
                 let topValue = primaryRemaining
                 let bottomValue = effectiveWeeklyRemaining
-                let creditsRatio = creditsRemaining.map { min($0 / Self.creditsCap * 100, 100) }
 
                 let hasWeekly = (bottomValue != nil)
                 let weeklyAvailable = hasWeekly && (bottomValue ?? 0) > 0
@@ -756,7 +759,7 @@ enum IconRenderer {
             let key = IconCacheKey(
                 primary: self.quantizedPercent(primaryRemaining),
                 weekly: self.quantizedPercent(weeklyRemaining),
-                credits: self.quantizedCredits(creditsRemaining),
+                credits: self.quantizedPercent(creditsRatio),
                 stale: stale,
                 style: self.styleKey(style),
                 indicator: self.indicatorKey(statusIndicator),
@@ -793,10 +796,11 @@ enum IconRenderer {
         return Int((value * 10).rounded())
     }
 
-    private static func quantizedCredits(_ value: Double?) -> Int {
-        guard let value else { return -1 }
-        let clamped = max(0, min(value, self.creditsCap))
-        return Int((clamped * 10).rounded())
+    private static func creditsFillPercent(remaining: Double?, explicitPercent: Double?) -> Double? {
+        if let explicitPercent {
+            return min(100, max(0, explicitPercent))
+        }
+        return remaining.map { min(max($0, 0) / Self.creditsCap * 100, 100) }
     }
 
     private static let styleKeyLookup: [IconStyle: Int] = {

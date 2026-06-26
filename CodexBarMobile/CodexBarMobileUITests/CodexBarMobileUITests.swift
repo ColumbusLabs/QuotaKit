@@ -61,6 +61,7 @@ final class CodexBarMobileUITests: XCTestCase {
             "UI_TEST_PREVIEW_DATA",
             "UI_TEST_SKIP_ONBOARDING",
             "UI_TEST_RESET_DEFAULTS",
+            "UI_TEST_UNLOCK_PRO",
             "-AppleLanguages",
             "(en)",
             "-AppleLocale",

@@ -49,6 +49,53 @@ struct CodexBarTests {
     }
 
     @Test
+    func `icon renderer caches Codex credits by explicit remaining percent`() throws {
+        let legacyFull = IconRenderer.makeIcon(
+            primaryRemaining: nil,
+            weeklyRemaining: nil,
+            creditsRemaining: 1000,
+            stale: false,
+            style: .codex)
+        let explicitLow = IconRenderer.makeIcon(
+            primaryRemaining: nil,
+            weeklyRemaining: nil,
+            creditsRemaining: 1000,
+            creditsRemainingPercent: 1,
+            stale: false,
+            style: .codex)
+        let explicitLowAgain = IconRenderer.makeIcon(
+            primaryRemaining: nil,
+            weeklyRemaining: nil,
+            creditsRemaining: 1000,
+            creditsRemainingPercent: 1,
+            stale: false,
+            style: .codex)
+
+        #expect(explicitLow === explicitLowAgain)
+        #expect(legacyFull !== explicitLow)
+
+        func averageAlpha(_ image: NSImage, xRange: ClosedRange<Int>, yRange: ClosedRange<Int>) throws -> CGFloat {
+            let rep = try #require(image.representations.compactMap { $0 as? NSBitmapImageRep }.first { rep in
+                rep.pixelsWide == 36 && rep.pixelsHigh == 36
+            })
+            var total: CGFloat = 0
+            var count: CGFloat = 0
+            for y in yRange {
+                for x in xRange {
+                    total += (rep.colorAt(x: x, y: y) ?? .clear).alphaComponent
+                    count += 1
+                }
+            }
+            return total / count
+        }
+
+        let fullRightEdge = try averageAlpha(legacyFull, xRange: 24...30, yRange: 8...24)
+        let lowRightEdge = try averageAlpha(explicitLow, xRange: 24...30, yRange: 8...24)
+
+        #expect(fullRightEdge > lowRightEdge + 0.2)
+    }
+
+    @Test
     func `antigravity icon ignores legacy model quota lanes`() {
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 30, windowMinutes: nil, resetsAt: nil, resetDescription: nil),

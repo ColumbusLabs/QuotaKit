@@ -289,6 +289,43 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertNil(widgetSnapshot.providers.first?.statusMessage)
     }
 
+    func testWidgetSnapshotUsesCodexCreditLimitWhenRateWindowsAreMissing() throws {
+        let date = Date(timeIntervalSince1970: 1_803_000_000)
+        let creditLimit = SyncCodexCreditLimit(
+            title: "Monthly credit limit",
+            used: 99000,
+            limit: 100_000,
+            remaining: 1000,
+            remainingPercent: 1,
+            resetsAt: Date(timeIntervalSince1970: 1_803_604_800),
+            updatedAt: date)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: date,
+            codexCreditLimit: creditLimit)
+        let synced = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: date,
+            deviceName: "Test Mac")
+
+        let widgetSnapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
+            from: synced,
+            generatedAt: date)
+
+        let window = try XCTUnwrap(widgetSnapshot.providers.first?.windows.first)
+        XCTAssertEqual(window.title, "Monthly credit limit")
+        XCTAssertEqual(window.usedPercent, 99)
+        XCTAssertEqual(window.remainingPercent, 1)
+        XCTAssertEqual(window.resetsAt, Date(timeIntervalSince1970: 1_803_604_800))
+    }
+
     func testProEntitlementCacheAcceptsOnlyQuotaKitProductID() {
         let defaults = Self.makeDefaults()
         defer { ProEntitlementCacheStore.clear(defaults: defaults) }

@@ -1365,12 +1365,16 @@ extension StatusItemController {
                 snapshotOverride: snapshot,
                 now: snapshot?.updatedAt ?? Date())
             : nil
+        let creditsPercent = creditsProjection?.menuBarFallback == .creditsBalance
+            ? creditsProjection?.credits?.remainingPercent
+            : nil
         let stale = self.store.isStale(provider: provider)
         let indicator = self.store.statusIndicator(for: provider)
         let image = IconRenderer.makeIcon(
             primaryRemaining: primary,
             weeklyRemaining: weekly,
             creditsRemaining: credits,
+            creditsRemainingPercent: creditsPercent,
             stale: stale,
             style: style,
             blink: 0,
