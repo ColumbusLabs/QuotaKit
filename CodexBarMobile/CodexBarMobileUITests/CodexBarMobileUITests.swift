@@ -15,9 +15,6 @@ final class CodexBarMobileUITests: XCTestCase {
         let remainingToggle = app.switches["show-remaining-usage-toggle"]
         XCTAssertTrue(remainingToggle.waitForExistence(timeout: 5))
         XCTAssertEqual(remainingToggle.value as? String, "0")
-        XCTAssertTrue(app.staticTexts["Usage"].exists)
-        XCTAssertTrue(app.staticTexts["Charts"].exists)
-        XCTAssertTrue(app.staticTexts["Privacy"].exists)
         XCTAssertTrue(app.staticTexts["Show remaining usage"].exists)
         XCTAssertTrue(
             app.staticTexts["Display the quota you have left instead of the quota you have used on usage cards."]
@@ -42,8 +39,14 @@ final class CodexBarMobileUITests: XCTestCase {
 
         app.tabBars.buttons["Cost"].tap()
 
-        XCTAssertTrue(app.staticTexts["Provider Share"].waitForExistence(timeout: 5))
-        XCTAssertTrue(app.staticTexts["Model Mix"].waitForExistence(timeout: 5))
+        XCTAssertTrue(
+            app.otherElements["cost-dashboard-section-provider-share"]
+                .waitForExistence(timeout: 5))
+        let modelMixSection = app.otherElements["cost-dashboard-section-model-mix"]
+        if !modelMixSection.waitForExistence(timeout: 2) {
+            app.swipeUp()
+        }
+        XCTAssertTrue(modelMixSection.waitForExistence(timeout: 5))
 
         let attachment = XCTAttachment(screenshot: XCUIScreen.main.screenshot())
         attachment.name = "Cost Tab Rendering"

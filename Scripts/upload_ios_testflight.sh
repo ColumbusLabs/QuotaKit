@@ -1,91 +1,11 @@
 #!/usr/bin/env bash
 #
-# Archive the iOS app (QuotaKit) and upload to App Store Connect
-# (which dispatches to TestFlight) via Xcode's cloud-signing flow.
-#
-# How it works:
-#   - `xcodebuild archive` produces a Development-signed .xcarchive (the
-#     Apple Development cert in our Keychain is sufficient for this stage).
-#   - `xcodebuild -exportArchive` with `destination: upload` in the export
-#     options plist signs + uploads in one step. Cloud signing uses Xcode's
-#     logged-in Apple ID session (Settings → Accounts), NOT a local Apple
-#     Distribution cert. `-allowProvisioningUpdates` lets xcodebuild fetch
-#     the Managed Distribution certificate / provisioning profile as
-#     needed.
-#
-# Prereq: Xcode → Settings → Accounts has the developer Apple ID logged in.
-# That's the one-time setup; Xcode's session persists across runs.
-#
-# Explicitly DO NOT pass `-authenticationKeyPath` / `-authenticationKeyID`
-# to xcodebuild — when present, they override the Xcode session and force
-# the API-key-based cloud signing path, which requires an App Manager or
-# Admin role. Our current ASC API key is Developer role (sufficient for
-# notarization / upload but NOT for cloud-sign authorization), so passing
-# it triggers `Cloud signing permission error`. Without those flags,
-# xcodebuild falls back to Xcode's session credentials (higher privilege)
-# and the upload works.
-#
-# Usage: QUOTAKIT_TEAM_ID=YOURTEAM ./Scripts/upload_ios_testflight.sh
+# Compatibility wrapper for the canonical QuotaKit iOS TestFlight lane.
+
 set -euo pipefail
 
-ROOT=$(cd "$(dirname "$0")/.." && pwd)
+ROOT=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$ROOT"
 
-# Pre-flight: run lint (Swift + i18n xcstrings audit) before spending ~2 min
-# on archive + upload. Catches the regression class where new
-# `String(localized:)` strings ship without zh-Hant / ja translations
-# (Builds 55 and 92 hit this before the audit was wired in).
-echo "==> Pre-flight lint (Swift + i18n)..."
-"$ROOT/Scripts/lint.sh" lint
-
-STAMP=$(date +%Y%m%d-%H%M%S)
-ARCHIVE_PATH="/tmp/QuotaKit-$STAMP.xcarchive"
-TEAM_ID="${QUOTAKIT_TEAM_ID:?Set QUOTAKIT_TEAM_ID to a QuotaKit-owned Apple team ID.}"
-# `.plist` suffix after the mktemp X's makes the template literal on
-# macOS (BSD mktemp only substitutes trailing X's) — drop the suffix.
-OPTIONS_PLIST=$(mktemp /tmp/cbm-export-options.XXXXXX)
-
-cat > "$OPTIONS_PLIST" <<PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>method</key>
-    <string>app-store-connect</string>
-    <key>teamID</key>
-    <string>${TEAM_ID}</string>
-    <key>destination</key>
-    <string>upload</string>
-    <key>uploadSymbols</key>
-    <true/>
-    <key>stripSwiftSymbols</key>
-    <true/>
-</dict>
-</plist>
-PLIST
-
-trap 'rm -f "$OPTIONS_PLIST"' EXIT
-
-BUILD=$(grep CURRENT_PROJECT_VERSION CodexBarMobile/project.yml | head -1 | awk '{print $2}' | tr -d '"')
-echo "==> Archiving QuotaKit iOS (Build $BUILD)..."
-xcodebuild archive \
-  -project CodexBarMobile/CodexBarMobile.xcodeproj \
-  -scheme CodexBarMobile \
-  -configuration Release \
-  -destination "generic/platform=iOS" \
-  -archivePath "$ARCHIVE_PATH" \
-  -allowProvisioningUpdates \
-  | tail -30
-
-echo ""
-echo "==> Signing + uploading to App Store Connect (cloud signing via Xcode session)..."
-xcodebuild -exportArchive \
-  -archivePath "$ARCHIVE_PATH" \
-  -exportOptionsPlist "$OPTIONS_PLIST" \
-  -allowProvisioningUpdates \
-  | tail -30
-
-echo ""
-echo "==> Upload dispatched. ASC will process in 5-30 min and email when the"
-echo "    build appears in TestFlight. Archive saved at:"
-echo "    $ARCHIVE_PATH"
+echo "==> Scripts/upload_ios_testflight.sh is deprecated; using Scripts/ios_testflight_xcode.sh"
+exec "$ROOT/Scripts/ios_testflight_xcode.sh" "$@"

@@ -355,12 +355,14 @@ QuotaKit Pro widget work should create iOS widget targets that read sanitized iO
 
 ### iOS release flow
 
-- `Scripts/upload_ios_testflight.sh`
+- `Scripts/ios_testflight_xcode.sh`
   - Runs lint.
   - Archives `CodexBarMobile/CodexBarMobile.xcodeproj`, scheme `CodexBarMobile`.
   - Exports/upload via Xcode cloud signing and App Store Connect destination.
-  - Hardcodes team `3TUERHN53E`.
+  - Resolves the team from `--team-id`, release secrets, or local signing identities.
   - Does not use API-key auth for cloud signing because current notes say API key lacks required role.
+- `Scripts/upload_ios_testflight.sh`
+  - Compatibility wrapper that delegates to `Scripts/ios_testflight_xcode.sh`.
 
 ### CI/release workflows
 

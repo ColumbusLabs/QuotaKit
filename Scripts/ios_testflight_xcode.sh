@@ -3,10 +3,9 @@
 # Archive QuotaKit iOS and upload it to App Store Connect/TestFlight using the
 # direct Xcode lane.
 #
-# This intentionally does not delegate to Scripts/upload_ios_testflight.sh. It
-# mirrors the Xcode-only release pattern we use when the helper path is too
-# repo-specific: generate the project, archive for generic iOS with automatic
-# provisioning, then export with destination=upload.
+# This is the canonical iOS upload lane. It generates the project, archives for
+# generic iOS with automatic provisioning, verifies the widget extension is
+# embedded, then exports with destination=upload.
 
 set -euo pipefail
 
@@ -76,6 +75,8 @@ if [[ -f "$ROOT/Scripts/load-release-secrets.sh" ]]; then
   # shellcheck disable=SC1091
   source "$ROOT/Scripts/load-release-secrets.sh"
 fi
+
+TEAM_ID="${TEAM_ID:-${IOS_TEAM_ID:-${QUOTAKIT_TEAM_ID:-${APP_TEAM_ID:-${DEVELOPMENT_TEAM:-}}}}}"
 
 if [[ -z "$TEAM_ID" ]]; then
   TEAM_ID=$(security find-identity -v -p codesigning 2>/dev/null \

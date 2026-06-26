@@ -28,6 +28,7 @@ struct CostDashboardView: View {
                     self.contributionSection(
                         title: "Provider Share",
                         subtitle: "30-day spend contribution across synced providers.",
+                        accessibilityIdentifier: "cost-dashboard-section-provider-share",
                         rows: self.insights.providerRows.map {
                             // `identityOverride: $0.id` carries the
                             // `providerID|accountEmail` composite key so
@@ -61,6 +62,7 @@ struct CostDashboardView: View {
                     self.contributionSection(
                         title: "Model Mix",
                         subtitle: "Top cost drivers across providers that expose model-level billing.",
+                        accessibilityIdentifier: "cost-dashboard-section-model-mix",
                         rows: self.insights.modelRows,
                         total: self.insights.modelRows.reduce(0) { $0 + $1.amountUSD })
                 }
@@ -69,6 +71,7 @@ struct CostDashboardView: View {
                     self.contributionSection(
                         title: "Codex Service Mix",
                         subtitle: "Breakdown from Codex Cloud dashboard data, including Codex Run and other billable services.",
+                        accessibilityIdentifier: "cost-dashboard-section-service-mix",
                         rows: self.insights.serviceRows,
                         total: self.insights.serviceRows.reduce(0) { $0 + $1.amountUSD })
                 }
@@ -182,7 +185,7 @@ struct CostDashboardView: View {
     }()
 
     private static func dailyAxisLabel(for date: Date) -> String {
-        Self.dailyAxisLabelFormatter.string(from: date)
+        self.dailyAxisLabelFormatter.string(from: date)
     }
 
     private var trendSection: some View {
@@ -329,6 +332,7 @@ struct CostDashboardView: View {
     private func contributionSection(
         title: LocalizedStringResource,
         subtitle: LocalizedStringResource,
+        accessibilityIdentifier: String,
         rows: [CostBreakdownRow],
         total: Double) -> some View
     {
@@ -372,6 +376,8 @@ struct CostDashboardView: View {
                 }
             }
         }
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier(accessibilityIdentifier)
     }
 
     private var budgetSection: some View {
@@ -415,7 +421,8 @@ struct CostDashboardView: View {
         let today = row.todayCost > 0
             ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
             : String(localized: "No spend today")
-        let tokens = row.thirtyDayTokens > 0 ? Self.formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
+        let tokens = row.thirtyDayTokens > 0 ? Self
+            .formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
         return "\(today) · \(tokens)"
     }
 
@@ -451,8 +458,13 @@ struct CostDashboardView: View {
         return String(format: "%.0f%%", (value / total) * 100)
     }
 
-    private static func formatUSD(_ value: Double) -> String { CostFormatting.usd(value) }
-    private static func formatTokens(_ count: Int) -> String { CostFormatting.tokens(count) }
+    private static func formatUSD(_ value: Double) -> String {
+        CostFormatting.usd(value)
+    }
+
+    private static func formatTokens(_ count: Int) -> String {
+        CostFormatting.tokens(count)
+    }
 
     private static func shortDate(_ value: Date) -> String {
         value.formatted(.dateTime.month(.abbreviated).day())

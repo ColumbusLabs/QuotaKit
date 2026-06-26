@@ -28,13 +28,15 @@ jobs:
       macos-tests: ${{ steps.macos-tests.outputs.macos-tests }}
       macos-tests-reason: ${{ steps.macos-tests.outputs.macos-tests-reason }}
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
+      ios-tests: ${{ steps.ios-tests.outputs.ios-tests }}
+      ios-tests-reason: ${{ steps.ios-tests.outputs.ios-tests-reason }}
     steps:
       - uses: actions/checkout@v7
         with:
           fetch-depth: 0
 
-      - name: Detect macOS test impact
-        id: macos-tests
+      - name: Collect changed paths
+        id: changed-paths
         shell: bash
         run: |
           set -euo pipefail
@@ -57,7 +59,21 @@ jobs:
 
           printf 'Changed paths:\n'
           sed 's/^/- /' "$changed_paths"
-          ./Scripts/ci_macos_test_gate.sh "$changed_paths"
+          echo "changed-paths=$changed_paths" >> "$GITHUB_OUTPUT"
+
+      - name: Detect macOS test impact
+        id: macos-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/ci_macos_test_gate.sh "${{ steps.changed-paths.outputs.changed-paths }}"
+
+      - name: Detect iOS test impact
+        id: ios-tests
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./Scripts/ci_ios_test_gate.sh "${{ steps.changed-paths.outputs.changed-paths }}"
 
       - name: Summarize macOS test gate
         if: ${{ always() }}
@@ -75,6 +91,26 @@ jobs:
             printf '| Field | Value |\n'
             printf '| --- | --- |\n'
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
+            printf '| Reason | %s |\n' "$reason"
+            printf '| Changed path entries | `%s` |\n' "${CHANGED_PATH_COUNT:-<unset>}"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Summarize iOS test gate
+        if: ${{ always() }}
+        shell: bash
+        env:
+          IOS_TESTS: ${{ steps.ios-tests.outputs.ios-tests }}
+          IOS_TESTS_REASON: ${{ steps.ios-tests.outputs.ios-tests-reason }}
+          CHANGED_PATH_COUNT: ${{ steps.ios-tests.outputs.changed-path-count }}
+        run: |
+          set -euo pipefail
+          reason="${IOS_TESTS_REASON:-<unset>}"
+          reason="${reason//|/\\|}"
+          {
+            printf '### iOS test gate\n\n'
+            printf '| Field | Value |\n'
+            printf '| --- | --- |\n'
+            printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| Reason | %s |\n' "$reason"
             printf '| Changed path entries | `%s` |\n' "${CHANGED_PATH_COUNT:-<unset>}"
           } >> "$GITHUB_STEP_SUMMARY"
@@ -193,6 +229,59 @@ jobs:
             printf '| Runs lint-macos | `%s` |\n' "$RUNS_LINT_MACOS"
           } >> "$GITHUB_STEP_SUMMARY"
 
+  ios-test:
+    needs: changes
+    if: ${{ needs.changes.outputs.ios-tests == 'true' }}
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Select Xcode 26.1.1 (if present) or fallback to default
+        run: |
+          set -euo pipefail
+          for candidate in /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app /Applications/Xcode.app; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "${candidate}/Contents/Developer"
+              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          /usr/bin/xcodebuild -version
+
+      - name: Install XcodeGen
+        run: |
+          set -euo pipefail
+          if command -v xcodegen >/dev/null 2>&1; then
+            xcodegen --version
+            exit 0
+          fi
+          brew install xcodegen
+          xcodegen --version
+
+      - name: Generate iOS Xcode project
+        run: |
+          set -euo pipefail
+          (cd CodexBarMobile && xcodegen generate)
+          git diff --exit-code -- CodexBarMobile/CodexBarMobile.xcodeproj
+
+      - name: iOS simulator tests
+        run: |
+          set -euo pipefail
+          xcodebuild test \
+            -project CodexBarMobile/CodexBarMobile.xcodeproj \
+            -scheme CodexBarMobile \
+            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -resultBundlePath "$RUNNER_TEMP/CodexBarMobile.xcresult" \
+            CODE_SIGNING_ALLOWED=NO
+
+      - name: Upload iOS test result bundle
+        if: ${{ failure() }}
+        uses: actions/upload-artifact@v7.0.1
+        with:
+          name: CodexBarMobile-xcresult
+          path: ${{ runner.temp }}/CodexBarMobile.xcresult
+
   lint-build-test:
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -200,17 +289,20 @@ jobs:
       - changes
       - lint
       - swift-test-macos
+      - ios-test
     if: ${{ always() && !cancelled() }}
     steps:
       - uses: actions/checkout@v7
 
-      - name: Verify lint and macOS test jobs
+      - name: Verify lint and test jobs
         run: |
           ./Scripts/ci_verify_test_jobs.sh \
             "${{ needs.lint.result }}" \
             "${{ needs.changes.result }}" \
             "${{ needs.changes.outputs.macos-tests }}" \
-            "${{ needs.swift-test-macos.result }}"
+            "${{ needs.swift-test-macos.result }}" \
+            "${{ needs.changes.outputs.ios-tests }}" \
+            "${{ needs.ios-test.result }}"
 
       - name: Summarize aggregate CI gate
         if: ${{ always() }}
@@ -221,10 +313,15 @@ jobs:
           MACOS_TESTS: ${{ needs.changes.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ needs.changes.outputs.macos-tests-reason }}
           MACOS_RESULT: ${{ needs.swift-test-macos.result }}
+          IOS_TESTS: ${{ needs.changes.outputs.ios-tests }}
+          IOS_TESTS_REASON: ${{ needs.changes.outputs.ios-tests-reason }}
+          IOS_RESULT: ${{ needs.ios-test.result }}
         run: |
           set -euo pipefail
-          reason="${MACOS_TESTS_REASON:-<unset>}"
-          reason="${reason//|/\\|}"
+          macos_reason="${MACOS_TESTS_REASON:-<unset>}"
+          macos_reason="${macos_reason//|/\\|}"
+          ios_reason="${IOS_TESTS_REASON:-<unset>}"
+          ios_reason="${ios_reason//|/\\|}"
           {
             printf '### Aggregate CI gate\n\n'
             printf '| Field | Value |\n'
@@ -232,8 +329,11 @@ jobs:
             printf '| lint result | `%s` |\n' "$LINT_RESULT"
             printf '| changes result | `%s` |\n' "$CHANGES_RESULT"
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
-            printf '| macOS gate reason | %s |\n' "$reason"
+            printf '| macOS gate reason | %s |\n' "$macos_reason"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
+            printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
+            printf '| iOS gate reason | %s |\n' "$ios_reason"
+            printf '| ios-test result | `%s` |\n' "$IOS_RESULT"
           } >> "$GITHUB_STEP_SUMMARY"
 
   build-linux-cli:

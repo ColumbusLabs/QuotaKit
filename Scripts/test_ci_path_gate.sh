@@ -62,6 +62,61 @@ assert_gate true source-to-docs $'R100\tSources/CodexBar/App.swift\tdocs/App.md'
 assert_gate true docs-to-source $'R100\tdocs/App.md\tSources/CodexBar/App.swift'
 assert_gate false docs-to-site $'R100\tdocs/old.md\tdocs/site.css'
 
+assert_ios_gate() {
+  local expected="$1"
+  local name="$2"
+  local paths_file="${tmp_dir}/${name}.ios.paths"
+  local output_file="${tmp_dir}/${name}.ios.output"
+  shift 2
+
+  printf '%s\n' "$@" > "$paths_file"
+  GITHUB_OUTPUT="$output_file" "${ROOT_DIR}/Scripts/ci_ios_test_gate.sh" "$paths_file" >/dev/null
+  local actual
+  actual="$(sed -n 's/^ios-tests=//p' "$output_file")"
+  if [[ "$actual" != "$expected" ]]; then
+    printf '%s: expected ios-tests=%s, got %s\n' "$name" "$expected" "${actual:-<empty>}" >&2
+    exit 1
+  fi
+
+  local reason
+  reason="$(sed -n 's/^ios-tests-reason=//p' "$output_file")"
+  if [[ -z "$reason" ]]; then
+    printf '%s: expected ios-tests-reason output\n' "$name" >&2
+    exit 1
+  fi
+
+  local path_count
+  path_count="$(sed -n 's/^changed-path-count=//p' "$output_file")"
+  if ! [[ "$path_count" =~ ^[0-9]+$ ]]; then
+    printf '%s: expected numeric changed-path-count output, got %s\n' \
+      "$name" "${path_count:-<empty>}" >&2
+    exit 1
+  fi
+
+  if [[ "$expected" == false && "$reason" != "no iOS-impacting paths changed" ]]; then
+    printf '%s: expected iOS skip reason, got %s\n' "$name" "$reason" >&2
+    exit 1
+  fi
+}
+
+assert_ios_gate false ios-docs-only $'M\tdocs/providers.md' $'M\tREADME.md'
+assert_ios_gate false ios-mac-source-only $'M\tSources/CodexBar/App.swift'
+assert_ios_gate true ios-mobile-source $'M\tCodexBarMobile/CodexBarMobile/ContentView.swift'
+assert_ios_gate true ios-mobile-project $'M\tCodexBarMobile/project.yml'
+assert_ios_gate true ios-generated-project $'M\tCodexBarMobile/CodexBarMobile.xcodeproj/project.pbxproj'
+assert_ios_gate true ios-shared-sync $'M\tShared/SyncModels.swift'
+assert_ios_gate true ios-ci-contract $'M\t.github/workflows/ci.yml'
+assert_ios_gate true ios-lint-contract $'M\tScripts/lint.sh'
+assert_ios_gate true ios-gate-contract $'M\tScripts/ci_ios_test_gate.sh'
+assert_ios_gate true ios-aggregate-contract $'M\tScripts/ci_verify_test_jobs.sh'
+assert_ios_gate true ios-gate-test-contract $'M\tScripts/test_ci_path_gate.sh'
+assert_ios_gate true ios-testflight-lane $'M\tScripts/ios_testflight_xcode.sh'
+assert_ios_gate true ios-testflight-wrapper $'M\tScripts/upload_ios_testflight.sh'
+assert_ios_gate true ios-swiftlint-contract $'M\t.swiftlint.yml'
+assert_ios_gate true ios-docs-to-mobile $'R100\tdocs/App.md\tCodexBarMobile/CodexBarMobile/App.swift'
+assert_ios_gate true ios-mobile-to-docs $'R100\tCodexBarMobile/CodexBarMobile/App.swift\tdocs/App.md'
+assert_ios_gate true ios-empty
+
 assert_gate_fails() {
   local name="$1"
   local paths_file="${tmp_dir}/${name}.paths"
@@ -99,9 +154,23 @@ if [[ -s "$unterminated_output" ]]; then
   exit 1
 fi
 
+ios_unterminated_output="${tmp_dir}/ios-unterminated.output"
+if GITHUB_OUTPUT="$ios_unterminated_output" \
+  "${ROOT_DIR}/Scripts/ci_ios_test_gate.sh" "$unterminated_paths" >/dev/null 2>&1
+then
+  printf 'iOS unterminated malformed gate input unexpectedly succeeded\n' >&2
+  exit 1
+fi
+if [[ -s "$ios_unterminated_output" ]]; then
+  printf 'iOS unterminated malformed gate input emitted an output\n' >&2
+  exit 1
+fi
+
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success >/dev/null
-"$verify" success success false skipped >/dev/null
+"$verify" success success true success true success >/dev/null
+"$verify" success success false skipped false skipped >/dev/null
+"$verify" success success true success false skipped >/dev/null
+"$verify" success success false skipped true success >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -110,10 +179,13 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped
-assert_verify_fails success success false success
-assert_verify_fails success success "" skipped
-assert_verify_fails failure success true success
-assert_verify_fails success failure true success
+assert_verify_fails success success true skipped true success
+assert_verify_fails success success false success true success
+assert_verify_fails success success true success true skipped
+assert_verify_fails success success true success false success
+assert_verify_fails success success "" skipped false skipped
+assert_verify_fails success success false skipped "" skipped
+assert_verify_fails failure success true success true success
+assert_verify_fails success failure true success true success
 
-printf 'CI macOS path gate tests passed.\n'
+printf 'CI path gate tests passed.\n'
