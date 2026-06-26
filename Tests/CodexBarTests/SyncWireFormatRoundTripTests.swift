@@ -110,6 +110,14 @@ struct SyncWireFormatRoundTripTests {
                 ],
                 availableCount: 1,
                 updatedAt: Date(timeIntervalSince1970: 1_700_000_200)),
+            codexCreditLimit: providerID == "codex" ? SyncCodexCreditLimit(
+                title: "Monthly credit limit",
+                used: 7761,
+                limit: 100_000,
+                remaining: 92239,
+                remainingPercent: 92.239,
+                resetsAt: Date(timeIntervalSince1970: 1_700_086_400),
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_300)) : nil,
             accountIdentities: accountIdentities)
     }
 
@@ -138,6 +146,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.budget?.personalUsedAmount == 4.56)
         #expect(decoded.codexResetCredits?.availableCount == 1)
         #expect(decoded.codexResetCredits?.credits.first?.status == "available")
+        #expect(decoded.codexCreditLimit?.limit == 100_000)
+        #expect(decoded.codexCreditLimit?.remaining == 92239)
         #expect(
             firstPass == secondPass,
             "encode → decode → re-encode must produce byte-identical output")
@@ -162,6 +172,7 @@ struct SyncWireFormatRoundTripTests {
         #expect(decoded.accountEmail == nil)
         #expect(decoded.accountIdentities == nil)
         #expect(decoded.codexResetCredits == nil)
+        #expect(decoded.codexCreditLimit == nil)
         #expect(decoded.budget?.personalUsedAmount == nil)
         #expect(decoded.rateWindows.isEmpty)
     }

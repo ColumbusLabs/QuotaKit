@@ -45,6 +45,7 @@ extension StatusItemController {
                 secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
         }
         let creditsRemaining = self.menuBarCreditsRemainingForIcon(provider: provider, snapshot: snapshot)
+        let creditsRemainingPercent = self.menuBarCreditsRemainingPercentForIcon(provider: provider, snapshot: snapshot)
         let displayText = showBrandPercent ? self.menuBarDisplayText(for: provider, snapshot: snapshot) : nil
 
         return [
@@ -53,6 +54,7 @@ extension StatusItemController {
             "primary=\(Self.iconSignatureValue(resolved?.primary))",
             "weekly=\(Self.iconSignatureValue(resolved?.secondary))",
             "credits=\(Self.iconSignatureValue(creditsRemaining))",
+            "creditsPercent=\(Self.iconSignatureValue(creditsRemainingPercent))",
             "stale=\(self.store.isStale(provider: provider) ? "1" : "0")",
             "status=\(self.store.statusIndicator(for: provider).rawValue)",
             "anim=\(self.shouldAnimate(provider: provider) ? "1" : "0")",

@@ -181,7 +181,7 @@ struct ProviderUsageView: View {
 
     private var usageMetricsSection: some View {
         VStack(spacing: 10) {
-            ForEach(Array(self.provider.allRateWindows.enumerated()), id: \.offset) { index, window in
+            ForEach(Array(self.provider.displayRateWindows.enumerated()), id: \.offset) { index, window in
                 let warning = self.provider.quotaWarning(forWindowIndex: index)
                 UsageCardView(
                     label: window.label ?? self.defaultLabel(at: index),

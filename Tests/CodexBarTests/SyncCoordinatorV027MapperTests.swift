@@ -17,6 +17,53 @@ import Testing
 struct SyncCoordinatorV027MapperTests {
     private static let now = Date(timeIntervalSince1970: 1_700_000_000)
 
+    // MARK: - mapCodexCreditLimit
+
+    @Test("Codex credit-limit mapper emits monthly credit summary")
+    func codexCreditLimitEmitsMonthlyCreditSummary() {
+        let resetsAt = Date(timeIntervalSince1970: 1_700_086_400)
+        let credits = CreditsSnapshot(
+            remaining: 92239,
+            events: [],
+            updatedAt: Self.now,
+            codexCreditLimit: CodexCreditLimitSnapshot(
+                used: 7761,
+                limit: 100_000,
+                remainingPercent: 92.239,
+                resetsAt: resetsAt,
+                updatedAt: Self.now))
+
+        let result = SyncCoordinator.mapCodexCreditLimit(provider: .codex, credits: credits)
+
+        #expect(result?.title == "Monthly credit limit")
+        #expect(result?.used == 7761)
+        #expect(result?.limit == 100_000)
+        #expect(result?.remaining == 92239)
+        #expect(result?.remainingPercent == 92.239)
+        #expect(abs((result?.usedPercent ?? 0) - 7.761) < 0.001)
+        #expect(result?.resetsAt == resetsAt)
+    }
+
+    @Test("Codex credit-limit mapper prunes non-Codex and missing payloads")
+    func codexCreditLimitPrunesWrongProviderAndMissingPayload() {
+        let credits = CreditsSnapshot(
+            remaining: 92239,
+            events: [],
+            updatedAt: Self.now,
+            codexCreditLimit: CodexCreditLimitSnapshot(
+                used: 7761,
+                limit: 100_000,
+                remainingPercent: 92.239,
+                resetsAt: nil,
+                updatedAt: Self.now))
+
+        #expect(SyncCoordinator.mapCodexCreditLimit(provider: .claude, credits: credits) == nil)
+        #expect(SyncCoordinator.mapCodexCreditLimit(provider: .codex, credits: nil) == nil)
+        #expect(SyncCoordinator.mapCodexCreditLimit(
+            provider: .codex,
+            credits: CreditsSnapshot(remaining: 0, events: [], updatedAt: Self.now)) == nil)
+    }
+
     // MARK: - mapClaudeAdminUsage
 
     @Test("Claude Admin mapper: returns nil when provider != .claude")

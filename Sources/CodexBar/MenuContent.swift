@@ -243,10 +243,14 @@ struct StatusIconView: View {
                 snapshotOverride: snapshot,
                 now: snapshot?.updatedAt ?? Date())
             : nil
+        let creditsRemainingPercent = creditsProjection?.menuBarFallback == .creditsBalance
+            ? creditsProjection?.credits?.remainingPercent
+            : nil
         return IconRenderer.makeIcon(
             primaryRemaining: remaining?.primary,
             weeklyRemaining: remaining?.secondary,
             creditsRemaining: creditsRemaining,
+            creditsRemainingPercent: creditsRemainingPercent,
             stale: self.store.isStale(provider: self.provider),
             style: self.store.style(for: self.provider),
             statusIndicator: self.store.statusIndicator(for: self.provider),

@@ -16,6 +16,7 @@ private struct MergedIconRenderMetrics {
     var primary: Double?
     var weekly: Double?
     var credits: Double?
+    var creditsPercent: Double?
     var stale: Bool
     var morphProgress: Double?
 }
@@ -289,6 +290,9 @@ extension StatusItemController {
             credits: self.menuBarCreditsRemainingForIcon(
                 provider: primaryProvider,
                 snapshot: snapshot),
+            creditsPercent: self.menuBarCreditsRemainingPercentForIcon(
+                provider: primaryProvider,
+                snapshot: snapshot),
             stale: self.store.isStale(provider: primaryProvider),
             morphProgress: nil)
         if showUsed,
@@ -320,6 +324,7 @@ extension StatusItemController {
                 metrics.primary = nil
                 metrics.weekly = nil
                 metrics.credits = nil
+                metrics.creditsPercent = nil
                 metrics.stale = false
             } else {
                 // Keep loading animation layout stable: IconRenderer uses `weeklyRemaining > 0` to switch layouts,
@@ -329,6 +334,7 @@ extension StatusItemController {
                     pattern.value(phase: phase + pattern.secondaryOffset),
                     Self.loadingPercentEpsilon)
                 metrics.credits = nil
+                metrics.creditsPercent = nil
                 metrics.stale = false
             }
         }
@@ -349,6 +355,7 @@ extension StatusItemController {
             metrics.primary == nil
                 && metrics.weekly == nil
                 && metrics.credits == nil
+                && metrics.creditsPercent == nil
                 && metrics.morphProgress == nil
                 && (!needsAnimation || phase == nil)
                 && !context.statusIndicator.hasIssue
@@ -389,6 +396,7 @@ extension StatusItemController {
             "primary=\(Self.iconSignatureValue(metrics.primary))",
             "weekly=\(Self.iconSignatureValue(metrics.weekly))",
             "credits=\(Self.iconSignatureValue(metrics.credits))",
+            "creditsPercent=\(Self.iconSignatureValue(metrics.creditsPercent))",
             "stale=\(metrics.stale ? "1" : "0")",
             "status=\(context.statusIndicator.rawValue)",
             "text=\(displayText ?? "nil")",
@@ -474,6 +482,7 @@ extension StatusItemController {
             "primary=\(Self.iconSignatureValue(metrics.primary))",
             "weekly=\(Self.iconSignatureValue(metrics.weekly))",
             "credits=\(Self.iconSignatureValue(metrics.credits))",
+            "creditsPercent=\(Self.iconSignatureValue(metrics.creditsPercent))",
             "stale=\(metrics.stale ? "1" : "0")",
             "status=\(context.statusIndicator.rawValue)",
             "blink=\(Self.iconSignatureValue(Double(motion.blink)))",
@@ -491,6 +500,7 @@ extension StatusItemController {
             primaryRemaining: metrics.primary,
             weeklyRemaining: metrics.weekly,
             creditsRemaining: metrics.credits,
+            creditsRemainingPercent: metrics.creditsPercent,
             stale: metrics.stale,
             style: context.style,
             blink: motion.blink,
@@ -589,6 +599,7 @@ extension StatusItemController {
         var primary = resolved?.primary
         var weekly = resolved?.secondary
         var credits = self.menuBarCreditsRemainingForIcon(provider: provider, snapshot: snapshot)
+        var creditsPercent = self.menuBarCreditsRemainingPercentForIcon(provider: provider, snapshot: snapshot)
         var stale = self.store.isStale(provider: provider)
         var morphProgress: Double?
 
@@ -602,6 +613,7 @@ extension StatusItemController {
                 primary = nil
                 weekly = nil
                 credits = nil
+                creditsPercent = nil
                 stale = false
             } else {
                 // Keep loading animation layout stable: IconRenderer switches layouts at `weeklyRemaining == 0`.
@@ -610,6 +622,7 @@ extension StatusItemController {
                     pattern.value(phase: phase + pattern.secondaryOffset),
                     Self.loadingPercentEpsilon)
                 credits = nil
+                creditsPercent = nil
                 stale = false
             }
         }
@@ -654,6 +667,7 @@ extension StatusItemController {
                 "primary=\(Self.iconSignatureValue(primary))",
                 "weekly=\(Self.iconSignatureValue(weekly))",
                 "credits=\(Self.iconSignatureValue(credits))",
+                "creditsPercent=\(Self.iconSignatureValue(creditsPercent))",
                 "stale=\(stale ? "1" : "0")",
                 "status=\(statusIndicator.rawValue)",
                 "blink=\(Self.iconSignatureValue(Double(blink)))",
@@ -671,6 +685,7 @@ extension StatusItemController {
                 primaryRemaining: primary,
                 weeklyRemaining: weekly,
                 creditsRemaining: credits,
+                creditsRemainingPercent: creditsPercent,
                 stale: stale,
                 style: style,
                 blink: blink,
@@ -700,6 +715,13 @@ extension StatusItemController {
         // as its fallback logic evolves.
         guard provider == .codex else { return nil }
         return self.store.codexMenuBarCreditsRemaining(
+            snapshotOverride: snapshot,
+            now: snapshot?.updatedAt ?? Date())
+    }
+
+    func menuBarCreditsRemainingPercentForIcon(provider: UsageProvider, snapshot: UsageSnapshot?) -> Double? {
+        guard provider == .codex else { return nil }
+        return self.store.codexMenuBarCreditsRemainingPercent(
             snapshotOverride: snapshot,
             now: snapshot?.updatedAt ?? Date())
     }

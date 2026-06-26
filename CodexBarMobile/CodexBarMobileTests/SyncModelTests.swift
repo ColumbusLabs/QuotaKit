@@ -108,6 +108,46 @@ struct SyncModelTests {
         #expect(window.remainingPercent == 0)
     }
 
+    @Test("Codex credit limit becomes display fallback when no rate windows exist")
+    func codexCreditLimitDisplayRateWindowFallback() {
+        let creditLimit = SyncCodexCreditLimit(
+            title: "Monthly credit limit",
+            used: 99000,
+            limit: 100_000,
+            remaining: 1000,
+            remainingPercent: 1,
+            resetsAt: Date(timeIntervalSince1970: 1_700_086_400),
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let codex = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            codexCreditLimit: creditLimit)
+        let claude = ProviderUsageSnapshot(
+            providerID: "claude",
+            providerName: "Claude",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            codexCreditLimit: creditLimit)
+
+        #expect(codex.displayRateWindows.count == 1)
+        #expect(codex.displayRateWindows.first?.label == "Monthly credit limit")
+        #expect(codex.displayRateWindows.first?.usedPercent == 99)
+        #expect(codex.displayRateWindows.first?.remainingPercent == 1)
+        #expect(claude.displayRateWindows.isEmpty)
+    }
+
     @Test("SyncRateWindow decodes old payloads with nil pace")
     func rateWindowOldPayloadDecodesNilPace() throws {
         let json = """

@@ -160,7 +160,7 @@ enum QuotaKitWidgetSnapshotBuilder {
             lastUpdated: provider.lastUpdated,
             statusMessage: self.sanitizedStatusMessage(provider.statusMessage),
             isError: provider.isError,
-            windows: provider.allRateWindows.prefix(3).map { window in
+            windows: provider.displayRateWindows.prefix(3).map { window in
                 QuotaKitWidgetSnapshot.Provider.Window(
                     title: window.label ?? String(localized: "Quota"),
                     usedPercent: window.usedPercent,
