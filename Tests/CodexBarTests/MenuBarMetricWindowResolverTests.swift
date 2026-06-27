@@ -56,15 +56,19 @@ struct MenuBarMetricWindowResolverTests {
     }
 
     @Test
-    func `automatic metric skips exhausted cursor subquota when total remains usable`() {
+    func `automatic metric skips exhausted cursor api lane when auto remains usable`() {
         let snapshot = UsageSnapshot(
-            primary: RateWindow(usedPercent: 67, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "Total"),
-            secondary: RateWindow(
+            primary: RateWindow(
                 usedPercent: 34,
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
                 resetDescription: "Auto"),
-            tertiary: RateWindow(usedPercent: 100, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "API"),
+            secondary: RateWindow(
+                usedPercent: 100,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "API"),
+            tertiary: nil,
             updatedAt: Date())
 
         let window = MenuBarMetricWindowResolver.rateWindow(
@@ -73,8 +77,8 @@ struct MenuBarMetricWindowResolverTests {
             snapshot: snapshot,
             supportsAverage: false)
 
-        #expect(window?.remainingPercent == 33)
-        #expect(window?.resetDescription == "Total")
+        #expect(window?.remainingPercent == 66)
+        #expect(window?.resetDescription == "Auto")
     }
 
     @Test
@@ -84,37 +88,12 @@ struct MenuBarMetricWindowResolverTests {
                 usedPercent: 100,
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
-                resetDescription: "Total"),
+                resetDescription: "Auto"),
             secondary: RateWindow(
                 usedPercent: 100,
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
-                resetDescription: "Auto"),
-            tertiary: RateWindow(usedPercent: 100, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "API"),
-            updatedAt: Date())
-
-        let window = MenuBarMetricWindowResolver.rateWindow(
-            preference: .automatic,
-            provider: .cursor,
-            snapshot: snapshot,
-            supportsAverage: false)
-
-        #expect(window?.remainingPercent == 0)
-    }
-
-    @Test
-    func `automatic metric keeps exhausted cursor total when a subquota remains usable`() {
-        let snapshot = UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 100,
-                windowMinutes: 30 * 24 * 60,
-                resetsAt: nil,
-                resetDescription: "Total"),
-            secondary: RateWindow(
-                usedPercent: 60,
-                windowMinutes: 30 * 24 * 60,
-                resetsAt: nil,
-                resetDescription: "Auto"),
+                resetDescription: "API"),
             tertiary: nil,
             updatedAt: Date())
 
@@ -125,19 +104,48 @@ struct MenuBarMetricWindowResolverTests {
             supportsAverage: false)
 
         #expect(window?.remainingPercent == 0)
-        #expect(window?.resetDescription == "Total")
     }
 
     @Test
-    func `automatic metric reports cursor exhausted when all present subquotas are exhausted`() {
+    func `automatic metric uses usable cursor api when auto is exhausted`() {
         let snapshot = UsageSnapshot(
-            primary: RateWindow(usedPercent: 67, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "Total"),
-            secondary: RateWindow(
+            primary: RateWindow(
                 usedPercent: 100,
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
                 resetDescription: "Auto"),
-            tertiary: RateWindow(usedPercent: 100, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "API"),
+            secondary: RateWindow(
+                usedPercent: 60,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "API"),
+            tertiary: nil,
+            updatedAt: Date())
+
+        let window = MenuBarMetricWindowResolver.rateWindow(
+            preference: .automatic,
+            provider: .cursor,
+            snapshot: snapshot,
+            supportsAverage: false)
+
+        #expect(window?.remainingPercent == 40)
+        #expect(window?.resetDescription == "API")
+    }
+
+    @Test
+    func `automatic metric reports cursor exhausted when all modern subquotas are exhausted`() {
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 100,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "Auto"),
+            secondary: RateWindow(
+                usedPercent: 100,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "API"),
+            tertiary: nil,
             updatedAt: Date())
 
         let window = MenuBarMetricWindowResolver.rateWindow(

@@ -74,7 +74,7 @@ struct CursorEnterpriseUsageTests {
     }
 
     @Test
-    func `enterprise overall drives headline percent and dollars`() throws {
+    func `enterprise overall drives cost context and visible plan fallback`() {
         // Regression: Cursor Enterprise/Team accounts ship `individualUsage.overall` instead of
         // `individualUsage.plan`. Without a model for `overall`, the parser used to report 0%
         // (i.e. the menu showed "100% remaining"). The personal cap must take precedence over
@@ -111,8 +111,11 @@ struct CursorEnterpriseUsageTests {
         #expect(snapshot.autoPercentUsed == nil)
         #expect(snapshot.apiPercentUsed == nil)
 
-        let primaryPercent = try #require(snapshot.toUsageSnapshot().primary?.usedPercent)
-        #expect(abs(primaryPercent - 73.84) < 0.0001)
+        let usage = snapshot.toUsageSnapshot()
+        #expect(abs((usage.primary?.usedPercent ?? 0) - 73.84) < 0.0001)
+        #expect(usage.cursorRateWindowLayout == .plan)
+        #expect(usage.secondary == nil)
+        #expect(usage.tertiary == nil)
     }
 
     @Test
@@ -144,6 +147,9 @@ struct CursorEnterpriseUsageTests {
         #expect(snapshot.planPercentUsed < 45.5)
         #expect(snapshot.planUsedUSD == 127_251.35)
         #expect(snapshot.planLimitUSD == 281_220.0)
+        let usage = snapshot.toUsageSnapshot()
+        #expect(usage.primary != nil)
+        #expect(usage.cursorRateWindowLayout == .plan)
     }
 
     @Test

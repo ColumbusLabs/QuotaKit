@@ -52,7 +52,7 @@ enum MenuBarMetricWindowResolver {
         if provider == .zai {
             return [.tertiary, .primary, .secondary]
         }
-        if provider == .perplexity || provider == .cursor || provider == .antigravity {
+        if provider == .perplexity || provider == .antigravity {
             return [.tertiary, .secondary, .primary]
         }
         return [.primary, .secondary]
@@ -131,10 +131,15 @@ enum MenuBarMetricWindowResolver {
             return primary.usedPercent >= secondary.usedPercent ? primary : secondary
         }
         if provider == .cursor {
+            if snapshot.tertiary != nil {
+                return Self.mostConstrainedCursorWindow(
+                    auto: snapshot.secondary,
+                    api: snapshot.tertiary)
+                    ?? snapshot.primary
+            }
             return Self.mostConstrainedCursorWindow(
-                total: snapshot.primary,
-                auto: snapshot.secondary,
-                api: snapshot.tertiary)
+                auto: snapshot.primary,
+                api: snapshot.secondary)
         }
         if provider == .minimax {
             return Self.mostConstrainedWindow(
@@ -224,24 +229,14 @@ enum MenuBarMetricWindowResolver {
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
     }
 
-    private static func mostConstrainedCursorWindow(
-        total: RateWindow?,
-        auto: RateWindow?,
-        api: RateWindow?)
-        -> RateWindow?
-    {
-        if let total, total.usedPercent >= 100 {
-            return total
-        }
-
+    private static func mostConstrainedCursorWindow(auto: RateWindow?, api: RateWindow?) -> RateWindow? {
         let subquotaWindows = [auto, api].compactMap(\.self)
         let usableSubquotaWindows = subquotaWindows.filter { $0.usedPercent < 100 }
         if !subquotaWindows.isEmpty, usableSubquotaWindows.isEmpty {
             return subquotaWindows.max(by: { $0.usedPercent < $1.usedPercent })
         }
 
-        return ([total].compactMap(\.self) + usableSubquotaWindows)
-            .max(by: { $0.usedPercent < $1.usedPercent })
+        return usableSubquotaWindows.max(by: { $0.usedPercent < $1.usedPercent })
     }
 
     private static func shouldUseClaudeSpendLimit(

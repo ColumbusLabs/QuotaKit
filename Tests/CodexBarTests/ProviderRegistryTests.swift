@@ -47,6 +47,17 @@ struct ProviderRegistryTests {
     }
 
     @Test
+    func `cursor supports only auto and api source modes`() {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .cursor)
+
+        #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
+        #expect(descriptor.metadata.sessionLabel == "Auto")
+        #expect(descriptor.metadata.weeklyLabel == "API")
+        #expect(!descriptor.metadata.supportsOpus)
+        #expect(descriptor.metadata.opusLabel == nil)
+    }
+
+    @Test
     func `priority provider brand colors match QuotaKit palette`() {
         expectColor(.codex, red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor(.claude, red: 204 / 255, green: 124 / 255, blue: 94 / 255)

@@ -27,10 +27,10 @@ struct CursorLegacyRequestProjectionTests {
                 requestsUsed: requestCase.used,
                 requestsLimit: requestCase.limit).toUsageSnapshot()
 
-            #expect(usageSnapshot.primary?.usedPercent == 7.0)
+            #expect(usageSnapshot.primary?.usedPercent == 11.0)
             #expect(usageSnapshot.cursorRequests == nil)
-            #expect(usageSnapshot.secondary?.usedPercent == 11.0)
-            #expect(usageSnapshot.tertiary?.usedPercent == 22.0)
+            #expect(usageSnapshot.secondary?.usedPercent == 22.0)
+            #expect(usageSnapshot.tertiary == nil)
         }
     }
 

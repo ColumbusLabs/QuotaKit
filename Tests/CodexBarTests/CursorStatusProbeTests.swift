@@ -317,43 +317,11 @@ struct CursorStatusProbeTests {
         #expect(snapshot.apiPercentUsed == 0.7111111111111111)
         #expect(snapshot.billingCycleStart != nil)
         let usageSnapshot = snapshot.toUsageSnapshot()
-        #expect(usageSnapshot.primary?.remainingPercent == 99.55897435897436)
+        #expect(usageSnapshot.primary?.remainingPercent == 99.64)
+        #expect(usageSnapshot.secondary?.remainingPercent == 99.28888888888889)
         #expect(usageSnapshot.primary?.windowMinutes == 44640)
         #expect(usageSnapshot.secondary?.windowMinutes == 44640)
-        #expect(usageSnapshot.tertiary?.windowMinutes == 44640)
-    }
-
-    @Test
-    func `converts snapshot to usage snapshot`() {
-        let snapshot = CursorStatusSnapshot(
-            planPercentUsed: 45.0,
-            autoPercentUsed: 5.0,
-            apiPercentUsed: nil,
-            planUsedUSD: 22.50,
-            planLimitUSD: 50.0,
-            onDemandUsedUSD: 5.0,
-            onDemandLimitUSD: 100.0,
-            teamOnDemandUsedUSD: 25.0,
-            teamOnDemandLimitUSD: 500.0,
-            billingCycleStart: Date(timeIntervalSince1970: 1_735_689_600), // Jan 1, 2025
-            billingCycleEnd: Date(timeIntervalSince1970: 1_738_368_000), // Feb 1, 2025
-            membershipType: "pro",
-            accountEmail: "user@example.com",
-            accountName: "Test User",
-            rawJSON: nil)
-
-        let usageSnapshot = snapshot.toUsageSnapshot()
-
-        #expect(usageSnapshot.primary?.usedPercent == 45.0)
-        #expect(usageSnapshot.accountEmail(for: .cursor) == "user@example.com")
-        #expect(usageSnapshot.loginMethod(for: .cursor) == "Cursor Pro")
-        #expect(usageSnapshot.secondary != nil)
-        #expect(usageSnapshot.secondary?.usedPercent == 5.0)
-        #expect(usageSnapshot.primary?.windowMinutes == 44640)
-        #expect(usageSnapshot.secondary?.windowMinutes == 44640)
-        #expect(usageSnapshot.providerCost?.used == 5.0)
-        #expect(usageSnapshot.providerCost?.limit == 100.0)
-        #expect(usageSnapshot.providerCost?.currencyCode == "USD")
+        #expect(usageSnapshot.tertiary == nil)
     }
 
     @Test
@@ -402,7 +370,9 @@ struct CursorStatusProbeTests {
 
         let usageSnapshot = snapshot.toUsageSnapshot()
 
-        #expect(usageSnapshot.secondary?.usedPercent == 20.0)
+        #expect(usageSnapshot.primary?.usedPercent == 20.0)
+        #expect(usageSnapshot.cursorRateWindowLayout == .autoOnly)
+        #expect(usageSnapshot.secondary == nil)
         #expect(usageSnapshot.providerCost?.used == 12.0)
         #expect(usageSnapshot.providerCost?.limit == 60.0)
     }

@@ -481,7 +481,7 @@ private let SQLITE_TRANSIENT = unsafeBitCast(-1, to: sqlite3_destructor_type.sel
 // MARK: - Cursor Status Snapshot
 
 public struct CursorStatusSnapshot: Sendable {
-    /// Percentage of included plan usage (0-100) — the "Total" headline number from Cursor's UI
+    /// Percentage of included plan usage (0-100) from Cursor's combined plan payload
     public let planPercentUsed: Double
     /// Auto + Composer usage percent (0-100), nil when not available
     public let autoPercentUsed: Double?
@@ -573,37 +573,57 @@ public struct CursorStatusSnapshot: Sendable {
             nil
         }
 
-        // Primary: For usable legacy request quotas, use request usage; otherwise preserve plan percentage.
-        let primaryUsedPercent = cursorRequests?.usedPercent ?? self.planPercentUsed
-
         let billingCycleWindowMinutes = Self.billingCycleWindowMinutes(
             start: self.billingCycleStart,
             end: self.billingCycleEnd)
 
-        let primary = RateWindow(
-            usedPercent: primaryUsedPercent,
-            windowMinutes: billingCycleWindowMinutes,
-            resetsAt: self.billingCycleEnd,
-            resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
-
-        // Secondary: Auto + Composer usage (shown as its own bar below Total).
-        // Legacy request-based plans don't have the token-based Auto/API breakdown — those percentages
-        // come from the new usage-based pricing and are meaningless next to a request quota, so hide them.
-        let secondary: RateWindow? = cursorRequests != nil ? nil : self.autoPercentUsed.map { pct in
-            RateWindow(
-                usedPercent: pct,
+        func billingCycleWindow(usedPercent: Double) -> RateWindow? {
+            guard usedPercent.isFinite else { return nil }
+            return RateWindow(
+                usedPercent: usedPercent,
                 windowMinutes: billingCycleWindowMinutes,
                 resetsAt: self.billingCycleEnd,
                 resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
         }
 
-        // Tertiary: API (named model) usage — hidden for legacy request-based plans (see above).
-        let tertiary: RateWindow? = cursorRequests != nil ? nil : self.apiPercentUsed.map { pct in
-            RateWindow(
-                usedPercent: pct,
-                windowMinutes: billingCycleWindowMinutes,
-                resetsAt: self.billingCycleEnd,
-                resetDescription: self.billingCycleEnd.map { Self.formatResetDate($0) })
+        let autoWindow = self.autoPercentUsed.flatMap(billingCycleWindow)
+        let apiWindow = self.apiPercentUsed.flatMap(billingCycleWindow)
+        let planFallbackWindow: RateWindow? = {
+            guard self.planPercentUsed > 0 || self.planUsedUSD > 0 || self.planLimitUSD > 0 else { return nil }
+            return billingCycleWindow(usedPercent: self.planPercentUsed)
+        }()
+
+        // Modern Cursor plans expose Auto and API as independent quotas; legacy
+        // request-based plans keep their single request quota. Some enterprise
+        // payloads expose only an overall/pooled plan value, so keep a visible
+        // fallback Plan lane instead of dropping quota data.
+        let primary: RateWindow?
+        let secondary: RateWindow?
+        let cursorRateWindowLayout: CursorRateWindowLayout?
+        if let cursorRequests {
+            primary = billingCycleWindow(usedPercent: cursorRequests.usedPercent)
+            secondary = nil
+            cursorRateWindowLayout = .requests
+        } else if let autoWindow, let apiWindow {
+            primary = autoWindow
+            secondary = apiWindow
+            cursorRateWindowLayout = .autoAPI
+        } else if let autoWindow {
+            primary = autoWindow
+            secondary = nil
+            cursorRateWindowLayout = .autoOnly
+        } else if let apiWindow {
+            primary = apiWindow
+            secondary = nil
+            cursorRateWindowLayout = .apiOnly
+        } else if let planFallbackWindow {
+            primary = planFallbackWindow
+            secondary = nil
+            cursorRateWindowLayout = .plan
+        } else {
+            primary = nil
+            secondary = nil
+            cursorRateWindowLayout = nil
         }
 
         // Prefer a personal cap. Team accounts with no user cap expose only the shared on-demand budget.
@@ -653,9 +673,10 @@ public struct CursorStatusSnapshot: Sendable {
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
-            tertiary: tertiary,
+            tertiary: nil,
             providerCost: providerCost,
             cursorRequests: cursorRequests,
+            cursorRateWindowLayout: cursorRateWindowLayout,
             updatedAt: Date(),
             identity: identity)
     }

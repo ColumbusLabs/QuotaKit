@@ -2,6 +2,20 @@ import CodexBarCore
 import Foundation
 
 extension SettingsStore {
+    var cursorUsageDataSource: ProviderSourceMode {
+        get {
+            let source = self.configSnapshot.providerConfig(for: .cursor)?.source
+            return source == .api ? .api : .auto
+        }
+        set {
+            let resolved: ProviderSourceMode = newValue == .api ? .api : .auto
+            self.updateProviderConfig(provider: .cursor) { entry in
+                entry.source = resolved == .auto ? nil : resolved
+            }
+            self.logProviderModeChange(provider: .cursor, field: "source", value: resolved.rawValue)
+        }
+    }
+
     var cursorCookieHeader: String {
         get { self.configSnapshot.providerConfig(for: .cursor)?.sanitizedCookieHeader ?? "" }
         set {

@@ -55,6 +55,30 @@ struct SettingsStoreAdditionalTests {
     }
 
     @Test
+    @MainActor
+    func `cursor metric preference migration preserves released metric meaning`() throws {
+        let primaryDefaults = try self.cursorMetricDefaults(suffix: "primary", preference: .primary)
+        let primarySettings = SettingsStore(userDefaults: primaryDefaults)
+        #expect(primarySettings.menuBarMetricPreference(for: .cursor) == .automatic)
+        #expect(primaryDefaults.bool(forKey: "cursorAutoAPIMetricPreferenceMigrated"))
+
+        let secondaryDefaults = try self.cursorMetricDefaults(suffix: "secondary", preference: .secondary)
+        let secondarySettings = SettingsStore(userDefaults: secondaryDefaults)
+        #expect(secondarySettings.menuBarMetricPreference(for: .cursor) == .primary)
+
+        let tertiaryDefaults = try self.cursorMetricDefaults(suffix: "tertiary", preference: .tertiary)
+        let tertiarySettings = SettingsStore(userDefaults: tertiaryDefaults)
+        #expect(tertiarySettings.menuBarMetricPreference(for: .cursor) == .secondary)
+
+        let automaticDefaults = try self.cursorMetricDefaults(suffix: "automatic", preference: .automatic)
+        let automaticSettings = SettingsStore(userDefaults: automaticDefaults)
+        #expect(automaticSettings.menuBarMetricPreference(for: .cursor) == .automatic)
+
+        let reloadedSettings = SettingsStore(userDefaults: secondaryDefaults)
+        #expect(reloadedSettings.menuBarMetricPreference(for: .cursor) == .primary)
+    }
+
+    @Test
     func `menu bar metric preference handles zai and average`() {
         let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-metric")
 
@@ -96,7 +120,7 @@ struct SettingsStoreAdditionalTests {
         #expect(settings.menuBarMetricPreference(for: .codex) == .automatic)
 
         settings.setMenuBarMetricPreference(.tertiary, for: .cursor)
-        #expect(settings.menuBarMetricPreference(for: .cursor) == .tertiary)
+        #expect(settings.menuBarMetricPreference(for: .cursor) == .automatic)
         #expect(settings.menuBarMetricPreference(for: .cursor, snapshot: nil) == .automatic)
         #expect(settings.menuBarMetricSupportsTertiary(for: .cursor, snapshot: nil) == false)
 
@@ -233,5 +257,18 @@ struct SettingsStoreAdditionalTests {
             ampCookieStore: InMemoryCookieHeaderStore(),
             copilotTokenStore: InMemoryCopilotTokenStore(),
             tokenAccountStore: InMemoryTokenAccountStore())
+    }
+
+    private func cursorMetricDefaults(
+        suffix: String,
+        preference: MenuBarMetricPreference) throws -> UserDefaults
+    {
+        let suite = "SettingsStoreAdditionalTests-cursor-metric-\(suffix)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(
+            [UsageProvider.cursor.rawValue: preference.rawValue],
+            forKey: "menuBarMetricPreferences")
+        return defaults
     }
 }

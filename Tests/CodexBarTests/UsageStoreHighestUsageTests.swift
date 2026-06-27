@@ -613,9 +613,9 @@ extension UsageStoreHighestUsageTests {
     }
 
     @Test
-    func `automatic metric uses tertiary when it is most constrained for cursor`() {
+    func `automatic metric uses api lane when it is most constrained for cursor`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-tertiary"),
+            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-api"),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
@@ -639,8 +639,8 @@ extension UsageStoreHighestUsageTests {
             updatedAt: Date())
         let cursorSnapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            secondary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            tertiary: RateWindow(usedPercent: 95, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 95, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
             updatedAt: Date())
 
         store._setSnapshotForTesting(codexSnapshot, provider: .codex)
@@ -847,14 +847,20 @@ extension UsageStoreHighestUsageTests {
     }
 
     @Test
-    func `cursor highest usage keeps provider when saved tertiary falls back to automatic`() {
+    func `cursor highest usage uses migrated tertiary api preference as secondary`() throws {
+        let suite = "UsageStoreHighestUsageTests-cursor-migrated-api"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(
+            [UsageProvider.cursor.rawValue: MenuBarMetricPreference.tertiary.rawValue],
+            forKey: "menuBarMetricPreferences")
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "UsageStoreHighestUsageTests-cursor-missing-tertiary"),
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        settings.setMenuBarMetricPreference(.tertiary, for: .cursor)
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -882,7 +888,7 @@ extension UsageStoreHighestUsageTests {
 
         let highest = store.providerWithHighestUsage()
         #expect(highest?.provider == .cursor)
-        #expect(highest?.usedPercent == 100)
+        #expect(highest?.usedPercent == 60)
     }
 
     private func antigravityQuotaSummarySnapshot(

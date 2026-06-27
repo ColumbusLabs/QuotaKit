@@ -583,7 +583,7 @@ struct StatusItemAnimationTests {
     @Test
     func `menu bar percent automatic picks highest cursor lane including api`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-automatic-tertiary"),
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-automatic-api"),
             zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -608,8 +608,8 @@ struct StatusItemAnimationTests {
 
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            secondary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            tertiary: RateWindow(usedPercent: 90, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 90, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
             updatedAt: Date())
 
         store._setSnapshotForTesting(snapshot, provider: .cursor)
@@ -824,15 +824,15 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func `menu bar percent tertiary preference uses api lane for cursor`() {
+    func `menu bar percent secondary preference uses api lane for cursor`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-tertiary-pref"),
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-secondary-pref"),
             zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.selectedMenuProvider = .cursor
-        settings.setMenuBarMetricPreference(.tertiary, for: .cursor)
+        settings.setMenuBarMetricPreference(.secondary, for: .cursor)
 
         let registry = ProviderRegistry.shared
         if let cursorMeta = registry.metadata[.cursor] {
@@ -851,8 +851,8 @@ struct StatusItemAnimationTests {
 
         let snapshot = UsageSnapshot(
             primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            secondary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            tertiary: RateWindow(usedPercent: 72, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 72, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
             updatedAt: Date())
 
         store._setSnapshotForTesting(snapshot, provider: .cursor)
@@ -864,9 +864,9 @@ struct StatusItemAnimationTests {
     }
 
     @Test
-    func `menu bar tertiary preference falls back to automatic when cursor api lane is missing`() {
+    func `menu bar tertiary preference falls back to automatic for cursor`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-tertiary-missing-api"),
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-tertiary-fallback"),
             zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual

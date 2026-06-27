@@ -8,11 +8,14 @@ struct CursorProviderImplementation: ProviderImplementation {
 
     @MainActor
     func presentation(context _: ProviderPresentationContext) -> ProviderPresentation {
-        ProviderPresentation { _ in "web" }
+        ProviderPresentation { context in
+            context.store.sourceLabel(for: context.provider)
+        }
     }
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.cursorUsageDataSource
         _ = settings.cursorCookieSource
         _ = settings.cursorCookieHeader
     }
@@ -37,7 +40,27 @@ struct CursorProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func defaultSourceLabel(context: ProviderSourceLabelContext) -> String? {
+        context.settings.cursorUsageDataSource.rawValue
+    }
+
+    @MainActor
+    func sourceMode(context: ProviderSourceModeContext) -> ProviderSourceMode {
+        context.settings.cursorUsageDataSource
+    }
+
+    @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
+        let usageBinding = Binding(
+            get: { context.settings.cursorUsageDataSource.rawValue },
+            set: { raw in
+                context.settings.cursorUsageDataSource = ProviderSourceMode(rawValue: raw) ?? .auto
+            })
+        let usageOptions = [
+            ProviderSettingsPickerOption(id: ProviderSourceMode.auto.rawValue, title: "Auto"),
+            ProviderSettingsPickerOption(id: ProviderSourceMode.api.rawValue, title: "API"),
+        ]
+
         let cookieBinding = Binding(
             get: { context.settings.cursorCookieSource.rawValue },
             set: { raw in
@@ -57,6 +80,19 @@ struct CursorProviderImplementation: ProviderImplementation {
         }
 
         return [
+            ProviderSettingsPickerDescriptor(
+                id: "cursor-usage-source",
+                title: "Usage source",
+                subtitle: "",
+                binding: usageBinding,
+                options: usageOptions,
+                isVisible: nil,
+                onChange: nil,
+                trailingText: {
+                    guard context.settings.cursorUsageDataSource == .auto else { return nil }
+                    let label = context.store.sourceLabel(for: .cursor)
+                    return label == "auto" ? nil : label
+                }),
             ProviderSettingsPickerDescriptor(
                 id: "cursor-cookie-source",
                 title: "Cookie source",

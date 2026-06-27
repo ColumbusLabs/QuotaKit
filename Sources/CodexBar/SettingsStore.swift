@@ -492,24 +492,43 @@ extension SettingsStore {
             [:]
         }
 
-        let migrationKey = "antigravityTwoPoolMetricPreferenceMigrated"
-        guard !userDefaults.bool(forKey: migrationKey) else { return preferences }
-
-        // Tagged builds through v0.35 used primary=Claude, secondary=Gemini Pro,
-        // and tertiary=Gemini Flash. Remap those meanings once to the two-pool schema.
         var migrated = preferences
-        switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? "") {
-        case .primary:
-            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.secondary.rawValue
-        case .secondary:
-            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
-        case .tertiary:
-            migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
-        case .automatic, .primaryAndSecondary, .extraUsage, .average, .monthlyPlan, .none:
-            break
+
+        let antigravityMigrationKey = "antigravityTwoPoolMetricPreferenceMigrated"
+        if !userDefaults.bool(forKey: antigravityMigrationKey) {
+            // Tagged builds through v0.35 used primary=Claude, secondary=Gemini Pro,
+            // and tertiary=Gemini Flash. Remap those meanings once to the two-pool schema.
+            switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? "") {
+            case .primary:
+                migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.secondary.rawValue
+            case .secondary:
+                migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
+            case .tertiary:
+                migrated[UsageProvider.antigravity.rawValue] = MenuBarMetricPreference.primary.rawValue
+            case .automatic, .primaryAndSecondary, .extraUsage, .average, .monthlyPlan, .none:
+                break
+            }
+            userDefaults.set(true, forKey: antigravityMigrationKey)
         }
+
+        let cursorMigrationKey = "cursorAutoAPIMetricPreferenceMigrated"
+        if !userDefaults.bool(forKey: cursorMigrationKey) {
+            // Cursor used primary=Total, secondary=Auto, and tertiary=API before
+            // the visible schema became Auto/API only.
+            switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.cursor.rawValue] ?? "") {
+            case .primary:
+                migrated[UsageProvider.cursor.rawValue] = MenuBarMetricPreference.automatic.rawValue
+            case .secondary:
+                migrated[UsageProvider.cursor.rawValue] = MenuBarMetricPreference.primary.rawValue
+            case .tertiary:
+                migrated[UsageProvider.cursor.rawValue] = MenuBarMetricPreference.secondary.rawValue
+            case .automatic, .primaryAndSecondary, .extraUsage, .average, .monthlyPlan, .none:
+                break
+            }
+            userDefaults.set(true, forKey: cursorMigrationKey)
+        }
+
         userDefaults.set(migrated, forKey: "menuBarMetricPreferences")
-        userDefaults.set(true, forKey: migrationKey)
         return migrated
     }
 

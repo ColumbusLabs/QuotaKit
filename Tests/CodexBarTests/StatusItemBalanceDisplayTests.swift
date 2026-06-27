@@ -166,7 +166,7 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
-    func `menu bar display text skips exhausted cursor api subquota when total remains usable`() {
+    func `menu bar display text skips exhausted cursor api subquota when auto remains usable`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-cursor-exhausted-api",
             provider: .cursor)
@@ -175,13 +175,17 @@ struct StatusItemBalanceDisplayTests {
         let (store, controller) = self.makeStoreAndController(settings: settings)
         defer { controller.releaseStatusItemsForTesting() }
         let snapshot = UsageSnapshot(
-            primary: RateWindow(usedPercent: 67, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "Total"),
-            secondary: RateWindow(
+            primary: RateWindow(
                 usedPercent: 34,
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
                 resetDescription: "Auto"),
-            tertiary: RateWindow(usedPercent: 100, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: "API"),
+            secondary: RateWindow(
+                usedPercent: 100,
+                windowMinutes: 30 * 24 * 60,
+                resetsAt: nil,
+                resetDescription: "API"),
+            tertiary: nil,
             updatedAt: Date())
 
         store._setSnapshotForTesting(snapshot, provider: .cursor)
@@ -189,7 +193,7 @@ struct StatusItemBalanceDisplayTests {
 
         let displayText = controller.menuBarDisplayText(for: .cursor, snapshot: snapshot)
 
-        #expect(displayText == "33%")
+        #expect(displayText == "66%")
     }
 
     @Test

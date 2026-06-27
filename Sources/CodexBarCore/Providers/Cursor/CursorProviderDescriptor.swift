@@ -9,10 +9,10 @@ public enum CursorProviderDescriptor {
             metadata: ProviderMetadata(
                 id: .cursor,
                 displayName: "Cursor",
-                sessionLabel: "Total",
-                weeklyLabel: "Auto",
-                opusLabel: "API",
-                supportsOpus: true,
+                sessionLabel: "Auto",
+                weeklyLabel: "API",
+                opusLabel: nil,
+                supportsOpus: false,
                 supportsCredits: true,
                 creditsHint: "On-demand usage beyond included plan limits.",
                 toggleTitle: "Show Cursor usage",
@@ -33,7 +33,7 @@ public enum CursorProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Cursor cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .cli],
+                sourceModes: [.auto, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [CursorStatusFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "cursor",
@@ -56,7 +56,7 @@ struct CursorStatusFetchStrategy: ProviderFetchStrategy {
         let snap = try await probe.fetch(cookieHeaderOverride: manual)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
-            sourceLabel: "web")
+            sourceLabel: context.sourceMode == .api ? "api" : "auto")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

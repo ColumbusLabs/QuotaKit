@@ -274,7 +274,7 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
-    func `cursor menu bar metric picker omits tertiary api lane when snapshot has no api metric`() {
+    func `cursor menu bar metric picker omits tertiary api lane`() {
         let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-cursor-no-tertiary-picker")
         let store = Self.makeUsageStore(settings: settings)
         let pane = ProvidersPane(settings: settings, store: store)
@@ -285,24 +285,23 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
-    func `cursor menu bar metric picker includes tertiary api lane when snapshot has api metric`() {
+    func `cursor menu bar metric picker labels api as secondary lane`() {
         Self.withEnglishLocalization {
-            let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-cursor-tertiary-picker")
+            let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-cursor-api-secondary-picker")
             let store = Self.makeUsageStore(settings: settings)
             store._setSnapshotForTesting(
                 UsageSnapshot(
                     primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
                     secondary: RateWindow(usedPercent: 34, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-                    tertiary: RateWindow(usedPercent: 56, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
                     updatedAt: Date()),
                 provider: .cursor)
             let pane = ProvidersPane(settings: settings, store: store)
 
             let picker = pane._test_menuBarMetricPicker(for: .cursor)
             let ids = picker?.options.map(\.id) ?? []
-            #expect(ids.contains(MenuBarMetricPreference.tertiary.rawValue))
-            let tertiaryOption = picker?.options.first { $0.id == MenuBarMetricPreference.tertiary.rawValue }
-            #expect(tertiaryOption?.title == "Tertiary (API)")
+            #expect(!ids.contains(MenuBarMetricPreference.tertiary.rawValue))
+            let secondaryOption = picker?.options.first { $0.id == MenuBarMetricPreference.secondary.rawValue }
+            #expect(secondaryOption?.title == "Secondary (API)")
         }
     }
 
@@ -332,7 +331,6 @@ struct ProvidersPaneCoverageTests {
                 UsageSnapshot(
                     primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
                     secondary: RateWindow(usedPercent: 34, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-                    tertiary: RateWindow(usedPercent: 56, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
                     providerCost: ProviderCostSnapshot(
                         used: 15,
                         limit: 100,

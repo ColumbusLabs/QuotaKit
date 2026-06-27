@@ -224,9 +224,8 @@ extension UsageMenuCardView.Model {
         if input.provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
-        // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
-        let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
-            "Requests"
+        let primaryLabel = if input.provider == .cursor {
+            Self.cursorPrimaryRateWindowLabel(snapshot: snapshot, fallback: input.metadata.sessionLabel)
         } else if input.provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else {
@@ -237,6 +236,21 @@ extension UsageMenuCardView.Model {
             L(input.metadata.weeklyLabel),
             input.metadata.opusLabel.map(L) ?? L("Sonnet"),
             input.metadata.supportsOpus)
+    }
+
+    private static func cursorPrimaryRateWindowLabel(snapshot: UsageSnapshot, fallback: String) -> String {
+        switch snapshot.cursorRateWindowLayout {
+        case .requests:
+            "Requests"
+        case .plan:
+            "Plan"
+        case .apiOnly:
+            "API"
+        case .autoAPI, .autoOnly:
+            fallback
+        case .none:
+            snapshot.cursorRequests == nil ? fallback : "Requests"
+        }
     }
 
     static func resetText(

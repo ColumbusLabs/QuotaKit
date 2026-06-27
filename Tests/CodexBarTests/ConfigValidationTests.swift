@@ -20,6 +20,34 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `allows Cursor session backed API source without API key`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .cursor, source: .api, apiKey: nil))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `warns when Cursor API key is set because API source is session backed`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .cursor, source: .api, apiKey: "sk-unused"))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_unused" }))
+        #expect(!issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `normalizes unsupported Cursor source modes back to auto`() {
+        var webConfig = CodexBarConfig.makeDefault()
+        webConfig.setProviderConfig(ProviderConfig(id: .cursor, source: .web))
+        #expect(webConfig.normalized().providerConfig(for: .cursor)?.source == nil)
+
+        var apiConfig = CodexBarConfig.makeDefault()
+        apiConfig.setProviderConfig(ProviderConfig(id: .cursor, source: .api))
+        #expect(apiConfig.normalized().providerConfig(for: .cursor)?.source == .api)
+    }
+
+    @Test
     func `reports invalid region`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .minimax, region: "nowhere"))

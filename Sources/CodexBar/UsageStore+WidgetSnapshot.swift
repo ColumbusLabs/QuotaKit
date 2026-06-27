@@ -134,14 +134,10 @@ extension UsageStore {
             return rows
         }
 
-        let primaryTitle: String = {
-            if provider == .grok,
-               let dyn = GrokProviderDescriptor.primaryLabel(window: snapshot.primary)
-            {
-                return dyn
-            }
-            return metadata?.sessionLabel ?? "Session"
-        }()
+        let primaryTitle = Self.widgetPrimaryRateWindowLabel(
+            provider: provider,
+            metadata: metadata,
+            snapshot: snapshot)
 
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = [
             WidgetSnapshot.WidgetUsageRowSnapshot(
@@ -160,6 +156,31 @@ extension UsageStore {
                 percentLeft: snapshot.tertiary?.remainingPercent))
         }
         return rows.filter { $0.percentLeft != nil }
+    }
+
+    private nonisolated static func widgetPrimaryRateWindowLabel(
+        provider: UsageProvider,
+        metadata: ProviderMetadata?,
+        snapshot: UsageSnapshot) -> String
+    {
+        if provider == .cursor {
+            switch snapshot.cursorRateWindowLayout {
+            case .requests:
+                return "Requests"
+            case .plan:
+                return "Plan"
+            case .apiOnly:
+                return "API"
+            case .autoAPI, .autoOnly, .none:
+                return metadata?.sessionLabel ?? "Session"
+            }
+        }
+        if provider == .grok,
+           let dyn = GrokProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        return metadata?.sessionLabel ?? "Session"
     }
 
     private nonisolated static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"

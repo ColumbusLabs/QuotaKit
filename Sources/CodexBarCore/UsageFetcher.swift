@@ -124,6 +124,14 @@ public enum UsageDataConfidence: String, Codable, Equatable, Sendable {
     case unknown
 }
 
+public enum CursorRateWindowLayout: String, Codable, Equatable, Sendable {
+    case autoAPI
+    case autoOnly
+    case apiOnly
+    case plan
+    case requests
+}
+
 public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow?
     public let secondary: RateWindow?
@@ -155,6 +163,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let llmProxyUsage: LLMProxyUsageSnapshot?
     public let poeUsage: PoeUsageHistorySnapshot?
     public let cursorRequests: CursorRequestUsage?
+    public let cursorRateWindowLayout: CursorRateWindowLayout?
     /// iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
     /// like zaiUsage / cursorRequests; SyncCoordinator threads it to the envelope.
     public let azureOpenAIUsage: AzureOpenAIUsageSnapshot?
@@ -193,6 +202,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case groqUsage
         case llmProxyUsage
         case poeUsage
+        case cursorRateWindowLayout
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case updatedAt
@@ -229,6 +239,7 @@ public struct UsageSnapshot: Codable, Sendable {
         llmProxyUsage: LLMProxyUsageSnapshot? = nil,
         poeUsage: PoeUsageHistorySnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
+        cursorRateWindowLayout: CursorRateWindowLayout? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
         alibabaTokenPlanUsage: AlibabaTokenPlanUsageSnapshot? = nil,
         commandCodeSubscriptionEnrichmentUnavailable: Bool = false,
@@ -265,6 +276,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.llmProxyUsage = llmProxyUsage
         self.poeUsage = poeUsage
         self.cursorRequests = cursorRequests
+        self.cursorRateWindowLayout = cursorRateWindowLayout
         self.azureOpenAIUsage = azureOpenAIUsage
         self.alibabaTokenPlanUsage = alibabaTokenPlanUsage
         self.commandCodeSubscriptionEnrichmentUnavailable = commandCodeSubscriptionEnrichmentUnavailable
@@ -327,6 +339,11 @@ public struct UsageSnapshot: Codable, Sendable {
         self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
         self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
+        if let rawCursorLayout = try container.decodeIfPresent(String.self, forKey: .cursorRateWindowLayout) {
+            self.cursorRateWindowLayout = CursorRateWindowLayout(rawValue: rawCursorLayout)
+        } else {
+            self.cursorRateWindowLayout = nil
+        }
         self.azureOpenAIUsage = nil // Not persisted, fetched fresh each time
         self.alibabaTokenPlanUsage = nil // Not persisted, fetched fresh each time
         self.commandCodeSubscriptionEnrichmentUnavailable = false // Live-only fetch state
@@ -381,6 +398,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.groqUsage, forKey: .groqUsage)
         try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
         try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
+        try container.encodeIfPresent(self.cursorRateWindowLayout?.rawValue, forKey: .cursorRateWindowLayout)
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
@@ -429,7 +447,7 @@ public struct UsageSnapshot: Codable, Sendable {
             return self.automaticPerplexityWindow()
         case .cursor:
             // Cursor: fall back to on-demand budget when the included plan is exhausted (only in
-            // "show remaining" mode). The secondary/tertiary lanes are Total/Auto/API breakdowns,
+            // "show remaining" mode). The Auto/API lanes describe included quota consumption,
             // not extra capacity, so they should not replace the remaining paid quota indicator.
             if !showUsed,
                let primary = self.primary,
@@ -565,6 +583,7 @@ public struct UsageSnapshot: Codable, Sendable {
             llmProxyUsage: self.llmProxyUsage,
             poeUsage: self.poeUsage,
             cursorRequests: self.cursorRequests,
+            cursorRateWindowLayout: self.cursorRateWindowLayout,
             azureOpenAIUsage: self.azureOpenAIUsage,
             alibabaTokenPlanUsage: self.alibabaTokenPlanUsage,
             commandCodeSubscriptionEnrichmentUnavailable: self.commandCodeSubscriptionEnrichmentUnavailable,

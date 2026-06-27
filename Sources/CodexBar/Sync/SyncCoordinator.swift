@@ -568,18 +568,19 @@ final class SyncCoordinator {
         // Build dynamic rate windows array with labels from metadata.
         let paceNow = Date()
         var rateWindows: [SyncRateWindow] = []
+        let labels = Self.syncRateWindowLabels(provider: provider, metadata: metadata, snapshot: snapshot)
         if let p = snapshot?.primary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
-                label: metadata?.sessionLabel,
+                label: labels.primary,
                 window: p,
-                role: .session,
+                role: provider == .cursor ? .weekly : .session,
                 now: paceNow))
         }
         if let s = snapshot?.secondary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
-                label: metadata?.weeklyLabel,
+                label: labels.secondary,
                 window: s,
                 role: .weekly,
                 now: paceNow))
@@ -587,7 +588,7 @@ final class SyncCoordinator {
         if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
-                label: metadata.opusLabel ?? "Sonnet",
+                label: labels.tertiary,
                 window: t,
                 role: .other,
                 now: paceNow))
@@ -797,6 +798,31 @@ final class SyncCoordinator {
         case other
     }
 
+    private static func syncRateWindowLabels(
+        provider: UsageProvider,
+        metadata: ProviderMetadata?,
+        snapshot: UsageSnapshot?) -> (primary: String?, secondary: String?, tertiary: String)
+    {
+        let primary: String? = if provider == .cursor {
+            switch snapshot?.cursorRateWindowLayout {
+            case .requests:
+                "Requests"
+            case .plan:
+                "Plan"
+            case .apiOnly:
+                "API"
+            case .autoAPI, .autoOnly, .none:
+                metadata?.sessionLabel
+            }
+        } else {
+            metadata?.sessionLabel
+        }
+        return (
+            primary,
+            metadata?.weeklyLabel,
+            metadata?.opusLabel ?? "Sonnet")
+    }
+
     private func syncRateWindow(
         provider: UsageProvider,
         label: String?,
@@ -811,10 +837,15 @@ final class SyncCoordinator {
             resetsAt: window.resetsAt,
             resetDescription: window.resetDescription,
             pace: self.syncUsagePace(provider: provider, window: window, role: role, now: now),
-            identity: Self.syncRateWindowIdentity(label: label, window: window))
+            identity: Self.syncRateWindowIdentity(provider: provider, label: label, window: window, role: role))
     }
 
-    private static func syncRateWindowIdentity(label: String?, window: RateWindow) -> SyncRateWindowIdentity? {
+    private static func syncRateWindowIdentity(
+        provider: UsageProvider,
+        label: String?,
+        window: RateWindow,
+        role: SyncPaceWindowRole) -> SyncRateWindowIdentity?
+    {
         if window.windowMinutes == 10080 {
             return .weekly
         }
@@ -837,6 +868,9 @@ final class SyncCoordinator {
            (1...(24 * 60)).contains(windowMinutes)
         {
             return .session
+        }
+        if provider == .cursor, role == .weekly {
+            return .weekly
         }
         return nil
     }

@@ -147,6 +147,25 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `cursor exposes auto api usage source and cookie source pickers`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-cursor")
+        let context = fixture.settingsContext(provider: .cursor)
+
+        let pickers = CursorProviderImplementation().settingsPickers(context: context)
+        let usagePicker = try #require(pickers.first(where: { $0.id == "cursor-usage-source" }))
+
+        #expect(pickers.contains(where: { $0.id == "cursor-cookie-source" }))
+        #expect(usagePicker.options.map(\.id) == [
+            ProviderSourceMode.auto.rawValue,
+            ProviderSourceMode.api.rawValue,
+        ])
+
+        usagePicker.binding.wrappedValue = ProviderSourceMode.api.rawValue
+        #expect(fixture.settings.cursorUsageDataSource == .api)
+        #expect(fixture.settings.providerConfig(for: .cursor)?.source == .api)
+    }
+
+    @Test
     func `claude keychain prompt policy picker disabled when global keychain disabled`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-keychain-disabled")
         fixture.settings.debugDisableKeychainAccess = true

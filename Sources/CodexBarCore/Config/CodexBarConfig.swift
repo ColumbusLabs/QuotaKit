@@ -53,7 +53,16 @@ public struct CodexBarConfig: Codable, Sendable {
         for provider in self.providers {
             guard !seen.contains(provider.id) else { continue }
             seen.insert(provider.id)
-            normalized.append(provider)
+            var entry = provider
+            if entry.id == .cursor {
+                switch entry.source {
+                case nil, .auto, .api:
+                    break
+                case .web, .cli, .oauth:
+                    entry.source = nil
+                }
+            }
+            normalized.append(entry)
         }
 
         for provider in UsageProvider.allCases where !seen.contains(provider) {

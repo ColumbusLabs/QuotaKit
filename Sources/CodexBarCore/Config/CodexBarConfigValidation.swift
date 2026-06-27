@@ -72,13 +72,19 @@ public enum CodexBarConfigValidator {
                 message: "Source \(source.rawValue) is not supported for \(provider.rawValue)."))
         }
 
-        if let apiKey = entry.apiKey, !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty, !supportsAPI {
+        let apiKeyIsSet = !(entry.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        if apiKeyIsSet, provider == .cursor || !supportsAPI {
+            let message = if provider == .cursor {
+                "apiKey is set but cursor uses a session-backed api source and does not consume apiKey."
+            } else {
+                "apiKey is set but \(provider.rawValue) does not support api source."
+            }
             issues.append(CodexBarConfigIssue(
                 severity: .warning,
                 provider: provider,
                 field: "apiKey",
                 code: "api_key_unused",
-                message: "apiKey is set but \(provider.rawValue) does not support api source."))
+                message: message))
         }
 
         if let source = entry.source, source == .api, !supportsAPI {
@@ -91,6 +97,7 @@ public enum CodexBarConfigValidator {
         }
 
         if let source = entry.source, source == .api,
+           provider != .cursor,
            entry.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
         {
             issues.append(CodexBarConfigIssue(
