@@ -314,9 +314,10 @@ struct CostUsageScannerBreakdownTests {
             until: day,
             now: day,
             options: options)
-        let oldDailyCost = (80.0 / 1_000_000.0) + (20.0 * 0.5 / 1_000_000.0)
+        let oldDailyCost = (100.0 / 1_000_000.0) + (20.0 * 0.5 / 1_000_000.0)
             + (10.0 * 2.0 / 1_000_000.0)
-        #expect(first.summary?.totalCostUSD == oldDailyCost * 2)
+        let costTolerance = 0.000000001
+        #expect(abs((first.summary?.totalCostUSD ?? 0) - (oldDailyCost * 2)) < costTolerance)
 
         try ModelsDevCache.save(
             catalog: Self.modelsDevCatalog(model: model, input: 1, output: 2, cacheRead: 0.5),
@@ -331,7 +332,7 @@ struct CostUsageScannerBreakdownTests {
             now: day.addingTimeInterval(1),
             options: options)
         let samePricingCache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
-        #expect(samePricing.summary?.totalCostUSD == oldDailyCost)
+        #expect(abs((samePricing.summary?.totalCostUSD ?? 0) - oldDailyCost) < costTolerance)
         #expect(samePricingCache.scanSinceKey == "2026-05-04")
 
         try ModelsDevCache.save(
@@ -346,10 +347,10 @@ struct CostUsageScannerBreakdownTests {
             until: day,
             now: day.addingTimeInterval(2),
             options: options)
-        let newDailyCost = (80.0 * 10.0 / 1_000_000.0)
+        let newDailyCost = (100.0 * 10.0 / 1_000_000.0)
             + (20.0 * 5.0 / 1_000_000.0)
             + (10.0 * 20.0 / 1_000_000.0)
-        #expect(narrowRepriced.summary?.totalCostUSD == newDailyCost)
+        #expect(abs((narrowRepriced.summary?.totalCostUSD ?? 0) - newDailyCost) < costTolerance)
 
         let wideRepriced = CostUsageScanner.loadDailyReport(
             provider: .codex,
@@ -358,7 +359,7 @@ struct CostUsageScannerBreakdownTests {
             now: day.addingTimeInterval(3),
             options: options)
 
-        #expect(wideRepriced.summary?.totalCostUSD == newDailyCost * 2)
+        #expect(abs((wideRepriced.summary?.totalCostUSD ?? 0) - (newDailyCost * 2)) < costTolerance)
     }
 
     @Test
@@ -1310,6 +1311,66 @@ struct CostUsageScannerBreakdownTests {
             options: options)
         #expect(second.data.count == 1)
         #expect(second.data[0].totalTokens == 110)
+    }
+
+    @Test
+    func `codex active session stub does not hide archived usage`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 6, day: 25)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let model = "openai/gpt-5.5"
+        let sessionMeta: [String: Any] = [
+            "type": "session_meta",
+            "payload": [
+                "session_id": "sess-shared-active-archive",
+            ],
+        ]
+        let turnContext = self.codexTurnContext(timestamp: iso0, model: model)
+
+        _ = try env.writeCodexSessionFile(
+            day: day,
+            filename: "active-stub.jsonl",
+            contents: env.jsonl([sessionMeta, turnContext]))
+
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        _ = try env.writeCodexArchivedSessionFile(
+            filename: "rollout-\(dayKey)T12-00-00-shared.jsonl",
+            contents: env.jsonl([
+                sessionMeta,
+                turnContext,
+                self.codexTokenCount(
+                    timestamp: iso1,
+                    model: model,
+                    last: (input: 20, cached: 500, output: 5)),
+            ]))
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        let expectedCost = CostUsagePricing.codexCostUSD(
+            model: model,
+            inputTokens: 20,
+            cachedInputTokens: 500,
+            outputTokens: 5)
+
+        #expect(report.data.count == 1)
+        #expect(report.data[0].inputTokens == 20)
+        #expect(report.data[0].outputTokens == 5)
+        #expect(report.data[0].totalTokens == 25)
+        #expect(report.data[0].modelBreakdowns?.first?.totalTokens == 25)
+        #expect(abs((report.data[0].costUSD ?? 0) - (expectedCost ?? 0)) < 0.000001)
     }
 
     @Test

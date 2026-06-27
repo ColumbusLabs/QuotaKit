@@ -656,13 +656,15 @@ extension CostUsageScanner {
     static func rememberScannedCodexFile(
         fileURL: URL,
         metadata: CodexFileMetadata,
-        sessionId: String?,
+        session: CodexScannedSession,
         context: CodexFileScanContext,
         state: inout CodexScanState)
     {
-        if let sessionId {
-            state.seenSessionIds.insert(sessionId)
+        if let sessionId = session.id {
             context.resources.fileIndex.remember(fileURL: fileURL, sessionId: sessionId)
+            if session.contributedUsage {
+                state.contributingSessionIds.insert(sessionId)
+            }
         }
         if let fileId = metadata.fileId {
             state.seenFileIds.insert(fileId)
@@ -691,7 +693,7 @@ extension CostUsageScanner {
         Self.rememberScannedCodexFile(
             fileURL: input.fileURL,
             metadata: input.metadata,
-            sessionId: cached.sessionId,
+            session: CodexScannedSession(id: cached.sessionId, days: cached.days),
             context: context,
             state: &state)
         return true
@@ -740,7 +742,7 @@ extension CostUsageScanner {
             return false
         }
         let sessionId = delta.sessionId ?? cached.sessionId
-        if let sessionId, state.seenSessionIds.contains(sessionId) {
+        if let sessionId, state.contributingSessionIds.contains(sessionId) {
             Self.dropCachedCodexFile(path: input.metadata.path, cached: cached, cache: &cache)
             return true
         }
@@ -796,7 +798,7 @@ extension CostUsageScanner {
         Self.rememberScannedCodexFile(
             fileURL: input.fileURL,
             metadata: input.metadata,
-            sessionId: sessionId,
+            session: CodexScannedSession(id: sessionId, days: mergedDays),
             context: context,
             state: &state)
         return true
@@ -823,7 +825,7 @@ extension CostUsageScanner {
             inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:),
             checkCancellation: context.checkCancellation)
         let sessionId = parsed.sessionId ?? input.cached?.sessionId
-        if let sessionId, state.seenSessionIds.contains(sessionId) {
+        if let sessionId, state.contributingSessionIds.contains(sessionId) {
             cache.files.removeValue(forKey: input.metadata.path)
             return
         }
@@ -895,7 +897,7 @@ extension CostUsageScanner {
         Self.rememberScannedCodexFile(
             fileURL: input.fileURL,
             metadata: input.metadata,
-            sessionId: sessionId,
+            session: CodexScannedSession(id: sessionId, days: usageDays),
             context: context,
             state: &state)
     }

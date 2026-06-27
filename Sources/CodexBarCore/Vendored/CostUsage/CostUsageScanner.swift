@@ -70,8 +70,18 @@ enum CostUsageScanner {
     }
 
     struct CodexScanState {
-        var seenSessionIds: Set<String> = []
+        var contributingSessionIds: Set<String> = []
         var seenFileIds: Set<String> = []
+    }
+
+    struct CodexScannedSession {
+        let id: String?
+        let contributedUsage: Bool
+
+        init(id: String?, days: [String: [String: [Int]]]) {
+            self.id = id
+            self.contributedUsage = !days.isEmpty
+        }
     }
 
     private struct CodexTimestampedTotals {
@@ -1726,13 +1736,12 @@ enum CostUsageScanner {
             }
 
             if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
-            let cachedClamp = min(deltaCached, deltaInput)
             let normModel = CostUsagePricing.normalizeCodexModel(model)
             add(
                 dayKey: dayKey,
                 model: normModel,
                 input: deltaInput,
-                cached: cachedClamp,
+                cached: deltaCached,
                 output: deltaOutput)
             if CostUsageDayRange.isInRange(
                 dayKey: dayKey,
@@ -1744,7 +1753,7 @@ enum CostUsageScanner {
                     model: normModel,
                     turnID: record.turnID ?? currentTurnID,
                     input: deltaInput,
-                    cached: cachedClamp,
+                    cached: deltaCached,
                     output: deltaOutput))
             }
         }
@@ -2063,13 +2072,12 @@ enum CostUsageScanner {
                         }
 
                         if deltaInput == 0, deltaCached == 0, deltaOutput == 0 { return }
-                        let cachedClamp = min(deltaCached, deltaInput)
                         let normModel = CostUsagePricing.normalizeCodexModel(model)
                         add(
                             dayKey: dayKey,
                             model: normModel,
                             input: deltaInput,
-                            cached: cachedClamp,
+                            cached: deltaCached,
                             output: deltaOutput)
                         if CostUsageDayRange.isInRange(
                             dayKey: dayKey,
@@ -2081,7 +2089,7 @@ enum CostUsageScanner {
                                 model: normModel,
                                 turnID: Self.codexTurnID(from: payload) ?? currentTurnID,
                                 input: deltaInput,
-                                cached: cachedClamp,
+                                cached: deltaCached,
                                 output: deltaOutput))
                         }
                     }
@@ -2138,7 +2146,7 @@ enum CostUsageScanner {
         }
 
         let cached = cache.files[metadata.path]
-        if let cachedSessionId = cached?.sessionId, state.seenSessionIds.contains(cachedSessionId) {
+        if let cachedSessionId = cached?.sessionId, state.contributingSessionIds.contains(cachedSessionId) {
             Self.dropCachedCodexFile(path: metadata.path, cached: cached, cache: &cache)
             return
         }
