@@ -117,6 +117,36 @@ struct TTYCommandRunnerEnvTests {
     }
 
     @Test
+    func `claude launch command prefers QuotaKit watchdog over upstream helper`() throws {
+        let fm = FileManager.default
+        let dir = fm.temporaryDirectory.appendingPathComponent("quotakit-tty-\(UUID().uuidString)", isDirectory: true)
+        try fm.createDirectory(at: dir, withIntermediateDirectories: true)
+        defer { try? fm.removeItem(at: dir) }
+
+        let quotaKitWatchdog = dir.appendingPathComponent("QuotaKitClaudeWatchdog")
+        let upstreamWatchdog = dir.appendingPathComponent("CodexBarClaudeWatchdog")
+        for helper in [quotaKitWatchdog, upstreamWatchdog] {
+            _ = fm.createFile(atPath: helper.path, contents: Data("#!/bin/sh\n".utf8))
+            try fm.setAttributes([.posixPermissions: 0o755], ofItemAtPath: helper.path)
+        }
+
+        setenv("CODEXBAR_HELPER_QUOTAKITCLAUDEWATCHDOG", quotaKitWatchdog.path, 1)
+        setenv("CODEXBAR_HELPER_CODEXBARCLAUDEWATCHDOG", upstreamWatchdog.path, 1)
+        defer {
+            unsetenv("CODEXBAR_HELPER_QUOTAKITCLAUDEWATCHDOG")
+            unsetenv("CODEXBAR_HELPER_CODEXBARCLAUDEWATCHDOG")
+        }
+
+        let launch = TTYCommandRunner.claudeLaunchCommand(
+            isClaudeCLI: true,
+            resolved: "/usr/local/bin/claude",
+            extraArgs: ["--print"])
+
+        #expect(launch.executable == quotaKitWatchdog.path)
+        #expect(launch.arguments == ["--", "/usr/local/bin/claude", "--print"])
+    }
+
+    @Test
     func `descendant resolver walks process tree once`() {
         let children: [pid_t: [pid_t]] = [
             100: [101, 102],

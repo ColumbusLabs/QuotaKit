@@ -1241,42 +1241,11 @@ extension UsageStore {
             return effectiveEmail
         } catch let err as OpenAIDashboardBrowserCookieImporter.ImportError {
             guard !Task.isCancelled else { return nil }
-            switch err {
-            case let .noMatchingAccount(found):
-                let foundText: String = if found.isEmpty {
-                    "no signed-in session detected in \(self.codexBrowserCookieOrder.loginHint)"
-                } else {
-                    found
-                        .sorted { lhs, rhs in
-                            if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
-                            return lhs.sourceLabel < rhs.sourceLabel
-                        }
-                        .map { "\($0.sourceLabel): \($0.email)" }
-                        .joined(separator: " • ")
-                }
-                self.logOpenAIWeb("[\(stamp)] import mismatch: \(foundText)")
-                await MainActor.run {
-                    self.openAIDashboardCookieImportStatus = allowAnyAccount
-                        ? [
-                            "No signed-in OpenAI web session found.",
-                            "Found \(foundText).",
-                        ].joined(separator: " ")
-                        : Self.conciseOpenAICookieMismatchStatus(
-                            found: found.map(\.email),
-                            targetEmail: normalizedTarget)
-                    self.failClosedOpenAIDashboardSnapshot()
-                }
-            case .noCookiesFound,
-                 .browserAccessDenied,
-                 .dashboardStillRequiresLogin,
-                 .manualCookieHeaderInvalid:
-                self.logOpenAIWeb("[\(stamp)] import failed: \(err.localizedDescription)")
-                await MainActor.run {
-                    self.openAIDashboardCookieImportStatus =
-                        "OpenAI cookie import failed: \(err.localizedDescription)"
-                    self.openAIDashboardRequiresLogin = true
-                }
-            }
+            await self.handleOpenAIDashboardCookieImportError(
+                err,
+                stamp: stamp,
+                allowAnyAccount: allowAnyAccount,
+                normalizedTarget: normalizedTarget)
         } catch {
             guard !Task.isCancelled else { return nil }
             self.logOpenAIWeb("[\(stamp)] import failed: \(error.localizedDescription)")
@@ -1286,6 +1255,56 @@ extension UsageStore {
             }
         }
         return nil
+    }
+
+    private func handleOpenAIDashboardCookieImportError(
+        _ err: OpenAIDashboardBrowserCookieImporter.ImportError,
+        stamp: String,
+        allowAnyAccount: Bool,
+        normalizedTarget: String?) async
+    {
+        switch err {
+        case let .noMatchingAccount(found):
+            let foundText: String = if found.isEmpty {
+                "no signed-in session detected in \(self.codexBrowserCookieOrder.loginHint)"
+            } else {
+                found
+                    .sorted { lhs, rhs in
+                        if lhs.sourceLabel == rhs.sourceLabel { return lhs.email < rhs.email }
+                        return lhs.sourceLabel < rhs.sourceLabel
+                    }
+                    .map { "\($0.sourceLabel): \($0.email)" }
+                    .joined(separator: " • ")
+            }
+            self.logOpenAIWeb("[\(stamp)] import mismatch: \(foundText)")
+            await MainActor.run {
+                self.openAIDashboardCookieImportStatus = allowAnyAccount
+                    ? [
+                        "No signed-in OpenAI web session found.",
+                        "Found \(foundText).",
+                    ].joined(separator: " ")
+                    : Self.conciseOpenAICookieMismatchStatus(
+                        found: found.map(\.email),
+                        targetEmail: normalizedTarget)
+                self.failClosedOpenAIDashboardSnapshot()
+            }
+        case .browserCookieLoadTimedOut:
+            self.logOpenAIWeb("[\(stamp)] import failed: \(err.localizedDescription)")
+            await MainActor.run {
+                self.openAIDashboardCookieImportStatus =
+                    "OpenAI cookie import failed: \(err.localizedDescription)"
+            }
+        case .noCookiesFound,
+             .browserAccessDenied,
+             .dashboardStillRequiresLogin,
+             .manualCookieHeaderInvalid:
+            self.logOpenAIWeb("[\(stamp)] import failed: \(err.localizedDescription)")
+            await MainActor.run {
+                self.openAIDashboardCookieImportStatus =
+                    "OpenAI cookie import failed: \(err.localizedDescription)"
+                self.openAIDashboardRequiresLogin = true
+            }
+        }
     }
 
     private func resetOpenAIWebDebugLog(context: String) {

@@ -247,6 +247,17 @@ check_documentation_links() {
   node "${ROOT_DIR}/Scripts/check-documentation-links.mjs"
 }
 
+check_shell_scripts() {
+  local count=0
+  local script
+  for script in "${ROOT_DIR}"/Scripts/*.sh "${ROOT_DIR}"/Scripts/mac-release; do
+    [[ -f "$script" ]] || continue
+    bash -n "$script"
+    count=$((count + 1))
+  done
+  printf 'shell scripts OK: %d files\n' "$count"
+}
+
 check_app_locales() {
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs" --test
   node "${ROOT_DIR}/Scripts/check-app-locales.mjs"
@@ -265,6 +276,7 @@ run_portable_checks() {
   check_swift_test_sharding
   check_release_feed_url
   check_ci_path_gate
+  check_shell_scripts
   check_documentation_links
   check_llms_index
   ensure_tools

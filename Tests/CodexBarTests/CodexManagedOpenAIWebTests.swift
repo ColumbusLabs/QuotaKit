@@ -755,6 +755,31 @@ struct CodexManagedOpenAIWebTests {
     }
 
     @Test
+    func `browser cookie load timeout does not mark open A I web login required`() async {
+        let settings = self.makeSettingsStore(suite: "CodexManagedOpenAIWebTests-cookie-timeout-no-login")
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        store.openAIDashboardRequiresLogin = false
+        store._test_openAIDashboardCookieImportOverride = { _, _, _, _, _ in
+            throw OpenAIDashboardBrowserCookieImporter.ImportError.browserCookieLoadTimedOut(
+                details: "Chrome did not finish before the web timeout.")
+        }
+        defer { store._test_openAIDashboardCookieImportOverride = nil }
+
+        let imported = await store.importOpenAIDashboardCookiesIfNeeded(
+            targetEmail: "codex@example.com",
+            force: true)
+
+        #expect(imported == nil)
+        #expect(store.openAIDashboardRequiresLogin == false)
+        #expect(store.openAIDashboardCookieImportStatus?
+            .contains("Browser cookie loading timed out") == true)
+    }
+
+    @Test
     func `missing managed target failure handlers do not resurrect stale dashboard state`() async {
         let settings = self.makeSettingsStore(suite: "CodexManagedOpenAIWebTests-missing-target-failure-handlers")
         let isolatedHome = FileManager.default.temporaryDirectory

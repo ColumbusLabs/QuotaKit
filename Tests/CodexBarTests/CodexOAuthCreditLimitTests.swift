@@ -23,12 +23,15 @@ struct CodexOAuthCreditLimitTests {
         }
     }
 
-    private func makeContext(sourceMode: ProviderSourceMode = .auto) -> ProviderFetchContext {
+    private func makeContext(
+        sourceMode: ProviderSourceMode = .auto,
+        includeCredits: Bool = true) -> ProviderFetchContext
+    {
         let browserDetection = BrowserDetection(cacheTTL: 0)
         return ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,
-            includeCredits: true,
+            includeCredits: includeCredits,
             webTimeout: 60,
             webDebugDumpHTML: false,
             verbose: false,
@@ -231,6 +234,27 @@ struct CodexOAuthCreditLimitTests {
         #expect(result.usage.primary == oauthResult.usage.primary)
         #expect(result.credits?.remaining == oauthResult.credits?.remaining)
         #expect(result.credits?.codexCreditLimit?.remaining == 750)
+    }
+
+    @Test
+    func `usage-only O auth refresh does not launch CLI monthly limit enrichment`() async throws {
+        let mappedOAuth = try CodexOAuthFetchStrategy._mapResultForTesting(
+            Data(self.oauthZeroCreditRateWindowJSON().utf8),
+            credentials: self.makeCredentials(),
+            sourceMode: .auto)
+        let oauthResult = self.replacingIdentity(mappedOAuth, email: "owner@example.com")
+        let cliResult = self.makeCLIResult(
+            credits: self.makeMonthlyLimitCredits(),
+            email: "owner@example.com")
+
+        let result = try await CodexOAuthFetchStrategy._replaceWithCLIMonthlyLimitForTesting(
+            oauthResult: oauthResult,
+            context: self.makeContext(sourceMode: .auto, includeCredits: false),
+            cliStrategy: StubFetchStrategy(available: true, result: cliResult))
+
+        #expect(result.sourceLabel == "oauth")
+        #expect(result.usage.primary == oauthResult.usage.primary)
+        #expect(result.credits?.codexCreditLimit == nil)
     }
 
     @Test
