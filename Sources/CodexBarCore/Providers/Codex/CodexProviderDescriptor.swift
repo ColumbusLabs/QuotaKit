@@ -292,6 +292,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
         cliStrategy: any ProviderFetchStrategy = CodexCLIUsageStrategy()) async throws -> ProviderFetchResult
     {
         guard context.sourceMode == .auto,
+              context.includeCredits,
               self.shouldTryCLIForMonthlyLimit(oauthResult)
         else { return oauthResult }
         guard await cliStrategy.isAvailable(context) else { return oauthResult }

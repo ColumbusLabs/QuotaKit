@@ -65,6 +65,52 @@ private final class CookieTimeoutProbe: @unchecked Sendable {
 
 struct OpenAIDashboardBrowserCookieImporterTests {
     @Test
+    func `profile denial names exact running component`() {
+        let hint = OpenAIDashboardBrowserCookieImporter.browserProfileAccessHint(
+            for: .chrome,
+            issue: .accessDenied,
+            processName: "QuotaKitCLI",
+            executablePath: "/Applications/QuotaKit.app/Contents/Helpers/QuotaKitCLI")
+
+        #expect(hint.contains("macOS denied Chrome profile access"))
+        #expect(hint.contains("QuotaKitCLI (/Applications/QuotaKit.app/Contents/Helpers/QuotaKitCLI)"))
+        #expect(!hint.contains("CodexBar"))
+        #expect(hint.contains("Full Disk Access"))
+    }
+
+    @Test
+    func `profile denial names app bundle for menu refresh`() {
+        let hint = OpenAIDashboardBrowserCookieImporter.browserProfileAccessHint(
+            for: .chrome,
+            issue: .accessDenied,
+            processName: "QuotaKit",
+            executablePath: "/Applications/QuotaKit.app/Contents/MacOS/QuotaKit")
+
+        #expect(hint.contains("QuotaKit.app (/Applications/QuotaKit.app)"))
+        #expect(!hint.contains("CodexBar"))
+    }
+
+    @Test
+    func `browser cookie timeout remains distinct from permission denial`() {
+        let error = OpenAIDashboardBrowserCookieImporter.browserCookieLoadTimeoutError(
+            for: .chrome,
+            processName: "QuotaKitCLI",
+            executablePath: "/Applications/QuotaKit.app/Contents/Helpers/QuotaKitCLI")
+
+        if case .browserCookieLoadTimedOut = error {
+            // Expected: a shared deadline does not prove macOS denied access.
+        } else {
+            Issue.record("Expected browser cookie load timeout")
+        }
+        #expect(error.localizedDescription.contains("Chrome did not finish before the web timeout"))
+        #expect(!error.localizedDescription.contains("access denied"))
+        #expect(error.localizedDescription.contains("QuotaKitCLI"))
+        #expect(!error.localizedDescription.contains("CodexBar"))
+        #expect(error.localizedDescription.contains("Keychain prompt"))
+        #expect(error.localizedDescription.contains("Full Disk Access"))
+    }
+
+    @Test
     func `shared deadline clamps each local timeout to remaining budget`() throws {
         let start = Date(timeIntervalSinceReferenceDate: 1000)
         let deadline = start.addingTimeInterval(30)

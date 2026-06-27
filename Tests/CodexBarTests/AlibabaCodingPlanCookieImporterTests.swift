@@ -86,11 +86,22 @@ struct AlibabaCodingPlanCookieImporterTests {
             .appendingPathComponent("Profiles")
             .appendingPathComponent("abc.default-release")
         try FileManager.default.createDirectory(at: firefoxProfile, withIntermediateDirectories: true)
-        FileManager.default.createFile(
+        _ = FileManager.default.createFile(
             atPath: firefoxProfile.appendingPathComponent("cookies.sqlite").path,
             contents: Data())
 
-        let detection = BrowserDetection(homeDirectory: temp.path, cacheTTL: 0)
+        let detection = BrowserDetection(
+            homeDirectory: temp.path,
+            cacheTTL: 0,
+            now: Date.init,
+            fileExists: { path in
+                path == "/Applications/Firefox.app" || FileManager.default.fileExists(atPath: path)
+            },
+            directoryContents: { path in
+                try? FileManager.default.contentsOfDirectory(atPath: path)
+            },
+            applicationURLs: { _ in [] },
+            profileAccessIssue: { _ in nil })
         let importOrder: BrowserCookieImportOrder = [.firefox, .safari, .chrome]
 
         let candidates = AlibabaCodingPlanCookieImporter.cookieImportCandidates(

@@ -114,7 +114,7 @@ struct UsageStoreCoverageTests {
 
         settings.hidePersonalInfo = true
         let redactedModel = ProvidersPane(settings: settings, store: store)._test_menuCardModel(for: .amp)
-        #expect(redactedModel.creditsText == "Individual credits: $25.64\nWorkspace Hidden: $10.22")
+        #expect(redactedModel.creditsText == "Individual credits: $25.64\nWorkspace: $10.22")
     }
 
     @Test

@@ -9,6 +9,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `18eab6b`
+  (`516615424..18eab6b`), including Kiro PTY usage loading, browser cookie
+  discovery hardening, CLI `/usage` provider isolation, Codex usage-only refresh
+  enrichment fixes, privacy redaction, Refresh-row/menu alignment, signed-zero
+  pace text cleanup, and docs/lint checks.
 - Synced upstream CodexBar Mac improvements through `516615424`
   (`ada3660e..516615424`), including Codex enterprise monthly credit limits,
   OAuth/dashboard credit-limit mapping, menu/widget credit rows, and usage
@@ -38,6 +43,21 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   state to prevent the remaining callback crash.
 - Localization: reject blank translated values and restore affected Vietnamese
   provider prompts.
+- Kiro: run account, usage, and context commands through a PTY so current CLI
+  versions return usage without timing out.
+- OpenAI web: ignore stale profiles from removed browsers, discover registered
+  installs outside standard app folders, and surface browser-profile access and
+  cookie-load timeout diagnostics.
+- CLI server: collect `/usage` providers concurrently under finite per-provider
+  deadlines so one hung provider degrades to its own error row without discarding
+  healthy results.
+- Privacy: hide account and team identity values without showing placeholder
+  text or empty account rows.
+- Codex: avoid monthly-credit CLI enrichment during usage-only OAuth refreshes.
+- Menu bar: show pace as `0%` instead of a signed `+0%` or `-0%` when the pace
+  delta rounds to zero.
+- Menu: align the persistent Refresh row with native actions, keep Settings,
+  About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
 
 ## 0.32.4.7 / iOS 1.11.1 — 2026-06-18
 
