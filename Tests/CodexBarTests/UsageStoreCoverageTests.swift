@@ -296,6 +296,27 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `menu observation token tracks status component changes`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-status-components-observation")
+        settings.statusChecksEnabled = false
+        let store = Self.makeUsageStore(settings: settings)
+        let didObserve = ObservationFlag()
+
+        withObservationTracking {
+            _ = store.menuObservationToken
+        } onChange: {
+            didObserve.set()
+        }
+
+        store.statusComponents[.claude] = [
+            ProviderStatusComponent(id: "api", name: "API", indicator: .none, status: "operational"),
+        ]
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(didObserve.get())
+    }
+
+    @Test
     func `cleanup preserves enabled but unavailable provider state`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-preserve-unavailable")
         settings.refreshFrequency = .manual

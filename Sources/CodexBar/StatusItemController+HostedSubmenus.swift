@@ -538,7 +538,7 @@ extension StatusItemController {
 
                 let listItem = NSMenuItem()
                 listItem.view = hosting
-                listItem.isEnabled = false
+                listItem.isEnabled = true
                 listItem.representedObject = Self.statusComponentsID
                 listItem.toolTip = provider.rawValue
                 submenu.addItem(listItem)

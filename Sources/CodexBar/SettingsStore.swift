@@ -430,16 +430,7 @@ extension SettingsStore {
         if Self.isRunningTests, creditsExtrasDefault == nil {
             userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
-        let openAIWebAccessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
-        let openAIWebAccessEnabled = openAIWebAccessDefault ?? false
-        if Self.isRunningTests, openAIWebAccessDefault == nil {
-            userDefaults.set(false, forKey: "openAIWebAccessEnabled")
-        }
-        let openAIWebBatterySaverDefault = userDefaults.object(forKey: "openAIWebBatterySaverEnabled") as? Bool
-        let openAIWebBatterySaverEnabled = openAIWebBatterySaverDefault ?? false
-        if Self.isRunningTests, openAIWebBatterySaverDefault == nil {
-            userDefaults.set(false, forKey: "openAIWebBatterySaverEnabled")
-        }
+        let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
         let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
         if Self.isRunningTests, providerStorageFootprintsDefault == nil {
@@ -502,8 +493,8 @@ extension SettingsStore {
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
-            openAIWebAccessEnabled: openAIWebAccessEnabled,
-            openAIWebBatterySaverEnabled: openAIWebBatterySaverEnabled,
+            openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
+            openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
@@ -515,6 +506,25 @@ extension SettingsStore {
             providersSortedAlphabetically: providersSortedAlphabetically,
             appLanguageRaw: appLanguageRaw,
             terminalAppRaw: userDefaults.string(forKey: "terminalApp"))
+    }
+
+    private static func loadOpenAIWebDefaults(userDefaults: UserDefaults) -> (
+        accessEnabled: Bool,
+        batterySaverEnabled: Bool)
+    {
+        let accessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
+        let accessEnabled = accessDefault ?? false
+        if Self.isRunningTests, accessDefault == nil {
+            userDefaults.set(false, forKey: "openAIWebAccessEnabled")
+        }
+
+        let batterySaverDefault = userDefaults.object(forKey: "openAIWebBatterySaverEnabled") as? Bool
+        let batterySaverEnabled = batterySaverDefault ?? false
+        if Self.isRunningTests, batterySaverDefault == nil {
+            userDefaults.set(false, forKey: "openAIWebBatterySaverEnabled")
+        }
+
+        return (accessEnabled, batterySaverEnabled)
     }
 
     private static func loadCostSummaryDisplayStyleRaw(

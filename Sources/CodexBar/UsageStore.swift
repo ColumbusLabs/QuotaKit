@@ -31,6 +31,7 @@ extension UsageStore {
         _ = self.refreshingProviders
         _ = self.pathDebugInfo
         _ = self.statuses
+        _ = self.statusComponents
         _ = self.probeLogs
         _ = self.historicalPaceRevision
         _ = self.planUtilizationHistoryRevision

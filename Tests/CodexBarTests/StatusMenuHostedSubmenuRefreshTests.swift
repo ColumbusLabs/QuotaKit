@@ -66,6 +66,43 @@ struct StatusMenuHostedSubmenuRefreshTests {
     }
 
     @Test
+    func `status components hosted row stays enabled for SwiftUI interaction`() throws {
+        let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer {
+            StatusItemController.menuCardRenderingEnabled = previousMenuCardRendering
+        }
+
+        let settings = Self.makeSettings()
+        settings.statusChecksEnabled = true
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        store.statusComponents[.claude] = [
+            ProviderStatusComponent(id: "api", name: "API", indicator: .none, status: "operational"),
+            ProviderStatusComponent(id: "chat", name: "Chat", indicator: .minor, status: "degraded"),
+        ]
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: .system)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let submenu = NSMenu()
+        #expect(controller.appendStatusComponentsItem(
+            to: submenu,
+            provider: .claude,
+            width: StatusItemController.menuCardBaseWidth))
+
+        let componentItem = try #require(submenu.items.first)
+        #expect(componentItem.representedObject as? String == StatusItemController.statusComponentsID)
+        #expect(componentItem.view != nil)
+        #expect(componentItem.isEnabled)
+    }
+
+    @Test
     func `storage native row preserves its plain menu title`() throws {
         let settings = Self.makeSettings()
         settings.providerStorageFootprintsEnabled = true
