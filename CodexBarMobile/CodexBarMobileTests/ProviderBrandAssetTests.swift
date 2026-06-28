@@ -10,6 +10,7 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "claude") == "ProviderIcon-claude")
         #expect(ProviderBrandAsset.assetName(for: "cursor") == "ProviderIcon-cursor")
         #expect(ProviderBrandAsset.assetName(for: "openrouter") == "ProviderIcon-openrouter")
+        #expect(ProviderBrandAsset.assetName(for: "sakana") == "ProviderIcon-sakana")
     }
 
     @Test("Provider aliases reuse their canonical Mac icons")

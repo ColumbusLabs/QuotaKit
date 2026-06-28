@@ -592,6 +592,12 @@ extension CodexBarCLI {
         {
             return false
         }
+        if provider == .sakana,
+           sourceMode == .auto || sourceMode == .web,
+           environment.map({ SakanaSettingsReader.cookieHeader(environment: $0) != nil }) == true
+        {
+            return false
+        }
         if provider == .ollama,
            sourceMode == .auto
         {

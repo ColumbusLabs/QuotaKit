@@ -221,6 +221,11 @@ struct CodexBarWidgetProviderTests {
     }
 
     @Test
+    func `provider choice excludes unsupported Sakana widgets`() {
+        #expect(ProviderChoice(provider: .sakana) == nil)
+    }
+
+    @Test
     func `supported providers fall back to codex when snapshot is empty`() {
         let snapshot = WidgetSnapshot(entries: [], enabledProviders: [], generatedAt: Date())
 

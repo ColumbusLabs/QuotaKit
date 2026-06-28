@@ -14,16 +14,17 @@ import Testing
 /// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
-    @Test("Provider list has expected count (48 after v0.29 catch-up)")
+    @Test("Provider list has expected count (49 after Sakana catch-up)")
     func providerCount() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
         // GroqCloud, ElevenLabs, Deepgram, LLM Proxy from upstream
         // v0.27.0) → 48 in iOS 1.9.0 (Azure OpenAI, Alibaba Token Plan,
-        // T3 Chat from upstream v0.28.0+v0.29.0). Must stay synced with
-        // iOS-side test in CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 48)
+        // T3 Chat from upstream v0.28.0+v0.29.0) → 49 in iOS 1.10.0
+        // (Sakana AI from upstream v0.36.x). Must stay synced with iOS-side
+        // test in CodexBarMobileTests/QuotaProviderListTests.swift.
+        #expect(QuotaProviderList.providers.count == 49)
     }
 
     @Test("Perplexity is registered with the Mac-side displayName")
@@ -51,6 +52,12 @@ struct QuotaProviderListTests {
     func mistralRegistered() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "mistral" })
         #expect(entry.displayName == "Mistral")
+    }
+
+    @Test("Sakana AI is registered with the Mac-side displayName")
+    func sakanaRegistered() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "sakana" })
+        #expect(entry.displayName == "Sakana AI")
     }
 
     @Test("No duplicate provider IDs")
@@ -86,7 +93,7 @@ struct QuotaProviderListTests {
                 == "Quota-mistral-restoredZone")
     }
 
-    @Test("iOS subscription count is 48 × 3 = 144 (depleted + restored + warning)")
+    @Test("iOS subscription count is 49 × 3 = 147 (depleted + restored + warning)")
     func subscriptionCountDerivation() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
@@ -94,13 +101,14 @@ struct QuotaProviderListTests {
         // 135 in iOS 1.8.0 (45 × 3 after the v0.27 catch-up: +grok,
         // +groq, +elevenlabs, +deepgram, +llmproxy) →
         // 144 in iOS 1.9.0 (48 × 3 after the v0.28+v0.29 catch-up:
-        // +azureopenai, +alibabatokenplan, +t3chat). If this fails,
+        // +azureopenai, +alibabatokenplan, +t3chat) →
+        // 147 in iOS 1.10.0 (49 × 3 after adding Sakana AI). If this fails,
         // someone either dropped a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 144)
+        #expect(subscriptionCount == 147)
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

@@ -105,6 +105,9 @@ public enum QuotaProviderList {
         Provider(id: "azureopenai", displayName: "Azure OpenAI"),
         Provider(id: "alibabatokenplan", displayName: "Alibaba Token Plan"),
         Provider(id: "t3chat", displayName: "T3 Chat"),
+        // iOS 1.10.0 catch-up — upstream v0.36.x new provider.
+        // 48 → 49 providers × 3 states = 147 zones.
+        Provider(id: "sakana", displayName: "Sakana AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

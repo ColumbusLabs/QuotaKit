@@ -418,6 +418,9 @@ enum CostUsagePricing {
     ///   parser hash rolls the Codex producerKey axis; this bump rolls the
     ///   pricingFingerprint so Claude caches (no producerKey) written by the
     ///   v0.32.4 parser are invalidated and re-scanned.
+    /// - `9` (0.32.4.8): merged upstream Sakana provider scanner guard. The
+    ///   parser-version audit conservatively treats CostUsageScanner edits as
+    ///   parser-affecting, so roll the fingerprint with the new provider branch.
     /// - `5` (0.32.4.1): merged upstream v0.32.0→v0.32.4 Codex cost-scanner
     ///   rewrite (new `CostUsageScanner+CodexFastJSON.swift`, reworked truncated-prefix
     ///   handling, scan-perf changes). The regenerated parser hash rolls the Codex
@@ -447,7 +450,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 8
+    static let parserLogicVersion = 9
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
