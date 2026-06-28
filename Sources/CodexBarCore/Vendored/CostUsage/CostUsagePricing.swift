@@ -405,6 +405,11 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `10` (0.32.4.8 upstream tail): merged upstream Codex cost-history row
+    ///   identity and cache-dedupe changes through `e810f7e`. The regenerated
+    ///   parser hash rolls the Codex producerKey axis; this bump rolls the
+    ///   pricingFingerprint so cached rows written by the previous scanner are
+    ///   invalidated and re-scanned with the row-stable parser.
     /// - `8` (issue #14 upstream sync): merged upstream scanner coverage for new
     ///   non-token-cost providers (Zed, Poe, Chutes). This does not add local
     ///   pricing, but the scanner switch changed, so roll the fingerprint
@@ -450,7 +455,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 9
+    static let parserLogicVersion = 10
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -624,7 +629,7 @@ enum CostUsagePricing {
               let priorityInputCostPerToken = pricing.priorityInputCostPerToken,
               let priorityOutputCostPerToken = pricing.priorityOutputCostPerToken
         else { return nil }
-        if max(0, inputTokens) > self.codexPriorityInputTokenLimit {
+        if max(0, inputTokens) + max(0, cachedInputTokens) > self.codexPriorityInputTokenLimit {
             return nil
         }
 
@@ -646,11 +651,11 @@ enum CostUsagePricing {
         cachedInputTokens: Int,
         outputTokens: Int) -> Double
     {
-        let cached = min(max(0, cachedInputTokens), max(0, inputTokens))
-        let nonCached = max(0, inputTokens - cached)
+        let nonCached = max(0, inputTokens)
+        let cached = max(0, cachedInputTokens)
         let cachedRate = pricing.cacheReadInputCostPerToken ?? pricing.inputCostPerToken
 
-        let usesLongContextRates = pricing.thresholdTokens.map { max(0, inputTokens) > $0 } ?? false
+        let usesLongContextRates = pricing.thresholdTokens.map { (nonCached + cached) > $0 } ?? false
         let inputRate = usesLongContextRates
             ? pricing.inputCostPerTokenAboveThreshold ?? pricing.inputCostPerToken
             : pricing.inputCostPerToken
