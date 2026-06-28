@@ -670,6 +670,7 @@ struct StatusMenuPersistentRefreshTests { // swiftlint:disable:this type_body_le
     func `refresh monitor preserves tracked layout when token error appears`() throws {
         let settings = self.makeSettings()
         settings.costUsageEnabled = true
+        settings.costSummaryDisplayStyle = .both
         let controller = self.makeController(settings: settings)
         controller.store._setTokenSnapshotForTesting(Self.makeTokenSnapshot(), provider: .claude)
         let fallback = try #require(controller.menuCardModel(for: .claude))
@@ -685,6 +686,7 @@ struct StatusMenuPersistentRefreshTests { // swiftlint:disable:this type_body_le
     func `refresh monitor preserves tracked layout when token error text changes`() throws {
         let settings = self.makeSettings()
         settings.costUsageEnabled = true
+        settings.costSummaryDisplayStyle = .both
         let controller = self.makeController(settings: settings)
         controller.store._setTokenSnapshotForTesting(Self.makeTokenSnapshot(), provider: .claude)
         controller.store._setTokenErrorForTesting("Old token usage error", provider: .claude)
@@ -1007,7 +1009,9 @@ struct StatusMenuPersistentRefreshTests { // swiftlint:disable:this type_body_le
         #expect(recorder.settingsCount == 1)
         #expect(recorder.quitCount == 1)
     }
+}
 
+extension StatusMenuPersistentRefreshTests {
     private func keyEvent(_ characters: String, keyCode: UInt16) throws -> NSEvent {
         try #require(NSEvent.keyEvent(
             with: .keyDown,
@@ -1021,9 +1025,7 @@ struct StatusMenuPersistentRefreshTests { // swiftlint:disable:this type_body_le
             isARepeat: false,
             keyCode: keyCode))
     }
-}
 
-extension StatusMenuPersistentRefreshTests {
     @Test
     func `refresh row metrics match tuned native-style values`() {
         let metrics = PersistentRefreshRowMetrics.defaults

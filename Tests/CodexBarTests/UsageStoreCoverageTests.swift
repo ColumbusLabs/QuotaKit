@@ -281,6 +281,9 @@ struct UsageStoreCoverageTests {
         store._setSnapshotForTesting(staleSnapshot, provider: .claude)
         store._setErrorForTesting("stale", provider: .claude)
         store.statuses[.claude] = ProviderStatus(indicator: .major, description: "Outage", updatedAt: Date())
+        store.statusComponents[.claude] = [
+            ProviderStatusComponent(id: "api", name: "API", indicator: .major, status: "major_outage"),
+        ]
 
         #expect(store.enabledProviders() == [.codex])
 
@@ -289,6 +292,28 @@ struct UsageStoreCoverageTests {
         #expect(store.snapshot(for: .claude) == nil)
         #expect(store.errors[.claude] == nil)
         #expect(store.statuses[.claude] == nil)
+        #expect(store.statusComponents(for: .claude).isEmpty)
+    }
+
+    @Test
+    func `menu observation token tracks status component changes`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-status-components-observation")
+        settings.statusChecksEnabled = false
+        let store = Self.makeUsageStore(settings: settings)
+        let didObserve = ObservationFlag()
+
+        withObservationTracking {
+            _ = store.menuObservationToken
+        } onChange: {
+            didObserve.set()
+        }
+
+        store.statusComponents[.claude] = [
+            ProviderStatusComponent(id: "api", name: "API", indicator: .none, status: "operational"),
+        ]
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(didObserve.get())
     }
 
     @Test
@@ -450,6 +475,9 @@ struct UsageStoreCoverageTests {
         let store = Self.makeUsageStore(settings: settings)
         store._setErrorForTesting("stale", provider: .synthetic)
         store.statuses[.synthetic] = ProviderStatus(indicator: .major, description: "Outage", updatedAt: Date())
+        store.statusComponents[.synthetic] = [
+            ProviderStatusComponent(id: "api", name: "API", indicator: .major, status: "major_outage"),
+        ]
         store.tokenErrors[.synthetic] = "token stale"
 
         #expect(store.enabledProvidersForDisplay() == [.synthetic])
@@ -461,6 +489,7 @@ struct UsageStoreCoverageTests {
         #expect(store.errors[.synthetic] == nil)
         #expect(store.tokenErrors[.synthetic] == nil)
         #expect(store.statuses[.synthetic] == nil)
+        #expect(store.statusComponents(for: .synthetic).isEmpty)
         #expect(store.enabledProvidersForBackgroundWork().isEmpty)
     }
 
