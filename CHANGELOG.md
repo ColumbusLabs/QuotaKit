@@ -5,36 +5,16 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.8 / iOS 1.11.1 — 2026-06-23
+## 0.32.4.9 / iOS 1.11.1 — 2026-06-28
 
 ### Changed
 
 - Synced upstream CodexBar Mac improvements through `e810f7e`
-  (`eb0bc92e..e810f7e`), including Codex cost-history row deduplication,
-  cache preservation across rescans, Pi cache-read pricing, parser hash updates,
-  and deterministic Firefox fixture coverage.
-- Synced upstream CodexBar Mac improvements through `eb0bc92e`
-  (`87635bcc..eb0bc92e`), including live status component submenus for Claude,
-  Codex, and Augment plus configurable inline/submenu cost-summary display.
-- Synced upstream CodexBar Mac improvements through `87635bcc`
-  (`18eab6b..87635bcc`), including Sakana AI manual-cookie usage and GPU-backed
-  Overview row selection.
-- Synced upstream CodexBar Mac improvements through `18eab6b`
-  (`516615424..18eab6b`), including Kiro PTY usage loading, browser cookie
+  (`af13c528..e810f7e`), including Codex credit-limit display, Sakana AI,
+  live status submenus, Kiro PTY usage loading, browser cookie
   discovery hardening, CLI `/usage` provider isolation, Codex usage-only refresh
-  enrichment fixes, privacy redaction, Refresh-row/menu alignment, signed-zero
-  pace text cleanup, and docs/lint checks.
-- Synced upstream CodexBar Mac improvements through `516615424`
-  (`ada3660e..516615424`), including Codex enterprise monthly credit limits,
-  OAuth/dashboard credit-limit mapping, menu/widget credit rows, and usage
-  percentage display fixes.
-- Synced upstream CodexBar Mac improvements through `ada3660e`
-  (`af13c528..ada3660e`), including z.ai team token-account usage,
-  Mistral Vibe cookie restoration, and native-style Refresh menu rows.
-- Synced upstream CodexBar Mac improvements through `af13c528`
-  (`ef8007fc..af13c528`), including CLI pace output, CI observability and
-  dependency updates, stricter blank-localization checks, and broader
-  provider/runtime test coverage.
+  enrichment fixes, privacy redaction, z.ai team usage, Mistral Vibe cookie
+  restoration, cost-cache correctness, and menu performance updates.
 
 ### Fixed
 
@@ -42,17 +22,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   of collapsing all on-track deltas to "On pace".
 - Usage display: keep positive values below one percent visible instead of
   rounding them to zero.
-- Claude: stop installed-version checks from invoking a login shell and
-  triggering unwanted Keychain prompts.
-- Usage totals: keep Today tied to the current local calendar day across cost,
-  Admin API, and Poe surfaces instead of showing the latest historical bucket.
-- Antigravity: align compact icons and automatic highest-usage selection with
-  grouped Gemini and Claude/GPT quota lanes while ignoring non-renderable
-  cadences.
-- Memory pressure: finish isolating utility-queue source reads from main-actor
-  state to prevent the remaining callback crash.
-- Localization: reject blank translated values and restore affected Vietnamese
-  provider prompts.
 - Kiro: run account, usage, and context commands through a PTY so current CLI
   versions return usage without timing out.
 - OpenAI web: ignore stale profiles from removed browsers, discover registered
@@ -68,6 +37,29 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   delta rounds to zero.
 - Menu: align the persistent Refresh row with native actions, keep Settings,
   About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
+
+## 0.32.4.8 / iOS 1.11.1 — 2026-06-23
+
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `af13c528`
+  (`ef8007fc..af13c528`), including CLI pace output, CI observability and
+  dependency updates, stricter blank-localization checks, and broader
+  provider/runtime test coverage.
+
+### Fixed
+
+- Claude: stop installed-version checks from invoking a login shell and
+  triggering unwanted Keychain prompts.
+- Usage totals: keep Today tied to the current local calendar day across cost,
+  Admin API, and Poe surfaces instead of showing the latest historical bucket.
+- Antigravity: align compact icons and automatic highest-usage selection with
+  grouped Gemini and Claude/GPT quota lanes while ignoring non-renderable
+  cadences.
+- Memory pressure: finish isolating utility-queue source reads from main-actor
+  state to prevent the remaining callback crash.
+- Localization: reject blank translated values and restore affected Vietnamese
+  provider prompts.
 
 ## 0.32.4.7 / iOS 1.11.1 — 2026-06-18
 
