@@ -9,6 +9,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `e810f7e`
+  (`eb0bc92e..e810f7e`), including Codex cost-history row deduplication,
+  cache preservation across rescans, Pi cache-read pricing, parser hash updates,
+  and deterministic Firefox fixture coverage.
+- Synced upstream CodexBar Mac improvements through `eb0bc92e`
+  (`87635bcc..eb0bc92e`), including live status component submenus for Claude,
+  Codex, and Augment plus configurable inline/submenu cost-summary display.
+- Synced upstream CodexBar Mac improvements through `87635bcc`
+  (`18eab6b..87635bcc`), including Sakana AI manual-cookie usage and GPU-backed
+  Overview row selection.
 - Synced upstream CodexBar Mac improvements through `18eab6b`
   (`516615424..18eab6b`), including Kiro PTY usage loading, browser cookie
   discovery hardening, CLI `/usage` provider isolation, Codex usage-only refresh
