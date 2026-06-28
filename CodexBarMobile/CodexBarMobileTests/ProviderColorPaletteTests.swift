@@ -46,6 +46,7 @@ struct ProviderColorPaletteTests {
             ("perplexity", 32 / 255, 178 / 255, 170 / 255),
             ("mimo", 249 / 255, 115 / 255, 22 / 255),
             ("doubao", 51 / 255, 112 / 255, 255 / 255),
+            ("sakana", 0.16, 0.46, 0.86),
             ("abacus", 56 / 255, 189 / 255, 248 / 255),
             ("mistral", 255 / 255, 80 / 255, 15 / 255),
             ("deepseek", 0.32, 0.49, 0.94),
@@ -78,6 +79,7 @@ struct ProviderColorPaletteTests {
             ("Alibaba Token Plan", "alibabatokenplan"),
             ("Xiaomi MiMo", "mimo"),
             ("GroqCloud", "groq"),
+            ("Sakana AI", "sakana"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -130,7 +132,7 @@ private let knownDistinctProviders = [
     "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment",
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
-    "doubao", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
+    "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
 ]
 

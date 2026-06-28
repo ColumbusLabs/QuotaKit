@@ -377,6 +377,18 @@ final class CLIEntryTests: XCTestCase {
                 commandcode: .init(
                     cookieSource: .auto,
                     manualCookieHeader: nil))))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .sakana,
+            environment: ["SAKANA_COOKIE": "session=manual"]))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .sakana,
+            environment: ["SAKANA_COOKIE": "session=manual"]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .sakana,
+            environment: [:]))
         XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
             .auto,
             provider: .opencode,

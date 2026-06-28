@@ -35,6 +35,7 @@ MOBILE_ALIAS_TARGETS = {
     "kimiapi": "moonshot",
     "kimik2unofficial": "kimik2",
     "moonshotkimiapi": "moonshot",
+    "sakanaai": "sakana",
     "syntheticnew": "synthetic",
     "t3": "t3chat",
     "vertex": "vertexai",

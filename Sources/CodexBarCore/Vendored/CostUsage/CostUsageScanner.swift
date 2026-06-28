@@ -450,9 +450,9 @@ enum CostUsageScanner {
         case .openai, .azureopenai, .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba,
              .alibabatokenplan, .factory,
              .copilot, .devin, .minimax, .manus, .kilo, .kiro, .kimi, .kimik2, .moonshot, .augment, .jetbrains, .amp,
-             .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .abacus,
-             .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .stepfun, .bedrock, .grok,
-             .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes:
+             .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
+             .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .stepfun,
+             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes:
             return emptyReport
         }
     }

@@ -111,6 +111,7 @@ enum ProviderColorPalette {
             (["perplexity"], RawColor(red: 32 / 255, green: 178 / 255, blue: 170 / 255)),
             (["mimo", "xiaomimimo"], RawColor(red: 249 / 255, green: 115 / 255, blue: 22 / 255)),
             (["doubao"], RawColor(red: 51 / 255, green: 112 / 255, blue: 255 / 255)),
+            (["sakana", "sakanaai"], RawColor(red: 0.16, green: 0.46, blue: 0.86)),
             (["abacus", "abacusai"], RawColor(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
             (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
             (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
