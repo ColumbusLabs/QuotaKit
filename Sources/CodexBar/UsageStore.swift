@@ -155,6 +155,7 @@ final class UsageStore {
     var debugForceAnimation = false
     var pathDebugInfo: PathDebugSnapshot = .empty
     var statuses: [UsageProvider: ProviderStatus] = [:]
+    var statusComponents: [UsageProvider: [ProviderStatusComponent]] = [:]
     var probeLogs: [UsageProvider: String] = [:]
     var historicalPaceRevision: Int = 0
     var planUtilizationHistoryRevision: Int = 0
@@ -904,16 +905,26 @@ final class UsageStore {
 
         do {
             let status: ProviderStatus
+            var components: [ProviderStatusComponent]?
             if let override = self._test_providerStatusFetchOverride {
                 status = try await override(provider)
             } else if let urlString = meta.statusPageURL, let baseURL = URL(string: urlString) {
-                status = try await Self.fetchStatus(from: baseURL)
+                let summary = try await Self.fetchStatusSummary(from: baseURL)
+                status = summary.status
+                components = summary.components
             } else if let productID = meta.statusWorkspaceProductID {
                 status = try await Self.fetchWorkspaceStatus(productID: productID)
             } else {
                 return
             }
-            await MainActor.run { self.statuses[provider] = status }
+            await MainActor.run {
+                self.statuses[provider] = status
+                // A component endpoint is best-effort. Preserve the last good list when the
+                // overall status succeeds but the component request or decoding fails.
+                if let components {
+                    self.statusComponents[provider] = components
+                }
+            }
         } catch {
             self.recordStartupConnectivityRetryableFailure(error)
             // Keep the previous status to avoid flapping when the API hiccups.
