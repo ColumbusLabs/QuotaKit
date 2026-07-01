@@ -5,18 +5,18 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.9 / iOS 1.11.1 — 2026-06-28
+## Unreleased
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `101c178`
-  (`f5340ad..101c178`), including Claude OAuth history isolation,
+- Synced upstream CodexBar Mac improvements through `054751151`
+  (`f5340ad..054751151`), including Claude OAuth history isolation,
   bounded Claude web fallback, Antigravity warm `agy` reuse, Codex and Pi
   cost-cache repricing, widget usage-display preferences, refresh-on-open,
   quota warning alerts and session reset celebrations, Claude combined menu
   metrics, Keychain prompt guidance, Claude Code sign-in, OpenAI
-  service-account diagnostics, Sakana AI, T3 Chat, package signing checks, and
-  broader provider/runtime test coverage.
+  service-account diagnostics, Sakana AI, T3 Chat, OpenCode Go, package
+  signing checks, and broader provider/runtime test coverage.
 
 ### Fixed
 
@@ -42,7 +42,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Widgets: honor the shared used-versus-remaining display preference.
 - Claude: isolate OAuth history per credential, preserve continuity through
   refreshes, bound stale web requests so Auto can reach CLI fallback, add a
-  Session + Weekly menu-bar metric, and preserve real zero-usage sessions.
+  Session + Weekly menu-bar metric, preserve real zero-usage sessions, and
+  prevent logged-out background Auto fallbacks from opening browser OAuth.
 - Keychain prompts: explain macOS password entry and the opt-out path before
   access begins.
 - OpenAI API: explain unsupported project service-account keys instead of
@@ -53,6 +54,39 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   one-shot usage checks while excluding QuotaKit-owned managed sessions.
 - Quota warnings: add on-screen alert presentation and session-reset
   celebration handling while keeping iPhone push writes intact.
+
+## 0.32.4.9 / iOS 1.11.1 — 2026-06-28
+
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `e810f7e`
+  (`af13c528..e810f7e`), including Codex credit-limit display, Sakana AI,
+  live status submenus, Kiro PTY usage loading, browser cookie
+  discovery hardening, CLI `/usage` provider isolation, Codex usage-only refresh
+  enrichment fixes, privacy redaction, z.ai team usage, Mistral Vibe cookie
+  restoration, cost-cache correctness, and menu performance updates.
+
+### Fixed
+
+- Usage pace: keep rounded on-track deficit and reserve labels visible instead
+  of collapsing all on-track deltas to "On pace".
+- Usage display: keep positive values below one percent visible instead of
+  rounding them to zero.
+- Kiro: run account, usage, and context commands through a PTY so current CLI
+  versions return usage without timing out.
+- OpenAI web: ignore stale profiles from removed browsers, discover registered
+  installs outside standard app folders, and surface browser-profile access and
+  cookie-load timeout diagnostics.
+- CLI server: collect `/usage` providers concurrently under finite per-provider
+  deadlines so one hung provider degrades to its own error row without discarding
+  healthy results.
+- Privacy: hide account and team identity values without showing placeholder
+  text or empty account rows.
+- Codex: avoid monthly-credit CLI enrichment during usage-only OAuth refreshes.
+- Menu bar: show pace as `0%` instead of a signed `+0%` or `-0%` when the pace
+  delta rounds to zero.
+- Menu: align the persistent Refresh row with native actions, keep Settings,
+  About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
 
 ## 0.32.4.8 / iOS 1.11.1 — 2026-06-23
 
