@@ -405,6 +405,10 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `11` (issue #38 upstream sync): merged upstream Codex cached-input
+    ///   pricing formula and explicit cost-formula cache key changes. Roll the
+    ///   pricingFingerprint so rows priced with the old formula are invalidated
+    ///   and re-scanned with the corrected cache-read attribution.
     /// - `10` (0.32.4.8 upstream tail): merged upstream Codex cost-history row
     ///   identity and cache-dedupe changes through `e810f7e`. The regenerated
     ///   parser hash rolls the Codex producerKey axis; this bump rolls the
@@ -455,7 +459,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 10
+    static let parserLogicVersion = 11
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -629,7 +633,7 @@ enum CostUsagePricing {
               let priorityInputCostPerToken = pricing.priorityInputCostPerToken,
               let priorityOutputCostPerToken = pricing.priorityOutputCostPerToken
         else { return nil }
-        if max(0, inputTokens) + max(0, cachedInputTokens) > self.codexPriorityInputTokenLimit {
+        if max(0, inputTokens) > self.codexPriorityInputTokenLimit {
             return nil
         }
 
@@ -651,16 +655,19 @@ enum CostUsagePricing {
         cachedInputTokens: Int,
         outputTokens: Int) -> Double
     {
-        let nonCached = max(0, inputTokens)
-        let cached = max(0, cachedInputTokens)
+        // Codex/OpenAI reports `input_tokens` as the total prompt size, with cached reads as a
+        // SUBSET of it. Clamp cached to input and price only the remainder at the input rate so
+        // cached tokens are not billed twice (full input rate + cache rate).
+        let cached = min(max(0, cachedInputTokens), max(0, inputTokens))
+        let nonCached = max(0, inputTokens - cached)
         let cachedRate = pricing.cacheReadInputCostPerToken ?? pricing.inputCostPerToken
 
-        let usesLongContextRates = pricing.thresholdTokens.map { (nonCached + cached) > $0 } ?? false
+        let usesLongContextRates = pricing.thresholdTokens.map { max(0, inputTokens) > $0 } ?? false
         let inputRate = usesLongContextRates
             ? pricing.inputCostPerTokenAboveThreshold ?? pricing.inputCostPerToken
             : pricing.inputCostPerToken
         let cachedInputRate = usesLongContextRates
-            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? cachedRate
+            ? pricing.cacheReadInputCostPerTokenAboveThreshold ?? pricing.cacheReadInputCostPerToken ?? inputRate
             : cachedRate
         let outputRate = usesLongContextRates
             ? pricing.outputCostPerTokenAboveThreshold ?? pricing.outputCostPerToken

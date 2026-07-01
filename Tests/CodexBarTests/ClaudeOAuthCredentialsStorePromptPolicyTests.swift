@@ -127,7 +127,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     }
 
     @Test
-    func `does not show pre alert when claude keychain readable without interaction`() throws {
+    func `user initiated claude keychain read shows pre alert even when preflight allows`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -180,7 +180,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             })
 
                         #expect(creds.accessToken == "keychain-token")
-                        #expect(preAlertHits == 0)
+                        #expect(preAlertHits >= 1)
                     }
                 }
             }
@@ -665,7 +665,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     }
 
     @Test
-    func `experimental reader background always suppresses prompt pre alert`() throws {
+    func `experimental reader background always shows prompt pre alert`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -725,7 +725,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             })
 
                         #expect(creds.accessToken == "fallback-token")
-                        #expect(preAlertHits == 0)
+                        #expect(preAlertHits == 1)
                     }
                 }
             }

@@ -45,6 +45,79 @@ extension StatusItemController {
         return submenu
     }
 
+    /// Providers that surface the live component list as a native submenu. Every other provider
+    /// keeps the plain "Status Page" link that opens the website. Kept deliberately small: these
+    /// are the statuspage.io/incident.io feeds we actively curate and trust to render well.
+    static let statusComponentsSubmenuProviders: Set<UsageProvider> = [.claude, .codex, .augment]
+
+    /// Builds the status submenu (component rows + a website link) for the curated providers in
+    /// `statusComponentsSubmenuProviders`. Gated on the provider being in that allowlist (and
+    /// having a component feed) rather than on components being loaded yet: status is fetched
+    /// asynchronously, so gating on loaded components would leave the row as a plain link for any
+    /// provider whose first fetch hasn't landed at menu-build time. The submenu hydrates from the
+    /// live component list each time it opens (and shows just the website link until the first
+    /// fetch lands). Returns nil for all other providers, which keep the plain status-page link.
+    /// For curated providers, turns the "Status Page" row into a submenu of live component
+    /// statuses instead of a direct website link (the link moves to the bottom of the submenu).
+    func attachStatusComponentsSubmenuIfNeeded(
+        to item: NSMenuItem,
+        action: MenuDescriptor.MenuAction,
+        menu: NSMenu,
+        width: CGFloat)
+    {
+        guard action == .statusPage,
+              let statusProvider = self.menuProvider(for: menu) ?? self.lastMenuProvider,
+              let submenu = self.makeStatusComponentsSubmenu(provider: statusProvider, width: width)
+        else { return }
+        item.action = nil
+        item.submenu = submenu
+    }
+
+    func makeStatusComponentsSubmenu(provider: UsageProvider, width: CGFloat? = nil) -> NSMenu? {
+        guard self.store.statusChecksEnabled else { return nil }
+        guard Self.statusComponentsSubmenuProviders.contains(provider) else { return nil }
+        guard ProviderDescriptorRegistry.descriptor(for: provider).metadata.statusPageURL != nil else { return nil }
+        if let width {
+            return self.makeHostedSubviewPlaceholderMenu(
+                chartID: Self.statusComponentsID,
+                provider: provider,
+                width: width)
+        }
+        return self.makeHostedSubviewPlaceholderMenu(chartID: Self.statusComponentsID, provider: provider)
+    }
+
+    func isOpenAIWebSubviewMenu(_ menu: NSMenu) -> Bool {
+        let ids: Set = [
+            Self.usageBreakdownChartID,
+            Self.creditsHistoryChartID,
+        ]
+        return menu.items.contains { item in
+            guard let id = item.representedObject as? String else { return false }
+            return ids.contains(id)
+        }
+    }
+
+    func refreshHostedSubviewHeights(in menu: NSMenu) {
+        let width = self.renderedMenuWidth(for: menu)
+
+        for item in menu.items {
+            guard let view = item.view else { continue }
+            let height = self.hostedSubviewFittingHeight(for: view, width: width)
+            view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: height))
+        }
+    }
+
+    /// Measures the natural height of a hosted submenu view at the given width using the live
+    /// view that will actually be displayed. Hosted chart items used to spin up a second,
+    /// throwaway `NSHostingController` purely to size the chart even though every build path
+    /// immediately re-measures the live view via `fittingSize`; that extra SwiftUI hierarchy was
+    /// pure overhead on a popup-menu hot path, so callers now size the displayed view directly.
+    func hostedSubviewFittingHeight(for view: NSView, width: CGFloat) -> CGFloat {
+        view.frame = NSRect(origin: .zero, size: NSSize(width: width, height: 1))
+        view.layoutSubtreeIfNeeded()
+        return view.fittingSize.height
+    }
+
     @discardableResult
     func hydrateHostedSubviewMenuIfNeeded(_ menu: NSMenu, width requestedWidth: CGFloat? = nil) -> Bool {
         guard let placeholder = menu.items.first,

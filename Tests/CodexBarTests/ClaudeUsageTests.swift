@@ -58,7 +58,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
@@ -228,7 +228,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (Date, TimeInterval, [String: String]) async
             -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _, _ in
             _ = await delegatedCounter.increment()
@@ -396,6 +396,58 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
+    func `oauth bootstrap only on user action background startup allows interactive read when opted in and no cache`()
+        async throws
+    {
+        final class FlagBox: @unchecked Sendable {
+            var allowKeychainPromptFlags: [Bool] = []
+            var allowBackgroundPromptBootstrapFlags: [Bool] = []
+        }
+
+        let flags = FlagBox()
+        let usageResponse = try Self.makeOAuthUsageResponse()
+        let fetcher = ClaudeUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            environment: [:],
+            dataSource: .oauth,
+            oauthKeychainPromptCooldownEnabled: true,
+            allowStartupBootstrapPrompt: true)
+
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
+        let loadCredsOverride: (@Sendable (
+            [String: String],
+            Bool,
+            Bool) async throws -> ClaudeOAuthCredentials)? = { _, allowKeychainPrompt, _ in
+            flags.allowKeychainPromptFlags.append(allowKeychainPrompt)
+            flags.allowBackgroundPromptBootstrapFlags.append(ClaudeOAuthCredentialsStore.allowBackgroundPromptBootstrap)
+            return ClaudeOAuthCredentials(
+                accessToken: "fresh-token",
+                refreshToken: "refresh-token",
+                expiresAt: Date(timeIntervalSinceNow: 3600),
+                scopes: ["user:profile"],
+                rateLimitTier: nil)
+        }
+
+        let snapshot = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+            try await ProviderRefreshContext.$current.withValue(.startup) {
+                try await ProviderInteractionContext.$current.withValue(.background) {
+                    try await ClaudeUsageFetcher.$hasCachedCredentialsOverride.withValue(false) {
+                        try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
+                            try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
+                                try await fetcher.loadLatestUsage(model: "sonnet")
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        #expect(flags.allowKeychainPromptFlags == [true])
+        #expect(flags.allowBackgroundPromptBootstrapFlags == [true])
+        #expect(snapshot.primary.usedPercent == 7)
+    }
+
+    @Test
     func `background startup suppresses interactive OAuth read when no cache`() async throws {
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
@@ -409,7 +461,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let loadCredsOverride: (@Sendable (
             [String: String],
             Bool,
@@ -442,7 +494,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
     }
 
     @Test
-    func `oauth bootstrap always mode background startup suppresses interactive read when no cache`() async throws {
+    func `oauth bootstrap always mode background startup allows interactive read when no cache`() async throws {
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
         }
@@ -455,7 +507,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let loadCredsOverride: (@Sendable (
             [String: String],
             Bool,
@@ -483,7 +535,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             }
         }
 
-        #expect(flags.allowKeychainPromptFlags == [false])
+        #expect(flags.allowKeychainPromptFlags == [true])
         #expect(snapshot.primary.usedPercent == 7)
     }
 
@@ -505,7 +557,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             oauthKeychainPromptCooldownEnabled: false,
             allowBackgroundDelegatedRefresh: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
@@ -1120,7 +1172,9 @@ struct ClaudeAutoFetcherCharacterizationTests {
                     let url = try #require(request.url)
                     return Self.makeJSONResponse(url: url, body: "{}")
                 }, operation: {
-                    let fetchOverride: @Sendable (String) async throws -> OAuthUsageResponse = { _ in usageResponse }
+                    let fetchOverride: @Sendable (String, Bool) async throws -> OAuthUsageResponse = { _, _ in
+                        usageResponse
+                    }
                     let snapshot = try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(
                         fetchOverride,
                         operation: {
@@ -1459,7 +1513,7 @@ extension ClaudeUsageTests {
             oauthKeychainPromptCooldownEnabled: true,
             allowBackgroundDelegatedRefresh: false)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
