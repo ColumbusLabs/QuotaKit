@@ -1279,6 +1279,18 @@ public enum ClaudeOAuthCredentialsStore {
         return "\(modifiedAt):\(createdAt):\(persistentRefHash)"
     }
 
+    /// Returns the current Claude Code Keychain item's opaque persistent-reference hash without
+    /// falling back to a stored fingerprint. History ownership must prefer no identity over a
+    /// potentially stale identity when a non-interactive Keychain probe is unavailable.
+    public static func claudeKeychainPersistentRefHashWithoutPrompt() -> String? {
+        switch self.probeClaudeKeychainFingerprintWithoutPrompt() {
+        case .unavailable:
+            nil
+        case let .value(fingerprint):
+            fingerprint?.persistentRefHash
+        }
+    }
+
     private enum ClaudeKeychainProbe<Value> {
         case unavailable
         case value(Value)
