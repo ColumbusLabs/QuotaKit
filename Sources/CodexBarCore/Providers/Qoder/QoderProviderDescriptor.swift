@@ -321,13 +321,17 @@ struct QoderWebFetchStrategy: ProviderFetchStrategy {
     }
 
     private static func curlRequestRoute(_ rawHeader: String) -> ManualCookieRoute? {
-        let tokens = self.shellTokens(self.normalizedShellLineContinuations(rawHeader))
-        guard let curlIndex = self.curlCommandIndex(tokens) else {
-            if tokens.contains(where: self.isCurlExecutableToken) {
+        let rawTokens = self.shellTokens(rawHeader)
+        guard self.curlCommandIndex(rawTokens) != nil else {
+            if rawTokens.contains(where: self.isCurlExecutableToken) {
                 return .invalid
             }
             return nil
         }
+        guard let preprocessedHeader = self.preprocessedCurlShellText(rawHeader) else { return .invalid }
+
+        let tokens = self.shellTokens(preprocessedHeader)
+        guard let curlIndex = self.curlCommandIndex(tokens) else { return .invalid }
         guard tokens.allSatisfy(self.isCurlTokenTextSafe) else { return .invalid }
 
         guard let explicitTargets = self.explicitCurlURLTargets(tokens, after: curlIndex),
@@ -574,9 +578,91 @@ struct QoderWebFetchStrategy: ProviderFetchStrategy {
         return .site(site)
     }
 
-    private static func normalizedShellLineContinuations(_ text: String) -> String {
-        text.replacingOccurrences(of: "\\\r\n", with: "")
-            .replacingOccurrences(of: "\\\n", with: "")
+    private enum ShellQuote {
+        case single
+        case double
+    }
+
+    private static func preprocessedCurlShellText(_ text: String) -> String? {
+        let scalars = Array(text.unicodeScalars)
+        var output = String.UnicodeScalarView()
+        var index = scalars.startIndex
+        var quote: ShellQuote?
+
+        while index < scalars.endIndex {
+            let scalar = scalars[index]
+            let nextIndex = scalars.index(after: index)
+
+            if quote == nil, scalar == "\\" {
+                if nextIndex < scalars.endIndex, scalars[nextIndex] == "\n" {
+                    index = scalars.index(after: nextIndex)
+                    continue
+                }
+                if nextIndex < scalars.endIndex, scalars[nextIndex] == "\r" {
+                    let afterReturn = scalars.index(after: nextIndex)
+                    if afterReturn < scalars.endIndex, scalars[afterReturn] == "\n" {
+                        index = scalars.index(after: afterReturn)
+                        continue
+                    }
+                }
+            }
+
+            guard self.isShellScalarTextSafe(scalar) else { return nil }
+
+            switch quote {
+            case .single:
+                if scalar == "'" {
+                    quote = nil
+                }
+            case .double:
+                if scalar == "\"" {
+                    quote = nil
+                } else if scalar == "`" || self.isUnsupportedShellDollarExpansion(in: scalars, at: index) {
+                    return nil
+                }
+            case nil:
+                if scalar == "'" {
+                    quote = .single
+                } else if scalar == "\"" {
+                    quote = .double
+                } else if scalar == "`" ||
+                    self.isUnsupportedShellDollarExpansion(in: scalars, at: index) ||
+                    self.isProcessSubstitution(in: scalars, at: index)
+                {
+                    return nil
+                }
+            }
+
+            output.append(scalar)
+            index = nextIndex
+        }
+
+        return quote == nil ? String(output) : nil
+    }
+
+    private static func isShellScalarTextSafe(_ scalar: UnicodeScalar) -> Bool {
+        scalar.value >= 0x20 && scalar.value != 0x7F
+    }
+
+    private static func isUnsupportedShellDollarExpansion(in scalars: [UnicodeScalar], at index: Int) -> Bool {
+        guard scalars[index] == "$" else { return false }
+        let nextIndex = scalars.index(after: index)
+        guard nextIndex < scalars.endIndex else { return false }
+
+        let next = scalars[nextIndex]
+        if next == "'" || next == "\"" || next == "(" || next == "{" || next == "[" {
+            return true
+        }
+        if next == "_" || next.properties.isAlphabetic || (48...57).contains(Int(next.value)) {
+            return true
+        }
+        return "*@#?$!-".unicodeScalars.contains(next)
+    }
+
+    private static func isProcessSubstitution(in scalars: [UnicodeScalar], at index: Int) -> Bool {
+        guard scalars[index] == "<" || scalars[index] == ">" else { return false }
+        let nextIndex = scalars.index(after: index)
+        return nextIndex < scalars.endIndex && scalars[nextIndex] == "("
     }
 
     private static func isCurlTokenTextSafe(_ token: String) -> Bool {

@@ -469,6 +469,10 @@ struct QoderManualCookieRoutingTests {
             .site(
                 forManualCookieHeader:
                 "curl https://qoder.com.cn --expand-config '{{config}}' -H 'Cookie: sid=abc'") == nil)
+    }
+
+    @Test
+    func `manual curl rejects shell synthesis and injected controls`() {
         #expect(QoderWebFetchStrategy
             .site(
                 forManualCookieHeader:
@@ -482,6 +486,38 @@ struct QoderManualCookieRoutingTests {
                 forManualCookieHeader:
                 "curl https://qoder.com --referer $'https://qoder.com\r\nHost: qoder.com.cn' " +
                     "-H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -H 'User-Agent: agent\\\nHost: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -A $'agent\\r\\nHost: qoder.com.cn' -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -A $(printf agent) -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -A `printf agent` -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -A $AGENT -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -H \"User-Agent: $AGENT\" -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -A $\"agent\" -H 'Cookie: sid=abc'") == nil)
+        #expect(QoderWebFetchStrategy
+            .site(
+                forManualCookieHeader:
+                "curl https://qoder.com -H @<(printf 'Host: qoder.com.cn') -H 'Cookie: sid=abc'") == nil)
     }
 }
 
