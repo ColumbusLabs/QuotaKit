@@ -58,7 +58,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
@@ -228,7 +228,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (Date, TimeInterval, [String: String]) async
             -> ClaudeOAuthDelegatedRefreshCoordinator.Outcome)? = { _, _, _ in
             _ = await delegatedCounter.increment()
@@ -409,7 +409,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             dataSource: .oauth,
             oauthKeychainPromptCooldownEnabled: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let loadCredsOverride: (@Sendable (
             [String: String],
             Bool,
@@ -505,7 +505,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
             oauthKeychainPromptCooldownEnabled: false,
             allowBackgroundDelegatedRefresh: true)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
@@ -1120,7 +1120,9 @@ struct ClaudeAutoFetcherCharacterizationTests {
                     let url = try #require(request.url)
                     return Self.makeJSONResponse(url: url, body: "{}")
                 }, operation: {
-                    let fetchOverride: @Sendable (String) async throws -> OAuthUsageResponse = { _ in usageResponse }
+                    let fetchOverride: @Sendable (String, Bool) async throws -> OAuthUsageResponse = { _, _ in
+                        usageResponse
+                    }
                     let snapshot = try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(
                         fetchOverride,
                         operation: {
@@ -1459,7 +1461,7 @@ extension ClaudeUsageTests {
             oauthKeychainPromptCooldownEnabled: true,
             allowBackgroundDelegatedRefresh: false)
 
-        let fetchOverride: (@Sendable (String) async throws -> OAuthUsageResponse)? = { _ in usageResponse }
+        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,

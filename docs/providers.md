@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 53 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 54 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -56,6 +56,7 @@ headers, source selection, provider ordering, and token accounts are stored in `
 | Perplexity | Browser cookies/manual cookie/env session token → credits API (`web`). |
 | Xiaomi MiMo | Browser cookies → balance/token plan endpoints (`web`). |
 | Doubao | API key from config/env → Volcengine Ark chat-completions probe (`api`). |
+| Sakana AI | Manual Cookie header → billing page parser for 5-hour and weekly quota windows (`web`). |
 | Abacus AI | Browser cookies → compute points + billing API (`web`). |
 | Mistral | Console billing and Vibe subscription usage via browser cookies (`web`). |
 | DeepSeek | API key from env or token accounts → balance endpoint (`api`). |

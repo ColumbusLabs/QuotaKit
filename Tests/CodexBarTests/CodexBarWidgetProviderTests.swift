@@ -5,6 +5,13 @@ import Testing
 
 struct CodexBarWidgetProviderTests {
     @Test
+    func `usage display follows remaining and used preference`() {
+        #expect(WidgetUsageDisplay.percent(fromRemaining: 48, showUsed: false) == 48)
+        #expect(WidgetUsageDisplay.percent(fromRemaining: 48, showUsed: true) == 52)
+        #expect(WidgetUsageDisplay.percent(fromRemaining: nil, showUsed: true) == nil)
+    }
+
+    @Test
     func `small widget limits custom usage rows`() {
         let entry = WidgetSnapshot.ProviderEntry(
             provider: .antigravity,

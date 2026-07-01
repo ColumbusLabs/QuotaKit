@@ -3,12 +3,12 @@ import Foundation
 enum PiSessionCostCacheIO {
     /// Pi-session cache stores per-(day, provider, model) packed usage with
     /// `costNanos` baked in at parse time, so cached costs go stale whenever
-    /// pricing changes. Version 3 matches upstream's Claude pricing
-    /// correction (20004f3d); bumping the file version sidesteps migration
-    /// entirely (old cache file ignored, fresh scan at next launch). The
-    /// fork's `pricingFingerprint` stamp additionally invalidates the cache
-    /// when the pricing table changes without a version bump.
-    private static let artifactVersion = 3
+    /// pricing changes. Version 4 matches upstream's Pi cached-input pricing
+    /// correction; bumping the file version sidesteps migration entirely (old
+    /// cache file ignored, fresh scan at next launch). The fork's
+    /// `pricingFingerprint` stamp additionally invalidates the cache when the
+    /// pricing table changes without a version bump.
+    private static let artifactVersion = 4
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -76,7 +76,7 @@ struct PiSessionCostCache: Codable {
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 3, pricingFingerprint: String? = nil) {
+    init(version: Int = 4, pricingFingerprint: String? = nil) {
         self.version = version
         self.pricingFingerprint = pricingFingerprint
     }

@@ -1,11 +1,32 @@
 #!/usr/bin/env bash
 set -euo pipefail
+
+resolve_package_signing_mode() {
+  local requested="${CODEXBAR_SIGNING:-adhoc}"
+  case "$requested" in
+    adhoc|identity) ;;
+    *)
+      echo "ERROR: Unsupported CODEXBAR_SIGNING: $requested (expected adhoc or identity)" >&2
+      return 1
+      ;;
+  esac
+  SIGNING_MODE="$requested"
+}
+
 CONF=${1:-release}
 ALLOW_LLDB=${CODEXBAR_ALLOW_LLDB:-0}
-SIGNING_MODE=${CODEXBAR_SIGNING:-}
+SIGNING_MODE=
+resolve_package_signing_mode
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
 cd "$ROOT"
 LOWER_CONF=$(printf "%s" "$CONF" | tr '[:upper:]' '[:lower:]')
+case "$LOWER_CONF" in
+  debug|release) ;;
+  *)
+    echo "ERROR: Unsupported build configuration: $CONF (expected debug or release)" >&2
+    exit 1
+    ;;
+esac
 
 # Load version info
 source "$ROOT/version.env"
@@ -451,7 +472,7 @@ strip_release_binary "$APP/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex/Content
 # Embed Sparkle.framework
 if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
   COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
-  chmod -R u+w "$APP/Contents/Frameworks/Sparkle.framework"
+  chmod -R u+w,a+rX "$APP/Contents/Frameworks/Sparkle.framework"
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"
 if [[ "$SIGNING_MODE" == "adhoc" ]]; then

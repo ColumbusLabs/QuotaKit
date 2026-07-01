@@ -17,6 +17,7 @@ struct UsageStoreWidgetSnapshotTests {
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
+        settings.usageBarsShowUsed = true
 
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -43,6 +44,7 @@ struct UsageStoreWidgetSnapshotTests {
         await store.widgetSnapshotPersistTask?.value
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .antigravity })
+        #expect(widgetSnapshots.last?.usageBarsShowUsed == true)
         #expect(entry.usageRows?.map(\.id) == ["primary", "secondary"])
         #expect(entry.usageRows?.map(\.title) == ["Gemini Models", "Claude and GPT"])
         #expect(entry.usageRows?.compactMap(\.percentLeft) == [90, 80])

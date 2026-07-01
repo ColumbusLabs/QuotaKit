@@ -30,7 +30,11 @@ extension UsageStore {
         let entries = UsageProvider.allCases.compactMap { provider in
             self.makeWidgetEntry(for: provider)
         }
-        return WidgetSnapshot(entries: entries, enabledProviders: enabledProviders, generatedAt: Date())
+        return WidgetSnapshot(
+            entries: entries,
+            enabledProviders: enabledProviders,
+            usageBarsShowUsed: self.settings.usageBarsShowUsed,
+            generatedAt: Date())
     }
 
     private func makeWidgetEntry(for provider: UsageProvider) -> WidgetSnapshot.ProviderEntry? {

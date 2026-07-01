@@ -9,12 +9,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `e810f7e`
-  (`af13c528..e810f7e`), including Codex credit-limit display, Sakana AI,
-  live status submenus, Kiro PTY usage loading, browser cookie
-  discovery hardening, CLI `/usage` provider isolation, Codex usage-only refresh
-  enrichment fixes, privacy redaction, z.ai team usage, Mistral Vibe cookie
-  restoration, cost-cache correctness, and menu performance updates.
+- Synced upstream CodexBar Mac improvements through `101c178`
+  (`f5340ad..101c178`), including Claude OAuth history isolation,
+  bounded Claude web fallback, Antigravity warm `agy` reuse, Codex and Pi
+  cost-cache repricing, widget usage-display preferences, refresh-on-open,
+  quota warning alerts and session reset celebrations, Claude combined menu
+  metrics, Keychain prompt guidance, Claude Code sign-in, OpenAI
+  service-account diagnostics, Sakana AI, T3 Chat, package signing checks, and
+  broader provider/runtime test coverage.
 
 ### Fixed
 
@@ -37,6 +39,20 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   delta rounds to zero.
 - Menu: align the persistent Refresh row with native actions, keep Settings,
   About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
+- Widgets: honor the shared used-versus-remaining display preference.
+- Claude: isolate OAuth history per credential, preserve continuity through
+  refreshes, bound stale web requests so Auto can reach CLI fallback, add a
+  Session + Weekly menu-bar metric, and preserve real zero-usage sessions.
+- Keychain prompts: explain macOS password entry and the opt-out path before
+  access begins.
+- OpenAI API: explain unsupported project service-account keys instead of
+  surfacing a generic credit-balance authorization error.
+- Codex and Pi cost history: invalidate stale pricing caches and avoid
+  double-billing cached input.
+- Antigravity CLI: reuse an authenticated same-user `agy` server for faster
+  one-shot usage checks while excluding QuotaKit-owned managed sessions.
+- Quota warnings: add on-screen alert presentation and session-reset
+  celebration handling while keeping iPhone push writes intact.
 
 ## 0.32.4.8 / iOS 1.11.1 — 2026-06-23
 
