@@ -970,7 +970,7 @@
 "Extra usage balance: %@" = "额外使用量余额：%@";
 "Keychain Access Required" = "需要钥匙串访问权限";
 "keychain_prompt_learn_more" = "了解更多…";
-"keychain_prompt_privacy_note" = "Mac 登录密码由 macOS（而非 CodexBar）处理。你可以随时在“设置”→“高级”中停用所有钥匙串访问。";
+"keychain_prompt_privacy_note" = "Mac 登录密码由 macOS（而非 QuotaKit）处理。你可以随时在“设置”→“高级”中停用所有钥匙串访问。";
 "Kiro menu bar value" = "Kiro 菜单栏数值";
 "Label" = "标签";
 "No organizations loaded. Click Refresh after setting your API key." = "尚未加载组织。设置 API 密钥后点击“刷新”。";

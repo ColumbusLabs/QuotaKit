@@ -1002,7 +1002,7 @@
 "Extra usage balance: %@" = "توازن الاستخدام الإضافي: %@";
 "Keychain Access Required" = "Keychain الوصول المطلوب";
 "keychain_prompt_learn_more" = "معرفة المزيد…";
-"keychain_prompt_privacy_note" = "يتولى macOS، وليس CodexBar، إدخال كلمة سر تسجيل الدخول إلى Mac. يمكنك تعطيل وصول سلسلة المفاتيح في أي وقت من الإعدادات ← متقدم.";
+"keychain_prompt_privacy_note" = "يتولى macOS، وليس QuotaKit، إدخال كلمة سر تسجيل الدخول إلى Mac. يمكنك تعطيل وصول سلسلة المفاتيح في أي وقت من الإعدادات ← متقدم.";
 "Kiro menu bar value" = "Kiro قيمة شريط القائمة";
 "Label" = "العلامة التجارية";
 "No organizations loaded. Click Refresh after setting your API key." = "لا توجد منظمات محملة. انقر على تحديث بعد تعيين مفتاح API.";

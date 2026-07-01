@@ -412,7 +412,7 @@ public enum ClaudeOAuthCredentialsStore {
                     effectiveAllowKeychainPrompt = fallbackDecision.allowed
                 }
 
-                if ClaudeOAuthCredentialsStore.shouldNotifyClaudeKeychainPreAlert() {
+                if effectiveAllowKeychainPrompt, ClaudeOAuthCredentialsStore.shouldNotifyClaudeKeychainPreAlert() {
                     KeychainPromptHandler.notify(
                         KeychainPromptContext(
                             kind: .claudeOAuth,

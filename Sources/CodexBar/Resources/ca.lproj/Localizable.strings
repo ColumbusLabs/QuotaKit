@@ -854,7 +854,7 @@
 "Extra usage balance: %@" = "Saldo d'ús extra: %@";
 "Keychain Access Required" = "Cal accés al Clauer";
 "keychain_prompt_learn_more" = "Més informació…";
-"keychain_prompt_privacy_note" = "macOS —no CodexBar— gestiona la introducció de la contrasenya d'inici de sessió del Mac. Pots desactivar l'accés al Clauer en qualsevol moment a Configuració → Avançat.";
+"keychain_prompt_privacy_note" = "macOS —no QuotaKit— gestiona la introducció de la contrasenya d'inici de sessió del Mac. Pots desactivar l'accés al Clauer en qualsevol moment a Configuració → Avançat.";
 "Kiro menu bar value" = "Valor de Kiro a la barra de menús";
 "Label" = "Etiqueta";
 "No organizations loaded. Click Refresh after setting your API key." = "No hi ha organitzacions carregades. Feu clic a Actualitza després de configurar la clau API.";

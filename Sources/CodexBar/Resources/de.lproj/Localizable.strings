@@ -999,7 +999,7 @@
 "Extra usage balance: %@" = "Zusätzlicher Nutzungssaldo: %@";
 "Keychain Access Required" = "Schlüsselbundzugriff erforderlich";
 "keychain_prompt_learn_more" = "Weitere Informationen…";
-"keychain_prompt_privacy_note" = "Die Eingabe des Mac-Anmeldepassworts wird von macOS verarbeitet, nicht von CodexBar. Du kannst den Schlüsselbundzugriff jederzeit unter Einstellungen → Erweitert deaktivieren.";
+"keychain_prompt_privacy_note" = "Die Eingabe des Mac-Anmeldepassworts wird von macOS verarbeitet, nicht von QuotaKit. Du kannst den Schlüsselbundzugriff jederzeit unter Einstellungen → Erweitert deaktivieren.";
 "Kiro menu bar value" = "Wert der Kiro-Menüleiste";
 "Label" = "Etikett";
 "No organizations loaded. Click Refresh after setting your API key." = "Keine Organisationen geladen. Klicken Sie auf Aktualisieren, nachdem Sie Ihren API-Schlüssel festgelegt haben.";

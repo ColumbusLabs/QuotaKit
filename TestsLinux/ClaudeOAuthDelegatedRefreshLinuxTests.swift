@@ -42,7 +42,7 @@ struct ClaudeOAuthDelegatedRefreshLinuxTests {
             promptMode: .always)
 
         #expect(result.attempts == 0)
-        #expect(result.message.contains("CodexBar CLI does not launch Claude"))
+        #expect(result.message.contains("QuotaKit CLI does not launch Claude"))
     }
 
     @Test

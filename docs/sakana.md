@@ -69,12 +69,12 @@ There is no `quotakit config set` command for `cookieHeader`; use one of the pat
 
 ## Related files
 
-- `Sources/QuotaKitCore/Providers/Sakana/`
+- `Sources/CodexBarCore/Providers/Sakana/`
   - `SakanaProviderDescriptor.swift` — provider metadata, fetch plan, CLI config
   - `SakanaSettingsReader.swift` — `SAKANA_COOKIE` env key, cookie normalizer
   - `SakanaUsageFetcher.swift` — billing-page HTML fetch and quota parser
-- `Sources/QuotaKit/Providers/Sakana/`
+- `Sources/CodexBar/Providers/Sakana/`
   - `SakanaProviderImplementation.swift` — settings UI, availability check
   - `SakanaSettingsStore.swift` — `sakanaCookieHeader` settings binding
-- `Tests/QuotaKitTests/SakanaUsageFetcherTests.swift` — parser regression tests
+- `Tests/CodexBarTests/SakanaUsageFetcherTests.swift` — parser regression tests
 - Dashboard: `https://console.sakana.ai/billing`

@@ -1002,7 +1002,7 @@
 "Extra usage balance: %@" = "تعادل استفاده اضافی: %@";
 "Keychain Access Required" = "دسترسی Keychain مورد نیاز است";
 "keychain_prompt_learn_more" = "بیشتر بدانید…";
-"keychain_prompt_privacy_note" = "macOS، نه CodexBar، ورود گذرواژهٔ Mac را مدیریت می‌کند. می‌توانید دسترسی به Keychain را هر زمان از تنظیمات ← پیشرفته غیرفعال کنید.";
+"keychain_prompt_privacy_note" = "macOS، نه QuotaKit، ورود گذرواژهٔ Mac را مدیریت می‌کند. می‌توانید دسترسی به Keychain را هر زمان از تنظیمات ← پیشرفته غیرفعال کنید.";
 "Kiro menu bar value" = "Kiro مقدار نوار منو";
 "Label" = "برچسب";
 "No organizations loaded. Click Refresh after setting your API key." = "هیچ سازمانی بارگذاری نشده بود. پس از تنظیم کلید API روی «تازه سازی» کلیک کنید.";

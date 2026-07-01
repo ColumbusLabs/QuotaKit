@@ -999,7 +999,7 @@
 "Extra usage balance: %@" = "Solde d'utilisation supplémentaire : %@";
 "Keychain Access Required" = "Accès au Trousseau requis";
 "keychain_prompt_learn_more" = "En savoir plus…";
-"keychain_prompt_privacy_note" = "La saisie du mot de passe de connexion au Mac est gérée par macOS, pas par CodexBar. Vous pouvez désactiver l'accès au Trousseau à tout moment dans Réglages → Avancé.";
+"keychain_prompt_privacy_note" = "La saisie du mot de passe de connexion au Mac est gérée par macOS, pas par QuotaKit. Vous pouvez désactiver l'accès au Trousseau à tout moment dans Réglages → Avancé.";
 "Kiro menu bar value" = "Valeur de la barre de menu Kiro";
 "Label" = "Libellé";
 "No organizations loaded. Click Refresh after setting your API key." = "Aucune organisation chargée. Cliquez sur Actualiser après avoir défini votre clé API.";

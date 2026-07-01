@@ -59,6 +59,7 @@ TOKEN_ALLOWLIST_PATTERNS = [
         r"CodexBarLifecycleKeepalive",
         r"messageHandlers\?\.codexbarLog",
         r"window\.__codexbar",
+        r"codexbar:claude-oauth-history-owner:v1",
         r"clientName: \"codexbar\"",
         r"installationId\": \"codexbar\"",
         r"fingerprintId\": \"codexbar-usage\"",

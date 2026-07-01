@@ -1060,7 +1060,7 @@
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din Kimi-autentiseringstoken så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Keychain Access Required" = "Åtkomst till Nyckelring krävs";
 "keychain_prompt_learn_more" = "Läs mer…";
-"keychain_prompt_privacy_note" = "Inmatningen av Mac-inloggningslösenordet hanteras av macOS, inte CodexBar. Du kan när som helst inaktivera åtkomst till Nyckelring under Inställningar → Avancerat.";
+"keychain_prompt_privacy_note" = "Inmatningen av Mac-inloggningslösenordet hanteras av macOS, inte QuotaKit. Du kan när som helst inaktivera åtkomst till Nyckelring under Inställningar → Avancerat.";
 "Username" = "Användarnamn";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din MiniMax-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "30d spend" = "30 d kostnad";

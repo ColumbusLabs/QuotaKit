@@ -1002,7 +1002,7 @@
 "Extra usage balance: %@" = "ยอดการใช้งานเพิ่มเติม: %@";
 "Keychain Access Required" = "Keychain ต้องเข้าถึง";
 "keychain_prompt_learn_more" = "ดูเพิ่มเติม…";
-"keychain_prompt_privacy_note" = "macOS เป็นผู้จัดการการป้อนรหัสผ่านเข้าสู่ระบบ Mac ไม่ใช่ CodexBar คุณปิดการเข้าถึง Keychain ได้ทุกเมื่อใน การตั้งค่า → ขั้นสูง";
+"keychain_prompt_privacy_note" = "macOS เป็นผู้จัดการการป้อนรหัสผ่านเข้าสู่ระบบ Mac ไม่ใช่ QuotaKit คุณปิดการเข้าถึง Keychain ได้ทุกเมื่อใน การตั้งค่า → ขั้นสูง";
 "Kiro menu bar value" = "ค่าแถบเมนู Kiro";
 "Label" = "ฉลาก";
 "No organizations loaded. Click Refresh after setting your API key." = "ไม่มีองค์กรโหลด คลิกรีเฟรชหลังจากตั้งค่าปุ่ม API";

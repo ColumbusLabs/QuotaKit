@@ -1004,7 +1004,7 @@
 "Extra usage balance: %@" = "Saldo penggunaan ekstra: %@";
 "Keychain Access Required" = "Akses Keychain Diperlukan";
 "keychain_prompt_learn_more" = "Pelajari Lebih Lanjut…";
-"keychain_prompt_privacy_note" = "macOS—bukan CodexBar—menangani pemasukan kata sandi masuk Mac. Anda dapat menonaktifkan semua akses Keychain kapan saja di Pengaturan → Lanjutan.";
+"keychain_prompt_privacy_note" = "macOS—bukan QuotaKit—menangani pemasukan kata sandi masuk Mac. Anda dapat menonaktifkan semua akses Keychain kapan saja di Pengaturan → Lanjutan.";
 "Kiro menu bar value" = "Nilai menu bar Kiro";
 "Label" = "Label";
 "No organizations loaded. Click Refresh after setting your API key." = "Tidak ada organisasi dimuat. Klik Segarkan setelah mengatur kunci API Anda.";

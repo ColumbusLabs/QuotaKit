@@ -999,7 +999,7 @@
 "Extra usage balance: %@" = "Баланс додаткового використання: %@";
 "Keychain Access Required" = "Потрібен доступ до брелка";
 "keychain_prompt_learn_more" = "Докладніше…";
-"keychain_prompt_privacy_note" = "Введення пароля для входу на Mac обробляє macOS, а не CodexBar. Доступ до в'язки ключів можна будь-коли вимкнути в Налаштування → Розширені.";
+"keychain_prompt_privacy_note" = "Введення пароля для входу на Mac обробляє macOS, а не QuotaKit. Доступ до в'язки ключів можна будь-коли вимкнути в Налаштування → Розширені.";
 "Kiro menu bar value" = "Значення панелі меню Kiro";
 "Label" = "Мітка";
 "No organizations loaded. Click Refresh after setting your API key." = "Організації не завантажено. Натисніть «Оновити» після встановлення ключа API.";

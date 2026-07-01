@@ -999,7 +999,7 @@
 "Extra usage balance: %@" = "Extra gebruikssaldo: %@";
 "Keychain Access Required" = "Toegang tot sleutelhanger vereist";
 "keychain_prompt_learn_more" = "Meer informatie…";
-"keychain_prompt_privacy_note" = "De invoer van het Mac-inlogwachtwoord wordt verwerkt door macOS, niet door CodexBar. Je kunt sleutelhanger toegang op elk moment uitschakelen via Instellingen → Geavanceerd.";
+"keychain_prompt_privacy_note" = "De invoer van het Mac-inlogwachtwoord wordt verwerkt door macOS, niet door QuotaKit. Je kunt sleutelhanger toegang op elk moment uitschakelen via Instellingen → Geavanceerd.";
 "Kiro menu bar value" = "Waarde van de Kiro-menubalk";
 "Label" = "Label";
 "No organizations loaded. Click Refresh after setting your API key." = "Er zijn geen organisaties geladen. Klik op Vernieuwen nadat u uw API-sleutel hebt ingesteld.";

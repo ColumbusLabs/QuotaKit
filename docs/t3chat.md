@@ -91,7 +91,7 @@ quotakit usage --provider t3
 ```
 
 T3 Chat provides no token-cost data. The `usage --format json` output contains usage and identity
-data, while `codexbar cost --provider t3chat` is unsupported.
+data, while `quotakit cost --provider t3chat` is unsupported.
 
 ## Common errors
 
@@ -106,8 +106,8 @@ data, while `codexbar cost --provider t3chat` is unsupported.
 
 ## Key files
 
-- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
-- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatUsageFetcher.swift` — tRPC request, cookie import, and cURL parsing
-- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatUsageSnapshot.swift` — response decoding and window mapping
-- `Sources/QuotaKit/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
-- `Sources/QuotaKit/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence
+- `Sources/CodexBarCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
+- `Sources/CodexBarCore/Providers/T3Chat/T3ChatUsageFetcher.swift` — tRPC request, cookie import, and cURL parsing
+- `Sources/CodexBarCore/Providers/T3Chat/T3ChatUsageSnapshot.swift` — response decoding and window mapping
+- `Sources/CodexBar/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
+- `Sources/CodexBar/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence

@@ -995,7 +995,7 @@
 "Extra usage balance: %@" = "Extra usage balance: %@";
 "Keychain Access Required" = "Keychain Yêu cầu quyền truy cập";
 "keychain_prompt_learn_more" = "Tìm hiểu thêm…";
-"keychain_prompt_privacy_note" = "macOS, không phải CodexBar, xử lý việc nhập mật khẩu đăng nhập Mac. Bạn có thể tắt mọi quyền truy cập Keychain bất kỳ lúc nào trong Cài đặt → Nâng cao.";
+"keychain_prompt_privacy_note" = "macOS, không phải QuotaKit, xử lý việc nhập mật khẩu đăng nhập Mac. Bạn có thể tắt mọi quyền truy cập Keychain bất kỳ lúc nào trong Cài đặt → Nâng cao.";
 "Kiro menu bar value" = "Kiro thanh menu value";
 "Label" = "Nhãn";
 "No organizations loaded. Click Refresh after setting your API key." = "Chưa có tổ chức nào được tải. Nhấp vào Làm mới sau khi đặt khóa API của bạn.";

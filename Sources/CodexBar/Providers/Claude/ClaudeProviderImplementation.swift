@@ -127,7 +127,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 title: "Only on user action"),
             ProviderSettingsPickerOption(
                 id: ClaudeOAuthKeychainPromptMode.always.rawValue,
-                title: "Always allow on user actions"),
+                title: "Always allow"),
         ]
         let cookieSubtitle: () -> String? = {
             ProviderCookieSourceUI.subtitle(
@@ -141,8 +141,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             if context.settings.debugDisableKeychainAccess {
                 return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
             }
-            return "Controls Claude OAuth Keychain prompts for menu, manual refresh, and provider actions. " +
-                "Launch and background refresh never show Keychain prompts; use Web/CLI when needed."
+            return "Controls Claude OAuth Keychain prompts for menu, manual refresh, provider actions, " +
+                "and startup bootstrap. Background refreshes avoid prompts unless Always allow is selected."
         }
 
         return [

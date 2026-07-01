@@ -95,16 +95,23 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `claude background startup cannot reenable prompt bootstrap`() throws {
+    func `claude background startup prompt bootstrap is explicitly gated`() throws {
         let fetcher = try Self.readRepoFile("Sources/CodexBarCore/Providers/Claude/ClaudeUsageFetcher.swift")
         let descriptor = try Self.readRepoFile(
             "Sources/CodexBarCore/Providers/Claude/ClaudeProviderDescriptor.swift")
+        let credentialsStore = try Self.readRepoFile(
+            "Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials.swift")
         let securityCLIReader = try Self.readRepoFile(
             "Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials+SecurityCLIReader.swift")
 
-        #expect(!fetcher.contains("allowStartupBootstrapPrompt"))
-        #expect(!descriptor.contains("allowStartupBootstrapPrompt"))
-        #expect(fetcher.contains("case .always:\n                self.interaction == .userInitiated"))
+        #expect(fetcher.contains("guard self.fetcher.allowStartupBootstrapPrompt else { return false }"))
+        #expect(fetcher.contains("guard !hasCache else { return false }"))
+        #expect(fetcher.contains("securityFrameworkFallbackMode() == .onlyOnUserAction"))
+        #expect(fetcher.contains("guard policy.interaction == .background else { return false }"))
+        #expect(fetcher.contains("return ProviderRefreshContext.current == .startup"))
+        #expect(descriptor.contains("allowStartupBootstrapPrompt: context.runtime == .app &&"))
+        #expect(descriptor.contains("(context.sourceMode == .auto || context.sourceMode == .oauth)"))
+        #expect(credentialsStore.contains("@TaskLocal static var allowBackgroundPromptBootstrap: Bool = false"))
         #expect(securityCLIReader.contains("guard interaction == .userInitiated else"))
     }
 
