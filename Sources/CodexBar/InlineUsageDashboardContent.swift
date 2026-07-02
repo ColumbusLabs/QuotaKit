@@ -432,11 +432,12 @@ extension UsageMenuCardView.Model {
         ]
         let points = periodValues.compactMap { id, label, value -> InlineUsageDashboardModel.Point? in
             guard let value else { return nil }
+            let formattedValue = Self.openRouterCurrencyString(value)
             return InlineUsageDashboardModel.Point(
                 id: id,
                 label: label,
                 value: value,
-                accessibilityValue: "\(label): \(Self.openRouterCurrencyString(value))")
+                accessibilityValue: String(format: L("%@: %@"), label, formattedValue))
         }
         guard !points.isEmpty else { return nil }
         var details: [String] = []
@@ -446,7 +447,10 @@ extension UsageMenuCardView.Model {
         switch usage.keyQuotaStatus {
         case .available:
             if let remaining = usage.keyRemaining {
-                details.append("\(L("Key remaining")): \(Self.openRouterCurrencyString(remaining))")
+                details.append(String(
+                    format: L("%@: %@"),
+                    L("Key remaining"),
+                    Self.openRouterCurrencyString(remaining)))
             }
         case .noLimitConfigured:
             details.append(L("No limit set for the API key"))

@@ -730,6 +730,8 @@
 "reset_tomorrow_format" = "demain, %@";
 "Lasts until reset" = "Dure jusqu'à la réinitialisation";
 "Updated %@" = "%@ mis à jour";
+"Updated relative %@" = "%@ mis à jour";
+"Updated absolute %@" = "%@ mis à jour";
 "Updated %@h ago" = "Mis à jour il y a %@h";
 "Updated %@m ago" = "Mis à jour il y a %@m";
 "Updated just now" = "Mis à jour tout à l'heure";
@@ -1123,3 +1125,5 @@
 "byte_unit_megabytes" = "mégaoctets";
 "byte_unit_gigabyte" = "gigaoctet";
 "byte_unit_gigabytes" = "gigaoctets";
+"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
+"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";

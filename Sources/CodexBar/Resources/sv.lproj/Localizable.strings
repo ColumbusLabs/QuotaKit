@@ -729,6 +729,8 @@
 "reset_tomorrow_format" = "imorgon %@";
 "Lasts until reset" = "Räcker till återställning";
 "Updated %@" = "Uppdaterad %@";
+"Updated relative %@" = "Uppdaterad %@";
+"Updated absolute %@" = "Uppdaterad %@";
 "Updated %@h ago" = "Uppdaterad för %@ h sedan";
 "Updated %@m ago" = "Uppdaterad för %@ min sedan";
 "Updated just now" = "Uppdaterad nyss";
@@ -1122,3 +1124,5 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
+"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
+"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";

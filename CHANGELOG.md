@@ -15,6 +15,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   scoped most-used-provider ranking, stale status-icon animation fixes,
   Cursor depleted-quota pace handling, provider documentation details, and
   broader provider/menu/widget test coverage.
+- Synced upstream localization and provider menu copy through `daba50847`
+  (`8fb8c742..daba50847`), completing Traditional Chinese coverage while
+  preserving QuotaKit public naming in localized values.
 
 ### Fixed
 

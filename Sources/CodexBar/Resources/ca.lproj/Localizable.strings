@@ -1118,6 +1118,8 @@
 "Unavailable" = "No disponible";
 "Update ready, restart now?" = "Actualització a punt, voleu reiniciar ara?";
 "Updated %@" = "Actualitzat %@";
+"Updated relative %@" = "Actualitzat %@";
+"Updated absolute %@" = "Actualitzat %@";
 "Updated %@h ago" = "Actualitzat fa %@h";
 "Updated %@m ago" = "Actualitzat fa %@m";
 "Updated just now" = "Actualitzat ara mateix";
@@ -1127,3 +1129,5 @@
 "Weekly" = "Setmanal";
 "z.ai API token not found. Set apiKey in ~/.quotakit/config.json or Z_AI_API_KEY." = "No s'ha trobat el token d'API de z.ai. Definiu apiKey a ~/.quotakit/config.json o Z_AI_API_KEY.";
 "≈ %d%% run-out risk" = "≈ %d%% risc d'esgotament";
+"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
+"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
