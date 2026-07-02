@@ -9,6 +9,8 @@ current Columbus Labs product surface and recent release history.
 
 ### Changed
 
+- Synced provider metadata for Qoder so Mac quota data displays with the
+  correct name, tint, icon, and notification subscription identity on iPhone.
 - Provider rows, usage cards, details, dashboard provider-share lists, and
   QuotaKit widgets now use the same provider logo assets as the Mac app. Generic
   aggregate rows keep neutral markers so provider logos only appear where they

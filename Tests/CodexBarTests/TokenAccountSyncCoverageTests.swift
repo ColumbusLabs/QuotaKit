@@ -35,7 +35,7 @@ struct TokenAccountSyncCoverageTests {
         #expect(extraInSync.isEmpty, "Extra: \(extraInSync.map(\.rawValue).sorted())")
     }
 
-    @Test("Catalog contains the 22 providers known at upstream v0.33.0 (regression sentinel)")
+    @Test("Catalog contains the 23 providers known after upstream Qoder sync (regression sentinel)")
     func catalogContainsExpectedProviders() {
         // v0.33.0 baseline — 22 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
@@ -44,6 +44,7 @@ struct TokenAccountSyncCoverageTests {
         //   v0.27.0 added 3 more: elevenlabs, groq, llmproxy (all API-key
         //     style providers).
         //   Upstream v0.33.0 added LiteLLM as another API-key provider.
+        //   Upstream Qoder sync added Qoder as a cookie/API-key provider.
         // If this count changes (up or down), confirm the catalog change
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
@@ -57,6 +58,8 @@ struct TokenAccountSyncCoverageTests {
             "elevenlabs", "groq", "llmproxy",
             // v0.33.0 addition
             "litellm",
+            // Qoder sync addition
+            "qoder",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

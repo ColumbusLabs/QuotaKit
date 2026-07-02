@@ -54,6 +54,7 @@ struct ProviderColorPaletteTests {
             ("crof", 0.18, 0.67, 0.58),
             ("venice", 0.2, 0.6, 1),
             ("commandcode", 71 / 255, 85 / 255, 105 / 255),
+            ("qoder", 16 / 255, 185 / 255, 129 / 255),
             ("stepfun", 0.13, 0.59, 0.95),
             ("bedrock", 1, 0.6, 0),
             ("grok", 26 / 255, 26 / 255, 26 / 255),
@@ -80,6 +81,7 @@ struct ProviderColorPaletteTests {
             ("Xiaomi MiMo", "mimo"),
             ("GroqCloud", "groq"),
             ("Sakana AI", "sakana"),
+            ("Qoder", "qoder"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -133,7 +135,7 @@ private let knownDistinctProviders = [
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
-    "commandcode", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
+    "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
 ]
 
 private func expectDistinctColors(
