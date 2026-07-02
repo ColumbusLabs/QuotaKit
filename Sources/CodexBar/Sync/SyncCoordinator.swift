@@ -748,7 +748,8 @@ final class SyncCoordinator {
             openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
-            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot))
+            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
+            crossModelUsage: Self.mapCrossModelUsage(provider: provider, snapshot: snapshot))
     }
 
     private static func mapCodexResetCredits(
@@ -1267,6 +1268,7 @@ final class SyncCoordinator {
             && provider.costSummary == nil
             && provider.budget == nil
             && provider.codexCreditLimit == nil
+            && provider.crossModelUsage == nil
             && !provider.isError
             && provider.statusMessage == nil
     }
@@ -1424,7 +1426,7 @@ final class SyncCoordinator {
              // Upstream 0.33+ new providers. These quota numbers come
              // from their own APIs/local sessions — never via the local
              // pricing tables.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

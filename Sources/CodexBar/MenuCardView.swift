@@ -896,6 +896,10 @@ extension UsageMenuCardView.Model {
             return notes + subscriptionNotes
         }
 
+        if input.provider == .crossmodel, let crossModel = input.snapshot?.crossModelUsage {
+            return Self.crossModelSpendNotes(crossModel) + subscriptionNotes
+        }
+
         guard input.provider == .openrouter,
               let openRouter = input.snapshot?.openRouterUsage
         else {

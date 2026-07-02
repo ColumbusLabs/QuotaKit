@@ -647,6 +647,11 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// the dedicated DeepSeekUsageCard; nil → falls back to generic rendering.
     public let deepSeekUsage: SyncDeepSeekUsage?
 
+    /// CrossModel wallet balance plus daily/weekly/monthly API spend windows.
+    /// Populated only on the `crossmodel` provider snapshot. iOS renders the
+    /// dedicated CrossModelUsageCard; nil → falls back to generic rendering.
+    public let crossModelUsage: SyncCrossModelUsage?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty { return self.rateWindows }
@@ -699,7 +704,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         openRouterStats: SyncOpenRouterStats? = nil,
         azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
         alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
-        deepSeekUsage: SyncDeepSeekUsage? = nil)
+        deepSeekUsage: SyncDeepSeekUsage? = nil,
+        crossModelUsage: SyncCrossModelUsage? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -739,6 +745,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = azureOpenAIInfo
         self.alibabaTokenPlan = alibabaTokenPlan
         self.deepSeekUsage = deepSeekUsage
+        self.crossModelUsage = crossModelUsage
     }
 
     /// Backward-compatible decoder: old payloads without
@@ -801,6 +808,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.azureOpenAIInfo = try container.decodeIfPresent(SyncAzureOpenAIInfo.self, forKey: .azureOpenAIInfo)
         self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
         self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
+        self.crossModelUsage = try container.decodeIfPresent(SyncCrossModelUsage.self, forKey: .crossModelUsage)
     }
 }
 

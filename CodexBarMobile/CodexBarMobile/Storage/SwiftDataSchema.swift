@@ -81,6 +81,9 @@ final class ProviderSnapshotModel {
     /// pushing structured credit data (Mac 0.20.3+); nil for every other
     /// provider and for legacy Mac payloads.
     var perplexityCreditsData: Data?
+    /// JSON-encoded `SyncCrossModelUsage` — opaque blob, decoded on read.
+    /// Populated only for `providerID == "crossmodel"`.
+    var crossModelUsageData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \UtilizationEntryModel.provider)
     var utilizationEntries: [UtilizationEntryModel] = []
@@ -100,6 +103,7 @@ final class ProviderSnapshotModel {
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
         perplexityCreditsData: Data? = nil,
+        crossModelUsageData: Data? = nil,
         device: DeviceRecord? = nil)
     {
         self.compositeKey = Self.makeCompositeKey(
@@ -118,6 +122,7 @@ final class ProviderSnapshotModel {
         self.costSummaryData = costSummaryData
         self.budgetData = budgetData
         self.perplexityCreditsData = perplexityCreditsData
+        self.crossModelUsageData = crossModelUsageData
         self.device = device
     }
 

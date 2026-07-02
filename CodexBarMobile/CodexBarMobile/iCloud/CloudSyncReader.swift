@@ -455,7 +455,8 @@ final class CloudSyncReader: @unchecked Sendable {
             budget: Self.latestNonNil(entries, \.budget),
             rateWindows: base.rateWindows,
             utilizationHistory: mergedUtilization,
-            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits))
+            perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
+            crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage))
     }
 
     /// Sums cost data from multiple devices.

@@ -54,6 +54,18 @@ struct ProviderConfigEnvironmentTests {
     }
 
     @Test
+    func `applies API key override for cross model`() {
+        let config = ProviderConfig(id: .crossmodel, apiKey: "cm-token")
+        let env = ProviderConfigEnvironment.applyAPIKeyOverride(
+            base: [:],
+            provider: .crossmodel,
+            config: config)
+
+        #expect(env[CrossModelSettingsReader.envKey] == "cm-token")
+        #expect(ProviderConfigEnvironment.supportsAPIKeyOverride(for: .crossmodel))
+    }
+
+    @Test
     func `applies API key override for doubao`() {
         let config = ProviderConfig(id: .doubao, apiKey: "db-token")
         let env = ProviderConfigEnvironment.applyAPIKeyOverride(

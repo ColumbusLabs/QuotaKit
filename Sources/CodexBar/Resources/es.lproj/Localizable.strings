@@ -988,3 +988,4 @@
 "Open Status Page" = "Abrir página de estado";
 "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
 "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
+"CrossModel API spend trend" = "Tendencia de gasto de la API de CrossModel";

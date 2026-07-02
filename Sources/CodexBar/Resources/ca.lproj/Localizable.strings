@@ -1131,3 +1131,4 @@
 "≈ %d%% run-out risk" = "≈ %d%% risc d'esgotament";
 "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
 "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
+"CrossModel API spend trend" = "Tendència de despesa de l'API de CrossModel";

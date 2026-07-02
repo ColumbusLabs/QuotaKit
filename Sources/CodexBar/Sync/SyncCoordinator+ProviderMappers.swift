@@ -621,4 +621,29 @@ extension SyncCoordinator {
             },
             updatedAt: ds.updatedAt)
     }
+
+    static func mapCrossModelUsage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCrossModelUsage?
+    {
+        guard provider == .crossmodel, let usage = snapshot?.crossModelUsage else { return nil }
+        return SyncCrossModelUsage(
+            currency: usage.currency,
+            balance: usage.balance,
+            uncollected: usage.uncollected,
+            daily: usage.daily.map(Self.mapCrossModelWindow),
+            weekly: usage.weekly.map(Self.mapCrossModelWindow),
+            monthly: usage.monthly.map(Self.mapCrossModelWindow),
+            updatedAt: usage.updatedAt)
+    }
+
+    private static func mapCrossModelWindow(_ window: CrossModelUsageWindow) -> SyncCrossModelUsageWindow {
+        SyncCrossModelUsageWindow(
+            cost: window.cost,
+            promptTokens: window.promptTokens,
+            completionTokens: window.completionTokens,
+            totalTokens: window.totalTokens,
+            requestCount: window.requestCount,
+            successCount: window.successCount)
+    }
 }
