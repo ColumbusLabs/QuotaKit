@@ -70,7 +70,7 @@ struct UsageMenuCardView: View {
             }
 
             var percentLabel: String {
-                "\(UsageFormatter.percentString(self.percent)) \(self.percentStyle.labelSuffix)"
+                UsageFormatter.percentText(self.percent, suffix: self.percentStyle.labelSuffix)
             }
         }
 

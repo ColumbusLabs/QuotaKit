@@ -32,7 +32,7 @@ enum UsagePaceText {
 
     private static func detailLeftLabel(for pace: UsagePace) -> String {
         let deltaValue = Int(abs(pace.deltaPercent).rounded())
-        guard deltaValue != 0 else {
+        if deltaValue == 0 {
             return L("On pace")
         }
         if pace.deltaPercent > 0 {

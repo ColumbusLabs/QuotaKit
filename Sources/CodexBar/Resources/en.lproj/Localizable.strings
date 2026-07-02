@@ -21,6 +21,7 @@
 "Animation pattern" = "Animation pattern";
 "Antigravity login is managed in the app" = "Antigravity login is managed in the app";
 "Applies only to the Security.framework OAuth keychain reader." = "Applies only to the Security.framework OAuth keychain reader.";
+"Alternatively, set a custom path in Settings." = "Alternatively, set a custom path in Settings.";
 "Auto falls back to the next source if the preferred one fails." = "Auto falls back to the next source if the preferred one fails.";
 "Auto uses API first, then falls back to CLI on auth failures." = "Auto uses API first, then falls back to CLI on auth failures.";
 "Auto-detect" = "Auto-detect";
@@ -148,6 +149,7 @@
 "Install the Claude CLI (npm i -g @anthropic-ai/claude-code) and try again." = "Install the Claude CLI (npm i -g @anthropic-ai/claude-code) and try again.";
 "Install the Codex CLI (npm i -g @openai/codex) and try again." = "Install the Codex CLI (npm i -g @openai/codex) and try again.";
 "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again." = "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Install a JetBrains IDE with AI Assistant enabled, then refresh QuotaKit.";
 "JetBrains AI is ready" = "JetBrains AI is ready";
 "JetBrains IDE" = "JetBrains IDE";
 "Keep CLI sessions alive" = "Keep CLI sessions alive";
@@ -214,6 +216,7 @@
 "Open menu" = "Open menu";
 "Open token file" = "Open token file";
 "OpenAI cookies" = "OpenAI cookies";
+"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
 "OpenAI web extras" = "OpenAI web extras";
 "Option A" = "Option A";
 "Option B" = "Option B";
@@ -278,6 +281,7 @@
 "Show provider icons in the switcher (otherwise show a weekly progress line)." = "Show provider icons in the switcher (otherwise show a weekly progress line).";
 "Show reset time as clock" = "Show reset time as clock";
 "Show usage as used" = "Show usage as used";
+"Sign in with Claude Code..." = "Sign in with Claude Code...";
 "Sign in via button below" = "Sign in via button below";
 "Skip teardown between probes (debug-only)." = "Skip teardown between probes (debug-only).";
 "Stack token accounts in the menu (otherwise show an account switcher bar)." = "Stack token accounts in the menu (otherwise show an account switcher bar).";
@@ -730,6 +734,8 @@
 "reset_tomorrow_format" = "tomorrow, %@";
 "Lasts until reset" = "Lasts until reset";
 "Updated %@" = "Updated %@";
+"Updated relative %@" = "Updated %@";
+"Updated absolute %@" = "Updated %@";
 "Updated %@h ago" = "Updated %@h ago";
 "Updated %@m ago" = "Updated %@m ago";
 "Updated just now" = "Updated just now";
@@ -785,6 +791,7 @@
 "Est. total (%@): %@" = "Est. total (%@): %@";
 "Hover a bar for details" = "Hover a bar for details";
 "%@: %@ · %@ tokens" = "%@: %@ · %@ tokens";
+"%@: %@" = "%@: %@";
 "No providers selected for Overview." = "No providers selected for Overview.";
 "No overview data available." = "No overview data available.";
 "Auto uses the local IDE API first, then Google OAuth when the IDE is closed." = "Auto uses the local IDE API first, then Google OAuth when the IDE is closed.";
@@ -1108,6 +1115,7 @@
 "Clear" = "Clear";
 "No matching providers" = "No matching providers";
 "Search providers" = "Search providers";
+"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
 
 "language_vietnamese" = "Vietnamese";
 "language_indonesian" = "Bahasa Indonesia";
