@@ -721,6 +721,8 @@ struct MenuDescriptor {
             Self.cursorPrimaryRateWindowLabel(snapshot: snapshot, fallback: metadata.sessionLabel)
         } else if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
+        } else if provider == .doubao {
+            DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else {
             metadata.sessionLabel
         }
