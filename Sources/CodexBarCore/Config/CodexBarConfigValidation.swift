@@ -187,7 +187,8 @@ public enum CodexBarConfigValidator {
     private static func validateSecretKey(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
         guard let secretKey = entry.secretKey,
               !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              entry.id != .bedrock
+              entry.id != .bedrock,
+              entry.id != .doubao
         else {
             return
         }
@@ -197,7 +198,7 @@ public enum CodexBarConfigValidator {
             provider: entry.id,
             field: "secretKey",
             code: "secret_key_unused",
-            message: "secretKey is set but only bedrock uses secretKey."))
+            message: "secretKey is set but only bedrock and doubao use secretKey."))
     }
 
     private static func validateZaiTeamContext(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
@@ -284,7 +285,7 @@ public enum CodexBarConfigValidator {
                 isValid: MoonshotRegion(rawValue: region) != nil,
                 displayName: "Moonshot",
                 issues: &issues)
-        case .bedrock:
+        case .bedrock, .doubao:
             break
         default:
             issues.append(CodexBarConfigIssue(

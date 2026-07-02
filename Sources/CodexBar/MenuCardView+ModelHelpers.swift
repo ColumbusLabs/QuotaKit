@@ -227,6 +227,8 @@ extension UsageMenuCardView.Model {
             Self.cursorPrimaryRateWindowLabel(snapshot: snapshot, fallback: input.metadata.sessionLabel)
         } else if input.provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
+        } else if input.provider == .doubao {
+            DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else {
             input.metadata.sessionLabel
         }

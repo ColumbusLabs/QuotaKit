@@ -22,6 +22,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   (`daba50847..0a18391e`), adding CrossModel API spend parsing, CLI
   diagnostics, widget/menu display, provider docs, and tests while preserving
   QuotaKit public docs and config ownership.
+- Synced upstream Doubao Coding Plan usage through `44f0949b`
+  (`0a18391e..44f0949b`), adding signed Volcengine AK/SK support for
+  session, weekly, and monthly usage while preserving QuotaKit config
+  ownership.
 
 ### Fixed
 
