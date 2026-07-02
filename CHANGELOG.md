@@ -18,6 +18,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Sakana AI: parse server-rendered quota reset timestamps as UTC instead of
+  device-local time.
 - Usage pace: keep rounded on-track deficit and reserve labels visible instead
   of collapsing all on-track deltas to "On pace".
 - Usage display: keep positive values below one percent visible instead of
