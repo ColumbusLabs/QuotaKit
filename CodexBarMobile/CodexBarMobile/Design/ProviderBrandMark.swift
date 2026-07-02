@@ -44,6 +44,7 @@ enum ProviderBrandAsset {
         "openrouter",
         "perplexity",
         "poe",
+        "qoder",
         "sakana",
         "stepfun",
         "synthetic",

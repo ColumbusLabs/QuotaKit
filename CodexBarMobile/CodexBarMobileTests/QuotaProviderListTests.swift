@@ -18,7 +18,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
     @Test(
-        "Total count is 49 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27 + 3 v0.28/v0.29 + Sakana)")
+        "Total count is 50 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27 + 3 v0.28/v0.29 + Sakana + Qoder)")
     func totalCount() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
@@ -27,14 +27,15 @@ struct QuotaProviderListTests {
         // elevenlabs, deepgram, llmproxy) →
         // 48 in iOS 1.9.0 (3 new from Mac v0.28+v0.29: azureopenai,
         // alibabatokenplan, t3chat) →
-        // 49 in iOS 1.10.0 (Sakana AI from upstream v0.36.x).
+        // 49 in iOS 1.10.0 (Sakana AI from upstream v0.36.x) →
+        // 50 after Qoder from the same upstream line.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 49)
+        #expect(QuotaProviderList.providers.count == 50)
     }
 
-    @Test("Subscription zone count is 147 (49 providers × 3 states)")
+    @Test("Subscription zone count is 150 (50 providers × 3 states)")
     func subscriptionZoneCount() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
@@ -44,10 +45,11 @@ struct QuotaProviderListTests {
         // iOS 1.9.0 / Mac 0.29.0: 48 × 3 = 144 zones (+azureopenai,
         // +alibabatokenplan, +t3chat).
         // iOS 1.10.0 / Mac 0.36.x: 49 × 3 = 147 zones (+sakana).
+        // Qoder catch-up: 50 × 3 = 150 zones.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 147)
+        #expect(QuotaProviderList.providers.count * 3 == 150)
     }
 
     @Test("Warning-zone name format matches Mac/iOS contract")
@@ -122,7 +124,7 @@ struct QuotaProviderListTests {
     /// previously-existing ones would shift CK subscription IDs and
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
-    @Test("Cause: new providers (v0.27 + v0.28/v0.29 + Sakana) are appended at the tail")
+    @Test("Cause: new providers (v0.27 + v0.28/v0.29 + Sakana + Qoder) are appended at the tail")
     func newProvidersAppended() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
@@ -132,11 +134,12 @@ struct QuotaProviderListTests {
         //  - iOS 1.8.0 appended 5 v0.27.0 providers (positions [40..44]).
         //  - iOS 1.9.0 appended 3 v0.28+v0.29 providers (positions [45..47]).
         //  - iOS 1.10.0 appended Sakana AI (position [48]).
-        let tail = providers.suffix(9).map(\.id)
+        //  - Qoder catch-up appended Qoder (position [49]).
+        let tail = providers.suffix(10).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
-            "azureopenai", "alibabatokenplan", "t3chat", "sakana",
-        ], "v0.27 + v0.28/v0.29 + Sakana catch-up additions must stay at the tail in this order")
+            "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder",
+        ], "v0.27 + v0.28/v0.29 + Sakana + Qoder catch-up additions must stay at the tail in this order")
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -234,10 +237,10 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 49/147 numbers match the actual list")
+    @Test("Cause: catalog 50/150 numbers match the actual list")
     func catalogNumbersAlignWithList() {
-        #expect(QuotaProviderList.providers.count == 49)
-        #expect(QuotaProviderList.providers.count * 3 == 147)
+        #expect(QuotaProviderList.providers.count == 50)
+        #expect(QuotaProviderList.providers.count * 3 == 150)
     }
 
     @Test("Sakana AI present (v0.36.x #1774)")
@@ -245,6 +248,13 @@ struct QuotaProviderListTests {
         let sakana = QuotaProviderList.providers.first(where: { $0.id == "sakana" })
         #expect(sakana != nil)
         #expect(sakana?.displayName == "Sakana AI")
+    }
+
+    @Test("Qoder present (v0.36.x #1833)")
+    func qoderPresent() {
+        let qoder = QuotaProviderList.providers.first(where: { $0.id == "qoder" })
+        #expect(qoder != nil)
+        #expect(qoder?.displayName == "Qoder")
     }
 
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.

@@ -9,14 +9,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `054751151`
-  (`f5340ad..054751151`), including Claude OAuth history isolation,
-  bounded Claude web fallback, Antigravity warm `agy` reuse, Codex and Pi
-  cost-cache repricing, widget usage-display preferences, refresh-on-open,
-  quota warning alerts and session reset celebrations, Claude combined menu
-  metrics, Keychain prompt guidance, Claude Code sign-in, OpenAI
-  service-account diagnostics, Sakana AI, T3 Chat, OpenCode Go, package
-  signing checks, and broader provider/runtime test coverage.
+- Synced upstream CodexBar Mac improvements through `bf86b09e`
+  (`054751151..bf86b09e`), including Qoder provider support, Claude quota
+  cleanup and unavailable-limit classification, reset-credit display fixes,
+  scoped most-used-provider ranking, stale status-icon animation fixes,
+  Cursor depleted-quota pace handling, provider documentation details, and
+  broader provider/menu/widget test coverage.
 
 ### Fixed
 
