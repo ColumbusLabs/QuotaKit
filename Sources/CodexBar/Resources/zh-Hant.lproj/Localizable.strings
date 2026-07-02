@@ -1000,6 +1000,7 @@
 "byte_unit_megabytes" = "MB";
 "byte_unit_gigabyte" = "GB";
 "byte_unit_gigabytes" = "GB";
+"CrossModel API spend trend" = "CrossModel API 支出趨勢";
 
 /* Added zh-Hant parity with English catalog */
 "minimax_service_music_generation" = "音樂生成";

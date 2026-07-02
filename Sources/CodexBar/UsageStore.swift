@@ -1000,7 +1000,7 @@ extension UsageStore {
         await AugmentStatusProbe.latestDumps()
     }
 
-    // swiftlint:disable:next function_body_length
+    // swiftlint:disable:next function_body_length cyclomatic_complexity
     func debugLog(for provider: UsageProvider) async -> String {
         if let cached = self.probeLogs[provider], !cached.isEmpty {
             return cached
@@ -1029,6 +1029,7 @@ extension UsageStore {
         let openAIDebugContext = self.openAIAPIKeyDebugContext(processEnvironment: processEnvironment)
         let azureOpenAIDebugContext = self.azureOpenAIAPIKeyDebugContext(processEnvironment: processEnvironment)
         let openRouterDebugContext = self.openRouterAPIKeyDebugContext(processEnvironment: processEnvironment)
+        let crossModelDebugContext = self.crossModelAPIKeyDebugContext(processEnvironment: processEnvironment)
         let elevenLabsDebugContext = self.elevenLabsAPIKeyDebugContext(processEnvironment: processEnvironment)
         let deepSeekHasEnvToken = DeepSeekSettingsReader.apiKey(environment: processEnvironment) != nil
         let deepSeekHasTokenAccount = self.settings.selectedTokenAccount(for: .deepseek) != nil
@@ -1131,6 +1132,8 @@ extension UsageStore {
                         ollamaCookieHeader: ollamaCookieHeader)
                 case .openrouter:
                     return Self.apiKeyDebugLine(openRouterDebugContext)
+                case .crossmodel:
+                    return Self.apiKeyDebugLine(crossModelDebugContext)
                 case .elevenlabs:
                     return Self.apiKeyDebugLine(elevenLabsDebugContext)
                 case .warp:
@@ -1268,40 +1271,6 @@ extension UsageStore {
             interaction: ProviderInteractionContext.current,
             refreshPhase: ProviderRefreshContext.current)
         #endif
-    }
-
-    private nonisolated static func apiKeyDebugLine(_ context: APIKeyDebugContext) -> String {
-        self.apiKeyDebugLine(
-            label: context.label,
-            resolution: context.resolution,
-            configToken: context.configToken,
-            hasEnvToken: context.hasEnvToken,
-            hasTokenAccount: context.hasTokenAccount)
-    }
-
-    private nonisolated static func apiKeyDebugLine(
-        label: String,
-        resolution: ProviderTokenResolution?,
-        configToken: String?,
-        hasEnvToken: Bool,
-        hasTokenAccount: Bool = false) -> String
-    {
-        let hasAny = resolution != nil
-        let hasConfigToken = !(configToken?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        let source: String = if resolution == nil {
-            "none"
-        } else if hasTokenAccount, hasEnvToken {
-            "settings-token-account (overrides env)"
-        } else if hasTokenAccount {
-            "settings-token-account"
-        } else if hasConfigToken, hasEnvToken {
-            "settings-config (overrides env)"
-        } else if hasConfigToken {
-            "settings-config"
-        } else {
-            resolution?.source.rawValue ?? "environment"
-        }
-        return "\(label)=\(hasAny ? "present" : "missing") source=\(source)"
     }
 
     private static func debugCursorLog(

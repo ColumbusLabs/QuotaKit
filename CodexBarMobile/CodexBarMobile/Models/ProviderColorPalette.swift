@@ -121,6 +121,7 @@ enum ProviderColorPalette {
             (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
             (["commandcode"], RawColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),
             (["stepfun"], RawColor(red: 0.13, green: 0.59, blue: 0.95)),
+            (["crossmodel"], RawColor(red: 88 / 255, green: 86 / 255, blue: 214 / 255)),
             (["bedrock"], RawColor(red: 1, green: 0.6, blue: 0)),
             (["grok"], RawColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255)),
             (["groq", "groqcloud", "groqapi"], RawColor(red: 245 / 255, green: 104 / 255, blue: 68 / 255)),

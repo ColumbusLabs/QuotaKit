@@ -18,6 +18,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Synced upstream localization and provider menu copy through `daba50847`
   (`8fb8c742..daba50847`), completing Traditional Chinese coverage while
   preserving QuotaKit public naming in localized values.
+- Synced upstream CrossModel provider support through `0a18391e`
+  (`daba50847..0a18391e`), adding CrossModel API spend parsing, CLI
+  diagnostics, widget/menu display, provider docs, and tests while preserving
+  QuotaKit public docs and config ownership.
 
 ### Fixed
 

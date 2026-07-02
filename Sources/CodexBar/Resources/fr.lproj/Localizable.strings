@@ -1127,3 +1127,4 @@
 "byte_unit_gigabytes" = "gigaoctets";
 "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
 "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
+"CrossModel API spend trend" = "Tendance des dépenses de l'API CrossModel";

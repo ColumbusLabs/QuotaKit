@@ -860,6 +860,7 @@
 "Cache read" = "Cache read";
 "Claude Admin API 30 day spend trend" = "Claude Admin API 30 day spend trend";
 "OpenRouter API key spend trend" = "OpenRouter API key spend trend";
+"CrossModel API spend trend" = "CrossModel API spend trend";
 "z.ai hourly token trend" = "z.ai hourly token trend";
 "MiniMax 30 day token usage trend" = "MiniMax 30 day token usage trend";
 "Today cash" = "Today cash";

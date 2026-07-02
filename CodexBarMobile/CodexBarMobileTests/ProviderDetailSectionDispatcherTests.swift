@@ -76,13 +76,42 @@ struct ProviderDetailSectionDispatcherTests {
             .map(\.id) == ["antigravity"])
     }
 
+    @Test("CrossModel usage suppresses generic primary and renders provider section")
+    func crossModelUsageRendersDedicatedSection() {
+        let usage = SyncCrossModelUsage(
+            currency: "USD",
+            balance: 8.06,
+            uncollected: 0,
+            daily: SyncCrossModelUsageWindow(
+                cost: 0.42,
+                promptTokens: 8100,
+                completionTokens: 4367,
+                totalTokens: 12467,
+                requestCount: 42,
+                successCount: 40),
+            weekly: nil,
+            monthly: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let provider = Self.snapshot(providerID: "crossmodel", providerName: "CrossModel", crossModelUsage: usage)
+
+        if case .suppressedByDedicatedCard = ProviderDetailSectionDispatcher.primarySection(for: provider) {
+            #expect(true)
+        } else {
+            Issue.record("Expected CrossModel usage to suppress the empty generic primary card")
+        }
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).map(\.id) == [
+            "crossmodel",
+        ])
+    }
+
     private static func snapshot(
         providerID: String,
         providerName: String,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
         kiroCredits: SyncKiroCredits? = nil,
         antigravityAccounts: SyncMultiAccountList? = nil,
-        codexWorkspace: SyncCodexWorkspaceContext? = nil) -> ProviderUsageSnapshot
+        codexWorkspace: SyncCodexWorkspaceContext? = nil,
+        crossModelUsage: SyncCrossModelUsage? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: providerID,
@@ -102,6 +131,7 @@ struct ProviderDetailSectionDispatcherTests {
             perplexityCredits: perplexityCredits,
             kiroCredits: kiroCredits,
             antigravityAccounts: antigravityAccounts,
-            codexWorkspace: codexWorkspace)
+            codexWorkspace: codexWorkspace,
+            crossModelUsage: crossModelUsage)
     }
 }

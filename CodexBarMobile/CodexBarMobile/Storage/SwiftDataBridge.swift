@@ -161,6 +161,7 @@ enum SwiftDataBridge {
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
         let perplexityCreditsData = provider.perplexityCredits.flatMap { try? encoder.encode($0) }
+        let crossModelUsageData = provider.crossModelUsage.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
         if let existing = try context.fetch(descriptor).first {
@@ -173,6 +174,7 @@ enum SwiftDataBridge {
             existing.costSummaryData = costSummaryData
             existing.budgetData = budgetData
             existing.perplexityCreditsData = perplexityCreditsData
+            existing.crossModelUsageData = crossModelUsageData
             existing.device = device
             model = existing
         } else {
@@ -189,6 +191,7 @@ enum SwiftDataBridge {
                 costSummaryData: costSummaryData,
                 budgetData: budgetData,
                 perplexityCreditsData: perplexityCreditsData,
+                crossModelUsageData: crossModelUsageData,
                 device: device)
             context.insert(created)
             model = created
@@ -306,6 +309,9 @@ enum SwiftDataBridge {
                 let perplexityCredits = row.perplexityCreditsData.flatMap {
                     try? decoder.decode(SyncPerplexityCreditSummary.self, from: $0)
                 }
+                let crossModelUsage = row.crossModelUsageData.flatMap {
+                    try? decoder.decode(SyncCrossModelUsage.self, from: $0)
+                }
 
                 // Reconstruct utilization history by grouping the flat entry rows
                 // back into series. Sort by series name for stability, and by
@@ -344,7 +350,8 @@ enum SwiftDataBridge {
                     budget: budget,
                     rateWindows: rateWindows,
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
-                    perplexityCredits: perplexityCredits))
+                    perplexityCredits: perplexityCredits,
+                    crossModelUsage: crossModelUsage))
             }
 
             // Skip devices that have no provider rows — they're placeholders from

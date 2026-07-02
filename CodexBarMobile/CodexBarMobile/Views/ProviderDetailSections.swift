@@ -23,6 +23,7 @@ enum ProviderDetailSection: Identifiable {
     case azureOpenAI(SyncAzureOpenAIInfo)
     case alibabaTokenPlan(SyncAlibabaTokenPlan)
     case deepSeek(SyncDeepSeekUsage)
+    case crossModel(SyncCrossModelUsage)
     case claudeAdmin(SyncClaudeAdminUsage)
     case claudeExtra(SyncClaudeExtraUsage)
     case openCodeGoZen(SyncOpenCodeGoZenBalance)
@@ -61,6 +62,8 @@ enum ProviderDetailSection: Identifiable {
             "alibabatokenplan"
         case .deepSeek:
             "deepseek"
+        case .crossModel:
+            "crossmodel"
         case .claudeAdmin:
             "claude-admin"
         case .claudeExtra:
@@ -142,6 +145,9 @@ enum ProviderDetailSectionDispatcher {
         if provider.providerID == "deepseek", let value = provider.deepSeekUsage {
             sections.append(.deepSeek(value))
         }
+        if provider.providerID == "crossmodel", let value = provider.crossModelUsage {
+            sections.append(.crossModel(value))
+        }
         if provider.providerID == "claude", let value = provider.claudeAdminUsage {
             sections.append(.claudeAdmin(value))
         }
@@ -172,6 +178,8 @@ enum ProviderDetailSectionDispatcher {
         case "bedrock" where provider.bedrockCost != nil:
             true
         case "moonshot" where provider.moonshotBalance != nil:
+            true
+        case "crossmodel" where provider.crossModelUsage != nil:
             true
         default:
             false
@@ -232,6 +240,8 @@ struct ProviderDetailSectionView: View {
             AlibabaTokenPlanCard(plan: plan, tintColor: self.tintColor)
         case let .deepSeek(usage):
             DeepSeekUsageCard(usage: usage, tintColor: self.tintColor)
+        case let .crossModel(usage):
+            CrossModelUsageCard(usage: usage, tintColor: self.tintColor)
         case let .claudeAdmin(usage):
             ClaudeAdminUsageCard(usage: usage, tintColor: self.tintColor)
         case let .claudeExtra(extraUsage):

@@ -193,6 +193,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let mimoUsage: MiMoUsageSnapshot?
     public let openRouterUsage: OpenRouterUsageSnapshot?
     public let perplexityUsage: PerplexityUsageSnapshot?
+    public let crossModelUsage: CrossModelUsageSnapshot?
     public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
     public let bedrockUsage: BedrockUsageSnapshot?
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
@@ -238,6 +239,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case ampUsage
         case mimoUsage
         case openRouterUsage
+        case crossModelUsage
         case openAIAPIUsage
         case bedrockUsage
         case codexResetCredits
@@ -274,6 +276,7 @@ public struct UsageSnapshot: Codable, Sendable {
         mimoUsage: MiMoUsageSnapshot? = nil,
         openRouterUsage: OpenRouterUsageSnapshot? = nil,
         perplexityUsage: PerplexityUsageSnapshot? = nil,
+        crossModelUsage: CrossModelUsageSnapshot? = nil,
         openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
         bedrockUsage: BedrockUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
@@ -311,6 +314,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.mimoUsage = mimoUsage
         self.openRouterUsage = openRouterUsage
         self.perplexityUsage = perplexityUsage
+        self.crossModelUsage = crossModelUsage
         self.openAIAPIUsage = openAIAPIUsage
         self.bedrockUsage = bedrockUsage
         self.codexResetCredits = codexResetCredits
@@ -365,6 +369,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.mimoUsage = try container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
         self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
         self.perplexityUsage = nil // Not persisted, fetched fresh each time
+        self.crossModelUsage = try container.decodeIfPresent(CrossModelUsageSnapshot.self, forKey: .crossModelUsage)
         self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
         self.bedrockUsage = try container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
         self.codexResetCredits = try container.decodeIfPresent(
@@ -434,6 +439,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.ampUsage, forKey: .ampUsage)
         try container.encodeIfPresent(self.mimoUsage, forKey: .mimoUsage)
         try container.encodeIfPresent(self.openRouterUsage, forKey: .openRouterUsage)
+        try container.encodeIfPresent(self.crossModelUsage, forKey: .crossModelUsage)
         try container.encodeIfPresent(self.openAIAPIUsage, forKey: .openAIAPIUsage)
         try container.encodeIfPresent(self.bedrockUsage, forKey: .bedrockUsage)
         try container.encodeIfPresent(self.codexResetCredits, forKey: .codexResetCredits)
@@ -618,6 +624,8 @@ public struct UsageSnapshot: Codable, Sendable {
             deepseekUsage: self.deepseekUsage,
             mimoUsage: self.mimoUsage,
             openRouterUsage: self.openRouterUsage,
+            perplexityUsage: self.perplexityUsage,
+            crossModelUsage: self.crossModelUsage,
             openAIAPIUsage: self.openAIAPIUsage,
             bedrockUsage: self.bedrockUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
