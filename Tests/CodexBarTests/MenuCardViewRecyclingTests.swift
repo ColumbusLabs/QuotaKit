@@ -199,7 +199,7 @@ extension StatusMenuTests {
 
         let menu = NSMenu()
         let usageHistoryItem = controller.makeMenuCardItem(
-            Text("Subscription Utilization"),
+            Text("Plan Usage"),
             id: "usageHistorySubmenu",
             width: StatusItemController.menuCardBaseWidth)
         menu.addItem(usageHistoryItem)

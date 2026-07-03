@@ -12,13 +12,14 @@ struct PreferencesPaneSmokeTests {
         let store = Self.makeUsageStore(settings: settings)
 
         let sync = SyncCoordinator(store: store, settings: settings)
-        _ = GeneralPane(settings: settings, store: store).body
+        _ = GeneralPane(settings: settings).body
         _ = DisplayPane(settings: settings, store: store).body
-        _ = AdvancedPane(settings: settings).body
+        _ = AdvancedPane(settings: settings, store: store).body
         _ = ProvidersPane(settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
+        _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.general)).body
 
         settings.debugDisableKeychainAccess = false
     }
@@ -39,13 +40,14 @@ struct PreferencesPaneSmokeTests {
         store._setErrorForTesting("Example error", provider: .codex)
 
         let sync = SyncCoordinator(store: store, settings: settings)
-        _ = GeneralPane(settings: settings, store: store).body
+        _ = GeneralPane(settings: settings).body
         _ = DisplayPane(settings: settings, store: store).body
-        _ = AdvancedPane(settings: settings).body
-        _ = ProvidersPane(settings: settings, store: store).body
+        _ = AdvancedPane(settings: settings, store: store).body
+        _ = ProvidersPane(provider: .claude, settings: settings, store: store).body
         _ = MobilePane(settings: settings, syncCoordinator: sync).body
         _ = DebugPane(settings: settings, store: store).body
         _ = AboutPane(updater: DisabledUpdaterController()).body
+        _ = SettingsSidebarView(settings: settings, store: store, selection: .constant(.provider(.codex))).body
     }
 
     @Test
