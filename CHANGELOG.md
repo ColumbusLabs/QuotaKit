@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Reviewed upstream CodexBar release metadata through `61ff9320`
+  (`261bad66..61ff9320`), preserving QuotaKit appcast ownership and release
+  versioning while advancing upstream monitor tracking.
 - Synced upstream CodexBar Mac improvements through `261bad66`
   (`44f0949b..261bad66`), including the System Settings-style settings
   redesign, grouped Plan Usage/Cost/Storage menu rows, reset-boundary usage
