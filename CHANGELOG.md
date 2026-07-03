@@ -9,6 +9,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `261bad66`
+  (`44f0949b..261bad66`), including the System Settings-style settings
+  redesign, grouped Plan Usage/Cost/Storage menu rows, reset-boundary usage
+  refreshes, compact terminal picker icons, release-preflight stabilization,
+  and broader settings/menu/reset-boundary test coverage while preserving
+  QuotaKit release ownership and mobile sync settings.
 - Synced upstream CodexBar Mac improvements through `bf86b09e`
   (`054751151..bf86b09e`), including Qoder provider support, Claude quota
   cleanup and unavailable-limit classification, reset-credit display fixes,

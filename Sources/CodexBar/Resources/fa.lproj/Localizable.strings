@@ -236,6 +236,7 @@
 "Picker subtitle" = "زیرعنوان پیکر";
 "Placeholder" = "جایگزین جایگزین";
 "Plan" = "طرح";
+"Plan Usage" = "استفاده از طرح";
 "Play full-screen confetti when weekly usage resets." = "وقتی استفاده هفتگی ریست می شود، کنفتی تمام صفحه را پخش کنید.";
 "Polls OpenAI/Claude status pages and Google Workspace for " = "نظرسنجی ها OpenAI/Claude صفحات وضعیت و Google Workspace for ";
 "Prevents any Keychain access while enabled." = "در حالت فعال بودن از هرگونه دسترسی Keychain جلوگیری می کند.";
@@ -304,7 +305,6 @@
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "ذخیره شده در ~/.quotakit/config.json. کلید MiniMax API خود را بچسبانید.";
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or " = "ذخیره شده در ~/.quotakit/config.json. همچنین می توانید KILO_API_KEY or  ارائه دهید";
 "Stores local Codex usage history (8 weeks) to personalize Pace predictions." = "تاریخچه استفاده Codex محلی (۸ هفته) را برای شخصی سازی پیش بینی های سرعت ذخیره می کند.";
-"Subscription Utilization" = "استفاده از اشتراک";
 "Surprise me" = "سورپرایزم کن";
 "Switcher shows icons" = "سوئیچر آیکون ها را نشان می دهد";
 "Symlink CodexBarCLI to /usr/local/bin and /opt/homebrew/bin as codexbar." = "Symlink QuotaKitCLI به /usr/local/bin و /opt/homebrew/bin به عنوان quotakit.";
@@ -1137,3 +1137,14 @@
 "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
 "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
 "CrossModel API spend trend" = "روند هزینه‌ی CrossModel API";
+
+/* Settings sidebar redesign */
+"Enable" = "فعال‌سازی";
+"Disable" = "غیرفعال‌سازی";
+"providers_on_count" = "%d فعال";
+"section_cost_summary" = "خلاصه هزینه";
+"section_command_line" = "خط فرمان";
+"section_privacy" = "حریم خصوصی";
+"section_diagnostics" = "عیب‌یابی";
+"section_updates" = "به‌روزرسانی‌ها";
+"section_links" = "پیوندها";
