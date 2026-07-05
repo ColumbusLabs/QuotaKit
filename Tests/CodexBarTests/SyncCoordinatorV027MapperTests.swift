@@ -367,7 +367,7 @@ struct SyncCoordinatorV027MapperTests {
             resetsAt: now.addingTimeInterval(4 * 24 * 3600),
             resetDescription: nil)
         let pace = try #require(UsagePace.weekly(window: window, now: now))
-        let detail = UsagePaceText.weeklyDetail(pace: pace, now: now)
+        let detail = UsagePaceText.weeklyDetail(provider: .claude, pace: pace, now: now)
 
         let syncPace = SyncCoordinator.syncUsagePace(from: pace, detail: detail)
 

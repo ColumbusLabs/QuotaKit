@@ -162,11 +162,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "claude-keychain-prompt-policy",
                 title: "Keychain prompt policy",
-                subtitle: "Applies only to the Security.framework OAuth keychain reader.",
+                subtitle: "Controls when Claude OAuth may ask macOS for Keychain access.",
                 dynamicSubtitle: keychainPromptPolicySubtitle,
                 binding: keychainPromptPolicyBinding,
                 options: keychainPromptPolicyOptions,
-                isVisible: { context.settings.claudeOAuthKeychainReadStrategy == .securityFramework },
+                isVisible: nil,
                 isEnabled: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil),
             ProviderSettingsPickerDescriptor(

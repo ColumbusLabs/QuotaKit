@@ -736,7 +736,7 @@ extension UsageStore {
             costUsageHistoryDays: self.settings.costUsageHistoryDays,
             persistsCLISessions: true,
             persistentCLISessionIdleWindow: ProviderRegistry.persistentCLISessionIdleWindow(
-                refreshInterval: self.settings.refreshFrequency.seconds))
+                refreshInterval: self.normalRefreshIntervalForHeuristics()))
     }
 
     func sourceMode(for provider: UsageProvider) -> ProviderSourceMode {

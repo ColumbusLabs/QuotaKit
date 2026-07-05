@@ -300,6 +300,7 @@ private struct ProviderSwitchChip: View {
         case .synthetic: "Synthetic"
         case .openrouter: "OpenRouter"
         case .crossmodel: "CrossModel"
+        case .clawrouter: "ClawRouter"
         case .elevenlabs: "ElevenLabs"
         case .warp: "Warp"
         case .windsurf: "Windsurf"
@@ -861,6 +862,8 @@ enum WidgetColors {
             Color(red: 111 / 255, green: 66 / 255, blue: 193 / 255) // OpenRouter purple
         case .crossmodel:
             Color(red: 124 / 255, green: 58 / 255, blue: 237 / 255) // CrossModel purple
+        case .clawrouter:
+            Color(red: 89 / 255, green: 110 / 255, blue: 246 / 255)
         case .elevenlabs:
             Color(red: 235 / 255, green: 235 / 255, blue: 230 / 255)
         case .warp:
@@ -906,7 +909,7 @@ enum WidgetColors {
         case .deepgram:
             Color(red: 10 / 255, green: 18 / 255, blue: 27 / 255)
         case .poe:
-            Color(red: 0.15, green: 0.68, blue: 0.38)
+            Color(red: 93 / 255, green: 92 / 255, blue: 222 / 255) // Poe purple
         case .chutes:
             Color(red: 24 / 255, green: 160 / 255, blue: 88 / 255)
         case .zed:

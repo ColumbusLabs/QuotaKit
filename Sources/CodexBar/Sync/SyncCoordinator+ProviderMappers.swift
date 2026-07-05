@@ -465,7 +465,7 @@ extension SyncCoordinator {
         let paceWindow = Self.codexWeeklyWindow(snapshot: snapshot)
         let pace = paceWindow.flatMap { UsagePace.weekly(window: $0) }
         let paceDelta: Double? = pace.map { $0.deltaPercent / 100.0 }
-        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(pace: $0) }
+        let paceLabel: String? = pace.map { UsagePaceText.weeklySummary(provider: .codex, pace: $0) }
 
         // Skip emitting an empty envelope so iOS doesn't render a
         // ghost row — every reader checks the optional.

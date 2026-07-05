@@ -589,13 +589,11 @@ extension StatusItemController {
         self.setButtonTitle(nil, for: button)
 
         // OpenRouter always gets a meter here — the brand-logo fallback was removed on purpose.
-        let resolved = snapshot.map {
-            IconRemainingResolver.resolvedPercents(
-                snapshot: $0,
-                style: style,
-                showUsed: showUsed,
-                secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
-        }
+        let resolved = self.resolvedMenuBarIconPercents(
+            provider: provider,
+            snapshot: snapshot,
+            style: style,
+            showUsed: showUsed)
         var primary = resolved?.primary
         var weekly = resolved?.secondary
         var credits = self.menuBarCreditsRemainingForIcon(provider: provider, snapshot: snapshot)
@@ -703,6 +701,52 @@ extension StatusItemController {
     static func iconSignatureValue(_ value: Double?) -> String {
         guard let value else { return "nil" }
         return String(format: "%.3f", value)
+    }
+
+    func resolvedMenuBarIconPercents(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        style: IconStyle,
+        showUsed: Bool,
+        renderingStyle: IconStyle? = nil)
+        -> (primary: Double?, secondary: Double?)?
+    {
+        guard let snapshot else { return nil }
+        let preference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+        if preference == .monthlyPlan {
+            guard let metricWindow = self.menuBarMetricWindowForIconOverride(
+                preference: preference,
+                provider: provider,
+                snapshot: snapshot)
+            else {
+                return (primary: nil, secondary: nil)
+            }
+            return (
+                primary: showUsed ? metricWindow.usedPercent : metricWindow.remainingPercent,
+                secondary: nil)
+        }
+        if provider == .mistral {
+            return (primary: nil, secondary: nil)
+        }
+        return IconRemainingResolver.resolvedPercents(
+            snapshot: snapshot,
+            style: style,
+            showUsed: showUsed,
+            renderingStyle: renderingStyle,
+            secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: snapshot))
+    }
+
+    private func menuBarMetricWindowForIconOverride(
+        preference: MenuBarMetricPreference,
+        provider: UsageProvider,
+        snapshot: UsageSnapshot)
+        -> RateWindow?
+    {
+        MenuBarMetricWindowResolver.rateWindow(
+            preference: preference,
+            provider: provider,
+            snapshot: snapshot,
+            supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider))
     }
 
     func menuBarCreditsRemainingForIcon(provider: UsageProvider, snapshot: UsageSnapshot?) -> Double? {
@@ -883,8 +927,8 @@ extension StatusItemController {
         }
         if provider == .mistral {
             let preference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
-            let hasMonthlyWindow = snapshot?.extraRateWindows?.contains { $0.id == "mistral-monthly-plan" } == true
-            if preference != .monthlyPlan || !hasMonthlyWindow,
+            let hasMonthlyPlan = snapshot?.extraRateWindows?.contains { $0.id == "mistral-monthly-plan" } == true
+            if preference != .monthlyPlan || !hasMonthlyPlan,
                let spend = Self.mistralSpendDisplayText(snapshot: snapshot)
             {
                 return spend

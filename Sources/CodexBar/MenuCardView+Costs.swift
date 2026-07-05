@@ -18,6 +18,15 @@ extension UsageMenuCardView.Model.ProviderCostSection {
 }
 
 extension UsageMenuCardView.Model {
+    static func sakanaPayAsYouGoSection(_ usage: SakanaPayAsYouGoSnapshot?) -> ProviderCostSection? {
+        guard let usage else { return nil }
+        return ProviderCostSection(
+            title: L("Extra usage"),
+            percentUsed: nil,
+            spendLine: "\(L("Balance")): \(usage.balanceDetail)",
+            percentLine: usage.periodUsageTotal.map { "\(L("Usage")): \(UsageFormatter.usdString($0))" })
+    }
+
     static func isRequiredOpenCodeZenBalance(_ snapshot: UsageSnapshot?) -> Bool {
         snapshot?.primary == nil &&
             snapshot?.secondary == nil &&
@@ -296,13 +305,26 @@ extension UsageMenuCardView.Model {
             return nil
         }
 
+        if provider == .clawrouter, cost.limit <= 0 {
+            let spend = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            return ProviderCostSection(
+                title: "ClawRouter spend",
+                percentUsed: nil,
+                spendLine: "\(L("This month")): \(spend)",
+                percentLine: nil)
+        }
+
         guard cost.limit > 0 else { return nil }
 
         let used: String
         let limit: String
         let title: String
 
-        if cost.currencyCode == "Quota" {
+        if provider == .clawrouter {
+            title = "Monthly budget"
+            used = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            limit = UsageFormatter.currencyString(cost.limit, currencyCode: cost.currencyCode)
+        } else if cost.currencyCode == "Quota" {
             title = L("Quota usage")
             used = String(format: "%.0f", cost.used)
             limit = String(format: "%.0f", cost.limit)

@@ -911,7 +911,11 @@ final class SyncCoordinator {
         case .session:
             if provider == .abacus {
                 return self.store.weeklyPace(provider: provider, window: window, now: now)
-                    .map { Self.syncUsagePace(from: $0, detail: UsagePaceText.weeklyDetail(pace: $0, now: now)) }
+                    .map {
+                        Self.syncUsagePace(
+                            from: $0,
+                            detail: UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now))
+                    }
             }
             guard let pace = UsagePaceText.sessionPace(provider: provider, window: window, now: now) else {
                 return nil
@@ -922,7 +926,11 @@ final class SyncCoordinator {
             return Self.syncUsagePace(from: pace, detail: detail)
         case .weekly:
             return self.store.weeklyPace(provider: provider, window: window, now: now)
-                .map { Self.syncUsagePace(from: $0, detail: UsagePaceText.weeklyDetail(pace: $0, now: now)) }
+                .map {
+                    Self.syncUsagePace(
+                        from: $0,
+                        detail: UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now))
+                }
         case .other:
             return nil
         }
@@ -1426,7 +1434,7 @@ final class SyncCoordinator {
              // Upstream 0.33+ new providers. These quota numbers come
              // from their own APIs/local sessions — never via the local
              // pricing tables.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

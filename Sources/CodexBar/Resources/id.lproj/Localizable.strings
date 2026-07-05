@@ -411,6 +411,7 @@
 "language_swedish" = "Svenska";
 "language_french" = "Français";
 "language_ukrainian" = "Українська";
+"language_russian" = "Русский";
 "language_japanese" = "日本語";
 "language_korean" = "한국어";
 "language_turkish" = "Türkçe";
@@ -676,6 +677,7 @@
 "refresh_5min" = "5 mnt";
 "refresh_15min" = "15 mnt";
 "refresh_30min" = "30 mnt";
+"refresh_adaptive" = "Adaptif";
 
 /* Additional keys */
 "not_found" = "Tidak ditemukan";
@@ -734,6 +736,7 @@
 "Resets now" = "Reset sekarang";
 "reset_tomorrow_format" = "besok, %@";
 "Lasts until reset" = "Bertahan hingga reset";
+"1.5× headroom" = "ruang 1,5×";
 "Updated %@" = "Diperbarui %@";
 "Updated relative %@" = "Diperbarui %@";
 "Updated absolute %@" = "Diperbarui %@";
@@ -1121,6 +1124,7 @@
 "language_arabic" = "العربية";
 "language_persian" = "فارسی";
 "language_thai" = "ไทย";
+"language_galician" = "Galego";
 "Limit Reset Credits" = "Kredit pengaturan ulang batas";
 "1 available" = "1 tersedia";
 "%d available" = "%d tersedia";
