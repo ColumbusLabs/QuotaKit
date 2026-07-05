@@ -14,6 +14,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar menu refresh scoping through `45b000c13`
+  (`9ad35deb..45b000c13`), keeping provider manual refresh state isolated
+  while preserving QuotaKit release ownership.
 - Synced upstream CodexBar Mac improvements through `78076795`
   (`61ff9320..78076795`), including Codex reset-credit inventory and raw credit
   totals, project cost rollups, cost chart scale labels, shorter cost comparison
@@ -50,7 +53,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   ownership.
 
 ### Fixed
-
+- Menus: scope manual refresh state to the provider being refreshed, allowing
+  independent provider refreshes without greying unrelated rows.
 - Claude history: quarantine same-directory account-switch samples until
   credential ownership is stable, preventing plan-utilization history from
   crossing accounts.
