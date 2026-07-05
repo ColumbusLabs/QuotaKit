@@ -64,7 +64,7 @@ struct MockProviderDetectorTests {
     }
 
     @Test
-    func `Non-ASCII email with .test TLD → mock (caf\u{00E9}-mock@codex.test)`() {
+    func `non ASCII email with test TL dis mock`() {
         let snap = self.makeSnapshot(
             providerID: "codex",
             accountEmail: "café-mock@codex.test")

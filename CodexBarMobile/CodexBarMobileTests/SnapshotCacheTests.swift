@@ -487,7 +487,7 @@ struct SnapshotCacheTests {
     }
 
     @Test
-    func `compositeKey for nil-email matches _ everywhere (no \"\" drift)`() {
+    func `composite key for nil email matches underscore everywhere`() {
         // Build 67 hardening: SwiftDataSchema.makeCompositeKey was using ""
         // while SnapshotCache + CloudSyncManager.perProviderRecordName used
         // "_" — silent format mismatch. This test pins the contract.
