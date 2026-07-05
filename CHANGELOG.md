@@ -7,6 +7,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Added
+
+- Claude: show opt-in read-only claude-swap accounts as stacked usage cards
+  without delaying ambient refreshes.
+
 ### Changed
 
 - Synced upstream CodexBar Mac improvements through `78076795`

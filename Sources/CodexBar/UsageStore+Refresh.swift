@@ -159,6 +159,10 @@ extension UsageStore {
             await MainActor.run { self.kiloScopeSnapshots = [] }
         }
 
+        if provider == .claude {
+            self.scheduleClaudeSwapAccountRefresh(generation: generation)
+        }
+
         let tokenAccounts = self.tokenAccounts(for: provider)
         if self.shouldFetchAllTokenAccounts(provider: provider, accounts: tokenAccounts) {
             await self.refreshTokenAccounts(
@@ -359,6 +363,9 @@ extension UsageStore {
             }
             if provider == .kilo {
                 self.kiloScopeSnapshots = []
+            }
+            if provider == .claude {
+                self.clearClaudeSwapAccountState()
             }
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
