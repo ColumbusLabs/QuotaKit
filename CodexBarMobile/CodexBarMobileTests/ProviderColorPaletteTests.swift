@@ -3,16 +3,16 @@ import Testing
 
 @Suite("Provider color palette")
 struct ProviderColorPaletteTests {
-    @Test("Priority providers use QuotaKit-approved raw colors")
-    func priorityProviderColors() {
+    @Test
+    func `Priority providers use QuotaKit-approved raw colors`() {
         expectColor("codex", red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor("claude", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("anthropic", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("cursor", red: 0, green: 0, blue: 0)
     }
 
-    @Test("Palette mirrors Mac descriptor colors for known providers")
-    func knownProviderColors() {
+    @Test
+    func `Palette mirrors Mac descriptor colors for known providers`() {
         let expected: [(String, Double, Double, Double)] = [
             ("openai", 0.06, 0.51, 0.43),
             ("azureopenai", 0, 120 / 255, 212 / 255),
@@ -70,8 +70,8 @@ struct ProviderColorPaletteTests {
         }
     }
 
-    @Test("Display names normalize to provider IDs")
-    func displayNameMatchesID() {
+    @Test
+    func `Display names normalize to provider IDs`() {
         let pairs = [
             ("OpenCode Go", "opencodego"),
             ("Command Code", "commandcode"),
@@ -92,30 +92,30 @@ struct ProviderColorPaletteTests {
         }
     }
 
-    @Test("Substring matches do not steal unrelated provider names")
-    func substringMatchesDoNotStealUnrelatedNames() {
+    @Test
+    func `Substring matches do not steal unrelated provider names`() {
         #expect(ProviderColorPalette.rawColor(for: "example-provider") == nil)
         #expect(ProviderColorPalette.rawColor(for: "lamp") == nil)
         #expect(ProviderColorPalette.rawColor(for: "opencodegoose") == nil)
         #expect(ProviderColorPalette.rawColor(for: "chatgpt") == ProviderColorPalette.rawColor(for: "openai"))
     }
 
-    @Test("Known provider colors stay visually distinct")
-    func knownProviderColorsStayDistinct() {
+    @Test
+    func `Known provider colors stay visually distinct`() {
         expectDistinctColors(
             providers: knownDistinctProviders,
             color: { ProviderColorPalette.rawColor(for: $0)! })
     }
 
-    @Test("Dark-mode adapted provider colors stay visually distinct")
-    func darkModeProviderColorsStayDistinct() {
+    @Test
+    func `Dark-mode adapted provider colors stay visually distinct`() {
         expectDistinctColors(
             providers: knownDistinctProviders,
             color: { ProviderColorPalette.rawColor(for: $0)!.adaptedComponents(forDarkMode: true) })
     }
 
-    @Test("Unknown and empty provider IDs still fall back at render time")
-    func unknownFallsBackAtRenderTime() {
+    @Test
+    func `Unknown and empty provider IDs still fall back at render time`() {
         #expect(ProviderColorPalette.rawColor(for: "") == nil)
         #expect(ProviderColorPalette.rawColor(for: "brand-new-ai-tool") == nil)
     }

@@ -108,6 +108,7 @@ extension UsageStore {
 
 @MainActor
 @Observable
+// swiftlint:disable:next type_body_length
 final class UsageStore {
     nonisolated static let resetBoundaryRefreshGraceSeconds: TimeInterval = 30
     nonisolated static let resetBoundaryRefreshMinimumDelaySeconds: TimeInterval = 5
@@ -208,6 +209,7 @@ final class UsageStore {
         Bool,
         TimeInterval) async throws -> OpenAIDashboardSnapshot)?
     @ObservationIgnored var _test_codexCreditsLoaderOverride: (@MainActor () async throws -> CreditsSnapshot)?
+    @ObservationIgnored var _test_codexResetCreditsFetcherOverride: CodexResetCreditsFetcher?
     @ObservationIgnored var _test_widgetSnapshotSaveOverride: (@MainActor (WidgetSnapshot) async -> Void)?
     @ObservationIgnored var _test_providerRefreshOverride: (@MainActor (UsageProvider) async -> Void)?
     @ObservationIgnored var _test_tokenUsageRefreshOverride: (@MainActor (UsageProvider, Bool) async -> Void)?
@@ -880,6 +882,17 @@ final class UsageStore {
     struct QuotaWarningStateKey: Hashable {
         let provider: UsageProvider
         let window: QuotaWarningWindow
+        /// Distinguishes independent extra rate windows that share a provider/window lane
+        /// (e.g. multiple `claude-weekly-scoped-*` windows) so their fired-threshold state
+        /// does not clobber each other or the primary session/weekly lanes. `nil` for the
+        /// primary session and weekly lanes.
+        let windowID: String?
+
+        init(provider: UsageProvider, window: QuotaWarningWindow, windowID: String? = nil) {
+            self.provider = provider
+            self.window = window
+            self.windowID = windowID
+        }
     }
 
     struct QuotaWarningState {

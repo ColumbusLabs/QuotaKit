@@ -63,16 +63,16 @@ struct ViewCacheIdentityTests {
 
     // MARK: - Hotspot 1: UtilizationAggregateView
 
-    @Test("UtilizationAggregateView: same input → same key")
-    func aggregate_sameInput_sameKey() {
+    @Test
+    func `UtilizationAggregateView: same input → same key`() {
         let providers = [Self.makeProvider(id: "a"), Self.makeProvider(id: "b")]
         let k1 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         let k2 = UtilizationAggregateModelBuilder.identityKey(for: providers, windowSize: 30)
         #expect(k1 == k2)
     }
 
-    @Test("UtilizationAggregateView: changed providerID → different key")
-    func aggregate_changedProviderID_differentKey() {
+    @Test
+    func `UtilizationAggregateView: changed providerID → different key`() {
         let k1 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(id: "a")], windowSize: 30)
         let k2 = UtilizationAggregateModelBuilder.identityKey(
@@ -80,8 +80,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 != k2)
     }
 
-    @Test("UtilizationAggregateView: changed lastUpdated → different key")
-    func aggregate_changedLastUpdated_differentKey() {
+    @Test
+    func `UtilizationAggregateView: changed lastUpdated → different key`() {
         let base = Date(timeIntervalSince1970: 1_700_000_000)
         let k1 = UtilizationAggregateModelBuilder.identityKey(
             for: [Self.makeProvider(lastUpdated: base)], windowSize: 30)
@@ -90,8 +90,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 != k2)
     }
 
-    @Test("UtilizationAggregateView: provider order does not affect key")
-    func aggregate_orderIrrelevant() {
+    @Test
+    func `UtilizationAggregateView: provider order does not affect key`() {
         let a = Self.makeProvider(id: "a")
         let b = Self.makeProvider(id: "b")
         let k1 = UtilizationAggregateModelBuilder.identityKey(for: [a, b], windowSize: 30)
@@ -99,8 +99,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 == k2)
     }
 
-    @Test("UtilizationAggregateView: different windowSize → different key")
-    func aggregate_windowSize_affectsKey() {
+    @Test
+    func `UtilizationAggregateView: different windowSize → different key`() {
         let p = [Self.makeProvider()]
         #expect(UtilizationAggregateModelBuilder.identityKey(for: p, windowSize: 30)
             != UtilizationAggregateModelBuilder.identityKey(for: p, windowSize: 7))
@@ -108,16 +108,16 @@ struct ViewCacheIdentityTests {
 
     // MARK: - Hotspot 2: UtilizationHistoryView
 
-    @Test("UtilizationHistoryView: same series & index → same key")
-    func history_sameInput_sameKey() {
+    @Test
+    func `UtilizationHistoryView: same series & index → same key`() {
         let s = [Self.makeSeries()]
         let k1 = UtilizationHistoryView.identityKey(series: s, selectedSeriesIndex: 0)
         let k2 = UtilizationHistoryView.identityKey(series: s, selectedSeriesIndex: 0)
         #expect(k1 == k2)
     }
 
-    @Test("UtilizationHistoryView: changed selectedSeriesIndex → different key")
-    func history_changedIndex_differentKey() {
+    @Test
+    func `UtilizationHistoryView: changed selectedSeriesIndex → different key`() {
         let s = [
             Self.makeSeries(name: "session"),
             Self.makeSeries(name: "weekly", windowMinutes: 10080),
@@ -127,8 +127,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 != k2)
     }
 
-    @Test("UtilizationHistoryView: new entry appended → different key")
-    func history_newEntry_differentKey() {
+    @Test
+    func `UtilizationHistoryView: new entry appended → different key`() {
         let base = [
             SyncUtilizationEntry(
                 capturedAt: Date(timeIntervalSince1970: 1_700_000_000),
@@ -150,8 +150,8 @@ struct ViewCacheIdentityTests {
 
     // MARK: - Hotspot 3: CostShareCardView / ShareCardData.displayProviders
 
-    @Test("ShareCardData.displayProviders is deterministic for the same provider list")
-    func displayProviders_deterministic() {
+    @Test
+    func `ShareCardData.displayProviders is deterministic for the same provider list`() {
         let providers: [ShareCardData.ProviderRow] = [
             ShareCardData.ProviderRow(name: "A", cost: 10, share: 0.5, color: .red),
             ShareCardData.ProviderRow(name: "B", cost: 6, share: 0.3, color: .blue),
@@ -168,8 +168,8 @@ struct ViewCacheIdentityTests {
         #expect(first.map(\.cost) == second.map(\.cost))
     }
 
-    @Test("ShareCardData.displayProviders collapses tail to 'Others' when 6 or more providers")
-    func displayProviders_collapsesTail() {
+    @Test
+    func `ShareCardData.displayProviders collapses tail to 'Others' when 6 or more providers`() {
         // iOS 1.9.0 cap: top 5 + an aggregated "Others" row, only when count >= 6.
         let rows: [ShareCardData.ProviderRow] = (0..<6).map {
             ShareCardData.ProviderRow(name: "P\($0)", cost: Double(6 - $0), share: 0.1, color: .gray)
@@ -185,8 +185,8 @@ struct ViewCacheIdentityTests {
         #expect(display.last?.cost == 1)
     }
 
-    @Test("ShareCardData.displayProviders shows all when 5 or fewer providers (no 'Others')")
-    func displayProviders_noCollapseAtFive() {
+    @Test
+    func `ShareCardData.displayProviders shows all when 5 or fewer providers (no 'Others')`() {
         let rows: [ShareCardData.ProviderRow] = (0..<5).map {
             ShareCardData.ProviderRow(name: "P\($0)", cost: Double(5 - $0), share: 0.2, color: .gray)
         }
@@ -208,8 +208,8 @@ struct ViewCacheIdentityTests {
     // (same as UtilizationHistoryView.resolvedPoints), so the first frame
     // always computes inline and these tests only need to pin key semantics.
 
-    @Test("CostTab key: same inputs → same key")
-    func costInsights_sameInput_sameKey() {
+    @Test
+    func `CostTab key: same inputs → same key`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude", "codex"],
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
@@ -222,8 +222,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 == k2)
     }
 
-    @Test("CostTab key: snapshot refresh (lastUpdated bump) → different key")
-    func costInsights_snapshotBump_differentKey() {
+    @Test
+    func `CostTab key: snapshot refresh (lastUpdated bump) → different key`() {
         let k1 = CostTab.insightsCacheKey(
             isDemoMode: false,
             snapshotKey: SnapshotIdentityKey.make(
@@ -239,8 +239,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 != k2)
     }
 
-    @Test("CostTab key: CWL toggle and window changes → different keys")
-    func costInsights_cwlSettings_differentKeys() {
+    @Test
+    func `CostTab key: CWL toggle and window changes → different keys`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude"],
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
@@ -257,8 +257,8 @@ struct ViewCacheIdentityTests {
         #expect(cwl30 != cwl90)
     }
 
-    @Test("CostTab key: CWL window is irrelevant while CWL is off")
-    func costInsights_cwlWindowIgnoredWhenOff() {
+    @Test
+    func `CostTab key: CWL window is irrelevant while CWL is off`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude"],
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
@@ -271,8 +271,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 == k2)
     }
 
-    @Test("CostTab key: day rollover → different key")
-    func costInsights_dayRollover_differentKey() {
+    @Test
+    func `CostTab key: day rollover → different key`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude"],
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
@@ -285,8 +285,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 != k2)
     }
 
-    @Test("CostTab key: demo mode masks snapshot identity and CWL source")
-    func costInsights_demoMode_stableKey() {
+    @Test
+    func `CostTab key: demo mode masks snapshot identity and CWL source`() {
         let k1 = CostTab.insightsCacheKey(
             isDemoMode: true,
             snapshotKey: SnapshotIdentityKey.make(
@@ -300,8 +300,8 @@ struct ViewCacheIdentityTests {
         #expect(k1 == k2)
     }
 
-    @Test("CostTab key: nil snapshot vs demo vs real snapshot are distinct")
-    func costInsights_snapshotStates_distinct() {
+    @Test
+    func `CostTab key: nil snapshot vs demo vs real snapshot are distinct`() {
         let real = CostTab.insightsCacheKey(
             isDemoMode: false,
             snapshotKey: SnapshotIdentityKey.make(

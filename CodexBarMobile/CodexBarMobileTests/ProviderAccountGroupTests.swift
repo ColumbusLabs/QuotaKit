@@ -36,14 +36,14 @@ struct ProviderAccountGroupTests {
 
     // MARK: - groupedByProvider
 
-    @Test("Empty input → empty groups")
-    func emptyInput() {
+    @Test
+    func `Empty input → empty groups`() {
         let groups: [ProviderUsageSnapshot] = []
         #expect(groups.groupedByProvider().isEmpty)
     }
 
-    @Test("Single snapshot → one group with one account, hasMultipleAccounts == false")
-    func singleSnapshot() {
+    @Test
+    func `Single snapshot → one group with one account, hasMultipleAccounts == false`() {
         let snap = Self.snapshot(providerID: "claude", providerName: "Claude", accountEmail: "user@example.com")
         let groups = [snap].groupedByProvider()
         #expect(groups.count == 1)
@@ -52,8 +52,8 @@ struct ProviderAccountGroupTests {
         #expect(groups.first?.hasMultipleAccounts == false)
     }
 
-    @Test("Two snapshots same providerID → one group with two accounts")
-    func twoSnapshotsSameProvider() {
+    @Test
+    func `Two snapshots same providerID → one group with two accounts`() {
         let a = Self.snapshot(
             providerID: "openai", providerName: "OpenAI",
             accountEmail: "admin-msxiao113@openai.com")
@@ -71,8 +71,8 @@ struct ProviderAccountGroupTests {
         #expect(group?.accounts[1].accountEmail == "admin-outlook@openai.com")
     }
 
-    @Test("Different providerIDs → distinct groups in first-appearance order")
-    func distinctProviderIDsPreserveOrder() {
+    @Test
+    func `Different providerIDs → distinct groups in first-appearance order`() {
         let snaps = [
             Self.snapshot(providerID: "codex", providerName: "Codex"),
             Self.snapshot(providerID: "claude", providerName: "Claude"),
@@ -82,8 +82,8 @@ struct ProviderAccountGroupTests {
         #expect(groups.map(\.providerID) == ["codex", "claude", "openai"])
     }
 
-    @Test("Mixed multi-account + single-account, order preserved")
-    func mixedMultiAndSingle() {
+    @Test
+    func `Mixed multi-account + single-account, order preserved`() {
         let snaps = [
             Self.snapshot(providerID: "codex", providerName: "Codex (alice)", accountEmail: "alice@x.test"),
             Self.snapshot(providerID: "openai", providerName: "OpenAI"),
@@ -99,8 +99,8 @@ struct ProviderAccountGroupTests {
         #expect(groups[2].accounts.count == 1)
     }
 
-    @Test("Representative is the first appearance (group-level cosmetics use it)")
-    func representativeIsFirstAppearance() {
+    @Test
+    func `Representative is the first appearance (group-level cosmetics use it)`() {
         let first = Self.snapshot(providerID: "claude", providerName: "Claude (Personal)")
         let second = Self.snapshot(providerID: "claude", providerName: "Claude (Work)")
         let groups = [first, second].groupedByProvider()
@@ -109,8 +109,8 @@ struct ProviderAccountGroupTests {
 
     // MARK: - tabLabel
 
-    @Test("tabLabel prefers email local-part over login method")
-    func tabLabelPrefersEmail() {
+    @Test
+    func `tabLabel prefers email local-part over login method`() {
         let group = ProviderAccountGroup(
             providerID: "openai",
             providerName: "OpenAI",
@@ -124,8 +124,8 @@ struct ProviderAccountGroupTests {
         #expect(group.tabLabel(forIndex: 0) == "admin-msxiao113")
     }
 
-    @Test("tabLabel falls back to loginMethod when email missing")
-    func tabLabelFallsBackToLoginMethod() {
+    @Test
+    func `tabLabel falls back to loginMethod when email missing`() {
         let group = ProviderAccountGroup(
             providerID: "kiro",
             providerName: "Kiro",
@@ -138,8 +138,8 @@ struct ProviderAccountGroupTests {
         #expect(group.tabLabel(forIndex: 0) == "Pro Plan")
     }
 
-    @Test("tabLabel falls back to `Account N` when nothing else available")
-    func tabLabelFallsBackToOrdinal() {
+    @Test
+    func `tabLabel falls back to Account N when nothing else available`() {
         let group = ProviderAccountGroup(
             providerID: "x",
             providerName: "X",
@@ -151,8 +151,8 @@ struct ProviderAccountGroupTests {
         #expect(group.tabLabel(forIndex: 1) == "Account 2")
     }
 
-    @Test("tabLabel handles out-of-bounds gracefully")
-    func tabLabelOutOfBounds() {
+    @Test
+    func `tabLabel handles out-of-bounds gracefully`() {
         let group = ProviderAccountGroup(
             providerID: "x",
             providerName: "X",
@@ -160,8 +160,8 @@ struct ProviderAccountGroupTests {
         #expect(group.tabLabel(forIndex: 5) == "")
     }
 
-    @Test("tabAccessibilityIdentifier is providerID + index — stable across renders")
-    func tabAccessibilityIDStable() {
+    @Test
+    func `tabAccessibilityIdentifier is providerID + index — stable across renders`() {
         let group = ProviderAccountGroup(
             providerID: "openai",
             providerName: "OpenAI",

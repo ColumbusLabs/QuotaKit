@@ -26,7 +26,7 @@ public enum CrossModelProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .crossmodel,
                 iconResourceName: "ProviderIcon-crossmodel",
-                color: ProviderColor(red: 88 / 255, green: 86 / 255, blue: 214 / 255)),
+                color: ProviderColor(red: 150 / 255, green: 65 / 255, blue: 200 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "CrossModel cost summary is not yet supported." }),

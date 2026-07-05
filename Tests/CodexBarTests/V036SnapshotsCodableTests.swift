@@ -42,8 +42,8 @@ struct V036SnapshotsCodableTests {
             updatedAt: self.now)
     }
 
-    @Test("SyncCrossModelUsage round-trips")
-    func syncCrossModelUsageRoundTrips() throws {
+    @Test
+    func `SyncCrossModelUsage round-trips`() throws {
         let source = Self.sampleUsage()
         let data = try Self.encoder.encode(source)
         let decoded = try Self.decoder.decode(SyncCrossModelUsage.self, from: data)
@@ -55,8 +55,8 @@ struct V036SnapshotsCodableTests {
         #expect(decoded == source)
     }
 
-    @Test("ProviderUsageSnapshot carries CrossModel usage through round-trip")
-    func providerSnapshotCarriesCrossModelUsage() throws {
+    @Test
+    func `ProviderUsageSnapshot carries CrossModel usage through round-trip`() throws {
         let snapshot = ProviderUsageSnapshot(
             providerID: "crossmodel",
             providerName: "CrossModel",
@@ -76,8 +76,8 @@ struct V036SnapshotsCodableTests {
         #expect(decoded.crossModelUsage?.monthly?.successCount == 3112)
     }
 
-    @Test("Old payload without CrossModel usage decodes to nil")
-    func oldPayloadDecodesCrossModelNil() throws {
+    @Test
+    func `Old payload without CrossModel usage decodes to nil`() throws {
         let json = """
         {"providerID": "crossmodel", "providerName": "CrossModel",
          "isError": false, "lastUpdated": "2023-11-14T22:13:20Z"}

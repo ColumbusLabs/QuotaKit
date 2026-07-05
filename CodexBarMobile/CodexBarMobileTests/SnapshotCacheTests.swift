@@ -74,14 +74,14 @@ struct SnapshotCacheTests {
 
     // MARK: - Basic cache operations
 
-    @Test("Empty cache returns no snapshots")
-    func emptyCacheEmpty() {
+    @Test
+    func `Empty cache returns no snapshots`() {
         let cache = SnapshotCache()
         #expect(cache.buildDeviceSnapshots().isEmpty)
     }
 
-    @Test("Delta upsert populates perProviderByDevice, leaves legacy alone")
-    func applyDeltaIsolated() {
+    @Test
+    func `Delta upsert populates perProviderByDevice, leaves legacy alone`() {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [self.envelope(
@@ -94,8 +94,8 @@ struct SnapshotCacheTests {
         #expect(cache.deviceMetadata["mac-A"]?.deviceName == "Mac A")
     }
 
-    @Test("Delta delete removes exactly the matched composite")
-    func applyDeltaDelete() {
+    @Test
+    func `Delta delete removes exactly the matched composite`() {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [
@@ -117,8 +117,8 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("claude|_") == true)
     }
 
-    @Test("Delete last provider of a device removes the device entry")
-    func applyDeltaDeleteLastRemovesDevice() {
+    @Test
+    func `Delete last provider of a device removes the device entry`() {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [self.envelope(
@@ -136,8 +136,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Priority merge
 
-    @Test("Device in per-provider bucket wins over legacy bucket")
-    func priorityPerProviderWins() {
+    @Test
+    func `Device in per-provider bucket wins over legacy bucket`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [self.snapshot(
@@ -154,8 +154,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.first?.providerID == "codex")
     }
 
-    @Test("Device only in legacy bucket falls through")
-    func priorityLegacyFallThrough() {
+    @Test
+    func `Device only in legacy bucket falls through`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
@@ -171,8 +171,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Multi-device scenarios (from Research/011)
 
-    @Test("Scenario 1: Mac A on new zone + Mac B legacy-only — both surface")
-    func scenario1_asymmetric() {
+    @Test
+    func `Scenario 1: Mac A on new zone + Mac B legacy-only — both surface`() {
         var cache = SnapshotCache()
         // Full fetch result: Mac A has per-provider envelopes, both Macs
         // are in legacy (because P4 is dual-write; Mac A still writes legacy
@@ -217,8 +217,8 @@ struct SnapshotCacheTests {
         #expect(macAAfter?.syncTimestamp == self.t3.addingTimeInterval(100))
     }
 
-    @Test("Scenario 2: Both Macs on new zone — both refresh independently")
-    func scenario2_bothNew() {
+    @Test
+    func `Scenario 2: Both Macs on new zone — both refresh independently`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [
@@ -249,8 +249,8 @@ struct SnapshotCacheTests {
         #expect(macB?.syncTimestamp == self.t1) // Mac B stays until its own push
     }
 
-    @Test("Scenario 3: Both Macs legacy-only — per-provider bucket stays empty")
-    func scenario3_bothLegacy() {
+    @Test
+    func `Scenario 3: Both Macs legacy-only — per-provider bucket stays empty`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
@@ -270,8 +270,8 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice.isEmpty)
     }
 
-    @Test("Token-expired replay REPLACES per-provider bucket (doesn't mix)")
-    func tokenExpiredReplay() {
+    @Test
+    func `Token-expired replay REPLACES per-provider bucket (doesn't mix)`() {
         var cache = SnapshotCache()
         cache.applyDelta(
             upserted: [self.envelope(
@@ -293,8 +293,8 @@ struct SnapshotCacheTests {
 
     // MARK: - recordName parser round-trip
 
-    @Test("splitRecordName matches CloudSyncManager.perProviderRecordName")
-    func recordNameRoundTrip() {
+    @Test
+    func `splitRecordName matches CloudSyncManager.perProviderRecordName`() {
         let generated = CloudSyncManager.perProviderRecordName(
             deviceID: "mac-A", providerID: "codex", accountEmail: nil)
         let parsed = SnapshotCache.splitRecordName(generated)
@@ -308,16 +308,16 @@ struct SnapshotCacheTests {
         #expect(parsed2?.composite == "codex|user@example.com")
     }
 
-    @Test("splitRecordName rejects malformed input")
-    func splitRecordNameMalformed() {
+    @Test
+    func `splitRecordName rejects malformed input`() {
         #expect(SnapshotCache.splitRecordName("too|few") == nil)
         #expect(SnapshotCache.splitRecordName("way|too|many|pieces|here") == nil)
     }
 
     // MARK: - Ghost filter (Build 66 · bug #2 fix)
 
-    @Test("Ghost envelope (all fields empty) is dropped from per-provider bucket")
-    func ghostEnvelopeDroppedFromFullFetch() {
+    @Test
+    func `Ghost envelope (all fields empty) is dropped from per-provider bucket`() {
         var cache = SnapshotCache()
         // Mac A wrote two codex records in CloudKit with different accountEmail:
         // one early (ghost: nil email + no data) and one later (real data).
@@ -346,8 +346,8 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|_") == false)
     }
 
-    @Test("Ghost envelope is dropped from delta apply")
-    func ghostEnvelopeDroppedFromDelta() {
+    @Test
+    func `Ghost envelope is dropped from delta apply`() {
         var cache = SnapshotCache()
         let ghostEnv = ProviderUsageEnvelope(
             deviceID: "mac-A", deviceName: "Mac A",
@@ -368,8 +368,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Codex review P1 — preserve on transient fetch error
 
-    @Test("Nil perProviderSnapshots preserves existing per-provider bucket")
-    func nilPerProviderArgPreserves() {
+    @Test
+    func `Nil perProviderSnapshots preserves existing per-provider bucket`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [self.snapshot(
@@ -392,8 +392,8 @@ struct SnapshotCacheTests {
         #expect(cache.legacyByDevice.isEmpty)
     }
 
-    @Test("Nil legacySnapshots preserves existing legacy bucket")
-    func nilLegacyArgPreserves() {
+    @Test
+    func `Nil legacySnapshots preserves existing legacy bucket`() {
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
             perProviderSnapshots: [],
@@ -413,8 +413,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Ghost filter
 
-    @Test("Provider with just an error message is NOT a ghost (keep)")
-    func errorProviderNotGhost() {
+    @Test
+    func `Provider with just an error message is NOT a ghost (keep)`() {
         var cache = SnapshotCache()
         let erroring = ProviderUsageSnapshot(
             providerID: "claude",
@@ -435,8 +435,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Hardening Phase 3 · multi-account scenarios
 
-    @Test("Same provider with two account emails on one device — both kept")
-    func multiAccountSameProvider() {
+    @Test
+    func `Same provider with two account emails on one device — both kept`() {
         var cache = SnapshotCache()
         let codexAlice = self.provider(id: "codex", email: "alice@example.com", lastUpdated: self.t1)
         let codexBob = self.provider(id: "codex", email: "bob@example.com", lastUpdated: self.t2)
@@ -461,8 +461,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 2)
     }
 
-    @Test("Per-provider zone with both nil-email and emailed records for same providerID — both kept")
-    func nilEmailAndEmailedCoexist() {
+    @Test
+    func `Per-provider zone with both nil-email and emailed records for same providerID — both kept`() {
         var cache = SnapshotCache()
         // BOTH have data (both pass ghost filter). They're different composite
         // keys, so cache treats them as separate accounts of the same
@@ -486,8 +486,8 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"]?.keys.contains("codex|user@example.com") == true)
     }
 
-    @Test("compositeKey for nil-email matches `_` everywhere (no `\"\"` drift)")
-    func compositeKeyNilEmailFormat() {
+    @Test
+    func `compositeKey for nil-email matches _ everywhere (no \"\" drift)`() {
         // Build 67 hardening: SwiftDataSchema.makeCompositeKey was using ""
         // while SnapshotCache + CloudSyncManager.perProviderRecordName used
         // "_" — silent format mismatch. This test pins the contract.
@@ -501,8 +501,8 @@ struct SnapshotCacheTests {
         #expect(cloudKitName.hasSuffix("|" + cacheKey))
     }
 
-    @Test("Delta-applied envelope with an email replaces nil-email ghost only if cache had it (independent keys)")
-    func deltaWithEmailDoesNotTouchNilEmailEntry() {
+    @Test
+    func `Delta-applied envelope with an email replaces nil-email ghost only if cache had it (independent keys)`() {
         var cache = SnapshotCache()
         // Seed cache with a real (non-ghost) nil-email codex entry first.
         let nilSnap = SyncedUsageSnapshot(
@@ -527,8 +527,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Realistic-distribution regression (Build 83 · Agent C)
 
-    @Test("Bursty active device + idle stale device: cache keeps both, sort order intact")
-    func burstyActiveAndIdleStaleBothPresent() {
+    @Test
+    func `Bursty active device + idle stale device: cache keeps both, sort order intact`() {
         var cache = SnapshotCache()
         // Mac A is active: recent timestamp + bursty 30-day Codex history.
         let mac_a_env = self.envelope(
@@ -554,8 +554,8 @@ struct SnapshotCacheTests {
         #expect(Set(snapshots.map(\.deviceID)) == ["mac-a", "mac-b"])
     }
 
-    @Test("Multi-account delta on pre-existing cache preserves the untouched account")
-    func multiAccountDeltaOnlyUpdatesTargetAccount() {
+    @Test
+    func `Multi-account delta on pre-existing cache preserves the untouched account`() {
         var cache = SnapshotCache()
 
         // Seed: two Codex accounts on Mac A, both at t1.
@@ -607,8 +607,8 @@ struct SnapshotCacheTests {
 
     // MARK: - Build 94 hotfix · ghost orphan + stale TTL
 
-    @Test("Orphan-with-nil-email is dropped when sibling with email exists for same providerID")
-    func orphanNilEmailDroppedWhenRealEmailSiblingExists() {
+    @Test
+    func `Orphan-with-nil-email is dropped when sibling with email exists for same providerID`() {
         // Reproduces user-reported bug: after Mac upgrade, Codex internal
         // identity logic shifted, leaving a nil-email orphan record alongside
         // the new account record. Both display as Codex on iOS but with
@@ -638,8 +638,8 @@ struct SnapshotCacheTests {
         #expect(providers[0].accountEmail == "user@example.com")
     }
 
-    @Test("Multiple nil-email entries with same providerID stay if no sibling has email")
-    func multipleNilEmailLegitWhenNoRealEmailSibling() {
+    @Test
+    func `Multiple nil-email entries with same providerID stay if no sibling has email`() {
         // Legit accountless providers (e.g., Claude with hide-email setting on
         // both accounts) — both entries have nil email but represent distinct
         // accounts at the recordName level. Keep both; the dedupe rule only
@@ -683,8 +683,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 1)
     }
 
-    @Test("Stale-TTL drops provider record lagging >30min behind device freshest")
-    func staleTTLDropsLaggingProvider() {
+    @Test
+    func `Stale-TTL drops provider record lagging >30min behind device freshest`() {
         // Reproduces user-reported Perplexity ghost: user enabled then
         // disabled Perplexity on Mac. Mac stopped refreshing the record but
         // the CloudKit envelope persists with its last-known timestamp.
@@ -718,8 +718,8 @@ struct SnapshotCacheTests {
         #expect(providers[0].providerID == "codex")
     }
 
-    @Test("Stale-TTL leaves single-record device alone (offline Mac scenario)")
-    func staleTTLPreservesSingleRecordDevice() {
+    @Test
+    func `Stale-TTL leaves single-record device alone (offline Mac scenario)`() {
         // Mac has been offline; its only provider's lastUpdated is hours old.
         // deviceFreshest = that single entry's lastUpdated, so TTL window is
         // [hours-30min, hours] which still contains the entry. Don't drop it.
@@ -738,8 +738,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 1)
     }
 
-    @Test("Stale-TTL keeps providers refreshed within 30 min of device freshest")
-    func staleTTLKeepsRecentlyRefreshedProviders() {
+    @Test
+    func `Stale-TTL keeps providers refreshed within 30 min of device freshest`() {
         // Mac alternates refresh sequencing — 5 sec between providers in the
         // same cycle. Both well within 30 min threshold.
         let now = Date()
@@ -764,8 +764,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 2)
     }
 
-    @Test("Both rules combined: orphan Codex + stale Perplexity (user's reported scenario)")
-    func combinedOrphanAndStale() {
+    @Test
+    func `Both rules combined: orphan Codex + stale Perplexity (user's reported scenario)`() {
         // Reproduces the exact symptom user reported on iOS 1.3.0 Build 93
         // after upgrading both Macs to 0.20.3:
         //   - mbp shows 4 provider cards but only Codex + Claude are active
@@ -855,8 +855,8 @@ struct SnapshotCacheTests {
 
     // ===== Rule 1 edges =====
 
-    @Test("Rule 1: empty-string accountEmail treated as nil for sibling-with-real-email check")
-    func rule1_emptyStringEmailTreatedAsNil() {
+    @Test
+    func `Rule 1: empty-string accountEmail treated as nil for sibling-with-real-email check`() {
         // An empty-string email is functionally indistinguishable from nil at
         // the user-display level — both render as "no email". The dedupe rule
         // must collapse them rather than treat empty-string as a "real" email
@@ -892,8 +892,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers[0].accountEmail == "real@x.com")
     }
 
-    @Test("Rule 1: three-way (alice + bob + nil) drops nil, keeps both real-email accounts")
-    func rule1_threeWayDropsNilKeepsRealEmails() {
+    @Test
+    func `Rule 1: three-way (alice + bob + nil) drops nil, keeps both real-email accounts`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -919,8 +919,8 @@ struct SnapshotCacheTests {
         #expect(emails == ["alice@x.com", "bob@x.com"])
     }
 
-    @Test("Rule 1: per-device boundary — orphan on device A doesn't affect nil-email on device B")
-    func rule1_perDeviceBoundary() {
+    @Test
+    func `Rule 1: per-device boundary — orphan on device A doesn't affect nil-email on device B`() {
         // Device A has orphan-with-nil-email + real-email sibling → orphan drops.
         // Device B has lone nil-email codex (e.g., legitimate accountless setup) → kept.
         // The dedupe rule is per-device, never cross-device.
@@ -953,8 +953,8 @@ struct SnapshotCacheTests {
         #expect(macB?.providers.first?.accountEmail == nil)
     }
 
-    @Test("Rule 1: real-email entry never touched even when stale")
-    func rule1_realEmailNeverTouched() {
+    @Test
+    func `Rule 1: real-email entry never touched even when stale`() {
         // alice@ is 5 hours stale; sibling claude is fresh. Rule 1 doesn't
         // fire (different providerIDs) — but more importantly, even though
         // alice's lastUpdated is way behind device freshness, Rule 2 also
@@ -983,8 +983,8 @@ struct SnapshotCacheTests {
 
     // ===== Rule 2 edges =====
 
-    @Test("Rule 2: nil-email at exactly 30-min boundary kept; 30:01 dropped")
-    func rule2_thresholdBoundary() {
+    @Test
+    func `Rule 2: nil-email at exactly 30-min boundary kept; 30:01 dropped`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1015,8 +1015,8 @@ struct SnapshotCacheTests {
         // Perplexity at 30:01 dropped; Claude at 29:59 kept.
     }
 
-    @Test("Rule 2: real-email entry exempt from TTL (legit multi-account, separate cadence)")
-    func rule2_realEmailExempt() {
+    @Test
+    func `Rule 2: real-email entry exempt from TTL (legit multi-account, separate cadence)`() {
         // bob@ on Codex hasn't refreshed in 4 hours (idle account) while
         // alice@ refreshed 30 sec ago. Rule 2 must NOT drop bob — real-email
         // entries are exempt; legit multi-account providers can refresh on
@@ -1045,8 +1045,8 @@ struct SnapshotCacheTests {
         #expect(emails == ["alice@x.com", "bob@x.com"])
     }
 
-    @Test("Rule 2: lone nil-email provider on offline device kept (its own freshest)")
-    func rule2_loneNilEmailOnOfflineDevice() {
+    @Test
+    func `Rule 2: lone nil-email provider on offline device kept (its own freshest)`() {
         // Mac has been offline; its single Claude record is hours old. Rule 2
         // computes deviceFreshest from this record's lastUpdated — so the
         // record is at the right edge of the window, kept.
@@ -1061,8 +1061,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 1)
     }
 
-    @Test("Rule 2: multiple nil-email entries with mixed freshness — only stale ones drop")
-    func rule2_multipleNilEmailMixedFreshness() {
+    @Test
+    func `Rule 2: multiple nil-email entries with mixed freshness — only stale ones drop`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1110,8 +1110,8 @@ struct SnapshotCacheTests {
     // user's real Claude account ($2029 / 30d) disappeared from iOS Cost
     // dashboard while mock Claude entries showed.
 
-    @Test("Rule 1: real nil-email survives when only mock siblings have email")
-    func rule1_mockEmailDoesNotOrphanRealNilEmail() {
+    @Test
+    func `Rule 1: real nil-email survives when only mock siblings have email`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
@@ -1147,8 +1147,8 @@ struct SnapshotCacheTests {
         #expect(claudes.contains(where: { $0.accountEmail == nil }))
     }
 
-    @Test("Rule 2: mock fresher timestamp does not stale-out real nil-email")
-    func rule2_mockTimestampDoesNotStaleRealNilEmail() {
+    @Test
+    func `Rule 2: mock fresher timestamp does not stale-out real nil-email`() {
         // Real Claude refreshed 35 minutes ago. Then user toggles mocks on
         // and Mac pushes mock entries with `lastUpdated = now`. Pre-fix,
         // mock's `now` becomes deviceFreshest, the 30-min cutoff jumps to
@@ -1184,8 +1184,8 @@ struct SnapshotCacheTests {
         #expect(claudes.contains(where: { $0.accountEmail == nil }))
     }
 
-    @Test("Mock-only device falls back to anyFreshest in Rule 2")
-    func rule2_allMockDeviceFallsBackToAnyFreshest() {
+    @Test
+    func `Mock-only device falls back to anyFreshest in Rule 2`() {
         // Edge case: dev/CI scenario where every entry on a device is a
         // mock. `realFreshest` is nil → fall back to `anyFreshest` so the
         // TTL logic still has a baseline. All mocks survive because mocks
@@ -1212,8 +1212,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 2)
     }
 
-    @Test("Mock entry with nil email does not orphan-itself when no real sibling")
-    func rule1_mockNilEmailKeptWhenSiblingMockHasEmail() {
+    @Test
+    func `Mock entry with nil email does not orphan-itself when no real sibling`() {
         // Defensive: if a mock has nil email (shouldn't happen in current
         // design, but guard anyway), it should not be orphan-dropped just
         // because another mock has email — they're both mocks.
@@ -1240,8 +1240,8 @@ struct SnapshotCacheTests {
 
     // ===== Rule combination + legacy fallback =====
 
-    @Test("Combined: device with all per-provider entries filtered falls back to legacy")
-    func combined_legacyFallbackWhenAllFiltered() {
+    @Test
+    func `Combined: device with all per-provider entries filtered falls back to legacy`() {
         // Device's per-provider zone entries are all stale ghosts; legacy
         // zone has fresh data. After filter empties per-provider bucket for
         // this device, fall back to legacy so the device doesn't disappear.
@@ -1306,8 +1306,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers[0].providerID == "codex")
     }
 
-    @Test("Combined: device with truly all-filtered per-provider falls back to legacy")
-    func combined_allFilteredFallsBackToLegacy() {
+    @Test
+    func `Combined: device with truly all-filtered per-provider falls back to legacy`() {
         // Construct a scenario where the per-provider bucket is non-empty
         // pre-filter but truly empty post-filter. Trick: use the test-only
         // fixture-time-base (t1/t2/t3) where t1 is pre-1970-100M-sec, with
@@ -1350,8 +1350,8 @@ struct SnapshotCacheTests {
 
     // ===== Multi-device matrix =====
 
-    @Test("Multi-device: one device has orphans, another is clean — only the dirty one is filtered")
-    func multiDevice_independentFiltering() {
+    @Test
+    func `Multi-device: one device has orphans, another is clean — only the dirty one is filtered`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1400,8 +1400,8 @@ struct SnapshotCacheTests {
 
     // ===== Integration with existing write paths =====
 
-    @Test("Integration: replaceFromFullFetch path applies filter at read time")
-    func integration_replaceFromFullFetchFiltersOnRead() {
+    @Test
+    func `Integration: replaceFromFullFetch path applies filter at read time`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.replaceFromFullFetch(
@@ -1428,8 +1428,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers[0].accountEmail == "user@x.com")
     }
 
-    @Test("Integration: replacePerProviderFromReplay (token-expired full replay) applies filter")
-    func integration_replayPathFiltersOnRead() {
+    @Test
+    func `Integration: replacePerProviderFromReplay (token-expired full replay) applies filter`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.replacePerProviderFromReplay([
@@ -1459,8 +1459,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers[0].accountEmail == "user@x.com")
     }
 
-    @Test("Integration: applyDelta path applies filter at read time (ghost arrives via push)")
-    func integration_applyDeltaFiltersOnRead() {
+    @Test
+    func `Integration: applyDelta path applies filter at read time (ghost arrives via push)`() {
         let now = Date()
         var cache = SnapshotCache()
         // Initial state from full fetch: clean.
@@ -1486,14 +1486,14 @@ struct SnapshotCacheTests {
 
     // ===== Edge cases =====
 
-    @Test("Edge: empty cache returns no snapshots")
-    func edge_emptyCacheNoSnapshots() {
+    @Test
+    func `Edge: empty cache returns no snapshots`() {
         let cache = SnapshotCache()
         #expect(cache.buildDeviceSnapshots().isEmpty)
     }
 
-    @Test("Edge: future-dated lastUpdated (clock skew) treated as freshest, kept")
-    func edge_futureDatedLastUpdated() {
+    @Test
+    func `Edge: future-dated lastUpdated (clock skew) treated as freshest, kept`() {
         // NTP correction or clock skew on Mac could produce lastUpdated > now.
         // Filter must not crash or accidentally drop. Use this as
         // deviceFreshest; surrounding entries within 30 min are kept.
@@ -1518,8 +1518,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 2)
     }
 
-    @Test("Edge: device with ONLY real-email entries — Rule 1 + Rule 2 both no-op")
-    func edge_onlyRealEmailEntries() {
+    @Test
+    func `Edge: device with ONLY real-email entries — Rule 1 + Rule 2 both no-op`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1548,8 +1548,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 3)
     }
 
-    @Test("Edge: full ghost (Build 66 isGhost) still filtered before our rules even see it")
-    func edge_buildOldGhostFilterStillApplies() {
+    @Test
+    func `Edge: full ghost (Build 66 isGhost) still filtered before our rules even see it`() {
         // Build 66's isGhost (all-nil-data envelope) drops at write time,
         // not read time. Verify that combination with our new rules works:
         // an all-nil envelope never enters the cache, so our rules never
@@ -1582,8 +1582,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 1)
     }
 
-    @Test("Defense-in-depth: legacy bucket also gets filtered (cold-start hydrate gap)")
-    func defenseInDepth_legacyBucketFiltered() {
+    @Test
+    func `Defense-in-depth: legacy bucket also gets filtered (cold-start hydrate gap)`() {
         // Pre-Build-94 SwiftData might have stored orphan+stale providers
         // (because old code didn't filter before persisting). On 1.3.1
         // first launch, those rows hydrate into `legacyByDevice`. Without
@@ -1618,8 +1618,8 @@ struct SnapshotCacheTests {
             .accountEmail == "user@x.com")
     }
 
-    @Test("Defense-in-depth: legacy bucket clean snapshot returned identity-equal (no churn)")
-    func defenseInDepth_legacyCleanPassthrough() {
+    @Test
+    func `Defense-in-depth: legacy bucket clean snapshot returned identity-equal (no churn)`() {
         // When legacy snapshot has no orphans, filter returns the original
         // snapshot reference (or equivalent) — no allocation / reordering.
         // Verifies the clean-path optimization in `filterSnapshotProviders`.
@@ -1639,8 +1639,8 @@ struct SnapshotCacheTests {
         #expect(result[0].providers.count == 2)
     }
 
-    @Test("Edge: real-email + nil-email with same lastUpdated — Rule 1 drops nil regardless of timing")
-    func edge_realAndNilSameTimestampRule1Wins() {
+    @Test
+    func `Edge: real-email + nil-email with same lastUpdated — Rule 1 drops nil regardless of timing`() {
         // Both records arrive in the same refresh cycle (same lastUpdated).
         // Rule 1 fires unconditionally — sibling-with-real-email beats
         // nil-email even when timing is identical (orphan is "wrong"

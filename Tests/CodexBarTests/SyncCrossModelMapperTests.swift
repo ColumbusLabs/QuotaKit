@@ -6,9 +6,9 @@ import Testing
 
 @Suite("CrossModel sync mapper")
 struct SyncCrossModelMapperTests {
-    @Test("CrossModel mapper preserves balance and usage windows")
+    @Test
     @MainActor
-    func mapsCrossModelUsage() throws {
+    func `CrossModel mapper preserves balance and usage windows`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let source = CrossModelUsageSnapshot(
             currency: "usd",

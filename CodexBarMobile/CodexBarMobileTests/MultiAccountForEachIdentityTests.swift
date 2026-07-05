@@ -78,8 +78,8 @@ struct MultiAccountForEachIdentityTests {
 
     // MARK: - CostDashboardInsights.ProviderRow
 
-    @Test("Two Codex accounts produce two ProviderRows with distinct ids")
-    func providerRowsHaveDistinctIDsForMultiAccount() {
+    @Test
+    func `Two Codex accounts produce two ProviderRows with distinct ids`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [
                 Self.makeCodexSnapshot(accountEmail: "user@example.com", thirtyDayCost: 18.40),
@@ -99,8 +99,8 @@ struct MultiAccountForEachIdentityTests {
         #expect(ids.contains("codex|"))
     }
 
-    @Test("ProviderRow.id encodes providerID and accountEmail")
-    func providerRowIdFormat() {
+    @Test
+    func `ProviderRow.id encodes providerID and accountEmail`() {
         let snapshot = SyncedUsageSnapshot(
             providers: [Self.makeCodexSnapshot(accountEmail: "user@example.com", thirtyDayCost: 100)],
             syncTimestamp: Date(),
@@ -112,8 +112,8 @@ struct MultiAccountForEachIdentityTests {
 
     // MARK: - CostBreakdownRow
 
-    @Test("CostBreakdownRow without identityOverride falls back to label-as-id")
-    func breakdownRowFallsBackToLabel() {
+    @Test
+    func `CostBreakdownRow without identityOverride falls back to label-as-id`() {
         let row = CostBreakdownRow(
             label: "claude-opus-4-7",
             amountUSD: 100,
@@ -124,8 +124,8 @@ struct MultiAccountForEachIdentityTests {
             "Existing Model Mix / Service Mix call sites still key on label")
     }
 
-    @Test("CostBreakdownRow with identityOverride uses override as id")
-    func breakdownRowUsesOverride() {
+    @Test
+    func `CostBreakdownRow with identityOverride uses override as id`() {
         let row = CostBreakdownRow(
             label: "Codex",
             amountUSD: 18.40,
@@ -137,8 +137,8 @@ struct MultiAccountForEachIdentityTests {
             "Provider Share call site must supply cardIdentityKey to avoid multi-account collision")
     }
 
-    @Test("Two Codex breakdown rows with same label but different identityOverride have distinct ids")
-    func breakdownRowMultiAccountDistinctIDs() {
+    @Test
+    func `Two Codex breakdown rows with same label but different identityOverride have distinct ids`() {
         let withEmail = CostBreakdownRow(
             label: "Codex", amountUSD: 18.40, subtitle: nil, color: .purple,
             identityOverride: "codex|user@example.com")
@@ -153,8 +153,8 @@ struct MultiAccountForEachIdentityTests {
 
     // MARK: - CostBudgetRow
 
-    @Test("CostBudgetRow.id uses cardIdentityKey, not raw providerID")
-    func budgetRowMultiAccountDistinctIDs() throws {
+    @Test
+    func `CostBudgetRow.id uses cardIdentityKey, not raw providerID`() throws {
         let withEmail = Self.makeCodexSnapshot(accountEmail: "user@example.com", thirtyDayCost: 18.40)
         let noEmail = Self.makeCodexSnapshot(accountEmail: nil, thirtyDayCost: 1592.89)
 
@@ -170,8 +170,8 @@ struct MultiAccountForEachIdentityTests {
 
     // MARK: - UtilizationProviderShare
 
-    @Test("Two Codex providers in UtilizationAggregateView build distinct ProviderShare ids")
-    func utilizationProviderSharesHaveDistinctIDs() throws {
+    @Test
+    func `Two Codex providers in UtilizationAggregateView build distinct ProviderShare ids`() throws {
         let withEmail = Self.makeCodexSnapshotWithUtilization(
             accountEmail: "user@example.com", peakPercentPerDay: 25)
         let noEmail = Self.makeCodexSnapshotWithUtilization(
@@ -191,8 +191,8 @@ struct MultiAccountForEachIdentityTests {
         #expect(ids.contains("codex|"))
     }
 
-    @Test("DaySegments for two Codex accounts on the same day carry distinct identifiers")
-    func utilizationDaySegmentsHaveDistinctIDs() throws {
+    @Test
+    func `DaySegments for two Codex accounts on the same day carry distinct identifiers`() throws {
         let withEmail = Self.makeCodexSnapshotWithUtilization(
             accountEmail: "user@example.com", peakPercentPerDay: 25)
         let noEmail = Self.makeCodexSnapshotWithUtilization(

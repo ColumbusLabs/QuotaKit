@@ -28,8 +28,8 @@ struct CWLMigrationTests {
         return dir.appendingPathComponent("Store.sqlite")
     }
 
-    @Test("Old-style DeviceRecord + ProviderSnapshotModel data survives reopen under new schema")
-    func existingDataSurvivesReopen() throws {
+    @Test
+    func `Old-style DeviceRecord + ProviderSnapshotModel data survives reopen under new schema`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -90,8 +90,8 @@ struct CWLMigrationTests {
         }
     }
 
-    @Test("DailyCostPoint inserted in upgraded store survives a subsequent reopen")
-    func newLedgerEntryPersistsAcrossReopen() throws {
+    @Test
+    func `DailyCostPoint inserted in upgraded store survives a subsequent reopen`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

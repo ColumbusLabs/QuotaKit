@@ -23,7 +23,7 @@ public enum ClawRouterProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .clawrouter,
                 iconResourceName: "ProviderIcon-clawrouter",
-                color: ProviderColor(red: 89 / 255, green: 110 / 255, blue: 246 / 255)),
+                color: ProviderColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "ClawRouter spend is reported by its usage API." }),

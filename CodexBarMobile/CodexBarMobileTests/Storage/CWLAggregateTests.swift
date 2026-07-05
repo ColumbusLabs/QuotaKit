@@ -80,8 +80,8 @@ struct CWLAggregateTests {
 
     // MARK: - T4
 
-    @Test("T4: single-device aggregate — totals, activeDayCount, providerRollups")
-    func singleDeviceAggregate() throws {
+    @Test
+    func `T4: single-device aggregate — totals, activeDayCount, providerRollups`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -159,8 +159,8 @@ struct CWLAggregateTests {
 
     // MARK: - T5
 
-    @Test("T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)")
-    func crossDeviceLatestWins() throws {
+    @Test
+    func `T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -197,8 +197,8 @@ struct CWLAggregateTests {
         #expect(codex.totalCostUSD == 9.0)
     }
 
-    @Test("T5: cross-device different (providerID, dayKey) → both kept (no merge)")
-    func crossDeviceDistinctKeysCoexist() throws {
+    @Test
+    func `T5: cross-device different (providerID, dayKey) → both kept (no merge)`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -233,8 +233,8 @@ struct CWLAggregateTests {
 
     // MARK: - T6
 
-    @Test("T6: window filter — 7d returns only days within last 7, 30d within 30, 90d within 90")
-    func windowFilter() throws {
+    @Test
+    func `T6: window filter — 7d returns only days within last 7, 30d within 30, 90d within 90`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -275,8 +275,8 @@ struct CWLAggregateTests {
         #expect(agg100.totalCostUSD == 100.0)
     }
 
-    @Test("T6: window clamps to [1, 365] — too-small input clamped to 1, too-large to 365")
-    func windowClamp() throws {
+    @Test
+    func `T6: window clamps to [1, 365] — too-small input clamped to 1, too-large to 365`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -300,8 +300,8 @@ struct CWLAggregateTests {
         #expect(aggHuge.windowDays == 365)
     }
 
-    @Test("T6: cutoffDayKey — windowDays=1 → today; windowDays=7 → today-6")
-    func testCutoffDayKey() {
+    @Test
+    func `T6: cutoffDayKey — windowDays=1 → today; windowDays=7 → today-6`() {
         // 2026-05-28 UTC
         let asOf = Self.asOf
         #expect(CostLedgerService.cutoffDayKey(windowDays: 1, asOf: asOf) == "2026-05-28")
@@ -311,8 +311,8 @@ struct CWLAggregateTests {
 
     // MARK: - aggregateProvider
 
-    @Test("aggregateProvider: returns rollup for the requested provider only")
-    func aggregateProviderFilters() throws {
+    @Test
+    func `aggregateProvider: returns rollup for the requested provider only`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -342,8 +342,8 @@ struct CWLAggregateTests {
         #expect(codex.totalCostUSD == 1.0)
     }
 
-    @Test("aggregateProvider: missing provider returns empty rollup (not nil)")
-    func aggregateProviderMissing() throws {
+    @Test
+    func `aggregateProvider: missing provider returns empty rollup (not nil)`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -357,8 +357,8 @@ struct CWLAggregateTests {
 
     // MARK: - Multi-account (Round 4 — account-aware key)
 
-    @Test("Multi-account: two accounts of same provider → separate rollups, summed totals")
-    func multiAccountSeparateRollups() throws {
+    @Test
+    func `Multi-account: two accounts of same provider → separate rollups, summed totals`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -409,8 +409,8 @@ struct CWLAggregateTests {
 
     // MARK: - Diagnostics
 
-    @Test("diagnostics: counts + earliest day + latestWriteAt reflect inserted rows")
-    func testDiagnostics() throws {
+    @Test
+    func `diagnostics: counts + earliest day + latestWriteAt reflect inserted rows`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -464,8 +464,8 @@ struct CWLAggregateTests {
 
     // MARK: - clearAll (T12)
 
-    @Test("T12: clearAll empties the ledger and leaves other entities untouched")
-    func testClearAll() throws {
+    @Test
+    func `T12: clearAll empties the ledger and leaves other entities untouched`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

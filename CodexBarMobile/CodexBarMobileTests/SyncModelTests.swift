@@ -5,8 +5,8 @@ import Testing
 
 @Suite("Sync Model Codable Tests")
 struct SyncModelTests {
-    @Test("ProviderUsageSnapshot round-trips through JSON")
-    func providerSnapshotCodable() throws {
+    @Test
+    func `ProviderUsageSnapshot round-trips through JSON`() throws {
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",
@@ -45,8 +45,8 @@ struct SyncModelTests {
         #expect(decoded.budget == nil)
     }
 
-    @Test("SyncedUsageSnapshot round-trips through JSON")
-    func syncedSnapshotCodable() throws {
+    @Test
+    func `SyncedUsageSnapshot round-trips through JSON`() throws {
         let provider = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -81,8 +81,8 @@ struct SyncModelTests {
         #expect(decoded.deviceID == "test-uuid-123")
     }
 
-    @Test("SyncedUsageSnapshot without deviceID decodes with nil (backward compat)")
-    func deviceIDBackwardCompat() throws {
+    @Test
+    func `SyncedUsageSnapshot without deviceID decodes with nil (backward compat)`() throws {
         let oldJSON = """
         {
             "providers": [],
@@ -98,8 +98,8 @@ struct SyncModelTests {
         #expect(decoded.deviceID == nil)
     }
 
-    @Test("SyncRateWindow remainingPercent clamps to zero")
-    func remainingPercentClamped() {
+    @Test
+    func `SyncRateWindow remainingPercent clamps to zero`() {
         let window = SyncRateWindow(
             usedPercent: 150.0,
             windowMinutes: 300,
@@ -108,8 +108,8 @@ struct SyncModelTests {
         #expect(window.remainingPercent == 0)
     }
 
-    @Test("Codex credit limit becomes display fallback when no rate windows exist")
-    func codexCreditLimitDisplayRateWindowFallback() {
+    @Test
+    func `Codex credit limit becomes display fallback when no rate windows exist`() {
         let creditLimit = SyncCodexCreditLimit(
             title: "Monthly credit limit",
             used: 99000,
@@ -148,8 +148,8 @@ struct SyncModelTests {
         #expect(claude.displayRateWindows.isEmpty)
     }
 
-    @Test("SyncRateWindow decodes old payloads with nil pace")
-    func rateWindowOldPayloadDecodesNilPace() throws {
+    @Test
+    func `SyncRateWindow decodes old payloads with nil pace`() throws {
         let json = """
         {
             "label": "Weekly",
@@ -167,8 +167,8 @@ struct SyncModelTests {
         #expect(window.usedPercent == 42)
     }
 
-    @Test("SyncRateWindow round-trips typed identity")
-    func rateWindowIdentityRoundTrip() throws {
+    @Test
+    func `SyncRateWindow round-trips typed identity`() throws {
         let window = SyncRateWindow(
             label: "Session",
             usedPercent: 50,
@@ -183,8 +183,8 @@ struct SyncModelTests {
         #expect(decoded.identity == .session)
     }
 
-    @Test("SyncRateWindow decodes unknown identity as nil")
-    func rateWindowUnknownIdentityDecodesNil() throws {
+    @Test
+    func `SyncRateWindow decodes unknown identity as nil`() throws {
         let json = """
         {
             "label": "Monthly",
@@ -204,8 +204,8 @@ struct SyncModelTests {
         #expect(window.resetsAt == Date(timeIntervalSince1970: 1_700_000_000))
     }
 
-    @Test("SyncRateWindow round-trips populated pace")
-    func rateWindowPaceRoundTrip() throws {
+    @Test
+    func `SyncRateWindow round-trips populated pace`() throws {
         let pace = SyncUsagePace(
             stage: .ahead,
             deltaPercent: 7,
@@ -228,8 +228,8 @@ struct SyncModelTests {
         #expect(decoded.pace?.leftLabel == "7% in deficit")
     }
 
-    @Test("Empty provider list encodes correctly")
-    func emptyProviders() throws {
+    @Test
+    func `Empty provider list encodes correctly`() throws {
         let synced = SyncedUsageSnapshot(
             providers: [],
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
@@ -246,8 +246,8 @@ struct SyncModelTests {
 
     // MARK: - Backward Compatibility
 
-    @Test("Old JSON without cost fields decodes correctly")
-    func backwardCompatibility() throws {
+    @Test
+    func `Old JSON without cost fields decodes correctly`() throws {
         // Simulate a payload from an older Mac app that doesn't include costSummary/budget
         let oldJSON = """
         {
@@ -277,8 +277,8 @@ struct SyncModelTests {
 
     // MARK: - Cost Data Round-Trip
 
-    @Test("Cost summary and budget round-trip through JSON")
-    func costDataRoundTrip() throws {
+    @Test
+    func `Cost summary and budget round-trip through JSON`() throws {
         let daily = [
             SyncDailyPoint(
                 dayKey: "2024-01-15",
@@ -348,8 +348,8 @@ struct SyncModelTests {
 
     // MARK: - Version Fields
 
-    @Test("SyncedUsageSnapshot includes appVersion and mobileVersion")
-    func versionFieldsRoundTrip() throws {
+    @Test
+    func `SyncedUsageSnapshot includes appVersion and mobileVersion`() throws {
         let synced = SyncedUsageSnapshot(
             providers: [],
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
@@ -367,8 +367,8 @@ struct SyncModelTests {
         #expect(decoded.mobileVersion == "1.0.0")
     }
 
-    @Test("Legacy syncVersion key decodes into mobileVersion")
-    func legacySyncVersionBackwardCompat() throws {
+    @Test
+    func `Legacy syncVersion key decodes into mobileVersion`() throws {
         let legacyJSON = """
         {
             "providers": [],
@@ -385,8 +385,8 @@ struct SyncModelTests {
         #expect(decoded.mobileVersion == "0.1.0")
     }
 
-    @Test("Old payload without version fields decodes with nil")
-    func versionFieldsBackwardCompat() throws {
+    @Test
+    func `Old payload without version fields decodes with nil`() throws {
         let oldJSON = """
         {
             "providers": [],
@@ -405,8 +405,8 @@ struct SyncModelTests {
 
     // MARK: - Payload Size
 
-    @Test("10 providers x 30 days stays under 1MB KVS limit")
-    func payloadSizeCheck() throws {
+    @Test
+    func `10 providers x 30 days stays under 1MB KVS limit`() throws {
         let daily = (0..<30).map { day in
             SyncDailyPoint(
                 dayKey: "2024-01-\(String(format: "%02d", day + 1))",
@@ -467,8 +467,8 @@ struct SyncModelTests {
         #expect(data.count < CloudSyncConstants.maxPayloadBytes)
     }
 
-    @Test("Cost dashboard insights aggregate ten providers")
-    func costDashboardInsightsHandleManyProviders() {
+    @Test
+    func `Cost dashboard insights aggregate ten providers`() {
         var providers: [ProviderUsageSnapshot] = []
         var expectedTotal30DayCost = 0.0
 
@@ -565,8 +565,8 @@ struct SyncModelTests {
         case notATopLevelDictionary
     }
 
-    @Test("ProviderUsageSnapshot tolerates unknown future fields at the JSON top level")
-    func providerSnapshotTolerantOfFutureFields() throws {
+    @Test
+    func `ProviderUsageSnapshot tolerates unknown future fields at the JSON top level`() throws {
         let original = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",
@@ -598,8 +598,8 @@ struct SyncModelTests {
         #expect(decoded.loginMethod == "Pro")
     }
 
-    @Test("SyncedUsageSnapshot tolerates unknown future fields at the JSON top level")
-    func syncedUsageSnapshotTolerantOfFutureFields() throws {
+    @Test
+    func `SyncedUsageSnapshot tolerates unknown future fields at the JSON top level`() throws {
         let original = SyncedUsageSnapshot(
             providers: [],
             syncTimestamp: Date(timeIntervalSince1970: 1_700_000_000),
@@ -625,8 +625,8 @@ struct SyncModelTests {
         #expect(decoded.notificationPushEnabled == true)
     }
 
-    @Test("SyncCostSummary tolerates unknown future fields at the JSON top level")
-    func syncCostSummaryTolerantOfFutureFields() throws {
+    @Test
+    func `SyncCostSummary tolerates unknown future fields at the JSON top level`() throws {
         let original = SyncCostSummary(
             sessionCostUSD: 1.23,
             sessionTokens: 1000,
@@ -651,8 +651,8 @@ struct SyncModelTests {
         #expect(decoded.daily.first?.costUSD == 4.56)
     }
 
-    @Test("SyncPerplexityCreditSummary tolerates unknown future fields")
-    func syncPerplexityCreditsTolerantOfFutureFields() throws {
+    @Test
+    func `SyncPerplexityCreditSummary tolerates unknown future fields`() throws {
         let original = SyncPerplexityCreditSummary(
             recurringTotalCents: 5000,
             recurringUsedCents: 2500,

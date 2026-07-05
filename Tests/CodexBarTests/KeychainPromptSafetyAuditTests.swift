@@ -11,6 +11,14 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
+    func `default test runner explicitly suppresses real keychain access`() throws {
+        let script = try Self.readRepoFile("Scripts/test.sh")
+
+        #expect(script.contains("CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS"))
+        #expect(script.contains("export CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1"))
+    }
+
+    @Test
     func `live TTY integration tests are opt in`() throws {
         let ttyTests = try Self.readRepoFile("Tests/CodexBarTests/TTYIntegrationTests.swift")
 
@@ -96,15 +104,30 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `tests do not call SecItemCopyMatching except no UI query coverage`() throws {
+    func `tests do not call Security item APIs except no UI query coverage`() throws {
+        let securityItemCalls = ["SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete"]
         let offenders = try Self.swiftTestFiles().filter { file in
             let text = try Self.readFile(file)
-            return text.contains("SecItemCopyMatching")
+            return securityItemCalls.contains(where: text.contains)
                 && !file.path.hasSuffix("Tests/CodexBarTests/KeychainNoUIQueryTests.swift")
                 && !file.path.hasSuffix("Tests/CodexBarTests/KeychainPromptSafetyAuditTests.swift")
         }
 
-        #expect(offenders.isEmpty, "Unexpected direct SecItemCopyMatching in tests: \(offenders.map(\.path))")
+        #expect(offenders.isEmpty, "Unexpected direct Security item access in tests: \(offenders.map(\.path))")
+    }
+
+    @Test
+    func `production source routes Security item APIs through the test safety gateway`() throws {
+        let securityItemCalls = ["SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete"]
+        let offenders = try Self.swiftFiles(
+            under: Self.repoRoot().appendingPathComponent("Sources", isDirectory: true))
+            .filter { file in
+                guard !file.path.hasSuffix("Sources/CodexBarCore/KeychainSecurity.swift") else { return false }
+                let text = try Self.readFile(file)
+                return securityItemCalls.contains(where: text.contains)
+            }
+
+        #expect(offenders.isEmpty, "Security item access bypasses KeychainSecurity: \(offenders.map(\.path))")
     }
 
     @Test
@@ -166,7 +189,9 @@ struct KeychainPromptSafetyAuditTests {
         #expect(descriptor.contains("allowStartupBootstrapPrompt: context.runtime == .app &&"))
         #expect(descriptor.contains("(context.sourceMode == .auto || context.sourceMode == .oauth)"))
         #expect(credentialsStore.contains("@TaskLocal static var allowBackgroundPromptBootstrap: Bool = false"))
-        #expect(securityCLIReader.contains("guard interaction == .userInitiated else"))
+        #expect(securityCLIReader
+            .contains("guard interaction == .userInitiated || allowBackgroundReadForClassification else"))
+        #expect(securityCLIReader.contains("allowBackgroundReadForClassification: true"))
     }
 
     @Test
@@ -174,7 +199,9 @@ struct KeychainPromptSafetyAuditTests {
         let importer = try Self.readRepoFile(
             "Sources/CodexBarCore/Providers/Alibaba/AlibabaCodingPlanCookieImporter.swift")
         let lines = importer.split(separator: "\n", omittingEmptySubsequences: false)
-        guard let readIndex = lines.firstIndex(where: { $0.contains("SecItemCopyMatching") }) else {
+        guard let readIndex = lines.firstIndex(where: {
+            $0.contains("SecItemCopyMatching") || $0.contains("KeychainSecurity.copyMatching")
+        }) else {
             Issue.record("Expected Alibaba importer to contain a Safe Storage keychain read")
             return
         }
@@ -204,8 +231,14 @@ struct KeychainPromptSafetyAuditTests {
 
     private static func swiftTestFiles(excludingSelf: Bool = false) throws -> [URL] {
         let testsRoot = self.repoRoot().appendingPathComponent("Tests/CodexBarTests", isDirectory: true)
+        return try self.swiftFiles(under: testsRoot).filter { file in
+            !(excludingSelf && file.path.hasSuffix("Tests/CodexBarTests/KeychainPromptSafetyAuditTests.swift"))
+        }
+    }
+
+    private static func swiftFiles(under root: URL) throws -> [URL] {
         guard let enumerator = FileManager.default.enumerator(
-            at: testsRoot,
+            at: root,
             includingPropertiesForKeys: [.isRegularFileKey],
             options: [.skipsHiddenFiles])
         else { return [] }
@@ -214,9 +247,6 @@ struct KeychainPromptSafetyAuditTests {
         for case let file as URL in enumerator where file.pathExtension == "swift" {
             let values = try file.resourceValues(forKeys: [.isRegularFileKey])
             if values.isRegularFile == true {
-                if excludingSelf, file.path.hasSuffix("Tests/CodexBarTests/KeychainPromptSafetyAuditTests.swift") {
-                    continue
-                }
                 files.append(file)
             }
         }

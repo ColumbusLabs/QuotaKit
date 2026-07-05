@@ -54,8 +54,8 @@ struct SubscriptionUtilizationCompatTests {
                 resetsAt: nil)])]
     }
 
-    @Test("Identity key is stable when Perplexity provider has no utilization history")
-    func identityKeyStableWithPerplexityNoHistory() {
+    @Test
+    func `Identity key is stable when Perplexity provider has no utilization history`() {
         // Typical real-world mix: Claude + Codex with session data, plus
         // Perplexity sitting in the list with nothing to aggregate. The
         // identity key derivation must skip the no-history provider's
@@ -72,8 +72,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(k1.contains("perplexity"))
     }
 
-    @Test("Identity key distinct when Perplexity is replaced by OpenCode Go")
-    func identityKeyDistinctAcrossNewProviders() {
+    @Test
+    func `Identity key distinct when Perplexity is replaced by OpenCode Go`() {
         let withPerplexity = [
             self.makeProvider(id: "claude", name: "Claude", utilization: self.sessionSeries(42)),
             self.makeProvider(id: "perplexity", name: "Perplexity", utilization: nil),
@@ -87,9 +87,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(k1 != k2)
     }
 
-    @Test(
-        "Mixed providers (some with history, some without) produce a stable key that reflects ONLY history-bearing entries")
-    func identityKeyEntryCountIgnoresNoHistoryProviders() {
+    @Test
+    func `Mixed providers (some with history, some without) produce a stable key that reflects ONLY history-bearing entries`() {
         // OpenCode Go and Perplexity contribute 0 entries. Only Claude's
         // single entry counts. The `n=1` suffix proves the guard actually
         // excludes them.
@@ -102,8 +101,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(key.contains("n=1"))
     }
 
-    @Test("All-no-history provider list produces a well-formed key (no crash)")
-    func identityKeyAllNoHistoryProviders() {
+    @Test
+    func `All-no-history provider list produces a well-formed key (no crash)`() {
         // Hypothetical worst case: user has only providers that don't
         // emit utilization history (e.g., a Perplexity-only account).
         // identityKey must still return a string, not crash, and must
@@ -117,8 +116,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(key.contains("n=0"))
     }
 
-    @Test("Provider tint color resolves to the palette entry (Perplexity teal, OpenCode Go mint)")
-    func aggregateColorsDelegateToPalette() {
+    @Test
+    func `Provider tint color resolves to the palette entry (Perplexity teal, OpenCode Go mint)`() {
         // UtilizationAggregateView.providerColor(for:) now delegates to
         // ProviderColorPalette (consolidated in T2 / Build 70). This pins
         // that the aggregate view uses the SAME colors as the provider
@@ -178,8 +177,8 @@ struct SubscriptionUtilizationCompatTests {
                 name: "session", windowMinutes: 300, entries: entries)])
     }
 
-    @Test("Bursty provider (1 peak/day, 23 zeros) produces non-zero aggregate via daily-peak semantics")
-    func aggregateBurstyProviderShowsPeakNotZero() throws {
+    @Test
+    func `Bursty provider (1 peak/day, 23 zeros) produces non-zero aggregate via daily-peak semantics`() throws {
         // Pre-fix: this would have shown ~0.67% (16 / 24) rounding to 0% per
         // period card. Post-fix: shows 16% — same number the user sees on
         // the detail page's bar chart.
@@ -200,8 +199,8 @@ struct SubscriptionUtilizationCompatTests {
         }
     }
 
-    @Test("Two providers with different burst patterns reflect relative usage (not both 0%)")
-    func aggregateTwoBurstyProvidersShowCorrectShare() throws {
+    @Test
+    func `Two providers with different burst patterns reflect relative usage (not both 0%)`() throws {
         // The user's reported scenario: Claude "12% avg use, 100% share" and
         // Codex "0% avg use, 0% share". Post-fix, both should show their
         // actual peak averages and share proportionally.
@@ -227,8 +226,8 @@ struct SubscriptionUtilizationCompatTests {
         #expect(codexShare.sharePercent > 39 && codexShare.sharePercent < 41)
     }
 
-    @Test("Duplicate session series (cross-version Mac merge leakage) do not hide real data")
-    func aggregateUnionsMultipleSessionSeries() throws {
+    @Test
+    func `Duplicate session series (cross-version Mac merge leakage) do not hide real data`() throws {
         // Simulates the state after a pre-Build-77 `mergeUtilizationHistories`
         // that left two "session" series behind because two Macs disagreed on
         // windowMinutes. Pre-fix the aggregate picked `first(where: name ==
@@ -261,8 +260,8 @@ struct SubscriptionUtilizationCompatTests {
 
     // MARK: - Build 81 · thread safety (Codex-caught P0)
 
-    @Test("iso8601DayKey is safe to call from many concurrent tasks (DateFormatter thread safety)")
-    func dayKeyConcurrentCallsSafe() async {
+    @Test
+    func `iso8601DayKey is safe to call from many concurrent tasks (DateFormatter thread safety)`() async {
         // Pre-Build-81 used a shared `static let DateFormatter` whose
         // `string(from:)` is documented unsafe under concurrent access on
         // iOS — could crash. Build 81 replaced with a per-call formatter.

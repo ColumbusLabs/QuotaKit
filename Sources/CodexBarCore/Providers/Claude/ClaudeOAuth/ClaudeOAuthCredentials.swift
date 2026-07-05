@@ -1974,7 +1974,7 @@ public enum ClaudeOAuthCredentialsStore {
 
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
         let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
         self.log.debug(
             "Claude keychain data read result",
@@ -2036,7 +2036,7 @@ public enum ClaudeOAuthCredentialsStore {
 
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
         let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
         self.log.debug(
             "Claude keychain legacy data read result",
@@ -2314,6 +2314,15 @@ extension ClaudeOAuthCredentialsStore {
     }
 
     private static func shouldShowClaudeKeychainPreAlert() -> Bool {
+        #if DEBUG
+        // Synthetic Claude Keychain fixtures must not fall through to the real preflight. Tests that explicitly
+        // override the preflight still exercise its prompt-policy branches.
+        if self.hasTaskKeychainTestingOverride,
+           !KeychainAccessPreflight.hasCheckGenericPasswordOverrideForTesting
+        {
+            return false
+        }
+        #endif
         let mode = ClaudeOAuthKeychainPromptPreference.current()
         guard self.shouldAllowClaudeCodeKeychainAccess(mode: mode) else { return false }
         return switch KeychainAccessPreflight.checkGenericPassword(service: self.claudeKeychainService, account: nil) {

@@ -37,6 +37,7 @@ struct UsageMenuCardView: View {
             let pacePercent: Double?
             let paceOnTop: Bool
             let warningMarkerPercents: [Double]
+            let workdayMarkerPercents: [Double]
             let cardStyle: Bool
 
             init(
@@ -52,6 +53,7 @@ struct UsageMenuCardView: View {
                 pacePercent: Double?,
                 paceOnTop: Bool,
                 warningMarkerPercents: [Double] = [],
+                workdayMarkerPercents: [Double] = [],
                 cardStyle: Bool = false)
             {
                 self.id = id
@@ -66,6 +68,7 @@ struct UsageMenuCardView: View {
                 self.pacePercent = pacePercent
                 self.paceOnTop = paceOnTop
                 self.warningMarkerPercents = warningMarkerPercents
+                self.workdayMarkerPercents = workdayMarkerPercents
                 self.cardStyle = cardStyle
             }
 
@@ -83,9 +86,26 @@ struct UsageMenuCardView: View {
         struct TokenUsageSection {
             let sessionLine: String
             let monthLine: String
+            let comparisonLines: [String]
             let hintLine: String?
             let errorLine: String?
             let errorCopyText: String?
+
+            init(
+                sessionLine: String,
+                monthLine: String,
+                comparisonLines: [String] = [],
+                hintLine: String?,
+                errorLine: String?,
+                errorCopyText: String?)
+            {
+                self.sessionLine = sessionLine
+                self.monthLine = monthLine
+                self.comparisonLines = comparisonLines
+                self.hintLine = hintLine
+                self.errorLine = errorLine
+                self.errorCopyText = errorCopyText
+            }
         }
 
         struct ProviderCostSection {
@@ -112,8 +132,7 @@ struct UsageMenuCardView: View {
         var creditsProgressPercent: Double?, creditsScaleText: String?
         let creditsHintText: String?
         let creditsHintCopyText: String?
-        var codexResetCreditsText: String?
-        var codexResetCreditsDetailText: String?
+        var codexResetCredits: CodexResetCreditsPresentation?
         let providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
         let placeholder: String?
@@ -200,6 +219,11 @@ struct UsageMenuCardView: View {
                             Text(tokenUsage.monthLine)
                                 .font(.footnote)
                                 .lineLimit(1)
+                            ForEach(tokenUsage.comparisonLines, id: \.self) { line in
+                                Text(line)
+                                    .font(.footnote)
+                                    .lineLimit(1)
+                            }
                             if let hint = tokenUsage.hintLine, !hint.isEmpty {
                                 Text(hint)
                                     .font(.footnote)
@@ -441,7 +465,8 @@ private struct MetricRow: View {
                     accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
                     pacePercent: self.metric.pacePercent,
                     paceOnTop: self.metric.paceOnTop,
-                    warningMarkerPercents: self.metric.warningMarkerPercents)
+                    warningMarkerPercents: self.metric.warningMarkerPercents,
+                    workdayMarkerPercents: self.metric.workdayMarkerPercents)
                 VStack(alignment: .leading, spacing: 2) {
                     HStack(alignment: .firstTextBaseline) {
                         Text(self.metric.percentLabel)
@@ -549,20 +574,18 @@ private struct UsageMenuCardUsageContentView: View {
                     title: UsageMenuCardView.popupMetricTitle(provider: self.model.provider, metric: metric),
                     progressColor: self.model.progressColor)
             }
-            if let resetCredits = self.model.codexResetCreditsText {
+            if let resetCredits = self.model.codexResetCredits {
                 if !self.model.metrics.isEmpty {
                     Divider()
                 }
-                CodexResetCreditsContent(
-                    text: resetCredits,
-                    detailText: self.model.codexResetCreditsDetailText)
+                CodexResetCreditsContent(presentation: resetCredits)
             }
             if let dashboard = self.model.inlineUsageDashboard {
                 InlineUsageDashboardContent(model: dashboard)
             } else if !self.model.usageNotes.isEmpty {
                 UsageNotesContent(notes: self.model.usageNotes)
             } else if let placeholder = self.model.placeholder, self.model.metrics.isEmpty,
-                      self.model.codexResetCreditsText == nil
+                      self.model.codexResetCredits == nil
             {
                 Text(placeholder)
                     .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
@@ -720,6 +743,11 @@ struct UsageMenuCardCostSectionView: View {
                             Text(tokenUsage.monthLine)
                                 .font(.caption)
                                 .lineLimit(1)
+                            ForEach(tokenUsage.comparisonLines, id: \.self) { line in
+                                Text(line)
+                                    .font(.caption)
+                                    .lineLimit(1)
+                            }
                             if let hint = tokenUsage.hintLine, !hint.isEmpty {
                                 Text(hint)
                                     .font(.footnote)
@@ -818,6 +846,7 @@ extension UsageMenuCardView.Model {
         let isRequiredOpenCodeZenBalance = Self.isRequiredOpenCodeZenBalance(input.snapshot)
         let hidesOptionalProviderCost = ((input.provider == .claude && !isClaudeAdminAPI) ||
             input.provider == .factory ||
+            input.provider == .devin ||
             (input.provider == .opencodego && !isRequiredOpenCodeZenBalance)) &&
             !input.showOptionalCreditsAndExtraUsage
         let providerCost: ProviderCostSection? = if input.provider == .sakana {
@@ -835,6 +864,7 @@ extension UsageMenuCardView.Model {
         let tokenUsage = Self.tokenUsageSection(
             provider: input.provider,
             enabled: input.tokenCostMenuSectionEnabled,
+            comparisonPeriodsEnabled: input.costComparisonPeriodsEnabled,
             snapshot: tokenUsageSnapshot,
             error: input.tokenError)
         let subtitle = Self.subtitle(
@@ -863,8 +893,7 @@ extension UsageMenuCardView.Model {
             creditsScaleText: creditsScaleText,
             creditsHintText: codexCreditLimitDetail ?? redacted.creditsHintText,
             creditsHintCopyText: codexCreditLimitDetail ?? redacted.creditsHintCopyText,
-            codexResetCreditsText: Self.codexResetCreditsText(input: input),
-            codexResetCreditsDetailText: Self.codexResetCreditsDetailText(input: input),
+            codexResetCredits: Self.codexResetCredits(input: input),
             providerCost: providerCost,
             tokenUsage: tokenUsage,
             placeholder: placeholder,
@@ -1489,7 +1518,12 @@ extension UsageMenuCardView.Model {
             detailRightText: paceDetail?.rightLabel,
             pacePercent: paceDetail?.pacePercent,
             paceOnTop: paceDetail?.paceOnTop ?? true,
-            warningMarkerPercents: Self.weeklyMarkerPercents(input: input, windowMinutes: weekly.windowMinutes))
+            warningMarkerPercents: Self.warningMarkerPercents(
+                thresholds: input.quotaWarningThresholds[.weekly],
+                showUsed: input.usageBarsShowUsed),
+            workdayMarkerPercents: workDayMarkerPercents(
+                workDays: input.workDaysPerWeek,
+                windowMinutes: weekly.windowMinutes))
     }
 
     private static func codexRateMetrics(
@@ -1534,10 +1568,14 @@ extension UsageMenuCardView.Model {
                 detailRightText: paceDetail?.rightLabel,
                 pacePercent: paceDetail?.pacePercent,
                 paceOnTop: paceDetail?.paceOnTop ?? true,
-                warningMarkerPercents: Self.codexLaneMarkerPercents(
-                    input: input,
-                    lane: lane,
-                    windowMinutes: window.windowMinutes))
+                warningMarkerPercents: Self.warningMarkerPercents(
+                    thresholds: input.quotaWarningThresholds[lane.quotaWarningWindow],
+                    showUsed: input.usageBarsShowUsed),
+                workdayMarkerPercents: lane == .weekly
+                    ? workDayMarkerPercents(
+                        workDays: input.workDaysPerWeek,
+                        windowMinutes: window.windowMinutes)
+                    : [])
         }
     }
 }

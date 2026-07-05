@@ -364,6 +364,10 @@ enum AlibabaChromiumCookieFallbackImporter {
     }
 
     private static func safeStoragePassword(service: String, account: String) -> String? {
+        // The preflight classifies prompt-requiring items as .interactionRequired, but its
+        // .notFound (gate disabled) and .failure outcomes still reach this read. Honor the
+        // access gate and keep the read strictly non-interactive so it can never prompt.
+        guard !KeychainAccessGate.isDisabled else { return nil }
         var query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrService as String: service,
@@ -374,7 +378,7 @@ enum AlibabaChromiumCookieFallbackImporter {
         KeychainNoUIQuery.apply(to: &query)
 
         var result: AnyObject?
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
         guard status == errSecSuccess, let data = result as? Data else { return nil }
         return String(data: data, encoding: .utf8)
     }

@@ -12,8 +12,8 @@ import Testing
 /// both tests in the same commit.
 @Suite("AccountIdentityNormalize contract pin")
 struct AccountIdentityNormalizeContractTests {
-    @Test("normalize byte-equals Mac AccountIdentityComputer contract")
-    func normalizeMatchesMacContract() {
+    @Test
+    func `normalize byte-equals Mac AccountIdentityComputer contract`() {
         let cases: [(String?, String?)] = [
             ("ABC", "abc"),
             ("Café@Example.com", "caf%C3%A9@example.com"),
@@ -31,15 +31,15 @@ struct AccountIdentityNormalizeContractTests {
         }
     }
 
-    @Test("maxAccountIdentifierLength matches Mac maxIdentifierLength")
-    func maxLengthMatches() {
+    @Test
+    func `maxAccountIdentifierLength matches Mac maxIdentifierLength`() {
         // Mac side has `AccountIdentityComputer.maxIdentifierLength = 256`
         // documented as "must equal AccountIdentityNormalize.maxAccountIdentifierLength".
         #expect(AccountIdentityNormalize.maxAccountIdentifierLength == 256)
     }
 
-    @Test("boundary-length values stay unchanged")
-    func boundaryLengthValueIsUnchanged() throws {
+    @Test
+    func `boundary-length values stay unchanged`() throws {
         let exact = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength)
         let value = try #require(AccountIdentityNormalize.normalize(exact))
 
@@ -47,8 +47,8 @@ struct AccountIdentityNormalizeContractTests {
         #expect(!value.contains("#sha256#"))
     }
 
-    @Test("normalize caps to maxAccountIdentifierLength with digest")
-    func capsAtMaxLengthWithDigest() throws {
+    @Test
+    func `normalize caps to maxAccountIdentifierLength with digest`() throws {
         let huge = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 100)
         let result = AccountIdentityNormalize.normalize(huge)
         let value = try #require(result)
@@ -56,8 +56,8 @@ struct AccountIdentityNormalizeContractTests {
         #expect(value.hasSuffix("#sha256#9bad493076a15c3d04cb2e1f41607ef0f47270f8a79ebf1620bbb9d3e31e191e"))
     }
 
-    @Test("over-limit values with the same prefix do not collide")
-    func overLimitValuesDoNotPrefixCollide() throws {
+    @Test
+    func `over-limit values with the same prefix do not collide`() throws {
         let sharedPrefix = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 20)
         let first = AccountIdentityNormalize.normalize(sharedPrefix + "1")
         let second = AccountIdentityNormalize.normalize(sharedPrefix + "2")

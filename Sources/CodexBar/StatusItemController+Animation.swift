@@ -276,14 +276,12 @@ extension StatusItemController {
 
         // IconRenderer treats these values as a left-to-right "progress fill" percentage; depending on the
         // user setting we pass either "percent left" or "percent used".
-        let resolved = snapshot.map {
-            IconRemainingResolver.resolvedPercents(
-                snapshot: $0,
-                style: resolverStyle,
-                showUsed: showUsed,
-                renderingStyle: style,
-                secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: $0))
-        }
+        let resolved = self.resolvedMenuBarIconPercents(
+            provider: primaryProvider,
+            snapshot: snapshot,
+            style: resolverStyle,
+            showUsed: showUsed,
+            renderingStyle: style)
         var metrics = MergedIconRenderMetrics(
             primary: resolved?.primary,
             weekly: resolved?.secondary,

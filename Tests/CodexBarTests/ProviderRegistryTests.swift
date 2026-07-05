@@ -47,10 +47,10 @@ struct ProviderRegistryTests {
     }
 
     @Test
-    func `cursor supports only auto and api source modes`() {
+    func `cursor supports auto api and web source modes`() {
         let descriptor = ProviderDescriptorRegistry.descriptor(for: .cursor)
 
-        #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
+        #expect(descriptor.fetchPlan.sourceModes == [.auto, .api, .web])
         #expect(descriptor.metadata.sessionLabel == "Auto")
         #expect(descriptor.metadata.weeklyLabel == "API")
         #expect(!descriptor.metadata.supportsOpus)

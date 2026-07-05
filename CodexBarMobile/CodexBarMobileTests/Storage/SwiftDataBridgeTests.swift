@@ -58,8 +58,8 @@ struct SwiftDataBridgeTests {
 
     // MARK: - Tests
 
-    @Test("Upserting the same snapshot twice does not duplicate rows")
-    func upsertIdempotency() throws {
+    @Test
+    func `Upserting the same snapshot twice does not duplicate rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -77,8 +77,8 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
     }
 
-    @Test("Two devices with the same provider produce two distinct rows")
-    func multiDeviceInsert() throws {
+    @Test
+    func `Two devices with the same provider produce two distinct rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -103,8 +103,8 @@ struct SwiftDataBridgeTests {
         #expect(deviceIDs == Set(["device-A", "device-B"]))
     }
 
-    @Test("Utilization entries dedup on (seriesName, capturedAt)")
-    func utilizationEntryDedup() throws {
+    @Test
+    func `Utilization entries dedup on (seriesName, capturedAt)`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -130,8 +130,8 @@ struct SwiftDataBridgeTests {
         #expect(entries.first?.usedPercent == 42.0)
     }
 
-    @Test("Updating a provider field is reflected on the existing row")
-    func upsertUpdatesInPlace() throws {
+    @Test
+    func `Updating a provider field is reflected on the existing row`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -153,8 +153,8 @@ struct SwiftDataBridgeTests {
         #expect(providers.first?.lastUpdated == self.ts2)
     }
 
-    @Test("Snapshots without deviceID map to a deterministic fallback row")
-    func legacySnapshotFallbackDeviceID() throws {
+    @Test
+    func `Snapshots without deviceID map to a deterministic fallback row`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -173,8 +173,8 @@ struct SwiftDataBridgeTests {
         #expect(devices.first?.deviceID.hasPrefix("legacy:") == true)
     }
 
-    @Test("Utilization entries aged out upstream are pruned locally")
-    func utilizationEntriesPruned() throws {
+    @Test
+    func `Utilization entries aged out upstream are pruned locally`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -214,8 +214,8 @@ struct SwiftDataBridgeTests {
     // (2) two entries straddling a session reset in the same clock hour,
     // (3) multi-account same provider.
 
-    @Test("Upsert survives all-zero 720-entry utilization roundtrip without dropping entries")
-    func realisticAllZeroUtilizationRoundtrip() throws {
+    @Test
+    func `Upsert survives all-zero 720-entry utilization roundtrip without dropping entries`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -236,8 +236,8 @@ struct SwiftDataBridgeTests {
         #expect(entries.allSatisfy { $0.usedPercent == 0 })
     }
 
-    @Test("Cross-reset boundary entries in same clock hour don't collide in SwiftData")
-    func realisticCrossResetBoundaryPreservedInStorage() throws {
+    @Test
+    func `Cross-reset boundary entries in same clock hour don't collide in SwiftData`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 
@@ -263,8 +263,8 @@ struct SwiftDataBridgeTests {
         #expect(percents == [90, 5])
     }
 
-    @Test("Multi-account same provider persists as two distinct rows")
-    func realisticMultiAccountSameProviderPreserved() throws {
+    @Test
+    func `Multi-account same provider persists as two distinct rows`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)
 

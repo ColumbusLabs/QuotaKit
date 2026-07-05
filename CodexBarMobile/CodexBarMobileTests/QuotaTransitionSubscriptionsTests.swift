@@ -11,15 +11,15 @@ import Testing
 /// test fails, all quota push body / title rewrites are dead.
 @Suite("Quota transition subscriptions")
 struct QuotaTransitionSubscriptionsTests {
-    @Test("notification info sets alertBody from input")
-    func notificationInfoSetsAlertBody() {
+    @Test
+    func `notification info sets alertBody from input`() {
         let info = QuotaTransitionSubscriptions.makeNotificationInfo(
             alertBody: "Codex 用量警告")
         #expect(info.alertBody == "Codex 用量警告")
     }
 
-    @Test("notification info wakes NSE via mutable-content flag")
-    func notificationInfoEnablesMutableContent() {
+    @Test
+    func `notification info wakes NSE via mutable-content flag`() {
         let info = QuotaTransitionSubscriptions.makeNotificationInfo(
             alertBody: "anything")
         // shouldSendMutableContent translates into `mutable-content: 1`
@@ -28,15 +28,15 @@ struct QuotaTransitionSubscriptionsTests {
         #expect(info.shouldSendMutableContent == true)
     }
 
-    @Test("notification info plays default sound")
-    func notificationInfoSetsDefaultSound() {
+    @Test
+    func `notification info plays default sound`() {
         let info = QuotaTransitionSubscriptions.makeNotificationInfo(
             alertBody: "anything")
         #expect(info.soundName == "default")
     }
 
-    @Test("notification info leaves localization-args empty")
-    func notificationInfoLeavesLocalizationArgsEmpty() {
+    @Test
+    func `notification info leaves localization-args empty`() {
         // titleLocalizationArgs / alertLocalizationArgs are intentionally
         // unused on this CloudKit container; the localized body is baked
         // into `alertBody` at setup time. The drift-detection logic in
@@ -48,8 +48,8 @@ struct QuotaTransitionSubscriptionsTests {
         #expect((info.alertLocalizationArgs ?? []).isEmpty)
     }
 
-    @Test("managed subscription IDs cover every provider state")
-    func managedSubscriptionIDsCoverEveryProviderState() {
+    @Test
+    func `managed subscription IDs cover every provider state`() {
         let ids = QuotaTransitionSubscriptions.managedSubscriptionIDs(providerIDs: ["codex", "claude"])
 
         #expect(ids == [
@@ -62,8 +62,8 @@ struct QuotaTransitionSubscriptionsTests {
         ])
     }
 
-    @Test("locked Pro notification plan keeps silent sync and removes quota alerts")
-    func lockedNotificationPlanKeepsSilentSyncAndRemovesQuotaAlerts() {
+    @Test
+    func `locked Pro notification plan keeps silent sync and removes quota alerts`() {
         let plan = ProNotificationSetupPlanner.plan(isProUnlocked: false)
 
         #expect(plan.shouldSetupSilentSync)
@@ -72,8 +72,8 @@ struct QuotaTransitionSubscriptionsTests {
         #expect(plan.shouldRemoveQuotaAlerts)
     }
 
-    @Test("unlocked Pro notification plan keeps silent sync and creates quota alerts")
-    func unlockedNotificationPlanKeepsSilentSyncAndCreatesQuotaAlerts() {
+    @Test
+    func `unlocked Pro notification plan keeps silent sync and creates quota alerts`() {
         let plan = ProNotificationSetupPlanner.plan(isProUnlocked: true)
 
         #expect(plan.shouldSetupSilentSync)

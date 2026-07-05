@@ -15,7 +15,6 @@ import Testing
 /// by R1+R2, plus combined cross-Mac × multi-account scenarios.
 ///
 /// See `Research/020-multi-account-comprehensive.md` R5 §D.
-@Suite
 struct SameMacMultiAccountMergeTests {
     private let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -58,8 +57,8 @@ struct SameMacMultiAccountMergeTests {
 
     // MARK: - Same Mac, multiple accounts, same provider
 
-    @Test("R5 D1: Single Mac with 2 Codex accounts (different emails) → 2 distinct merged cards")
-    func singleMacTwoCodexAccountsKeptDistinct() throws {
+    @Test
+    func `R5 D1: Single Mac with 2 Codex accounts (different emails) → 2 distinct merged cards`() throws {
         let alice = self.makeProvider(
             id: "codex", email: "alice@example.com",
             usedPercent: 25,
@@ -80,8 +79,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(percents == [25, 75], "each account's usedPercent preserved")
     }
 
-    @Test("R5 D2: Single Mac with 3 Codex accounts → 3 distinct merged cards")
-    func singleMacThreeCodexAccountsKeptDistinct() throws {
+    @Test
+    func `R5 D2: Single Mac with 3 Codex accounts → 3 distinct merged cards`() throws {
         let providers = (1...3).map { i in
             self.makeProvider(
                 id: "codex", email: "user\(i)@example.com",
@@ -100,8 +99,8 @@ struct SameMacMultiAccountMergeTests {
         ])
     }
 
-    @Test("R5 D3: Single Mac, mixed Codex (multi) + Claude (multi) preserved by provider")
-    func singleMacMixedProviderMultiAccountPreserved() throws {
+    @Test
+    func `R5 D3: Single Mac, mixed Codex (multi) + Claude (multi) preserved by provider`() throws {
         let codexA = self.makeProvider(
             id: "codex", email: "alice@codex.com",
             accountIdentities: ["codex:email:alice%40codex.com"])
@@ -132,8 +131,8 @@ struct SameMacMultiAccountMergeTests {
 
     // MARK: - Cross-Mac × multi-account combinations
 
-    @Test("R5 D4: Mac-A 2 codex + Mac-B 1 codex (no overlap) → 3 distinct cards")
-    func crossMacMultiAccountDistinctEmails() throws {
+    @Test
+    func `R5 D4: Mac-A 2 codex + Mac-B 1 codex (no overlap) → 3 distinct cards`() throws {
         let alice = self.makeProvider(
             id: "codex", email: "alice@x.com",
             accountIdentities: ["codex:email:alice%40x.com"])
@@ -154,8 +153,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(emails == ["alice@x.com", "bob@x.com", "carol@x.com"])
     }
 
-    @Test("R5 D5: Mac-A 2 codex + Mac-B same alice + new dave → 3 cards (alice deduped)")
-    func crossMacMultiAccountWithOverlap() throws {
+    @Test
+    func `R5 D5: Mac-A 2 codex + Mac-B same alice + new dave → 3 cards (alice deduped)`() throws {
         // Both Mac-A and Mac-B have alice. Mac-A also has bob. Mac-B
         // also has dave. iOS should merge alice across Macs (1 card)
         // and keep bob, dave distinct (2 cards). Total 3 cards.
@@ -188,8 +187,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(emails == ["alice@x.com", "bob@x.com", "dave@x.com"])
     }
 
-    @Test("R5 D6: Mixed-version Macs — both share accountEmail merge into single card")
-    func mixedVersionMacsMergeByEmail() throws {
+    @Test
+    func `R5 D6: Mixed-version Macs — both share accountEmail merge into single card`() throws {
         // Both Macs run modern code (post-Build 23) and emit
         // accountIdentities for Tier-A providers. They merge via the
         // shared `codex:email:alice%40x.com` identifier.
@@ -221,8 +220,8 @@ struct SameMacMultiAccountMergeTests {
 
     // MARK: - Edge cases
 
-    @Test("R5 D7: Same Mac, 2 codex accounts both with nil email → fall to legacy bucket distinct?")
-    func sameMacTwoNilEmailAccountsBehavior() throws {
+    @Test
+    func `R5 D7: Same Mac, 2 codex accounts both with nil email → fall to legacy bucket distinct?`() throws {
         // Edge case: 2 codex entries both with accountEmail=nil from same
         // Mac. With no accountIdentities either, both fall to the
         // "legacy-no-identity" bucket. CurrentSyncReader policy: per
@@ -249,8 +248,8 @@ struct SameMacMultiAccountMergeTests {
             "all-nil-email same-provider entries collapse to legacy bucket (documented behavior)")
     }
 
-    @Test("R5 D8: Same Mac, 2 codex accounts, one with empty-string email + one with real email → 2 cards")
-    func emptyEmailVsRealEmailKeptDistinct() throws {
+    @Test
+    func `R5 D8: Same Mac, 2 codex accounts, one with empty-string email + one with real email → 2 cards`() throws {
         // Empty-string accountEmail is distinct from a populated email
         // in the merge logic (per existing CloudKitMergeTests "Provider
         // with nil email is treated as separate from one with email").
@@ -270,8 +269,8 @@ struct SameMacMultiAccountMergeTests {
 
     // MARK: - Token-provider multi-account (R2)
 
-    @Test("R5 D9: Same Mac, R2 token expansion — Claude with 2 accounts merges correctly")
-    func claudeMultiAccountFromSameMac() throws {
+    @Test
+    func `R5 D9: Same Mac, R2 token expansion — Claude with 2 accounts merges correctly`() throws {
         let alice = self.makeProvider(
             id: "claude", email: "alice@anthropic.com",
             accountIdentities: ["claude:email:alice%40anthropic.com"])
@@ -286,8 +285,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(merged.providers.count == 2)
     }
 
-    @Test("R5 D10: Same Mac with Codex (R1) + Claude (R2) both multi-account in one push")
-    func codexAndClaudeMultiAccountSimultaneous() throws {
+    @Test
+    func `R5 D10: Same Mac with Codex (R1) + Claude (R2) both multi-account in one push`() throws {
         // Real-world R5 scenario: user has 3 Codex accounts AND 2 Claude
         // accounts on a single Mac with R1+R2. Single push contains
         // 3+2=5 ProviderUsageSnapshots. iOS must render 5 cards.
@@ -314,8 +313,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(claudeCount == 2)
     }
 
-    @Test("R5 D11: Two-Mac × multi-account each — 2-2-1 = 5 cards (no overlap)")
-    func twoMacEachMultiAccountAllDistinct() throws {
+    @Test
+    func `R5 D11: Two-Mac × multi-account each — 2-2-1 = 5 cards (no overlap)`() throws {
         let macAProviders = (1...2).map { i in
             self.makeProvider(
                 id: "codex", email: "macA-\(i)@x.com",
@@ -335,8 +334,8 @@ struct SameMacMultiAccountMergeTests {
         #expect(merged.providers.count == 5)
     }
 
-    @Test("R5 D12: Sort stability — same Mac multi-account merge produces alphabetical ordering")
-    func multiAccountMergeAlphabetical() throws {
+    @Test
+    func `R5 D12: Sort stability — same Mac multi-account merge produces alphabetical ordering`() throws {
         // Pre-existing test ensures "Merged providers are sorted alphabetically by name".
         // With multi-account, all entries share providerName ("Codex") so
         // ordering between accounts becomes implementation-defined.

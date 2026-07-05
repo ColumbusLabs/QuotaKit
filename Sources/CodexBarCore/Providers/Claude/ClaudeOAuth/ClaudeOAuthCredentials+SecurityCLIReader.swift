@@ -87,12 +87,13 @@ extension ClaudeOAuthCredentialsStore {
     static func readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
         interaction: ProviderInteraction,
         readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current(),
-        environment: [String: String] = ProcessInfo.processInfo.environment)
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        allowBackgroundReadForClassification: Bool = false)
         -> Data?
     {
         guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
         let interactionMetadata = interaction == .userInitiated ? "user" : "background"
-        guard interaction == .userInitiated else {
+        guard interaction == .userInitiated || allowBackgroundReadForClassification else {
             self.log.debug(
                 "Claude keychain security CLI read skipped outside user action",
                 metadata: [
@@ -280,6 +281,13 @@ extension ClaudeOAuthCredentialsStore {
         account: String?,
         environment: [String: String]) -> [String]?
     {
+        let isolatedKeychainPath = self.isolatedSecurityCLIKeychainPath(environment: environment)
+        if KeychainTestSafety.shouldBlockRealKeychainAccess(environment: environment),
+           isolatedKeychainPath == nil
+        {
+            return nil
+        }
+
         var arguments = [
             "find-generic-password",
             "-s",
@@ -293,10 +301,10 @@ extension ClaudeOAuthCredentialsStore {
         let rawIsolatedPath = environment[self.isolatedSecurityCLIKeychainEnvironmentKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if rawIsolatedPath != nil || KeychainAccessGate.isDisabledByEnvironment(environment) {
-            guard let isolatedPath = self.isolatedSecurityCLIKeychainPath(environment: environment) else {
+            guard let isolatedKeychainPath else {
                 return nil
             }
-            arguments.append(isolatedPath)
+            arguments.append(isolatedKeychainPath)
         }
         return arguments
     }
@@ -330,7 +338,8 @@ extension ClaudeOAuthCredentialsStore {
     static func readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
         interaction _: ProviderInteraction,
         readStrategy _: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current(),
-        environment _: [String: String] = ProcessInfo.processInfo.environment)
+        environment _: [String: String] = ProcessInfo.processInfo.environment,
+        allowBackgroundReadForClassification _: Bool = false)
         -> Data?
     {
         nil
@@ -365,7 +374,8 @@ extension ClaudeOAuthCredentialsStore {
             self.readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
                 interaction: interaction,
                 readStrategy: readStrategy,
-                environment: environment)
+                environment: environment,
+                allowBackgroundReadForClassification: true)
         }
         guard let payload else { return false }
         return ClaudeOAuthCredentials.isMcpOAuthOnlyPayload(data: payload)

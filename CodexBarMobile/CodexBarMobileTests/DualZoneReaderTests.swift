@@ -44,8 +44,8 @@ struct DualZoneReaderTests {
 
     // MARK: - reconstructSnapshots
 
-    @Test("Envelopes from the same device collapse into one snapshot")
-    func reconstructGroupsByDeviceID() {
+    @Test
+    func `Envelopes from the same device collapse into one snapshot`() {
         let envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [
             "mac-1": [
                 makeEnvelope(
@@ -70,8 +70,8 @@ struct DualZoneReaderTests {
         #expect(snapshot.providers.last?.providerID == "codex")
     }
 
-    @Test("Multiple devices produce multiple snapshots, sorted newest-first")
-    func reconstructMultiDevice() {
+    @Test
+    func `Multiple devices produce multiple snapshots, sorted newest-first`() {
         let envelopesByDeviceID: [String: [ProviderUsageEnvelope]] = [
             "mac-old": [
                 makeEnvelope(
@@ -92,16 +92,16 @@ struct DualZoneReaderTests {
         #expect(snapshots[1].deviceID == "mac-old")
     }
 
-    @Test("Empty input produces empty output")
-    func reconstructEmpty() {
+    @Test
+    func `Empty input produces empty output`() {
         let snapshots = CloudSyncManager.reconstructSnapshots(envelopesByDeviceID: [:])
         #expect(snapshots.isEmpty)
     }
 
     // MARK: - prioritiseByDevice
 
-    @Test("Per-provider snapshot wins over legacy for the same device")
-    func priorityPerProviderOverLegacy() {
+    @Test
+    func `Per-provider snapshot wins over legacy for the same device`() {
         let perProvider = SyncedUsageSnapshot(
             providers: [makeProvider(id: "codex", lastUpdated: t3)],
             syncTimestamp: t3,
@@ -122,8 +122,8 @@ struct DualZoneReaderTests {
         #expect(merged[0].providers.first?.providerID == "codex")
     }
 
-    @Test("Devices only in legacy pass through")
-    func priorityLegacyFallback() {
+    @Test
+    func `Devices only in legacy pass through`() {
         let perProvider = SyncedUsageSnapshot(
             providers: [makeProvider(id: "codex", lastUpdated: t3)],
             syncTimestamp: t3, deviceName: "Mac A", deviceID: "mac-a")
@@ -139,8 +139,8 @@ struct DualZoneReaderTests {
         #expect(merged.contains(where: { $0.deviceID == "mac-b" }))
     }
 
-    @Test("Only legacy present — merged result matches legacy")
-    func priorityOnlyLegacy() {
+    @Test
+    func `Only legacy present — merged result matches legacy`() {
         let legacy = SyncedUsageSnapshot(
             providers: [makeProvider(id: "codex", lastUpdated: t1)],
             syncTimestamp: t1, deviceName: "Old Mac", deviceID: "mac-old")
@@ -152,8 +152,8 @@ struct DualZoneReaderTests {
         #expect(merged[0].deviceID == "mac-old")
     }
 
-    @Test("Only per-provider present — merged result matches per-provider")
-    func priorityOnlyPerProvider() {
+    @Test
+    func `Only per-provider present — merged result matches per-provider`() {
         let perProvider = SyncedUsageSnapshot(
             providers: [makeProvider(id: "claude", lastUpdated: t3)],
             syncTimestamp: t3, deviceName: "New Mac", deviceID: "mac-new")
@@ -165,8 +165,8 @@ struct DualZoneReaderTests {
         #expect(merged[0].deviceID == "mac-new")
     }
 
-    @Test("Legacy snapshots without deviceID dedup by deviceName")
-    func priorityDeviceNameFallback() {
+    @Test
+    func `Legacy snapshots without deviceID dedup by deviceName`() {
         // Pre-UUID Mac builds wrote deviceID=nil, so the fallback key is the
         // deviceName. A per-provider snapshot for a device with a UUID should
         // NOT collide with a legacy device of the same name unless deviceIDs
@@ -193,8 +193,8 @@ struct DualZoneReaderTests {
     // dense-new setups, long-idle devices, and cross-date boundaries
     // were uncovered. These add the missing distributions.
 
-    @Test("Reconstruct keeps 7-day-fresh + 30-day-old entries from same device ordered newest-first")
-    func reconstructLongIdlePlusFreshMixedTimestamps() {
+    @Test
+    func `Reconstruct keeps 7-day-fresh + 30-day-old entries from same device ordered newest-first`() {
         let anchor = Date(timeIntervalSince1970: 1_745_500_000)
         let thirtyDaysAgo = anchor.addingTimeInterval(-30 * 86400)
         let sevenDaysAgo = anchor.addingTimeInterval(-7 * 86400)
@@ -229,8 +229,8 @@ struct DualZoneReaderTests {
         #expect(snapshot.providers.last?.providerID == "codex")
     }
 
-    @Test("Priority merge keeps legacy intact when per-provider list is empty (transient zone error)")
-    func priorityEmptyPerProviderKeepsLegacyIntact() {
+    @Test
+    func `Priority merge keeps legacy intact when per-provider list is empty (transient zone error)`() {
         // CloudKit per-provider zone can return `[]` for two reasons:
         //   (a) Authoritative empty — the user really has no data there.
         //   (b) Transient error — request failed, caller still wants the

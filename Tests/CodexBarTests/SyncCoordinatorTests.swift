@@ -77,7 +77,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSkippedWhenSyncDisabled() async {
+    func `push skipped when sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
@@ -91,7 +91,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushSucceedsWhenSyncEnabled() async {
+    func `push succeeds when sync enabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-enabled")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -110,7 +110,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushFailureTracksStatus() async {
+    func `push failure tracks status`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-failure")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -130,7 +130,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func cloudKitProductionSchemaMessageExtractsRecordType() {
+    func `cloud kit production schema message extracts record type`() {
         let message =
             "Error saving record <CKRecordID: 0x123; recordName=ABC, " +
             "zoneID=DeviceSnapshotsZone:__defaultOwner__> to server: " +
@@ -144,7 +144,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func legacySchemaFailureWithPerProviderSuccessReportsPartialSuccess() async throws {
+    func `legacy schema failure with per provider success reports partial success`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-schema-partial")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -182,7 +182,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func legacyAndPerProviderFailuresReportFullFailure() async throws {
+    func `legacy and per provider failures report full failure`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-both-fail")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -217,7 +217,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func isSyncingIsFalseAfterPush() async {
+    func `is syncing is false after push`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-syncing")
         settings.iCloudSyncEnabled = true
         let store = self.makeUsageStore(settings: settings)
@@ -231,7 +231,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushIncludesModelAndServiceBreakdowns() async throws {
+    func `push includes model and service breakdowns`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-breakdowns")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -299,7 +299,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func pushBuildsCodexCostSummaryFromDashboardWhenTokenSnapshotMissing() async throws {
+    func `push builds codex cost summary from dashboard when token snapshot missing`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-dashboardFallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -341,7 +341,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func defaultSyncEnabledIsTrue() throws {
+    func `default sync enabled is true`() throws {
         let suite = "SyncCoord-defaultEnabled"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -356,7 +356,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func syncEnabledPersistsAcrossInstances() throws {
+    func `sync enabled persists across instances`() throws {
         let suite = "SyncCoord-persist"
         let defaultsA = try #require(UserDefaults(suiteName: suite))
         defaultsA.removePersistentDomain(forName: suite)
@@ -380,7 +380,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func togglingSettingUpdatesUserDefaults() throws {
+    func `toggling setting updates user defaults`() throws {
         let suite = "SyncCoord-toggle"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -401,7 +401,7 @@ struct SyncCoordinatorTests {
     // MARK: - P4 per-provider dual-write
 
     @Test
-    func perProviderWriteFiresAlongsideLegacyOnFirstPush() async throws {
+    func `per provider write fires alongside legacy on first push`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-first")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -433,7 +433,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func perProviderWriteSkippedWhenDataUnchanged() async throws {
+    func `per provider write skipped when data unchanged`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-unchanged")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -479,7 +479,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func perProviderWriteSendsOnlyChangedProviderOnIncrementalUpdate() async throws {
+    func `per provider write sends only changed provider on incremental update`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-perprov-incr")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -561,8 +561,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - L1 ghost-records cleanup
 
-    @Test("L1: first push after restart does NOT emit deletes (pushHistorySeeded guard)")
-    func l1NoDeleteOnFirstPushAfterRestart() async throws {
+    @Test
+    func `L1: first push after restart does NOT emit deletes (pushHistorySeeded guard)`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-firstpush")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -592,8 +592,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0)
     }
 
-    @Test("L1: provider disabled between cycles emits delete for its CKRecord")
-    func l1DeleteFiresWhenProviderDisabled() async throws {
+    @Test
+    func `L1: provider disabled between cycles emits delete for its CKRecord`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-disable")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -644,8 +644,8 @@ struct SyncCoordinatorTests {
         #expect(deleted.first?.contains("claude") == true)
     }
 
-    @Test("L1: account-identity drift (composite key change) emits delete for old composite")
-    func l1DeleteFiresOnAccountIdentityDrift() async throws {
+    @Test
+    func `L1: account-identity drift (composite key change) emits delete for old composite`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-drift")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -705,8 +705,8 @@ struct SyncCoordinatorTests {
         #expect(deleted.first?.hasSuffix("|codex|_") == true)
     }
 
-    @Test("L1: no deletes when all providers stay enabled with stable identity")
-    func l1NoDeleteWhenSteadyState() async throws {
+    @Test
+    func `L1: no deletes when all providers stay enabled with stable identity`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-steady")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -743,8 +743,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0)
     }
 
-    @Test("L1: delete failure does NOT advance lastPushedRecordNames (retries next cycle)")
-    func l1DeleteFailurePreservesRetry() async throws {
+    @Test
+    func `L1: delete failure does NOT advance lastPushedRecordNames (retries next cycle)`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-retry")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -797,8 +797,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - L1 reconcile (startup CKQuery for stranded records)
 
-    @Test("L1 reconcile: startup fetch seeds lastPushedRecordNames so stranded mocks get cleaned next cycle")
-    func l1ReconcileSeedsFromCloudKitOnStartup() async throws {
+    @Test
+    func `L1 reconcile seeds last pushed names so stranded mocks clean next cycle`() async throws {
         // Reproduces user-reported 2026-05-05 bug: stranded mock CKRecords
         // from a previous Mac process incarnation persisted on iOS forever.
         // Cause: lastPushedRecordNames was in-memory only; restart wiped
@@ -872,8 +872,8 @@ struct SyncCoordinatorTests {
         #expect(deletedNames.contains(strandedMockB))
     }
 
-    @Test("L1 reconcile: empty CloudKit result preserves first-push guard semantics")
-    func l1ReconcileEmptyDoesNotChangeBehavior() async throws {
+    @Test
+    func `L1 reconcile: empty CloudKit result preserves first-push guard semantics`() async throws {
         // Fresh device, never pushed before — CloudKit returns empty.
         // Reconcile should be a no-op; first push behavior unchanged
         // (no spurious deletes, lastPushedRecordNames seeds normally).
@@ -907,8 +907,8 @@ struct SyncCoordinatorTests {
         #expect(mock.deleteCallCount == 0) // no stranded records to clean
     }
 
-    @Test("L1 reconcile: skipped when iCloud sync disabled")
-    func l1ReconcileSkippedWhenSyncDisabled() async {
+    @Test
+    func `L1 reconcile: skipped when iCloud sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-l1-reconcile-disabled")
         settings.iCloudSyncEnabled = false
         let store = self.makeUsageStore(settings: settings)
@@ -925,8 +925,8 @@ struct SyncCoordinatorTests {
 
     // MARK: - extraRateWindows passthrough (Claude Designs/Routines, Cursor Extra)
 
-    @Test("extraRateWindows: Claude Designs/Daily Routines/Web Sonnet appear in rateWindows")
-    func extraRateWindowsPassThroughForClaude() async throws {
+    @Test
+    func `extraRateWindows: Claude Designs/Daily Routines/Web Sonnet appear in rateWindows`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-extras-claude")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -986,8 +986,8 @@ struct SyncCoordinatorTests {
         #expect(labels.contains("Web Sonnet"))
     }
 
-    @Test("extraRateWindows: nil extras don't break legacy primary/secondary mapping")
-    func extraRateWindowsNilDoesNotBreak() async throws {
+    @Test
+    func `extraRateWindows: nil extras don't break legacy primary/secondary mapping`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-extras-nil")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -1018,7 +1018,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func ghostProviderNotPushedToPerProviderZone() async throws {
+    func `ghost provider not pushed to per provider zone`() async throws {
         // Provider enabled but has NO data yet (mimics early startup before
         // OAuth / cookies populate rate windows / cost / budget). The
         // legacy-zone monolithic write still includes it, but per-provider

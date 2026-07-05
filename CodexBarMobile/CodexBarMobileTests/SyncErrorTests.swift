@@ -8,36 +8,36 @@ import Testing
 struct SyncErrorTests {
     // MARK: - CloudSyncError from CKError
 
-    @Test("Network unavailable maps correctly")
-    func networkUnavailable() {
+    @Test
+    func `Network unavailable maps correctly`() {
         let ckError = CKError(.networkUnavailable)
         let syncError = CloudSyncError(from: ckError)
         #expect(syncError.description == "Network unavailable")
     }
 
-    @Test("Network failure maps to networkUnavailable")
-    func networkFailure() {
+    @Test
+    func `Network failure maps to networkUnavailable`() {
         let ckError = CKError(.networkFailure)
         let syncError = CloudSyncError(from: ckError)
         #expect(syncError.description == "Network unavailable")
     }
 
-    @Test("Not authenticated maps correctly")
-    func notAuthenticated() {
+    @Test
+    func `Not authenticated maps correctly`() {
         let ckError = CKError(.notAuthenticated)
         let syncError = CloudSyncError(from: ckError)
         #expect(syncError.description == "iCloud account not signed in")
     }
 
-    @Test("Quota exceeded maps correctly")
-    func quotaExceeded() {
+    @Test
+    func `Quota exceeded maps correctly`() {
         let ckError = CKError(.quotaExceeded)
         let syncError = CloudSyncError(from: ckError)
         #expect(syncError.description == "iCloud storage quota exceeded")
     }
 
-    @Test("Server response lost maps to server error")
-    func serverResponseLost() {
+    @Test
+    func `Server response lost maps to server error`() {
         let ckError = CKError(.serverResponseLost)
         let syncError = CloudSyncError(from: ckError)
         if case .serverError = syncError {
@@ -47,8 +47,8 @@ struct SyncErrorTests {
         }
     }
 
-    @Test("Unknown error includes description")
-    func unknownError() {
+    @Test
+    func `Unknown error includes description`() {
         let ckError = CKError(.internalError)
         let syncError = CloudSyncError(from: ckError)
         if case let .unknown(msg) = syncError {
@@ -58,8 +58,8 @@ struct SyncErrorTests {
         }
     }
 
-    @Test("Queryable recordName error maps to Production index issue")
-    func queryableRecordNameError() {
+    @Test
+    func `Queryable recordName error maps to Production index issue`() {
         let ckError = CKError(
             .invalidArguments,
             userInfo: [
@@ -76,41 +76,41 @@ struct SyncErrorTests {
 
     // MARK: - SyncStatus properties
 
-    @Test("SyncStatus.error isError returns true")
-    func statusErrorIsError() {
+    @Test
+    func `SyncStatus.error isError returns true`() {
         let status = SyncStatus.error(message: "test")
         #expect(status.isError == true)
     }
 
-    @Test("SyncStatus.noData isError returns true")
-    func statusNoDataIsError() {
+    @Test
+    func `SyncStatus.noData isError returns true`() {
         let status = SyncStatus.noData
         #expect(status.isError == true)
     }
 
-    @Test("SyncStatus.incompatibleData isError returns true")
-    func statusIncompatibleIsError() {
+    @Test
+    func `SyncStatus.incompatibleData isError returns true`() {
         let status = SyncStatus.incompatibleData
         #expect(status.isError == true)
     }
 
-    @Test("SyncStatus.synced isError returns false")
-    func statusSyncedNotError() {
+    @Test
+    func `SyncStatus.synced isError returns false`() {
         let status = SyncStatus.synced(lastConfirmedSync: Date(timeIntervalSince1970: 1_800_000_000))
         #expect(status.isError == false)
     }
 
-    @Test("SyncStatus.syncing isError returns false")
-    func statusSyncingNotError() {
+    @Test
+    func `SyncStatus.syncing isError returns false`() {
         let status = SyncStatus.syncing
         #expect(status.isError == false)
     }
 
     // MARK: - Full fetch state handling
 
-    @Test("Authoritative empty full fetch clears cached snapshot and shows no data")
+    @Test
     @MainActor
-    func authoritativeEmptyFullFetchClearsCachedSnapshot() {
+    func `Authoritative empty full fetch clears cached snapshot and shows no data`() {
         let data = SyncedUsageData()
         data.snapshot = PreviewData.sampleSnapshot
         data.syncStatus = .synced(lastConfirmedSync: PreviewData.sampleSnapshot.syncTimestamp)
@@ -125,9 +125,9 @@ struct SyncErrorTests {
         #expect(data.syncStatus == .noData)
     }
 
-    @Test("Full fetch error preserves cached snapshot and synced status")
+    @Test
     @MainActor
-    func fullFetchErrorPreservesCachedSnapshot() {
+    func `Full fetch error preserves cached snapshot and synced status`() {
         let data = SyncedUsageData()
         data.snapshot = PreviewData.sampleSnapshot
         data.syncStatus = .syncing
@@ -141,9 +141,9 @@ struct SyncErrorTests {
         #expect(data.syncStatus == .synced(lastConfirmedSync: PreviewData.sampleSnapshot.syncTimestamp))
     }
 
-    @Test("Cold full fetch production index error surfaces as error status")
+    @Test
     @MainActor
-    func coldProductionIndexErrorSurfacesAsError() {
+    func `Cold full fetch production index error surfaces as error status`() {
         let data = SyncedUsageData()
 
         data.applyFullFetchResults(
@@ -161,8 +161,8 @@ struct SyncErrorTests {
 
     // MARK: - Sync Freshness Formatting
 
-    @Test("Sync freshness formatter ticks seconds from confirmed sync")
-    func freshnessFormatterTicksSeconds() {
+    @Test
+    func `Sync freshness formatter ticks seconds from confirmed sync`() {
         let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
 
         #expect(SyncFreshnessFormatter.ageText(
@@ -173,8 +173,8 @@ struct SyncErrorTests {
             now: syncedAt.addingTimeInterval(4.1)) == "4 sec ago")
     }
 
-    @Test("Sync freshness formatter handles minute hour and day thresholds")
-    func freshnessFormatterThresholds() {
+    @Test
+    func `Sync freshness formatter handles minute hour and day thresholds`() {
         let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
 
         #expect(SyncFreshnessFormatter.ageText(
@@ -188,8 +188,8 @@ struct SyncErrorTests {
             now: syncedAt.addingTimeInterval(86400)) == "1d ago")
     }
 
-    @Test("Refreshing label preserves last confirmed sync age")
-    func refreshingLabelPreservesLastConfirmedSyncAge() {
+    @Test
+    func `Refreshing label preserves last confirmed sync age`() {
         let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let now = syncedAt.addingTimeInterval(12)
 
@@ -198,8 +198,8 @@ struct SyncErrorTests {
             now: now) == "Refreshing · last synced 12 sec ago")
     }
 
-    @Test("Refresh failed label preserves last confirmed sync age")
-    func refreshFailedLabelPreservesLastConfirmedSyncAge() {
+    @Test
+    func `Refresh failed label preserves last confirmed sync age`() {
         let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let now = syncedAt.addingTimeInterval(120)
 
@@ -208,8 +208,8 @@ struct SyncErrorTests {
             now: now) == "Refresh failed · last synced 2 min ago")
     }
 
-    @Test("Sync freshness state uses injected now for stale resolution")
-    func freshnessStateUsesInjectedNowForStaleResolution() {
+    @Test
+    func `Sync freshness state uses injected now for stale resolution`() {
         let syncedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let status = SyncStatus.synced(lastConfirmedSync: syncedAt)
 
@@ -230,8 +230,8 @@ struct SyncErrorTests {
 
     // MARK: - MultiDeviceSyncResult
 
-    @Test("MultiDeviceSyncResult.empty has no snapshots")
-    func emptyResult() {
+    @Test
+    func `MultiDeviceSyncResult.empty has no snapshots`() {
         let result = MultiDeviceSyncResult.empty
         if case .empty = result {
             // Expected
@@ -240,8 +240,8 @@ struct SyncErrorTests {
         }
     }
 
-    @Test("MultiDeviceSyncResult.error carries CloudSyncError")
-    func errorResult() {
+    @Test
+    func `MultiDeviceSyncResult.error carries CloudSyncError`() {
         let result = MultiDeviceSyncResult.error(.networkUnavailable)
         if case let .error(error) = result {
             #expect(error.description == "Network unavailable")
@@ -252,15 +252,15 @@ struct SyncErrorTests {
 
     // MARK: - SyncPushResult
 
-    @Test("SyncPushResult.success has no message")
-    func pushSuccess() {
+    @Test
+    func `SyncPushResult.success has no message`() {
         let result = SyncPushResult.success
         #expect(result.succeeded == true)
         #expect(result.message == nil)
     }
 
-    @Test("SyncPushResult.failure carries error message")
-    func pushFailure() {
+    @Test
+    func `SyncPushResult.failure carries error message`() {
         let result = SyncPushResult.failure("Network unavailable")
         #expect(result.succeeded == false)
         #expect(result.message == "Network unavailable")

@@ -24,7 +24,7 @@ extension SyncCoordinatorTests {
     }
 
     @Test
-    func kimiPerProviderRateWindowsUseSemanticIdentities() async throws {
+    func `kimi per provider rate windows use semantic identities`() async throws {
         let settings = self.makeRateWindowIdentitySettingsStore(suite: "SyncCoord-kimi-rate-window-identities")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(

@@ -4,8 +4,8 @@ import Testing
 
 @Suite("Provider brand assets")
 struct ProviderBrandAssetTests {
-    @Test("Known providers resolve to provider icon assets")
-    func knownProvidersResolveToAssets() {
+    @Test
+    func `Known providers resolve to provider icon assets`() {
         #expect(ProviderBrandAsset.assetName(for: "codex") == "ProviderIcon-codex")
         #expect(ProviderBrandAsset.assetName(for: "claude") == "ProviderIcon-claude")
         #expect(ProviderBrandAsset.assetName(for: "cursor") == "ProviderIcon-cursor")
@@ -13,8 +13,8 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "sakana") == "ProviderIcon-sakana")
     }
 
-    @Test("Provider aliases reuse their canonical Mac icons")
-    func aliasesResolveToCanonicalAssets() {
+    @Test
+    func `Provider aliases reuse their canonical Mac icons`() {
         #expect(ProviderBrandAsset.assetName(for: "openai") == "ProviderIcon-codex")
         #expect(ProviderBrandAsset.assetName(for: "azureopenai") == "ProviderIcon-codex")
         #expect(ProviderBrandAsset.assetName(for: "moonshot") == "ProviderIcon-kimi")
@@ -22,8 +22,8 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "alibabatokenplan") == "ProviderIcon-alibaba")
     }
 
-    @Test("Every synced quota provider has a brand mark mapping")
-    func syncedQuotaProvidersResolveToAssets() {
+    @Test
+    func `Every synced quota provider has a brand mark mapping`() {
         for provider in QuotaProviderList.providers {
             #expect(
                 ProviderBrandAsset.assetName(for: provider.id) != nil,
@@ -31,8 +31,8 @@ struct ProviderBrandAssetTests {
         }
     }
 
-    @Test("Unknown providers use the fallback mark")
-    func unknownProvidersUseFallback() {
+    @Test
+    func `Unknown providers use the fallback mark`() {
         #expect(ProviderBrandAsset.assetName(for: "") == nil)
         #expect(ProviderBrandAsset.assetName(for: "brand-new-ai-tool") == nil)
     }
