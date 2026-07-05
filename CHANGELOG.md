@@ -7,6 +7,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Added
+
+- Claude: show opt-in read-only claude-swap accounts as stacked usage cards
+  without delaying ambient refreshes.
+
 ### Changed
 
 - Synced upstream CodexBar Mac improvements through `78076795`
@@ -46,6 +51,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Claude history: quarantine same-directory account-switch samples until
+  credential ownership is stable, preventing plan-utilization history from
+  crossing accounts.
 - Sakana AI: parse server-rendered quota reset timestamps as UTC instead of
   device-local time.
 - Usage pace: keep rounded on-track deficit and reserve labels visible instead
