@@ -19,8 +19,8 @@ struct CWLSchemaTests {
         return dir.appendingPathComponent("Store.sqlite")
     }
 
-    @Test("Container builds successfully with DailyCostPoint registered + empty fetch works")
-    func containerIncludesDailyCostPoint() throws {
+    @Test
+    func `Container builds successfully with DailyCostPoint registered + empty fetch works`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -32,8 +32,8 @@ struct CWLSchemaTests {
         #expect(results.isEmpty)
     }
 
-    @Test("DailyCostPoint coexists with existing 4 models in same container")
-    func coexistenceWithExistingModels() throws {
+    @Test
+    func `DailyCostPoint coexists with existing 4 models in same container`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -48,8 +48,8 @@ struct CWLSchemaTests {
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
     }
 
-    @Test("DailyCostPoint insert + save + fetch round-trips all fields")
-    func insertAndFieldRoundTrip() throws {
+    @Test
+    func `DailyCostPoint insert + save + fetch round-trips all fields`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -89,8 +89,8 @@ struct CWLSchemaTests {
         #expect(row.lastUpdated == lastUpdated)
     }
 
-    @Test("makeCompositeKey format pinned to deviceID|providerID|accountEmail|dayKey")
-    func compositeKeyFormat() {
+    @Test
+    func `makeCompositeKey format pinned to deviceID|providerID|accountEmail|dayKey`() {
         let withEmail = DailyCostPoint.makeCompositeKey(
             deviceID: "dev-A",
             providerID: "codex",

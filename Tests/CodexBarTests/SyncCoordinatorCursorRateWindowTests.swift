@@ -26,7 +26,7 @@ struct SyncCoordinatorCursorRateWindowTests {
     }
 
     @Test
-    func pushExportsCursorAutoAndAPIWindowsWithBillingCyclePace() async throws {
+    func `push exports cursor auto and API windows with billing cycle pace`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-auto-api-pace")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -68,7 +68,7 @@ struct SyncCoordinatorCursorRateWindowTests {
     }
 
     @Test
-    func pushExportsCursorPlanFallbackLabelAndIdentity() async throws {
+    func `push exports cursor plan fallback label and identity`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-plan-fallback")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(

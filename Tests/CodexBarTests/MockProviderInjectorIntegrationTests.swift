@@ -73,8 +73,8 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR2 Extensibility / determinism
 
-    @Test("MR2.1: enabled count is exactly 60 (50 IDs, 6 rich + 52 simple + 2 fallback entries)")
-    func enabledCountIsStable() {
+    @Test
+    func `MR2.1: enabled count is exactly 60 (50 IDs, 6 rich + 52 simple + 2 fallback entries)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         // iOS 1.5.0: 32 mocks (29 IDs). iOS 1.6.0 catch-up: +11 simple
@@ -90,8 +90,8 @@ struct MockProviderInjectorIntegrationTests {
     /// Phase G multi-account additions REUSE existing providerIDs
     /// (second tabs for openai/deepseek/... that already had a first
     /// entry), so unique providerID count stays at 50.
-    @Test("MR2.2: 50 distinct providerIDs match the published allowlists (48 real + 2 synthetic)")
-    func providerIDsHaveSensibleDistribution() {
+    @Test
+    func `MR2.2: 50 distinct providerIDs match the published allowlists (48 real + 2 synthetic)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -113,8 +113,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(uniqueIDs == MockProviderInjector.allMockProviderIDs)
     }
 
-    @Test("MR2.3: allMocks() is deterministic across calls (same providerID set)")
-    func reToggleIsDeterministic() {
+    @Test
+    func `MR2.3: allMocks() is deterministic across calls (same providerID set)`() {
         // allMocks() is shape-only, doesn't depend on activation
         // state. Call twice and verify the providerID set is stable
         // (mocks are defined statically, so this is a regression
@@ -126,8 +126,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(firstIDs == secondIDs)
     }
 
-    @Test("MR2.4: same call produces consistent providerName/email per ID")
-    func sameCallStableNameEmail() {
+    @Test
+    func `MR2.4: same call produces consistent providerName/email per ID`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots1 = MockProviderInjector.allMocks()
@@ -140,8 +140,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(pairs1 == pairs2)
     }
 
-    @Test("MR2.5: every mock account email uses `.test` TLD (universal mock signal)")
-    func allMockEmailsUseTestTLD() {
+    @Test
+    func `MR2.5: every mock account email uses .test TLD (universal mock signal)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         for snap in MockProviderInjector.allMocks() {
@@ -154,8 +154,8 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR3 SyncCoordinator integration
 
-    @Test("MR3.1: enabled mock causes 52 mock providers in lastSnapshot")
-    func enabledMockEmitsViaSyncCoordinator() async throws {
+    @Test
+    func `MR3.1: enabled mock causes 52 mock providers in lastSnapshot`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-1-Enable")
@@ -179,8 +179,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(mockProviders.count == 60)
     }
 
-    @Test("MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot")
-    func disabledMockEmitsNothing() async throws {
+    @Test
+    func `MR3.2: empty mock injector closure causes 0 mock providers in lastSnapshot`() async throws {
         let settings = self.makeSettingsStore(suite: "MR3-2-Disable")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -200,8 +200,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(mockProviders.isEmpty)
     }
 
-    @Test("MR3.3: mock providers also flow through per-provider write path")
-    func mockProvidersFlowToPerProviderZone() async throws {
+    @Test
+    func `MR3.3: mock providers also flow through per-provider write path`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-3-PerProvider")
@@ -240,8 +240,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR3.4: enable → disable → next push has no mock + delete fires for all 8 mock recordNames")
-    func enableDisableTriggersGhostCleanup() async throws {
+    @Test
+    func `MR3.4: enable → disable → next push has no mock + delete fires for all 8 mock recordNames`() async throws {
         // Each mock account is identified by `*-mock@*.test` email
         // suffix, regardless of whether the providerID is real-borrowed
         // or synthetic. When mock is disabled, every mock account
@@ -296,8 +296,8 @@ struct MockProviderInjectorIntegrationTests {
             "≥29 mock per-account recordNames should be delete-targeted; got \(mockDeletes.count)")
     }
 
-    @Test("MR3.5: mock providers don't disturb real provider sync (real codex coexists with mock codex)")
-    func mockDoesNotDisturbRealProvider() async throws {
+    @Test
+    func `MR3.5: mock providers don't disturb real provider sync (real codex coexists with mock codex)`() async throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let settings = self.makeSettingsStore(suite: "MR3-5-Coexist")
@@ -352,8 +352,8 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR4 Mock + real coexistence
 
-    @Test("MR4.1: every mock providerID is in either real-borrowed or synthetic allowlist")
-    func mockProviderIDsInAllowlist() {
+    @Test
+    func `MR4.1: every mock providerID is in either real-borrowed or synthetic allowlist`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -376,8 +376,8 @@ struct MockProviderInjectorIntegrationTests {
             "real-borrowed mock IDs must exist in UsageProvider.allCases; missing: \(missing)")
     }
 
-    @Test("MR4.2: mock per-account records have distinct CK record names")
-    func mockMultiAccountRecordNamesDistinct() {
+    @Test
+    func `MR4.2: mock per-account records have distinct CK record names`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -392,8 +392,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(Set(recordNames).count == recordNames.count, "all 43 mock record names must be distinct")
     }
 
-    @Test("MR4.3: mock multi-account uses accountIdentities with `{providerID}:{scheme}:{value}` schema")
-    func mockMultiAccountIdentitiesAlignWithRealSchema() {
+    @Test
+    func `MR4.3: mock multi-account uses accountIdentities with {providerID}:{scheme}:{value} schema`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -424,64 +424,64 @@ struct MockProviderInjectorIntegrationTests {
         return defaults
     }
 
-    @Test("MR5.1: env var `1` activates (parser-level)")
-    func envVarValueOneActivates() {
+    @Test
+    func `MR5.1: env var 1 activates (parser-level)`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "1"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2: env var `true` (lowercase) activates")
-    func envVarValueTrueActivates() {
+    @Test
+    func `MR5.2: env var true (lowercase) activates`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "true"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2b: env var `TRUE` (uppercase) activates")
-    func envVarValueTrueUppercaseActivates() {
+    @Test
+    func `MR5.2b: env var TRUE (uppercase) activates`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "TRUE"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2c: env var `yes` activates")
-    func envVarValueYesActivates() {
+    @Test
+    func `MR5.2c: env var yes activates`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "yes"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2d: env var `0` does NOT activate")
-    func envVarValueZeroDoesNotActivate() {
+    @Test
+    func `MR5.2d: env var 0 does NOT activate`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "0"]
         #expect(!MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2e: env var arbitrary value (`maybe`) does NOT activate")
-    func envVarValueArbitraryDoesNotActivate() {
+    @Test
+    func `MR5.2e: env var arbitrary value (maybe) does NOT activate`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "maybe"]
         #expect(!MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2f: env var truthy overrides UserDefaults disabled")
-    func envVarTruthyOverridesUserDefaultsDisabled() {
+    @Test
+    func `MR5.2f: env var truthy overrides UserDefaults disabled`() {
         let defaults = self.transientDefaults(setEnabled: false)
         let env = ["CODEXBAR_MOCK_PROVIDERS": "1"]
         #expect(MockProviderInjector.isEnabled(
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2g: UserDefaults true alone does NOT activate without env var (env var is hard gate)")
-    func userDefaultsAloneDoesNotActivateWithoutEnvVar() {
+    @Test
+    func `MR5.2g: UserDefaults true alone does NOT activate without env var (env var is hard gate)`() {
         // Hardened in 0.23.5: env var is a hard gate. Without
         // CODEXBAR_MOCK_PROVIDERS set on launch, the entire mock
         // tooling is invisible — UserDefaults state alone cannot
@@ -494,8 +494,8 @@ struct MockProviderInjectorIntegrationTests {
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2h: env var present + falsy + UserDefaults true → activates (debug mode, UI toggle drives)")
-    func envVarFalsyDoesNotOverrideUserDefaultsTrue() {
+    @Test
+    func `MR5.2h: env var present + falsy + UserDefaults true → activates (debug mode, UI toggle drives)`() {
         // Design choice: env var presence opens debug mode. Within
         // debug mode, env var truthy short-circuits to ON; otherwise
         // UI toggle (UserDefaults) drives the runtime state. So
@@ -506,13 +506,13 @@ struct MockProviderInjectorIntegrationTests {
             environment: env, userDefaults: defaults))
     }
 
-    @Test("MR5.2i: env var name constant is exactly `CODEXBAR_MOCK_PROVIDERS`")
-    func envVarNameIsConstant() {
+    @Test
+    func `MR5.2i: env var name constant is exactly CODEXBAR_MOCK_PROVIDERS`() {
         #expect(MockProviderInjector.environmentVariableName == "CODEXBAR_MOCK_PROVIDERS")
     }
 
-    @Test("MR5.3: disabled gate always returns empty (env var absent)")
-    func disabledReturnsCompletelyEmpty() {
+    @Test
+    func `MR5.3: disabled gate always returns empty (env var absent)`() {
         // Verifies the gate via the testable variant — without env
         // var, the injector reports disabled regardless of defaults
         // state. (The shape-only `allMocks()` always returns the full
@@ -525,8 +525,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.4: every mock snapshot has lastUpdated within reasonable window")
-    func mockTimestampsAreReasonable() {
+    @Test
+    func `MR5.4: every mock snapshot has lastUpdated within reasonable window`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -537,8 +537,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.5: synthetic 3-lane utilization history all entries within 30 days")
-    func syntheticHistoryWithin30Days() {
+    @Test
+    func `MR5.5: synthetic 3-lane utilization history all entries within 30 days`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -553,8 +553,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.6: cursor fallback mock has no rate windows or cost (gracefully degraded)")
-    func errorMockHasNoRateWindows() {
+    @Test
+    func `MR5.6: cursor fallback mock has no rate windows or cost (gracefully degraded)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -566,8 +566,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(errMock?.budget == nil)
     }
 
-    @Test("MR5.7: Perplexity mock credit values are non-negative")
-    func perplexityMockCreditsNonNegative() {
+    @Test
+    func `MR5.7: Perplexity mock credit values are non-negative`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -581,8 +581,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect((credits?.purchasedUsedCents ?? -1) >= 0)
     }
 
-    @Test("MR5.8: usedPercent values stay in [0, 100] range across all mocks")
-    func usedPercentInRange() {
+    @Test
+    func `MR5.8: usedPercent values stay in [0, 100] range across all mocks`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -602,8 +602,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.9: mock snapshots are valid Codable (no encoding errors)")
-    func mockSnapshotsAreValidCodable() throws {
+    @Test
+    func `MR5.9: mock snapshots are valid Codable (no encoding errors)`() throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -615,8 +615,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR5.9b: at least one mock has usedPercent at 0 boundary")
-    func boundaryZeroPercentExists() {
+    @Test
+    func `MR5.9b: at least one mock has usedPercent at 0 boundary`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -627,8 +627,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(zeroBoundary, "at least one mock should exercise the 0% boundary (per-Codex-MCP-review P2)")
     }
 
-    @Test("MR5.9c: at least one mock has usedPercent at 100 boundary")
-    func boundaryHundredPercentExists() {
+    @Test
+    func `MR5.9c: at least one mock has usedPercent at 100 boundary`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -640,8 +640,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(hundredBoundary, "at least one mock should exercise the 100% boundary (per-Codex-MCP-review P2)")
     }
 
-    @Test("MR5.9d: at least one mock has non-ASCII accountEmail")
-    func nonASCIIEmailExists() {
+    @Test
+    func `MR5.9d: at least one mock has non-ASCII accountEmail`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -654,8 +654,8 @@ struct MockProviderInjectorIntegrationTests {
             "at least one mock should have a non-ASCII email to exercise UTF-8 path (per-Codex-MCP-review P2)")
     }
 
-    @Test("MR5.9e: non-ASCII email's accountIdentities is percent-encoded NFC form")
-    func nonASCIIEmailIdentityEncoded() {
+    @Test
+    func `MR5.9e: non-ASCII email's accountIdentities is percent-encoded NFC form`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -670,8 +670,8 @@ struct MockProviderInjectorIntegrationTests {
             "non-ASCII email's accountIdentities entry must contain percent-encoded NFC bytes `caf%C3%A9`")
     }
 
-    @Test("MR5.10: Codable round-trip preserves all critical multi-account fields")
-    func codableRoundTripPreservesIdentities() throws {
+    @Test
+    func `MR5.10: Codable round-trip preserves all critical multi-account fields`() throws {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -693,8 +693,8 @@ struct MockProviderInjectorIntegrationTests {
 
     // MARK: - MR6 Cost dashboard end-to-end (NEW for mix design)
 
-    @Test("MR6.1: most mocks carry cost data so iPhone Cost dashboard is exercisable")
-    func mostMocksCarryCostData() {
+    @Test
+    func `MR6.1: most mocks carry cost data so iPhone Cost dashboard is exercisable`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -712,8 +712,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(withCost.count == 51, "expected 51 mocks with cost data; got \(withCost.count)")
     }
 
-    @Test("MR6.2: aggregate 30-day mock cost is realistic-heavy but bounded (no skew explosion)")
-    func aggregate30DayCostIsBounded() {
+    @Test
+    func `MR6.2: aggregate 30-day mock cost is realistic-heavy but bounded (no skew explosion)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -728,8 +728,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(total < 15000, "aggregate must stay bounded (no runaway skew)")
     }
 
-    @Test("MR6.3: mocks carry a multi-week daily breakdown for chart + CWL testing")
-    func atLeastOneMockHasDailyBreakdown() {
+    @Test
+    func `MR6.3: mocks carry a multi-week daily breakdown for chart + CWL testing`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -741,8 +741,8 @@ struct MockProviderInjectorIntegrationTests {
         #expect(withDaily.count >= 10, "many mocks must carry a daily breakdown for chart + CWL")
     }
 
-    @Test("MR6.4: every daily point in the 30-day breakdown has model breakdowns (for pie chart)")
-    func dailyBreakdownHasModelLabels() {
+    @Test
+    func `MR6.4: every daily point in the 30-day breakdown has model breakdowns (for pie chart)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()
@@ -761,8 +761,8 @@ struct MockProviderInjectorIntegrationTests {
         }
     }
 
-    @Test("MR6.5: cost data sums match top-level last30DaysCostUSD (for any mock that has both)")
-    func costSumMatchesAggregate() {
+    @Test
+    func `MR6.5: cost data sums match top-level last30DaysCostUSD (for any mock that has both)`() {
         self.enableMock()
         defer { self.resetActivationState() }
         let snapshots = MockProviderInjector.allMocks()

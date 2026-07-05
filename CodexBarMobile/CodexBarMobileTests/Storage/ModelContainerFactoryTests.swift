@@ -12,8 +12,8 @@ struct ModelContainerFactoryTests {
         return dir.appendingPathComponent("Store.sqlite")
     }
 
-    @Test("Container creates successfully at a temp URL")
-    func containerCreatesSuccessfully() throws {
+    @Test
+    func `Container creates successfully at a temp URL`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -26,9 +26,9 @@ struct ModelContainerFactoryTests {
         #expect(results.isEmpty)
     }
 
-    @Test("Data persists across container relaunches at the same URL")
+    @Test
     @MainActor
-    func persistenceAcrossRelaunches() throws {
+    func `Data persists across container relaunches at the same URL`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -56,15 +56,15 @@ struct ModelContainerFactoryTests {
         }
     }
 
-    @Test("Default store URL is a valid writable location")
-    func defaultStoreURLIsWritable() {
+    @Test
+    func `Default store URL is a valid writable location`() {
         let url = ModelContainerFactory.defaultStoreURL()
         let parent = url.deletingLastPathComponent()
         #expect(FileManager.default.fileExists(atPath: parent.path))
     }
 
-    @Test("Legacy store discovery finds Application Support CodexBar store")
-    func legacyStoreURLFindsCodexBarDirectory() throws {
+    @Test
+    func `Legacy store discovery finds Application Support CodexBar store`() throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("QuotaKitTests-Legacy-\(UUID().uuidString)", isDirectory: true)
         let legacyDir = root.appendingPathComponent("CodexBar", isDirectory: true)
@@ -81,8 +81,8 @@ struct ModelContainerFactoryTests {
         #expect(discovered?.deletingLastPathComponent().lastPathComponent == "CodexBar")
     }
 
-    @Test("Copy store files duplicates sqlite sidecars")
-    func copyStoreFilesDuplicatesSidecars() throws {
+    @Test
+    func `Copy store files duplicates sqlite sidecars`() throws {
         let sourceRoot = FileManager.default.temporaryDirectory
             .appendingPathComponent("QuotaKitTests-CopySource-\(UUID().uuidString)", isDirectory: true)
         let targetRoot = FileManager.default.temporaryDirectory

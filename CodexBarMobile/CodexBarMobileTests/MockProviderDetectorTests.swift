@@ -39,32 +39,32 @@ struct MockProviderDetectorTests {
 
     // MARK: - Real-borrowed providerID + .test TLD email = mock
 
-    @Test("Real codex providerID + mock email TLD → mock")
-    func realCodexProviderIDWithMockEmailIsMock() {
+    @Test
+    func `Real codex providerID + mock email TLD → mock`() {
         let snap = self.makeSnapshot(
             providerID: "codex",
             accountEmail: "alice-mock@codex.test")
         #expect(MockProviderDetector.isMock(snap))
     }
 
-    @Test("Real claude providerID + mock email TLD → mock")
-    func realClaudeProviderIDWithMockEmailIsMock() {
+    @Test
+    func `Real claude providerID + mock email TLD → mock`() {
         let snap = self.makeSnapshot(
             providerID: "claude",
             accountEmail: "personal-mock@claude.test")
         #expect(MockProviderDetector.isMock(snap))
     }
 
-    @Test("Real perplexity providerID + mock email TLD → mock")
-    func realPerplexityProviderIDWithMockEmailIsMock() {
+    @Test
+    func `Real perplexity providerID + mock email TLD → mock`() {
         let snap = self.makeSnapshot(
             providerID: "perplexity",
             accountEmail: "pro-mock@perplexity.test")
         #expect(MockProviderDetector.isMock(snap))
     }
 
-    @Test("Non-ASCII email with .test TLD → mock (caf\u{00E9}-mock@codex.test)")
-    func nonASCIIEmailMockTLDIsMock() {
+    @Test
+    func `non ASCII email with test TL dis mock`() {
         let snap = self.makeSnapshot(
             providerID: "codex",
             accountEmail: "café-mock@codex.test")
@@ -73,24 +73,24 @@ struct MockProviderDetectorTests {
 
     // MARK: - Synthetic _mock_* providerID = mock
 
-    @Test("_mock_cursor_unknown providerID → mock (regardless of email)")
-    func syntheticCursorUnknownIsMock() {
+    @Test
+    func `_mock_cursor_unknown providerID → mock (regardless of email)`() {
         let snap = self.makeSnapshot(
             providerID: "_mock_cursor_unknown",
             accountEmail: "expired-mock@cursor.test")
         #expect(MockProviderDetector.isMock(snap))
     }
 
-    @Test("_mock_synthetic_unknown providerID → mock")
-    func syntheticUnknownIsMock() {
+    @Test
+    func `_mock_synthetic_unknown providerID → mock`() {
         let snap = self.makeSnapshot(
             providerID: "_mock_synthetic_unknown",
             accountEmail: "lanes-mock@synthetic.test")
         #expect(MockProviderDetector.isMock(snap))
     }
 
-    @Test("Future _mock_*.providerID hypotheticals are mock")
-    func futureSyntheticPrefixIsMock() {
+    @Test
+    func `Future _mock_*.providerID hypotheticals are mock`() {
         // Forward-compat: future fallback mocks named _mock_anything
         // should still be recognized.
         let snap = self.makeSnapshot(
@@ -101,32 +101,32 @@ struct MockProviderDetectorTests {
 
     // MARK: - Real users without mock activation = NOT mock
 
-    @Test("Real codex provider + real email → NOT mock")
-    func realCodexProviderRealEmailIsNotMock() {
+    @Test
+    func `Real codex provider + real email → NOT mock`() {
         let snap = self.makeSnapshot(
             providerID: "codex",
             accountEmail: "alice@example.com")
         #expect(!MockProviderDetector.isMock(snap))
     }
 
-    @Test("Real claude provider + work email → NOT mock")
-    func realClaudeProviderWorkEmailIsNotMock() {
+    @Test
+    func `Real claude provider + work email → NOT mock`() {
         let snap = self.makeSnapshot(
             providerID: "claude",
             accountEmail: "user@anthropic.com")
         #expect(!MockProviderDetector.isMock(snap))
     }
 
-    @Test("Real perplexity + nil email → NOT mock (no signal)")
-    func realPerplexityNilEmailIsNotMock() {
+    @Test
+    func `Real perplexity + nil email → NOT mock (no signal)`() {
         let snap = self.makeSnapshot(
             providerID: "perplexity",
             accountEmail: nil)
         #expect(!MockProviderDetector.isMock(snap))
     }
 
-    @Test("Real cursor + .test in middle of email → NOT mock (must be TLD)")
-    func realCursorTestInMiddleIsNotMock() {
+    @Test
+    func `Real cursor + .test in middle of email → NOT mock (must be TLD)`() {
         // Email like "test-user@example.com" doesn't END in `.test`
         // and shouldn't be misclassified.
         let snap = self.makeSnapshot(
@@ -135,8 +135,8 @@ struct MockProviderDetectorTests {
         #expect(!MockProviderDetector.isMock(snap))
     }
 
-    @Test("Empty email → NOT mock")
-    func emptyEmailIsNotMock() {
+    @Test
+    func `Empty email → NOT mock`() {
         let snap = self.makeSnapshot(
             providerID: "codex",
             accountEmail: "")
@@ -145,8 +145,8 @@ struct MockProviderDetectorTests {
 
     // MARK: - Snapshot-level helpers
 
-    @Test("hasAnyMock detects single mock among real providers")
-    func hasAnyMockMixed() {
+    @Test
+    func `hasAnyMock detects single mock among real providers`() {
         let real = self.makeSnapshot(
             providerID: "codex", accountEmail: "real@example.com")
         let mock = self.makeSnapshot(
@@ -161,8 +161,8 @@ struct MockProviderDetectorTests {
         #expect(MockProviderDetector.mockCount(in: snapshot) == 1)
     }
 
-    @Test("hasAnyMock false when all providers are real")
-    func hasAnyMockAllReal() {
+    @Test
+    func `hasAnyMock false when all providers are real`() {
         let real = self.makeSnapshot(
             providerID: "codex", accountEmail: "real@example.com")
         let snapshot = SyncedUsageSnapshot(
@@ -175,15 +175,15 @@ struct MockProviderDetectorTests {
         #expect(MockProviderDetector.mockCount(in: snapshot) == 0)
     }
 
-    @Test("hasAnyMock false when snapshot is nil")
-    func hasAnyMockNilSnapshot() {
+    @Test
+    func `hasAnyMock false when snapshot is nil`() {
         #expect(!MockProviderDetector.hasAnyMock(in: nil))
         #expect(MockProviderDetector.mockCount(in: nil) == 0)
         #expect(MockProviderDetector.mockSnapshots(in: nil).isEmpty)
     }
 
-    @Test("mockCount counts all 8 mocks when full mock set is present")
-    func mockCountFull8() {
+    @Test
+    func `mockCount counts all 8 mocks when full mock set is present`() {
         let mocks = [
             ("codex", "alice-mock@codex.test"),
             ("codex", "bob-mock@codex.test"),
@@ -205,8 +205,8 @@ struct MockProviderDetectorTests {
 
     // MARK: - Constants
 
-    @Test("Detector constants match Mac-side wire contract")
-    func constantsAlignWithMac() {
+    @Test
+    func `Detector constants match Mac-side wire contract`() {
         #expect(MockProviderDetector.mockEmailTLD == ".test")
         #expect(MockProviderDetector.mockProviderIDPrefix == "_mock_")
     }

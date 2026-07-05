@@ -13,8 +13,8 @@ struct AccountIdentityMergeTests {
 
     // MARK: - effectiveIdentifiers synthesis
 
-    @Test("Modern snapshot with explicit identifiers passes them through")
-    func explicitIdentifiers() {
+    @Test
+    func `Modern snapshot with explicit identifiers passes them through`() {
         let p = Self.makeProvider(
             id: "codex",
             email: "user@example.com",
@@ -23,8 +23,8 @@ struct AccountIdentityMergeTests {
         #expect(ids == ["codex:account:org-x", "codex:email:user@example.com"])
     }
 
-    @Test("Legacy snapshot with email synthesizes `provider:email:<lowered>` identifier")
-    func legacyEmailSynthesis() {
+    @Test
+    func `Legacy snapshot with email synthesizes provider:email:<lowered> identifier`() {
         let p = Self.makeProvider(
             id: "codex",
             email: "User@Example.COM",
@@ -33,15 +33,15 @@ struct AccountIdentityMergeTests {
         #expect(ids == ["codex:email:user@example.com"])
     }
 
-    @Test("Legacy snapshot with nil email falls back to legacy-no-identity bucket")
-    func legacyNoEmailBucket() {
+    @Test
+    func `Legacy snapshot with nil email falls back to legacy-no-identity bucket`() {
         let p = Self.makeProvider(id: "codex", email: nil, identifiers: nil)
         let ids = CloudSyncReader.effectiveIdentifiers(for: p)
         #expect(ids == ["codex:legacy-no-identity"])
     }
 
-    @Test("Empty identifier array is treated as legacy (NOT explicit)")
-    func emptyArrayTreatedAsLegacy() {
+    @Test
+    func `Empty identifier array is treated as legacy (NOT explicit)`() {
         let p = Self.makeProvider(
             id: "codex",
             email: "user@example.com",
@@ -53,8 +53,8 @@ struct AccountIdentityMergeTests {
 
     // MARK: - mergeSnapshots — the 11-case matrix from Research/019 §8
 
-    @Test("§8.1 — All Macs on same version: 1 group")
-    func allOnSameVersion() throws {
+    @Test
+    func `§8.1 — All Macs on same version: 1 group`() throws {
         let s1 = Self.makeMac(deviceID: "mac-A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -71,8 +71,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 1, "Same email → 1 card.")
     }
 
-    @Test("§8.2 — One version behind (legacy alongside modern, different keys)")
-    func oneVersionBehind() throws {
+    @Test
+    func `§8.2 — One version behind (legacy alongside modern, different keys)`() throws {
         // Modern Mac writes account+email; legacy Mac writes nil identifiers
         // and nil email. They DON'T share an identifier → 2 cards (correct;
         // user can L3 confirm or upgrade old Mac to break ambiguity).
@@ -89,8 +89,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 2, "Different identifier sets → 2 cards.")
     }
 
-    @Test("§8.3 — One version ahead (newer Mac added a field): 1 group via shared email")
-    func oneVersionAhead() throws {
+    @Test
+    func `§8.3 — One version ahead (newer Mac added a field): 1 group via shared email`() throws {
         let baseline = Self.makeMac(deviceID: "mac-A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -107,8 +107,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 1, "Shared email bridges old + new → 1 card.")
     }
 
-    @Test("§8.4 — Transition period (3-Mac, 3 versions, all double-write email)")
-    func transitionPeriod() throws {
+    @Test
+    func `§8.4 — Transition period (3-Mac, 3 versions, all double-write email)`() throws {
         let m1 = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -131,8 +131,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 1, "Shared email or shared org bridges all 3 → 1 card.")
     }
 
-    @Test("§8.5 — Hard-drop policy followed: post-deprecation override via shared sub")
-    func hardDropPolicyFollowed() throws {
+    @Test
+    func `§8.5 — Hard-drop policy followed: post-deprecation override via shared sub`() throws {
         // After 3 minor releases of double-writing email + sub, 0.30 stops
         // writing email. Mac-A still writes both (running 0.27); Mac-B writes
         // sub-only (running 0.30+). Shared sub → merge.
@@ -152,8 +152,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 1, "Shared sub merges across old + post-deprecation Macs.")
     }
 
-    @Test("§8.6 — Hard-drop policy violated: 2 groups (L3 needed)")
-    func hardDropPolicyViolated() throws {
+    @Test
+    func `§8.6 — Hard-drop policy violated: 2 groups (L3 needed)`() throws {
         // Mac 0.27 hard-removed email without overlap with sub. Mac-A writes
         // only email; Mac-B and Mac-C write only sub. No overlap → 2 groups.
         let mA = Self.makeMac(deviceID: "A", providers: [
@@ -174,8 +174,8 @@ struct AccountIdentityMergeTests {
             "No shared identifier → 2 separate cards. L3 user-merge would be the cure.")
     }
 
-    @Test("§8.7 — Legacy + new Mac with same accountEmail: 1 group via synthesized email")
-    func legacyAndNewSameEmail() throws {
+    @Test
+    func `§8.7 — Legacy + new Mac with same accountEmail: 1 group via synthesized email`() throws {
         // The user's actual reported issue: 0.20.3 Mac (no `accountIdentities`)
         // sharing an email with a 0.23 Mac (writes both `accountIdentities`
         // and accountEmail). The legacy Mac's email is synthesized into
@@ -196,8 +196,8 @@ struct AccountIdentityMergeTests {
             "Synthesized legacy `codex:email:u@x.com` bridges to new explicit identifier.")
     }
 
-    @Test("Over-limit legacy emails with the same prefix stay separate")
-    func overLimitLegacyEmailsDoNotPrefixCollide() throws {
+    @Test
+    func `Over-limit legacy emails with the same prefix stay separate`() throws {
         let sharedPrefix = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 20)
         let firstEmail = sharedPrefix + "1@example.com"
         let secondEmail = sharedPrefix + "2@example.com"
@@ -215,8 +215,8 @@ struct AccountIdentityMergeTests {
             "Distinct over-limit emails must hash to distinct synthesized identifiers.")
     }
 
-    @Test("Modern explicit hashed email matches legacy synthesis")
-    func modernExplicitHashedEmailMatchesLegacySynthesis() throws {
+    @Test
+    func `Modern explicit hashed email matches legacy synthesis`() throws {
         let longEmail = String(repeating: "a", count: AccountIdentityNormalize.maxAccountIdentifierLength + 100)
             + "@example.com"
         let normalized = try #require(AccountIdentityNormalize.normalize(longEmail))
@@ -237,8 +237,8 @@ struct AccountIdentityMergeTests {
             "Legacy synthesis must still bridge to the modern explicit hashed identifier.")
     }
 
-    @Test("§8.8 — Different accounts on same provider: keep separate")
-    func differentAccountsLookSimilar() throws {
+    @Test
+    func `§8.8 — Different accounts on same provider: keep separate`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -255,8 +255,8 @@ struct AccountIdentityMergeTests {
         #expect(merged.providers.count == 2, "Genuinely different emails → 2 cards.")
     }
 
-    @Test("§8.9 — Transitive merge (Mac B asserts both emails are same account)")
-    func transitiveMerge() throws {
+    @Test
+    func `§8.9 — Transitive merge (Mac B asserts both emails are same account)`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -281,8 +281,8 @@ struct AccountIdentityMergeTests {
             "A↔B share u1; B↔C share u2; transitive closure → 1 card.")
     }
 
-    @Test("§8.10 — All legacy with nil email: single shared bucket (current behavior preserved)")
-    func legacyBucketIsolation() throws {
+    @Test
+    func `§8.10 — All legacy with nil email: single shared bucket (current behavior preserved)`() throws {
         // 3 legacy Macs, all with nil identifiers + nil email.
         // Pre-019 behavior grouped them together (via `(providerID, "")`)
         // into one card. We must preserve that — the legacy-no-identity
@@ -298,8 +298,8 @@ struct AccountIdentityMergeTests {
             "All legacy with nil email → single bucket (pre-019 behavior preserved).")
     }
 
-    @Test("§8.11 — Two-provider isolation: codex and claude never cross-merge")
-    func crossProviderIsolation() throws {
+    @Test
+    func `§8.11 — Two-provider isolation: codex and claude never cross-merge`() throws {
         // Even if two providers happened to use the same email, their
         // identifiers carry different `providerID:` prefixes so the strings
         // never match.

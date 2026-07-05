@@ -56,10 +56,10 @@ enum KeychainMigration {
 
         static let live = SecurityClient(
             copyMatching: { query, result in
-                SecItemCopyMatching(query as CFDictionary, &result)
+                KeychainSecurity.copyMatching(query as CFDictionary, &result)
             },
             update: { query, attributes in
-                SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+                KeychainSecurity.update(query as CFDictionary, attributes as CFDictionary)
             })
     }
 

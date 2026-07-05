@@ -17,9 +17,8 @@ import Testing
 /// update here.
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
-    @Test(
-        "Total count is 50 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27 + 3 v0.28/v0.29 + Sakana + Qoder)")
-    func totalCount() {
+    @Test
+    func `Total count is 50 (25 base + Abacus + Mistral + 11 v0.24/v0.25 + 2 v0.26 + 5 v0.27 + 3 v0.28/v0.29 + Sakana + Qoder)`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -35,8 +34,8 @@ struct QuotaProviderListTests {
         #expect(QuotaProviderList.providers.count == 50)
     }
 
-    @Test("Subscription zone count is 150 (50 providers × 3 states)")
-    func subscriptionZoneCount() {
+    @Test
+    func `Subscription zone count is 150 (50 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -52,8 +51,8 @@ struct QuotaProviderListTests {
         #expect(QuotaProviderList.providers.count * 3 == 150)
     }
 
-    @Test("Warning-zone name format matches Mac/iOS contract")
-    func warningZoneNameFormat() {
+    @Test
+    func `Warning-zone name format matches Mac/iOS contract`() {
         // Mac's `CloudSyncManager.writeQuotaWarningTransition` and
         // iOS's `QuotaTransitionSubscriptions.makeConfigs()` MUST
         // agree on this template byte-for-byte. Pinning so a future
@@ -64,8 +63,8 @@ struct QuotaProviderListTests {
             providerID: "claude", state: "warning") == "Quota-claude-warningZone")
     }
 
-    @Test("Abacus AI is present with the upstream-canonical displayName")
-    func abacusPresent() {
+    @Test
+    func `Abacus AI is present with the upstream-canonical displayName`() {
         let abacus = QuotaProviderList.providers.first(where: { $0.id == "abacus" })
         #expect(abacus != nil)
         // Cause: displayName MUST match
@@ -75,8 +74,8 @@ struct QuotaProviderListTests {
         #expect(abacus?.displayName == "Abacus AI")
     }
 
-    @Test("Mistral is present with the upstream-canonical displayName")
-    func mistralPresent() {
+    @Test
+    func `Mistral is present with the upstream-canonical displayName`() {
         let mistral = QuotaProviderList.providers.first(where: { $0.id == "mistral" })
         #expect(mistral != nil)
         #expect(mistral?.displayName == "Mistral")
@@ -87,8 +86,8 @@ struct QuotaProviderListTests {
     /// writes to `Quota-mistral-depletedZone` but iOS subscribes to
     /// `Quota-mistralai-depletedZone`, so pushes are delivered into
     /// the void. Pin lowercase + no-spaces shape.
-    @Test("Cause: every provider ID is lowercase and contains no whitespace")
-    func providerIDFormatInvariant() {
+    @Test
+    func `Cause: every provider ID is lowercase and contains no whitespace`() {
         for provider in QuotaProviderList.providers {
             #expect(
                 provider.id == provider.id.lowercased(),
@@ -105,8 +104,8 @@ struct QuotaProviderListTests {
     /// to the format (separator, casing, suffix) silently breaks
     /// existing users. Pin all known providers' resulting zone names
     /// for both states.
-    @Test("Zone name template stays `Quota-{providerID}-{state}Zone`")
-    func zoneNameContract() {
+    @Test
+    func `Zone name template stays Quota-{providerID}-{state}Zone`() {
         #expect(
             QuotaProviderList.quotaZoneName(providerID: "abacus", state: "depleted") ==
                 "Quota-abacus-depletedZone")
@@ -124,8 +123,8 @@ struct QuotaProviderListTests {
     /// previously-existing ones would shift CK subscription IDs and
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
-    @Test("Cause: new providers (v0.27 + v0.28/v0.29 + Sakana + Qoder) are appended at the tail")
-    func newProvidersAppended() {
+    @Test
+    func `Cause: new providers (v0.27 + v0.28/v0.29 + Sakana + Qoder) are appended at the tail`() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
         // IDs stay stable across upgrades. Pin the recent tail so a careless
@@ -148,86 +147,86 @@ struct QuotaProviderListTests {
     /// upstream-canonical displayName so the static `alertBody`
     /// generated at subscription time matches what Mac writes into
     /// the push body.
-    @Test("OpenAI API balance present (v0.25 #877)")
-    func openaiPresent() {
+    @Test
+    func `OpenAI API balance present (v0.25 #877)`() {
         let openai = QuotaProviderList.providers.first(where: { $0.id == "openai" })
         #expect(openai != nil)
         #expect(openai?.displayName == "OpenAI API")
     }
 
-    @Test("Manus present (v0.25 #700)")
-    func manusPresent() {
+    @Test
+    func `Manus present (v0.25 #700)`() {
         let manus = QuotaProviderList.providers.first(where: { $0.id == "manus" })
         #expect(manus != nil)
         #expect(manus?.displayName == "Manus")
     }
 
-    @Test("Windsurf present (v0.24 #583)")
-    func windsurfPresent() {
+    @Test
+    func `Windsurf present (v0.24 #583)`() {
         let windsurf = QuotaProviderList.providers.first(where: { $0.id == "windsurf" })
         #expect(windsurf != nil)
         #expect(windsurf?.displayName == "Windsurf")
     }
 
-    @Test("Xiaomi MiMo present (v0.25 #651)")
-    func mimoPresent() {
+    @Test
+    func `Xiaomi MiMo present (v0.25 #651)`() {
         let mimo = QuotaProviderList.providers.first(where: { $0.id == "mimo" })
         #expect(mimo != nil)
         #expect(mimo?.displayName == "Xiaomi MiMo")
     }
 
-    @Test("Doubao present (v0.25 #498)")
-    func doubaoPresent() {
+    @Test
+    func `Doubao present (v0.25 #498)`() {
         let doubao = QuotaProviderList.providers.first(where: { $0.id == "doubao" })
         #expect(doubao != nil)
         #expect(doubao?.displayName == "Doubao")
     }
 
-    @Test("DeepSeek present (v0.24 #811)")
-    func deepseekPresent() {
+    @Test
+    func `DeepSeek present (v0.24 #811)`() {
         let deepseek = QuotaProviderList.providers.first(where: { $0.id == "deepseek" })
         #expect(deepseek != nil)
         #expect(deepseek?.displayName == "DeepSeek")
     }
 
-    @Test("Codebuff present (v0.24 #837)")
-    func codebuffPresent() {
+    @Test
+    func `Codebuff present (v0.24 #837)`() {
         let codebuff = QuotaProviderList.providers.first(where: { $0.id == "codebuff" })
         #expect(codebuff != nil)
         #expect(codebuff?.displayName == "Codebuff")
     }
 
-    @Test("Crof present (v0.25 #872)")
-    func crofPresent() {
+    @Test
+    func `Crof present (v0.25 #872)`() {
         let crof = QuotaProviderList.providers.first(where: { $0.id == "crof" })
         #expect(crof != nil)
         #expect(crof?.displayName == "Crof")
     }
 
-    @Test("Venice present (v0.25 #865)")
-    func venicePresent() {
+    @Test
+    func `Venice present (v0.25 #865)`() {
         let venice = QuotaProviderList.providers.first(where: { $0.id == "venice" })
         #expect(venice != nil)
         #expect(venice?.displayName == "Venice")
     }
 
-    @Test("Command Code present (v0.25 #857)")
-    func commandCodePresent() {
+    @Test
+    func `Command Code present (v0.25 #857)`() {
         let cc = QuotaProviderList.providers.first(where: { $0.id == "commandcode" })
         #expect(cc != nil)
         #expect(cc?.displayName == "Command Code")
     }
 
-    @Test("StepFun present (v0.25 #815)")
-    func stepfunPresent() {
+    @Test
+    func `StepFun present (v0.25 #815)`() {
         let stepfun = QuotaProviderList.providers.first(where: { $0.id == "stepfun" })
         #expect(stepfun != nil)
         #expect(stepfun?.displayName == "StepFun")
     }
 
     /// Cause-oriented: no duplicate IDs would silently double-subscribe.
-    @Test("Cause: no duplicate provider IDs")
-    func noDuplicateIDs() {
+    @Test
+    func `Cause: no duplicate provider IDs`() {
         let ids = QuotaProviderList.providers.map(\.id)
         #expect(Set(ids).count == ids.count, "Duplicate provider IDs found")
     }
@@ -237,21 +236,21 @@ struct QuotaProviderListTests {
     /// list, the user-facing release notes lie. Doc the cross-coupling.
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
-    @Test("Cause: catalog 50/150 numbers match the actual list")
-    func catalogNumbersAlignWithList() {
+    @Test
+    func `Cause: catalog 50/150 numbers match the actual list`() {
         #expect(QuotaProviderList.providers.count == 50)
         #expect(QuotaProviderList.providers.count * 3 == 150)
     }
 
-    @Test("Sakana AI present (v0.36.x #1774)")
-    func sakanaPresent() {
+    @Test
+    func `Sakana AI present (v0.36.x #1774)`() {
         let sakana = QuotaProviderList.providers.first(where: { $0.id == "sakana" })
         #expect(sakana != nil)
         #expect(sakana?.displayName == "Sakana AI")
     }
 
-    @Test("Qoder present (v0.36.x #1833)")
-    func qoderPresent() {
+    @Test
+    func `Qoder present (v0.36.x #1833)`() {
         let qoder = QuotaProviderList.providers.first(where: { $0.id == "qoder" })
         #expect(qoder != nil)
         #expect(qoder?.displayName == "Qoder")
@@ -260,15 +259,15 @@ struct QuotaProviderListTests {
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.
     /// Pin them by id + displayName so a rename on either side doesn't
     /// silently break push delivery for the new providers.
-    @Test("Moonshot / Kimi API present (v0.26.0 #911)")
-    func moonshotPresent() {
+    @Test
+    func `Moonshot / Kimi API present (v0.26.0 #911)`() {
         let m = QuotaProviderList.providers.first(where: { $0.id == "moonshot" })
         #expect(m != nil)
         #expect(m?.displayName == "Moonshot / Kimi API")
     }
 
-    @Test("AWS Bedrock present (v0.26.0 #897)")
-    func bedrockPresent() {
+    @Test
+    func `AWS Bedrock present (v0.26.0 #897)`() {
         let b = QuotaProviderList.providers.first(where: { $0.id == "bedrock" })
         #expect(b != nil)
         #expect(b?.displayName == "AWS Bedrock")

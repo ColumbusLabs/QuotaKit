@@ -5,8 +5,8 @@ import Testing
 
 @Suite("Provider detail section dispatcher")
 struct ProviderDetailSectionDispatcherTests {
-    @Test("Perplexity credits claim the primary section")
-    func perplexityPrimarySection() {
+    @Test
+    func `Perplexity credits claim the primary section`() {
         let credits = SyncPerplexityCreditSummary(planName: "Pro")
         let provider = Self.snapshot(
             providerID: "perplexity",
@@ -20,8 +20,8 @@ struct ProviderDetailSectionDispatcherTests {
         }
     }
 
-    @Test("Dedicated Kiro card suppresses generic rate window primary")
-    func dedicatedKiroPrimarySuppression() {
+    @Test
+    func `Dedicated Kiro card suppresses generic rate window primary`() {
         let credits = SyncKiroCredits(
             planName: "Pro",
             creditsUsed: 10,
@@ -41,8 +41,8 @@ struct ProviderDetailSectionDispatcherTests {
         #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).map(\.id) == ["kiro"])
     }
 
-    @Test("Codex workspace pace only renders when rate windows do not already show pace")
-    func codexWorkspacePaceGating() {
+    @Test
+    func `Codex workspace pace only renders when rate windows do not already show pace`() {
         let context = SyncCodexWorkspaceContext(
             workspaceID: "workspace-1",
             workspaceName: nil,
@@ -56,8 +56,8 @@ struct ProviderDetailSectionDispatcherTests {
         #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: true).isEmpty)
     }
 
-    @Test("Antigravity account section requires more than one account")
-    func antigravityRequiresMultipleAccounts() {
+    @Test
+    func `Antigravity account section requires more than one account`() {
         let one = SyncMultiAccountList(
             accounts: [SyncMultiAccountEntry(email: "one@example.com", isActive: true, expiresAt: nil)],
             activeIndex: 0)
@@ -76,8 +76,8 @@ struct ProviderDetailSectionDispatcherTests {
             .map(\.id) == ["antigravity"])
     }
 
-    @Test("CrossModel usage suppresses generic primary and renders provider section")
-    func crossModelUsageRendersDedicatedSection() {
+    @Test
+    func `CrossModel usage suppresses generic primary and renders provider section`() {
         let usage = SyncCrossModelUsage(
             currency: "USD",
             balance: 8.06,

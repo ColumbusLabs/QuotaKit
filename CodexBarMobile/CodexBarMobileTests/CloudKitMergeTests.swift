@@ -46,8 +46,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Single device (degenerate case)
 
-    @Test("Single device returns its data unchanged")
-    func singleDevice() throws {
+    @Test
+    func `Single device returns its data unchanged`() throws {
         let provider = self.makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: self.olderDate)
         let snapshot = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-1", providers: [provider])
 
@@ -60,8 +60,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Same provider, same account → take newest
 
-    @Test("Same provider + same account deduplicates to most recent")
-    func sameProviderSameAccount() throws {
+    @Test
+    func `Same provider + same account deduplicates to most recent`() throws {
         let oldProvider = self.makeProvider(
             id: "claude", name: "Claude", email: "user@a.com",
             lastUpdated: self.olderDate, usedPercent: 30.0)
@@ -79,8 +79,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Same provider, different accounts → keep both
 
-    @Test("Same provider + different accounts are preserved as separate entries")
-    func sameProviderDifferentAccounts() throws {
+    @Test
+    func `Same provider + different accounts are preserved as separate entries`() throws {
         let accountA = self.makeProvider(
             id: "claude", name: "Claude", email: "personal@a.com", lastUpdated: self.olderDate)
         let accountB = self.makeProvider(
@@ -98,8 +98,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Different providers from different devices
 
-    @Test("Different providers from different Macs are combined")
-    func differentProviders() throws {
+    @Test
+    func `Different providers from different Macs are combined`() throws {
         let claude = self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)
         let cursor = self.makeProvider(id: "cursor", name: "Cursor", lastUpdated: self.olderDate)
         let codex = self.makeProvider(id: "codex", name: "Codex", lastUpdated: self.newerDate)
@@ -116,8 +116,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Combined device name
 
-    @Test("Merged snapshot combines device names")
-    func combinedDeviceName() throws {
+    @Test
+    func `Merged snapshot combines device names`() throws {
         let macA = self.makeSnapshot(
             deviceName: "MacBook Air", deviceID: "uuid-a",
             providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)])
@@ -132,16 +132,16 @@ struct CloudKitMergeTests {
 
     // MARK: - Empty input
 
-    @Test("Empty snapshot list returns nil")
-    func emptyInput() {
+    @Test
+    func `Empty snapshot list returns nil`() {
         let result = CloudSyncReader.mergeSnapshots([])
         #expect(result == nil)
     }
 
     // MARK: - Provider with nil email vs non-nil email
 
-    @Test("Provider with nil email is treated as separate from one with email")
-    func nilVsNonNilEmail() throws {
+    @Test
+    func `Provider with nil email is treated as separate from one with email`() throws {
         let noEmail = self.makeProvider(id: "claude", name: "Claude", email: nil, lastUpdated: self.olderDate)
         let withEmail = self.makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: self.newerDate)
 
@@ -154,8 +154,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Providers sorted by name
 
-    @Test("Merged providers are sorted alphabetically by name")
-    func sortedByName() throws {
+    @Test
+    func `Merged providers are sorted alphabetically by name`() throws {
         let zProvider = self.makeProvider(id: "z-tool", name: "Z Tool", lastUpdated: self.olderDate)
         let aProvider = self.makeProvider(id: "a-tool", name: "A Tool", lastUpdated: self.newerDate)
 
@@ -170,8 +170,8 @@ struct CloudKitMergeTests {
 
     // MARK: - Uses latest sync timestamp
 
-    @Test("Merged snapshot uses the most recent syncTimestamp across devices")
-    func latestTimestamp() throws {
+    @Test
+    func `Merged snapshot uses the most recent syncTimestamp across devices`() throws {
         let macA = self.makeSnapshot(
             deviceName: "Mac A", deviceID: "uuid-a",
             providers: [self.makeProvider(id: "claude", name: "Claude", lastUpdated: self.olderDate)],
@@ -215,8 +215,8 @@ struct CloudKitMergeTests {
                 daily: daily))
     }
 
-    @Test("Claude cost data is summed across devices (local-cost provider)")
-    func claudeCostSummed() throws {
+    @Test
+    func `Claude cost data is summed across devices (local-cost provider)`() throws {
         let dailyA = [
             SyncDailyPoint(dayKey: "2024-01-15", costUSD: 1.50, totalTokens: 10000),
             SyncDailyPoint(dayKey: "2024-01-16", costUSD: 2.00, totalTokens: 15000),
@@ -270,8 +270,8 @@ struct CloudKitMergeTests {
         #expect(cost.last30DaysCostUSD == 7.30) // 2.30 + 2.00 + 3.00
     }
 
-    @Test("Account-level provider cost is NOT summed (takes newest)")
-    func accountCostDeduped() throws {
+    @Test
+    func `Account-level provider cost is NOT summed (takes newest)`() throws {
         let daily = [SyncDailyPoint(dayKey: "2024-01-15", costUSD: 5.00, totalTokens: 50000)]
 
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
@@ -301,8 +301,8 @@ struct CloudKitMergeTests {
         #expect(cost.last30DaysCostUSD == 5.00) // Not doubled
     }
 
-    @Test("Model breakdowns are merged by label with summed costs")
-    func modelBreakdownsMerged() throws {
+    @Test
+    func `Model breakdowns are merged by label with summed costs`() throws {
         let dailyA = [SyncDailyPoint(
             dayKey: "2024-01-15", costUSD: 2.00, totalTokens: 10000,
             modelBreakdowns: [
@@ -348,8 +348,8 @@ struct CloudKitMergeTests {
         #expect(haiku.costUSD == 0.20) // Only from Mac B
     }
 
-    @Test("Provider without cost data is unaffected by merge")
-    func noCostDataUnaffected() throws {
+    @Test
+    func `Provider without cost data is unaffected by merge`() throws {
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeProvider(
                 id: "copilot",
@@ -403,8 +403,8 @@ struct CloudKitMergeTests {
             perplexityCredits: credits)
     }
 
-    @Test("Merged Perplexity snapshot preserves perplexityCredits from latest device")
-    func perplexityCreditsPreservedInMultiDeviceMerge() throws {
+    @Test
+    func `Merged Perplexity snapshot preserves perplexityCredits from latest device`() throws {
         // Mac A (older) has no structured credits (e.g. still on 0.20.2);
         // Mac B (newer) has the full 3-pool breakdown. Merger must pick
         // Mac B's data (lastUpdated wins for identity fields) AND preserve
@@ -455,8 +455,8 @@ struct CloudKitMergeTests {
     // structured data, the merged snapshot uses it, regardless of which
     // device was most recently refreshed.
 
-    @Test("perplexityCredits: older Mac with credits + newer Mac with nil → merged has credits")
-    func perplexityCreditsInvertedFreshnessKeepsData() throws {
+    @Test
+    func `perplexityCredits: older Mac with credits + newer Mac with nil → merged has credits`() throws {
         let credits = SyncPerplexityCreditSummary(
             recurringTotalCents: 5000,
             recurringUsedCents: 2500,
@@ -477,8 +477,8 @@ struct CloudKitMergeTests {
         #expect(perplexity.perplexityCredits?.recurringTotalCents == 5000)
     }
 
-    @Test("budget: older Mac with budget + newer Mac with nil → merged keeps budget")
-    func budgetInvertedFreshnessKeepsData() throws {
+    @Test
+    func `budget: older Mac with budget + newer Mac with nil → merged keeps budget`() throws {
         // Same class of bug as perplexityCredits but on the `budget` field.
         // Pre-Build-76 merger took `base.budget` (latest-lastUpdated's value)
         // which dropped the budget if the newer Mac hadn't fetched it yet.
@@ -520,8 +520,8 @@ struct CloudKitMergeTests {
         #expect(claude.budget?.limitAmount == 100)
     }
 
-    @Test("non-local-cost costSummary: older Mac with data + newer Mac with nil → merged keeps data")
-    func nonLocalCostInvertedFreshnessKeepsData() throws {
+    @Test
+    func `non-local-cost costSummary: older Mac with data + newer Mac with nil → merged keeps data`() throws {
         // Cost for account-level providers (Cursor, Perplexity, OpenCode Go,
         // etc. — anything NOT in localCostProviders) should follow
         // latestNonNil semantics, not take-latest. Test with `cursor`
@@ -563,8 +563,8 @@ struct CloudKitMergeTests {
         #expect(cursor.costSummary?.sessionCostUSD == 1.23)
     }
 
-    @Test("local-cost costSummary STILL sums (not overridden by the new latestNonNil path)")
-    func localCostStillSumsAfterRefactor() throws {
+    @Test
+    func `local-cost costSummary STILL sums (not overridden by the new latestNonNil path)`() throws {
         // Guard against accidentally regressing the claude / codex / vertexai
         // SUMMING semantic when we added latestNonNil for non-local. Two
         // Macs both report $10 session cost for claude (a local-cost
@@ -604,8 +604,8 @@ struct CloudKitMergeTests {
         #expect(claude.costSummary?.sessionCostUSD == 20) // SUMMED, not 10
     }
 
-    @Test("loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan")
-    func loginMethodInvertedFreshnessKeepsData() throws {
+    @Test
+    func `loginMethod: older Mac with plan + newer Mac with nil → merged keeps plan`() throws {
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             ProviderUsageSnapshot(
                 providerID: "codex", providerName: "Codex",
@@ -628,8 +628,8 @@ struct CloudKitMergeTests {
         #expect(merged.providers.first?.loginMethod == "Pro")
     }
 
-    @Test("Single-device Perplexity snapshot preserves perplexityCredits through merge no-op")
-    func perplexityCreditsPreservedSingleDevice() throws {
+    @Test
+    func `Single-device Perplexity snapshot preserves perplexityCredits through merge no-op`() throws {
         // Degenerate single-device path: mergeProviderEntries still runs
         // (merger doesn't special-case count == 1 at the provider level),
         // so this verifies the field survives even the trivial passthrough.
@@ -654,8 +654,8 @@ struct CloudKitMergeTests {
     // the older version "randomly" even though the newer Mac was fully
     // synced. Fix: take highest semver across devices.
 
-    @Test("Mac App version merged to highest semver across two Macs")
-    func appVersionTakesHighest() throws {
+    @Test
+    func `Mac App version merged to highest semver across two Macs`() throws {
         let macOld = SyncedUsageSnapshot(
             providers: [makeProvider(id: "claude", name: "Claude", lastUpdated: olderDate)],
             syncTimestamp: olderDate,
@@ -672,8 +672,8 @@ struct CloudKitMergeTests {
         #expect(merged.mobileVersion == "1.3.0")
     }
 
-    @Test("Mac App version merge is order-independent")
-    func appVersionOrderIndependent() throws {
+    @Test
+    func `Mac App version merge is order-independent`() throws {
         // Same two snapshots, flipped iteration order — the result must not
         // change. The pre-fix bug was: `snapshots.first?.appVersion` returned
         // 0.19.0 here but 0.20.3 in the previous test, purely based on order.
@@ -693,8 +693,8 @@ struct CloudKitMergeTests {
         #expect(merged.mobileVersion == "1.3.0")
     }
 
-    @Test("Semver comparison handles 2-segment, 3-segment, and non-numeric segments")
-    func semverComparison() {
+    @Test
+    func `Semver comparison handles 2-segment, 3-segment, and non-numeric segments`() {
         // Numeric-segment ordering
         #expect(CloudSyncReader.semverLessThan("0.19.0", "0.20.0"))
         #expect(CloudSyncReader.semverLessThan("0.20.0", "0.20.3"))
@@ -742,8 +742,8 @@ struct CloudKitMergeTests {
                 name: "session", windowMinutes: windowMinutes, entries: entries)])
     }
 
-    @Test("Two Macs reporting session with mismatched windowMinutes merge into ONE session series")
-    func utilizationMismatchedWindowMinutesUnion() throws {
+    @Test
+    func `Two Macs reporting session with mismatched windowMinutes merge into ONE session series`() throws {
         let hourAgo = Date().addingTimeInterval(-3600)
         let twoHoursAgo = Date().addingTimeInterval(-7200)
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
@@ -798,8 +798,8 @@ struct CloudKitMergeTests {
             notificationPushEnabled: value)
     }
 
-    @Test("notificationPushEnabled: all true → true")
-    func pushEnabledAllTrue() throws {
+    @Test
+    func `notificationPushEnabled: all true → true`() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
             self.pushSnapshot(deviceID: "a", value: true),
             self.pushSnapshot(deviceID: "b", value: true),
@@ -807,8 +807,8 @@ struct CloudKitMergeTests {
         #expect(merged.notificationPushEnabled == true)
     }
 
-    @Test("notificationPushEnabled: any false → false (conservative)")
-    func pushEnabledAnyFalseWins() throws {
+    @Test
+    func `notificationPushEnabled: any false → false (conservative)`() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
             self.pushSnapshot(deviceID: "a", value: true),
             self.pushSnapshot(deviceID: "b", value: false),
@@ -816,8 +816,8 @@ struct CloudKitMergeTests {
         #expect(merged.notificationPushEnabled == false)
     }
 
-    @Test("notificationPushEnabled: true + nil → true (explicit opinion wins over silence)")
-    func pushEnabledTrueWinsOverNil() throws {
+    @Test
+    func `notificationPushEnabled: true + nil → true (explicit opinion wins over silence)`() throws {
         // Pre-fix: `snapshots.first?.notificationPushEnabled` flipped between
         // `true` and `nil` depending on which snapshot CloudKit returned first.
         // Post-fix: explicit true always surfaces.
@@ -833,8 +833,8 @@ struct CloudKitMergeTests {
         #expect(merged2.notificationPushEnabled == true)
     }
 
-    @Test("notificationPushEnabled: false + nil → false (order-independent)")
-    func pushEnabledFalseWinsOverNil() throws {
+    @Test
+    func `notificationPushEnabled: false + nil → false (order-independent)`() throws {
         let merged1 = try #require(CloudSyncReader.mergeSnapshots([
             self.pushSnapshot(deviceID: "false-mac", value: false),
             self.pushSnapshot(deviceID: "nil-mac", value: nil),
@@ -847,8 +847,8 @@ struct CloudKitMergeTests {
         #expect(merged2.notificationPushEnabled == false)
     }
 
-    @Test("notificationPushEnabled: all nil → nil (no opinion)")
-    func pushEnabledAllNil() throws {
+    @Test
+    func `notificationPushEnabled: all nil → nil (no opinion)`() throws {
         let merged = try #require(CloudSyncReader.mergeSnapshots([
             self.pushSnapshot(deviceID: "a", value: nil),
             self.pushSnapshot(deviceID: "b", value: nil),
@@ -872,8 +872,8 @@ struct CloudKitMergeTests {
     private static let pinnedToday = Date(timeIntervalSince1970: 1_745_500_000)
     private static let pinnedTodayKey = SyncCostSummary.iso8601DayKey(for: pinnedToday)
 
-    @Test("todayTotals prefers daily[today] over sessionCostUSD and sessionTokens")
-    func todayTotalsPrefersDailyToday() {
+    @Test
+    func `todayTotals prefers daily[today] over sessionCostUSD and sessionTokens`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,
             sessionTokens: 1000,
@@ -890,8 +890,8 @@ struct CloudKitMergeTests {
         #expect(today.tokens == 4000)
     }
 
-    @Test("todayTotals falls back to session when no daily entry for today")
-    func todayTotalsFallsBackToSession() {
+    @Test
+    func `todayTotals falls back to session when no daily entry for today`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,
             sessionTokens: 1000,
@@ -908,8 +908,8 @@ struct CloudKitMergeTests {
         #expect(today.tokens == 1000)
     }
 
-    @Test("todayTotals both fields nil when neither daily[today] nor session has data")
-    func todayTotalsNilWhenNoData() {
+    @Test
+    func `todayTotals both fields nil when neither daily[today] nor session has data`() {
         let cost = SyncCostSummary(
             sessionCostUSD: nil,
             sessionTokens: nil,
@@ -922,8 +922,8 @@ struct CloudKitMergeTests {
         #expect(today.costUSD == nil && today.tokens == nil)
     }
 
-    @Test("todayTotals resolves cost and tokens from the SAME day key (no midnight drift)")
-    func todayTotalsDayKeyCoherence() {
+    @Test
+    func `todayTotals resolves cost and tokens from the SAME day key (no midnight drift)`() {
         // Anchor both fixture and lookup to a date just before midnight. If the
         // implementation called Date() twice with drift potential, this could
         // mismatch; since the whole resolution uses a single injected `now`,
@@ -943,8 +943,8 @@ struct CloudKitMergeTests {
         #expect(today.tokens == 5000)
     }
 
-    @Test("Mac B reports empty session; Mac A's real entries survive the union")
-    func utilizationEmptySeriesFromOneDeviceDoesNotMaskOther() throws {
+    @Test
+    func `Mac B reports empty session; Mac A's real entries survive the union`() throws {
         // Degenerate but common: one Mac opens, samples Codex once, then gets
         // put to sleep. Its "session" series may be empty until the next
         // refresh. That empty series must not shadow the other Mac's real
@@ -1026,8 +1026,8 @@ struct CloudKitMergeTests {
             name: "session", windowMinutes: 300, entries: entries)
     }
 
-    @Test("Merged utilization with bursty 30-day Codex: union size, peaks preserved, order monotonic")
-    func mergedUtilizationBurstyDistributionPreservesPeaks() throws {
+    @Test
+    func `Merged utilization with bursty 30-day Codex: union size, peaks preserved, order monotonic`() throws {
         // Two Macs each sample hourly for 30 days. Mac A samples at :00 of
         // the hour, Mac B at :30 — so every real hour has TWO entries going
         // in, one from each Mac. `dedupByHour` must average them (0 from one
@@ -1078,8 +1078,8 @@ struct CloudKitMergeTests {
         #expect(peakValues.allSatisfy { $0 == 16 })
     }
 
-    @Test("Merged utilization with entries straddling a session reset keeps pre-/post-reset buckets separate")
-    func mergedUtilizationCrossResetBoundarySeparatesBuckets() throws {
+    @Test
+    func `Merged utilization with entries straddling a session reset keeps pre-/post-reset buckets separate`() throws {
         // Session reset occurs mid-hour (:30). Two entries in the SAME clock
         // hour — one before reset (usedPercent=90%, resetsAt=T), one after
         // (usedPercent=5%, resetsAt=T+5h). Pre-fix dedup-by-hour would
@@ -1137,8 +1137,8 @@ struct CloudKitMergeTests {
         #expect(session.entries.contains(where: { $0.usedPercent == 5 }))
     }
 
-    @Test("Merged utilization with disordered input across two Macs produces hour-sorted output")
-    func mergedUtilizationDisorderedInputProducesSortedOutput() throws {
+    @Test
+    func `Merged utilization with disordered input across two Macs produces hour-sorted output`() throws {
         // Two Macs, each with their entries deliberately shuffled. `dedupByHour`
         // (only invoked when providers.count > 1) sorts the bucketed output by
         // hourSlot. This pins that behavior: the merge path — when actually
@@ -1188,8 +1188,8 @@ struct CloudKitMergeTests {
         #expect(captures == captures.sorted())
     }
 
-    @Test("Merged utilization with long-idle gap keeps both old and new entries")
-    func mergedUtilizationLongIdleGapPreservesHistory() throws {
+    @Test
+    func `Merged utilization with long-idle gap keeps both old and new entries`() throws {
         // Mac A has entries from 30 days ago; Mac B comes alive today with
         // fresh entries. Merged series must contain BOTH — a regression
         // that filtered "stale" entries at merge time would show up as
@@ -1238,8 +1238,8 @@ struct CloudKitMergeTests {
         #expect(session.entries.contains { $0.usedPercent == 18 })
     }
 
-    @Test("Merged utilization with all-zero entries across 30 days is preserved (not dropped)")
-    func mergedUtilizationAllZeroPatternPreserved() throws {
+    @Test
+    func `Merged utilization with all-zero entries across 30 days is preserved (not dropped)`() throws {
         // User who has CodexBar running continuously but never uses Codex:
         // 720 hourly samples all at 0%. These must still make it through
         // the merger — UtilizationAggregateView uses the count to decide
@@ -1268,8 +1268,8 @@ struct CloudKitMergeTests {
         #expect(session.entries.allSatisfy { $0.usedPercent == 0 })
     }
 
-    @Test("Cost merge with cross-date daily points keeps dayKey identity intact")
-    func mergedCostCrossDateDayKeysPreserved() throws {
+    @Test
+    func `Cost merge with cross-date daily points keeps dayKey identity intact`() throws {
         // Two Macs push overlapping daily cost points spanning a month end
         // (2026-01-31 → 2026-02-01). The merger must preserve both day keys
         // distinctly; a regression that normalized by calendar computation

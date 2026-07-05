@@ -10,48 +10,48 @@ import Testing
 struct ForegroundRefreshGateTests {
     private let now = Date(timeIntervalSince1970: 1_750_000_000)
 
-    @Test("No completed refresh yet → always refresh")
-    func nilLastRefresh_refreshes() {
+    @Test
+    func `No completed refresh yet → always refresh`() {
         #expect(SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: nil, now: self.now))
     }
 
-    @Test("Fresh data (just refreshed) → skip")
-    func freshData_skips() {
+    @Test
+    func `Fresh data (just refreshed) → skip`() {
         #expect(!SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: self.now.addingTimeInterval(-1), now: self.now))
     }
 
-    @Test("Quick app switch inside the threshold → skip")
-    func quickAppSwitch_skips() {
+    @Test
+    func `Quick app switch inside the threshold → skip`() {
         #expect(!SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: self.now.addingTimeInterval(-59), now: self.now))
     }
 
-    @Test("Exactly at the threshold → refresh")
-    func atThreshold_refreshes() {
+    @Test
+    func `Exactly at the threshold → refresh`() {
         #expect(SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: self.now.addingTimeInterval(
                 -SyncedUsageData.foregroundStaleThreshold),
             now: self.now))
     }
 
-    @Test("Backgrounded for minutes → refresh")
-    func staleData_refreshes() {
+    @Test
+    func `Backgrounded for minutes → refresh`() {
         #expect(SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: self.now.addingTimeInterval(-600), now: self.now))
     }
 
-    @Test("Clock skew (last refresh in the future) → skip, no thrash")
-    func futureTimestamp_skips() {
+    @Test
+    func `Clock skew (last refresh in the future) → skip, no thrash`() {
         // A device clock jumping backwards must not cause a refresh storm;
         // negative elapsed time is simply "not stale yet".
         #expect(!SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: self.now.addingTimeInterval(120), now: self.now))
     }
 
-    @Test("Custom threshold is honored")
-    func customThreshold() {
+    @Test
+    func `Custom threshold is honored`() {
         let last = self.now.addingTimeInterval(-30)
         #expect(SyncedUsageData.shouldAutoRefresh(
             lastRefreshCompletedAt: last, now: self.now, threshold: 15))

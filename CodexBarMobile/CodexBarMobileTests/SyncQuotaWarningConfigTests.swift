@@ -9,39 +9,39 @@ import Testing
 struct SyncQuotaWarningConfigTests {
     // MARK: - SyncQuotaWarningConfig basics
 
-    @Test("macDefaults matches Mac's documented [50, 20] threshold")
-    func macDefaultsConstant() {
+    @Test
+    func `macDefaults matches Mac's documented [50, 20] threshold`() {
         #expect(SyncQuotaWarningConfig.macDefaults == [50, 20])
     }
 
-    @Test("resolvedSessionThresholds returns Mac defaults when nil")
-    func resolvedSessionFallback() {
+    @Test
+    func `resolvedSessionThresholds returns Mac defaults when nil`() {
         let config = SyncQuotaWarningConfig()
         #expect(config.resolvedSessionThresholds() == [50, 20])
     }
 
-    @Test("resolvedWeeklyThresholds returns Mac defaults when nil")
-    func resolvedWeeklyFallback() {
+    @Test
+    func `resolvedWeeklyThresholds returns Mac defaults when nil`() {
         let config = SyncQuotaWarningConfig()
         #expect(config.resolvedWeeklyThresholds() == [50, 20])
     }
 
-    @Test("resolvedSessionThresholds returns the override when set")
-    func resolvedSessionOverride() {
+    @Test
+    func `resolvedSessionThresholds returns the override when set`() {
         let config = SyncQuotaWarningConfig(sessionThresholds: [80, 30, 10])
         // Sorted descending defensively.
         #expect(config.resolvedSessionThresholds() == [80, 30, 10])
     }
 
-    @Test("empty array is treated as missing → defaults")
-    func resolvedEmptyArrayFallback() {
+    @Test
+    func `empty array is treated as missing → defaults`() {
         let config = SyncQuotaWarningConfig(sessionThresholds: [], weeklyThresholds: [])
         #expect(config.resolvedSessionThresholds() == [50, 20])
         #expect(config.resolvedWeeklyThresholds() == [50, 20])
     }
 
-    @Test("Out-of-range thresholds are clamped to [0, 99]")
-    func clampsOutOfRange() {
+    @Test
+    func `Out-of-range thresholds are clamped to [0, 99]`() {
         let config = SyncQuotaWarningConfig(sessionThresholds: [150, -5, 50])
         // 150 → 99, -5 → 0, 50 → 50 — then deduped + sorted desc.
         let result = config.resolvedSessionThresholds()
@@ -52,21 +52,21 @@ struct SyncQuotaWarningConfigTests {
         #expect(result == result.sorted(by: >))
     }
 
-    @Test("Duplicate thresholds collapse")
-    func dedupes() {
+    @Test
+    func `Duplicate thresholds collapse`() {
         let config = SyncQuotaWarningConfig(sessionThresholds: [50, 50, 50, 20, 20])
         #expect(config.resolvedSessionThresholds().count == 2)
     }
 
-    @Test("Enabled flags default to true when missing")
-    func enabledDefaultsTrue() {
+    @Test
+    func `Enabled flags default to true when missing`() {
         let config = SyncQuotaWarningConfig()
         #expect(config.resolvedSessionEnabled() == true)
         #expect(config.resolvedWeeklyEnabled() == true)
     }
 
-    @Test("Enabled flag honors explicit false")
-    func enabledExplicitFalse() {
+    @Test
+    func `Enabled flag honors explicit false`() {
         let config = SyncQuotaWarningConfig(
             sessionEnabled: false,
             weeklyEnabled: false)
@@ -76,8 +76,8 @@ struct SyncQuotaWarningConfigTests {
 
     // MARK: - Codable round-trip
 
-    @Test("Codable round-trip preserves all four fields")
-    func codableRoundTrip() throws {
+    @Test
+    func `Codable round-trip preserves all four fields`() throws {
         let original = SyncQuotaWarningConfig(
             sessionThresholds: [80, 50, 20],
             sessionEnabled: true,
@@ -93,8 +93,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(decoded.weeklyEnabled == false)
     }
 
-    @Test("Codable decodes missing fields as nil (backward compat)")
-    func codableMissingFields() throws {
+    @Test
+    func `Codable decodes missing fields as nil (backward compat)`() throws {
         // Empty JSON object — simulates an old Mac that wrote
         // a config with all-defaults.
         let json = "{}".data(using: .utf8)!
@@ -111,8 +111,8 @@ struct SyncQuotaWarningConfigTests {
 
     // MARK: - ProviderUsageSnapshot wire compat
 
-    @Test("Snapshot decodes pre-1.6.0 JSON (no quotaWarnings field)")
-    func snapshotBackwardCompat() throws {
+    @Test
+    func `Snapshot decodes pre-1.6.0 JSON (no quotaWarnings field)`() throws {
         // Simulate a JSON envelope from Mac pre-0.25.2 — the field
         // doesn't appear at all in the payload.
         let oldJSON = """
@@ -131,8 +131,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(snapshot.quotaWarnings == nil)
     }
 
-    @Test("Snapshot round-trip preserves quotaWarnings")
-    func snapshotWithQuotaRoundTrip() throws {
+    @Test
+    func `Snapshot round-trip preserves quotaWarnings`() throws {
         let warnings = SyncQuotaWarningConfig(
             sessionThresholds: [60, 25],
             sessionEnabled: true,
@@ -158,8 +158,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(decoded.quotaWarnings?.weeklyEnabled == true)
     }
 
-    @Test("mutable quotaWarnings copy keeps all other fields intact")
-    func mutableQuotaWarningsCopyPreservesOtherFields() {
+    @Test
+    func `mutable quotaWarnings copy keeps all other fields intact`() {
         let original = ProviderUsageSnapshot(
             providerID: "codex",
             providerName: "Codex",
@@ -184,8 +184,8 @@ struct SyncQuotaWarningConfigTests {
 
     // MARK: - Per-window helper
 
-    @Test("quotaWarning(forWindowIndex:) returns session config at index 0")
-    func windowHelperSession() {
+    @Test
+    func `quotaWarning(forWindowIndex:) returns session config at index 0`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",
@@ -204,8 +204,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(result.enabled == true)
     }
 
-    @Test("quotaWarning(forWindowIndex:) returns weekly config at index 1")
-    func windowHelperWeekly() {
+    @Test
+    func `quotaWarning(forWindowIndex:) returns weekly config at index 1`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",
@@ -225,8 +225,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(result.enabled == false)
     }
 
-    @Test("quotaWarning(forWindowIndex:) returns disabled for extra windows")
-    func windowHelperExtraWindow() {
+    @Test
+    func `quotaWarning(forWindowIndex:) returns disabled for extra windows`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "perplexity",
             providerName: "Perplexity",
@@ -243,8 +243,8 @@ struct SyncQuotaWarningConfigTests {
         #expect(result.enabled == false)
     }
 
-    @Test("nil quotaWarnings falls back to Mac defaults — never empty render")
-    func windowHelperNilFallback() {
+    @Test
+    func `nil quotaWarnings falls back to Mac defaults — never empty render`() {
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude",
             providerName: "Claude",

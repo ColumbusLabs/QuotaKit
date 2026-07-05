@@ -9,6 +9,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `78076795`
+  (`61ff9320..78076795`), including Codex reset-credit inventory and raw credit
+  totals, project cost rollups, cost chart scale labels, shorter cost comparison
+  windows, Mistral balance and widget support, Devin extra-usage balance,
+  Cursor Linux session-token support, settings layout updates, no-prompt
+  Keychain test hardening, repository-size guards, and broader provider,
+  cost-history, widget, and localization test coverage while preserving
+  QuotaKit release ownership and config paths.
 - Reviewed upstream CodexBar release metadata through `61ff9320`
   (`261bad66..61ff9320`), preserving QuotaKit appcast ownership and release
   versioning while advancing upstream monitor tracking.

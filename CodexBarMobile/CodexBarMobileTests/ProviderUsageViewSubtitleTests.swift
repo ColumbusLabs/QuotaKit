@@ -44,20 +44,20 @@ struct ProviderUsageViewSubtitleTests {
 
     // MARK: - cardIdentityKey
 
-    @Test("cardIdentityKey includes accountEmail when present")
-    func cardIdentityKeyWithEmail() {
+    @Test
+    func `cardIdentityKey includes accountEmail when present`() {
         let snap = self.makeSnapshot(accountEmail: "alice@example.com")
         #expect(snap.cardIdentityKey == "codex|alice@example.com")
     }
 
-    @Test("cardIdentityKey collapses nil accountEmail to empty tail (matches mergeSnapshots bucket)")
-    func cardIdentityKeyWithoutEmail() {
+    @Test
+    func `cardIdentityKey collapses nil accountEmail to empty tail (matches mergeSnapshots bucket)`() {
         let snap = self.makeSnapshot(accountEmail: nil)
         #expect(snap.cardIdentityKey == "codex|")
     }
 
-    @Test("Two distinct accounts → distinct cardIdentityKeys (so ForEach doesn't collapse)")
-    func cardIdentityKeyDistinctForTwoAccounts() {
+    @Test
+    func `Two distinct accounts → distinct cardIdentityKeys (so ForEach doesn't collapse)`() {
         let alice = self.makeSnapshot(accountEmail: "alice@example.com")
         let bob = self.makeSnapshot(accountEmail: "bob@example.com")
         #expect(alice.cardIdentityKey != bob.cardIdentityKey)
@@ -65,32 +65,32 @@ struct ProviderUsageViewSubtitleTests {
 
     // MARK: - Subtitle selection
 
-    @Test("Single-card + email → subtitle is the email")
-    func singleCardWithEmail() {
+    @Test
+    func `Single-card + email → subtitle is the email`() {
         let view = ProviderUsageView(
             provider: self.makeSnapshot(accountEmail: "alice@example.com"),
             duplicateOrdinal: nil)
         #expect(view.subtitleLine() == "alice@example.com")
     }
 
-    @Test("Single-card + nil email → subtitle is nil (clean layout)")
-    func singleCardWithoutEmail() {
+    @Test
+    func `Single-card + nil email → subtitle is nil (clean layout)`() {
         let view = ProviderUsageView(
             provider: self.makeSnapshot(accountEmail: nil),
             duplicateOrdinal: nil)
         #expect(view.subtitleLine() == nil)
     }
 
-    @Test("Multi-card + email → email still wins (never show bare ordinal when email is attributable)")
-    func multiCardWithEmail() {
+    @Test
+    func `Multi-card + email → email still wins (never show bare ordinal when email is attributable)`() {
         let view = ProviderUsageView(
             provider: self.makeSnapshot(accountEmail: "alice@example.com"),
             duplicateOrdinal: 1)
         #expect(view.subtitleLine() == "alice@example.com")
     }
 
-    @Test("Multi-card + nil email → ordinal fallback (localized template)")
-    func multiCardWithoutEmailFallsToOrdinal() {
+    @Test
+    func `Multi-card + nil email → ordinal fallback (localized template)`() {
         let view = ProviderUsageView(
             provider: self.makeSnapshot(accountEmail: nil),
             duplicateOrdinal: 2)
@@ -104,8 +104,8 @@ struct ProviderUsageViewSubtitleTests {
         #expect(result?.contains("2") == true)
     }
 
-    @Test("Multi-card + empty string email treated as nil")
-    func multiCardWithEmptyEmailFallsToOrdinal() {
+    @Test
+    func `Multi-card + empty string email treated as nil`() {
         // Defense against the bucket-merge fallback where `accountEmail: ""`
         // would otherwise render as a blank row. The subtitle helper
         // explicitly checks `!email.isEmpty`.

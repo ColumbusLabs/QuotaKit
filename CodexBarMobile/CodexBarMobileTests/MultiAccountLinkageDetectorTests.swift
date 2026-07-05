@@ -12,8 +12,8 @@ import Testing
 /// wrongly merging two real accounts.
 @Suite("Multi-account linkage detector")
 struct MultiAccountLinkageDetectorTests {
-    @Test("One named + one legacy → 1 candidate")
-    func unambiguousPairEmitsCandidate() {
+    @Test
+    func `One named + one legacy → 1 candidate`() {
         let named = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])
@@ -25,8 +25,8 @@ struct MultiAccountLinkageDetectorTests {
         #expect(candidates.first?.legacy.cardIdentityKey == legacy.cardIdentityKey)
     }
 
-    @Test("One named + two legacy → 2 candidates (each legacy paired with the named)")
-    func oneNamedTwoLegacyPaired() {
+    @Test
+    func `One named + two legacy → 2 candidates (each legacy paired with the named)`() {
         let named = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])
@@ -47,8 +47,8 @@ struct MultiAccountLinkageDetectorTests {
         #expect(legacyKeys.contains(legacy2.cardIdentityKey))
     }
 
-    @Test("Two named + one legacy → 0 candidates (ambiguous; user must pick)")
-    func twoNamedOneLegacyAmbiguous() {
+    @Test
+    func `Two named + one legacy → 0 candidates (ambiguous; user must pick)`() {
         let alice = Self.makeProvider(
             id: "codex", email: "alice@x.com",
             identifiers: ["codex:email:alice@x.com"])
@@ -63,8 +63,8 @@ struct MultiAccountLinkageDetectorTests {
             "Two real Codex accounts (alice + bob) + 1 nameless = iOS can't pick; skip auto-prompt.")
     }
 
-    @Test("Zero named + many legacy → 0 candidates (no auto-merge offered)")
-    func zeroNamedManyLegacyNoCandidate() {
+    @Test
+    func `Zero named + many legacy → 0 candidates (no auto-merge offered)`() {
         let legacy1 = Self.makeProvider(id: "codex", email: nil, identifiers: nil)
         let legacy2 = Self.makeProvider(id: "codex", email: nil, identifiers: nil)
         let candidates = MultiAccountLinkageDetector.candidates(
@@ -74,8 +74,8 @@ struct MultiAccountLinkageDetectorTests {
         #expect(candidates.isEmpty)
     }
 
-    @Test("Single card → 0 candidates (nothing to merge)")
-    func singleCardNoCandidate() {
+    @Test
+    func `Single card → 0 candidates (nothing to merge)`() {
         let only = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])
@@ -83,8 +83,8 @@ struct MultiAccountLinkageDetectorTests {
         #expect(candidates.isEmpty)
     }
 
-    @Test("Cross-provider isolation: claude legacy doesn't get merged into codex named")
-    func crossProviderIsolation() {
+    @Test
+    func `Cross-provider isolation: claude legacy doesn't get merged into codex named`() {
         let codexNamed = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])
@@ -96,8 +96,8 @@ struct MultiAccountLinkageDetectorTests {
             "Different providerID never pairs into a candidate.")
     }
 
-    @Test("appVersionForProvider supplies legacyMacVersion for §9 inline hint")
-    func appVersionLookupSurfaced() {
+    @Test
+    func `appVersionForProvider supplies legacyMacVersion for §9 inline hint`() {
         let named = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])
@@ -112,8 +112,8 @@ struct MultiAccountLinkageDetectorTests {
             "Detector forwards the legacy snapshot's Mac version for the inline hint.")
     }
 
-    @Test("MultiAccountLinkageCandidate.linkedIdentifiers carries anchor IDs from both sides")
-    func linkedIdentifiersAnchorsBothSides() {
+    @Test
+    func `MultiAccountLinkageCandidate.linkedIdentifiers carries anchor IDs from both sides`() {
         let named = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:account:org-123", "codex:email:user@x.com"])
@@ -129,8 +129,8 @@ struct MultiAccountLinkageDetectorTests {
             "Legacy-side bucket key included so union-find can find both sides.")
     }
 
-    @Test("Candidate emission order is deterministic (sorted by hashKey)")
-    func candidatesAreSortedDeterministically() {
+    @Test
+    func `Candidate emission order is deterministic (sorted by hashKey)`() {
         let named = Self.makeProvider(
             id: "codex", email: "user@x.com",
             identifiers: ["codex:email:user@x.com"])

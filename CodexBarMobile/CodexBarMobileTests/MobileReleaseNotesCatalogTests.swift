@@ -4,8 +4,8 @@ import Testing
 
 @Suite("Mobile release notes catalog")
 struct MobileReleaseNotesCatalogTests {
-    @Test("catalog is non-empty with latest release first")
-    func catalogLatestRelease() {
+    @Test
+    func `catalog is non-empty with latest release first`() {
         let versions = MobileReleaseNotesCatalog.versions
 
         #expect(!versions.isEmpty)
@@ -13,8 +13,8 @@ struct MobileReleaseNotesCatalogTests {
         #expect(versions.first?.status == String(localized: "Latest"))
     }
 
-    @Test("versions are unique and descending")
-    func versionsUniqueAndDescending() {
+    @Test
+    func `versions are unique and descending`() {
         let versions = MobileReleaseNotesCatalog.versions.map(\.version)
         let unique = Set(versions)
 
@@ -22,8 +22,8 @@ struct MobileReleaseNotesCatalogTests {
         #expect(versions == versions.sorted(by: Self.versionDescending))
     }
 
-    @Test("entries have non-empty content")
-    func entriesHaveContent() {
+    @Test
+    func `entries have non-empty content`() {
         for version in MobileReleaseNotesCatalog.versions {
             #expect(!version.version.isEmpty)
             #expect(!version.summary.isEmpty)
@@ -38,8 +38,8 @@ struct MobileReleaseNotesCatalogTests {
         }
     }
 
-    @Test("catalog strings exist in Localizable.xcstrings")
-    func catalogStringsExistInLocalizationCatalog() throws {
+    @Test
+    func `catalog strings exist in Localizable.xcstrings`() throws {
         let catalog = try Self.localizationCatalog()
         let strings = Set(catalog.strings.keys)
 

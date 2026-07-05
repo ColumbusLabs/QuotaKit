@@ -24,8 +24,8 @@ struct CWLPerformanceTests {
         return (url, ModelContext(ModelContainerFactory.makeContainer(at: url)))
     }
 
-    @Test("T17: aggregate(365) over 365 days × 40 providers — correct + under 2s")
-    func aggregateAtScale() throws {
+    @Test
+    func `T17: aggregate(365) over 365 days × 40 providers — correct + under 2s`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

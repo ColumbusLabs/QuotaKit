@@ -42,7 +42,7 @@ struct KeychainMiniMaxCookieStore: MiniMaxCookieStoring {
         ]
         KeychainNoUIQuery.apply(to: &query)
 
-        let status = SecItemCopyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
         if status == errSecItemNotFound || status == errSecInteractionNotAllowed {
             return nil
         }
@@ -88,7 +88,7 @@ struct KeychainMiniMaxCookieStore: MiniMaxCookieStoring {
             kSecAttrAccessible as String: kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly,
         ]
 
-        let updateStatus = SecItemUpdate(query as CFDictionary, attributes as CFDictionary)
+        let updateStatus = KeychainSecurity.update(query as CFDictionary, attributes as CFDictionary)
         if updateStatus == errSecSuccess {
             return
         }
@@ -101,7 +101,7 @@ struct KeychainMiniMaxCookieStore: MiniMaxCookieStoring {
         for (key, value) in attributes {
             addQuery[key] = value
         }
-        let addStatus = SecItemAdd(addQuery as CFDictionary, nil)
+        let addStatus = KeychainSecurity.add(addQuery as CFDictionary, nil)
         guard addStatus == errSecSuccess else {
             Self.log.error("Keychain add failed: \(addStatus)")
             throw MiniMaxCookieStoreError.keychainStatus(addStatus)
@@ -116,7 +116,7 @@ struct KeychainMiniMaxCookieStore: MiniMaxCookieStoring {
             kSecAttrAccount as String: self.account,
         ]
         KeychainNoUIQuery.apply(to: &query)
-        let status = SecItemDelete(query as CFDictionary)
+        let status = KeychainSecurity.delete(query as CFDictionary)
         if status == errSecSuccess || status == errSecItemNotFound {
             return
         }

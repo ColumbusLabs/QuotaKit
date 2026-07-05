@@ -47,8 +47,8 @@ struct CKRecordReservedKeyAuditTests {
         "Shared/iCloud/CloudSyncManager.swift",
     ]
 
-    @Test("No source file writes a CKRecord field using a reserved name")
-    func reservedNameAssignmentsAbsent() throws {
+    @Test
+    func `No source file writes a CKRecord field using a reserved name`() throws {
         for relativePath in Self.auditedRelativePaths {
             let url = Self.sourceFileURL(forRelative: relativePath)
             let source = try String(contentsOf: url, encoding: .utf8)
@@ -73,8 +73,8 @@ struct CKRecordReservedKeyAuditTests {
         }
     }
 
-    @Test("All known CKRecord-writing files are listed in the audit")
-    func auditCoverageCompletes() throws {
+    @Test
+    func `All known CKRecord-writing files are listed in the audit`() throws {
         // Grep the project root for all `record["..."] = ...` WRITE sites
         // (not reads) and assert that every file containing such writes is
         // listed in `auditedRelativePaths`. If a new file starts writing

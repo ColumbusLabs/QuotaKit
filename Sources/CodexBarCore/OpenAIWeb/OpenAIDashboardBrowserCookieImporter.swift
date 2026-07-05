@@ -251,7 +251,7 @@ public struct OpenAIDashboardBrowserCookieImporter {
     private nonisolated static func fullDiskAccessTarget(processName: String, executablePath: String) -> String {
         let executableName = URL(fileURLWithPath: executablePath).lastPathComponent
         let componentName = executableName.isEmpty ? processName : executableName
-        let cliHelpers: Set<String> = ["QuotaKitCLI", "CodexBarCLI"]
+        let cliHelpers: Set = ["QuotaKitCLI", "CodexBarCLI"]
         if cliHelpers.contains(processName) || cliHelpers.contains(executableName) {
             return "\(componentName) (\(executablePath))"
         }

@@ -16,8 +16,8 @@ import Testing
 struct CostFormattingTests {
     // MARK: - USD
 
-    @Test("usd formats whole dollars with two decimals and currency symbol")
-    func usdWholeDollar() {
+    @Test
+    func `usd formats whole dollars with two decimals and currency symbol`() {
         // We don't pin exact locale output (tester's locale can shift the
         // grouping separator), but we assert structural properties that
         // hold across locales: no trailing garbage, two decimals after
@@ -27,59 +27,59 @@ struct CostFormattingTests {
         #expect(s.contains("42"))
     }
 
-    @Test("usd formats fractional cents with two decimals")
-    func usdFractional() {
+    @Test
+    func `usd formats fractional cents with two decimals`() {
         let s = CostFormatting.usd(12.345)
         #expect(s.contains("12.34") || s.contains("12,34"))
     }
 
-    @Test("usd optional overload returns — for nil")
-    func usdNil() {
+    @Test
+    func `usd optional overload returns — for nil`() {
         #expect(CostFormatting.usd(nil as Double?) == "—")
     }
 
-    @Test("usd optional overload unwraps for .some")
-    func usdOptionalSome() {
+    @Test
+    func `usd optional overload unwraps for .some`() {
         let value: Double? = 5
         #expect(CostFormatting.usd(value).contains("5"))
     }
 
     // MARK: - Tokens
 
-    @Test("tokens under 1K uses the localized `tokens` label with thousands grouping")
-    func tokensSmall() {
+    @Test
+    func `tokens under 1K uses the localized tokens label with thousands grouping`() {
         let s = CostFormatting.tokens(42)
         #expect(s.contains("42"))
     }
 
-    @Test("tokens in 1K–1M uses `K tokens`")
-    func tokensThousands() {
+    @Test
+    func `tokens in 1K–1M uses K tokens`() {
         let s = CostFormatting.tokens(12345)
         // 12345 / 1000 = 12.3
         #expect(s.contains("12.3") || s.contains("12,3"))
     }
 
-    @Test("tokens in millions uses `M tokens`")
-    func tokensMillions() {
+    @Test
+    func `tokens in millions uses M tokens`() {
         let s = CostFormatting.tokens(1_234_567)
         #expect(s.contains("1.2") || s.contains("1,2"))
     }
 
-    @Test("tokens in billions uses `B tokens`")
-    func tokensBillions() {
+    @Test
+    func `tokens in billions uses B tokens`() {
         let s = CostFormatting.tokens(8_525_000_000)
         #expect(s.contains("8.5") || s.contains("8,5"))
         #expect(s.contains("B tokens"))
         #expect(!s.contains("M tokens"))
     }
 
-    @Test("tokens optional overload returns — for nil")
-    func tokensNil() {
+    @Test
+    func `tokens optional overload returns — for nil`() {
         #expect(CostFormatting.tokens(nil as Int?) == "—")
     }
 
-    @Test("tokens is monotonic — a bigger count yields a lexicographically or suffix-shifted string")
-    func tokensMonotonicSuffixTransition() {
+    @Test
+    func `tokens is monotonic — a bigger count yields a lexicographically or suffix-shifted string`() {
         // Guard against a regression that drops the K/M suffix threshold
         // logic. We don't pin the exact number format but do pin that the
         // suffix transitions appear at the right boundaries.

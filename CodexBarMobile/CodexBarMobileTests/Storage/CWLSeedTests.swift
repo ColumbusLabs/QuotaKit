@@ -47,8 +47,8 @@ struct CWLSeedTests {
 
     // MARK: - T10
 
-    @Test("T10: seed imports daily points from ProviderSnapshotModel blobs, carrying account + device")
-    func seedImports() throws {
+    @Test
+    func `T10: seed imports daily points from ProviderSnapshotModel blobs, carrying account + device`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -79,8 +79,8 @@ struct CWLSeedTests {
         #expect(byDay["2026-05-27"]?.first?.modelBreakdownsData != nil)
     }
 
-    @Test("T10: seed is idempotent — second run is a no-op")
-    func seedIdempotent() throws {
+    @Test
+    func `T10: seed is idempotent — second run is a no-op`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -101,8 +101,8 @@ struct CWLSeedTests {
 
     // MARK: - T11
 
-    @Test("T11: corrupt blob is skipped, valid rows still seed, no crash")
-    func seedSkipsCorruptBlob() throws {
+    @Test
+    func `T11: corrupt blob is skipped, valid rows still seed, no crash`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -128,8 +128,8 @@ struct CWLSeedTests {
         #expect(rows.first?.costUSD == 3.0)
     }
 
-    @Test("T11: row with nil costSummaryData is skipped")
-    func seedSkipsNilBlob() throws {
+    @Test
+    func `T11: row with nil costSummaryData is skipped`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 

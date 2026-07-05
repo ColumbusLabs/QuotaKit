@@ -15,8 +15,8 @@ import Testing
 struct LinkageRecordMergeTests {
     // MARK: - §8.11 linkageRecordOverride
 
-    @Test("§8.11 — User-confirmed LinkageRecord unions disjoint groups")
-    func linkageOverrideUnionsGroups() throws {
+    @Test
+    func `§8.11 — User-confirmed LinkageRecord unions disjoint groups`() throws {
         // Mac A writes only email:U; Mac B writes only sub:S. Without a
         // shared identifier, L1+L2 produces 2 groups. A LinkageRecord
         // listing both anchor IDs unions them into 1.
@@ -54,8 +54,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - §7.4 Unmerge
 
-    @Test("§7.4 — Inverse `unmerge=true` record nullifies the merge")
-    func unmergeNullifiesMerge() throws {
+    @Test
+    func `§7.4 — Inverse unmerge=true record nullifies the merge`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -87,8 +87,8 @@ struct LinkageRecordMergeTests {
             "Inverse `unmerge=true` linkage with matching identifier set cancels the merge.")
     }
 
-    @Test("§7.4 — Unmerge order doesn't matter (inverse applies after all merges)")
-    func unmergeOrderIndependent() throws {
+    @Test
+    func `§7.4 — Unmerge order doesn't matter (inverse applies after all merges)`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -125,8 +125,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - Concurrency (§11.5 row M)
 
-    @Test("Two concurrent merge LinkageRecords from different iPhones are idempotent")
-    func concurrentMergesIdempotent() throws {
+    @Test
+    func `Two concurrent merge LinkageRecords from different iPhones are idempotent`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -161,8 +161,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - No-op cases
 
-    @Test("Linkage with non-matching providerID is no-op")
-    func linkageWrongProviderID() throws {
+    @Test
+    func `Linkage with non-matching providerID is no-op`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -184,8 +184,8 @@ struct LinkageRecordMergeTests {
             "Linkage for `claude` cannot touch codex snapshots.")
     }
 
-    @Test("Linkage with no overlapping identifier is no-op")
-    func linkageNoOverlap() throws {
+    @Test
+    func `Linkage with no overlapping identifier is no-op`() throws {
         let mA = Self.makeMac(deviceID: "A", providers: [
             Self.makeProvider(
                 id: "codex",
@@ -213,8 +213,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - Codable round-trip
 
-    @Test("ProviderAccountLinkage round-trips through JSON")
-    func linkageCodableRoundTrip() throws {
+    @Test
+    func `ProviderAccountLinkage round-trips through JSON`() throws {
         let linkage = ProviderAccountLinkage(
             recordID: "abc-123",
             providerID: "codex",
@@ -230,8 +230,8 @@ struct LinkageRecordMergeTests {
         #expect(decoded == linkage)
     }
 
-    @Test("Missing `unmerge` field in decoded JSON defaults to merge (false)")
-    func linkageDecodeUnmergeBackwardCompat() throws {
+    @Test
+    func `Missing unmerge field in decoded JSON defaults to merge (false)`() throws {
         let payload: [String: Any] = [
             "recordID": "abc-123",
             "providerID": "codex",
@@ -250,8 +250,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - Inverse helper
 
-    @Test("inverseUnmerge produces an unmerge record with same linked ids")
-    func inverseUnmergeHelper() {
+    @Test
+    func `inverseUnmerge produces an unmerge record with same linked ids`() {
         let original = ProviderAccountLinkage(
             providerID: "codex",
             linkedIdentifiers: ["codex:email:a@x.com", "codex:legacy-no-identity"],
@@ -269,8 +269,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - CKRecord encoding (regression for build 115 ObjC-exception crash)
 
-    @Test("CKRecord encode→decode round-trips without the reserved `recordID` field")
-    func ckRecordRoundTripNoReservedKeyCollision() {
+    @Test
+    func `CKRecord encode→decode round-trips without the reserved recordID field`() {
         // Build 115 set `record["recordID"] = ...` which collides with the
         // built-in CKRecord.recordID property and raises an ObjC
         // NSException via `-[CKRecordValueStore setObject:forKey:]` — fatal
@@ -316,8 +316,8 @@ struct LinkageRecordMergeTests {
         #expect(decoded?.unmerge == original.unmerge)
     }
 
-    @Test("Records lacking the `linkage-` prefix decode as nil (not our records)")
-    func ckRecordWrongNamePrefixRejected() {
+    @Test
+    func `Records lacking the linkage- prefix decode as nil (not our records)`() {
         let zoneID = CKRecordZone.ID(
             zoneName: CloudSyncConstants.providerZoneName,
             ownerName: CKCurrentUserDefaultName)
@@ -341,8 +341,8 @@ struct LinkageRecordMergeTests {
 
     // MARK: - Cold-start cache
 
-    @Test("Cached linkages round-trip through UserDefaults")
-    func cachedLinkageRoundTrip() {
+    @Test
+    func `Cached linkages round-trip through UserDefaults`() {
         let cacheKey = "com.columbuslabs.quotakit.linkageCache.v1"
         let defaults = UserDefaults.standard
         defer { defaults.removeObject(forKey: cacheKey) }
@@ -364,16 +364,16 @@ struct LinkageRecordMergeTests {
         #expect(loaded.first == original)
     }
 
-    @Test("Empty cache loads as empty array")
-    func emptyLinkageCache() {
+    @Test
+    func `Empty cache loads as empty array`() {
         let cacheKey = "com.columbuslabs.quotakit.linkageCache.v1"
         UserDefaults.standard.removeObject(forKey: cacheKey)
         let loaded = SyncedUsageData.loadCachedLinkages()
         #expect(loaded.isEmpty)
     }
 
-    @Test("Legacy linkage cache migrates to QuotaKit key")
-    func legacyLinkageCacheMigration() throws {
+    @Test
+    func `Legacy linkage cache migrates to QuotaKit key`() throws {
         let newKey = "com.columbuslabs.quotakit.linkageCache.v1"
         let legacyKey = "com.codexbar.linkageCache.v1"
         let defaults = UserDefaults.standard

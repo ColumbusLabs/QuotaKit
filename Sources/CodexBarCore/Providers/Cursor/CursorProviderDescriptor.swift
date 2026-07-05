@@ -33,7 +33,7 @@ public enum CursorProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Cursor cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api],
+                sourceModes: [.auto, .api, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [CursorStatusFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "cursor",

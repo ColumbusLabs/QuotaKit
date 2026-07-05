@@ -8,6 +8,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         var lastAttemptAt: Date?
         var lastCooldownInterval: TimeInterval?
         var inFlightAttemptID: UInt64?
+        var inFlightInteraction: ProviderInteraction?
         var inFlightTask: Task<Outcome, Never>?
         var nextAttemptID: UInt64 = 0
 
@@ -40,9 +41,29 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             return .attemptedFailed("Cancelled.")
         }
 
-        switch self.inFlightDecision(now: now, timeout: timeout, environment: environment) {
+        let decision = self.inFlightDecision(
+            now: now,
+            timeout: timeout,
+            environment: environment,
+            interaction: ProviderInteractionContext.current)
+        #if DEBUG
+        if case .joinThenRetry = decision {
+            self.userInitiatedBackgroundJoinObserverForTesting?()
+        }
+        #endif
+
+        switch decision {
         case let .join(task):
             return await task.value
+        case let .joinThenRetry(id, task, state):
+            let outcome = await task.value
+            self.clearInFlightTaskIfStillCurrent(id: id, state: state)
+            switch outcome {
+            case .attemptedFailed, .skippedByCooldown, .cliUnavailable:
+                return await self.attempt(now: now, timeout: timeout, environment: environment)
+            case .attemptedSucceeded:
+                return outcome
+            }
         case let .start(id, task, state):
             let outcome = await task.value
             self.clearInFlightTaskIfStillCurrent(id: id, state: state)
@@ -52,14 +73,15 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
 
     private enum InFlightDecision {
         case join(Task<Outcome, Never>)
+        case joinThenRetry(UInt64, Task<Outcome, Never>, AttemptStateStorage)
         case start(UInt64, Task<Outcome, Never>, AttemptStateStorage)
     }
 
     private struct AttemptConfiguration {
         let environment: [String: String]
+        let interaction: ProviderInteraction
         let readStrategy: ClaudeOAuthKeychainReadStrategy
         let keychainAccessDisabled: Bool
-        let interaction: ProviderInteraction
         #if DEBUG
         let cliAvailableOverride: Bool?
         let touchAuthPathOverride: (@Sendable (TimeInterval, [String: String]) async throws -> Void)?
@@ -70,13 +92,20 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
     private static func inFlightDecision(
         now: Date,
         timeout: TimeInterval,
-        environment: [String: String]) -> InFlightDecision
+        environment: [String: String],
+        interaction: ProviderInteraction) -> InFlightDecision
     {
         let state = self.currentStateStorage
         state.lock.lock()
         defer { state.lock.unlock() }
 
         if let existing = state.inFlightTask {
+            if interaction == .userInitiated,
+               state.inFlightInteraction != .userInitiated,
+               let existingID = state.inFlightAttemptID
+            {
+                return .joinThenRetry(existingID, existing, state)
+            }
             return .join(existing)
         }
 
@@ -86,9 +115,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         #if DEBUG
         let configuration = AttemptConfiguration(
             environment: environment,
+            interaction: interaction,
             readStrategy: ClaudeOAuthKeychainReadStrategyPreference.current(),
             keychainAccessDisabled: KeychainAccessGate.isDisabled,
-            interaction: ProviderInteractionContext.current,
             cliAvailableOverride: self.cliAvailableOverrideForTesting,
             touchAuthPathOverride: self.touchAuthPathOverrideForTesting,
             keychainFingerprintOverride: self.keychainFingerprintOverrideForTesting)
@@ -96,9 +125,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         #else
         let configuration = AttemptConfiguration(
             environment: environment,
+            interaction: interaction,
             readStrategy: ClaudeOAuthKeychainReadStrategyPreference.current(),
-            keychainAccessDisabled: KeychainAccessGate.isDisabled,
-            interaction: ProviderInteractionContext.current)
+            keychainAccessDisabled: KeychainAccessGate.isDisabled)
         #endif
         let task = Task.detached(priority: .utility) {
             #if DEBUG
@@ -118,6 +147,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             #endif
         }
         state.inFlightAttemptID = attemptID
+        state.inFlightInteraction = interaction
         state.inFlightTask = task
         return .start(attemptID, task, state)
     }
@@ -135,9 +165,26 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
 
         // Atomically reserve an attempt under the lock so concurrent callers don't race past isInCooldown() and start
         // multiple touches/poll loops.
-        guard self.reserveAttemptIfNotInCooldown(now: now, state: state) else {
+        guard self.reserveAttemptIfNotInCooldown(
+            now: now,
+            bypassCooldown: configuration.interaction == .userInitiated,
+            state: state)
+        else {
             self.log.debug("Claude OAuth delegated refresh skipped by cooldown")
             return .skippedByCooldown
+        }
+
+        if let mcpOAuthOnlyFailure = self.mcpOAuthOnlyKeychainFailureIfPresent(
+            interaction: configuration.interaction,
+            readStrategy: configuration.readStrategy,
+            keychainAccessDisabled: configuration.keychainAccessDisabled,
+            environment: configuration.environment)
+        {
+            self.recordAttempt(now: now, cooldown: self.defaultCooldownInterval, state: state)
+            self.log.warning(
+                "Claude OAuth delegated refresh skipped: Claude keychain has MCP OAuth state only",
+                metadata: ["readStrategy": configuration.readStrategy.rawValue])
+            return .attemptedFailed(mcpOAuthOnlyFailure)
         }
 
         let baseline = self.currentKeychainChangeObservationBaseline(
@@ -353,15 +400,35 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         interaction: ProviderInteraction) -> Data?
     {
         guard !keychainAccessDisabled else { return nil }
-        return ClaudeOAuthCredentialsStore.loadFromClaudeKeychainViaSecurityCLIIfEnabled(
+        return ClaudeOAuthCredentialsStore.readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
             interaction: interaction,
             readStrategy: readStrategy)
+    }
+
+    private static func mcpOAuthOnlyKeychainFailureIfPresent(
+        interaction: ProviderInteraction,
+        readStrategy: ClaudeOAuthKeychainReadStrategy,
+        keychainAccessDisabled: Bool,
+        environment: [String: String]) -> String?
+    {
+        guard interaction != .userInitiated else { return nil }
+        guard ClaudeOAuthCredentialsStore.isMcpOAuthOnlyClaudeKeychainPayloadPresent(
+            interaction: interaction,
+            readStrategy: readStrategy,
+            keychainAccessDisabled: keychainAccessDisabled,
+            environment: environment)
+        else {
+            return nil
+        }
+        return ClaudeOAuthCredentialsError.mcpOAuthOnlyKeychain.errorDescription
+            ?? "Claude keychain contains MCP OAuth state only."
     }
 
     private static func clearInFlightTaskIfStillCurrent(id: UInt64, state: AttemptStateStorage) {
         state.lock.lock()
         if state.inFlightAttemptID == id {
             state.inFlightAttemptID = nil
+            state.inFlightInteraction = nil
             state.inFlightTask = nil
         }
         state.lock.unlock()
@@ -378,13 +445,20 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         UserDefaults.standard.set(cooldown, forKey: self.cooldownIntervalDefaultsKey)
     }
 
-    private static func reserveAttemptIfNotInCooldown(now: Date, state: AttemptStateStorage) -> Bool {
+    private static func reserveAttemptIfNotInCooldown(
+        now: Date,
+        bypassCooldown: Bool,
+        state: AttemptStateStorage) -> Bool
+    {
         state.lock.lock()
         defer { state.lock.unlock() }
         self.loadStateIfNeededLocked(state: state)
 
         let cooldown = state.lastCooldownInterval ?? self.defaultCooldownInterval
-        if let lastAttemptAt = state.lastAttemptAt, now.timeIntervalSince(lastAttemptAt) < cooldown {
+        if !bypassCooldown,
+           let lastAttemptAt = state.lastAttemptAt,
+           now.timeIntervalSince(lastAttemptAt) < cooldown
+        {
             return false
         }
 
@@ -426,6 +500,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         [String: String]) async throws -> Void)?
     @TaskLocal static var keychainFingerprintOverrideForTesting: (@Sendable () -> ClaudeOAuthCredentialsStore
         .ClaudeKeychainFingerprint?)?
+    @TaskLocal static var userInitiatedBackgroundJoinObserverForTesting: (@Sendable () -> Void)?
 
     static func withCLIAvailableOverrideForTesting<T>(
         _ override: Bool?,
@@ -454,6 +529,15 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         }
     }
 
+    static func withUserInitiatedBackgroundJoinObserverForTesting<T>(
+        _ observer: (@Sendable () -> Void)?,
+        operation: () async throws -> T) async rethrows -> T
+    {
+        try await self.$userInitiatedBackgroundJoinObserverForTesting.withValue(observer) {
+            try await operation()
+        }
+    }
+
     static func withIsolatedStateForTesting<T>(operation: () async throws -> T) async rethrows -> T {
         let state = AttemptStateStorage(persistsCooldown: false)
         return try await self.$stateStorageForTesting.withValue(state) {
@@ -468,6 +552,7 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
         state.lastAttemptAt = nil
         state.lastCooldownInterval = nil
         state.inFlightAttemptID = nil
+        state.inFlightInteraction = nil
         state.inFlightTask = nil
         state.nextAttemptID = 0
         state.lock.unlock()
