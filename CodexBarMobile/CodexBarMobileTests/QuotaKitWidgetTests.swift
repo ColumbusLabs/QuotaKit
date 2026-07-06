@@ -1010,6 +1010,42 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertFalse(detailText.contains("7-day"))
     }
 
+    func testKimiBothModeKeepsWeeklyRateLimitAndMonthlyRows() {
+        let provider = QuotaKitWidgetSnapshot.Provider(
+            id: "kimi",
+            providerName: "Kimi",
+            lastUpdated: Date(timeIntervalSince1970: 1_803_000_000),
+            statusMessage: nil,
+            isError: false,
+            windows: [
+                .init(
+                    title: "Weekly",
+                    usedPercent: 20,
+                    remainingPercent: 80,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .weekly),
+                .init(
+                    title: "Rate Limit",
+                    usedPercent: 61,
+                    remainingPercent: 39,
+                    resetsAt: nil,
+                    pace: nil,
+                    identity: .session),
+                .init(
+                    title: "Monthly",
+                    usedPercent: 35,
+                    remainingPercent: 65,
+                    resetsAt: nil,
+                    pace: nil),
+            ])
+
+        let windows = QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both)
+
+        XCTAssertEqual(windows.map(\.title), ["Weekly", "Rate Limit", "Monthly"])
+        XCTAssertEqual(windows.map(\.window.title), ["Weekly", "Rate Limit", "Monthly"])
+    }
+
     func testWidgetBothModeKeepsPrimaryWindowWhenWeeklyIsExplicitSecondWindow() {
         let provider = QuotaKitWidgetSnapshot.Provider(
             id: "claude",

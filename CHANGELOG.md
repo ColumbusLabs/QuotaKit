@@ -11,9 +11,19 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Claude: show opt-in read-only claude-swap accounts as stacked usage cards
   without delaying ambient refreshes.
+- Claude: switch inactive claude-swap accounts directly from stacked usage
+  cards through claude-swap without reading Claude credentials.
+- Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `b00797537`
+  (`45b000c13..b00797537`), including Kimi widget support, Kimi K2 non-finite
+  usage filtering, Codex weekly-cap display fixes, cached Codex cost
+  aggregates, Claude Desktop local-agent usage, claude-swap account switching,
+  debug menu-bar icon distinction, provider autodetect fixes, and broader
+  provider, widget, menu, and cost-history test coverage while preserving
+  QuotaKit release ownership.
 - Synced upstream CodexBar menu refresh scoping through `45b000c13`
   (`9ad35deb..45b000c13`), keeping provider manual refresh state isolated
   while preserving QuotaKit release ownership.
@@ -53,6 +63,17 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   ownership.
 
 ### Fixed
+- Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics
+  while keeping them visible in provider Settings.
+- Codex quotas: show the session quota as unavailable while an exhausted weekly
+  limit is still binding, including menu-bar icons and widgets.
+- Codex cost history: reuse cached aggregate pricing and one pricing catalog
+  across daily and project reports, carry fresh cache state across launches,
+  and treat unpriced models as migrated.
+- Kimi K2: reject non-finite credit and token values before they reach menus,
+  CLI output, or widgets.
+- Kimi: show the five-hour rate limit before the weekly quota while preserving
+  existing menu-bar metric preferences.
 - Menus: scope manual refresh state to the provider being refreshed, allowing
   independent provider refreshes without greying unrelated rows.
 - Claude history: quarantine same-directory account-switch samples until

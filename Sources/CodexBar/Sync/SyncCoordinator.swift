@@ -569,11 +569,14 @@ final class SyncCoordinator {
         let paceNow = Date()
         var rateWindows: [SyncRateWindow] = []
         let labels = Self.syncRateWindowLabels(provider: provider, metadata: metadata, snapshot: snapshot)
+        let codexProjection = provider == .codex
+            ? self.store.codexConsumerProjection(surface: .widget, snapshotOverride: snapshot, now: paceNow)
+            : nil
         if let p = snapshot?.primary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.primary,
-                window: p,
+                window: codexProjection?.rateWindow(for: .session) ?? p,
                 role: provider == .cursor ? .weekly : .session,
                 now: paceNow))
         }
@@ -581,7 +584,7 @@ final class SyncCoordinator {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.secondary,
-                window: s,
+                window: codexProjection?.rateWindow(for: .weekly) ?? s,
                 role: .weekly,
                 now: paceNow))
         }

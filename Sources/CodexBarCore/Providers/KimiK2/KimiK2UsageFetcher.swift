@@ -113,7 +113,10 @@ public struct KimiK2UsageFetcher: Sendable {
         ["lastUpdated"],
     ]
 
-    public static func fetchUsage(apiKey: String) async throws -> KimiK2UsageSnapshot {
+    public static func fetchUsage(
+        apiKey: String,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) async throws -> KimiK2UsageSnapshot
+    {
         guard !apiKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
             throw KimiK2UsageError.missingCredentials
         }
@@ -123,7 +126,7 @@ public struct KimiK2UsageFetcher: Sendable {
         request.setValue("Bearer \(apiKey)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
 
-        let response = try await ProviderHTTPClient.shared.response(for: request)
+        let response = try await transport.response(for: request)
         let data = response.data
         guard response.statusCode == 200 else {
             let body = String(data: data, encoding: .utf8) ?? "HTTP \(response.statusCode)"
@@ -240,16 +243,17 @@ public struct KimiK2UsageFetcher: Sendable {
     }
 
     private static func double(from raw: Any) -> Double? {
-        if let value = raw as? Double {
-            return value
+        let value: Double? = if let raw = raw as? Double {
+            raw
+        } else if let raw = raw as? Int {
+            Double(raw)
+        } else if let raw = raw as? String {
+            Double(raw)
+        } else {
+            nil
         }
-        if let value = raw as? Int {
-            return Double(value)
-        }
-        if let value = raw as? String {
-            return Double(value)
-        }
-        return nil
+        guard let value, value.isFinite else { return nil }
+        return value
     }
 
     private static func date(from raw: Any) -> Date? {
