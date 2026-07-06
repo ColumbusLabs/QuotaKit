@@ -324,6 +324,31 @@ struct KimiUsageResponseParsingTests {
         #expect(snapshot.weekly.used == "375")
         #expect(snapshot.rateLimit?.limit == "200")
         #expect(snapshot.rateLimit?.used == "19")
+
+        let usage = snapshot.toUsageSnapshot()
+        #expect(abs((usage.primary?.usedPercent ?? -1) - 18.3105) < 0.001)
+        #expect(usage.primary?.resetDescription == "375/2048 requests")
+        #expect(abs((usage.secondary?.usedPercent ?? -1) - 9.5) < 0.001)
+        #expect(usage.secondary?.windowMinutes == 300)
+        #expect(usage.secondary?.resetDescription == "Rate: 19/200 per 5 hours")
+    }
+
+    @Test
+    func `converts weekly-only usage into primary quota lane`() {
+        let snapshot = KimiUsageSnapshot(
+            weekly: KimiUsageDetail(
+                limit: "2048",
+                used: "512",
+                remaining: "1536",
+                resetTime: "2026-01-09T15:23:13Z"),
+            rateLimit: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+
+        let usage = snapshot.toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.resetDescription == "512/2048 requests")
+        #expect(usage.secondary == nil)
     }
 
     @Test
@@ -722,6 +747,31 @@ struct KimiUsageSnapshotConversionTests {
     }
 
     @Test
+    func `converts invalid rate limit as unavailable`() {
+        let now = Date()
+        let weeklyDetail = KimiUsageDetail(
+            limit: "2048",
+            used: "375",
+            remaining: "1673",
+            resetTime: "2026-01-09T15:23:13.373329235Z")
+        let invalidRateLimit = KimiUsageDetail(
+            limit: "0",
+            used: "0",
+            remaining: "0",
+            resetTime: "2026-01-06T15:05:24.374187075Z")
+
+        let snapshot = KimiUsageSnapshot(
+            weekly: weeklyDetail,
+            rateLimit: invalidRateLimit,
+            updatedAt: now)
+
+        let usageSnapshot = snapshot.toUsageSnapshot()
+
+        #expect(usageSnapshot.primary?.resetDescription == "375/2048 requests")
+        #expect(usageSnapshot.secondary == nil)
+    }
+
+    @Test
     func `handles zero values correctly`() {
         let now = Date()
         let weeklyDetail = KimiUsageDetail(
@@ -737,6 +787,7 @@ struct KimiUsageSnapshotConversionTests {
 
         let usageSnapshot = snapshot.toUsageSnapshot()
         #expect(usageSnapshot.primary?.usedPercent == 0.0)
+        #expect(usageSnapshot.secondary == nil)
     }
 
     @Test
@@ -755,6 +806,7 @@ struct KimiUsageSnapshotConversionTests {
 
         let usageSnapshot = snapshot.toUsageSnapshot()
         #expect(usageSnapshot.primary?.usedPercent == 100.0)
+        #expect(usageSnapshot.secondary == nil)
     }
 
     private static func date(_ text: String) -> Date? {

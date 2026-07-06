@@ -591,11 +591,13 @@ struct WidgetUsageRow: Identifiable, Equatable {
     }
 
     static func smallWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
-        self.antigravityQuotaSummaryRowLimit(for: entry, limit: 2)
+        if entry.provider == .kimi { return 3 }
+        return self.antigravityQuotaSummaryRowLimit(for: entry, limit: 2)
     }
 
     static func mediumWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
-        self.antigravityQuotaSummaryRowLimit(for: entry, limit: 3)
+        if entry.provider == .kimi { return 3 }
+        return self.antigravityQuotaSummaryRowLimit(for: entry, limit: 3)
     }
 
     private static func antigravityQuotaSummaryRowLimit(
@@ -612,12 +614,36 @@ struct WidgetUsageRow: Identifiable, Equatable {
         return limit
     }
 
-    static func rows(for entry: WidgetSnapshot.ProviderEntry, limit: Int? = nil) -> [WidgetUsageRow] {
+    static func rows(
+        for entry: WidgetSnapshot.ProviderEntry,
+        limit: Int? = nil,
+        now: Date = Date()) -> [WidgetUsageRow]
+    {
         let rows: [WidgetUsageRow]
         if let usageRows = entry.usageRows {
-            rows = usageRows.map { row in
-                WidgetUsageRow(id: row.id, title: row.title, percentLeft: row.percentLeft)
+            let resolvedSnapshots = usageRows.map { row in
+                guard row.window == nil,
+                      let window = self.legacyCodexRateWindow(for: row.id, entry: entry)
+                else {
+                    return row
+                }
+                return WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: row.id,
+                    title: row.title,
+                    percentLeft: row.percentLeft,
+                    window: window)
             }
+            let sourceRows = resolvedSnapshots.map { row in
+                WidgetUsageRow(
+                    id: row.id,
+                    title: row.title,
+                    percentLeft: row.window?.remainingPercent ?? row.percentLeft)
+            }
+            rows = self.applyingCodexWeeklyCap(
+                sourceRows,
+                snapshots: resolvedSnapshots,
+                provider: entry.provider,
+                now: now)
         } else {
             let metadata = ProviderDefaults.metadata[entry.provider]
             var defaultRows = [
@@ -668,6 +694,45 @@ struct WidgetUsageRow: Identifiable, Equatable {
             return selected
         }
         return Array(rows.prefix(max(0, limit)))
+    }
+
+    private static func applyingCodexWeeklyCap(
+        _ rows: [WidgetUsageRow],
+        snapshots: [WidgetSnapshot.WidgetUsageRowSnapshot],
+        provider: UsageProvider,
+        now: Date) -> [WidgetUsageRow]
+    {
+        guard provider == .codex,
+              let weekly = snapshots.first(where: { $0.id == "weekly" })?.window,
+              weekly.remainingPercent <= 0,
+              weekly.resetsAt.map({ $0 > now }) ?? true
+        else {
+            return rows
+        }
+        return rows.map { row in
+            guard row.id == "session" else { return row }
+            return WidgetUsageRow(id: row.id, title: row.title, percentLeft: 0)
+        }
+    }
+
+    private static func legacyCodexRateWindow(
+        for rowID: String,
+        entry: WidgetSnapshot.ProviderEntry) -> RateWindow?
+    {
+        guard entry.provider == .codex else { return nil }
+        let candidates = [(entry.primary, "session"), (entry.secondary, "weekly")]
+        for (window, fallbackID) in candidates {
+            guard let window else { continue }
+            let classifiedID = switch window.windowMinutes {
+            case 300: "session"
+            case 10080: "weekly"
+            default: fallbackID
+            }
+            if classifiedID == rowID {
+                return window
+            }
+        }
+        return nil
     }
 
     static func compactTokenUsage(

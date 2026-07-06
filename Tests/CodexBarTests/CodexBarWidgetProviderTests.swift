@@ -370,6 +370,44 @@ struct CodexBarWidgetProviderTests {
     }
 
     @Test
+    func `provider choice supports Kimi`() {
+        #expect(ProviderChoice(provider: .kimi) == .kimi)
+        #expect(ProviderChoice.kimi.provider == .kimi)
+    }
+
+    @Test
+    func `small and medium Kimi widgets keep all three persisted lane rows`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .kimi,
+            updatedAt: now,
+            primary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "primary", title: "Weekly", percentLeft: 75),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "secondary", title: "Rate Limit", percentLeft: 50),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "kimi-monthly", title: "Monthly", percentLeft: 25),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let smallRows = WidgetUsageRow.rows(
+            for: entry,
+            limit: WidgetUsageRow.smallWidgetRowLimit(for: entry))
+        let mediumRows = WidgetUsageRow.rows(
+            for: entry,
+            limit: WidgetUsageRow.mediumWidgetRowLimit(for: entry))
+
+        #expect(WidgetUsageRow.smallWidgetRowLimit(for: entry) == 3)
+        #expect(WidgetUsageRow.mediumWidgetRowLimit(for: entry) == 3)
+        #expect(smallRows.map(\.id) == ["primary", "secondary", "kimi-monthly"])
+        #expect(mediumRows == smallRows)
+    }
+
+    @Test
     func `provider choice excludes unsupported Chutes widgets`() {
         #expect(ProviderChoice(provider: .chutes) == nil)
     }
@@ -441,6 +479,24 @@ struct CodexBarWidgetProviderTests {
     }
 
     @Test
+    func `supported providers keep Kimi when it is the only enabled provider`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .kimi,
+            updatedAt: now,
+            primary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+        let snapshot = WidgetSnapshot(entries: [entry], enabledProviders: [.kimi], generatedAt: now)
+
+        #expect(CodexBarSwitcherTimelineProvider.supportedProviders(from: snapshot) == [.kimi])
+    }
+
+    @Test
     func `codex weekly only widget rows omit session`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let entry = WidgetSnapshot.ProviderEntry(
@@ -502,6 +558,50 @@ struct CodexBarWidgetProviderTests {
         let rows = WidgetUsageRow.rows(for: entry)
 
         #expect(rows == [WidgetUsageRow(id: "weekly", title: "Weekly", percentLeft: 75)])
+    }
+
+    @Test
+    func `codex widget session cap lifts at weekly reset without a new snapshot`() {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let weeklyReset = now.addingTimeInterval(3600)
+        let sessionWindow = RateWindow(
+            usedPercent: 1,
+            windowMinutes: 300,
+            resetsAt: now.addingTimeInterval(1800),
+            resetDescription: nil)
+        let weeklyWindow = RateWindow(
+            usedPercent: 100,
+            windowMinutes: 10080,
+            resetsAt: weeklyReset,
+            resetDescription: nil)
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .codex,
+            updatedAt: now.addingTimeInterval(-7200),
+            primary: sessionWindow,
+            secondary: weeklyWindow,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "session",
+                    title: "Session",
+                    percentLeft: 99,
+                    window: sessionWindow),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "weekly",
+                    title: "Weekly",
+                    percentLeft: 0,
+                    window: weeklyWindow),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        let capped = WidgetUsageRow.rows(for: entry, now: now)
+        let reset = WidgetUsageRow.rows(for: entry, now: weeklyReset)
+
+        #expect(capped.map(\.percentLeft) == [0, 0])
+        #expect(reset.map(\.percentLeft) == [99, 0])
     }
 
     @Test

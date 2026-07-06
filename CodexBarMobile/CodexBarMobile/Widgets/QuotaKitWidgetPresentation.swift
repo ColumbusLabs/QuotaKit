@@ -4,13 +4,24 @@ import Foundation
 struct QuotaKitWidgetDisplayWindow: Identifiable, Equatable {
     let mode: QuotaKitWidgetDisplayMode
     let window: QuotaKitWidgetSnapshot.Provider.Window
+    let titleOverride: String?
+
+    init(
+        mode: QuotaKitWidgetDisplayMode,
+        window: QuotaKitWidgetSnapshot.Provider.Window,
+        titleOverride: String? = nil)
+    {
+        self.mode = mode
+        self.window = window
+        self.titleOverride = titleOverride
+    }
 
     var id: String {
         "\(self.mode.rawValue)-\(self.window.title)"
     }
 
     var title: String {
-        self.mode.localizedTitle
+        self.titleOverride ?? self.mode.localizedTitle
     }
 }
 
@@ -35,6 +46,14 @@ enum QuotaKitWidgetPresentation {
     {
         switch displayMode {
         case .both:
+            if provider.id == "kimi" {
+                return provider.windows.prefix(3).map { window in
+                    QuotaKitWidgetDisplayWindow(
+                        mode: window.identity == .weekly ? .weekly : .session,
+                        window: window,
+                        titleOverride: window.title)
+                }
+            }
             let weekly = Self.weeklyWindow(for: provider, allowPrimaryFallback: false)
             let session = Self.sessionWindowForBothMode(provider: provider, weekly: weekly)
             var result = session.map {
