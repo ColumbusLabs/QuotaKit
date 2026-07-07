@@ -5,7 +5,7 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## Unreleased
+## 0.32.4.10 / iOS 1.11.1 — 2026-07-07
 
 ### Added
 
@@ -17,57 +17,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar Mac improvements through `aa401f1d`
-  (`b00797537..aa401f1d`), including Agent Sessions menu and CLI support,
-  responsive `quotakit cards` output, Ollama WorkOS cookie handling, Chromium
-  Safe Storage prompt throttling, Alibaba Model Studio region support, Claude
-  Max plan labels, Antigravity pace details, Kimi subscription rows, Gemini and
-  Devin usage formatting fixes, and menu/window resilience while preserving
-  QuotaKit release ownership, appcast metadata, config paths, and build numbers.
-- Synced upstream CodexBar Mac improvements through `b00797537`
-  (`45b000c13..b00797537`), including Kimi widget support, Kimi K2 non-finite
-  usage filtering, Codex weekly-cap display fixes, cached Codex cost
-  aggregates, Claude Desktop local-agent usage, claude-swap account switching,
-  debug menu-bar icon distinction, provider autodetect fixes, and broader
-  provider, widget, menu, and cost-history test coverage while preserving
-  QuotaKit release ownership.
-- Synced upstream CodexBar menu refresh scoping through `45b000c13`
-  (`9ad35deb..45b000c13`), keeping provider manual refresh state isolated
-  while preserving QuotaKit release ownership.
-- Synced upstream CodexBar Mac improvements through `78076795`
-  (`61ff9320..78076795`), including Codex reset-credit inventory and raw credit
-  totals, project cost rollups, cost chart scale labels, shorter cost comparison
-  windows, Mistral balance and widget support, Devin extra-usage balance,
-  Cursor Linux session-token support, settings layout updates, no-prompt
-  Keychain test hardening, repository-size guards, and broader provider,
-  cost-history, widget, and localization test coverage while preserving
-  QuotaKit release ownership and config paths.
-- Reviewed upstream CodexBar release metadata through `61ff9320`
-  (`261bad66..61ff9320`), preserving QuotaKit appcast ownership and release
-  versioning while advancing upstream monitor tracking.
-- Synced upstream CodexBar Mac improvements through `261bad66`
-  (`44f0949b..261bad66`), including the System Settings-style settings
-  redesign, grouped Plan Usage/Cost/Storage menu rows, reset-boundary usage
-  refreshes, compact terminal picker icons, release-preflight stabilization,
-  and broader settings/menu/reset-boundary test coverage while preserving
-  QuotaKit release ownership and mobile sync settings.
-- Synced upstream CodexBar Mac improvements through `bf86b09e`
-  (`054751151..bf86b09e`), including Qoder provider support, Claude quota
-  cleanup and unavailable-limit classification, reset-credit display fixes,
-  scoped most-used-provider ranking, stale status-icon animation fixes,
-  Cursor depleted-quota pace handling, provider documentation details, and
-  broader provider/menu/widget test coverage.
-- Synced upstream localization and provider menu copy through `daba50847`
-  (`8fb8c742..daba50847`), completing Traditional Chinese coverage while
-  preserving QuotaKit public naming in localized values.
-- Synced upstream CrossModel provider support through `0a18391e`
-  (`daba50847..0a18391e`), adding CrossModel API spend parsing, CLI
-  diagnostics, widget/menu display, provider docs, and tests while preserving
-  QuotaKit public docs and config ownership.
-- Synced upstream Doubao Coding Plan usage through `44f0949b`
-  (`0a18391e..44f0949b`), adding signed Volcengine AK/SK support for
-  session, weekly, and monthly usage while preserving QuotaKit config
-  ownership.
+- Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
+  release through `aa401f1d`, including Agent Sessions, CLI cards,
+  claude-swap accounts, Kimi widgets and subscription rows, CrossModel,
+  Doubao Coding Plan, Qoder, Mistral, and ClawRouter providers, Codex credit
+  and cost-history improvements, provider refresh scoping, settings and menu
+  resilience, localization updates, and release validation hardening while
+  preserving QuotaKit release ownership, appcast metadata, CloudKit setup,
+  config paths, and iOS build numbers.
 
 ### Fixed
 - Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics
@@ -88,25 +45,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   crossing accounts.
 - Sakana AI: parse server-rendered quota reset timestamps as UTC instead of
   device-local time.
-- Usage pace: keep rounded on-track deficit and reserve labels visible instead
-  of collapsing all on-track deltas to "On pace".
-- Usage display: keep positive values below one percent visible instead of
-  rounding them to zero.
-- Kiro: run account, usage, and context commands through a PTY so current CLI
-  versions return usage without timing out.
-- OpenAI web: ignore stale profiles from removed browsers, discover registered
-  installs outside standard app folders, and surface browser-profile access and
-  cookie-load timeout diagnostics.
-- CLI server: collect `/usage` providers concurrently under finite per-provider
-  deadlines so one hung provider degrades to its own error row without discarding
-  healthy results.
-- Privacy: hide account and team identity values without showing placeholder
-  text or empty account rows.
-- Codex: avoid monthly-credit CLI enrichment during usage-only OAuth refreshes.
-- Menu bar: show pace as `0%` instead of a signed `+0%` or `-0%` when the pace
-  delta rounds to zero.
-- Menu: align the persistent Refresh row with native actions, keep Settings,
-  About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
 - Widgets: honor the shared used-versus-remaining display preference.
 - Claude: isolate OAuth history per credential, preserve continuity through
   refreshes, bound stale web requests so Auto can reach CLI fallback, add a
