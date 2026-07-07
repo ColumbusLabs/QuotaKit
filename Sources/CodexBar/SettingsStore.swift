@@ -454,6 +454,8 @@ extension SettingsStore {
         let providersSortedAlphabetically = userDefaults.object(
             forKey: "providersSortedAlphabetically") as? Bool ?? false
         let appLanguageRaw = userDefaults.string(forKey: "appLanguage")
+        let agentSessionsEnabled = userDefaults.object(forKey: "agentSessionsEnabled") as? Bool ?? false
+        let agentSessionsManualHosts = userDefaults.string(forKey: "agentSessionsManualHosts") ?? ""
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
             refreshAllProvidersOnMenuOpen: refreshAllProvidersOnMenuOpen,
@@ -515,7 +517,9 @@ extension SettingsStore {
             providerDetectionCompleted: providerDetectionCompleted,
             providersSortedAlphabetically: providersSortedAlphabetically,
             appLanguageRaw: appLanguageRaw,
-            terminalAppRaw: userDefaults.string(forKey: "terminalApp"))
+            terminalAppRaw: userDefaults.string(forKey: "terminalApp"),
+            agentSessionsEnabled: agentSessionsEnabled,
+            agentSessionsManualHosts: agentSessionsManualHosts)
     }
 
     private static func loadOpenAIWebDefaults(userDefaults: UserDefaults) -> (

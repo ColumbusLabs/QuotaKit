@@ -17,6 +17,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `aa401f1d`
+  (`b00797537..aa401f1d`), including Agent Sessions menu and CLI support,
+  responsive `quotakit cards` output, Ollama WorkOS cookie handling, Chromium
+  Safe Storage prompt throttling, Alibaba Model Studio region support, Claude
+  Max plan labels, Antigravity pace details, Kimi subscription rows, Gemini and
+  Devin usage formatting fixes, and menu/window resilience while preserving
+  QuotaKit release ownership, appcast metadata, config paths, and build numbers.
 - Synced upstream CodexBar Mac improvements through `b00797537`
   (`45b000c13..b00797537`), including Kimi widget support, Kimi K2 non-finite
   usage filtering, Codex weekly-cap display fixes, cached Codex cost

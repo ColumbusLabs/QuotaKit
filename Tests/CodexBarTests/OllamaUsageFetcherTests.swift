@@ -4,6 +4,13 @@ import Testing
 
 struct OllamaUsageFetcherTests {
     @Test
+    func `session authentication errors point to current recovery page`() {
+        #expect(OllamaUsageError.notLoggedIn.errorDescription?.contains("https://ollama.com/signin") == true)
+        #expect(OllamaUsageError.invalidCredentials.errorDescription?.contains("https://ollama.com/signin") == true)
+        #expect(OllamaUsageError.noSessionCookie.errorDescription?.contains("https://ollama.com/signin") == true)
+    }
+
+    @Test
     func `attaches cookie for ollama hosts`() {
         #expect(OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "https://ollama.com/settings")))
         #expect(OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "https://www.ollama.com")))
@@ -22,6 +29,27 @@ struct OllamaUsageFetcherTests {
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://ollama.com/settings")))
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://www.ollama.com")))
         #expect(!OllamaUsageFetcher.shouldAttachCookie(to: URL(string: "http://app.ollama.com/path")))
+    }
+
+    @Test
+    func `recognizes current ollama sign in redirects`() {
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(string: "https://ollama.com/signin")))
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://api.workos.com/user_management/authorize?client_id=test")))
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://auth.workos.com/user_management/authorize?client_id=test")))
+        // The real unauthenticated chain lands on the WorkOS-hosted Ollama sign-in
+        // page on the `signin.ollama.com` subdomain (verified live); that terminal
+        // landing must also classify as a sign-in redirect.
+        #expect(OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://signin.ollama.com/?client_id=test&authorization_session_id=x")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "https://ollama.com/settings")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "https://api.workos.com/other")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(string: "http://ollama.com/signin")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "http://auth.workos.com/user_management/authorize?client_id=test")))
+        #expect(!OllamaUsageFetcher.isSignInRedirect(URL(
+            string: "https://example.com/user_management/authorize?client_id=test")))
     }
 
     @Test
@@ -74,6 +102,14 @@ struct OllamaUsageFetcherTests {
             override: "__Secure-session=abc; theme=dark",
             manualCookieMode: true)
         #expect(resolved?.contains("__Secure-session=abc") == true)
+    }
+
+    @Test
+    func `manual mode accepts workos session cookie header`() throws {
+        let resolved = try OllamaUsageFetcher.resolveManualCookieHeader(
+            override: "wos-session=abc; theme=dark",
+            manualCookieMode: true)
+        #expect(resolved?.contains("wos-session=abc") == true)
     }
 
     @Test
@@ -148,6 +184,16 @@ struct OllamaUsageFetcherTests {
 
         let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
         #expect(selected.sourceLabel == "Profile D")
+    }
+
+    @Test
+    func `cookie selector accepts workos session cookie`() throws {
+        let candidate = OllamaCookieImporter.SessionInfo(
+            cookies: [Self.makeCookie(name: "wos-session", value: "auth")],
+            sourceLabel: "WorkOS Profile")
+
+        let selected = try OllamaCookieImporter.selectSessionInfo(from: [candidate])
+        #expect(selected.sourceLabel == "WorkOS Profile")
     }
 
     @Test

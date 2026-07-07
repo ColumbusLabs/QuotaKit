@@ -34,6 +34,12 @@ enum CodexBarCLI {
             let invocation = try program.resolve(argv: argv)
             Self.bootstrapLogging(path: invocation.path, values: invocation.parsedValues)
             switch invocation.path {
+            case ["cards"]:
+                let signalMonitor = CLITerminationSignalMonitor { signalNumber in
+                    CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
+                }
+                defer { signalMonitor.cancel() }
+                await self.runCards(invocation.parsedValues)
             case ["usage"]:
                 let signalMonitor = CLITerminationSignalMonitor { signalNumber in
                     CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
@@ -42,6 +48,10 @@ enum CodexBarCLI {
                 await self.runUsage(invocation.parsedValues)
             case ["cost"]:
                 await self.runCost(invocation.parsedValues)
+            case ["sessions", "list"]:
+                await self.runSessions(invocation.parsedValues)
+            case ["sessions", "focus"]:
+                await self.runSessionsFocus(invocation.parsedValues)
             case ["serve"]:
                 await self.runServe(invocation.parsedValues)
             case ["config", "validate"]:
@@ -79,8 +89,11 @@ enum CodexBarCLI {
     }
 
     private static func commandDescriptors() -> [CommandDescriptor] {
+        let cardsSignature = CommandSignature.describe(CardsOptions())
         let usageSignature = CommandSignature.describe(UsageOptions())
         let costSignature = CommandSignature.describe(CostOptions())
+        let sessionsSignature = CommandSignature.describe(SessionsOptions())
+        let sessionsFocusSignature = CommandSignature.describe(SessionsFocusOptions())
         let serveSignature = CommandSignature.describe(ServeOptions())
         let configSignature = CommandSignature.describe(ConfigOptions())
         let configProviderToggleSignature = CommandSignature.describe(ConfigProviderToggleOptions())
@@ -89,6 +102,11 @@ enum CodexBarCLI {
         let diagnoseSignature = CommandSignature.describe(DiagnoseOptions())
 
         return [
+            CommandDescriptor(
+                name: "cards",
+                abstract: "Print usage as a terminal card grid",
+                discussion: nil,
+                signature: cardsSignature),
             CommandDescriptor(
                 name: "usage",
                 abstract: "Print usage as text or JSON",
@@ -99,6 +117,24 @@ enum CodexBarCLI {
                 abstract: "Print local cost usage as text or JSON",
                 discussion: nil,
                 signature: costSignature),
+            CommandDescriptor(
+                name: "sessions",
+                abstract: "List live Codex and Claude Code sessions",
+                discussion: nil,
+                signature: CommandSignature(),
+                subcommands: [
+                    CommandDescriptor(
+                        name: "list",
+                        abstract: "List live Codex and Claude Code sessions",
+                        discussion: nil,
+                        signature: sessionsSignature),
+                    CommandDescriptor(
+                        name: "focus",
+                        abstract: "Focus the window for a session",
+                        discussion: nil,
+                        signature: sessionsFocusSignature),
+                ],
+                defaultSubcommandName: "list"),
             CommandDescriptor(
                 name: "serve",
                 abstract: "Serve usage and cost JSON over localhost HTTP",

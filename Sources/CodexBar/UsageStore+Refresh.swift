@@ -285,6 +285,9 @@ extension UsageStore {
                 }
                 self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
+                if provider == .gemini {
+                    self.clearGeminiConsumerTierDeprecationObservation()
+                }
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
                 self.failureGates[provider]?.recordSuccess()
                 if provider == .codex {
@@ -601,6 +604,18 @@ extension UsageStore {
         let shouldNotifyPermissionPrompt = Self.isPermissionPromptWaiting(error)
         await MainActor.run {
             guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+            if provider == .gemini, Self.isGeminiConsumerTierDeprecationError(error) {
+                // This is a durable provider migration signal, not a transient fetch failure.
+                // Surface it immediately so a cached snapshot cannot hide the required handoff.
+                self.observeGeminiConsumerTierDeprecation(from: error)
+                self.errors[provider] = error.localizedDescription
+                self.snapshots.removeValue(forKey: provider)
+                self.lastKnownResetSnapshots.removeValue(forKey: provider)
+                self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
+                self.lastSourceLabels.removeValue(forKey: provider)
+                self.failureGates[provider]?.reset()
+                return
+            }
             let hadKnownUnavailableLimits = self.knownLimitsAvailabilityByProvider[provider]?.isUnavailable == true
             self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
             if provider == .claude,
