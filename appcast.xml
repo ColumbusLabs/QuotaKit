@@ -5,6 +5,103 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.10</title>
+            <pubDate>Tue, 07 Jul 2026 13:06:34 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.10.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.10</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.10 Mobile 1.11.1</h2>
+<h3>Added</h3>
+<ul>
+<li>Claude: show opt-in read-only claude-swap accounts as stacked usage cards</li>
+</ul>
+  without delaying ambient refreshes.
+<ul>
+<li>Claude: switch inactive claude-swap accounts directly from stacked usage</li>
+</ul>
+  cards through claude-swap without reading Claude credentials.
+<ul>
+<li>Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac</li>
+</ul>
+  release through <code>aa401f1d</code>, including Agent Sessions, CLI cards,
+  claude-swap accounts, Kimi widgets and subscription rows, CrossModel,
+  Doubao Coding Plan, Qoder, Mistral, and ClawRouter providers, Codex credit
+  and cost-history improvements, provider refresh scoping, settings and menu
+  resilience, localization updates, and release validation hardening while
+  preserving QuotaKit release ownership, appcast metadata, CloudKit setup,
+  config paths, and iOS build numbers.
+<h3>Fixed</h3>
+<ul>
+<li>Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics</li>
+</ul>
+  while keeping them visible in provider Settings.
+<ul>
+<li>Codex quotas: show the session quota as unavailable while an exhausted weekly</li>
+</ul>
+  limit is still binding, including menu-bar icons and widgets.
+<ul>
+<li>Codex cost history: reuse cached aggregate pricing and one pricing catalog</li>
+</ul>
+  across daily and project reports, carry fresh cache state across launches,
+  and treat unpriced models as migrated.
+<ul>
+<li>Kimi K2: reject non-finite credit and token values before they reach menus,</li>
+</ul>
+  CLI output, or widgets.
+<ul>
+<li>Kimi: show the five-hour rate limit before the weekly quota while preserving</li>
+</ul>
+  existing menu-bar metric preferences.
+<ul>
+<li>Menus: scope manual refresh state to the provider being refreshed, allowing</li>
+</ul>
+  independent provider refreshes without greying unrelated rows.
+<ul>
+<li>Claude history: quarantine same-directory account-switch samples until</li>
+</ul>
+  credential ownership is stable, preventing plan-utilization history from
+  crossing accounts.
+<ul>
+<li>Sakana AI: parse server-rendered quota reset timestamps as UTC instead of</li>
+</ul>
+  device-local time.
+<ul>
+<li>Widgets: honor the shared used-versus-remaining display preference.</li>
+<li>Claude: isolate OAuth history per credential, preserve continuity through</li>
+</ul>
+  refreshes, bound stale web requests so Auto can reach CLI fallback, add a
+  Session + Weekly menu-bar metric, preserve real zero-usage sessions, and
+  prevent logged-out background Auto fallbacks from opening browser OAuth.
+<ul>
+<li>Keychain prompts: explain macOS password entry and the opt-out path before</li>
+</ul>
+  access begins.
+<ul>
+<li>OpenAI API: explain unsupported project service-account keys instead of</li>
+</ul>
+  surfacing a generic credit-balance authorization error.
+<ul>
+<li>Codex and Pi cost history: invalidate stale pricing caches and avoid</li>
+</ul>
+  double-billing cached input.
+<ul>
+<li>Antigravity CLI: reuse an authenticated same-user <code>agy</code> server for faster</li>
+</ul>
+  one-shot usage checks while excluding QuotaKit-owned managed sessions.
+<ul>
+<li>Quota warnings: add on-screen alert presentation and session-reset</li>
+</ul>
+  celebration handling while keeping iPhone push writes intact.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.10/QuotaKit-macos-universal-0.32.4.10.zip" length="49320083" type="application/octet-stream" sparkle:edSignature="C7zTcwGS19TurmAbqd25BonitoGCawivMsCJg3HbIfIVTKHBzEKgcF2v5he/4zl7eDPGMuDE0Z3e0g0JJcNDCg=="/>
+        </item>
+        <item>
             <title>0.32.4.9</title>
             <pubDate>Sun, 28 Jun 2026 13:17:51 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -101,32 +198,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.8/QuotaKit-macos-universal-0.32.4.8.zip" length="44704278" type="application/octet-stream" sparkle:edSignature="yBUgdBrXIelYNfnf21umlK4fYqloPQh2FCN1fNJH/6O0LogEzb29V7FkbLleSdPU6fV3rgsAxfp1XBuxc+9UBA=="/>
-        </item>
-        <item>
-            <title>0.32.4.7</title>
-            <pubDate>Thu, 18 Jun 2026 15:07:59 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.7.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.7</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.7 Mobile 1.11.1</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Mac updates: prevent launch and background refresh from showing Keychain</li>
-</ul>
-  permission prompts after an app update.
-<ul>
-<li>Keychain migration: update existing credential accessibility in place without</li>
-</ul>
-  reading secret values or deleting/re-adding items, and retry safely later when
-  macOS reports that interaction would be required.
-<ul>
-<li>Claude OAuth: limit promptable Keychain reads to explicit user actions such as</li>
-</ul>
-  opening the menu or running a manual refresh.
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.7/QuotaKit-macos-universal-0.32.4.7.zip" length="54243699" type="application/octet-stream" sparkle:edSignature="GsWwG0JfTsMsr7avg7iOEr/TThNbSt0cyD2KZcQrayb7MdGE9HzTgxxr7CEDG3lYWZqepcUGcT8hnJ7Nh/MrCw=="/>
         </item>
     </channel>
 </rss>
