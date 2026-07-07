@@ -283,6 +283,42 @@ struct PredictivePaceWarningTests {
     }
 
     @Test
+    func `selected Claude OAuth token account uses owner discriminator when email is missing`() async throws {
+        let now = Date(timeIntervalSince1970: 1_780_000_000)
+        let settings = self.makeSettings(suiteName: "PredictivePaceWarningTests-selected-claude-oauth-owner")
+        settings.predictivePaceWarningNotificationsEnabled = true
+        settings.addTokenAccount(provider: .claude, label: "Selected", token: "Bearer sk-ant-oat-selected")
+        let account = try #require(settings.selectedTokenAccount(for: .claude))
+        let notifier = NotifierSpy()
+        let store = self.makeStore(settings: settings, notifier: notifier)
+        let snapshot = self.snapshot(
+            now: now,
+            sessionUsed: 80,
+            weeklyUsed: 20,
+            accountEmail: nil)
+
+        await store.applySelectedOutcome(
+            self.claudeOAuthOutcome(snapshot: snapshot, ownerIdentifier: "owner-a"),
+            provider: .claude,
+            account: account,
+            fallbackSnapshot: nil)
+        await store.applySelectedOutcome(
+            self.claudeOAuthOutcome(snapshot: snapshot, ownerIdentifier: "owner-a"),
+            provider: .claude,
+            account: account,
+            fallbackSnapshot: nil)
+        await store.applySelectedOutcome(
+            self.claudeOAuthOutcome(snapshot: snapshot, ownerIdentifier: "owner-b"),
+            provider: .claude,
+            account: account,
+            fallbackSnapshot: nil)
+
+        #expect(notifier.predictivePosts.map(\.event.window) == [.session, .session])
+        #expect(notifier.predictivePosts.allSatisfy { $0.provider == .claude })
+        #expect(notifier.predictivePosts.allSatisfy { $0.event.accountDisplayName == "Selected" })
+    }
+
+    @Test
     func `store keeps identity out of copy when personal info is hidden`() throws {
         let now = Date(timeIntervalSince1970: 1_780_000_000)
         let settings = self.makeSettings(suiteName: "PredictivePaceWarningTests-hidden-info")
@@ -331,7 +367,8 @@ struct PredictivePaceWarningTests {
             userDefaults: defaults,
             configStore: testConfigStore(suiteName: suiteName),
             zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
     }
 
     private func makeStore(settings: SettingsStore, notifier: NotifierSpy) -> UsageStore {
@@ -340,6 +377,19 @@ struct PredictivePaceWarningTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             settings: settings,
             sessionQuotaNotifier: notifier)
+    }
+
+    private func claudeOAuthOutcome(snapshot: UsageSnapshot, ownerIdentifier: String) -> ProviderFetchOutcome {
+        ProviderFetchOutcome(
+            result: .success(ProviderFetchResult(
+                usage: snapshot,
+                credits: nil,
+                dashboard: nil,
+                sourceLabel: "oauth",
+                strategyID: "claude-oauth",
+                strategyKind: .oauth,
+                claudeOAuthHistoryOwnerIdentifier: ownerIdentifier)),
+            attempts: [])
     }
 
     private func snapshot(

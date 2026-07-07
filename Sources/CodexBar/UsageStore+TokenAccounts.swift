@@ -1255,9 +1255,20 @@ extension UsageStore {
                     return nil as UsageSnapshot?
                 }
                 let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
+                let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude,
+                                                                                    result.strategyKind == .oauth
+                {
+                    Self.predictivePaceWarningClaudeOAuthAccountDiscriminator(
+                        ownerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
+                } else {
+                    nil
+                }
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
-                self.handlePredictivePaceWarningTransitions(provider: provider, snapshot: backfilled)
+                self.handlePredictivePaceWarningTransitions(
+                    provider: provider,
+                    snapshot: backfilled,
+                    accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
                 self.lastSourceLabels[provider] = result.sourceLabel
