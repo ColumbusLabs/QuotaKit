@@ -12,6 +12,7 @@ private let ollamaSessionCookieNames: Set<String> = [
     "__Secure-session",
     "ollama_session",
     "__Host-ollama_session",
+    "wos-session",
     "__Secure-next-auth.session-token",
     "next-auth.session-token",
 ]
@@ -30,6 +31,8 @@ private func hasRecognizedOllamaSessionCookie(in header: String) -> Bool {
 }
 
 public enum OllamaUsageError: LocalizedError, Sendable {
+    private static let signInURL = "https://ollama.com/signin"
+
     case missingAPIKey
     case notLoggedIn
     case invalidCredentials
@@ -43,17 +46,17 @@ public enum OllamaUsageError: LocalizedError, Sendable {
         case .missingAPIKey:
             "Missing Ollama API key. Set apiKey in ~/.quotakit/config.json or OLLAMA_API_KEY."
         case .notLoggedIn:
-            "Not logged in to Ollama. Please log in via ollama.com/settings."
+            "Not signed in to Ollama. Please sign in at \(Self.signInURL)."
         case .invalidCredentials:
-            "Ollama session cookie expired. Please log in again."
+            "Ollama session cookie expired. Please sign in again at \(Self.signInURL)."
         case .apiUnauthorized:
-            "Ollama API key is invalid or expired."
+            "Ollama API key is invalid or revoked."
         case let .parseFailed(message):
             "Could not parse Ollama usage: \(message)"
         case let .networkError(message):
             "Ollama request failed: \(message)"
         case .noSessionCookie:
-            "No Ollama session cookie found. Please log in to ollama.com in your browser."
+            "No Ollama session cookie found. Please sign in at \(Self.signInURL) in your browser."
         }
     }
 }
@@ -529,6 +532,10 @@ public struct OllamaUsageFetcher: Sendable {
             statusCode: httpResponse.statusCode,
             url: httpResponse.response.url?.absoluteString ?? "unknown")
 
+        if httpResponse.statusCode == 200, Self.isSignInRedirect(httpResponse.response.url) {
+            throw OllamaUsageError.invalidCredentials
+        }
+
         guard httpResponse.statusCode == 200 else {
             if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
                 throw OllamaUsageError.invalidCredentials
@@ -624,6 +631,25 @@ public struct OllamaUsageFetcher: Sendable {
         guard let host = url?.host?.lowercased() else { return false }
         if host == "ollama.com" || host == "www.ollama.com" { return true }
         return host.hasSuffix(".ollama.com")
+    }
+
+    static func isSignInRedirect(_ url: URL?) -> Bool {
+        guard url?.scheme?.lowercased() == "https" else { return false }
+        guard let url, let host = url.host?.lowercased() else { return false }
+        let path = url.path.lowercased()
+        if host == "ollama.com" || host == "www.ollama.com" {
+            return path == "/signin"
+        }
+        // WorkOS AuthKit ultimately bounces unauthenticated requests to a hosted
+        // Ollama sign-in page on the `signin.ollama.com` subdomain; any landing
+        // there means the session is expired and the user must sign in again.
+        if host == "signin.ollama.com" {
+            return true
+        }
+        // WorkOS AuthKit serves the hosted authorization flow from auth.workos.com
+        // (and historically api.workos.com); match any WorkOS host carrying the
+        // authorize path so the detection survives host changes or CNAMEs.
+        return host.hasSuffix(".workos.com") && path.hasPrefix("/user_management/authorize")
     }
 }
 

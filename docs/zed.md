@@ -8,7 +8,7 @@ read_when:
 
 # Zed provider
 
-CodexBar monitors Zed plan status, billing cycle dates, edit-prediction quota, and overdue invoices via Zed's cloud API.
+QuotaKit monitors Zed plan status, billing cycle dates, edit-prediction quota, and overdue invoices via Zed's cloud API.
 
 ## Data source
 
@@ -28,21 +28,21 @@ Authorization: {user_id} {access_token}
 | Account | Zed user ID (string) |
 | Secret | Access token (UTF-8 bytes) |
 
-CodexBar requests a non-interactive Keychain read. Existing Zed items can still carry an access-control list that makes
-macOS show a SecurityAgent prompt the first time CodexBar reads them. Choose **Always Allow** to avoid repeat prompts. If
+QuotaKit requests a non-interactive Keychain read. Existing Zed items can still carry an access-control list that makes
+macOS show a SecurityAgent prompt the first time QuotaKit reads them. Choose **Always Allow** to avoid repeat prompts. If
 Zed has never been signed in, or access is denied, the provider reports **Not signed in to Zed**.
 
 ### Settings override
 
-CodexBar reads Zed’s user settings from `~/.config/zed/settings.json`. The `credentials_url` setting (falls back to
+QuotaKit reads Zed's user settings from `~/.config/zed/settings.json`. The `credentials_url` setting (falls back to
 `server_url`) selects which Keychain entry to read. For the trusted
 `https://zed.dev` and `https://staging.zed.dev` servers, Zed may use a separate credential identifier. Custom servers
-must use HTTPS and store credentials under the exact same `server_url`; CodexBar rejects cross-origin overrides so a
+must use HTTPS and store credentials under the exact same `server_url`; QuotaKit rejects cross-origin overrides so a
 settings-file change cannot forward a Keychain token to another host.
 
 ## Snapshot mapping
 
-| Zed field | CodexBar display |
+| Zed field | QuotaKit display |
 | --- | --- |
 | `plan.plan_v3` | Plan label (Free / Pro / Trial / Student / Business) |
 | `plan.usage.edit_predictions` | Primary bar: used/limit or “Unlimited” on Pro+ |
@@ -65,7 +65,7 @@ Per [LLM Providers](https://zed.dev/docs/ai/llm-providers.html) and [External Ag
 - Confirm a Keychain internet-password entry exists for server `https://zed.dev` (or your custom `credentials_url`).
 
 ### “Could not read Zed credentials from the Keychain”
-- macOS may block Keychain access until you allow CodexBar (same class of issue as other IDE probes).
+- macOS may block Keychain access until you allow QuotaKit (same class of issue as other IDE probes).
 - Re-sign in to Zed after changing `credentials_url`.
 
 ## Key files

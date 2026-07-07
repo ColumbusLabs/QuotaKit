@@ -896,7 +896,7 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
         let data = Data(json.utf8)
         let info = ClaudeWebAPIFetcher._parseAccountInfoForTesting(data, orgId: "org-123")
         #expect(info?.email == "steipete@gmail.com")
-        #expect(info?.loginMethod == "Claude Max")
+        #expect(info?.loginMethod == "Claude Max 20x")
     }
 
     @Test

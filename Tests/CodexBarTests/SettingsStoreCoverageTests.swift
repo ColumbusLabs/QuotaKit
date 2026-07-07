@@ -6,6 +6,13 @@ import Testing
 @MainActor
 struct SettingsStoreCoverageTests {
     @Test
+    func `agent sessions default to opt in disabled`() {
+        let settings = Self.makeSettingsStore(suiteName: "SettingsStoreCoverageTests-agent-sessions-default")
+
+        #expect(settings.agentSessionsEnabled == false)
+    }
+
+    @Test
     func `provider ordering and caching`() throws {
         let suite = "SettingsStoreCoverageTests-ordering"
         let defaults = try #require(UserDefaults(suiteName: suite))

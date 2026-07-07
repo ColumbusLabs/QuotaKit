@@ -54,6 +54,12 @@ struct UsageFormatterTests {
         #expect(UsageFormatter.percentString(1) == "1%")
         #expect(UsageFormatter.percentString(101) == "100%")
         #expect(UsageFormatter.usageLine(remaining: 99.9, used: 0.1, showUsed: true) == "<1% used")
+        // Values in (0.5, 1) round up to "1%" under %.0f, so the old post-format
+        // "0%" -> "<1%" replacement missed them. percentText must show "<1%"
+        // across the whole sub-1% range, matching percentString above.
+        #expect(UsageFormatter.usageLine(remaining: 99.4, used: 0.6, showUsed: true) == "<1% used")
+        #expect(UsageFormatter.usageLine(remaining: 99.25, used: 0.75, showUsed: true) == "<1% used")
+        #expect(UsageFormatter.usageLine(remaining: 0.75, used: 99.25, showUsed: false) == "<1% left")
 
         let usedWindow = RateWindow(usedPercent: 0.1, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
         let leftWindow = RateWindow(usedPercent: 99.9, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
@@ -66,6 +72,7 @@ struct UsageFormatterTests {
         UsageFormatter.setLocalizationProvider { key in
             switch key {
             case "%.0f%% %@": "%2$@ %1$.0f%%"
+            case "<1%% %@": "%1$@ <1%%"
             case "usage_percent_suffix_left": "剩余"
             case "usage_percent_suffix_used": "已使用"
             default: key
@@ -75,6 +82,8 @@ struct UsageFormatterTests {
 
         #expect(UsageFormatter.usageLine(remaining: 22, used: 78, showUsed: false) == "剩余 22%")
         #expect(UsageFormatter.usageLine(remaining: 22, used: 78, showUsed: true) == "已使用 78%")
+        #expect(UsageFormatter.usageLine(remaining: 0.75, used: 99.25, showUsed: false) == "剩余 <1%")
+        #expect(UsageFormatter.usageLine(remaining: 99.4, used: 0.6, showUsed: true) == "已使用 <1%")
     }
 
     @Test

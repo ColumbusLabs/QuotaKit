@@ -36,6 +36,19 @@ See `docs/configuration.md` for the schema.
 - `quotakit cost` prints local token cost usage for Claude + Codex without web/CLI access.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
+- `quotakit cards` prints a one-shot usage snapshot as a responsive terminal card grid.
+  - Reuses the same provider, source, account, credits, and status flags as `quotakit usage`.
+  - Account lines and plan badges are included in the card grid by default.
+  - `--brief` renders a compact table (Provider / Usage / Reset) instead of the card grid.
+  - Stdout is always rendered text; `--json-output` only affects stderr logs (no JSON card payload).
+  - Failed providers are summarized in a footer (not rendered as error cards).
+  - Honors `$COLUMNS` for layout; falls back to 80 columns. Use `--no-color` for plain output.
+  - Kitty, Ghostty, WezTerm, and other truecolor terminals auto-enable enhanced gradients/outlines.
+  - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
+  - Exit code is non-zero when any provider fetch fails.
+- `quotakit sessions` lists live local or SSH-discovered Codex and Claude Code sessions.
+  - `--json` emits machine-readable session rows; `--pretty` pretty-prints JSON.
+  - `quotakit sessions focus <id>` opens or focuses the selected session when supported.
 - `quotakit serve` starts a foreground localhost-only HTTP server for usage and cost JSON.
   - `--port <port>` defaults to `8080`.
   - `--refresh-interval <seconds>` defaults to `60` and controls the in-memory response cache TTL.

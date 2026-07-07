@@ -144,6 +144,7 @@ final class UsageStore {
 
     var snapshots: [UsageProvider: UsageSnapshot] = [:]
     var errors: [UsageProvider: String] = [:]
+    var geminiObservedConsumerTierDeprecation = false
     var knownLimitsAvailabilityByProvider: [UsageProvider: UsageLimitsAvailability] = [:]
     var lastSourceLabels: [UsageProvider: String] = [:]
     var lastFetchAttempts: [UsageProvider: [ProviderFetchAttempt]] = [:]
@@ -413,10 +414,6 @@ final class UsageStore {
     /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
     nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
         ClaudePlan.isSubscriptionLoginMethod(loginMethod)
-    }
-
-    func version(for provider: UsageProvider) -> String? {
-        self.versions[provider]
     }
 
     var preferredSnapshot: UsageSnapshot? {

@@ -146,7 +146,7 @@ public enum DevinUsageParser {
     private static func currentQuotaWindow(percent: Any?, resetsAt: Any?) -> DevinQuotaWindow? {
         guard let usedPercent = self.double(percent) else { return nil }
         return DevinQuotaWindow(
-            usedPercent: usedPercent <= 1 ? usedPercent * 100 : usedPercent,
+            usedPercent: usedPercent < 1 ? usedPercent * 100 : usedPercent,
             resetsAt: self.date(from: resetsAt))
     }
 

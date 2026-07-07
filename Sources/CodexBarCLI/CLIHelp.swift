@@ -2,6 +2,42 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func cardsHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit cards [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+                        [--provider \(ProviderHelp.list)]
+                        [--account <label>] [--account-index <index>] [--all-accounts]
+                        [--no-credits] [--no-color] [--status] [--source <auto|web|cli|oauth|api>]
+                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
+                        [--brief]
+
+        Description:
+          Print a one-shot usage snapshot as a responsive card grid in the terminal.
+          Honors enabled providers from config and reuses the same fetch flags as quotakit usage.
+          Failed providers are summarized in a footer instead of error cards.
+          Use --brief for a compact table layout (Provider / Usage / Reset).
+          Stdout is always the rendered card/table text; --json-output only affects stderr logs.
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --no-color      Disable ANSI colors in text output
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs (JSONL) to stderr
+
+        Examples:
+          quotakit cards
+          quotakit cards --provider codex
+          quotakit cards --provider all --status
+          quotakit cards --brief
+          quotakit cards --no-color
+        """
+    }
+
     static func usageHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -26,7 +62,7 @@ extension CodexBarCLI {
             Auto falls back to Claude CLI only when cookies are missing.
           - Kilo: app.kilo.ai API.
             Auto falls back to Kilo CLI when API credentials are missing or unauthorized.
-          Token accounts are loaded from the resolved CodexBar config file.
+          Token accounts are loaded from the resolved QuotaKit config file.
           Use --account or --account-index to select a specific token account.
           Use --all-accounts to fetch every token account, or every visible Codex account for Codex.
           Account selection requires a single provider.
@@ -70,6 +106,26 @@ extension CodexBarCLI {
           quotakit cost
           quotakit cost --provider codex --group-by project
           quotakit cost --provider claude --format json --pretty
+        """
+    }
+
+    static func sessionsHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit sessions [--json] [--pretty]
+          quotakit sessions focus <id>
+
+        Description:
+          List live local Codex and Claude Code agent sessions.
+          JSON uses stable AgentSession field names and ISO-8601 dates.
+          Focus activates the owning terminal or desktop app on macOS.
+
+        Examples:
+          quotakit sessions
+          quotakit sessions --json
+          quotakit sessions focus 019f3497-73bf-7df3-a173-4f67d968914a
         """
     }
 
@@ -213,12 +269,20 @@ extension CodexBarCLI {
                   [--account <label>] [--account-index <index>] [--all-accounts]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
+          quotakit cards [--provider \(ProviderHelp.list)] [--brief] [--no-color] [--status]
+                         [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+                         [--provider \(ProviderHelp.list)]
+                         [--account <label>] [--account-index <index>] [--all-accounts]
+                         [--no-credits] [--no-color] [--status] [--source <auto|web|cli|oauth|api>]
+                         [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           quotakit cost [--format text|json]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--days <days>] [--group-by project]
+          quotakit sessions [--json] [--pretty]
+          quotakit sessions focus <id>
           quotakit serve [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -249,7 +313,10 @@ extension CodexBarCLI {
           quotakit --format json --provider all --pretty
           quotakit --provider all --json
           quotakit --provider gemini
+          quotakit cards --provider all --status
+          quotakit cards --brief
           quotakit cost --provider claude --format json --pretty
+          quotakit sessions --json
           quotakit serve --port 8080
           quotakit config validate --format json --pretty
           quotakit config enable --provider grok
