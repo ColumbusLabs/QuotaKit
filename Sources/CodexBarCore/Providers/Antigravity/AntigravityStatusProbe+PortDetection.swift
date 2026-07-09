@@ -1,16 +1,14 @@
 import Foundation
 
-/// Parses Linux `/proc/net/tcp{,6}` output to recover the listening ports owned
-/// by a process. Used as a fallback for listening-port detection when `lsof` is
-/// unavailable. The parsing is platform-independent so it can be unit tested on
-/// any host.
-public enum ProcNetTCPListeningPortParser {
+/// Parses Linux `/proc/<pid>/net/tcp{,6}` output to recover the listening ports
+/// owned by a process. The parsing is platform-independent for focused tests.
+enum ProcNetTCPListeningPortParser {
     /// The `st` column value for a socket in the LISTEN state.
     private static let listenState = "0A"
 
     /// Extracts the socket inode from a `/proc/<pid>/fd` symlink destination such
     /// as `socket:[12345]`. Returns nil for non-socket descriptors.
-    public static func socketInode(fromLink destination: String) -> String? {
+    static func socketInode(fromLink destination: String) -> String? {
         let prefix = "socket:["
         guard destination.hasPrefix(prefix), destination.hasSuffix("]") else { return nil }
         let inode = destination.dropFirst(prefix.count).dropLast()
@@ -19,13 +17,12 @@ public enum ProcNetTCPListeningPortParser {
 
     /// Returns the local ports of LISTEN sockets whose inode is in `socketInodes`.
     ///
-    /// `content` is the raw text of `/proc/net/tcp` or `/proc/net/tcp6`. Each data
-    /// row encodes the local endpoint as `ADDRESS:PORT` with the port as a
-    /// big-endian hex value (for example `0100007F:1F90` → 8080), and the owning
-    /// socket inode in the tenth whitespace-separated column.
-    public static func listeningPorts(_ content: String, socketInodes: Set<String>) -> Set<Int> {
+    /// `content` is the raw text of a process-scoped `tcp` or `tcp6` table. Each
+    /// row encodes the local endpoint as `ADDRESS:PORT` (for example,
+    /// `0100007F:1F90` uses port 8080) and the owning socket inode in column ten.
+    static func listeningPorts(_ content: String, socketInodes: Set<String>) -> Set<Int> {
         var ports: Set<Int> = []
-        for line in content.split(separator: "\n").dropFirst() {
+        for line in content.split(separator: "\n") {
             let columns = line.split(separator: " ", omittingEmptySubsequences: true)
             // Columns: sl local_address rem_address st ... uid timeout inode
             guard columns.count > 9,
@@ -34,7 +31,8 @@ public enum ProcNetTCPListeningPortParser {
             else { continue }
             let localAddress = columns[1]
             guard let separator = localAddress.lastIndex(of: ":"),
-                  let port = Int(localAddress[localAddress.index(after: separator)...], radix: 16)
+                  let port = Int(localAddress[localAddress.index(after: separator)...], radix: 16),
+                  (0...Int(UInt16.max)).contains(port)
             else { continue }
             ports.insert(port)
         }
@@ -108,14 +106,14 @@ extension AntigravityStatusProbe {
         return ports.sorted()
     }
 
-    #if os(Linux)
-    /// Recovers the listening ports owned by `pid` by matching the process's
-    /// socket inodes (from /proc/<pid>/fd) against /proc/net/tcp{,6}.
-    private static func procListeningPorts(pid: Int) -> [Int] {
-        let inodes = Self.socketInodes(pid: pid)
+    /// Recovers the listening ports owned by `pid` by matching its open socket
+    /// inodes against the TCP tables from the same process/network namespace.
+    static func procListeningPorts(pid: Int, procRoot: String = "/proc") -> [Int] {
+        let processRoot = "\(procRoot)/\(pid)"
+        let inodes = Self.socketInodes(processRoot: processRoot)
         guard !inodes.isEmpty else { return [] }
         var ports: Set<Int> = []
-        for path in ["/proc/net/tcp", "/proc/net/tcp6"] {
+        for path in ["\(processRoot)/net/tcp", "\(processRoot)/net/tcp6"] {
             guard let content = try? String(contentsOfFile: path, encoding: .utf8) else { continue }
             ports.formUnion(ProcNetTCPListeningPortParser.listeningPorts(content, socketInodes: inodes))
         }
@@ -123,8 +121,8 @@ extension AntigravityStatusProbe {
     }
 
     /// Collects the socket inodes referenced by the process's open descriptors.
-    private static func socketInodes(pid: Int) -> Set<String> {
-        let fdDirectory = "/proc/\(pid)/fd"
+    private static func socketInodes(processRoot: String) -> Set<String> {
+        let fdDirectory = "\(processRoot)/fd"
         guard let entries = try? FileManager.default.contentsOfDirectory(atPath: fdDirectory) else { return [] }
         var inodes: Set<String> = []
         for entry in entries {
@@ -136,5 +134,4 @@ extension AntigravityStatusProbe {
         }
         return inodes
     }
-    #endif
 }
