@@ -292,6 +292,12 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             return self.settings.opencodegoDashboardURL
         }
 
+        if provider == .wayfinder {
+            return WayfinderProviderImplementation.dashboardURL(
+                settings: self.settings,
+                environment: environment)
+        }
+
         if provider == .zai {
             return ZaiUsageFetcher.resolveDashboardURL(
                 region: self.settings.zaiAPIRegion,

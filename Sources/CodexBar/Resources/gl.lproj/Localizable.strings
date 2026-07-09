@@ -456,8 +456,10 @@
 "quota_warning_off" = "Desactivado";
 "quota_warning_inherited" = "Herdado: %@";
 "quota_warning_depleted_only" = "só esgotado";
-"quota_warning_upper" = "Superior";
+"quota_warning_upper" = "Máis alto";
 "quota_warning_lower" = "Inferior";
+"quota_warning_warning" = "Aviso";
+"quota_warning_critical" = "Crítico";
 "apply" = "Aplicar";
 "quit_app" = "Saír de QuotaKit";
 
@@ -1129,6 +1131,11 @@
 "providers_on_count" = "%d activados";
 "quota_warning_notification_body" = "Queda %1$@. Acadaches o limiar de aviso do %2$d%% para a cota %3$@.";
 "quota_warning_notification_body_with_account" = "Conta %1$@. Queda %2$@. Acadaches o limiar de aviso do %3$d%% para a cota %4$@.";
+"predictive_pace_warnings_title" = "Avisos preditivos de ritmo";
+"predictive_pace_warnings_subtitle" = "Avisa para Codex e Claude cando o ritmo de sesión ou semanal pode esgotar a cota antes do reinicio.";
+"predictive_pace_warning_notification_title" = "%1$@: aviso de ritmo %2$@";
+"predictive_pace_warning_notification_body" = "Ao ritmo actual, esta cota podería esgotarse en %1$@, antes de reiniciarse.";
+"predictive_pace_warning_notification_body_with_account" = "Conta %1$@. Ao ritmo actual, esta cota podería esgotarse en %2$@, antes de reiniciarse.";
 "quota_warning_notification_title" = "Cota %2$@ de %1$@ baixa";
 "quota_warning_onscreen_alert" = "Amosar unha alerta de texto en pantalla";
 "refresh_adaptive" = "Adaptativa";

@@ -90,6 +90,7 @@ enum ProviderColorPalette {
             (["clawrouter"], RawColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255)),
             (["chutes"], RawColor(red: 0, green: 184 / 255, blue: 255 / 255)),
             (["qoder"], RawColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255)),
+            (["wayfinder"], RawColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255)),
             (["copilot"], RawColor(red: 168 / 255, green: 85 / 255, blue: 247 / 255)),
             (["zai"], RawColor(red: 232 / 255, green: 90 / 255, blue: 106 / 255)),
             (["minimax"], RawColor(red: 239 / 255, green: 68 / 255, blue: 68 / 255)),

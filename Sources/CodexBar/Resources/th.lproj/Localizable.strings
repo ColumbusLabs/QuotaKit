@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "โควตา%2$@ของ %1$@ ใกล้หมด";
 "quota_warning_notification_body" = "เหลือ %1$@ ถึงเกณฑ์การเตือน %2$d%% สำหรับโควตา%3$@แล้ว";
 "quota_warning_notification_body_with_account" = "บัญชี %1$@ เหลือ %2$@ ถึงเกณฑ์การเตือน %3$d%% สำหรับโควตา%4$@แล้ว";
+"predictive_pace_warnings_title" = "คำเตือนความเร็วการใช้เชิงคาดการณ์";
+"predictive_pace_warnings_subtitle" = "เตือนสำหรับ Codex และ Claude เมื่อความเร็วการใช้โควตาเซสชันหรือรายสัปดาห์อาจทำให้หมดก่อนรีเซ็ต";
+"predictive_pace_warning_notification_title" = "%1$@ คำเตือนความเร็วการใช้%2$@";
+"predictive_pace_warning_notification_body" = "ด้วยความเร็วการใช้ปัจจุบัน โควตานี้อาจหมดใน %1$@ ก่อนที่จะรีเซ็ต";
+"predictive_pace_warning_notification_body_with_account" = "บัญชี %1$@ ด้วยความเร็วการใช้ปัจจุบัน โควตานี้อาจหมดใน %2$@ ก่อนที่จะรีเซ็ต";
 "session_depleted_notification_title" = "เซสชัน %@ หมดลง";
 "session_depleted_notification_body" = "เหลือ 0% จะแจ้งเตือนเมื่อกลับมาใช้งานได้อีกครั้ง";
 "session_restored_notification_title" = "%@ เซสชันที่กู้คืน";
@@ -468,8 +473,10 @@
 "quota_warning_off" = "ปิด";
 "quota_warning_inherited" = "สืบทอด: %@";
 "quota_warning_depleted_only" = "หมดลงเท่านั้น";
-"quota_warning_upper" = "ด้านบน";
+"quota_warning_upper" = "สูงกว่า";
 "quota_warning_lower" = "ต่ํากว่า";
+"quota_warning_warning" = "คำเตือน";
+"quota_warning_critical" = "วิกฤติ";
 "apply" = "สมัคร";
 "quit_app" = "ออกจาก QuotaKit";
 

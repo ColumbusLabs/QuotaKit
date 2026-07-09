@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ kotası düşük";
 "quota_warning_notification_body" = "%1$@ kaldı. %2$d%% %3$@ uyarı eşiğinize ulaşıldı.";
 "quota_warning_notification_body_with_account" = "Hesap %1$@. %2$@ kaldı. %3$d%% %4$@ uyarı eşiğinize ulaşıldı.";
+"predictive_pace_warnings_title" = "Öngörülü tempo uyarıları";
+"predictive_pace_warnings_subtitle" = "Codex ve Claude için oturum veya haftalık kullanım temposu kotayı sıfırlanmadan önce tüketebilecekse uyarır.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@ tempo uyarısı";
+"predictive_pace_warning_notification_body" = "Mevcut tempoda bu kota sıfırlanmadan önce %1$@ içinde tükenebilir.";
+"predictive_pace_warning_notification_body_with_account" = "Hesap %1$@. Mevcut tempoda bu kota sıfırlanmadan önce %2$@ içinde tükenebilir.";
 "session_depleted_notification_title" = "%@ oturumu tükendi";
 "session_depleted_notification_body" = "0% kaldı. Tekrar kullanılabilir olduğunda bildirilecek.";
 "session_restored_notification_title" = "%@ oturumu geri yüklendi";
@@ -468,8 +473,10 @@
 "quota_warning_off" = "Kapalı";
 "quota_warning_inherited" = "Devralınan: %@";
 "quota_warning_depleted_only" = "yalnızca tükenme";
-"quota_warning_upper" = "Üst";
+"quota_warning_upper" = "Daha yüksek";
 "quota_warning_lower" = "Alt";
+"quota_warning_warning" = "Uyarı";
+"quota_warning_critical" = "Kritik";
 "apply" = "Uygula";
 "quit_app" = "QuotaKit'dan Çık";
 

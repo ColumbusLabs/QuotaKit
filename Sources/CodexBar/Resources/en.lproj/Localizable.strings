@@ -454,6 +454,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ quota low";
 "quota_warning_notification_body" = "%1$@ left. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Account %1$@. %2$@ left. Reached your %3$d%% %4$@ warning threshold.";
+"predictive_pace_warnings_title" = "Predictive pace warnings";
+"predictive_pace_warnings_subtitle" = "Warns for Codex and Claude when session or weekly pace may run out before reset.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@ pace warning";
+"predictive_pace_warning_notification_body" = "At the current pace, this quota may run out in %1$@, before it resets.";
+"predictive_pace_warning_notification_body_with_account" = "Account %1$@. At the current pace, this quota may run out in %2$@, before it resets.";
 "session_depleted_notification_title" = "%@ session depleted";
 "session_depleted_notification_body" = "0% left. Will notify when it's available again.";
 "session_restored_notification_title" = "%@ session restored";
@@ -469,8 +474,10 @@
 "quota_warning_off" = "Off";
 "quota_warning_inherited" = "Inherited: %@";
 "quota_warning_depleted_only" = "depleted only";
-"quota_warning_upper" = "Upper";
+"quota_warning_upper" = "Higher";
 "quota_warning_lower" = "Lower";
+"quota_warning_warning" = "Warning";
+"quota_warning_critical" = "Critical";
 "apply" = "Apply";
 "quit_app" = "Quit QuotaKit";
 

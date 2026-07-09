@@ -457,6 +457,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@配額偏低";
 "quota_warning_notification_body" = "剩餘 %1$@。已達到 %2$d%% %3$@提醒門檻。";
 "quota_warning_notification_body_with_account" = "帳號 %1$@。剩餘 %2$@。已達到 %3$d%% %4$@提醒門檻。";
+"predictive_pace_warnings_title" = "預測性節奏提醒";
+"predictive_pace_warnings_subtitle" = "當 Codex 和 Claude 的工作階段或每週使用節奏可能在重設前耗盡配額時提醒。";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@節奏提醒";
+"predictive_pace_warning_notification_body" = "依目前節奏，此配額可能會在重設前於 %1$@ 後耗盡。";
+"predictive_pace_warning_notification_body_with_account" = "帳號 %1$@。依目前節奏，此配額可能會在重設前於 %2$@ 後耗盡。";
 "session_depleted_notification_title" = "%@ 工作階段已用完";
 "session_depleted_notification_body" = "剩餘 0%。恢復可用時會再通知。";
 "session_restored_notification_title" = "%@ 工作階段已恢復";
@@ -472,8 +477,10 @@
 "quota_warning_off" = "關閉";
 "quota_warning_inherited" = "繼承：%@";
 "quota_warning_depleted_only" = "僅用完時";
-"quota_warning_upper" = "上限";
+"quota_warning_upper" = "較高";
 "quota_warning_lower" = "下限";
+"quota_warning_warning" = "警告";
+"quota_warning_critical" = "嚴重";
 "apply" = "套用";
 "quit_app" = "結束 QuotaKit";
 "tab_general" = "一般";

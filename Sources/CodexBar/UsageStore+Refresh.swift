@@ -268,8 +268,20 @@ extension UsageStore {
                     current: scoped,
                     previous: self.snapshots[provider])
                 let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
+                let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
+                    Self.predictivePaceWarningClaudeAccountDiscriminator(
+                        strategyKind: result.strategyKind,
+                        observation: context.claudeOAuthActiveAccountObservation,
+                        oauthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
+                } else {
+                    nil
+                }
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
+                self.handlePredictivePaceWarningTransitions(
+                    provider: provider,
+                    snapshot: backfilled,
+                    accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 if provider == .codex {
                     self.handleCodexResetCreditNotifications(snapshot: backfilled)
                 }
@@ -376,8 +388,9 @@ extension UsageStore {
             self.tokenFailureGates[provider]?.reset()
             self.statuses.removeValue(forKey: provider)
             self.statusComponents.removeValue(forKey: provider)
-            self.lastKnownSessionRemaining.removeValue(forKey: provider)
-            self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+            self.clearSessionQuotaState(provider: provider)
+            self.predictivePaceWarningNotifiedKeys = Set(
+                self.predictivePaceWarningNotifiedKeys.filter { $0.provider != provider })
             self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
             self.lastTokenFetchAt.removeValue(forKey: provider)
         }
@@ -590,8 +603,7 @@ extension UsageStore {
         self.tokenErrors[.claude] = nil
         self.failureGates[.claude]?.reset()
         self.tokenFailureGates[.claude]?.reset()
-        self.lastKnownSessionRemaining.removeValue(forKey: .claude)
-        self.lastKnownSessionWindowSource.removeValue(forKey: .claude)
+        self.clearSessionQuotaState(provider: .claude)
         self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != .claude }
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
@@ -625,8 +637,7 @@ extension UsageStore {
                 // Drop prior limits immediately so an Education subscription notice cannot leave stale bars visible.
                 self.snapshots.removeValue(forKey: provider)
                 self.lastKnownResetSnapshots.removeValue(forKey: provider)
-                self.lastKnownSessionRemaining.removeValue(forKey: provider)
-                self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+                self.clearSessionQuotaState(provider: provider)
                 self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
                 self.lastSourceLabels.removeValue(forKey: provider)
                 self.errors[provider] = nil

@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "سهمیه %2$@ در %1$@ رو به اتمام است";
 "quota_warning_notification_body" = "%1$@ باقی مانده است. آستانه هشدار %2$d%% برای سهمیه %3$@ شما فعال شد.";
 "quota_warning_notification_body_with_account" = "حساب %1$@. %2$@ باقی مانده است. آستانه هشدار %3$d%% برای سهمیه %4$@ شما فعال شد.";
+"predictive_pace_warnings_title" = "هشدارهای پیش‌بینی روند مصرف";
+"predictive_pace_warnings_subtitle" = "برای Codex و Claude هشدار می‌دهد وقتی روند مصرف جلسه یا هفتگی ممکن است پیش از بازنشانی سهمیه را تمام کند.";
+"predictive_pace_warning_notification_title" = "%1$@ هشدار روند مصرف %2$@";
+"predictive_pace_warning_notification_body" = "با روند فعلی، این سهمیه ممکن است تا %1$@ دیگر، پیش از بازنشانی، تمام شود.";
+"predictive_pace_warning_notification_body_with_account" = "حساب %1$@. با روند فعلی، این سهمیه ممکن است تا %2$@ دیگر، پیش از بازنشانی، تمام شود.";
 "session_depleted_notification_title" = "%@ جلسه تخلیه شد";
 "session_depleted_notification_body" = "0% باقی مانده است. وقتی دوباره در دسترس قرار گیرد اطلاع می‌دهیم.";
 "session_restored_notification_title" = "جلسه %@ بازیابی شد";
@@ -468,8 +473,10 @@
 "quota_warning_off" = "خاموش";
 "quota_warning_inherited" = "به ارث رسیده: %@";
 "quota_warning_depleted_only" = "فقط کاهش یافته";
-"quota_warning_upper" = "بالا";
+"quota_warning_upper" = "بالاتر";
 "quota_warning_lower" = "پایین تر";
+"quota_warning_warning" = "هشدار";
+"quota_warning_critical" = "بحرانی";
 "apply" = "درخواست بده";
 "quit_app" = "خروج از QuotaKit";
 

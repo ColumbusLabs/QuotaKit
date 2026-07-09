@@ -456,8 +456,10 @@
 "quota_warning_off" = "Desactivat";
 "quota_warning_inherited" = "Heretat: %@";
 "quota_warning_depleted_only" = "només esgotat";
-"quota_warning_upper" = "Superior";
+"quota_warning_upper" = "Més alt";
 "quota_warning_lower" = "Inferior";
+"quota_warning_warning" = "Avís";
+"quota_warning_critical" = "Crític";
 "apply" = "Apliqueu";
 "quit_app" = "Sortiu del QuotaKit";
 
@@ -1094,6 +1096,11 @@
 "Quit" = "Sortiu";
 "quota_warning_notification_body" = "Queda un %1$@. Heu assolit el llindar d'avís del %2$d%% (%3$@).";
 "quota_warning_notification_body_with_account" = "Compte %1$@. Queda un %2$@. Heu assolit el llindar d'avís del %3$d%% (%4$@).";
+"predictive_pace_warnings_title" = "Alertes predictives de ritme";
+"predictive_pace_warnings_subtitle" = "Avisa per Codex i Claude quan el ritme de sessió o setmanal pot esgotar la quota abans del reinici.";
+"predictive_pace_warning_notification_title" = "%1$@: alerta de ritme %2$@";
+"predictive_pace_warning_notification_body" = "Al ritme actual, aquesta quota podria esgotar-se en %1$@, abans de reiniciar-se.";
+"predictive_pace_warning_notification_body_with_account" = "Compte %1$@. Al ritme actual, aquesta quota podria esgotar-se en %2$@, abans de reiniciar-se.";
 "quota_warning_notification_title" = "Quota baixa de %1$@ (%2$@)";
 "Refreshing" = "S'està actualitzant";
 "Request quota: %@ / %@" = "Quota de sol·licituds: %@ / %@";

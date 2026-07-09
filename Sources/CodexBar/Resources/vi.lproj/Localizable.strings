@@ -448,6 +448,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ Hạn mức thấp";
 "quota_warning_notification_body" = "%1$@ left. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Tài khoản %1$@ . Còn lại %2$@. Đã đạt đến ngưỡng cảnh báo %3$d %% %4$@ của bạn.";
+"predictive_pace_warnings_title" = "Cảnh báo nhịp dùng dự đoán";
+"predictive_pace_warnings_subtitle" = "Cảnh báo cho Codex và Claude khi nhịp dùng phiên hoặc hằng tuần có thể làm hết hạn mức trước khi đặt lại.";
+"predictive_pace_warning_notification_title" = "%1$@ cảnh báo nhịp dùng %2$@";
+"predictive_pace_warning_notification_body" = "Với nhịp dùng hiện tại, hạn mức này có thể hết trong %1$@, trước khi đặt lại.";
+"predictive_pace_warning_notification_body_with_account" = "Tài khoản %1$@. Với nhịp dùng hiện tại, hạn mức này có thể hết trong %2$@, trước khi đặt lại.";
 "session_depleted_notification_title" = "%@ phiên đã hết";
 "session_depleted_notification_body" = "còn lại 0%. Sẽ thông báo khi có lại.";
 "session_restored_notification_title" = "%@ phiên đã được khôi phục";
@@ -463,8 +468,10 @@
 "quota_warning_off" = "Tắt";
 "quota_warning_inherited" = "Đã kế thừa: %@";
 "quota_warning_depleted_only" = "chỉ đã cạn";
-"quota_warning_upper" = "Thượng";
+"quota_warning_upper" = "Cao hơn";
 "quota_warning_lower" = "Hạ";
+"quota_warning_warning" = "Cảnh báo";
+"quota_warning_critical" = "Nghiêm trọng";
 "apply" = "Áp dụng";
 "quit_app" = "Thoát QuotaKit";
 

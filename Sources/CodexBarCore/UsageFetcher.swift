@@ -171,14 +171,6 @@ public enum UsageDataConfidence: String, Codable, Equatable, Sendable {
     case unknown
 }
 
-public enum CursorRateWindowLayout: String, Codable, Equatable, Sendable {
-    case autoAPI
-    case autoOnly
-    case apiOnly
-    case plan
-    case requests
-}
-
 public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow?
     public let secondary: RateWindow?
@@ -196,6 +188,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let sakanaPayAsYouGo: SakanaPayAsYouGoSnapshot?
     public let crossModelUsage: CrossModelUsageSnapshot?
     public let clawRouterUsage: ClawRouterUsageSnapshot?
+    public let wayfinderUsage: WayfinderUsageSnapshot?
     public let openAIAPIUsage: OpenAIAPIUsageSnapshot?
     public let bedrockUsage: BedrockUsageSnapshot?
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
@@ -244,6 +237,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case sakanaPayAsYouGo
         case crossModelUsage
         case clawRouterUsage
+        case wayfinderUsage
         case openAIAPIUsage
         case bedrockUsage
         case codexResetCredits
@@ -283,6 +277,7 @@ public struct UsageSnapshot: Codable, Sendable {
         sakanaPayAsYouGo: SakanaPayAsYouGoSnapshot? = nil,
         crossModelUsage: CrossModelUsageSnapshot? = nil,
         clawRouterUsage: ClawRouterUsageSnapshot? = nil,
+        wayfinderUsage: WayfinderUsageSnapshot? = nil,
         openAIAPIUsage: OpenAIAPIUsageSnapshot? = nil,
         bedrockUsage: BedrockUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
@@ -323,6 +318,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.sakanaPayAsYouGo = sakanaPayAsYouGo
         self.crossModelUsage = crossModelUsage
         self.clawRouterUsage = clawRouterUsage
+        self.wayfinderUsage = wayfinderUsage
         self.openAIAPIUsage = openAIAPIUsage
         self.bedrockUsage = bedrockUsage
         self.codexResetCredits = codexResetCredits
@@ -382,6 +378,7 @@ public struct UsageSnapshot: Codable, Sendable {
             forKey: .sakanaPayAsYouGo)
         self.crossModelUsage = try container.decodeIfPresent(CrossModelUsageSnapshot.self, forKey: .crossModelUsage)
         self.clawRouterUsage = try container.decodeIfPresent(ClawRouterUsageSnapshot.self, forKey: .clawRouterUsage)
+        self.wayfinderUsage = try container.decodeIfPresent(WayfinderUsageSnapshot.self, forKey: .wayfinderUsage)
         self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
         self.bedrockUsage = try container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
         self.codexResetCredits = try container.decodeIfPresent(
@@ -454,6 +451,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.sakanaPayAsYouGo, forKey: .sakanaPayAsYouGo)
         try container.encodeIfPresent(self.crossModelUsage, forKey: .crossModelUsage)
         try container.encodeIfPresent(self.clawRouterUsage, forKey: .clawRouterUsage)
+        try container.encodeIfPresent(self.wayfinderUsage, forKey: .wayfinderUsage)
         try container.encodeIfPresent(self.openAIAPIUsage, forKey: .openAIAPIUsage)
         try container.encodeIfPresent(self.bedrockUsage, forKey: .bedrockUsage)
         try container.encodeIfPresent(self.codexResetCredits, forKey: .codexResetCredits)
@@ -642,6 +640,7 @@ public struct UsageSnapshot: Codable, Sendable {
             sakanaPayAsYouGo: self.sakanaPayAsYouGo,
             crossModelUsage: self.crossModelUsage,
             clawRouterUsage: self.clawRouterUsage,
+            wayfinderUsage: self.wayfinderUsage,
             openAIAPIUsage: self.openAIAPIUsage,
             bedrockUsage: self.bedrockUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),

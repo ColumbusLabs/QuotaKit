@@ -85,11 +85,44 @@ extension UsageStore {
         guard self.openAIDashboardAttachmentAuthorized else { return nil }
         return self.openAIDashboard
     }
+
+    private static func isRunningTestsProcess() -> Bool {
+        let environment = ProcessInfo.processInfo.environment
+        if environment["XCTestConfigurationFilePath"] != nil { return true }
+        if environment["XCTestSessionIdentifier"] != nil { return true }
+        if environment["SWIFT_TESTING_ENABLED"] != nil { return true }
+        return CommandLine.arguments.contains { argument in
+            argument.contains("xctest") || argument.contains("swift-testing")
+        }
+    }
+
+    /// Returns the login method (plan type) for the specified provider, if available.
+    private func loginMethod(for provider: UsageProvider) -> String? {
+        self.snapshots[provider]?.loginMethod(for: provider)
+    }
+
+    /// Returns true if the Claude account appears to be a subscription (Max, Pro, Ultra, Team).
+    /// Returns false for API users or when plan cannot be determined.
+    func isClaudeSubscription() -> Bool {
+        Self.isSubscriptionPlan(self.loginMethod(for: .claude))
+    }
+
+    /// Determines if a login method string indicates a Claude subscription plan.
+    /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
+    nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
+        ClaudePlan.isSubscriptionLoginMethod(loginMethod)
+    }
+
+    var preferredSnapshot: UsageSnapshot? {
+        for provider in self.enabledProviders() {
+            if let snap = self.snapshots[provider] { return snap }
+        }
+        return nil
+    }
 }
 
 @MainActor
 @Observable
-// swiftlint:disable:next type_body_length
 final class UsageStore {
     nonisolated static let resetBoundaryRefreshGraceSeconds: TimeInterval = 30
     nonisolated static let resetBoundaryRefreshMinimumDelaySeconds: TimeInterval = 5
@@ -263,9 +296,10 @@ final class UsageStore {
     @ObservationIgnored var codexHistoricalDataset: CodexHistoricalDataset?
     @ObservationIgnored var codexHistoricalDatasetAccountKey: String?
     @ObservationIgnored var lastKnownResetSnapshots: [UsageProvider: UsageSnapshot] = [:]
-    @ObservationIgnored var lastKnownSessionRemaining: [UsageProvider: Double] = [:]
-    @ObservationIgnored var lastKnownSessionWindowSource: [UsageProvider: SessionQuotaWindowSource] = [:]
+    @ObservationIgnored var lastKnownSessionRemaining: [SessionQuotaStateKey: Double] = [:]
+    @ObservationIgnored var lastKnownSessionWindowSource: [SessionQuotaStateKey: SessionQuotaWindowSource] = [:]
     @ObservationIgnored var quotaWarningState: [QuotaWarningStateKey: QuotaWarningState] = [:]
+    @ObservationIgnored var predictivePaceWarningNotifiedKeys: Set<PredictivePaceWarningStateKey> = []
     @ObservationIgnored var lastPermissionPromptNotificationAt: [UsageProvider: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [UsageProvider: String] = [:]
@@ -365,40 +399,6 @@ final class UsageStore {
         Task { await self.refresh() }
         self.startTimer()
         self.startTokenTimer()
-    }
-
-    private static func isRunningTestsProcess() -> Bool {
-        let environment = ProcessInfo.processInfo.environment
-        if environment["XCTestConfigurationFilePath"] != nil { return true }
-        if environment["XCTestSessionIdentifier"] != nil { return true }
-        if environment["SWIFT_TESTING_ENABLED"] != nil { return true }
-        return CommandLine.arguments.contains { argument in
-            argument.contains("xctest") || argument.contains("swift-testing")
-        }
-    }
-
-    /// Returns the login method (plan type) for the specified provider, if available.
-    private func loginMethod(for provider: UsageProvider) -> String? {
-        self.snapshots[provider]?.loginMethod(for: provider)
-    }
-
-    /// Returns true if the Claude account appears to be a subscription (Max, Pro, Ultra, Team).
-    /// Returns false for API users or when plan cannot be determined.
-    func isClaudeSubscription() -> Bool {
-        Self.isSubscriptionPlan(self.loginMethod(for: .claude))
-    }
-
-    /// Determines if a login method string indicates a Claude subscription plan.
-    /// Known subscription indicators: Max, Pro, Ultra, Team (case-insensitive).
-    nonisolated static func isSubscriptionPlan(_ loginMethod: String?) -> Bool {
-        ClaudePlan.isSubscriptionLoginMethod(loginMethod)
-    }
-
-    var preferredSnapshot: UsageSnapshot? {
-        for provider in self.enabledProviders() {
-            if let snap = self.snapshots[provider] { return snap }
-        }
-        return nil
     }
 
     var iconStyle: IconStyle {
@@ -856,36 +856,6 @@ final class UsageStore {
         self.resetBoundaryRefreshTask?.cancel()
     }
 
-    enum SessionQuotaWindowSource: String {
-        case primary
-        case copilotSecondaryFallback
-        case zaiTertiary
-        case antigravityQuotaSummary
-        case antigravityLegacy
-    }
-
-    struct QuotaWarningStateKey: Hashable {
-        let provider: UsageProvider
-        let window: QuotaWarningWindow
-        /// Distinguishes independent extra rate windows that share a provider/window lane
-        /// (e.g. multiple `claude-weekly-scoped-*` windows) so their fired-threshold state
-        /// does not clobber each other or the primary session/weekly lanes. `nil` for the
-        /// primary session and weekly lanes.
-        let windowID: String?
-
-        init(provider: UsageProvider, window: QuotaWarningWindow, windowID: String? = nil) {
-            self.provider = provider
-            self.window = window
-            self.windowID = windowID
-        }
-    }
-
-    struct QuotaWarningState {
-        var lastRemaining: Double?
-        var firedThresholds: Set<Int> = []
-        var source: SessionQuotaWindowSource?
-    }
-
     func postQuotaWarning(_ event: QuotaWarningEvent, provider: UsageProvider) {
         self.sessionQuotaNotifier.postQuotaWarning(
             event: event,
@@ -902,11 +872,36 @@ final class UsageStore {
         }
     }
 
-    func handleSessionQuotaTransition(provider: UsageProvider, snapshot: UsageSnapshot) {
+    func postPredictivePaceWarning(_ event: PredictivePaceWarningEvent, provider: UsageProvider, now: Date) {
+        self.sessionQuotaNotifier.postPredictivePaceWarning(
+            event: event,
+            provider: provider,
+            soundEnabled: self.settings.quotaWarningSoundEnabled,
+            onScreenAlertEnabled: self.settings.quotaWarningOnScreenAlertEnabled,
+            now: now)
+    }
+
+    func clearSessionQuotaState(provider: UsageProvider) {
+        self.lastKnownSessionRemaining = self.lastKnownSessionRemaining.filter { $0.key.provider != provider }
+        self.lastKnownSessionWindowSource = self.lastKnownSessionWindowSource.filter { $0.key.provider != provider }
+    }
+
+    func handleSessionQuotaTransition(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        accountDiscriminatorOverride: String? = nil)
+    {
         // Capture account identity up front so both the depleted/restored
         // and warning paths can attribute the push to the triggering
         // account on multi-account providers. Mirrors `handleQuotaWarningTransitions`.
         let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
+        let accountDiscriminator = self.quotaWarningAccountDiscriminator(
+            provider: provider,
+            snapshot: snapshot,
+            accountDiscriminatorOverride: accountDiscriminatorOverride)
+        let stateKey = SessionQuotaStateKey(
+            provider: provider,
+            accountDiscriminator: accountDiscriminator)
 
         // Session quota notifications are tied to the primary session window. Copilot free plans can
         // expose only chat quota, so allow Copilot to fall back to secondary for transition tracking.
@@ -920,28 +915,32 @@ final class UsageStore {
         }
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
             if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
-            self.lastKnownSessionRemaining.removeValue(forKey: provider)
-            self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+            if accountDiscriminator == nil {
+                self.clearSessionQuotaState(provider: provider)
+            } else {
+                self.lastKnownSessionRemaining.removeValue(forKey: stateKey)
+                self.lastKnownSessionWindowSource.removeValue(forKey: stateKey)
+            }
             return
         }
         let currentRemaining = sessionWindow.window.remainingPercent
         let currentSource = sessionWindow.source
-        let previousRemaining = self.lastKnownSessionRemaining[provider]
-        let previousSource = self.lastKnownSessionWindowSource[provider]
+        let previousRemaining = self.lastKnownSessionRemaining[stateKey]
+        let previousSource = self.lastKnownSessionWindowSource[stateKey]
 
         if let previousSource, previousSource != currentSource {
             let providerText = provider.rawValue
             self.sessionQuotaLogger.debug(
                 "session window source changed: provider=\(providerText) prevSource=\(previousSource.rawValue) " +
                     "currSource=\(currentSource.rawValue) curr=\(currentRemaining)")
-            self.lastKnownSessionRemaining[provider] = currentRemaining
-            self.lastKnownSessionWindowSource[provider] = currentSource
+            self.lastKnownSessionRemaining[stateKey] = currentRemaining
+            self.lastKnownSessionWindowSource[stateKey] = currentSource
             return
         }
 
         defer {
-            self.lastKnownSessionRemaining[provider] = currentRemaining
-            self.lastKnownSessionWindowSource[provider] = currentSource
+            self.lastKnownSessionRemaining[stateKey] = currentRemaining
+            self.lastKnownSessionWindowSource[stateKey] = currentSource
         }
 
         // Compute the transition first, BEFORE any notification gates. This is essential
@@ -1151,6 +1150,7 @@ extension UsageStore {
                 .deepgram: "Deepgram debug log not yet implemented",
                 .chutes: "Chutes debug log not yet implemented",
                 .clawrouter: "ClawRouter debug log not yet implemented",
+                .wayfinder: "Wayfinder debug log not yet implemented",
             ]
             let buildText = {
                 switch provider {
@@ -1232,7 +1232,7 @@ extension UsageStore {
                      .sakana, .abacus, .mistral, .codebuff, .crof, .windsurf, .venice, .manus, .commandcode, .qoder,
                      .stepfun,
                      .bedrock, .grok, .groq, .t3chat, .llmproxy, .litellm, .zed, .deepgram, .poe, .chutes,
-                     .clawrouter:
+                     .clawrouter, .wayfinder:
                     return unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
                 }
             }

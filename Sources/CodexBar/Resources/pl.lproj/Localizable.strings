@@ -455,6 +455,11 @@
 "quota_warning_notification_title" = "Niski limit %1$@ (%2$@)";
 "quota_warning_notification_body" = "Pozostało %1$@. Osiągnięto próg ostrzeżenia %2$d%% dla %3$@.";
 "quota_warning_notification_body_with_account" = "Konto %1$@. Pozostało %2$@. Osiągnięto próg ostrzeżenia %3$d%% dla %4$@.";
+"predictive_pace_warnings_title" = "Predykcyjne ostrzeżenia tempa";
+"predictive_pace_warnings_subtitle" = "Ostrzega dla Codex i Claude, gdy tempo sesji lub tygodnia może wyczerpać limit przed resetem.";
+"predictive_pace_warning_notification_title" = "%1$@ ostrzeżenie tempa %2$@";
+"predictive_pace_warning_notification_body" = "Przy obecnym tempie ten limit może wyczerpać się za %1$@, przed resetem.";
+"predictive_pace_warning_notification_body_with_account" = "Konto %1$@. Przy obecnym tempie ten limit może wyczerpać się za %2$@, przed resetem.";
 "session_depleted_notification_title" = "Wyczerpano limit sesji (%@)";
 "session_depleted_notification_body" = "Pozostało 0%. Powiadomimy, gdy limit będzie ponownie dostępny.";
 "session_restored_notification_title" = "Przywrócono limit sesji (%@)";
@@ -470,8 +475,10 @@
 "quota_warning_off" = "Wyłączone";
 "quota_warning_inherited" = "Dziedziczone: %@";
 "quota_warning_depleted_only" = "tylko wyczerpanie";
-"quota_warning_upper" = "Górny";
+"quota_warning_upper" = "Wyższy";
 "quota_warning_lower" = "Dolny";
+"quota_warning_warning" = "Ostrzeżenie";
+"quota_warning_critical" = "Krytyczny";
 "apply" = "Zastosuj";
 "quit_app" = "Zakończ aplikację";
 

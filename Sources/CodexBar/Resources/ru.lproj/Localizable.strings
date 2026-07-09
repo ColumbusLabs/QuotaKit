@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "Низкая квота %1$@ %2$@";
 "quota_warning_notification_body" = "Осталось %1$@. Достигнут порог предупреждения %2$d%% для %3$@.";
 "quota_warning_notification_body_with_account" = "Аккаунт %1$@. Осталось %2$@. Достигнут порог предупреждения %3$d%% для %4$@.";
+"predictive_pace_warnings_title" = "Прогнозные предупреждения о темпе";
+"predictive_pace_warnings_subtitle" = "Предупреждает для Codex и Claude, если темп сеанса или недели может исчерпать квоту до сброса.";
+"predictive_pace_warning_notification_title" = "%1$@: предупреждение о темпе (%2$@)";
+"predictive_pace_warning_notification_body" = "При текущем темпе эта квота может исчерпаться через %1$@, до сброса.";
+"predictive_pace_warning_notification_body_with_account" = "Аккаунт %1$@. При текущем темпе эта квота может исчерпаться через %2$@, до сброса.";
 "session_depleted_notification_title" = "Сеанс %@ исчерпан";
 "session_depleted_notification_body" = "Осталось 0%. Сообщим, когда квота снова станет доступна.";
 "session_restored_notification_title" = "Сеанс %@ восстановлен";
@@ -468,8 +473,10 @@
 "quota_warning_off" = "Выкл.";
 "quota_warning_inherited" = "Унаследовано: %@";
 "quota_warning_depleted_only" = "только при исчерпании";
-"quota_warning_upper" = "Верхний порог";
+"quota_warning_upper" = "Выше";
 "quota_warning_lower" = "Нижний порог";
+"quota_warning_warning" = "Предупреждение";
+"quota_warning_critical" = "Критично";
 "apply" = "Применить";
 "quit_app" = "Выйти из QuotaKit";
 

@@ -450,6 +450,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ Kontingent niedrig";
 "quota_warning_notification_body" = "%1$@ übrig. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Konto %1$@. %2$@ übrig. Ihr Warnschwellenwert von %3$d%% %4$@ wurde erreicht.";
+"predictive_pace_warnings_title" = "Vorausschauende Tempo-Warnungen";
+"predictive_pace_warnings_subtitle" = "Warnt für Codex und Claude, wenn die Sitzungs- oder Wochenquote beim aktuellen Tempo vor dem Zurücksetzen aufgebraucht sein könnte.";
+"predictive_pace_warning_notification_title" = "%1$@: Tempo-Warnung (%2$@)";
+"predictive_pace_warning_notification_body" = "Beim aktuellen Tempo könnte diese Quote in %1$@ aufgebraucht sein, bevor sie zurückgesetzt wird.";
+"predictive_pace_warning_notification_body_with_account" = "Konto %1$@. Beim aktuellen Tempo könnte diese Quote in %2$@ aufgebraucht sein, bevor sie zurückgesetzt wird.";
 "session_depleted_notification_title" = "%@ Sitzung erschöpft";
 "session_depleted_notification_body" = "0 % übrig. Werde benachrichtigen, wenn es wieder verfügbar ist.";
 "session_restored_notification_title" = "%@ Sitzung wiederhergestellt";
@@ -465,8 +470,10 @@
 "quota_warning_off" = "Aus";
 "quota_warning_inherited" = "Geerbt: %@";
 "quota_warning_depleted_only" = "nur erschöpft";
-"quota_warning_upper" = "Obere";
+"quota_warning_upper" = "Höher";
 "quota_warning_lower" = "Untere";
+"quota_warning_warning" = "Warnung";
+"quota_warning_critical" = "Kritisch";
 "apply" = "Anwenden";
 "quit_app" = "QuotaKit beenden";
 

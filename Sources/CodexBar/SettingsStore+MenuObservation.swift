@@ -12,6 +12,7 @@ extension SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.quotaWarningNotificationsEnabled
+        _ = self.predictivePaceWarningNotificationsEnabled
         _ = self.quotaWarningThresholds
         _ = self.quotaWarningThresholds(.session)
         _ = self.quotaWarningThresholds(.weekly)

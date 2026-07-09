@@ -452,6 +452,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@-kvot låg";
 "quota_warning_notification_body" = "%1$@ kvar. Din varningströskel på %2$d %% för %3$@ har nåtts.";
 "quota_warning_notification_body_with_account" = "Konto %1$@. %2$@ kvar. Din varningströskel på %3$d %% för %4$@ har nåtts.";
+"predictive_pace_warnings_title" = "Förutsägande taktvarningar";
+"predictive_pace_warnings_subtitle" = "Varnar för Codex och Claude när sessions- eller veckotakten kan tömma kvoten före återställning.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@-taktvarning";
+"predictive_pace_warning_notification_body" = "I nuvarande takt kan den här kvoten ta slut om %1$@, innan den återställs.";
+"predictive_pace_warning_notification_body_with_account" = "Konto %1$@. I nuvarande takt kan den här kvoten ta slut om %2$@, innan den återställs.";
 "session_depleted_notification_title" = "%@-sessionen är slut";
 "session_depleted_notification_body" = "0 % kvar. Du får en avisering när den är tillgänglig igen.";
 "session_restored_notification_title" = "%@-sessionen är återställd";
@@ -467,8 +472,10 @@
 "quota_warning_off" = "Av";
 "quota_warning_inherited" = "Ärvd: %@";
 "quota_warning_depleted_only" = "bara slut";
-"quota_warning_upper" = "Övre";
+"quota_warning_upper" = "Högre";
 "quota_warning_lower" = "Nedre";
+"quota_warning_warning" = "Varning";
+"quota_warning_critical" = "Kritisk";
 "apply" = "Tillämpa";
 "quit_app" = "Avsluta QuotaKit";
 
