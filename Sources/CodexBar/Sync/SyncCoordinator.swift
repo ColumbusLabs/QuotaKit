@@ -1437,7 +1437,7 @@ final class SyncCoordinator {
              // Upstream 0.33+ new providers. These quota numbers come
              // from their own APIs/local sessions — never via the local
              // pricing tables.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter, .wayfinder:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

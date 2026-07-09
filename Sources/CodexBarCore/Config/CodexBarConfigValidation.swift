@@ -28,6 +28,16 @@ public struct CodexBarConfigIssue: Codable, Sendable, Equatable {
 }
 
 public enum CodexBarConfigValidator {
+    private static let enterpriseHostProviders: [UsageProvider] = [
+        .azureopenai,
+        .clawrouter,
+        .copilot,
+        .kimi,
+        .litellm,
+        .llmproxy,
+        .wayfinder,
+    ]
+
     private static let workspaceIDProviders: [UsageProvider] = [
         .azureopenai,
         .openai,
@@ -73,9 +83,11 @@ public enum CodexBarConfigValidator {
         }
 
         let apiKeyIsSet = !(entry.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
-        if apiKeyIsSet, provider == .cursor || !supportsAPI {
+        if apiKeyIsSet, !self.providerConsumesAPIKey(provider, supportsAPI: supportsAPI) {
             let message = if provider == .cursor {
                 "apiKey is set but cursor uses a session-backed api source and does not consume apiKey."
+            } else if provider == .wayfinder {
+                "apiKey is set but wayfinder uses a credentialless local gateway and does not consume apiKey."
             } else {
                 "apiKey is set but \(provider.rawValue) does not support api source."
             }
@@ -97,7 +109,7 @@ public enum CodexBarConfigValidator {
         }
 
         if let source = entry.source, source == .api,
-           provider != .cursor,
+           self.providerRequiresAPIKey(provider),
            entry.apiKey?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true
         {
             issues.append(CodexBarConfigIssue(
@@ -168,8 +180,7 @@ public enum CodexBarConfigValidator {
                 provider: provider,
                 field: "enterpriseHost",
                 code: "enterprise_host_unused",
-                message: "enterpriseHost is set but only azureopenai, copilot, kimi, " +
-                    "llmproxy, and litellm support enterpriseHost."))
+                message: "enterpriseHost is set but only \(self.enterpriseHostProviderList) support enterpriseHost."))
         }
 
         if let tokenAccounts = entry.tokenAccounts, !tokenAccounts.accounts.isEmpty,
@@ -240,12 +251,25 @@ public enum CodexBarConfigValidator {
     }
 
     private static func providerSupportsEnterpriseHost(_ provider: UsageProvider) -> Bool {
+        self.enterpriseHostProviders.contains(provider)
+    }
+
+    private static func providerRequiresAPIKey(_ provider: UsageProvider) -> Bool {
         switch provider {
-        case .azureopenai, .copilot, .kimi, .llmproxy, .litellm, .clawrouter:
-            true
-        default:
+        case .cursor, .wayfinder:
             false
+        default:
+            true
         }
+    }
+
+    private static func providerConsumesAPIKey(_ provider: UsageProvider, supportsAPI: Bool) -> Bool {
+        guard supportsAPI else { return false }
+        return self.providerRequiresAPIKey(provider)
+    }
+
+    private static var enterpriseHostProviderList: String {
+        self.formattedProviderList(self.enterpriseHostProviders)
     }
 
     private static func validateRegion(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {

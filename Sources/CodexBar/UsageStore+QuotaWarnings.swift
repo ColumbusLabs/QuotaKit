@@ -3,11 +3,20 @@ import Foundation
 
 @MainActor
 extension UsageStore {
-    func handleQuotaWarningTransitions(provider: UsageProvider, snapshot: UsageSnapshot) {
+    func handleQuotaWarningTransitions(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        accountDiscriminatorOverride: String? = nil)
+    {
         guard self.settings.quotaWarningNotificationsEnabled else { return }
         if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
 
-        let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
+        let account = QuotaWarningAccountContext(
+            displayName: self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot),
+            discriminator: self.quotaWarningAccountDiscriminator(
+                provider: provider,
+                snapshot: snapshot,
+                accountDiscriminatorOverride: accountDiscriminatorOverride))
         let source: SessionQuotaWindowSource? = if provider == .antigravity {
             Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
                 ? .antigravityQuotaSummary
@@ -26,20 +35,22 @@ extension UsageStore {
         }
         self.handleQuotaWarningTransition(
             provider: provider,
-            window: .session,
-            rateWindow: primaryWindow,
-            source: source,
-            accountDisplayName: accountDisplayName)
+            transition: QuotaWarningTransition(
+                window: .session,
+                rateWindow: primaryWindow,
+                source: source),
+            account: account)
         self.handleQuotaWarningTransition(
             provider: provider,
-            window: .weekly,
-            rateWindow: secondaryWindow,
-            source: source,
-            accountDisplayName: accountDisplayName)
+            transition: QuotaWarningTransition(
+                window: .weekly,
+                rateWindow: secondaryWindow,
+                source: source),
+            account: account)
         self.handleClaudeExtraWindowQuotaWarnings(
             provider: provider,
             snapshot: snapshot,
-            accountDisplayName: accountDisplayName)
+            account: account)
     }
 
     /// Emit weekly-lane quota warnings for Claude's extra rate windows — model-scoped weekly
@@ -49,7 +60,7 @@ extension UsageStore {
     private func handleClaudeExtraWindowQuotaWarnings(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
-        accountDisplayName: String?)
+        account: QuotaWarningAccountContext)
     {
         guard provider == .claude else { return }
         guard self.settings.quotaWarningEnabled(provider: provider, window: .weekly) else {
@@ -66,19 +77,23 @@ extension UsageStore {
         for named in windows {
             self.handleQuotaWarningTransition(
                 provider: provider,
-                window: .weekly,
-                rateWindow: named.window,
-                source: nil,
-                accountDisplayName: accountDisplayName,
-                windowID: named.id,
-                windowDisplayLabel: named.title)
+                transition: QuotaWarningTransition(
+                    window: .weekly,
+                    rateWindow: named.window,
+                    source: nil,
+                    windowID: named.id,
+                    windowDisplayLabel: named.title),
+                account: account)
         }
         // A missing extras payload is not authoritative, but when another notifiable window remains,
         // reconcile tracked IDs so a later incarnation of a disappeared window can warn again.
         guard !windows.isEmpty else { return }
         let activeIDs = Set(windows.map(\.id))
         let staleKeys = self.quotaWarningState.keys.filter { key in
-            guard key.provider == provider, let windowID = key.windowID else { return false }
+            guard key.provider == provider,
+                  key.accountDiscriminator == account.discriminator,
+                  let windowID = key.windowID
+            else { return false }
             return !activeIDs.contains(windowID)
         }
         for key in staleKeys {
@@ -93,33 +108,47 @@ extension UsageStore {
 
     private func handleQuotaWarningTransition(
         provider: UsageProvider,
-        window: QuotaWarningWindow,
-        rateWindow: RateWindow?,
-        source: SessionQuotaWindowSource?,
-        accountDisplayName: String?,
-        windowID: String? = nil,
-        windowDisplayLabel: String? = nil)
+        transition: QuotaWarningTransition,
+        account: QuotaWarningAccountContext)
     {
-        let key = QuotaWarningStateKey(provider: provider, window: window, windowID: windowID)
-        guard self.settings.quotaWarningEnabled(provider: provider, window: window) else {
-            self.quotaWarningState.removeValue(forKey: key)
+        let key = QuotaWarningStateKey(
+            provider: provider,
+            window: transition.window,
+            windowID: transition.windowID,
+            accountDiscriminator: account.discriminator)
+        guard self.settings.quotaWarningEnabled(provider: provider, window: transition.window) else {
+            self.quotaWarningState = self.quotaWarningState.filter { existing in
+                !(existing.key.provider == provider &&
+                    existing.key.window == transition.window &&
+                    existing.key.windowID == transition.windowID)
+            }
             return
         }
-        guard let rateWindow else {
-            self.quotaWarningState.removeValue(forKey: key)
+        guard let rateWindow = transition.rateWindow else {
+            if account.discriminator == nil {
+                self.quotaWarningState = self.quotaWarningState.filter { existing in
+                    !(existing.key.provider == provider &&
+                        existing.key.window == transition.window &&
+                        existing.key.windowID == transition.windowID)
+                }
+            } else {
+                self.quotaWarningState.removeValue(forKey: key)
+            }
             return
         }
 
-        let thresholds = self.settings.resolvedQuotaWarningThresholds(provider: provider, window: window)
+        let thresholds = self.settings.resolvedQuotaWarningThresholds(
+            provider: provider,
+            window: transition.window)
         let currentRemaining = rateWindow.remainingPercent
         let previousState = self.quotaWarningState[key]
-        if let previousState, previousState.source != source {
+        if let previousState, previousState.source != transition.source {
             self.quotaWarningState[key] = QuotaWarningState(
                 lastRemaining: currentRemaining,
-                source: source)
+                source: transition.source)
             return
         }
-        var state = previousState ?? QuotaWarningState(source: source)
+        var state = previousState ?? QuotaWarningState(source: transition.source)
         let cleared = QuotaWarningNotificationLogic.thresholdsToClear(
             currentRemaining: currentRemaining,
             alreadyFired: state.firedThresholds)
@@ -136,12 +165,12 @@ extension UsageStore {
                 thresholds: thresholds))
             self.postQuotaWarning(
                 QuotaWarningEvent(
-                    window: window,
+                    window: transition.window,
                     threshold: threshold,
                     currentRemaining: currentRemaining,
-                    accountDisplayName: accountDisplayName,
-                    windowID: windowID,
-                    windowDisplayLabel: windowDisplayLabel),
+                    accountDisplayName: account.displayName,
+                    windowID: transition.windowID,
+                    windowDisplayLabel: transition.windowDisplayLabel),
                 provider: provider)
         }
 
@@ -155,5 +184,35 @@ extension UsageStore {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         guard let account, !account.isEmpty else { return nil }
         return account
+    }
+
+    func quotaWarningAccountDiscriminator(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        accountDiscriminatorOverride: String? = nil) -> String?
+    {
+        if let override = Self.normalizedQuotaWarningDiscriminatorValue(accountDiscriminatorOverride) {
+            return override
+        }
+        if let organization = Self.normalizedQuotaWarningDiscriminatorValue(
+            snapshot.accountOrganization(for: provider))
+        {
+            return "organization:\(organization)"
+        }
+        if let email = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.accountEmail(for: provider)) {
+            return "email:\(email)"
+        }
+        if let loginMethod = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.loginMethod(for: provider)) {
+            return "login:\(loginMethod)"
+        }
+        return nil
+    }
+
+    private static func normalizedQuotaWarningDiscriminatorValue(_ value: String?) -> String? {
+        let normalized = value?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        guard let normalized, !normalized.isEmpty else { return nil }
+        return normalized
     }
 }

@@ -347,6 +347,12 @@ final class SettingsStore {
 }
 
 extension SettingsStore {
+    private struct NotificationDefaults {
+        let statusChecksEnabled: Bool
+        let sessionQuotaNotificationsEnabled: Bool
+        let predictivePaceWarningNotificationsEnabled: Bool
+    }
+
     private static func scheduleAppGroupMigration() {
         Task.detached(priority: .utility) {
             let result = AppGroupSupport.migrateLegacyDataIfNeeded()
@@ -389,8 +395,7 @@ extension SettingsStore {
         }
         let debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
         let debugKeepCLISessionsAlive = userDefaults.object(forKey: "debugKeepCLISessionsAlive") as? Bool ?? false
-        let statusChecksEnabled = userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true
-        let sessionQuotaNotificationsEnabled = Self.loadSessionQuotaNotificationsDefault(userDefaults: userDefaults)
+        let notificationDefaults = Self.loadNotificationDefaults(userDefaults: userDefaults)
         let quotaWarnings = Self.loadQuotaWarningDefaults(userDefaults: userDefaults)
         let quotaWarningMarkersVisibleDefault = userDefaults.object(forKey: "quotaWarningMarkersVisible") as? Bool
         let quotaWarningMarkersVisible = quotaWarningMarkersVisibleDefault ?? true
@@ -467,9 +472,10 @@ extension SettingsStore {
             debugLogLevelRaw: debugLogLevelRaw,
             debugLoadingPatternRaw: debugLoadingPatternRaw,
             debugKeepCLISessionsAlive: debugKeepCLISessionsAlive,
-            statusChecksEnabled: statusChecksEnabled,
-            sessionQuotaNotificationsEnabled: sessionQuotaNotificationsEnabled,
+            statusChecksEnabled: notificationDefaults.statusChecksEnabled,
+            sessionQuotaNotificationsEnabled: notificationDefaults.sessionQuotaNotificationsEnabled,
             quotaWarningNotificationsEnabled: quotaWarnings.notificationsEnabled,
+            predictivePaceWarningNotificationsEnabled: notificationDefaults.predictivePaceWarningNotificationsEnabled,
             quotaWarningThresholdsRaw: quotaWarnings.thresholdsRaw,
             quotaWarningSessionThresholdsRaw: quotaWarnings.sessionThresholdsRaw,
             quotaWarningWeeklyThresholdsRaw: quotaWarnings.weeklyThresholdsRaw,
@@ -540,6 +546,14 @@ extension SettingsStore {
         }
 
         return (accessEnabled, batterySaverEnabled)
+    }
+
+    private static func loadNotificationDefaults(userDefaults: UserDefaults) -> NotificationDefaults {
+        NotificationDefaults(
+            statusChecksEnabled: userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true,
+            sessionQuotaNotificationsEnabled: self.loadSessionQuotaNotificationsDefault(userDefaults: userDefaults),
+            predictivePaceWarningNotificationsEnabled: userDefaults.object(
+                forKey: "predictivePaceWarningNotificationsEnabled") as? Bool ?? false)
     }
 
     private static func loadCostSummaryDisplayStyleRaw(

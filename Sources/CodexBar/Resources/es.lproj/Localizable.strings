@@ -450,6 +450,11 @@
 "quota_warning_session_capitalized" = "Sesión";
 "quota_warning_weekly" = "semanal";
 "quota_warning_weekly_capitalized" = "Semanal";
+"predictive_pace_warnings_title" = "Avisos predictivos de ritmo";
+"predictive_pace_warnings_subtitle" = "Avisa para Codex y Claude cuando el ritmo de sesión o semanal puede agotar la cuota antes del reinicio.";
+"predictive_pace_warning_notification_title" = "%1$@: aviso de ritmo %2$@";
+"predictive_pace_warning_notification_body" = "Al ritmo actual, esta cuota podría agotarse en %1$@, antes de reiniciarse.";
+"predictive_pace_warning_notification_body_with_account" = "Cuenta %1$@. Al ritmo actual, esta cuota podría agotarse en %2$@, antes de reiniciarse.";
 "quota_warning_warn_at" = "Avisar al";
 "quota_warning_global_threshold_subtitle" = "Porcentajes restantes para las ventanas de sesión y semanal, salvo que un proveedor los anule.";
 "quota_warning_sound" = "Reproducir sonido de notificación";
@@ -461,8 +466,10 @@
 "quota_warning_off" = "Desactivado";
 "quota_warning_inherited" = "Heredado: %@";
 "quota_warning_depleted_only" = "solo agotado";
-"quota_warning_upper" = "Superior";
+"quota_warning_upper" = "Más alto";
 "quota_warning_lower" = "Inferior";
+"quota_warning_warning" = "Advertencia";
+"quota_warning_critical" = "Crítico";
 "apply" = "Aplicar";
 "quit_app" = "Salir de QuotaKit";
 

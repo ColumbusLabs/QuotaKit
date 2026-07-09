@@ -9,27 +9,34 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Agent Sessions: list and focus live local or SSH-discovered Codex and Claude
+  Code sessions from the menu and CLI.
+- Wayfinder: add opt-in local gateway health, routing, savings, and latency
+  usage with configurable loopback URL support.
 - Claude: show opt-in read-only claude-swap accounts as stacked usage cards
   without delaying ambient refreshes.
 - Claude: switch inactive claude-swap accounts directly from stacked usage
   cards through claude-swap without reading Claude credentials.
 - Claude CLI: surface model-scoped weekly limits alongside all-model usage
   without duplicating matching web limits.
+- Quota warnings: add opt-in predictive pace alerts for Codex and Claude
+  session and weekly limits, with one alert per risk episode.
 - Documentation: add provider references for Mistral, Perplexity, Qoder, and
-  Synthetic.
+  Synthetic, plus Wayfinder setup and troubleshooting.
 - Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.
 
 ### Changed
 
 - Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
-  release through `7fdb1b901`, including Agent Sessions, CLI cards,
+  release through `3b039d15`, including Agent Sessions, CLI cards,
   claude-swap accounts, Kimi widgets and subscription rows, Claude scoped
-  weekly CLI limits, CrossModel, Doubao Coding Plan, Qoder, Mistral,
-  Perplexity, Synthetic, and ClawRouter provider docs, Codex credit and
-  cost-history improvements, provider refresh scoping, settings and menu
-  resilience, provider config relay scoping, localization updates, and release
-  validation hardening while preserving QuotaKit release ownership, appcast
-  metadata, CloudKit setup, config paths, and iOS build numbers.
+  weekly CLI limits, Wayfinder, CrossModel, Doubao Coding Plan, Qoder,
+  Mistral, Perplexity, Synthetic, and ClawRouter provider docs, Codex credit
+  and cost-history improvements, provider refresh scoping, quota warning
+  threshold and predictive warning settings, settings and menu resilience,
+  provider config relay scoping, localization updates, and release validation
+  hardening while preserving QuotaKit release ownership, appcast metadata,
+  CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
 - Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics
@@ -65,6 +72,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   one-shot usage checks while excluding QuotaKit-owned managed sessions.
 - Quota warnings: add on-screen alert presentation and session-reset
   celebration handling while keeping iPhone push writes intact.
+- Quota warnings: use compact per-window threshold editors that save on focus
+  loss, Return, or window close while preserving provider inheritance.
+- Ollama: validate API keys against an authenticated endpoint instead of the
+  public model catalog while preserving refresh cancellation.
 - Display settings: keep display mode, work days, multi-account layout, and
   cost summary selectors interactive on macOS 27.
 - Antigravity: recover CLI listening ports from Linux procfs when `lsof` is

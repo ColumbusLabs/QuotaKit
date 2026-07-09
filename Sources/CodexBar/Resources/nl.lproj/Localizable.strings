@@ -452,6 +452,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ quotum laag";
 "quota_warning_notification_body" = "%1$@ over. Je waarschuwingsdrempel van %2$d%% %3$@ is bereikt.";
 "quota_warning_notification_body_with_account" = "Rekening %1$@. %2$@ over. Je waarschuwingsdrempel van %3$d%% %4$@ is bereikt.";
+"predictive_pace_warnings_title" = "Voorspellende tempowaarschuwingen";
+"predictive_pace_warnings_subtitle" = "Waarschuwt voor Codex en Claude wanneer het sessie- of wekelijkse tempo het quotum vóór de reset kan opgebruiken.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@-tempowaarschuwing";
+"predictive_pace_warning_notification_body" = "Bij het huidige tempo kan dit quotum over %1$@ opraken, voordat het wordt gereset.";
+"predictive_pace_warning_notification_body_with_account" = "Account %1$@. Bij het huidige tempo kan dit quotum over %2$@ opraken, voordat het wordt gereset.";
 "session_depleted_notification_title" = "%@ sessie uitgeput";
 "session_depleted_notification_body" = "0% over. Zal op de hoogte stellen wanneer het weer beschikbaar is.";
 "session_restored_notification_title" = "%@ sessie hersteld";
@@ -467,8 +472,10 @@
 "quota_warning_off" = "Uit";
 "quota_warning_inherited" = "Geërfd: %@";
 "quota_warning_depleted_only" = "alleen maar uitgeput";
-"quota_warning_upper" = "Bovenste";
+"quota_warning_upper" = "Hoger";
 "quota_warning_lower" = "Lager";
+"quota_warning_warning" = "Waarschuwing";
+"quota_warning_critical" = "Kritiek";
 "apply" = "Toepassen";
 "quit_app" = "Sluit QuotaKit af";
 

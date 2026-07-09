@@ -131,10 +131,26 @@ extension SettingsStore {
         }
     }
 
+    var predictivePaceWarningNotificationsEnabled: Bool {
+        get { self.defaultsState.predictivePaceWarningNotificationsEnabled }
+        set {
+            guard self.defaultsState.predictivePaceWarningNotificationsEnabled != newValue else { return }
+            self.defaultsState.predictivePaceWarningNotificationsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "predictivePaceWarningNotificationsEnabled")
+            self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
     var quotaWarningThresholds: [Int] {
         get { QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningThresholdsRaw) }
         set {
             let sanitized = QuotaWarningThresholds.sanitized(newValue)
+            guard QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningThresholdsRaw) != sanitized
+                || QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningSessionThresholdsRaw) != sanitized
+                || QuotaWarningThresholds.sanitized(self.defaultsState.quotaWarningWeeklyThresholdsRaw) != sanitized
+            else {
+                return
+            }
             self.defaultsState.quotaWarningThresholdsRaw = sanitized
             self.defaultsState.quotaWarningSessionThresholdsRaw = sanitized
             self.defaultsState.quotaWarningWeeklyThresholdsRaw = sanitized
@@ -156,6 +172,7 @@ extension SettingsStore {
 
     func setQuotaWarningThresholds(_ window: QuotaWarningWindow, thresholds: [Int]) {
         let sanitized = QuotaWarningThresholds.sanitized(thresholds)
+        guard self.quotaWarningThresholds(window) != sanitized else { return }
         switch window {
         case .session:
             self.defaultsState.quotaWarningSessionThresholdsRaw = sanitized

@@ -464,8 +464,10 @@
 "quota_warning_off" = "关闭";
 "quota_warning_inherited" = "继承：%@";
 "quota_warning_depleted_only" = "仅耗尽时";
-"quota_warning_upper" = "上限";
+"quota_warning_upper" = "较高";
 "quota_warning_lower" = "下限";
+"quota_warning_warning" = "警告";
+"quota_warning_critical" = "严重";
 "apply" = "应用";
 "quit_app" = "退出 QuotaKit";
 "tab_general" = "通用";
@@ -904,6 +906,11 @@
 "quota_warning_notification_title" = "%1$@ 的 %2$@ 额度偏低";
 "quota_warning_notification_body" = "剩余 %1$@。已达到 %2$d%% 的 %3$@ 预警阈值。";
 "quota_warning_notification_body_with_account" = "账户 %1$@。剩余 %2$@。已达到 %3$d%% 的 %4$@ 预警阈值。";
+"predictive_pace_warnings_title" = "预测性节奏预警";
+"predictive_pace_warnings_subtitle" = "当 Codex 和 Claude 的会话或每周使用节奏可能在重置前耗尽配额时提醒。";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@节奏预警";
+"predictive_pace_warning_notification_body" = "按当前节奏，此配额可能会在重置前于 %1$@ 后耗尽。";
+"predictive_pace_warning_notification_body_with_account" = "账户 %1$@。按当前节奏，此配额可能会在重置前于 %2$@ 后耗尽。";
 
 /* Additional provider settings and alerts */
 "%@ is waiting for permission" = "%@ 正在等待权限";

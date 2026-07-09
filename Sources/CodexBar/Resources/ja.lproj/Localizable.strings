@@ -449,6 +449,11 @@
 "quota_warning_notification_title" = "%1$@ の%2$@クォータが残りわずか";
 "quota_warning_notification_body" = "残り %1$@。設定した %2$d%% の%3$@警告しきい値に達しました。";
 "quota_warning_notification_body_with_account" = "アカウント %1$@。残り %2$@。設定した %3$d%% の%4$@警告しきい値に達しました。";
+"predictive_pace_warnings_title" = "予測ペース警告";
+"predictive_pace_warnings_subtitle" = "Codex と Claude で、セッションまたは週間のペースではリセット前にクォータが尽きる可能性がある場合に警告します。";
+"predictive_pace_warning_notification_title" = "%1$@ の%2$@ペース警告";
+"predictive_pace_warning_notification_body" = "現在のペースでは、リセット前にこのクォータがあと %1$@ で尽きる可能性があります。";
+"predictive_pace_warning_notification_body_with_account" = "アカウント %1$@。現在のペースでは、リセット前にこのクォータがあと %2$@ で尽きる可能性があります。";
 "session_depleted_notification_title" = "%@ のセッションを使い切りました";
 "session_depleted_notification_body" = "残り 0% です。再び利用可能になったら通知します。";
 "session_restored_notification_title" = "%@ のセッションが回復しました";
@@ -464,8 +469,10 @@
 "quota_warning_off" = "オフ";
 "quota_warning_inherited" = "継承: %@";
 "quota_warning_depleted_only" = "枯渇時のみ";
-"quota_warning_upper" = "上限";
+"quota_warning_upper" = "高め";
 "quota_warning_lower" = "下限";
+"quota_warning_warning" = "警告";
+"quota_warning_critical" = "重大";
 "apply" = "適用";
 "quit_app" = "QuotaKit を終了";
 

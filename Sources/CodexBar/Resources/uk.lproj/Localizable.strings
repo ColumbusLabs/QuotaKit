@@ -452,6 +452,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ квота низька";
 "quota_warning_notification_body" = "%1$@ залишилося. Досягнуто %2$d%% %3$@ порогового значення попередження.";
 "quota_warning_notification_body_with_account" = "Рахунок %1$@. Залишилося %2$@. Досягнуто %3$d%% %4$@ порогового значення попередження.";
+"predictive_pace_warnings_title" = "Прогнозні попередження про темп";
+"predictive_pace_warnings_subtitle" = "Попереджає для Codex і Claude, коли темп сеансу або тижня може вичерпати квоту до скидання.";
+"predictive_pace_warning_notification_title" = "%1$@: попередження про темп (%2$@)";
+"predictive_pace_warning_notification_body" = "За поточного темпу ця квота може вичерпатися за %1$@, до скидання.";
+"predictive_pace_warning_notification_body_with_account" = "Обліковий запис %1$@. За поточного темпу ця квота може вичерпатися за %2$@, до скидання.";
 "session_depleted_notification_title" = "%@ сеанс вичерпано";
 "session_depleted_notification_body" = "Залишилося 0%. Надішле сповіщення, коли знову стане доступним.";
 "session_restored_notification_title" = "%@ сеанс відновлено";
@@ -467,8 +472,10 @@
 "quota_warning_off" = "Вимкнено";
 "quota_warning_inherited" = "Успадковано: %@";
 "quota_warning_depleted_only" = "лише виснажені";
-"quota_warning_upper" = "Верхній";
+"quota_warning_upper" = "Вищий";
 "quota_warning_lower" = "Нижній";
+"quota_warning_warning" = "Попередження";
+"quota_warning_critical" = "Критично";
 "apply" = "Застосувати";
 "quit_app" = "Закрийте QuotaKit";
 

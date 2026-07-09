@@ -455,6 +455,11 @@
 "quota_warning_notification_title" = "Quota %2$@ di %1$@ quasi esaurita";
 "quota_warning_notification_body" = "Rimane %1$@. Hai raggiunto la soglia di avviso del %2$d%% per la quota %3$@.";
 "quota_warning_notification_body_with_account" = "Account %1$@. Rimane %2$@. Hai raggiunto la soglia di avviso del %3$d%% per la quota %4$@.";
+"predictive_pace_warnings_title" = "Avvisi predittivi sul ritmo";
+"predictive_pace_warnings_subtitle" = "Avvisa per Codex e Claude quando il ritmo della sessione o della settimana potrebbe esaurire la quota prima del reset.";
+"predictive_pace_warning_notification_title" = "%1$@: avviso ritmo %2$@";
+"predictive_pace_warning_notification_body" = "Al ritmo attuale, questa quota potrebbe esaurirsi tra %1$@, prima del reset.";
+"predictive_pace_warning_notification_body_with_account" = "Account %1$@. Al ritmo attuale, questa quota potrebbe esaurirsi tra %2$@, prima del reset.";
 "session_depleted_notification_title" = "Sessione %@ esaurita";
 "session_depleted_notification_body" = "Rimane lo 0%. Ti avviseremo quando tornerà disponibile.";
 "session_restored_notification_title" = "Sessione %@ ripristinata";
@@ -470,8 +475,10 @@
 "quota_warning_off" = "Disattivato";
 "quota_warning_inherited" = "Ereditato: %@";
 "quota_warning_depleted_only" = "solo esaurita";
-"quota_warning_upper" = "Superiore";
+"quota_warning_upper" = "Più alto";
 "quota_warning_lower" = "Inferiore";
+"quota_warning_warning" = "Avviso";
+"quota_warning_critical" = "Critico";
 "apply" = "Applica";
 "quit_app" = "Esci da QuotaKit";
 

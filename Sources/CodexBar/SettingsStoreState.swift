@@ -13,6 +13,7 @@ struct SettingsDefaultsState {
     var statusChecksEnabled: Bool
     var sessionQuotaNotificationsEnabled: Bool
     var quotaWarningNotificationsEnabled: Bool
+    var predictivePaceWarningNotificationsEnabled: Bool
     var quotaWarningThresholdsRaw: [Int]
     var quotaWarningSessionThresholdsRaw: [Int]
     var quotaWarningWeeklyThresholdsRaw: [Int]
