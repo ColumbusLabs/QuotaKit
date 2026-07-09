@@ -101,24 +101,26 @@ See [CLI configuration](docs/cli-configuration.md) for the full flow.
 - [Augment](docs/augment.md) — Augment CLI or browser cookies for credits tracking and usage monitoring.
 - [Amp](docs/amp.md) — Browser cookie-based authentication with Amp Free usage tracking.
 - [Ollama](docs/ollama.md) — API key access plus browser cookies for Ollama Cloud usage windows.
+- [Synthetic](docs/synthetic.md) — API key quota endpoint for rolling five-hour, weekly token, and search-hourly usage.
 - [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
 - [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
 - [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
 - [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
 - [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
 - [Zed](docs/zed.md) — Zed editor Keychain session for plan, edit-prediction quota, billing cycle, and overdue invoices.
-- Perplexity — Account usage credits from Perplexity usage data.
+- [Perplexity](docs/perplexity.md) — Account usage credits from Perplexity usage data.
 - [Xiaomi MiMo](docs/mimo.md) — Browser cookies for balance and token-plan usage.
 - [Doubao](docs/doubao.md) — API key for Volcengine Ark request-limit probes.
 - [Sakana AI](docs/sakana.md) — Manual Cookie header for 5-hour and weekly quota windows.
 - [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
-- Mistral — Browser cookies for API spend, credit balance, and monthly-plan usage.
+- [Mistral](docs/mistral.md) — Browser cookies for API spend, credit balance, and monthly-plan usage.
 - [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).
 - [Moonshot / Kimi API](docs/moonshot.md) — API key for Moonshot/Kimi API account balance tracking.
 - [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
 - [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
 - [Crof](docs/crof.md) — API key for dollar credit balance and request quota tracking.
 - [Command Code](docs/command-code.md) — Browser or manual cookies for monthly USD credits from Command Code billing.
+- [Qoder](docs/qoder.md) — Browser or manual cookies for Qoder big model credit usage.
 - [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
 - [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer spend, monthly budgets, and optional CloudWatch Claude activity.
 - [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.

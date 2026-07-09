@@ -61,4 +61,6 @@ struct SettingsDefaultsState {
     var providersSortedAlphabetically: Bool
     var appLanguageRaw: String?
     var terminalAppRaw: String?
+    var agentSessionsEnabled: Bool
+    var agentSessionsManualHosts: String
 }

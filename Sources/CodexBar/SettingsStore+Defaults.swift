@@ -5,11 +5,16 @@ import ServiceManagement
 extension SettingsStore {
     private static let mergedOverviewSelectionEditedActiveProvidersKey = "mergedOverviewSelectionEditedActiveProviders"
 
+    func noteBackgroundWorkSettingsChanged() {
+        self.backgroundWorkSettingsRevision &+= 1
+    }
+
     var refreshFrequency: RefreshFrequency {
         get { self.defaultsState.refreshFrequency }
         set {
             self.defaultsState.refreshFrequency = newValue
             self.userDefaults.set(newValue.rawValue, forKey: "refreshFrequency")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -49,6 +54,7 @@ extension SettingsStore {
                 Self.sharedDefaults?.set(newValue, forKey: "debugDisableKeychainAccess")
             }
             KeychainAccessGate.isDisabled = newValue
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -78,6 +84,7 @@ extension SettingsStore {
         set {
             self.defaultsState.debugKeepCLISessionsAlive = newValue
             self.userDefaults.set(newValue, forKey: "debugKeepCLISessionsAlive")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -102,6 +109,7 @@ extension SettingsStore {
         set {
             self.defaultsState.statusChecksEnabled = newValue
             self.userDefaults.set(newValue, forKey: "statusChecksEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -110,6 +118,7 @@ extension SettingsStore {
         set {
             self.defaultsState.sessionQuotaNotificationsEnabled = newValue
             self.userDefaults.set(newValue, forKey: "sessionQuotaNotificationsEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -118,14 +127,17 @@ extension SettingsStore {
         set {
             self.defaultsState.quotaWarningNotificationsEnabled = newValue
             self.userDefaults.set(newValue, forKey: "quotaWarningNotificationsEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
     var predictivePaceWarningNotificationsEnabled: Bool {
         get { self.defaultsState.predictivePaceWarningNotificationsEnabled }
         set {
+            guard self.defaultsState.predictivePaceWarningNotificationsEnabled != newValue else { return }
             self.defaultsState.predictivePaceWarningNotificationsEnabled = newValue
             self.userDefaults.set(newValue, forKey: "predictivePaceWarningNotificationsEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -139,6 +151,7 @@ extension SettingsStore {
             self.userDefaults.set(sanitized, forKey: "quotaWarningThresholds")
             self.userDefaults.set(sanitized, forKey: "quotaWarningSessionThresholds")
             self.userDefaults.set(sanitized, forKey: "quotaWarningWeeklyThresholds")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -161,6 +174,7 @@ extension SettingsStore {
             self.defaultsState.quotaWarningWeeklyThresholdsRaw = sanitized
             self.userDefaults.set(sanitized, forKey: "quotaWarningWeeklyThresholds")
         }
+        self.noteBackgroundWorkSettingsChanged()
     }
 
     func quotaWarningWindowEnabled(_ window: QuotaWarningWindow) -> Bool {
@@ -181,6 +195,7 @@ extension SettingsStore {
             self.defaultsState.quotaWarningWeeklyEnabled = enabled
             self.userDefaults.set(enabled, forKey: "quotaWarningWeeklyEnabled")
         }
+        self.noteBackgroundWorkSettingsChanged()
     }
 
     var quotaWarningSoundEnabled: Bool {
@@ -188,6 +203,7 @@ extension SettingsStore {
         set {
             self.defaultsState.quotaWarningSoundEnabled = newValue
             self.userDefaults.set(newValue, forKey: "quotaWarningSoundEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -298,6 +314,7 @@ extension SettingsStore {
         set {
             self.defaultsState.multiAccountMenuLayoutRaw = newValue.rawValue
             self.userDefaults.set(newValue.rawValue, forKey: "multiAccountMenuLayout")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -311,6 +328,7 @@ extension SettingsStore {
         set {
             self.defaultsState.historicalTrackingEnabled = newValue
             self.userDefaults.set(newValue, forKey: "historicalTrackingEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -335,6 +353,7 @@ extension SettingsStore {
         set {
             self.defaultsState.costUsageEnabled = newValue
             self.userDefaults.set(newValue, forKey: "tokenCostUsageEnabled")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -344,6 +363,7 @@ extension SettingsStore {
             let clamped = max(1, min(365, newValue))
             self.defaultsState.costUsageHistoryDays = clamped
             self.userDefaults.set(clamped, forKey: "tokenCostUsageHistoryDays")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -416,6 +436,7 @@ extension SettingsStore {
         set {
             self.defaultsState.claudeOAuthKeychainPromptModeRaw = newValue.rawValue
             self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainPromptMode")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -430,6 +451,7 @@ extension SettingsStore {
         set {
             self.defaultsState.claudeOAuthKeychainReadStrategyRaw = newValue.rawValue
             self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainReadStrategy")
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -458,6 +480,7 @@ extension SettingsStore {
             CodexBarLog.logger(LogCategories.settings).info(
                 "Copilot budget extras updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -469,6 +492,7 @@ extension SettingsStore {
             CodexBarLog.logger(LogCategories.settings).info(
                 "Claude web extras updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -477,6 +501,8 @@ extension SettingsStore {
         set {
             self.defaultsState.showOptionalCreditsAndExtraUsage = newValue
             self.userDefaults.set(newValue, forKey: "showOptionalCreditsAndExtraUsage")
+            // This flag also controls ProviderFetchContext.includeOptionalUsage, so it is not display-only.
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -488,6 +514,7 @@ extension SettingsStore {
             CodexBarLog.logger(LogCategories.settings).info(
                 "OpenAI web access updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -499,6 +526,7 @@ extension SettingsStore {
             CodexBarLog.logger(LogCategories.settings).info(
                 "OpenAI web battery saver updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -510,6 +538,7 @@ extension SettingsStore {
             CodexBarLog.logger(LogCategories.settings).info(
                 "Provider storage footprints updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
+            self.noteBackgroundWorkSettingsChanged()
         }
     }
 
@@ -766,6 +795,22 @@ extension SettingsStore {
         set {
             self.defaultsState.terminalAppRaw = newValue.rawValue
             self.userDefaults.set(newValue.rawValue, forKey: "terminalApp")
+        }
+    }
+
+    var agentSessionsEnabled: Bool {
+        get { self.defaultsState.agentSessionsEnabled }
+        set {
+            self.defaultsState.agentSessionsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "agentSessionsEnabled")
+        }
+    }
+
+    var agentSessionsManualHosts: String {
+        get { self.defaultsState.agentSessionsManualHosts }
+        set {
+            self.defaultsState.agentSessionsManualHosts = newValue
+            self.userDefaults.set(newValue, forKey: "agentSessionsManualHosts")
         }
     }
 }

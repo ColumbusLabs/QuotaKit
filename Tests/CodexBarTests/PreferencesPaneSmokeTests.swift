@@ -83,6 +83,27 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
+    func `display menu options cover persisted settings`() {
+        #expect(DisplaySettingsMenuOptions.displayModes == MenuBarDisplayMode.allCases)
+        #expect(DisplaySettingsMenuOptions.weeklyProgressWorkDays == [nil, 4, 5, 7])
+        #expect(DisplaySettingsMenuOptions.multiAccountLayouts == MultiAccountMenuLayout.allCases)
+        #expect(DisplaySettingsMenuOptions.costSummaryDisplayStyles == CostSummaryDisplayStyle.allCases)
+
+        let suite = "PreferencesPaneSmokeTests-display-menu-persistence"
+        let settings = Self.makeSettingsStore(suite: suite)
+        settings.menuBarDisplayMode = .resetTime
+        settings.weeklyProgressWorkDays = 7
+        settings.multiAccountMenuLayout = .stacked
+        settings.costSummaryDisplayStyle = .costSubmenu
+
+        let reloaded = Self.makeSettingsStore(suite: suite, reset: false)
+        #expect(reloaded.menuBarDisplayMode == .resetTime)
+        #expect(reloaded.weeklyProgressWorkDays == 7)
+        #expect(reloaded.multiAccountMenuLayout == .stacked)
+        #expect(reloaded.costSummaryDisplayStyle == .costSubmenu)
+    }
+
+    @Test
     func `overview provider limit text formats numeric limit as object argument`() {
         let text = DisplayPane.overviewProviderLimitText(limit: 3)
 

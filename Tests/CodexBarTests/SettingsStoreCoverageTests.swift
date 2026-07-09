@@ -25,11 +25,17 @@ struct SettingsStoreCoverageTests {
         #expect(ordered.first == .zai)
         #expect(ordered.contains(.minimax))
 
+        let configRevisionBeforeOrder = settings.configRevision
+        let backgroundRevisionBeforeOrder = settings.backgroundWorkSettingsRevision
         settings.moveProvider(fromOffsets: IndexSet(integer: 0), toOffset: 2)
         #expect(settings.orderedProviders() != ordered)
+        #expect(settings.configRevision == configRevisionBeforeOrder + 1)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevisionBeforeOrder)
 
         let metadata = ProviderRegistry.shared.metadata
+        let backgroundRevisionBeforeEnablement = settings.backgroundWorkSettingsRevision
         try settings.setProviderEnabled(provider: .codex, metadata: #require(metadata[.codex]), enabled: true)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevisionBeforeEnablement + 1)
         try settings.setProviderEnabled(provider: .claude, metadata: #require(metadata[.claude]), enabled: false)
         let enabled = settings.enabledProvidersOrdered(metadataByProvider: metadata)
         #expect(enabled.contains(.codex))
