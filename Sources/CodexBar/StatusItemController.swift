@@ -571,13 +571,19 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
         guard !self.isReleasedForTesting else { return }
         #endif
         let reason = notification.userInfo?["reason"] as? String ?? "unknown"
+        let affectsBackgroundWork = notification.userInfo?["affectsBackgroundWork"] as? Bool
         if let source = notification.object as? SettingsStore,
            source !== self.settings
         {
             if let config = notification.userInfo?["config"] as? CodexBarConfig {
-                self.settings.applyExternalConfig(config, reason: "external-\(reason)")
+                self.settings.applyExternalConfig(
+                    config,
+                    reason: "external-\(reason)",
+                    affectsBackgroundWork: affectsBackgroundWork)
             } else {
-                self.settings.reloadConfig(reason: "external-\(reason)")
+                self.settings.reloadConfig(
+                    reason: "external-\(reason)",
+                    affectsBackgroundWork: affectsBackgroundWork)
             }
         }
         self.handleProviderConfigChange(reason: "notification:\(reason)")

@@ -22,14 +22,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Changed
 
 - Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
-  release through `36470082`, including Agent Sessions, CLI cards,
+  release through `7fdb1b901`, including Agent Sessions, CLI cards,
   claude-swap accounts, Kimi widgets and subscription rows, Claude scoped
   weekly CLI limits, CrossModel, Doubao Coding Plan, Qoder, Mistral,
   Perplexity, Synthetic, and ClawRouter provider docs, Codex credit and
   cost-history improvements, provider refresh scoping, settings and menu
-  resilience, localization updates, and release validation hardening while
-  preserving QuotaKit release ownership, appcast metadata, CloudKit setup,
-  config paths, and iOS build numbers.
+  resilience, provider config relay scoping, localization updates, and release
+  validation hardening while preserving QuotaKit release ownership, appcast
+  metadata, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
 - Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics
@@ -73,9 +73,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   or Paid fallbacks while preserving acronym casing in the CLI.
 - Codex: avoid false session-reset celebrations from transient zero-usage
   samples until the reset boundary advances.
-- Settings: keep visual-only preference changes on cached UI paths instead of
-  refreshing provider quotas while preserving refreshes for data-affecting
-  settings.
+- Settings: keep visual-only preference changes and provider reordering on
+  cached UI paths instead of refreshing provider quotas while preserving
+  refreshes for data-affecting settings.
 - MiMo: flag a stale local-fallback cache in the summary so an old
   `Scripts/mimo-usage.py` cache is not misread as live usage.
 - Widgets: show token-cost rows with their own age when they lag a fresh quota

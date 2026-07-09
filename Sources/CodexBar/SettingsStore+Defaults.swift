@@ -5,7 +5,7 @@ import ServiceManagement
 extension SettingsStore {
     private static let mergedOverviewSelectionEditedActiveProvidersKey = "mergedOverviewSelectionEditedActiveProviders"
 
-    private func noteBackgroundWorkSettingsChanged() {
+    func noteBackgroundWorkSettingsChanged() {
         self.backgroundWorkSettingsRevision &+= 1
     }
 

@@ -668,6 +668,7 @@ struct UsageStoreCoverageTests {
         settings.mergeIcons = true
         settings.randomBlinkEnabled = true
         settings.debugLoadingPattern = .pulse
+        settings.setProviderOrder(Array(settings.orderedProviders().reversed()))
         try? await Task.sleep(nanoseconds: 50_000_000)
         #expect(didChange.get() == false)
 
@@ -736,10 +737,12 @@ struct UsageStoreCoverageTests {
         settings.mergeIcons = true
         settings.randomBlinkEnabled = true
         settings.debugLoadingPattern = .pulse
+        settings.setProviderOrder(Array(settings.orderedProviders().reversed()))
         try? await Task.sleep(nanoseconds: 50_000_000)
         #expect(refreshedProviders.isEmpty)
 
-        await store.refreshForSettingsChange()
+        settings.codexUsageDataSource = .cli
+        try? await Task.sleep(nanoseconds: 100_000_000)
         #expect(refreshedProviders.contains(.codex))
     }
 

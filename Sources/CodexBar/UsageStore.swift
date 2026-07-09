@@ -78,7 +78,6 @@ extension UsageStore {
 
     var backgroundWorkSettingsObservationToken: Int {
         _ = self.settings.backgroundWorkSettingsRevision
-        _ = self.settings.configRevision
         return 0
     }
 
