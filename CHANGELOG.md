@@ -13,18 +13,23 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   without delaying ambient refreshes.
 - Claude: switch inactive claude-swap accounts directly from stacked usage
   cards through claude-swap without reading Claude credentials.
+- Claude CLI: surface model-scoped weekly limits alongside all-model usage
+  without duplicating matching web limits.
+- Documentation: add provider references for Mistral, Perplexity, Qoder, and
+  Synthetic.
 - Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.
 
 ### Changed
 
 - Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
-  release through `aa401f1d`, including Agent Sessions, CLI cards,
-  claude-swap accounts, Kimi widgets and subscription rows, CrossModel,
-  Doubao Coding Plan, Qoder, Mistral, and ClawRouter providers, Codex credit
-  and cost-history improvements, provider refresh scoping, settings and menu
-  resilience, localization updates, and release validation hardening while
-  preserving QuotaKit release ownership, appcast metadata, CloudKit setup,
-  config paths, and iOS build numbers.
+  release through `7fdb1b901`, including Agent Sessions, CLI cards,
+  claude-swap accounts, Kimi widgets and subscription rows, Claude scoped
+  weekly CLI limits, CrossModel, Doubao Coding Plan, Qoder, Mistral,
+  Perplexity, Synthetic, and ClawRouter provider docs, Codex credit and
+  cost-history improvements, provider refresh scoping, settings and menu
+  resilience, provider config relay scoping, localization updates, and release
+  validation hardening while preserving QuotaKit release ownership, appcast
+  metadata, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
 - Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics
@@ -60,6 +65,22 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   one-shot usage checks while excluding QuotaKit-owned managed sessions.
 - Quota warnings: add on-screen alert presentation and session-reset
   celebration handling while keeping iPhone push writes intact.
+- Display settings: keep display mode, work days, multi-account layout, and
+  cost summary selectors interactive on macOS 27.
+- Antigravity: recover CLI listening ports from Linux procfs when `lsof` is
+  unavailable, including process network namespaces.
+- Gemini: prefer Google's paid-tier plan label over generic Free, Workspace,
+  or Paid fallbacks while preserving acronym casing in the CLI.
+- Codex: avoid false session-reset celebrations from transient zero-usage
+  samples until the reset boundary advances.
+- Settings: keep visual-only preference changes and provider reordering on
+  cached UI paths instead of refreshing provider quotas while preserving
+  refreshes for data-affecting settings.
+- MiMo: flag a stale local-fallback cache in the summary so an old
+  `Scripts/mimo-usage.py` cache is not misread as live usage.
+- Widgets: show token-cost rows with their own age when they lag a fresh quota
+  snapshot, and retry fast token-scan failures without waiting out the hourly
+  cache.
 
 ## 0.32.4.9 / iOS 1.11.1 — 2026-06-28
 

@@ -41,12 +41,18 @@ struct DisplayPane: View {
                         subtitle: L("menu_bar_shows_percent_subtitle"))
                 }
 
-                Picker(L("display_mode_title"), selection: self.$settings.menuBarDisplayMode) {
-                    ForEach(MenuBarDisplayMode.allCases) { mode in
-                        Text(mode.label).tag(mode)
-                    }
-                }
-                .disabled(!self.settings.menuBarShowsBrandIconWithPercent)
+                SettingsMenuPicker(
+                    selection: self.$settings.menuBarDisplayMode,
+                    options: DisplaySettingsMenuOptions.displayModes,
+                    label: {
+                        SettingsRowLabel(
+                            L("display_mode_title"),
+                            subtitle: self.settings.menuBarDisplayMode.description)
+                    },
+                    optionLabel: { mode in
+                        Text(mode.label)
+                    })
+                    .disabled(!self.settings.menuBarShowsBrandIconWithPercent)
             } header: {
                 Text(L("section_menu_bar"))
             }
@@ -60,12 +66,15 @@ struct DisplayPane: View {
                         subtitle: L("show_quota_warning_markers_subtitle"))
                 }
 
-                Picker(L("weekly_progress_work_days_title"), selection: self.$settings.weeklyProgressWorkDays) {
-                    Text(L("Off")).tag(nil as Int?)
-                    Text(L("4 days")).tag(4 as Int?)
-                    Text(L("5 days")).tag(5 as Int?)
-                    Text(L("7 days")).tag(7 as Int?)
-                }
+                SettingsMenuPicker(
+                    selection: self.$settings.weeklyProgressWorkDays,
+                    options: DisplaySettingsMenuOptions.weeklyProgressWorkDays,
+                    label: {
+                        Text(L("weekly_progress_work_days_title"))
+                    },
+                    optionLabel: { workDays in
+                        Text(DisplaySettingsMenuOptions.weeklyProgressWorkDaysLabel(workDays))
+                    })
 
                 Toggle(L("show_reset_time_as_clock_title"), isOn: self.$settings.resetTimesShowAbsolute)
 
@@ -77,11 +86,15 @@ struct DisplayPane: View {
                         subtitle: L("show_credits_extra_usage_subtitle"))
                 }
 
-                Picker(L("multi_account_layout_title"), selection: self.$settings.multiAccountMenuLayout) {
-                    ForEach(MultiAccountMenuLayout.allCases) { layout in
-                        Text(layout.label).tag(layout)
-                    }
-                }
+                SettingsMenuPicker(
+                    selection: self.$settings.multiAccountMenuLayout,
+                    options: DisplaySettingsMenuOptions.multiAccountLayouts,
+                    label: {
+                        Text(L("multi_account_layout_title"))
+                    },
+                    optionLabel: { layout in
+                        Text(layout.label)
+                    })
             } header: {
                 Text(L("section_menu_content"))
             }
@@ -231,15 +244,17 @@ struct CostSummarySettingsSection: View {
             }
 
             if self.settings.costUsageEnabled {
-                Picker(selection: self.$settings.costSummaryDisplayStyle) {
-                    ForEach(CostSummaryDisplayStyle.allCases) { style in
-                        Text(style.label).tag(style)
-                    }
-                } label: {
-                    SettingsRowLabel(
-                        L("cost_summary_style_title"),
-                        subtitle: self.settings.costSummaryDisplayStyle.helpText)
-                }
+                SettingsMenuPicker(
+                    selection: self.$settings.costSummaryDisplayStyle,
+                    options: DisplaySettingsMenuOptions.costSummaryDisplayStyles,
+                    label: {
+                        SettingsRowLabel(
+                            L("cost_summary_style_title"),
+                            subtitle: self.settings.costSummaryDisplayStyle.helpText)
+                    },
+                    optionLabel: { style in
+                        Text(style.label)
+                    })
 
                 CostHistoryDaysEditor(settings: self.settings)
 

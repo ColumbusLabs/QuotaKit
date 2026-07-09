@@ -611,7 +611,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             do {
                 return try await self.loadViaCLI(model: model, timeout: ClaudeUsageFetcher.cliAutoProbeTimeout)
             } catch {
-                if error is CancellationError { throw error }
+                if error is CancellationError {
+                    throw error
+                }
                 guard Self.shouldRetryCLIProbe(after: error) else { throw error }
                 return try await self.loadViaCLI(model: model, timeout: ClaudeUsageFetcher.cliRetryProbeTimeout)
             }
@@ -621,7 +623,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             do {
                 return try await self.loadViaCLI(model: model, timeout: ClaudeUsageFetcher.cliProbeTimeout)
             } catch {
-                if error is CancellationError { throw error }
+                if error is CancellationError {
+                    throw error
+                }
                 guard Self.shouldRetryCLIProbe(after: error) else { throw error }
                 return try await self.loadViaCLI(model: model, timeout: ClaudeUsageFetcher.cliRetryProbeTimeout)
             }
@@ -636,7 +640,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             do {
                 snapshot = try await self.fetcher.loadViaPTY(model: model, timeout: timeout)
             } catch {
-                if error is CancellationError { throw error }
+                if error is CancellationError {
+                    throw error
+                }
                 if ClaudeUsageFetcher.isCLIRateLimitError(error) {
                     ClaudeCLIRateLimitGate.recordRateLimit()
                     throw error
@@ -647,7 +653,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     snapshot = try await self.fetcher.loadViaDirectCLI(
                         timeout: Self.directCLIUsageTimeout(for: timeout))
                 } catch let directError {
-                    if directError is CancellationError { throw directError }
+                    if directError is CancellationError {
+                        throw directError
+                    }
                     if ClaudeUsageFetcher.isCLIRateLimitError(directError) {
                         ClaudeCLIRateLimitGate.recordRateLimit()
                         throw directError
@@ -676,7 +684,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private static func shouldTryDirectCLIUsage(after error: Error) -> Bool {
-            if case ClaudeStatusProbeError.timedOut = error { return true }
+            if case ClaudeStatusProbeError.timedOut = error {
+                return true
+            }
             if case let ClaudeStatusProbeError.parseFailed(message) = error {
                 let lower = message.lowercased()
                 return lower.contains("still loading usage") || lower.contains("could not load usage data")
@@ -686,7 +696,9 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private static func shouldRetryCLIProbe(after error: Error) -> Bool {
-            if case ClaudeStatusProbeError.timedOut = error { return true }
+            if case ClaudeStatusProbeError.timedOut = error {
+                return true
+            }
             if case let ClaudeStatusProbeError.parseFailed(message) = error {
                 return message.lowercased().contains("still loading usage")
             }
@@ -719,7 +731,9 @@ extension ClaudeUsageFetcher {
 
         func firstWindowDict(_ keys: [String]) -> [String: Any]? {
             for key in keys {
-                if let dict = obj[key] as? [String: Any] { return dict }
+                if let dict = obj[key] as? [String: Any] {
+                    return dict
+                }
             }
             return nil
         }
@@ -795,7 +809,9 @@ extension ClaudeUsageFetcher {
             df.locale = Locale(identifier: "en_US_POSIX")
             df.timeZone = tz ?? TimeZone.current
             df.dateFormat = format
-            if let t = timePart, let date = df.date(from: t) { return date }
+            if let t = timePart, let date = df.date(from: t) {
+                return date
+            }
         }
         return nil
     }
@@ -1346,7 +1362,7 @@ extension ClaudeUsageFetcher {
             primary: primary,
             secondary: weekly,
             opus: opus,
-            extraRateWindows: [],
+            extraRateWindows: snap.extraRateWindows,
             providerCost: nil,
             updatedAt: Date(),
             accountEmail: snap.accountEmail,
@@ -1375,8 +1391,9 @@ extension ClaudeUsageFetcher {
                     }
                 }
             // Only merge usage/cost extras; keep identity fields from the primary data source.
-            let mergedExtraRateWindows = snapshot.extraRateWindows.isEmpty ? webData.extraRateWindows : snapshot
-                .extraRateWindows
+            let mergedExtraRateWindows = Self.mergeExtraRateWindows(
+                primary: snapshot.extraRateWindows,
+                web: webData.extraRateWindows)
             let mergedProviderCost = snapshot.providerCost ?? webData.extraUsageCost
             if mergedProviderCost != snapshot.providerCost || mergedExtraRateWindows != snapshot.extraRateWindows {
                 return ClaudeUsageSnapshot(
@@ -1401,6 +1418,45 @@ extension ClaudeUsageFetcher {
             Self.log.debug("Claude web extras fetch failed: \(error.localizedDescription)")
         }
         return snapshot
+    }
+
+    private static func mergeExtraRateWindows(
+        primary: [NamedRateWindow],
+        web: [NamedRateWindow]) -> [NamedRateWindow]
+    {
+        guard !primary.isEmpty else { return web }
+        guard !web.isEmpty else { return primary }
+
+        let primaryScopedKeys = Set(primary.compactMap(self.scopedExtraRateWindowMergeKey))
+        var webScopedIDsByKey: [String: Set<String>] = [:]
+        for window in web {
+            guard let scopedKey = self.scopedExtraRateWindowMergeKey(window) else { continue }
+            webScopedIDsByKey[scopedKey, default: []].insert(window.id)
+        }
+        var seenIDs = Set(primary.map(\.id))
+        var merged = primary
+        for window in web where seenIDs.insert(window.id).inserted {
+            if let scopedKey = self.scopedExtraRateWindowMergeKey(window),
+               primaryScopedKeys.contains(scopedKey),
+               webScopedIDsByKey[scopedKey]?.count == 1
+            {
+                continue
+            }
+            merged.append(window)
+        }
+        return merged
+    }
+
+    private static func scopedExtraRateWindowMergeKey(_ window: NamedRateWindow) -> String? {
+        guard window.id.hasPrefix("claude-weekly-scoped-") else { return nil }
+
+        let modelName = window.title.replacingOccurrences(
+            of: #"\s+only\s*$"#,
+            with: "",
+            options: [.regularExpression, .caseInsensitive])
+        let normalizedName = String(modelName.lowercased().unicodeScalars.filter(CharacterSet.alphanumerics.contains))
+        guard !normalizedName.isEmpty else { return nil }
+        return normalizedName
     }
 
     // MARK: - Process helpers
@@ -1468,6 +1524,13 @@ extension ClaudeUsageFetcher {
 
 #if DEBUG
 extension ClaudeUsageFetcher {
+    public static func _mergeExtraRateWindowsForTesting(
+        primary: [NamedRateWindow],
+        web: [NamedRateWindow]) -> [NamedRateWindow]
+    {
+        self.mergeExtraRateWindows(primary: primary, web: web)
+    }
+
     public static func _mapOAuthUsageForTesting(
         _ data: Data,
         rateLimitTier: String? = nil,

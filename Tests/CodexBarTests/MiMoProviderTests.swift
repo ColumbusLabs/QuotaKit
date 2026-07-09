@@ -216,6 +216,24 @@ struct MiMoProviderTests {
     }
 
     @Test
+    func `menu card preserves compact local summary casing`() throws {
+        let now = Date(timeIntervalSince1970: 1_742_771_200)
+        let summary = "Local · 1.5k total · 42 sessions · stale 34d"
+        let snapshot = MiMoUsageSnapshot(
+            balance: 0,
+            currency: "",
+            planCode: summary,
+            updatedAt: now)
+            .toUsageSnapshot(includeBalance: false)
+        let metadata = try #require(ProviderDefaults.metadata[.mimo])
+
+        let model = Self.makeMenuCardModel(snapshot: snapshot, metadata: metadata, now: now)
+
+        #expect(model.planText == summary)
+        #expect(model.metrics.isEmpty)
+    }
+
+    @Test
     func `menu card shows balance as status text with and without token plan`() throws {
         let now = Date(timeIntervalSince1970: 1_742_771_200)
         let metadata = try #require(ProviderDefaults.metadata[.mimo])
@@ -736,7 +754,6 @@ extension MiMoProviderTests {
         defer { try? FileManager.default.removeItem(at: dir) }
         let file = dir.appendingPathComponent("usage.json")
         let payload: [String: Any] = [
-            "updated_at": "2026-06-03T05:04:03+00:00",
             "sessions_scanned": 2,
             "windows": [
                 "today": ["input": 100, "output": 50, "cache_read": 0, "cache_create": 0],
@@ -766,7 +783,7 @@ extension MiMoProviderTests {
                 #expect(result.strategyID == "mimo.local")
                 #expect(result.usage.primary == nil)
                 #expect(result.usage.mimoUsage == nil)
-                #expect(result.usage.loginMethod(for: .mimo)?.contains("Local") == true)
+                #expect(result.usage.loginMethod(for: .mimo) == "Local · 150 today · 150 week · 150 total · 2 sessions")
             case let .failure(error):
                 Issue.record("Expected local MiMo fallback, got \(error)")
             }

@@ -299,8 +299,10 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 
 ## Synthetic
 - API key from QuotaKit config (`~/.quotakit/config.json`, `providers[].apiKey`) or `SYNTHETIC_API_KEY`.
-- Shows rolling five-hour, weekly token, search-hourly, and cost/credit quota lanes when present.
-- Status: none yet.
+- The menu card shows rolling five-hour, weekly token, and search-hourly quota lanes when present. The compact menu bar
+  metric uses the five-hour or weekly lane; weekly credit regeneration details appear when returned.
+- External status page: `https://status.synthetic.new` (not linked or auto-polled by QuotaKit).
+- Details: `docs/synthetic.md`.
 
 ## OpenRouter
 - API token from QuotaKit config (`~/.quotakit/config.json`, `providers[].apiKey`) or `OPENROUTER_API_KEY` env var.
@@ -321,6 +323,7 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 - Browser session cookie from automatic import, manual header/token, or `PERPLEXITY_SESSION_TOKEN` / `PERPLEXITY_COOKIE`.
 - Tracks recurring credits, bonus/promotional credits, purchased credits, and renewal date when present.
 - Status: `https://status.perplexity.com/` (link only, no auto-polling).
+- Details: `docs/perplexity.md`.
 
 ## Xiaomi MiMo
 - Browser cookies from automatic import or manual `Cookie:` header.
@@ -359,6 +362,7 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 - The menu bar metric can show either pay-as-you-go API spend or monthly-plan usage; the provider card shows balance when the credits endpoint is available.
 - Resets at end of calendar month.
 - Status: `https://status.mistral.ai` (link only, no auto-polling).
+- Details: `docs/mistral.md`.
 
 ## DeepSeek
 - API key via `DEEPSEEK_API_KEY` / `DEEPSEEK_KEY` env var or DeepSeek token accounts.
@@ -409,6 +413,7 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 - Reads big model credit usage from the Qoder account dashboard on `qoder.com` or `qoder.com.cn`.
 - Shows used and total credits plus the usage percentage; invalid cached sessions retry freshly imported cookies.
 - Status: none yet.
+- Details: `docs/qoder.md`.
 
 ## Grok
 - `grok agent stdio` (ACP) JSON-RPC `x.ai/billing` method; requires `grok login` (SuperGrok OAuth/OIDC).
@@ -435,10 +440,10 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 - Details: `docs/llm-proxy.md`.
 
 ## ClawRouter
-- API key from the resolved CodexBar config (`providers[].apiKey`) or `CLAWROUTER_API_KEY`.
+- API key from the resolved QuotaKit config (`providers[].apiKey`) or `CLAWROUTER_API_KEY`.
 - Defaults to `https://clawrouter.openclaw.ai`; optional config `enterpriseHost` or `CLAWROUTER_BASE_URL` selects another HTTPS deployment.
 - Reads `/v1/usage` for the key policy's monthly budget, spend, request/token totals, and per-provider breakdown.
-- Provider rows are data-driven, so any routed provider returned by ClawRouter is displayed without provider-specific CodexBar code.
+- Provider rows are data-driven, so any routed provider returned by ClawRouter is displayed without provider-specific QuotaKit code.
 - Details: `docs/clawrouter.md`.
 
 ## AWS Bedrock

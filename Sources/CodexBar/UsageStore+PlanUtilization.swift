@@ -36,6 +36,7 @@ extension UsageStore {
         let wasAboveThreshold: Bool
         let lastObservedAt: Date
         let sourceRawValue: String?
+        var resetBoundary: Date?
     }
 
     func supportsPlanUtilizationHistory(for provider: UsageProvider) -> Bool {
@@ -82,6 +83,7 @@ extension UsageStore {
     private struct LimitResetObservation {
         let usedPercent: Double
         let observedAt: Date
+        let resetBoundary: Date?
         let source: SessionQuotaWindowSource?
     }
 
@@ -406,6 +408,7 @@ extension UsageStore {
                 LimitResetObservation(
                     usedPercent: $0.entry.usedPercent,
                     observedAt: $0.entry.capturedAt,
+                    resetBoundary: $0.entry.resetsAt,
                     source: nil)
             }
         } else {
@@ -415,6 +418,7 @@ extension UsageStore {
                     LimitResetObservation(
                         usedPercent: $0,
                         observedAt: context.capturedAt,
+                        resetBoundary: resolved.window.resetsAt,
                         source: resolved.source)
                 }
             }
@@ -431,6 +435,7 @@ extension UsageStore {
             LimitResetObservation(
                 usedPercent: $0.entry.usedPercent,
                 observedAt: $0.entry.capturedAt,
+                resetBoundary: $0.entry.resetsAt,
                 source: nil)
         }
         self.postLimitResetCelebrationIfNeeded(
@@ -482,16 +487,22 @@ extension UsageStore {
 
         let previousState = states[detectorKey]
         let sourceRawValue = observation.source?.rawValue
-        let sourceChanged = descriptor.seriesName == .session
-            && previousState?.sourceRawValue != nil
+        let sourceChanged = descriptor.seriesName == .session && previousState?.sourceRawValue != nil
             && previousState?.sourceRawValue != sourceRawValue
-        let shouldPost = !sourceChanged
-            && previousState?.wasAboveThreshold == true
-            && !wasAboveThreshold
+        let resetBoundaryAllowsPost = descriptor.seriesName != .session
+            || Self.limitResetBoundaryAdvanced(
+                previous: previousState?.resetBoundary,
+                current: observation.resetBoundary)
+        let crossedBelowThreshold = !sourceChanged && previousState?.wasAboveThreshold == true && !wasAboveThreshold
+        let shouldPost = crossedBelowThreshold && resetBoundaryAllowsPost
+        let shouldPreserveBoundary = !sourceChanged && !resetBoundaryAllowsPost
+        let shouldPreserveBaseline = crossedBelowThreshold && shouldPreserveBoundary
         states[detectorKey] = LimitResetDetectorState(
-            wasAboveThreshold: wasAboveThreshold,
+            // A transient zero must not erase the baseline needed to recognize the real reset that follows.
+            wasAboveThreshold: shouldPreserveBaseline ? true : wasAboveThreshold,
             lastObservedAt: currentObservedAt,
-            sourceRawValue: sourceRawValue)
+            sourceRawValue: sourceRawValue,
+            resetBoundary: shouldPreserveBoundary ? previousState?.resetBoundary : observation.resetBoundary)
         self.persistLimitResetDetectorStates(
             states,
             defaultsKey: descriptor.defaultsKey,
@@ -533,6 +544,12 @@ extension UsageStore {
         }
     }
 
+    private nonisolated static func limitResetBoundaryAdvanced(previous: Date?, current: Date?) -> Bool {
+        guard let previous else { return true }
+        guard let current else { return false }
+        return !self.areEquivalentPlanUtilizationResetBoundaries(previous, current) && current > previous
+    }
+
     private func planUtilizationSeriesSamples(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
@@ -541,14 +558,9 @@ extension UsageStore {
         var samplesByKey: [PlanUtilizationSeriesKey: PlanUtilizationSeriesSample] = [:]
 
         func appendWindow(_ window: RateWindow?, name: PlanUtilizationSeriesName?) {
-            guard let name,
-                  let window,
-                  let windowMinutes = window.windowMinutes,
-                  windowMinutes > 0,
+            guard let name, let window, let windowMinutes = window.windowMinutes, windowMinutes > 0,
                   let usedPercent = Self.clampedPercent(window.usedPercent)
-            else {
-                return
-            }
+            else { return }
 
             let canonicalWindowMinutes = name.canonicalWindowMinutes(windowMinutes)
             let key = PlanUtilizationSeriesKey(name: name, windowMinutes: canonicalWindowMinutes)
@@ -574,6 +586,9 @@ extension UsageStore {
             appendWindow(snapshot.primary, name: .session)
             appendWindow(snapshot.secondary, name: .weekly)
             appendWindow(snapshot.tertiary, name: .opus)
+            for scopedWeekly in snapshot.extraRateWindows ?? [] where Self.isClaudeScopedWeeklyWindow(scopedWeekly) {
+                appendWindow(scopedWeekly.window, name: PlanUtilizationSeriesName(rawValue: scopedWeekly.title))
+            }
         case .antigravity:
             let namedWeeklyWindows = snapshot.extraRateWindows?
                 .filter {

@@ -60,11 +60,11 @@ The pasted header or imported browser session is missing required cookies. Re-co
 
 ### “Xiaomi MiMo browser session expired”
 
-Your MiMo login is stale. Sign out and back in on the MiMo site, then refresh CodexBar.
+Your MiMo login is stale. Sign out and back in on the MiMo site, then refresh QuotaKit.
 
 ## Local fallback (opt-in)
 
-When the platform.xiaomimimo.com cookie path is unavailable — Chrome session cookies expire on Chrome relaunch, Chrome Safe Storage keychain access blocked, no SSO login from this machine, etc. — and you drive MiMo inference through a local wrapper such as `cc-mimo` (Claude Code CLI with `ANTHROPIC_BASE_URL=https://token-plan-sgp.xiaomimimo.com/anthropic`), CodexBar can surface **local token accounting** from that wrapper’s session jsonl as graceful degradation — the MiMo card shows lifetime/weekly token sums instead of `login required`.
+When the platform.xiaomimimo.com cookie path is unavailable — Chrome session cookies expire on Chrome relaunch, Chrome Safe Storage keychain access blocked, no SSO login from this machine, etc. — and you drive MiMo inference through a local wrapper such as `cc-mimo` (Claude Code CLI with `ANTHROPIC_BASE_URL=https://token-plan-sgp.xiaomimimo.com/anthropic`), QuotaKit can surface **local token accounting** from that wrapper’s session jsonl as graceful degradation — the MiMo card shows lifetime/weekly token sums instead of `login required`.
 
 This fallback is **implicit opt-in**: it only activates when `~/.codexbar/mimo-local-usage.json` exists. Users who do not run a local wrapper see no change.
 
@@ -81,7 +81,7 @@ This fallback is **implicit opt-in**: it only activates when `~/.codexbar/mimo-l
 
 3. Trigger updates either on each wrapper invocation (recommended — call `mimo-usage --update` post-exec from your MiMo CLI launcher) or via a `launchd` / `cron` job every 5 minutes.
 
-4. CodexBar picks up the file on its next refresh. The MiMo card displays `Xiaomi MiMo (local)` with a `Local · <today> · <week> · <lifetime> · <sessions>` summary and the cache's actual update time. Local activity is not rendered as a quota percentage. The `Balance updates / Daily billing finalizes` footer is suppressed for `local` source since neither applies.
+4. QuotaKit picks up the file on its next refresh. The MiMo card displays `Xiaomi MiMo (local)` with a `Local · <today> · <week> · <lifetime> · <sessions>` summary and the cache's actual update time. Local activity is not rendered as a quota percentage. The `Balance updates / Daily billing finalizes` footer is suppressed for `local` source since neither applies. Because QuotaKit only reads this cache (it never regenerates it), a summary whose cache has not refreshed within 12 hours gets a `stale <age>` marker (e.g. `stale 34d`) so a frozen tracker is not misread as live usage — re-run `mimo-usage --update`, or add the scheduled job in step 3, to clear it.
 
 ### Wrapper integration example
 

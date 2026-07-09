@@ -25,6 +25,23 @@ struct SettingsStoreTests {
         }
     }
 
+    private final class BoolRecorder: @unchecked Sendable {
+        private let lock = NSLock()
+        private var values: [Bool] = []
+
+        func append(_ value: Bool) {
+            self.lock.lock()
+            self.values.append(value)
+            self.lock.unlock()
+        }
+
+        func get() -> [Bool] {
+            self.lock.lock()
+            defer { self.lock.unlock() }
+            return self.values
+        }
+    }
+
     @Test
     func `default refresh frequency is five minutes`() throws {
         let suite = "SettingsStoreTests-default"
@@ -965,6 +982,61 @@ struct SettingsStoreTests {
         store.applyExternalConfig(store.configSnapshot, reason: "test-external")
 
         #expect(notifications.get() == 0)
+    }
+
+    @Test
+    func `config notifications classify order and provider changes`() throws {
+        let suite = "SettingsStoreTests-config-change-impact"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        let impacts = BoolRecorder()
+        let token = NotificationCenter.default.addObserver(
+            forName: .codexbarProviderConfigDidChange,
+            object: store,
+            queue: .main)
+        { notification in
+            impacts.append(notification.userInfo?["affectsBackgroundWork"] as? Bool ?? true)
+        }
+        defer { NotificationCenter.default.removeObserver(token) }
+
+        store.setProviderOrder(Array(store.orderedProviders().reversed()))
+        store.codexUsageDataSource = .cli
+
+        #expect(impacts.get() == [false, true])
+    }
+
+    @Test
+    func `external config ignores order-only changes for background work`() throws {
+        let suite = "SettingsStoreTests-external-config-impact"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        let initialConfigRevision = store.configRevision
+        let initialBackgroundRevision = store.backgroundWorkSettingsRevision
+        var reordered = store.configSnapshot
+        reordered.providers.reverse()
+        store.applyExternalConfig(reordered, reason: "order-only")
+
+        #expect(store.configRevision == initialConfigRevision + 1)
+        #expect(store.backgroundWorkSettingsRevision == initialBackgroundRevision)
+        #expect(store.orderedProviders() == reordered.providers.map(\.id))
+
+        var changed = store.configSnapshot
+        let codexIndex = try #require(changed.providers.firstIndex(where: { $0.id == .codex }))
+        changed.providers[codexIndex].source = .cli
+        store.applyExternalConfig(changed, reason: "provider-source", affectsBackgroundWork: false)
+
+        #expect(store.backgroundWorkSettingsRevision == initialBackgroundRevision + 1)
     }
 
     @Test

@@ -107,7 +107,8 @@ extension UsageStore {
             last30DaysTokens: monthTokensValue,
             currencyCode: snapshot.currencyCode,
             sessionLabel: sessionLabel,
-            last30DaysLabel: monthLabel)
+            last30DaysLabel: monthLabel,
+            updatedAt: snapshot.updatedAt)
     }
 
     private func widgetUsageRows(
@@ -184,7 +185,29 @@ extension UsageStore {
                     percentLeft: window.window.remainingPercent)
             })
         }
+        if provider == .claude {
+            rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
+        }
         return rows.filter { $0.percentLeft != nil }
+    }
+
+    private static func claudeScopedWeeklyWidgetRows(snapshot: UsageSnapshot)
+        -> [WidgetSnapshot.WidgetUsageRowSnapshot]
+    {
+        let weeklyWindowMinutes = 7 * 24 * 60
+        return snapshot.extraRateWindows?
+            .filter {
+                $0.usageKnown
+                    && $0.id.hasPrefix("claude-weekly-scoped-")
+                    && $0.window.windowMinutes == weeklyWindowMinutes
+            }
+            .map { window in
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: window.id,
+                    title: window.title,
+                    percentLeft: window.window.remainingPercent,
+                    window: window.window)
+            } ?? []
     }
 
     private nonisolated static func widgetPrimaryRateWindowLabel(

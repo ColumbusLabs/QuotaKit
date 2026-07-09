@@ -855,6 +855,46 @@ struct UsageStorePlanUtilizationTests {
 
     @MainActor
     @Test
+    func `Claude persists scoped weekly extra windows by title`() async {
+        let store = Self.makeStore()
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 40, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "claude-weekly-scoped-fable",
+                    title: "Fable only",
+                    window: RateWindow(
+                        usedPercent: 68,
+                        windowMinutes: 10080,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+                NamedRateWindow(
+                    id: "claude-routines",
+                    title: "Daily Routines",
+                    window: RateWindow(
+                        usedPercent: 12,
+                        windowMinutes: 1440,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+            ],
+            updatedAt: now)
+
+        await store.recordPlanUtilizationHistorySample(provider: .claude, snapshot: snapshot, now: now)
+
+        let histories = store.planUtilizationHistory(for: .claude)
+        #expect(findSeries(histories, name: .session, windowMinutes: 300)?
+            .entries.map(\.usedPercent) == [25])
+        #expect(findSeries(histories, name: .weekly, windowMinutes: 10080)?
+            .entries.map(\.usedPercent) == [40])
+        #expect(findSeries(histories, name: "Fable only", windowMinutes: 10080)?
+            .entries.map(\.usedPercent) == [68])
+        #expect(findSeries(histories, name: "Daily Routines", windowMinutes: 1440) == nil)
+    }
+
+    @MainActor
+    @Test
     func `generic provider ignores unknown weekly extra window`() async {
         let store = Self.makeStore()
         store.settings.historicalTrackingEnabled = true
