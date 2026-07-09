@@ -75,29 +75,8 @@ extension UsageStore {
     }
 
     var backgroundWorkSettingsObservationToken: Int {
-        _ = self.settings.refreshFrequency
-        _ = self.settings.statusChecksEnabled
-        _ = self.settings.sessionQuotaNotificationsEnabled
-        _ = self.settings.quotaWarningNotificationsEnabled
-        _ = self.settings.quotaWarningThresholds
-        _ = self.settings.quotaWarningThresholds(.session)
-        _ = self.settings.quotaWarningThresholds(.weekly)
-        _ = self.settings.quotaWarningSoundEnabled
-        _ = self.settings.usageBarsShowUsed
-        _ = self.settings.costUsageEnabled
-        _ = self.settings.costUsageHistoryDays
-        _ = self.settings.randomBlinkEnabled
+        _ = self.settings.backgroundWorkSettingsRevision
         _ = self.settings.configRevision
-        for implementation in ProviderCatalog.all {
-            implementation.observeSettings(self.settings)
-        }
-        _ = self.settings.multiAccountMenuLayout
-        _ = self.settings.tokenAccountsByProvider
-        _ = self.settings.mergeIcons
-        _ = self.settings.debugLoadingPattern
-        _ = self.settings.debugKeepCLISessionsAlive
-        _ = self.settings.historicalTrackingEnabled
-        _ = self.settings.providerStorageFootprintsEnabled
         return 0
     }
 
@@ -1634,6 +1613,10 @@ extension UsageStore {
             let durationText = String(format: "%.2f", duration)
             let message = "cost usage failed provider=\(providerText) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error(message)
+            if Self.tokenFetchFailureAllowsEarlyRetry(error) {
+                self.lastTokenFetchAt.removeValue(forKey: provider)
+                self.lastTokenFetchScope.removeValue(forKey: provider)
+            }
             let hadPriorData = self.tokenSnapshots[provider] != nil
             let shouldSurface = self.tokenFailureGates[provider]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
@@ -1644,5 +1627,12 @@ extension UsageStore {
                 self.tokenErrors[provider] = nil
             }
         }
+    }
+
+    /// Fast failures may retry on the next scheduled pass instead of waiting out the fetch
+    /// TTL; timed-out scans keep the TTL so a slow corpus cannot thrash back-to-back rescans.
+    nonisolated static func tokenFetchFailureAllowsEarlyRetry(_ error: Error) -> Bool {
+        if case CostUsageError.timedOut = error { return false }
+        return true
     }
 }

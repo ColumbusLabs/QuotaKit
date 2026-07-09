@@ -208,14 +208,18 @@ enum CompactMetricFormatter {
                 token.sessionCostUSD.map { WidgetFormat.currency($0, code: token.currencyCode) } ?? "—"
             } ?? "—"
             let detail = entry.tokenUsage?.sessionTokens.map(WidgetFormat.tokenCount)
-            let label = entry.tokenUsage.map { "\($0.sessionLabel) cost" } ?? "Today cost"
+            let label = entry.tokenUsage.map {
+                WidgetFormat.tokenRowTitle("\($0.sessionLabel) cost", summary: $0, entryUpdatedAt: entry.updatedAt)
+            } ?? "Today cost"
             return CompactMetricDisplay(value: value, label: label, detail: detail)
         case .last30DaysCost:
             let value = entry.tokenUsage.map { token in
                 token.last30DaysCostUSD.map { WidgetFormat.currency($0, code: token.currencyCode) } ?? "—"
             } ?? "—"
             let detail = entry.tokenUsage?.last30DaysTokens.map(WidgetFormat.tokenCount)
-            let label = entry.tokenUsage.map { "\($0.last30DaysLabel) cost" } ?? "30d cost"
+            let label = entry.tokenUsage.map {
+                WidgetFormat.tokenRowTitle("\($0.last30DaysLabel) cost", summary: $0, entryUpdatedAt: entry.updatedAt)
+            } ?? "30d cost"
             return CompactMetricDisplay(value: value, label: label, detail: detail)
         }
     }
@@ -366,7 +370,10 @@ private struct SwitcherSmallUsageView: View {
             }
             if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -398,7 +405,10 @@ private struct SwitcherMediumUsageView: View {
             }
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -434,13 +444,19 @@ private struct SwitcherLargeUsageView: View {
             if let token = entry.tokenUsage {
                 VStack(alignment: .leading, spacing: 4) {
                     ValueLine(
-                        title: token.sessionLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.sessionLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.sessionCostUSD,
                             tokens: token.sessionTokens,
                             currencyCode: token.currencyCode))
                     ValueLine(
-                        title: token.last30DaysLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.last30DaysLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.last30DaysCostUSD,
                             tokens: token.last30DaysTokens,
@@ -482,7 +498,10 @@ private struct SmallUsageView: View {
             }
             if let token = WidgetUsageRow.compactTokenUsage(for: self.entry) {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -516,7 +535,10 @@ private struct MediumUsageView: View {
             }
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
@@ -554,13 +576,19 @@ private struct LargeUsageView: View {
             if let token = entry.tokenUsage {
                 VStack(alignment: .leading, spacing: 4) {
                     ValueLine(
-                        title: token.sessionLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.sessionLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.sessionCostUSD,
                             tokens: token.sessionTokens,
                             currencyCode: token.currencyCode))
                     ValueLine(
-                        title: token.last30DaysLabel,
+                        title: WidgetFormat.tokenRowTitle(
+                            token.last30DaysLabel,
+                            summary: token,
+                            entryUpdatedAt: self.entry.updatedAt),
                         value: WidgetFormat.costAndTokens(
                             cost: token.last30DaysCostUSD,
                             tokens: token.last30DaysTokens,
@@ -802,13 +830,19 @@ private struct HistoryView: View {
                 .frame(height: self.isLarge ? 90 : 60)
             if let token = entry.tokenUsage {
                 ValueLine(
-                    title: token.sessionLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.sessionLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
                 ValueLine(
-                    title: token.last30DaysLabel,
+                    title: WidgetFormat.tokenRowTitle(
+                        token.last30DaysLabel,
+                        summary: token,
+                        entryUpdatedAt: self.entry.updatedAt),
                     value: WidgetFormat.costAndTokens(
                         cost: token.last30DaysCostUSD,
                         tokens: token.last30DaysTokens,
@@ -1118,5 +1152,16 @@ enum WidgetFormat {
         formatter.locale = Locale(identifier: "en_US")
         formatter.unitsStyle = .short
         return formatter.localizedString(for: date, relativeTo: Date())
+    }
+
+    /// Suffixes the title with the token snapshot's own age once it lags the entry's
+    /// freshness signal past `TokenUsageSummary.staleLagThreshold`.
+    static func tokenRowTitle(
+        _ base: String,
+        summary: WidgetSnapshot.TokenUsageSummary,
+        entryUpdatedAt: Date) -> String
+    {
+        guard summary.isStale(comparedTo: entryUpdatedAt), let updatedAt = summary.updatedAt else { return base }
+        return "\(base) · \(self.relativeDate(updatedAt))"
     }
 }
