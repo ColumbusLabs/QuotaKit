@@ -122,6 +122,62 @@ struct UsageStoreWidgetSnapshotTests {
     }
 
     @Test
+    func `widget snapshot includes Claude scoped weekly rows`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-claude-scoped-weekly"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let now = Date()
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 40, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            extraRateWindows: [
+                NamedRateWindow(
+                    id: "claude-weekly-scoped-fable",
+                    title: "Fable only",
+                    window: RateWindow(
+                        usedPercent: 68,
+                        windowMinutes: 10080,
+                        resetsAt: now.addingTimeInterval(3600),
+                        resetDescription: nil)),
+                NamedRateWindow(
+                    id: "claude-routines",
+                    title: "Daily Routines",
+                    window: RateWindow(
+                        usedPercent: 12,
+                        windowMinutes: 1440,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+            ],
+            updatedAt: now)
+        store._setSnapshotForTesting(snapshot, provider: .claude)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "claude-scoped-weekly-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", "claude-weekly-scoped-fable"])
+        #expect(entry.usageRows?.map(\.title) == ["Session", "Weekly", "Fable only"])
+        #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 60, 32])
+        #expect(entry.usageRows?.last?.window?.resetsAt == now.addingTimeInterval(3600))
+    }
+
+    @Test
     func `widget snapshot includes antigravity grouped usage rows`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-antigravity-grouped"
         let defaults = try #require(UserDefaults(suiteName: suite))
@@ -415,5 +471,58 @@ struct UsageStoreWidgetSnapshotTests {
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .devin })
         #expect((entry.providerCost != nil) == showsExtraUsage)
+    }
+
+    @Test
+    func `widget snapshot carries token usage age separately from entry freshness`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-token-usage-age"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let entryUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenUpdatedAt = entryUpdatedAt.addingTimeInterval(-45 * 60)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 30, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: entryUpdatedAt,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: nil)),
+            provider: .claude)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 4200,
+                sessionCostUSD: 1.25,
+                last30DaysTokens: 42000,
+                last30DaysCostUSD: 12.50,
+                daily: [],
+                updatedAt: tokenUpdatedAt),
+            provider: .claude)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "token-usage-age-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(entry.updatedAt == entryUpdatedAt)
+        #expect(entry.tokenUsage?.updatedAt == tokenUpdatedAt)
+        #expect(entry.tokenUsage?.isStale(comparedTo: entry.updatedAt) == true)
     }
 }

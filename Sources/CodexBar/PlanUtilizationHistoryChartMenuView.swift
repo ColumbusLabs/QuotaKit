@@ -258,6 +258,13 @@ struct PlanUtilizationHistoryChartMenuView: View {
             {
                 names.insert(.opus)
             }
+            for scopedWeekly in snapshot.extraRateWindows ?? [] {
+                guard scopedWeekly.usageKnown,
+                      scopedWeekly.id.hasPrefix("claude-weekly-scoped-"),
+                      scopedWeekly.window.windowMinutes == 7 * 24 * 60
+                else { continue }
+                names.insert(PlanUtilizationSeriesName(rawValue: scopedWeekly.title))
+            }
         default:
             let windows = [snapshot.primary, snapshot.secondary, snapshot.tertiary].compactMap(\.self)
                 + (snapshot.extraRateWindows?.filter(\.usageKnown).map(\.window) ?? [])

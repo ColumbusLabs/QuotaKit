@@ -17,16 +17,6 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
         }
     }
 
-    private static func makeOAuthUsageResponse() throws -> OAuthUsageResponse {
-        let json = """
-        {
-          "five_hour": { "utilization": 7, "resets_at": "2025-12-23T16:00:00.000Z" },
-          "seven_day": { "utilization": 21, "resets_at": "2025-12-29T23:00:00.000Z" }
-        }
-        """
-        return try ClaudeOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
-    }
-
     @Test
     func `parses usage JSON with sonnet limit`() {
         let json = """
@@ -667,8 +657,12 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
                 "session_5h": ["pct_used": 0, "resets": ""],
                 "week_all_models": ["pct_used": 0, "resets": ""],
             ] as [String: Any]
-            if let email = entry["email"] { payload["account_email"] = email }
-            if let org = entry["org"] { payload["account_org"] = org }
+            if let email = entry["email"] {
+                payload["account_email"] = email
+            }
+            if let org = entry["org"] {
+                payload["account_org"] = org
+            }
             let data = try JSONSerialization.data(withJSONObject: payload)
             let snap = ClaudeUsageFetcher.parse(json: data)
             let emailRaw: String? = entry["email"] ?? String?.none
@@ -729,7 +723,9 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
 
         try process.run()
         DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-            if process.isRunning { process.terminate() }
+            if process.isRunning {
+                process.terminate()
+            }
         }
         process.waitUntilExit()
 
@@ -973,6 +969,18 @@ struct ClaudeUsageTests { // swiftlint:disable:this type_body_length
         #expect(defaultVersion?.isEmpty != true)
         #expect(webVersion?.isEmpty != true)
         #expect(cliVersion?.isEmpty != true)
+    }
+}
+
+extension ClaudeUsageTests {
+    private static func makeOAuthUsageResponse() throws -> OAuthUsageResponse {
+        let json = """
+        {
+          "five_hour": { "utilization": 7, "resets_at": "2025-12-23T16:00:00.000Z" },
+          "seven_day": { "utilization": 21, "resets_at": "2025-12-29T23:00:00.000Z" }
+        }
+        """
+        return try ClaudeOAuthUsageFetcher._decodeUsageResponseForTesting(Data(json.utf8))
     }
 }
 

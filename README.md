@@ -62,6 +62,11 @@ xcodegen generate
 
 Provider setup notes and Mac provider internals live in [docs/providers.md](docs/providers.md).
 
+Selected provider guides include [Claude](docs/claude.md), [Gemini](docs/gemini.md),
+[Mistral](docs/mistral.md), [Perplexity](docs/perplexity.md),
+[Qoder](docs/qoder.md), and [Synthetic](docs/synthetic.md). New provider work
+should start with the [provider authoring guide](docs/provider.md).
+
 ## Upstream And Credits
 
 QuotaKit is derived from:

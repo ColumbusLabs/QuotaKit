@@ -151,6 +151,31 @@ struct CLIOutputTests {
     }
 
     @Test
+    func `text renderer preserves compact mimo local summary casing`() {
+        let summary = "Local · 1.5k total · 42 sessions · stale 34d"
+        let snapshot = MiMoUsageSnapshot(
+            balance: 0,
+            currency: "",
+            planCode: summary,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot(includeBalance: false)
+
+        let text = CLIRenderer.renderText(
+            provider: .mimo,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Xiaomi MiMo (local)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(CLIRenderer.planBadgeText(provider: .mimo, snapshot: snapshot) == summary)
+        #expect(text.contains("Plan: \(summary)"))
+        #expect(!text.contains("Stale 34D"))
+    }
+
+    @Test
     func `text renderer includes crossmodel balance and usage`() {
         let snapshot = CrossModelUsageSnapshot(
             currency: "USD",
