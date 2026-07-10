@@ -29,6 +29,7 @@ struct SettingsDefaultsState {
     var menuBarShowsBrandIconWithPercent: Bool
     var menuBarHidesCritters: Bool
     var menuBarDisplayModeRaw: String?
+    var menuBarShowsResetTimeWhenExhausted: Bool
     var kiroMenuBarDisplayModeRaw: String?
     var historicalTrackingEnabled: Bool
     var iCloudSyncEnabled: Bool
@@ -50,6 +51,7 @@ struct SettingsDefaultsState {
     var claudeOAuthKeychainReadStrategyRaw: String?
     var claudeWebExtrasEnabledRaw: Bool
     var showOptionalCreditsAndExtraUsage: Bool
+    var codexSparkUsageVisible: Bool
     var openAIWebAccessEnabled: Bool
     var openAIWebBatterySaverEnabled: Bool
     var providerStorageFootprintsEnabled: Bool

@@ -469,6 +469,7 @@
 "quota_warning_sound" = "Mainkan suara notifikasi";
 "quota_warning_onscreen_alert" = "Tampilkan peringatan teks di layar";
 "quota_warning_provider_inherits" = "Menggunakan pengaturan peringatan kuota global kecuali jendela dikustomisasi di sini.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Kustomisasi ambang batas %@";
 "quota_warning_enable_warnings" = "Aktifkan peringatan %@";
 "quota_warning_window_warn_at" = "Peringatan %@ pada";
@@ -669,6 +670,8 @@
 "display_mode_pace_desc" = "Tampilkan indikator pace (mis. +5%)";
 "display_mode_both_desc" = "Tampilkan persentase dan pace (mis. 45% · +5%)";
 "display_mode_reset_time_desc" = "Tampilkan waktu reset untuk metrik yang dipilih (mis. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Tampilkan waktu reset saat kuota habis";
+"menu_bar_reset_when_exhausted_subtitle" = "Saat tersisa 0%, tampilkan waktu hingga reset alih-alih persentase";
 
 /* Provider status */
 "status_operational" = "Operasional";
@@ -1162,3 +1165,8 @@
 "section_diagnostics" = "Diagnostik";
 "section_updates" = "Pembaruan";
 "section_links" = "Tautan";
+"Show Codex Spark usage" = "Tampilkan penggunaan Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Menampilkan baris kuota Codex Spark di menu dan pratinjau penyedia. Mengharuskan “Tampilkan kredit + penggunaan ekstra” diaktifkan di pengaturan Tampilan.";
+"Scroll to see more models" = "Gulir untuk melihat model lainnya";
+"Projects" = "Proyek";
+"+ %d more" = "+ %d lagi";

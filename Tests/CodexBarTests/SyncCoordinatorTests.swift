@@ -987,6 +987,60 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `extraRateWindows: Codex Spark visibility applies to synced rate windows`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-extras-codex-spark-hidden")
+        settings.iCloudSyncEnabled = true
+        settings.codexSparkUsageVisible = false
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let pinned = Date(timeIntervalSince1970: 1_700_000_000)
+        let sparkWindow = RateWindow(
+            usedPercent: 23.0,
+            windowMinutes: 300,
+            resetsAt: nil,
+            resetDescription: nil)
+        let customWindow = RateWindow(
+            usedPercent: 42.0,
+            windowMinutes: 300,
+            resetsAt: nil,
+            resetDescription: nil)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12.0,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 35.0,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: CodexAdditionalRateLimitMapper.sparkWindowID,
+                        title: "Codex Spark 5-hour",
+                        window: sparkWindow),
+                    NamedRateWindow(id: "codex-custom-model", title: "Custom Model", window: customWindow),
+                ],
+                updatedAt: pinned),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == "codex" }))
+        let labels = provider.rateWindows.compactMap(\.label)
+        #expect(labels.contains("Codex Spark 5-hour") == false)
+        #expect(labels.contains("Custom Model"))
+    }
+
+    @Test
     func `extraRateWindows: nil extras don't break legacy primary/secondary mapping`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-extras-nil")
         settings.iCloudSyncEnabled = true

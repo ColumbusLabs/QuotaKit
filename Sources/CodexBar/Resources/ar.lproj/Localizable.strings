@@ -467,6 +467,7 @@
 "quota_warning_sound" = "تشغيل صوت الإشعار";
 "quota_warning_onscreen_alert" = "إظهار تنبيه نصي على الشاشة";
 "quota_warning_provider_inherits" = "يستخدم إعدادات تحذير الحصص العامة إلا إذا تم تخصيص نافذة هنا.";
+"quota_warning_global" = "عام";
 "quota_warning_customize_thresholds" = "تخصيص عتبات %@";
 "quota_warning_enable_warnings" = "تفعيل تحذيرات %@";
 "quota_warning_window_warn_at" = "%@ التحذير في";
@@ -667,6 +668,8 @@
 "display_mode_pace_desc" = "مؤشر السرعة (مثلا +5%)";
 "display_mode_both_desc" = "أظهر كل من النسبة المئوية والسرعة (مثلا 45% · +5%)";
 "display_mode_reset_time_desc" = "عرض وقت إعادة الضبط للمقياس المحدد (مثلا ↻ 3:56 مساء)";
+"menu_bar_reset_when_exhausted_title" = "عرض وقت إعادة التعيين عند نفاد الحصة";
+"menu_bar_reset_when_exhausted_subtitle" = "عند تبقّي 0%، اعرض الوقت حتى إعادة التعيين بدلًا من النسبة المئوية";
 
 /* Provider status */
 "status_operational" = "التشغيل";
@@ -1163,3 +1166,8 @@
 "section_diagnostics" = "التشخيصات";
 "section_updates" = "التحديثات";
 "section_links" = "روابط";
+"Show Codex Spark usage" = "عرض استخدام Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "يعرض صفوف حصة Codex Spark في القائمة ومعاينة المزوّد. يتطلب تفعيل «عرض الاعتمادات + الاستخدام الإضافي» في إعدادات العرض.";
+"Scroll to see more models" = "مرر لرؤية المزيد من النماذج";
+"Projects" = "المشاريع";
+"+ %d more" = "+ %d أخرى";

@@ -667,6 +667,7 @@ struct UsageStoreCoverageTests {
         settings.usageBarsShowUsed = true
         settings.mergeIcons = true
         settings.randomBlinkEnabled = true
+        settings.codexSparkUsageVisible.toggle()
         settings.debugLoadingPattern = .pulse
         settings.setProviderOrder(Array(settings.orderedProviders().reversed()))
         try? await Task.sleep(nanoseconds: 50_000_000)
@@ -736,13 +737,16 @@ struct UsageStoreCoverageTests {
         settings.usageBarsShowUsed = true
         settings.mergeIcons = true
         settings.randomBlinkEnabled = true
+        settings.codexSparkUsageVisible.toggle()
         settings.debugLoadingPattern = .pulse
         settings.setProviderOrder(Array(settings.orderedProviders().reversed()))
         try? await Task.sleep(nanoseconds: 50_000_000)
         #expect(refreshedProviders.isEmpty)
 
         settings.codexUsageDataSource = .cli
-        try? await Task.sleep(nanoseconds: 100_000_000)
+        for _ in 0..<20 where !refreshedProviders.contains(.codex) {
+            try? await Task.sleep(nanoseconds: 25_000_000)
+        }
         #expect(refreshedProviders.contains(.codex))
     }
 

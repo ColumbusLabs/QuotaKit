@@ -552,7 +552,12 @@ extension UsageMenuCardView.Model {
         if input.provider == .copilot, !input.copilotBudgetExtrasEnabled {
             return []
         }
-        return extraRateWindows.map { namedWindow in
+        let visibleRateWindows = if input.provider == .codex, !input.codexSparkUsageVisible {
+            extraRateWindows.filter { !Self.isCodexSparkRateWindow($0) }
+        } else {
+            extraRateWindows
+        }
+        return visibleRateWindows.map { namedWindow in
             let paceDetail = Self.extraRateWindowPaceDetail(
                 provider: input.provider,
                 window: namedWindow.window,
@@ -584,6 +589,11 @@ extension UsageMenuCardView.Model {
                 pacePercent: usageKnown ? paceDetail?.pacePercent : nil,
                 paceOnTop: paceDetail?.paceOnTop ?? true)
         }
+    }
+
+    private static func isCodexSparkRateWindow(_ namedWindow: NamedRateWindow) -> Bool {
+        namedWindow.id == CodexAdditionalRateLimitMapper.sparkWindowID ||
+            namedWindow.id == CodexAdditionalRateLimitMapper.sparkWeeklyWindowID
     }
 
     private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"

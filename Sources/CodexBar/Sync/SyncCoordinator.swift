@@ -598,7 +598,7 @@ final class SyncCoordinator {
         }
         // Extra (named) rate windows from upstream — Claude Designs / Daily
         // Routines / Web Sonnet, Cursor Extra usage, etc.
-        for extra in snapshot?.extraRateWindows ?? [] {
+        for extra in self.visibleExtraRateWindows(provider: provider, snapshot: snapshot) {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: extra.title,
@@ -753,6 +753,22 @@ final class SyncCoordinator {
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             crossModelUsage: Self.mapCrossModelUsage(provider: provider, snapshot: snapshot))
+    }
+
+    private func visibleExtraRateWindows(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> [NamedRateWindow]
+    {
+        guard let extraRateWindows = snapshot?.extraRateWindows else { return [] }
+        guard provider == .codex else { return extraRateWindows }
+        guard self.settings.showOptionalCreditsAndExtraUsage else { return [] }
+        guard self.settings.codexSparkUsageVisible else {
+            return extraRateWindows.filter { extra in
+                extra.id != CodexAdditionalRateLimitMapper.sparkWindowID &&
+                    extra.id != CodexAdditionalRateLimitMapper.sparkWeeklyWindowID
+            }
+        }
+        return extraRateWindows
     }
 
     private static func mapCodexResetCredits(

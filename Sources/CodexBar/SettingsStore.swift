@@ -412,6 +412,8 @@ extension SettingsStore {
         let menuBarHidesCritters = userDefaults.object(forKey: "menuBarHidesCritters") as? Bool ?? false
         let menuBarDisplayModeRaw = userDefaults.string(forKey: "menuBarDisplayMode")
             ?? MenuBarDisplayMode.percent.rawValue
+        let menuBarShowsResetTimeWhenExhausted = userDefaults.object(
+            forKey: "menuBarShowsResetTimeWhenExhausted") as? Bool ?? false
         let kiroMenuBarDisplayModeRaw = userDefaults.string(forKey: "kiroMenuBarDisplayMode")
             ?? KiroMenuBarDisplayMode.automatic.rawValue
         let historicalTrackingEnabled = userDefaults.object(forKey: "historicalTrackingEnabled") as? Bool ?? false
@@ -441,6 +443,11 @@ extension SettingsStore {
         let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
         if Self.isRunningTests, creditsExtrasDefault == nil {
             userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
+        }
+        let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
+        let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
+        if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
+            userDefaults.set(true, forKey: "codexSparkUsageVisible")
         }
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
@@ -491,6 +498,7 @@ extension SettingsStore {
             menuBarShowsBrandIconWithPercent: menuBarShowsBrandIconWithPercent,
             menuBarHidesCritters: menuBarHidesCritters,
             menuBarDisplayModeRaw: menuBarDisplayModeRaw,
+            menuBarShowsResetTimeWhenExhausted: menuBarShowsResetTimeWhenExhausted,
             kiroMenuBarDisplayModeRaw: kiroMenuBarDisplayModeRaw,
             historicalTrackingEnabled: historicalTrackingEnabled,
             iCloudSyncEnabled: iCloudSyncEnabled,
@@ -512,6 +520,7 @@ extension SettingsStore {
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
+            codexSparkUsageVisible: codexSparkUsageVisible,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,

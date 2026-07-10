@@ -466,6 +466,7 @@
 "quota_warning_sound" = "Spela aviseringsljud";
 "quota_warning_onscreen_alert" = "Visa textavisering på skärmen";
 "quota_warning_provider_inherits" = "Använder de globala kvotvarningsinställningarna om inte ett fönster anpassas här.";
+"quota_warning_global" = "Globalt";
 "quota_warning_customize_thresholds" = "Anpassa trösklar för %@";
 "quota_warning_enable_warnings" = "Aktivera varningar för %@";
 "quota_warning_window_warn_at" = "Varna vid för %@";
@@ -665,6 +666,8 @@
 "display_mode_pace_desc" = "Visa taktindikator (t.ex. +5 %)";
 "display_mode_both_desc" = "Visa både procent och takt (t.ex. 45 % · +5 %)";
 "display_mode_reset_time_desc" = "Visa återställningstiden för valt mått (t.ex. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Visa återställningstid när kvoten tar slut";
+"menu_bar_reset_when_exhausted_subtitle" = "Vid 0 % kvar visas tiden till återställning i stället för procenttalet";
 
 /* Provider status */
 "status_operational" = "Fungerar normalt";
@@ -1155,3 +1158,8 @@
 "section_diagnostics" = "Diagnostik";
 "section_updates" = "Uppdateringar";
 "section_links" = "Länkar";
+"Show Codex Spark usage" = "Visa Codex Spark-användning";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Visar kvotrader för Codex Spark i menyn och i förhandsvisningen för leverantören. Kräver att ”Visa krediter och extra användning” är aktiverat under Visning i Inställningar.";
+"Scroll to see more models" = "Rulla för att se fler modeller";
+"Projects" = "Projekt";
+"+ %d more" = "+ %d till";

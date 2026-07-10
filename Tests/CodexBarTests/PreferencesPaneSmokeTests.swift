@@ -204,6 +204,7 @@ struct PreferencesPaneSmokeTests {
         settings.quotaWarningNotificationsEnabled = true
 
         CodexBarLocalizationOverride.$appLanguage.withValue("ru") {
+            #expect(L("quota_warning_global") == "Глобально")
             #expect(L("quota_warning_warning") == "Предупреждение")
             #expect(L("quota_warning_critical") == "Критично")
 
@@ -212,12 +213,87 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
-    func `quota warning inherited summary keeps additional active thresholds visible`() {
+    func `provider quota warning inherited summary keeps additional active thresholds visible`() {
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
-            #expect(
-                ProviderQuotaWarningSettingsView.thresholdText([80, 50, 20], enabled: true)
-                    == "Warning 80%, Critical 50%, 20%")
+            let thresholdText = ProviderQuotaWarningSettingsView.thresholdText([80, 50, 20], enabled: true)
+
+            #expect(thresholdText == "Warning 80%, Critical 50%, 20%")
+            #expect(String(format: L("quota_warning_inherited"), thresholdText)
+                == "Inherited: Warning 80%, Critical 50%, 20%")
         }
+    }
+
+    @Test
+    func `provider quota warning rows build for global custom and off states`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-provider-quota-warning-rows")
+        settings.quotaWarningNotificationsEnabled = true
+        settings.setQuotaWarningThresholds(.session, thresholds: [50, 20])
+        settings.setQuotaWarningThresholds(.weekly, thresholds: [80, 40])
+
+        _ = ProviderQuotaWarningSettingsView(provider: .codex, settings: settings).body
+
+        settings.setQuotaWarningOverride(provider: .codex, window: .session, thresholds: [70, 30], enabled: true)
+        settings.setQuotaWarningOverride(provider: .codex, window: .weekly, thresholds: [60, 10], enabled: false)
+
+        _ = ProviderQuotaWarningSettingsView(provider: .codex, settings: settings).body
+
+        #expect(settings.hasQuotaWarningOverride(provider: .codex, window: .session))
+        #expect(settings.hasQuotaWarningOverride(provider: .codex, window: .weekly))
+        #expect(settings.quotaWarningEnabled(provider: .codex, window: .session))
+        #expect(!settings.quotaWarningEnabled(provider: .codex, window: .weekly))
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .weekly) == [60, 10])
+    }
+
+    @Test
+    func `provider quota warning mode binding applies global custom and off transitions`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-provider-quota-warning-mode-binding")
+        settings.quotaWarningNotificationsEnabled = true
+        settings.setQuotaWarningWindowEnabled(.session, enabled: true)
+        settings.setQuotaWarningThresholds(.session, thresholds: [50, 20])
+
+        let view = ProviderQuotaWarningSettingsView(provider: .codex, settings: settings)
+        let mode = view.overrideModeBinding(for: .session)
+
+        #expect(mode.wrappedValue == .global)
+
+        mode.wrappedValue = .custom
+        #expect(mode.wrappedValue == .custom)
+        #expect(settings.hasQuotaWarningOverride(provider: .codex, window: .session))
+        #expect(settings.quotaWarningEnabled(provider: .codex, window: .session))
+        #expect(settings.providerConfig(for: .codex)?.quotaWarnings?.session?.thresholds == nil)
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
+        #expect(view.shouldCommitThresholdEditorOnDisappear(for: .session))
+
+        settings.setQuotaWarningThresholds(provider: .codex, window: .session, thresholds: [70, 30])
+        mode.wrappedValue = .off
+        #expect(mode.wrappedValue == .off)
+        #expect(settings.hasQuotaWarningOverride(provider: .codex, window: .session))
+        #expect(!settings.quotaWarningEnabled(provider: .codex, window: .session))
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [70, 30])
+        #expect(view.shouldCommitThresholdEditorOnDisappear(for: .session))
+
+        mode.wrappedValue = .custom
+        #expect(mode.wrappedValue == .custom)
+        #expect(settings.quotaWarningEnabled(provider: .codex, window: .session))
+        #expect(settings.explicitQuotaWarningThresholds(provider: .codex, window: .session) == [70, 30])
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [70, 30])
+
+        mode.wrappedValue = .global
+        #expect(mode.wrappedValue == .global)
+        #expect(!settings.hasQuotaWarningOverride(provider: .codex, window: .session))
+        #expect(settings.quotaWarningEnabled(provider: .codex, window: .session))
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
+        #expect(!view.shouldCommitThresholdEditorOnDisappear(for: .session))
+
+        mode.wrappedValue = .custom
+        #expect(settings.providerConfig(for: .codex)?.quotaWarnings?.session?.thresholds == nil)
+
+        mode.wrappedValue = .off
+        let disabledInheritedConfig = settings.providerConfig(for: .codex)?.quotaWarnings?.session
+        #expect(disabledInheritedConfig?.enabled == false)
+        #expect(disabledInheritedConfig?.thresholds == nil)
+        #expect(settings.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
+        #expect(view.shouldCommitThresholdEditorOnDisappear(for: .session))
     }
 
     @Test

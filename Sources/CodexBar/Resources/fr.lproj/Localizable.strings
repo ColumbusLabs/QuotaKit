@@ -466,6 +466,7 @@
 "quota_warning_sound" = "Lire un son de notification";
 "quota_warning_onscreen_alert" = "Afficher une alerte textuelle à l’écran";
 "quota_warning_provider_inherits" = "Utilise les réglages globaux d'alerte de quota, sauf personnalisation de cette fenêtre.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Personnaliser les seuils %@";
 "quota_warning_enable_warnings" = "Activer les alertes %@";
 "quota_warning_window_warn_at" = "Alerte %@";
@@ -666,6 +667,8 @@
 "display_mode_pace_desc" = "Afficher l'indicateur d'allure (par exemple +5 %)";
 "display_mode_both_desc" = "Afficher à la fois le pourcentage et le rythme (par exemple 45 % · +5 %)";
 "display_mode_reset_time_desc" = "Afficher l'heure de réinitialisation de la métrique sélectionnée (par exemple ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Afficher l'heure de réinitialisation quand le quota est épuisé";
+"menu_bar_reset_when_exhausted_subtitle" = "À 0 % restant, affiche le temps avant réinitialisation au lieu du pourcentage";
 
 /* Provider status */
 "status_operational" = "Opérationnel";
@@ -1156,3 +1159,8 @@
 "section_diagnostics" = "Diagnostics";
 "section_updates" = "Mises à jour";
 "section_links" = "Liens";
+"Show Codex Spark usage" = "Afficher l’utilisation de Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Affiche les lignes de quota Codex Spark dans le menu et l’aperçu du fournisseur. Nécessite d’activer « Afficher les crédits + utilisation supplémentaire » dans les réglages Affichage.";
+"Scroll to see more models" = "Faites défiler pour voir plus de modèles";
+"Projects" = "Projets";
+"+ %d more" = "+ %d de plus";

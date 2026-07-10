@@ -27,6 +27,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `72730dba`
+  (`3b039d15..72730dba`), including Codex OAuth account isolation, Spark quota
+  visibility, reset-time menu display, Kimi K2 dashboard links, GPT-5.6
+  pricing, bounded unknown-model pricing refresh, CLI serve timeout retention,
+  Claude reset occurrence handling, cost-history chart stability, Catalan
+  localization updates, and broader provider/runtime test coverage while
+  preserving QuotaKit release ownership, appcast metadata, CloudKit setup,
+  config paths, and iOS build numbers.
 - Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
   release through `3b039d15`, including Agent Sessions, CLI cards,
   claude-swap accounts, Kimi widgets and subscription rows, Claude scoped

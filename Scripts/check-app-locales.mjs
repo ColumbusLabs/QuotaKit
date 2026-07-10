@@ -8,7 +8,7 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const resources = path.join(repoRoot, "Sources/CodexBar/Resources");
 const english = readCatalog("en");
 const englishKeys = Object.keys(english).sort();
-const strictLocales = ["ar", "fa", "th"];
+const strictLocales = ["ar", "ca", "fa", "th"];
 const languageKeys = ["language_arabic", "language_persian", "language_thai"];
 const isTest = process.argv.includes("--test");
 

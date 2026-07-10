@@ -1341,7 +1341,9 @@ extension ClaudeUsageFetcher {
             return RateWindow(
                 usedPercent: used,
                 windowMinutes: windowMinutes,
-                resetsAt: ClaudeStatusProbe.parseResetDate(from: resetClean),
+                resetsAt: ClaudeStatusProbe.parseResetDate(
+                    from: resetClean,
+                    expectedWindow: TimeInterval(windowMinutes * 60)),
                 resetDescription: resetClean)
         }
 

@@ -38,8 +38,10 @@ Usage source picker:
   nearing-expiry notifications. CodexBar does not redeem or modify reset credits.
 - `rate_limit.primary_window` / `secondary_window` map to the session/weekly lanes.
 - `additional_rate_limits[]` (model-specific limits such as GPT-5.3-Codex-Spark) map to named
-  `UsageSnapshot.extraRateWindows` entries (Spark uses a stable `codex-spark` id / `Codex Spark` title).
-  When the field is absent, the snapshot is unchanged.
+  `UsageSnapshot.extraRateWindows` entries. Spark uses stable `codex-spark` / `codex-spark-weekly` ids and
+  `Codex Spark 5-hour` / `Codex Spark Weekly` titles. When the field is absent, the snapshot is unchanged.
+- Preferences → Providers → Codex → Show Codex Spark usage hides only the Spark rows in menus and the provider
+  preview. It does not change fetching, history, notifications, widgets, credits, or other extra limits.
 
 ### Advanced profile-home accounts
 - Managed Codex accounts remain the default multi-account path.

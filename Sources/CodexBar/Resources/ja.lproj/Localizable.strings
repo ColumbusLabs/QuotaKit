@@ -463,6 +463,7 @@
 "quota_warning_sound" = "通知音を再生";
 "quota_warning_onscreen_alert" = "画面上にテキストアラートを表示";
 "quota_warning_provider_inherits" = "ここでウインドウをカスタマイズしない限り、グローバルのクォータ警告設定を使用します。";
+"quota_warning_global" = "グローバル";
 "quota_warning_customize_thresholds" = "%@ のしきい値をカスタマイズ";
 "quota_warning_enable_warnings" = "%@ の警告を有効にする";
 "quota_warning_window_warn_at" = "%@ の警告残量";
@@ -663,6 +664,8 @@
 "display_mode_pace_desc" = "ペースインジケータを表示（例: +5%）";
 "display_mode_both_desc" = "パーセンテージとペースの両方を表示（例: 45% · +5%）";
 "display_mode_reset_time_desc" = "選択した指標のリセット時刻を表示（例: ↻ 15:56）";
+"menu_bar_reset_when_exhausted_title" = "クォータを使い切ったらリセット時刻を表示";
+"menu_bar_reset_when_exhausted_subtitle" = "残り0%のとき、パーセントの代わりにリセットまでの時間を表示します";
 
 /* Provider status */
 "status_operational" = "正常稼働中";
@@ -1157,3 +1160,8 @@
 "section_diagnostics" = "診断";
 "section_updates" = "アップデート";
 "section_links" = "リンク";
+"Show Codex Spark usage" = "Codex Spark の使用量を表示";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "メニューとプロバイダのプレビューに Codex Spark のクォータ行を表示します。表示設定で「クレジットと追加使用量を表示」を有効にする必要があります。";
+"Scroll to see more models" = "スクロールして他のモデルを表示";
+"Projects" = "プロジェクト";
+"+ %d more" = "+ 他%d件";

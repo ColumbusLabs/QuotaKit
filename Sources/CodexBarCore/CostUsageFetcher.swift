@@ -117,7 +117,9 @@ public struct CostUsageFetcher: Sendable {
         refreshPricingInBackground: Bool = true,
         scannerOptions overrideScannerOptions: CostUsageScanner.Options? = nil,
         piScannerOptions overridePiScannerOptions: PiSessionCostScanner
-            .Options? = nil) async throws -> CostUsageTokenSnapshot
+            .Options? = nil,
+        modelsDevClient: ModelsDevClient = ModelsDevClient(),
+        retryUnknownPricing: Bool = true) async throws -> CostUsageTokenSnapshot
     {
         guard provider == .codex || provider == .claude || provider == .vertexai || provider == .bedrock else {
             throw CostUsageError.unsupportedProvider(provider)
@@ -148,14 +150,20 @@ public struct CostUsageFetcher: Sendable {
             options.codexSessionsRoot = URL(fileURLWithPath: codexHomePath, isDirectory: true)
                 .appendingPathComponent("sessions", isDirectory: true)
         }
-        if provider == .codex || provider == .claude {
+        if retryUnknownPricing, provider == .codex || provider == .claude {
             let pricingCacheRoot = options.cacheRoot
             if refreshPricingInBackground {
                 Task.detached(priority: .utility) {
-                    await ModelsDevPricingPipeline.refreshIfNeeded(now: now, cacheRoot: pricingCacheRoot)
+                    await ModelsDevPricingPipeline.refreshIfNeeded(
+                        now: now,
+                        cacheRoot: pricingCacheRoot,
+                        client: modelsDevClient)
                 }
             } else {
-                await ModelsDevPricingPipeline.refreshIfNeeded(now: now, cacheRoot: pricingCacheRoot)
+                await ModelsDevPricingPipeline.refreshIfNeeded(
+                    now: now,
+                    cacheRoot: pricingCacheRoot,
+                    client: modelsDevClient)
             }
         }
 
@@ -239,11 +247,89 @@ public struct CostUsageFetcher: Sendable {
             return (daily: daily, projects: projects)
         }
 
+        if retryUnknownPricing,
+           let request = Self.unknownPricingRefreshRequest(
+               provider: provider,
+               daily: scanResult.daily,
+               now: now,
+               cacheRoot: options.cacheRoot,
+               client: modelsDevClient),
+           await Self.refreshUnknownPricingIfNeeded(request, inBackground: refreshPricingInBackground)
+        {
+            return try await self.loadTokenSnapshot(
+                provider: provider,
+                environment: environment,
+                now: now,
+                forceRefresh: forceRefresh,
+                allowVertexClaudeFallback: allowVertexClaudeFallback,
+                codexHomePath: codexHomePath,
+                historyDays: historyDays,
+                refreshPricingInBackground: false,
+                scannerOptions: options,
+                piScannerOptions: piOptions,
+                modelsDevClient: modelsDevClient,
+                retryUnknownPricing: false)
+        }
+
         return Self.tokenSnapshot(
             from: scanResult.daily,
             now: now,
             historyDays: clampedHistoryDays,
             projects: scanResult.projects)
+    }
+
+    private struct UnknownPricingRefreshRequest: Sendable {
+        let providerID: String
+        let modelIDs: Set<String>
+        let now: Date
+        let cacheRoot: URL?
+        let client: ModelsDevClient
+    }
+
+    private static func unknownPricingRefreshRequest(
+        provider: UsageProvider,
+        daily: CostUsageDailyReport,
+        now: Date,
+        cacheRoot: URL?,
+        client: ModelsDevClient) -> UnknownPricingRefreshRequest?
+    {
+        guard provider == .codex || provider == .claude else { return nil }
+        let unknownModelIDs = Set(daily.data.flatMap { entry in
+            entry.modelBreakdowns?.compactMap { breakdown in
+                breakdown.costUSD == nil ? breakdown.modelName : nil
+            } ?? []
+        })
+        guard !unknownModelIDs.isEmpty else { return nil }
+
+        return UnknownPricingRefreshRequest(
+            providerID: provider == .codex ? "openai" : "anthropic",
+            modelIDs: unknownModelIDs,
+            now: now,
+            cacheRoot: cacheRoot,
+            client: client)
+    }
+
+    private static func refreshUnknownPricingIfNeeded(
+        _ request: UnknownPricingRefreshRequest,
+        inBackground: Bool) async -> Bool
+    {
+        if inBackground {
+            Task.detached(priority: .utility) {
+                _ = await ModelsDevPricingPipeline.refreshForUnknownModelsIfNeeded(
+                    providerID: request.providerID,
+                    modelIDs: request.modelIDs,
+                    now: request.now,
+                    cacheRoot: request.cacheRoot,
+                    client: request.client)
+            }
+            return false
+        }
+        return await ModelsDevPricingPipeline.refreshForUnknownModelsIfNeeded(
+            providerID: request.providerID,
+            modelIDs: request.modelIDs,
+            now: request.now,
+            cacheRoot: request.cacheRoot,
+            client: request.client) == .pricingAvailable
     }
 
     static func loadCachedCodexTokenSnapshot(
@@ -470,10 +556,14 @@ public struct CostUsageFetcher: Sendable {
         .sorted { lhs, rhs in
             let lhsCost = lhs.totalCostUSD ?? -1
             let rhsCost = rhs.totalCostUSD ?? -1
-            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            if lhsCost != rhsCost {
+                return lhsCost > rhsCost
+            }
             let lhsTokens = lhs.totalTokens ?? -1
             let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            if lhsTokens != rhsTokens {
+                return lhsTokens > rhsTokens
+            }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
@@ -495,10 +585,14 @@ public struct CostUsageFetcher: Sendable {
         .sorted { lhs, rhs in
             let lhsCost = lhs.totalCostUSD ?? -1
             let rhsCost = rhs.totalCostUSD ?? -1
-            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            if lhsCost != rhsCost {
+                return lhsCost > rhsCost
+            }
             let lhsTokens = lhs.totalTokens ?? -1
             let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            if lhsTokens != rhsTokens {
+                return lhsTokens > rhsTokens
+            }
             return lhs.name.localizedStandardCompare(rhs.name) == .orderedAscending
         }
     }
@@ -546,10 +640,14 @@ public struct CostUsageFetcher: Sendable {
         .sorted { lhs, rhs in
             let lhsCost = lhs.costUSD ?? -1
             let rhsCost = rhs.costUSD ?? -1
-            if lhsCost != rhsCost { return lhsCost > rhsCost }
+            if lhsCost != rhsCost {
+                return lhsCost > rhsCost
+            }
             let lhsTokens = lhs.totalTokens ?? -1
             let rhsTokens = rhs.totalTokens ?? -1
-            if lhsTokens != rhsTokens { return lhsTokens > rhsTokens }
+            if lhsTokens != rhsTokens {
+                return lhsTokens > rhsTokens
+            }
             return lhs.modelName > rhs.modelName
         }
     }
@@ -557,17 +655,25 @@ public struct CostUsageFetcher: Sendable {
     static func selectCurrentSession(from sessions: [CostUsageSessionReport.Entry])
         -> CostUsageSessionReport.Entry?
     {
-        if sessions.isEmpty { return nil }
+        if sessions.isEmpty {
+            return nil
+        }
         return sessions.max { lhs, rhs in
             let lDate = CostUsageDateParser.parse(lhs.lastActivity) ?? .distantPast
             let rDate = CostUsageDateParser.parse(rhs.lastActivity) ?? .distantPast
-            if lDate != rDate { return lDate < rDate }
+            if lDate != rDate {
+                return lDate < rDate
+            }
             let lCost = lhs.costUSD ?? -1
             let rCost = rhs.costUSD ?? -1
-            if lCost != rCost { return lCost < rCost }
+            if lCost != rCost {
+                return lCost < rCost
+            }
             let lTokens = lhs.totalTokens ?? -1
             let rTokens = rhs.totalTokens ?? -1
-            if lTokens != rTokens { return lTokens < rTokens }
+            if lTokens != rTokens {
+                return lTokens < rTokens
+            }
             return lhs.session < rhs.session
         }
     }
@@ -575,17 +681,25 @@ public struct CostUsageFetcher: Sendable {
     static func selectMostRecentMonth(from months: [CostUsageMonthlyReport.Entry])
         -> CostUsageMonthlyReport.Entry?
     {
-        if months.isEmpty { return nil }
+        if months.isEmpty {
+            return nil
+        }
         return months.max { lhs, rhs in
             let lDate = CostUsageDateParser.parseMonth(lhs.month) ?? .distantPast
             let rDate = CostUsageDateParser.parseMonth(rhs.month) ?? .distantPast
-            if lDate != rDate { return lDate < rDate }
+            if lDate != rDate {
+                return lDate < rDate
+            }
             let lCost = lhs.costUSD ?? -1
             let rCost = rhs.costUSD ?? -1
-            if lCost != rCost { return lCost < rCost }
+            if lCost != rCost {
+                return lCost < rCost
+            }
             let lTokens = lhs.totalTokens ?? -1
             let rTokens = rhs.totalTokens ?? -1
-            if lTokens != rTokens { return lTokens < rTokens }
+            if lTokens != rTokens {
+                return lTokens < rTokens
+            }
             return lhs.month < rhs.month
         }
     }
