@@ -1,20 +1,73 @@
 # Changelog
 
-## 0.40.1 — Unreleased
+## 0.41.1 — Unreleased
 
 ### Added
-- Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows. Thanks @joeVenner!
+- Menu bar: new "Show reset time when quota runs out" display option — Percent, Pace, and Both modes swap the exhausted value for the time until reset (e.g. ↻ 2h 14m), then flip back after the reset (#2028, #2027). Thanks @brahimhamichan!
+- Agent Sessions: list and focus live local or SSH-discovered Codex and Claude Code sessions from the menu and CLI.
+- Kimi K2: add a Usage Dashboard shortcut to the human-facing legacy credits page. Thanks @joeVenner!
+- Codex: add GPT-5.6 Sol, Terra, and Luna pricing, including long-context, Priority, cache-write, alias, and automatic Pi cache repricing when rates change (#2023). Thanks @0xSMW!
+- Codex: add a provider option to hide Spark quota rows without hiding credits or other extra usage (#2013). Thanks @intellectronica!
+- Wayfinder: add opt-in local gateway health, routing, savings, and latency usage with configurable loopback URL support. Thanks @tcballard!
+- Claude CLI: surface model-scoped weekly limits alongside all-model usage without duplicating matching web limits. Thanks @janpollak!
+- Documentation: add detailed setup and troubleshooting references for Azure OpenAI, Perplexity, Mistral, and Qoder. Thanks @kiranmagic7!
+- Quota warnings: add opt-in predictive pace alerts for Codex and Claude session and weekly limits, with one alert per risk episode. Thanks @vincent-peng!
 
 ### Fixed
+- Agent Sessions: keep local and remote session discovery off by default while preserving the General setting for explicit opt-in.
+- Menus: stop completed provider cards and plan-utilization rows from remaining in “Refreshing…” while unrelated provider or token-cost work is still running. Thanks @Yuxin-Qiao!
+- Menu: keep native hover highlights aligned by deferring geometry-changing open-menu rebuilds until the pointer leaves the row. Thanks @Zihao-Qi!
+- Codex accounts: isolate authenticated OAuth and browser-cookie requests from shared URL caches and cookie stores, preventing one account's cached quota or identity response from appearing under another account and triggering false reset alerts (#1987, #2019). Thanks @harjothkhara!
+- Claude OAuth: honor the app's never-prompt policy in the bundled CLI and defer stale cache cleanup without touching Keychain until access is re-enabled. Thanks @Yuxin-Qiao!
+- CLI server: retain timed-out route and provider work until it actually exits, preventing repeated requests or config changes from stacking background fetches. Thanks @Yuxin-Qiao!
+- Token costs: coalesce bounded pricing-catalog refreshes when a newly observed model is still unpriced, preserving its exact usage until pricing arrives. Thanks @iam-brain!
+- Cost history: keep model breakdown menus steady while hovering, preserve compact rows, and make overflowing histories scrollable. Thanks @iam-brain!
+- Ollama: validate API keys against an authenticated endpoint instead of the public model catalog while preserving refresh cancellation. Thanks @joeVenner!
+- Claude CLI: recognize explicit-year reset timestamps while preserving their stated year and exact local DST occurrence, keeping countdowns, pace, and reset scheduling available.
+- Claude CLI: resolve yearless and time-only reset timestamps against their quota window and exact calendar occurrence, keeping recently stale resets current without moving future, leap-day, or repeated-hour resets into the past. Thanks @fanwenlin!
+- Catalan: complete current strings, align instructional voice, and enforce catalog parity. Thanks @pmontp19!
+- Kimi K2: report missing, blank, or rejected API keys clearly and trim surrounding whitespace before requests. Thanks @joeVenner!
+- Quota warnings: use compact per-window threshold editors that save on focus loss, Return, or window close while preserving provider inheritance. Thanks @Zihao-Qi!
+- Display settings: keep display mode, work days, multi-account layout, and cost summary selectors interactive on macOS 27. Thanks @jordanschwartz-js!
+- Antigravity: recover CLI listening ports from Linux procfs when `lsof` is unavailable, including process network namespaces. Thanks @junmo-kim!
+- Gemini: prefer Google's paid-tier plan label over generic Free, Workspace, or Paid fallbacks while preserving acronym casing in the CLI. Thanks @Yuxin-Qiao!
+- Codex: avoid false session-reset celebrations from transient zero-usage samples until the reset boundary advances. Thanks @kiranmagic7!
+- Settings: keep visual-only preferences and provider reordering on cached UI paths instead of refreshing provider quotas, while preserving refreshes for data-affecting settings. Thanks @Zihao-Qi!
+- MiMo: flag a stale local-fallback cache in the summary (e.g. `stale 34d`) so a tracker that has not been refreshed by `Scripts/mimo-usage.py` is not misread as live usage. Thanks @LeoLin990405!
+- Ollama: recognize current WorkOS AuthKit sessions during browser-cookie discovery and manual cookie validation. Thanks @joeVenner!
+- Ollama: classify current WorkOS sign-in redirects as expired sessions, enabling cookie-candidate fallback instead of a parser error. Thanks @joeVenner!
+- Widgets: show token-cost rows with their own age when they lag a fresh quota snapshot, and retry fast token-scan failures without waiting out the hourly cache. Thanks @irresi!
+
+## 0.41.0 — 2026-07-06
+
+### Added
+- CLI: add responsive `codexbar cards` and compact `--brief` terminal usage views. Thanks @DonnieFi!
+- Antigravity: show pace details for legacy model-family and current session/weekly quota rows without changing compact icon lane semantics. Thanks @Zihao-Qi!
+- Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows. Thanks @joeVenner!
+- Kimi: show the subscription 7-day Code quota in menus and large widgets. Thanks @skyzer!
+- Claude: distinguish Max 5x and Max 20x in the plan label instead of a flat "Max". Thanks @kes02!
+
+### Fixed
+- Ollama: point missing-session recovery to the current `/signin` page instead of the protected settings page. Thanks @joeVenner!
+- Alibaba Token Plan: support International Model Studio while preserving China-mainland upgrades and isolating regional cookie caches. Thanks @harshav167!
 - Amp: open the current Usage page from the menu dashboard action. Thanks @3kh0!
+- Browser cookies: stop automatic Chromium-family probes after the first Safe Storage denial, while keeping an explicit Refresh retry available (#1952). Thanks @CoreyCole!
+- Claude: keep yearless reset dates in the upcoming year when a quota crosses New Year's Day. Thanks @devYRPauli!
+- Claude web: preserve fractional session and weekly utilization instead of displaying it as zero or unavailable. Thanks @devYRPauli!
+- Gemini: detect Google's consumer-tier shutdown response and offer an explicit Antigravity handoff without changing ordinary auth failures or enabling fallback automatically. Thanks @Yuxin-Qiao!
+- Gemini: use the real Flash quota in menu-bar metrics when an account has no Pro quota. Thanks @devYRPauli!
+- Ollama API: describe rejected keys as invalid or revoked, matching Ollama's current key lifecycle. Thanks @joeVenner!
 - Settings: keep Language, Default Terminal, and Refresh cadence selectors interactive on macOS 27.
 - Usage formatting: show every positive sub-1% value as `<1%` instead of rounding values above 0.5% up to `1%`. Thanks @devYRPauli!
 - Codex menu: hide error-only optional Credits and OpenAI web setup diagnostics while keeping them visible in provider Settings.
 - Codex quotas: show the session quota as unavailable while an exhausted weekly limit is still binding, including menu-bar icons and widgets. Thanks @Yuxin-Qiao!
 - Codex cost history: reuse cached aggregate pricing and one pricing catalog across daily and project reports, carry fresh cache state across launches, and treat unpriced models as migrated, avoiding repeated row scans, filesystem work, and duplicate background scans on large local histories.
+- Devin: keep exact 1% usage from being inflated to 100% while preserving fractional fallback quota semantics. Thanks @Lex-ic-on!
 - Kimi K2: reject invalid and out-of-range numeric timestamps while preserving valid second and millisecond values. Thanks @joeVenner!
 - Kimi K2: reject non-finite credit and token values before they reach menus, CLI output, or widgets. Thanks @joeVenner!
+- Kimi: call the current `GetSubscriptionStats` membership endpoint so the Monthly subscription quota is populated again. Thanks @skyzer!
 - Kimi: show the five-hour rate limit before the weekly quota while preserving existing menu-bar metric preferences. Thanks @Zihao-Qi!
+- Menu bar: detect Tahoe's blocked no-window state at startup when macOS still records the icon as enabled, so affected users receive recovery guidance instead of a silently missing icon (#1945). Thanks @mmyyfirstb!
 
 ## 0.40.0 — 2026-07-05
 

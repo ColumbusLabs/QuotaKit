@@ -142,6 +142,47 @@ struct DevinUsageFetcherTests {
     }
 
     @Test
+    func `normalizes mixed-scale current percentages at the one-percent boundary`() throws {
+        let cases: [(input: Double, expected: Double)] = [
+            (0.5, 50),
+            (1, 1),
+            (1.5, 1.5),
+        ]
+
+        for value in cases {
+            let response: [String: Any] = [
+                "daily_percentage": value.input,
+                "weekly_percentage": value.input,
+            ]
+            let snapshot = try DevinUsageParser.parse(response, organization: nil, now: Self.now)
+
+            #expect(snapshot.daily?.usedPercent == value.expected)
+            #expect(snapshot.weekly?.usedPercent == value.expected)
+        }
+    }
+
+    @Test
+    func `preserves fractional boundaries for fallback quota percentages`() throws {
+        let response: [String: Any] = [
+            "quota_usage": [
+                "daily_quota": [
+                    "used_percent": 1,
+                    "reset_at": "2026-06-01T08:00:00Z",
+                ],
+                "weekly_quota": [
+                    "remaining_percent": 1,
+                    "next_reset_at": 1_780_560_000,
+                ],
+            ],
+        ]
+
+        let snapshot = try DevinUsageParser.parse(response, organization: nil, now: Self.now)
+
+        #expect(snapshot.daily?.usedPercent == 100)
+        #expect(snapshot.weekly?.usedPercent == 0)
+    }
+
+    @Test
     func `parses zero percentages from JSON response`() throws {
         let data = Data("""
         {

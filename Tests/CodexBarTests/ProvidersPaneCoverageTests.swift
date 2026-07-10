@@ -183,6 +183,51 @@ struct ProvidersPaneCoverageTests {
     }
 
     @Test
+    func `codex provider preview follows spark visibility`() {
+        let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-codex-spark-preview")
+        let store = Self.makeUsageStore(settings: settings)
+        let now = Date()
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 20, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 30,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: CodexAdditionalRateLimitMapper.sparkWindowID,
+                        title: "Codex Spark 5-hour",
+                        window: RateWindow(
+                            usedPercent: 40,
+                            windowMinutes: 300,
+                            resetsAt: now.addingTimeInterval(1800),
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: "codex-other-limit",
+                        title: "Other Codex limit",
+                        window: RateWindow(
+                            usedPercent: 30,
+                            windowMinutes: 1440,
+                            resetsAt: now.addingTimeInterval(3600),
+                            resetDescription: nil)),
+                ],
+                updatedAt: now),
+            provider: .codex)
+        let pane = ProvidersPane(settings: settings, store: store)
+
+        #expect(pane._test_menuCardModel(for: .codex).metrics.contains {
+            $0.id == CodexAdditionalRateLimitMapper.sparkWindowID
+        })
+
+        settings.codexSparkUsageVisible = false
+        let hiddenModel = pane._test_menuCardModel(for: .codex)
+        #expect(!hiddenModel.metrics.contains { $0.id == CodexAdditionalRateLimitMapper.sparkWindowID })
+        #expect(hiddenModel.metrics.contains { $0.id == "codex-other-limit" })
+    }
+
+    @Test
     func `open router menu bar metric picker shows only automatic and primary`() {
         Self.withEnglishLocalization {
             let settings = Self.makeSettingsStore(suite: "ProvidersPaneCoverageTests-openrouter-picker")

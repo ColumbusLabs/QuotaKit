@@ -67,6 +67,58 @@ struct MenuCardProviderRegressionTests {
     }
 
     @Test
+    func `wayfinder model shows gateway routing savings and latency`() throws {
+        let now = Date()
+        let metadata = try #require(ProviderDefaults.metadata[.wayfinder])
+        let usage = WayfinderUsageSnapshot(
+            gatewayStatus: "ok",
+            offline: false,
+            dryRun: true,
+            missingKeys: [],
+            modelCount: 2,
+            requests: 14,
+            tokens: 1028,
+            realized: 0.003558,
+            baseline: 0.009252,
+            saved: 0.005694,
+            savedPct: 61.5,
+            priced: true,
+            routes: [
+                .init(name: "local", requests: 10, saved: 0.005694, tokens: 662),
+                .init(name: "cloud", requests: 4, saved: 0, tokens: 366),
+            ],
+            avgDecisionMs: 0.0804,
+            updatedAt: now)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .wayfinder,
+            metadata: metadata,
+            snapshot: usage.toUsageSnapshot(),
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.usageNotes == [
+            "Gateway: ok · 2 models · dry run",
+            "Routed: local: 10 · cloud: 4",
+            "Saved: <$0.01 · 61.5% vs highest-cost route",
+            "Avg decision: 0.1 ms",
+        ])
+    }
+
+    @Test
     func `copilot over quota usage keeps used percentage detail`() throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.copilot])

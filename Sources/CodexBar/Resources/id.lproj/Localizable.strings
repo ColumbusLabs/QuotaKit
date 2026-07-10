@@ -455,6 +455,11 @@
 "quota_warning_notification_title" = "%1$@ kuota %2$@ rendah";
 "quota_warning_notification_body" = "%1$@ tersisa. Mencapai ambang batas peringatan %3$@ %2$d%% Anda.";
 "quota_warning_notification_body_with_account" = "Akun %1$@. %2$@ tersisa. Mencapai ambang batas peringatan %4$@ %3$d%% Anda.";
+"predictive_pace_warnings_title" = "Peringatan prediktif laju pemakaian";
+"predictive_pace_warnings_subtitle" = "Memperingatkan untuk Codex dan Claude saat laju sesi atau mingguan dapat menghabiskan kuota sebelum reset.";
+"predictive_pace_warning_notification_title" = "%1$@ peringatan laju %2$@";
+"predictive_pace_warning_notification_body" = "Dengan laju saat ini, kuota ini dapat habis dalam %1$@, sebelum direset.";
+"predictive_pace_warning_notification_body_with_account" = "Akun %1$@. Dengan laju saat ini, kuota ini dapat habis dalam %2$@, sebelum direset.";
 "session_depleted_notification_title" = "Sesi %@ habis";
 "session_depleted_notification_body" = "0% tersisa. Akan memberi tahu saat tersedia kembali.";
 "session_restored_notification_title" = "Sesi %@ pulih";
@@ -464,14 +469,17 @@
 "quota_warning_sound" = "Mainkan suara notifikasi";
 "quota_warning_onscreen_alert" = "Tampilkan peringatan teks di layar";
 "quota_warning_provider_inherits" = "Menggunakan pengaturan peringatan kuota global kecuali jendela dikustomisasi di sini.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Kustomisasi ambang batas %@";
 "quota_warning_enable_warnings" = "Aktifkan peringatan %@";
 "quota_warning_window_warn_at" = "Peringatan %@ pada";
 "quota_warning_off" = "Mati";
 "quota_warning_inherited" = "Diwariskan: %@";
 "quota_warning_depleted_only" = "hanya habis";
-"quota_warning_upper" = "Atas";
+"quota_warning_upper" = "Lebih tinggi";
 "quota_warning_lower" = "Bawah";
+"quota_warning_warning" = "Peringatan";
+"quota_warning_critical" = "Kritis";
 "apply" = "Terapkan";
 "quit_app" = "Keluar CodexBar";
 
@@ -662,6 +670,8 @@
 "display_mode_pace_desc" = "Tampilkan indikator pace (mis. +5%)";
 "display_mode_both_desc" = "Tampilkan persentase dan pace (mis. 45% · +5%)";
 "display_mode_reset_time_desc" = "Tampilkan waktu reset untuk metrik yang dipilih (mis. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Tampilkan waktu reset saat kuota habis";
+"menu_bar_reset_when_exhausted_subtitle" = "Saat tersisa 0%, tampilkan waktu hingga reset alih-alih persentase";
 
 /* Provider status */
 "status_operational" = "Operasional";
@@ -1153,3 +1163,6 @@
 "section_diagnostics" = "Diagnostik";
 "section_updates" = "Pembaruan";
 "section_links" = "Tautan";
+"Show Codex Spark usage" = "Tampilkan penggunaan Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Menampilkan baris kuota Codex Spark di menu dan pratinjau penyedia. Mengharuskan “Tampilkan kredit + penggunaan ekstra” diaktifkan di pengaturan Tampilan.";
+"Scroll to see more models" = "Gulir untuk melihat model lainnya";

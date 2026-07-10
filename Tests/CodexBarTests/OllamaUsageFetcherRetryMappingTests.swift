@@ -84,15 +84,17 @@ struct OllamaUsageFetcherRetryMappingTests {
         #expect(strategy.shouldFallback(on: OllamaUsageError.parseFailed("missing"), context: context))
     }
 
-    @Test
-    func `api fetch sends bearer token and rejects unauthorized key`() async throws {
-        let url = try #require(URL(string: "https://ollama.com/api/tags"))
+    @Test(arguments: [401, 403])
+    func `api fetch sends bearer token and rejects unauthorized key`(statusCode: Int) async throws {
+        let url = try #require(URL(string: "https://ollama.com/api/web_search"))
         let transport = ProviderHTTPTransportHandler { request in
             #expect(request.url == url)
+            #expect(request.httpMethod == "POST")
+            #expect(request.httpBody == Data(#"{"query":""}"#.utf8))
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer ollama-test")
             let response = HTTPURLResponse(
                 url: url,
-                statusCode: 401,
+                statusCode: statusCode,
                 httpVersion: "HTTP/1.1",
                 headerFields: nil)!
             return (Data("{}".utf8), response)
@@ -106,8 +108,230 @@ struct OllamaUsageFetcherRetryMappingTests {
                 Issue.record("Expected apiUnauthorized, got \(error)")
                 return
             }
+            #expect(error.localizedDescription == "Ollama API key is invalid or revoked.")
         } catch {
             Issue.record("Expected OllamaUsageError.apiUnauthorized, got \(error)")
+        }
+    }
+
+    @Test
+    func `authorized validation continues to model catalog`() async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            let statusCode: Int
+            let data: Data
+            switch request.url {
+            case validationURL:
+                statusCode = 400
+                data = Data(#"{"error":"query is required"}"#.utf8)
+            case tagsURL:
+                statusCode = 200
+                data = Data(#"{"models":[{}]}"#.utf8)
+            default:
+                Issue.record("Unexpected Ollama API URL")
+                statusCode = 500
+                data = Data()
+            }
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (data, response)
+        }
+
+        let snapshot = try await OllamaAPIUsageFetcher.fetchUsage(
+            apiKey: "ollama-test",
+            tagsURL: tagsURL,
+            validationURL: validationURL,
+            transport: transport)
+
+        #expect(snapshot.modelCount == 1)
+    }
+
+    @Test(arguments: [401, 403])
+    func `authorized validation still rejects unauthorized model catalog`(statusCode: Int) async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            let responseStatus = request.url == validationURL ? 400 : statusCode
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: responseStatus,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (Data("{}".utf8), response)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "ollama-test",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+            Issue.record("Expected unauthorized model catalog error")
+        } catch let error as OllamaUsageError {
+            guard case .apiUnauthorized = error else {
+                Issue.record("Expected apiUnauthorized, got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Expected OllamaUsageError.apiUnauthorized, got \(error)")
+        }
+    }
+
+    @Test
+    func `custom catalog derives validation on the same origin`() async throws {
+        let tagsURL = try #require(URL(string: "https://private.example/prefix/api/tags"))
+        let validationURL = try #require(URL(string: "https://private.example/prefix/api/web_search"))
+        let transport = ProviderHTTPTransportHandler { request in
+            let statusCode: Int
+            let data: Data
+            switch request.url {
+            case validationURL:
+                statusCode = 400
+                data = Data(#"{"error":"query is required"}"#.utf8)
+            case tagsURL:
+                statusCode = 200
+                data = Data(#"{"models":[{}]}"#.utf8)
+            default:
+                Issue.record("Unexpected Ollama API URL")
+                statusCode = 500
+                data = Data()
+            }
+            #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer private-key")
+            let response = HTTPURLResponse(
+                url: request.url!,
+                statusCode: statusCode,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (data, response)
+        }
+
+        let snapshot = try await OllamaAPIUsageFetcher.fetchUsage(
+            apiKey: "private-key",
+            tagsURL: tagsURL,
+            transport: transport)
+
+        #expect(snapshot.modelCount == 1)
+    }
+
+    @Test
+    func `cross origin validation endpoint is rejected before sending credentials`() async throws {
+        let tagsURL = try #require(URL(string: "https://private.example/api/tags"))
+        let validationURL = try #require(URL(string: "https://ollama.com/api/web_search"))
+        let transport = ProviderHTTPTransportHandler { _ in
+            Issue.record("Cross-origin endpoints must fail before transport")
+            throw URLError(.badURL)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "private-key",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+            Issue.record("Expected a same-origin validation error")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected networkError, got \(error)")
+                return
+            }
+            #expect(message == "Ollama key validation and model catalog endpoints must share an origin.")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
+        }
+    }
+
+    @Test
+    func `non loopback HTTP catalog is rejected before sending credentials`() async throws {
+        let tagsURL = try #require(URL(string: "http://private.example/api/tags"))
+        let transport = ProviderHTTPTransportHandler { _ in
+            Issue.record("Insecure non-loopback endpoints must fail before transport")
+            throw URLError(.badURL)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "private-key",
+                tagsURL: tagsURL,
+                transport: transport)
+            Issue.record("Expected an insecure endpoint error")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected networkError, got \(error)")
+                return
+            }
+            #expect(message == "Ollama API endpoints must use HTTPS or loopback HTTP.")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
+        }
+    }
+
+    @Test
+    func `api validation preserves cancellation`() async {
+        let transport = ProviderHTTPTransportHandler { _ in
+            throw CancellationError()
+        }
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(apiKey: "ollama-test", transport: transport)
+        }
+    }
+
+    @Test
+    func `model catalog fetch preserves URL cancellation`() async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            guard request.url == validationURL else { throw URLError(.cancelled) }
+            let response = HTTPURLResponse(
+                url: validationURL,
+                statusCode: 400,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (Data(#"{"error":"query is required"}"#.utf8), response)
+        }
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "ollama-test",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+        }
+    }
+
+    @Test
+    func `unproven validation status fails closed`() async throws {
+        let validationURL = try #require(URL(string: "https://ollama.test/api/web_search"))
+        let tagsURL = try #require(URL(string: "https://ollama.test/api/tags"))
+        let transport = ProviderHTTPTransportHandler { request in
+            #expect(request.url == validationURL)
+            let response = HTTPURLResponse(
+                url: validationURL,
+                statusCode: 422,
+                httpVersion: "HTTP/1.1",
+                headerFields: nil)!
+            return (Data(#"{"error":"unprocessable"}"#.utf8), response)
+        }
+
+        do {
+            _ = try await OllamaAPIUsageFetcher.fetchUsage(
+                apiKey: "ollama-test",
+                tagsURL: tagsURL,
+                validationURL: validationURL,
+                transport: transport)
+            Issue.record("Expected an HTTP 422 network error")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected networkError, got \(error)")
+                return
+            }
+            #expect(message == "HTTP 422")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
         }
     }
 
@@ -121,13 +345,7 @@ struct OllamaUsageFetcherRetryMappingTests {
             return Self.makeResponse(url: url, body: body, statusCode: 200)
         }
 
-        let fetcher = OllamaUsageFetcher(
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            makeURLSession: { delegate in
-                let config = URLSessionConfiguration.ephemeral
-                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
-                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
-            })
+        let fetcher = self.makeCookieFetcher()
         do {
             _ = try await fetcher.fetch(
                 cookieHeaderOverride: "session=test-cookie",
@@ -142,6 +360,70 @@ struct OllamaUsageFetcherRetryMappingTests {
         } catch {
             Issue.record("Expected OllamaUsageError.parseFailed, got \(error)")
         }
+    }
+
+    @Test
+    func `workos sign in landing surfaces invalid credentials before parsing`() async throws {
+        defer { OllamaRetryMappingStubURLProtocol.handler = nil }
+
+        let landingURL = try #require(URL(
+            string: "https://signin.ollama.com/?client_id=test&authorization_session_id=expired"))
+        OllamaRetryMappingStubURLProtocol.handler = { request in
+            #expect(request.url == URL(string: "https://ollama.com/settings"))
+            let body = "<html><body>Sign in to Ollama</body></html>"
+            return Self.makeResponse(url: landingURL, body: body, statusCode: 200)
+        }
+
+        let fetcher = self.makeCookieFetcher()
+        do {
+            _ = try await fetcher.fetch(
+                cookieHeaderOverride: "session=expired-cookie",
+                manualCookieMode: true)
+            Issue.record("Expected OllamaUsageError.invalidCredentials")
+        } catch let error as OllamaUsageError {
+            guard case .invalidCredentials = error else {
+                Issue.record("Expected invalidCredentials, got \(error)")
+                return
+            }
+        } catch {
+            Issue.record("Expected OllamaUsageError.invalidCredentials, got \(error)")
+        }
+    }
+
+    @Test
+    func `workos sign in service failure remains a network error`() async throws {
+        defer { OllamaRetryMappingStubURLProtocol.handler = nil }
+
+        let landingURL = try #require(URL(string: "https://signin.ollama.com/"))
+        OllamaRetryMappingStubURLProtocol.handler = { _ in
+            Self.makeResponse(url: landingURL, body: "Service unavailable", statusCode: 503)
+        }
+
+        let fetcher = self.makeCookieFetcher()
+        do {
+            _ = try await fetcher.fetch(
+                cookieHeaderOverride: "session=expired-cookie",
+                manualCookieMode: true)
+            Issue.record("Expected OllamaUsageError.networkError")
+        } catch let error as OllamaUsageError {
+            guard case let .networkError(message) = error else {
+                Issue.record("Expected networkError, got \(error)")
+                return
+            }
+            #expect(message == "HTTP 503")
+        } catch {
+            Issue.record("Expected OllamaUsageError.networkError, got \(error)")
+        }
+    }
+
+    private func makeCookieFetcher() -> OllamaUsageFetcher {
+        OllamaUsageFetcher(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            makeURLSession: { delegate in
+                let config = URLSessionConfiguration.ephemeral
+                config.protocolClasses = [OllamaRetryMappingStubURLProtocol.self]
+                return URLSession(configuration: config, delegate: delegate, delegateQueue: nil)
+            })
     }
 
     private static func makeResponse(

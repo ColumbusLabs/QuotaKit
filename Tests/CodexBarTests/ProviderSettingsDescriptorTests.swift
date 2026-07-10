@@ -60,6 +60,17 @@ struct ProviderSettingsDescriptorTests {
         #expect(pickers.contains(where: { $0.id == "codex-usage-source" }))
         #expect(pickers.contains(where: { $0.id == "codex-cookie-source" }))
         #expect(toggles.contains(where: { $0.id == "codex-historical-tracking" }))
+        let sparkToggle = try #require(toggles.first(where: { $0.id == "codex-spark-usage-visible" }))
+        #expect(sparkToggle.title == "Show Codex Spark usage")
+        #expect(sparkToggle.subtitle.contains("menu and provider preview"))
+        #expect(sparkToggle.binding.wrappedValue)
+        #expect(sparkToggle.isEnabled?() == true)
+
+        sparkToggle.binding.wrappedValue = false
+        #expect(fixture.settings.codexSparkUsageVisible == false)
+
+        fixture.settings.showOptionalCreditsAndExtraUsage = false
+        #expect(sparkToggle.isEnabled?() == false)
     }
 
     @Test

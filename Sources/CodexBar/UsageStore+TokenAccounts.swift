@@ -1198,6 +1198,7 @@ extension UsageStore {
             guard let snapshot else { return }
             self.handleCodexResetCreditNotifications(snapshot: snapshot)
             self.handleSessionQuotaTransition(provider: .codex, snapshot: snapshot)
+            self.handlePredictivePaceWarningTransitions(provider: .codex, snapshot: snapshot)
             self.lastKnownResetSnapshots[.codex] = snapshot
             self.lastCodexAccountScopedRefreshGuard = Self.codexScopedRefreshGuard(for: account)
             self.snapshots[.codex] = snapshot
@@ -1254,8 +1255,17 @@ extension UsageStore {
                     return nil as UsageSnapshot?
                 }
                 let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
+                let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
+                    Self.predictivePaceWarningTokenAccountDiscriminator(account)
+                } else {
+                    nil
+                }
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
+                self.handlePredictivePaceWarningTransitions(
+                    provider: provider,
+                    snapshot: backfilled,
+                    accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
                 self.lastSourceLabels[provider] = result.sourceLabel

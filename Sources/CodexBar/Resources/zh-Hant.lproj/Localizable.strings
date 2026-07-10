@@ -457,6 +457,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@配額偏低";
 "quota_warning_notification_body" = "剩餘 %1$@。已達到 %2$d%% %3$@提醒門檻。";
 "quota_warning_notification_body_with_account" = "帳號 %1$@。剩餘 %2$@。已達到 %3$d%% %4$@提醒門檻。";
+"predictive_pace_warnings_title" = "預測性節奏提醒";
+"predictive_pace_warnings_subtitle" = "當 Codex 和 Claude 的工作階段或每週使用節奏可能在重設前耗盡配額時提醒。";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@節奏提醒";
+"predictive_pace_warning_notification_body" = "依目前節奏，此配額可能會在重設前於 %1$@ 後耗盡。";
+"predictive_pace_warning_notification_body_with_account" = "帳號 %1$@。依目前節奏，此配額可能會在重設前於 %2$@ 後耗盡。";
 "session_depleted_notification_title" = "%@ 工作階段已用完";
 "session_depleted_notification_body" = "剩餘 0%。恢復可用時會再通知。";
 "session_restored_notification_title" = "%@ 工作階段已恢復";
@@ -466,14 +471,17 @@
 "quota_warning_sound" = "播放通知音效";
 "quota_warning_onscreen_alert" = "顯示螢幕文字提醒";
 "quota_warning_provider_inherits" = "預設使用全域配額提醒設定，除非在此自訂時段。";
+"quota_warning_global" = "全域";
 "quota_warning_customize_thresholds" = "自訂 %@ 門檻";
 "quota_warning_enable_warnings" = "啟用 %@ 提醒";
 "quota_warning_window_warn_at" = "%@ 提醒門檻";
 "quota_warning_off" = "關閉";
 "quota_warning_inherited" = "繼承：%@";
 "quota_warning_depleted_only" = "僅用完時";
-"quota_warning_upper" = "上限";
+"quota_warning_upper" = "較高";
 "quota_warning_lower" = "下限";
+"quota_warning_warning" = "警告";
+"quota_warning_critical" = "嚴重";
 "apply" = "套用";
 "quit_app" = "結束 CodexBar";
 "tab_general" = "一般";
@@ -648,6 +656,8 @@
 "display_mode_pace_desc" = "顯示進度指示器（例如 +5%）";
 "display_mode_both_desc" = "同時顯示百分比和進度（例如 45% · +5%）";
 "display_mode_reset_time_desc" = "顯示所選指標的重置時間（例如 ↻ 3:56 PM）";
+"menu_bar_reset_when_exhausted_title" = "配額用盡時顯示重設時間";
+"menu_bar_reset_when_exhausted_subtitle" = "剩餘 0% 時，顯示距重設的時間而非百分比";
 "status_operational" = "運作正常";
 "status_degraded" = "效能下降";
 "status_partial_outage" = "部分服務中斷";
@@ -1183,3 +1193,6 @@
 "section_diagnostics" = "診斷";
 "section_updates" = "更新";
 "section_links" = "連結";
+"Show Codex Spark usage" = "顯示 Codex Spark 使用量";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示 Codex Spark 配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
+"Scroll to see more models" = "捲動查看更多模型";

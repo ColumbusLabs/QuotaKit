@@ -2,6 +2,42 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func cardsHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar cards [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+                        [--provider \(ProviderHelp.list)]
+                        [--account <label>] [--account-index <index>] [--all-accounts]
+                        [--no-credits] [--no-color] [--status] [--source <auto|web|cli|oauth|api>]
+                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
+                        [--brief]
+
+        Description:
+          Print a one-shot usage snapshot as a responsive card grid in the terminal.
+          Honors enabled providers from config and reuses the same fetch flags as codexbar usage.
+          Failed providers are summarized in a footer instead of error cards.
+          Use --brief for a compact table layout (Provider / Usage / Reset).
+          Stdout is always the rendered card/table text; --json-output only affects stderr logs.
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --no-color      Disable ANSI colors in text output
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs (JSONL) to stderr
+
+        Examples:
+          codexbar cards
+          codexbar cards --provider codex
+          codexbar cards --provider all --status
+          codexbar cards --brief
+          codexbar cards --no-color
+        """
+    }
+
     static func usageHelp(version: String) -> String {
         """
         CodexBar \(version)
@@ -70,6 +106,26 @@ extension CodexBarCLI {
           codexbar cost
           codexbar cost --provider codex --group-by project
           codexbar cost --provider claude --format json --pretty
+        """
+    }
+
+    static func sessionsHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar sessions [--json] [--pretty]
+          codexbar sessions focus <id>
+
+        Description:
+          List live local Codex and Claude Code agent sessions.
+          JSON uses stable AgentSession field names and ISO-8601 dates.
+          Focus activates the owning terminal or desktop app on macOS.
+
+        Examples:
+          codexbar sessions
+          codexbar sessions --json
+          codexbar sessions focus 019f3497-73bf-7df3-a173-4f67d968914a
         """
     }
 
@@ -213,12 +269,15 @@ extension CodexBarCLI {
                   [--account <label>] [--account-index <index>] [--all-accounts]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
+          codexbar cards [--provider \(ProviderHelp.list)] [--brief] [--no-color] [--status]
           codexbar cost [--format text|json]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--days <days>] [--group-by project]
+          codexbar sessions [--json] [--pretty]
+          codexbar sessions focus <id>
           codexbar serve [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -249,7 +308,10 @@ extension CodexBarCLI {
           codexbar --format json --provider all --pretty
           codexbar --provider all --json
           codexbar --provider gemini
+          codexbar cards --provider all --status
+          codexbar cards --brief
           codexbar cost --provider claude --format json --pretty
+          codexbar sessions --json
           codexbar serve --port 8080
           codexbar config validate --format json --pretty
           codexbar config enable --provider grok

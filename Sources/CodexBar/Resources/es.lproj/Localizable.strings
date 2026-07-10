@@ -450,19 +450,27 @@
 "quota_warning_session_capitalized" = "Sesión";
 "quota_warning_weekly" = "semanal";
 "quota_warning_weekly_capitalized" = "Semanal";
+"predictive_pace_warnings_title" = "Avisos predictivos de ritmo";
+"predictive_pace_warnings_subtitle" = "Avisa para Codex y Claude cuando el ritmo de sesión o semanal puede agotar la cuota antes del reinicio.";
+"predictive_pace_warning_notification_title" = "%1$@: aviso de ritmo %2$@";
+"predictive_pace_warning_notification_body" = "Al ritmo actual, esta cuota podría agotarse en %1$@, antes de reiniciarse.";
+"predictive_pace_warning_notification_body_with_account" = "Cuenta %1$@. Al ritmo actual, esta cuota podría agotarse en %2$@, antes de reiniciarse.";
 "quota_warning_warn_at" = "Avisar al";
 "quota_warning_global_threshold_subtitle" = "Porcentajes restantes para las ventanas de sesión y semanal, salvo que un proveedor los anule.";
 "quota_warning_sound" = "Reproducir sonido de notificación";
 "quota_warning_onscreen_alert" = "Mostrar alerta de texto en pantalla";
 "quota_warning_provider_inherits" = "Usa los ajustes globales de aviso de cuota salvo que se personalice una ventana aquí.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Personalizar umbrales de %@";
 "quota_warning_enable_warnings" = "Activar avisos de %@";
 "quota_warning_window_warn_at" = "%@ avisar al";
 "quota_warning_off" = "Desactivado";
 "quota_warning_inherited" = "Heredado: %@";
 "quota_warning_depleted_only" = "solo agotado";
-"quota_warning_upper" = "Superior";
+"quota_warning_upper" = "Más alto";
 "quota_warning_lower" = "Inferior";
+"quota_warning_warning" = "Advertencia";
+"quota_warning_critical" = "Crítico";
 "apply" = "Aplicar";
 "quit_app" = "Salir de CodexBar";
 
@@ -652,6 +660,8 @@
 "display_mode_pace_desc" = "Mostrar el indicador de ritmo (p. ej. +5 %)";
 "display_mode_both_desc" = "Mostrar porcentaje y ritmo (p. ej. 45 % · +5 %)";
 "display_mode_reset_time_desc" = "Mostrar el tiempo de restablecimiento de la métrica seleccionada (p. ej. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Mostrar la hora de restablecimiento cuando se agote la cuota";
+"menu_bar_reset_when_exhausted_subtitle" = "Con un 0% restante, muestra el tiempo hasta el restablecimiento en lugar del porcentaje";
 
 /* Provider status */
 "status_operational" = "Operativo";
@@ -1008,3 +1018,6 @@
 "section_diagnostics" = "Diagnósticos";
 "section_updates" = "Actualizaciones";
 "section_links" = "Enlaces";
+"Show Codex Spark usage" = "Mostrar el uso de Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Muestra las filas de cuota de Codex Spark en el menú y en la vista previa del proveedor. Requiere activar «Mostrar créditos + uso adicional» en los ajustes de Pantalla.";
+"Scroll to see more models" = "Desplázate para ver más modelos";

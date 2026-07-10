@@ -221,6 +221,23 @@ protocol SessionQuotaNotifying: AnyObject {
         provider: UsageProvider,
         soundEnabled: Bool,
         onScreenAlertEnabled: Bool)
+    func postPredictivePaceWarning(
+        event: PredictivePaceWarningEvent,
+        provider: UsageProvider,
+        soundEnabled: Bool,
+        onScreenAlertEnabled: Bool,
+        now: Date)
+}
+
+@MainActor
+extension SessionQuotaNotifying {
+    func postPredictivePaceWarning(
+        event _: PredictivePaceWarningEvent,
+        provider _: UsageProvider,
+        soundEnabled _: Bool,
+        onScreenAlertEnabled _: Bool,
+        now _: Date)
+    {}
 }
 
 @MainActor
@@ -278,10 +295,33 @@ final class SessionQuotaNotifier: SessionQuotaNotifying {
                 postedAt: Date()))
         AppNotifications.shared.post(idPrefix: idPrefix, title: copy.title, body: copy.body, soundEnabled: false)
     }
+
+    func postPredictivePaceWarning(
+        event: PredictivePaceWarningEvent,
+        provider: UsageProvider,
+        soundEnabled: Bool = true,
+        onScreenAlertEnabled: Bool = false,
+        now: Date = .init())
+    {
+        let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        let copy = PredictivePaceWarningNotificationLogic.notificationCopy(
+            providerName: providerName,
+            event: event,
+            now: now)
+        let idPrefix = PredictivePaceWarningNotificationLogic.notificationIDPrefix(provider: provider, event: event)
+        self.logger.info("enqueuing", metadata: ["prefix": idPrefix])
+        if soundEnabled {
+            (NSSound(named: "Glass") ?? NSSound(named: "Ping"))?.play()
+        }
+        if onScreenAlertEnabled {
+            self.alertOverlay.show(title: copy.title, message: copy.body)
+        }
+        AppNotifications.shared.post(idPrefix: idPrefix, title: copy.title, body: copy.body, soundEnabled: false)
+    }
 }
 
 extension QuotaWarningWindow {
-    fileprivate var localizedNotificationDisplayName: String {
+    var localizedNotificationDisplayName: String {
         switch self {
         case .session: L("quota_warning_session")
         case .weekly: L("quota_warning_weekly")

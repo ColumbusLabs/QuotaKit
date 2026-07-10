@@ -53,8 +53,8 @@ struct UsageStoreWidgetSnapshotTests {
     }
 
     @Test
-    func `widget snapshot includes Kimi monthly quota`() async throws {
-        let suite = "UsageStoreWidgetSnapshotTests-kimi-monthly"
+    func `widget snapshot includes Kimi subscription quota rows`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-kimi-subscription-rows"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
 
@@ -74,6 +74,22 @@ struct UsageStoreWidgetSnapshotTests {
             secondary: RateWindow(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
             tertiary: nil,
             extraRateWindows: [
+                NamedRateWindow(
+                    id: "kimi-code-7d",
+                    title: "Code 7-day",
+                    window: RateWindow(
+                        usedPercent: 10,
+                        windowMinutes: 7 * 24 * 60,
+                        resetsAt: nil,
+                        resetDescription: nil)),
+                NamedRateWindow(
+                    id: "kimi-future-quota",
+                    title: "Future quota",
+                    window: RateWindow(
+                        usedPercent: 5,
+                        windowMinutes: nil,
+                        resetsAt: nil,
+                        resetDescription: nil)),
                 NamedRateWindow(
                     id: "kimi-monthly",
                     title: "Monthly",
@@ -95,14 +111,14 @@ struct UsageStoreWidgetSnapshotTests {
         store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
         defer { store._test_widgetSnapshotSaveOverride = nil }
 
-        store.persistWidgetSnapshot(reason: "kimi-monthly-test")
+        store.persistWidgetSnapshot(reason: "kimi-subscription-rows-test")
         await store.widgetSnapshotPersistTask?.value
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .kimi })
         // Widgets preserve persisted lane order; menu-only presentation may reorder these lanes.
-        #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", "kimi-monthly"])
-        #expect(entry.usageRows?.map(\.title) == ["Weekly", "Rate Limit", "Monthly"])
-        #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 50, 25])
+        #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", "kimi-monthly", "kimi-code-7d"])
+        #expect(entry.usageRows?.map(\.title) == ["Weekly", "Rate Limit", "Monthly", "Code 7-day"])
+        #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 50, 25, 90])
     }
 
     @Test
@@ -399,5 +415,58 @@ struct UsageStoreWidgetSnapshotTests {
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .devin })
         #expect((entry.providerCost != nil) == showsExtraUsage)
+    }
+
+    @Test
+    func `widget snapshot carries token usage age separately from entry freshness`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-token-usage-age"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let entryUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenUpdatedAt = entryUpdatedAt.addingTimeInterval(-45 * 60)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(usedPercent: 30, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+                secondary: nil,
+                updatedAt: entryUpdatedAt,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .claude,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: nil)),
+            provider: .claude)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 4200,
+                sessionCostUSD: 1.25,
+                last30DaysTokens: 42000,
+                last30DaysCostUSD: 12.50,
+                daily: [],
+                updatedAt: tokenUpdatedAt),
+            provider: .claude)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "token-usage-age-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(entry.updatedAt == entryUpdatedAt)
+        #expect(entry.tokenUsage?.updatedAt == tokenUpdatedAt)
+        #expect(entry.tokenUsage?.isStale(comparedTo: entry.updatedAt) == true)
     }
 }

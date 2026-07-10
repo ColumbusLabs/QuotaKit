@@ -12,6 +12,7 @@ extension SettingsStore {
         _ = self.statusChecksEnabled
         _ = self.sessionQuotaNotificationsEnabled
         _ = self.quotaWarningNotificationsEnabled
+        _ = self.predictivePaceWarningNotificationsEnabled
         _ = self.quotaWarningThresholds
         _ = self.quotaWarningThresholds(.session)
         _ = self.quotaWarningThresholds(.weekly)
@@ -28,6 +29,7 @@ extension SettingsStore {
         _ = self.menuBarHidesCritters
         _ = self.menuBarShowsHighestUsage
         _ = self.menuBarDisplayMode
+        _ = self.menuBarShowsResetTimeWhenExhausted
         _ = self.kiroMenuBarDisplayMode
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
@@ -47,9 +49,12 @@ extension SettingsStore {
         _ = self.claudeWebExtrasEnabled
         _ = self.copilotBudgetExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
+        _ = self.codexSparkUsageVisible
         _ = self.openAIWebAccessEnabled
         _ = self.openAIWebBatterySaverEnabled
         _ = self.providerStorageFootprintsEnabled
+        _ = self.agentSessionsEnabled
+        _ = self.agentSessionsManualHosts
         _ = self.codexUsageDataSource
         _ = self.codexActiveSource
         _ = self.claudeUsageDataSource

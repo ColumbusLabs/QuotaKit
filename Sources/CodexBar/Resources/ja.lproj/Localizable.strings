@@ -449,6 +449,11 @@
 "quota_warning_notification_title" = "%1$@ の%2$@クォータが残りわずか";
 "quota_warning_notification_body" = "残り %1$@。設定した %2$d%% の%3$@警告しきい値に達しました。";
 "quota_warning_notification_body_with_account" = "アカウント %1$@。残り %2$@。設定した %3$d%% の%4$@警告しきい値に達しました。";
+"predictive_pace_warnings_title" = "予測ペース警告";
+"predictive_pace_warnings_subtitle" = "Codex と Claude で、セッションまたは週間のペースではリセット前にクォータが尽きる可能性がある場合に警告します。";
+"predictive_pace_warning_notification_title" = "%1$@ の%2$@ペース警告";
+"predictive_pace_warning_notification_body" = "現在のペースでは、リセット前にこのクォータがあと %1$@ で尽きる可能性があります。";
+"predictive_pace_warning_notification_body_with_account" = "アカウント %1$@。現在のペースでは、リセット前にこのクォータがあと %2$@ で尽きる可能性があります。";
 "session_depleted_notification_title" = "%@ のセッションを使い切りました";
 "session_depleted_notification_body" = "残り 0% です。再び利用可能になったら通知します。";
 "session_restored_notification_title" = "%@ のセッションが回復しました";
@@ -458,14 +463,17 @@
 "quota_warning_sound" = "通知音を再生";
 "quota_warning_onscreen_alert" = "画面上にテキストアラートを表示";
 "quota_warning_provider_inherits" = "ここでウインドウをカスタマイズしない限り、グローバルのクォータ警告設定を使用します。";
+"quota_warning_global" = "グローバル";
 "quota_warning_customize_thresholds" = "%@ のしきい値をカスタマイズ";
 "quota_warning_enable_warnings" = "%@ の警告を有効にする";
 "quota_warning_window_warn_at" = "%@ の警告残量";
 "quota_warning_off" = "オフ";
 "quota_warning_inherited" = "継承: %@";
 "quota_warning_depleted_only" = "枯渇時のみ";
-"quota_warning_upper" = "上限";
+"quota_warning_upper" = "高め";
 "quota_warning_lower" = "下限";
+"quota_warning_warning" = "警告";
+"quota_warning_critical" = "重大";
 "apply" = "適用";
 "quit_app" = "CodexBar を終了";
 
@@ -656,6 +664,8 @@
 "display_mode_pace_desc" = "ペースインジケータを表示（例: +5%）";
 "display_mode_both_desc" = "パーセンテージとペースの両方を表示（例: 45% · +5%）";
 "display_mode_reset_time_desc" = "選択した指標のリセット時刻を表示（例: ↻ 15:56）";
+"menu_bar_reset_when_exhausted_title" = "クォータを使い切ったらリセット時刻を表示";
+"menu_bar_reset_when_exhausted_subtitle" = "残り0%のとき、パーセントの代わりにリセットまでの時間を表示します";
 
 /* Provider status */
 "status_operational" = "正常稼働中";
@@ -1148,3 +1158,6 @@
 "section_diagnostics" = "診断";
 "section_updates" = "アップデート";
 "section_links" = "リンク";
+"Show Codex Spark usage" = "Codex Spark の使用量を表示";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "メニューとプロバイダのプレビューに Codex Spark のクォータ行を表示します。表示設定で「クレジットと追加使用量を表示」を有効にする必要があります。";
+"Scroll to see more models" = "スクロールして他のモデルを表示";

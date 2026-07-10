@@ -452,6 +452,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ квота низька";
 "quota_warning_notification_body" = "%1$@ залишилося. Досягнуто %2$d%% %3$@ порогового значення попередження.";
 "quota_warning_notification_body_with_account" = "Рахунок %1$@. Залишилося %2$@. Досягнуто %3$d%% %4$@ порогового значення попередження.";
+"predictive_pace_warnings_title" = "Прогнозні попередження про темп";
+"predictive_pace_warnings_subtitle" = "Попереджає для Codex і Claude, коли темп сеансу або тижня може вичерпати квоту до скидання.";
+"predictive_pace_warning_notification_title" = "%1$@: попередження про темп (%2$@)";
+"predictive_pace_warning_notification_body" = "За поточного темпу ця квота може вичерпатися за %1$@, до скидання.";
+"predictive_pace_warning_notification_body_with_account" = "Обліковий запис %1$@. За поточного темпу ця квота може вичерпатися за %2$@, до скидання.";
 "session_depleted_notification_title" = "%@ сеанс вичерпано";
 "session_depleted_notification_body" = "Залишилося 0%. Надішле сповіщення, коли знову стане доступним.";
 "session_restored_notification_title" = "%@ сеанс відновлено";
@@ -461,14 +466,17 @@
 "quota_warning_sound" = "Відтворити звук сповіщення";
 "quota_warning_onscreen_alert" = "Показувати текстове сповіщення на екрані";
 "quota_warning_provider_inherits" = "Використовує глобальні параметри попередження про квоту, якщо тут не налаштовано вікно.";
+"quota_warning_global" = "Глобально";
 "quota_warning_customize_thresholds" = "Налаштувати порогові значення %@";
 "quota_warning_enable_warnings" = "Увімкнути %@ попереджень";
 "quota_warning_window_warn_at" = "%@ попередити о";
 "quota_warning_off" = "Вимкнено";
 "quota_warning_inherited" = "Успадковано: %@";
 "quota_warning_depleted_only" = "лише виснажені";
-"quota_warning_upper" = "Верхній";
+"quota_warning_upper" = "Вищий";
 "quota_warning_lower" = "Нижній";
+"quota_warning_warning" = "Попередження";
+"quota_warning_critical" = "Критично";
 "apply" = "Застосувати";
 "quit_app" = "Закрийте CodexBar";
 
@@ -659,6 +667,8 @@
 "display_mode_pace_desc" = "Показати індикатор темпу (наприклад, +5%)";
 "display_mode_both_desc" = "Показати відсоток і темп (наприклад, 45% · +5%)";
 "display_mode_reset_time_desc" = "Показувати час скидання для вибраного показника (наприклад, ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Показувати час скидання, коли квоту вичерпано";
+"menu_bar_reset_when_exhausted_subtitle" = "За залишку 0% показує час до скидання замість відсотка";
 
 /* Provider status */
 "status_operational" = "Працює";
@@ -1147,3 +1157,6 @@
 "section_diagnostics" = "Діагностика";
 "section_updates" = "Оновлення";
 "section_links" = "Посилання";
+"Show Codex Spark usage" = "Показати використання Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Показує рядки квоти Codex Spark у меню та попередньому перегляді провайдера. Потрібно ввімкнути «Показати кредити + додаткове використання» в налаштуваннях «Відображення».";
+"Scroll to see more models" = "Прокрутіть, щоб побачити більше моделей";

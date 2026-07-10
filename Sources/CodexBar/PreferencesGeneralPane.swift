@@ -147,11 +147,35 @@ struct GeneralPane: View {
                         subtitle: L("quota_warning_notifications_subtitle"))
                 }
 
-                if self.settings.quotaWarningNotificationsEnabled {
-                    GlobalQuotaWarningSettingsView(settings: self.settings)
+                Toggle(isOn: self.$settings.predictivePaceWarningNotificationsEnabled) {
+                    SettingsRowLabel(
+                        L("predictive_pace_warnings_title"),
+                        subtitle: L("predictive_pace_warnings_subtitle"))
+                }
+
+                let warningSettingsVisibility = QuotaWarningSettingsVisibility(
+                    thresholdWarningsEnabled: self.settings.quotaWarningNotificationsEnabled,
+                    predictiveWarningsEnabled: self.settings.predictivePaceWarningNotificationsEnabled)
+                if warningSettingsVisibility.showsDeliveryControls {
+                    GlobalQuotaWarningSettingsView(
+                        settings: self.settings,
+                        showsThresholdControls: warningSettingsVisibility.showsThresholdControls)
                 }
             } header: {
                 Text(L("section_notifications"))
+            }
+
+            Section {
+                Toggle("Enable Agent Sessions", isOn: self.$settings.agentSessionsEnabled)
+
+                TextField("Manual SSH hosts", text: self.$settings.agentSessionsManualHosts)
+                    .disabled(!self.settings.agentSessionsEnabled)
+            } header: {
+                Text("Sessions")
+            } footer: {
+                Text(
+                    "Macs on your tailnet are discovered automatically. Local sessions refresh every " +
+                        "30 seconds; remote hosts every 60 seconds and when the menu opens.")
             }
 
             Section {
@@ -172,5 +196,6 @@ struct GeneralPane: View {
         .formStyle(.grouped)
         .toggleStyle(.switch)
         .scrollContentBackground(.hidden)
+        .background(FocusResigningBackground())
     }
 }

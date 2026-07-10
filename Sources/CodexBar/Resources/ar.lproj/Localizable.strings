@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "انخفاض حصة %2$@ لدى %1$@";
 "quota_warning_notification_body" = "%1$@ متبقٍ. تم بلوغ حد التحذير البالغ %2$d%% لحصة %3$@.";
 "quota_warning_notification_body_with_account" = "الحساب %1$@. متبقٍ %2$@. تم بلوغ حد التحذير البالغ %3$d%% لحصة %4$@.";
+"predictive_pace_warnings_title" = "تحذيرات تنبؤية للوتيرة";
+"predictive_pace_warnings_subtitle" = "يُحذّر لـ Codex وClaude عندما قد تؤدي وتيرة الجلسة أو الأسبوع إلى نفاد الحصة قبل إعادة التعيين.";
+"predictive_pace_warning_notification_title" = "%1$@: تحذير وتيرة %2$@";
+"predictive_pace_warning_notification_body" = "بالوتيرة الحالية، قد تنفد هذه الحصة خلال %1$@ قبل إعادة تعيينها.";
+"predictive_pace_warning_notification_body_with_account" = "الحساب %1$@. بالوتيرة الحالية، قد تنفد هذه الحصة خلال %2$@ قبل إعادة تعيينها.";
 "session_depleted_notification_title" = "جلسة %@ استنزفت";
 "session_depleted_notification_body" = "المتبقي 0%. سنبلغك عندما تصبح الحصة متاحة مجددًا.";
 "session_restored_notification_title" = "%@ الجلسة التي استعادت";
@@ -462,14 +467,17 @@
 "quota_warning_sound" = "تشغيل صوت الإشعار";
 "quota_warning_onscreen_alert" = "إظهار تنبيه نصي على الشاشة";
 "quota_warning_provider_inherits" = "يستخدم إعدادات تحذير الحصص العامة إلا إذا تم تخصيص نافذة هنا.";
+"quota_warning_global" = "عام";
 "quota_warning_customize_thresholds" = "تخصيص عتبات %@";
 "quota_warning_enable_warnings" = "تفعيل تحذيرات %@";
 "quota_warning_window_warn_at" = "%@ التحذير في";
 "quota_warning_off" = "انطلق";
 "quota_warning_inherited" = "الموروث: %@";
 "quota_warning_depleted_only" = "مستنزف فقط";
-"quota_warning_upper" = "الأعلى";
+"quota_warning_upper" = "أعلى";
 "quota_warning_lower" = "الأسفل";
+"quota_warning_warning" = "تحذير";
+"quota_warning_critical" = "حرج";
 "apply" = "قدم";
 "quit_app" = "إنهاء CodexBar";
 
@@ -660,6 +668,8 @@
 "display_mode_pace_desc" = "مؤشر السرعة (مثلا +5%)";
 "display_mode_both_desc" = "أظهر كل من النسبة المئوية والسرعة (مثلا 45% · +5%)";
 "display_mode_reset_time_desc" = "عرض وقت إعادة الضبط للمقياس المحدد (مثلا ↻ 3:56 مساء)";
+"menu_bar_reset_when_exhausted_title" = "عرض وقت إعادة التعيين عند نفاد الحصة";
+"menu_bar_reset_when_exhausted_subtitle" = "عند تبقّي 0%، اعرض الوقت حتى إعادة التعيين بدلًا من النسبة المئوية";
 
 /* Provider status */
 "status_operational" = "التشغيل";
@@ -1154,3 +1164,6 @@
 "section_diagnostics" = "التشخيصات";
 "section_updates" = "التحديثات";
 "section_links" = "روابط";
+"Show Codex Spark usage" = "عرض استخدام Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "يعرض صفوف حصة Codex Spark في القائمة ومعاينة المزوّد. يتطلب تفعيل «عرض الاعتمادات + الاستخدام الإضافي» في إعدادات العرض.";
+"Scroll to see more models" = "مرر لرؤية المزيد من النماذج";

@@ -10,6 +10,15 @@ source "$ROOT/Scripts/release_artifacts.sh"
 source "$ROOT/Scripts/package_product_paths.sh"
 source "$ROOT/Scripts/release_dsym_paths.sh"
 
+verify_distribution_policy() {
+  local app=$1
+  if command -v syspolicy_check >/dev/null 2>&1; then
+    syspolicy_check distribution "$app"
+  else
+    spctl -a -t exec -vv "$app"
+  fi
+}
+
 # Allow building a universal binary if ARCHES is provided; default to universal (arm64 + x86_64).
 ARCHES_VALUE=${ARCHES:-"arm64 x86_64"}
 ZIP_NAME=$(codexbar_app_zip_name "$MARKETING_VERSION" "$ARCHES_VALUE")
@@ -79,7 +88,7 @@ find "$APP_BUNDLE" -name '._*' -delete
 
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$ZIP_NAME"
 
-spctl -a -t exec -vv "$APP_BUNDLE"
+verify_distribution_policy "$APP_BUNDLE"
 stapler validate "$APP_BUNDLE"
 
 echo "Packaging dSYM"

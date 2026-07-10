@@ -4,6 +4,47 @@ import Testing
 
 struct ConfigValidationTests {
     @Test
+    func `fresh config defaults Alibaba Token Plan to International`() throws {
+        let config = CodexBarConfig.makeDefault()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(provider.region == AlibabaTokenPlanAPIRegion.international.rawValue)
+        #expect(!issues.contains(where: { $0.provider == .alibabatokenplan }))
+    }
+
+    @Test
+    func `normalization preserves legacy Alibaba Token Plan region`() throws {
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .alibabatokenplan, region: nil),
+        ]).normalized()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
+
+        #expect(provider.region == nil)
+    }
+
+    @Test
+    func `normalization adds missing Alibaba Token Plan as China mainland`() throws {
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .codex),
+        ]).normalized()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
+
+        #expect(provider.region == AlibabaTokenPlanAPIRegion.chinaMainland.rawValue)
+    }
+
+    @Test
+    func `reports invalid Alibaba Token Plan region`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .alibabatokenplan, region: "nowhere"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(issues.contains(where: {
+            $0.provider == .alibabatokenplan && $0.code == "invalid_region"
+        }))
+    }
+
+    @Test
     func `reports unsupported source`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .codex, source: .api))
@@ -17,6 +58,18 @@ struct ConfigValidationTests {
         config.setProviderConfig(ProviderConfig(id: .zai, source: .api, apiKey: nil))
         let issues = CodexBarConfigValidator.validate(config)
         #expect(issues.contains(where: { $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `allows credentialless Wayfinder API source`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .wayfinder,
+            source: .api,
+            enterpriseHost: "http://127.0.0.1:9191"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .wayfinder && $0.code == "api_key_missing" }))
     }
 
     @Test
@@ -90,6 +143,19 @@ struct ConfigValidationTests {
         let issues = CodexBarConfigValidator.validate(config)
 
         #expect(!issues.contains(where: { $0.provider == .litellm && $0.code == "enterprise_host_unused" }))
+    }
+
+    @Test
+    func `unsupported enterprise host warning lists every supported provider`() throws {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .gemini, enterpriseHost: "https://example.com"))
+        let issue = try #require(CodexBarConfigValidator.validate(config).first(where: {
+            $0.provider == .gemini && $0.code == "enterprise_host_unused"
+        }))
+
+        #expect(issue.message ==
+            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, and wayfinder " +
+            "support enterpriseHost.")
     }
 
     @Test

@@ -447,6 +447,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ 할당량 부족";
 "quota_warning_notification_body" = "%1$@ 남음. %2$d%% %3$@ 경고 임곗값에 도달했습니다.";
 "quota_warning_notification_body_with_account" = "계정 %1$@. %2$@ 남음. %3$d%% %4$@ 경고 임곗값에 도달했습니다.";
+"predictive_pace_warnings_title" = "예측 속도 경고";
+"predictive_pace_warnings_subtitle" = "Codex 및 Claude에서 세션 또는 주간 사용 속도로 인해 재설정 전에 할당량이 소진될 수 있으면 경고합니다.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@ 사용 속도 경고";
+"predictive_pace_warning_notification_body" = "현재 속도라면 이 할당량이 재설정 전에 %1$@ 후 소진될 수 있습니다.";
+"predictive_pace_warning_notification_body_with_account" = "계정 %1$@. 현재 속도라면 이 할당량이 재설정 전에 %2$@ 후 소진될 수 있습니다.";
 "session_depleted_notification_title" = "%@ 세션 소진됨";
 "session_depleted_notification_body" = "0% 남음. 다시 사용할 수 있게 되면 알립니다.";
 "session_restored_notification_title" = "%@ 세션 복원됨";
@@ -456,14 +461,17 @@
 "quota_warning_sound" = "알림 소리 재생";
 "quota_warning_onscreen_alert" = "화면에 텍스트 알림 표시";
 "quota_warning_provider_inherits" = "여기서 범위를 사용자 설정하지 않는 한 전역 할당량 경고 설정을 사용합니다.";
+"quota_warning_global" = "전역";
 "quota_warning_customize_thresholds" = "%@ 임곗값 사용자 설정";
 "quota_warning_enable_warnings" = "%@ 경고 사용";
 "quota_warning_window_warn_at" = "%@ 경고 기준";
 "quota_warning_off" = "사용 안 함";
 "quota_warning_inherited" = "상속됨: %@";
 "quota_warning_depleted_only" = "소진 시에만";
-"quota_warning_upper" = "상한";
+"quota_warning_upper" = "더 높음";
 "quota_warning_lower" = "하한";
+"quota_warning_warning" = "경고";
+"quota_warning_critical" = "심각";
 "apply" = "적용";
 "quit_app" = "CodexBar 종료";
 "tab_general" = "일반";
@@ -638,6 +646,8 @@
 "display_mode_pace_desc" = "사용 속도 표시기 표시(예: +5%)";
 "display_mode_both_desc" = "백분율과 사용 속도 모두 표시(예: 45% · +5%)";
 "display_mode_reset_time_desc" = "선택한 지표의 재설정 시간 표시(예: ↻ 오후 3:56)";
+"menu_bar_reset_when_exhausted_title" = "할당량 소진 시 재설정 시간 표시";
+"menu_bar_reset_when_exhausted_subtitle" = "남은 양이 0%일 때 백분율 대신 재설정까지의 시간을 표시합니다";
 "status_operational" = "정상 작동";
 "status_degraded" = "성능 저하";
 "status_partial_outage" = "부분 장애";
@@ -1116,3 +1126,6 @@
 "section_diagnostics" = "진단";
 "section_updates" = "업데이트";
 "section_links" = "링크";
+"Show Codex Spark usage" = "Codex Spark 사용량 표시";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "메뉴와 공급자 미리보기에 Codex Spark 할당량 행을 표시합니다. 표시 설정에서 ‘크레딧 + 추가 사용량 표시’를 활성화해야 합니다.";
+"Scroll to see more models" = "스크롤하여 더 많은 모델 보기";

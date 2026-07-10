@@ -76,17 +76,34 @@ enum GeminiAPITestHelpers {
         return "header.\(encoded).sig"
     }
 
-    static func loadCodeAssistResponse(tierId: String, projectId: String? = nil) -> Data {
-        var payload: [String: Any] = [
-            "currentTier": [
+    static func loadCodeAssistResponse(
+        tierId: String?,
+        projectId: String? = nil,
+        paidTierName: String? = nil) -> Data
+    {
+        var payload: [String: Any] = [:]
+        if let tierId {
+            payload["currentTier"] = [
                 "id": tierId,
                 "name": tierId.replacingOccurrences(of: "-tier", with: ""),
-            ],
-        ]
+            ]
+        }
         if let projectId {
             payload["cloudaicompanionProject"] = projectId
         }
+        if let paidTierName {
+            payload["paidTier"] = [
+                "name": paidTierName,
+            ]
+        }
         return self.jsonData(payload)
+    }
+
+    static func loadCodeAssistConsumerPlusResponse(projectId: String? = "cloudaicompanion-123") -> Data {
+        self.loadCodeAssistResponse(
+            tierId: "free-tier",
+            projectId: projectId,
+            paidTierName: "Plus")
     }
 
     static func loadCodeAssistFreeTierResponse() -> Data {
@@ -97,7 +114,28 @@ enum GeminiAPITestHelpers {
         self.loadCodeAssistResponse(tierId: "standard-tier")
     }
 
+    static func loadCodeAssistGoogleOneProResponse(projectId: String? = "cloudaicompanion-123") -> Data {
+        self.loadCodeAssistResponse(
+            tierId: "standard-tier",
+            projectId: projectId,
+            paidTierName: "Gemini Code Assist in Google One AI Pro")
+    }
+
     static func loadCodeAssistLegacyTierResponse() -> Data {
         self.loadCodeAssistResponse(tierId: "legacy-tier")
+    }
+
+    static func consumerTierDeprecationResponse() -> Data {
+        self.jsonData([
+            "error": [
+                "code": 403,
+                "message": """
+                IneligibleTierError / UNSUPPORTED_CLIENT: This client is no longer supported for \
+                Gemini Code Assist for individuals. To continue using Gemini, please migrate to the \
+                Antigravity suite of products.
+                """,
+                "status": "PERMISSION_DENIED",
+            ],
+        ])
     }
 }

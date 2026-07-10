@@ -539,7 +539,12 @@ extension UsageMenuCardView.Model {
         if input.provider == .copilot, !input.copilotBudgetExtrasEnabled {
             return []
         }
-        return extraRateWindows.map { namedWindow in
+        let visibleRateWindows = if input.provider == .codex, !input.codexSparkUsageVisible {
+            extraRateWindows.filter { !Self.isCodexSparkRateWindow($0) }
+        } else {
+            extraRateWindows
+        }
+        return visibleRateWindows.map { namedWindow in
             let paceDetail = Self.extraRateWindowPaceDetail(
                 provider: input.provider,
                 window: namedWindow.window,
@@ -571,6 +576,11 @@ extension UsageMenuCardView.Model {
                 pacePercent: usageKnown ? paceDetail?.pacePercent : nil,
                 paceOnTop: paceDetail?.paceOnTop ?? true)
         }
+    }
+
+    private static func isCodexSparkRateWindow(_ namedWindow: NamedRateWindow) -> Bool {
+        namedWindow.id == CodexAdditionalRateLimitMapper.sparkWindowID ||
+            namedWindow.id == CodexAdditionalRateLimitMapper.sparkWeeklyWindowID
     }
 
     private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
@@ -627,7 +637,7 @@ extension UsageMenuCardView.Model {
         window: RateWindow,
         input: Input) -> PaceDetail?
     {
-        guard provider == .codex else { return nil }
+        guard provider == .codex || provider == .antigravity else { return nil }
         switch window.windowMinutes {
         case 300:
             return self.sessionPaceDetail(
@@ -643,6 +653,35 @@ extension UsageMenuCardView.Model {
                 workDays: input.workDaysPerWeek))
             return Self.weeklyPaceDetail(
                 provider: provider,
+                window: window,
+                now: input.now,
+                pace: pace,
+                showUsed: input.usageBarsShowUsed)
+        default:
+            return nil
+        }
+    }
+
+    private static func antigravityMetricPaceDetail(
+        window: RateWindow,
+        input: Input) -> PaceDetail?
+    {
+        guard input.provider == .antigravity else { return nil }
+        switch window.windowMinutes {
+        case nil, 300:
+            return self.sessionPaceDetail(
+                provider: input.provider,
+                window: window,
+                now: input.now,
+                showUsed: input.usageBarsShowUsed)
+        case 10080:
+            let pace = Self.displayableWeeklyPace(UsagePace.weekly(
+                window: window,
+                now: input.now,
+                defaultWindowMinutes: 10080,
+                workDays: input.workDaysPerWeek))
+            return Self.weeklyPaceDetail(
+                provider: input.provider,
                 window: window,
                 now: input.now,
                 pace: pace,
@@ -675,6 +714,7 @@ extension UsageMenuCardView.Model {
                 paceOnTop: true)
         }
         let percent = input.usageBarsShowUsed ? window.usedPercent : window.remainingPercent
+        let paceDetail = Self.antigravityMetricPaceDetail(window: window, input: input)
         return Metric(
             id: id,
             title: title,
@@ -682,10 +722,10 @@ extension UsageMenuCardView.Model {
             percentStyle: percentStyle,
             resetText: Self.resetText(for: window, style: input.resetTimeDisplayStyle, now: input.now),
             detailText: nil,
-            detailLeftText: nil,
-            detailRightText: nil,
-            pacePercent: nil,
-            paceOnTop: true)
+            detailLeftText: paceDetail?.leftLabel,
+            detailRightText: paceDetail?.rightLabel,
+            pacePercent: paceDetail?.pacePercent,
+            paceOnTop: paceDetail?.paceOnTop ?? true)
     }
 
     static func zaiLimitDetailText(limit: ZaiLimitEntry?) -> String? {

@@ -68,6 +68,12 @@ extension UsageMenuCardView.Model {
             return notes
         }
 
+        if input.provider == .wayfinder,
+           let usage = input.snapshot?.wayfinderUsage
+        {
+            return usage.displayLines
+        }
+
         if input.provider == .minimax,
            input.showOptionalCreditsAndExtraUsage,
            let billing = input.snapshot?.minimaxUsage?.billingSummary

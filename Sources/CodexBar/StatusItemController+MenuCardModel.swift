@@ -2,6 +2,16 @@ import CodexBarCore
 import Foundation
 
 extension StatusItemController {
+    func makeMenuCardRefreshMonitor() -> MenuCardRefreshMonitor {
+        MenuCardRefreshMonitor(
+            resolveModel: { [weak self] provider in
+                self?.menuCardModel(for: provider)
+            },
+            isProviderRefreshActive: { [weak self] provider in
+                self?.store.refreshingProviders.contains(provider) == true
+            })
+    }
+
     func menuCardModel(
         for provider: UsageProvider?,
         snapshotOverride: UsageSnapshot? = nil,
@@ -122,6 +132,7 @@ extension StatusItemController {
                 self.settings.costSummaryShowsSubmenu(for: target),
             costComparisonPeriodsEnabled: self.settings.costComparisonPeriodsEnabled,
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            codexSparkUsageVisible: self.settings.codexSparkUsageVisible,
             copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             sourceLabel: sourceLabel,
             kiloAutoMode: kiloAutoMode,

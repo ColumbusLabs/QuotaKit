@@ -62,3 +62,20 @@ enum GeneralSettingsMenuOptions {
         TerminalApp.pickerOptions(selected: selected, applicationURL: applicationURL)
     }
 }
+
+enum DisplaySettingsMenuOptions {
+    static let displayModes = MenuBarDisplayMode.allCases
+    static let weeklyProgressWorkDays: [Int?] = [nil, 4, 5, 7]
+    static let multiAccountLayouts = MultiAccountMenuLayout.allCases
+    static let costSummaryDisplayStyles = CostSummaryDisplayStyle.allCases
+
+    static func weeklyProgressWorkDaysLabel(_ workDays: Int?) -> String {
+        switch workDays {
+        case nil: L("Off")
+        case 4: L("4 days")
+        case 5: L("5 days")
+        case 7: L("7 days")
+        case let workDays?: L("%d days", workDays)
+        }
+    }
+}

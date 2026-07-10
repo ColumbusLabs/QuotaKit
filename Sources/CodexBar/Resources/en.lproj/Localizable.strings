@@ -453,6 +453,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ quota low";
 "quota_warning_notification_body" = "%1$@ left. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Account %1$@. %2$@ left. Reached your %3$d%% %4$@ warning threshold.";
+"predictive_pace_warnings_title" = "Predictive pace warnings";
+"predictive_pace_warnings_subtitle" = "Warns for Codex and Claude when session or weekly pace may run out before reset.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@ pace warning";
+"predictive_pace_warning_notification_body" = "At the current pace, this quota may run out in %1$@, before it resets.";
+"predictive_pace_warning_notification_body_with_account" = "Account %1$@. At the current pace, this quota may run out in %2$@, before it resets.";
 "session_depleted_notification_title" = "%@ session depleted";
 "session_depleted_notification_body" = "0% left. Will notify when it's available again.";
 "session_restored_notification_title" = "%@ session restored";
@@ -462,14 +467,17 @@
 "quota_warning_sound" = "Play notification sound";
 "quota_warning_onscreen_alert" = "Show on-screen text alert";
 "quota_warning_provider_inherits" = "Uses the global quota warning settings unless a window is customized here.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Customize %@ thresholds";
 "quota_warning_enable_warnings" = "Enable %@ warnings";
 "quota_warning_window_warn_at" = "%@ warn at";
 "quota_warning_off" = "Off";
 "quota_warning_inherited" = "Inherited: %@";
 "quota_warning_depleted_only" = "depleted only";
-"quota_warning_upper" = "Upper";
+"quota_warning_upper" = "Higher";
 "quota_warning_lower" = "Lower";
+"quota_warning_warning" = "Warning";
+"quota_warning_critical" = "Critical";
 "apply" = "Apply";
 "quit_app" = "Quit CodexBar";
 
@@ -660,6 +668,8 @@
 "display_mode_pace_desc" = "Show pace indicator (e.g. +5%)";
 "display_mode_both_desc" = "Show both percentage and pace (e.g. 45% · +5%)";
 "display_mode_reset_time_desc" = "Show the reset time for the selected metric (e.g. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Show reset time when quota runs out";
+"menu_bar_reset_when_exhausted_subtitle" = "At 0% remaining, show the time until reset instead of the percentage";
 
 /* Provider status */
 "status_operational" = "Operational";
@@ -1154,3 +1164,6 @@
 "section_diagnostics" = "Diagnostics";
 "section_updates" = "Updates";
 "section_links" = "Links";
+"Show Codex Spark usage" = "Show Codex Spark usage";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings.";
+"Scroll to see more models" = "Scroll to see more models";

@@ -448,6 +448,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ Hạn mức thấp";
 "quota_warning_notification_body" = "%1$@ left. Reached your %2$d%% %3$@ warning threshold.";
 "quota_warning_notification_body_with_account" = "Tài khoản %1$@ . Còn lại %2$@. Đã đạt đến ngưỡng cảnh báo %3$d %% %4$@ của bạn.";
+"predictive_pace_warnings_title" = "Cảnh báo nhịp dùng dự đoán";
+"predictive_pace_warnings_subtitle" = "Cảnh báo cho Codex và Claude khi nhịp dùng phiên hoặc hằng tuần có thể làm hết hạn mức trước khi đặt lại.";
+"predictive_pace_warning_notification_title" = "%1$@ cảnh báo nhịp dùng %2$@";
+"predictive_pace_warning_notification_body" = "Với nhịp dùng hiện tại, hạn mức này có thể hết trong %1$@, trước khi đặt lại.";
+"predictive_pace_warning_notification_body_with_account" = "Tài khoản %1$@. Với nhịp dùng hiện tại, hạn mức này có thể hết trong %2$@, trước khi đặt lại.";
 "session_depleted_notification_title" = "%@ phiên đã hết";
 "session_depleted_notification_body" = "còn lại 0%. Sẽ thông báo khi có lại.";
 "session_restored_notification_title" = "%@ phiên đã được khôi phục";
@@ -457,14 +462,17 @@
 "quota_warning_sound" = "Phát âm thanh thông báo";
 "quota_warning_onscreen_alert" = "Hiển thị cảnh báo văn bản trên màn hình";
 "quota_warning_provider_inherits" = "Sử dụng cảnh báo Hạn mức toàn cầu Cài đặt trừ khi một cửa sổ được tùy chỉnh tại đây.";
+"quota_warning_global" = "Toàn cục";
 "quota_warning_customize_thresholds" = "Tùy chỉnh %@ ngưỡng";
 "quota_warning_enable_warnings" = "Bật %@ cảnh báo";
 "quota_warning_window_warn_at" = "%@ cảnh báo lúc";
 "quota_warning_off" = "Tắt";
 "quota_warning_inherited" = "Đã kế thừa: %@";
 "quota_warning_depleted_only" = "chỉ đã cạn";
-"quota_warning_upper" = "Thượng";
+"quota_warning_upper" = "Cao hơn";
 "quota_warning_lower" = "Hạ";
+"quota_warning_warning" = "Cảnh báo";
+"quota_warning_critical" = "Nghiêm trọng";
 "apply" = "Áp dụng";
 "quit_app" = "Thoát CodexBar";
 
@@ -655,6 +663,8 @@
 "display_mode_pace_desc" = "Hiển thị chỉ báo tốc độ (ví dụ: +5%)";
 "display_mode_both_desc" = "Hiển thị cả phần trăm và tốc độ (ví dụ: 45% · +5%)";
 "display_mode_reset_time_desc" = "Hiển thị thời gian đặt lại của chỉ số đã chọn (ví dụ: ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Hiển thị thời gian đặt lại khi hết hạn mức";
+"menu_bar_reset_when_exhausted_subtitle" = "Khi còn 0%, hiển thị thời gian đến lúc đặt lại thay vì phần trăm";
 
 /* Provider status */
 "status_operational" = "Hoạt động";
@@ -1148,3 +1158,6 @@
 "section_diagnostics" = "Chẩn đoán";
 "section_updates" = "Cập nhật";
 "section_links" = "Liên kết";
+"Show Codex Spark usage" = "Hiển thị mức sử dụng Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị các hàng hạn mức Codex Spark trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
+"Scroll to see more models" = "Cuộn để xem thêm mô hình";

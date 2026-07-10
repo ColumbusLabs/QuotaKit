@@ -452,6 +452,11 @@
 "quota_warning_notification_title" = "%1$@ %2$@ quotum laag";
 "quota_warning_notification_body" = "%1$@ over. Je waarschuwingsdrempel van %2$d%% %3$@ is bereikt.";
 "quota_warning_notification_body_with_account" = "Rekening %1$@. %2$@ over. Je waarschuwingsdrempel van %3$d%% %4$@ is bereikt.";
+"predictive_pace_warnings_title" = "Voorspellende tempowaarschuwingen";
+"predictive_pace_warnings_subtitle" = "Waarschuwt voor Codex en Claude wanneer het sessie- of wekelijkse tempo het quotum vóór de reset kan opgebruiken.";
+"predictive_pace_warning_notification_title" = "%1$@ %2$@-tempowaarschuwing";
+"predictive_pace_warning_notification_body" = "Bij het huidige tempo kan dit quotum over %1$@ opraken, voordat het wordt gereset.";
+"predictive_pace_warning_notification_body_with_account" = "Account %1$@. Bij het huidige tempo kan dit quotum over %2$@ opraken, voordat het wordt gereset.";
 "session_depleted_notification_title" = "%@ sessie uitgeput";
 "session_depleted_notification_body" = "0% over. Zal op de hoogte stellen wanneer het weer beschikbaar is.";
 "session_restored_notification_title" = "%@ sessie hersteld";
@@ -461,14 +466,17 @@
 "quota_warning_sound" = "Meldingsgeluid afspelen";
 "quota_warning_onscreen_alert" = "Tekstwaarschuwing op het scherm tonen";
 "quota_warning_provider_inherits" = "Gebruikt de algemene instellingen voor quotawaarschuwingen, tenzij hier een venster wordt aangepast.";
+"quota_warning_global" = "Globaal";
 "quota_warning_customize_thresholds" = "Pas %@ drempels aan";
 "quota_warning_enable_warnings" = "Schakel %@ waarschuwingen in";
 "quota_warning_window_warn_at" = "%@ waarschuwen om";
 "quota_warning_off" = "Uit";
 "quota_warning_inherited" = "Geërfd: %@";
 "quota_warning_depleted_only" = "alleen maar uitgeput";
-"quota_warning_upper" = "Bovenste";
+"quota_warning_upper" = "Hoger";
 "quota_warning_lower" = "Lager";
+"quota_warning_warning" = "Waarschuwing";
+"quota_warning_critical" = "Kritiek";
 "apply" = "Toepassen";
 "quit_app" = "Sluit CodexBar af";
 
@@ -659,6 +667,8 @@
 "display_mode_pace_desc" = "Toon tempo-indicator (bijv. +5%)";
 "display_mode_both_desc" = "Toon zowel percentage als tempo (bijvoorbeeld 45% · +5%)";
 "display_mode_reset_time_desc" = "Toon de resettijd voor de geselecteerde metriek (bijvoorbeeld ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Toon resettijd wanneer het quotum op is";
+"menu_bar_reset_when_exhausted_subtitle" = "Bij 0% resterend wordt de tijd tot de reset getoond in plaats van het percentage";
 
 /* Provider status */
 "status_operational" = "Operationeel";
@@ -1147,3 +1157,6 @@
 "section_diagnostics" = "Diagnostiek";
 "section_updates" = "Updates";
 "section_links" = "Links";
+"Show Codex Spark usage" = "Codex Spark-gebruik tonen";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Toont Codex Spark-quotumregels in het menu en de voorvertoning van de provider. Vereist dat ‘Toon credits + extra gebruik’ is ingeschakeld in de instellingen voor Weergave.";
+"Scroll to see more models" = "Scroll om meer modellen te bekijken";

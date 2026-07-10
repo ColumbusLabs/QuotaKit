@@ -268,8 +268,20 @@ extension UsageStore {
                     current: scoped,
                     previous: self.snapshots[provider])
                 let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
+                let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
+                    Self.predictivePaceWarningClaudeAccountDiscriminator(
+                        strategyKind: result.strategyKind,
+                        observation: context.claudeOAuthActiveAccountObservation,
+                        oauthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
+                } else {
+                    nil
+                }
                 self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
+                self.handlePredictivePaceWarningTransitions(
+                    provider: provider,
+                    snapshot: backfilled,
+                    accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 if provider == .codex {
                     self.handleCodexResetCreditNotifications(snapshot: backfilled)
                 }
@@ -285,6 +297,9 @@ extension UsageStore {
                 }
                 self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
+                if provider == .gemini {
+                    self.clearGeminiConsumerTierDeprecationObservation()
+                }
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
                 self.failureGates[provider]?.recordSuccess()
                 if provider == .codex {
@@ -375,6 +390,8 @@ extension UsageStore {
             self.statusComponents.removeValue(forKey: provider)
             self.lastKnownSessionRemaining.removeValue(forKey: provider)
             self.lastKnownSessionWindowSource.removeValue(forKey: provider)
+            self.predictivePaceWarningNotifiedKeys = Set(
+                self.predictivePaceWarningNotifiedKeys.filter { $0.provider != provider })
             self.quotaWarningState = self.quotaWarningState.filter { $0.key.provider != provider }
             self.lastTokenFetchAt.removeValue(forKey: provider)
         }
@@ -601,6 +618,18 @@ extension UsageStore {
         let shouldNotifyPermissionPrompt = Self.isPermissionPromptWaiting(error)
         await MainActor.run {
             guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+            if provider == .gemini, Self.isGeminiConsumerTierDeprecationError(error) {
+                // This is a durable provider migration signal, not a transient fetch failure.
+                // Surface it immediately so a cached snapshot cannot hide the required handoff.
+                self.observeGeminiConsumerTierDeprecation(from: error)
+                self.errors[provider] = error.localizedDescription
+                self.snapshots.removeValue(forKey: provider)
+                self.lastKnownResetSnapshots.removeValue(forKey: provider)
+                self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
+                self.lastSourceLabels.removeValue(forKey: provider)
+                self.failureGates[provider]?.reset()
+                return
+            }
             let hadKnownUnavailableLimits = self.knownLimitsAvailabilityByProvider[provider]?.isUnavailable == true
             self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
             if provider == .claude,

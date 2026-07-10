@@ -49,6 +49,16 @@ See `docs/configuration.md` for the schema.
   - Cursor is fetched from the cookie-authenticated cursor.com dashboard API (macOS only; see `docs/cursor.md`) and honors the configured cookie source: Manual headers are forwarded, and Off fails explicitly instead of silently omitting Cursor.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
+- `codexbar cards` prints a one-shot usage snapshot as a responsive terminal card grid.
+  - Reuses the same provider, source, account, credits, and status flags as `codexbar usage`.
+  - Account lines and plan badges are included in the card grid by default.
+  - `--brief` renders a compact table (Provider / Usage / Reset) instead of the card grid.
+  - Stdout is always rendered text; `--json-output` only affects stderr logs (no JSON card payload).
+  - Failed providers are summarized in a footer (not rendered as error cards).
+  - Honors `$COLUMNS` for layout; falls back to 80 columns. Use `--no-color` for plain output.
+  - Kitty, Ghostty, WezTerm, and other truecolor terminals auto-enable enhanced gradients/outlines.
+  - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
+  - Exit code is non-zero when any provider fetch fails.
 - `codexbar serve` starts a foreground localhost-only HTTP server for usage and cost JSON.
   - `--port <port>` defaults to `8080`.
   - `--refresh-interval <seconds>` defaults to `60` and controls the in-memory response cache TTL.

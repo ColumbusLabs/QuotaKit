@@ -66,18 +66,56 @@ struct StatusItemControllerSplitLifecycleTests {
     }
 
     @Test
+    func `provider config notifications relay background work impact between settings stores`() {
+        self.disableMenuCardsForTesting()
+        let sourceSettings = self.makeSettings()
+        let controllerSettings = self.makeSettings()
+        controllerSettings.statusChecksEnabled = false
+        controllerSettings.refreshFrequency = .manual
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(
+            fetcher: fetcher,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: controllerSettings)
+        let controller = StatusItemController(
+            store: store,
+            settings: controllerSettings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting(),
+            observeProviderConfigNotifications: true)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let initialBackgroundRevision = controllerSettings.backgroundWorkSettingsRevision
+        let reorderedProviders = Array(sourceSettings.orderedProviders().reversed())
+        sourceSettings.setProviderOrder(reorderedProviders)
+
+        #expect(controllerSettings.orderedProviders() == reorderedProviders)
+        #expect(controllerSettings.backgroundWorkSettingsRevision == initialBackgroundRevision)
+
+        sourceSettings.codexUsageDataSource = .cli
+
+        #expect(controllerSettings.codexUsageDataSource == .cli)
+        #expect(controllerSettings.backgroundWorkSettingsRevision == initialBackgroundRevision + 1)
+    }
+
+    @Test
     func `merged mode removes split provider status items`() throws {
         let (settings, controller) = try self.makeSplitController()
         defer { controller.releaseStatusItemsForTesting() }
 
         #expect(controller.statusItems[.codex] != nil)
         #expect(controller.statusItems[.claude] != nil)
+        #expect(controller.expectedVisibleStatusItemAutosaveNames == ["codexbar-codex", "codexbar-claude"])
 
         settings.mergeIcons = true
         controller.handleProviderConfigChange(reason: "test")
 
         #expect(controller.statusItem.isVisible == true)
         #expect(controller.statusItems.isEmpty)
+        #expect(controller.expectedVisibleStatusItemAutosaveNames == ["codexbar-merged"])
     }
 
     @Test
@@ -110,6 +148,8 @@ struct StatusItemControllerSplitLifecycleTests {
             _ = controller.openMenuRebuildRequests.replaceRequest(for: key)
             controller.openMenuRebuildsClosingHostedSubviewMenus.insert(key)
             controller.highlightedMenuItems[key] = NSMenuItem(title: "Highlighted", action: nil, keyEquivalent: "")
+            controller.nativeHighlightDeferredMenuRebuilds[key] = .init(provider: .codex)
+            controller.pendingMenuBaselineResyncs.insert(key)
         }
 
         settings.mergeIcons = true
@@ -130,6 +170,8 @@ struct StatusItemControllerSplitLifecycleTests {
             #expect(controller.openMenuRebuildRequests.tokens[key] == nil)
             #expect(!controller.openMenuRebuildsClosingHostedSubviewMenus.contains(key))
             #expect(controller.highlightedMenuItems[key] == nil)
+            #expect(controller.nativeHighlightDeferredMenuRebuilds[key] == nil)
+            #expect(!controller.pendingMenuBaselineResyncs.contains(key))
         }
     }
 
@@ -411,6 +453,26 @@ struct StatusItemControllerSplitLifecycleTests {
         defaults.set(false, forKey: "NSStatusItem VisibleCC Item-2")
         #expect(MenuBarStatusItemDefaultsRepair.repairHiddenVisibilityDefaultsIfNeeded(defaults: defaults).isEmpty)
         #expect(defaults.object(forKey: "NSStatusItem VisibleCC Item-2") != nil)
+    }
+
+    @Test
+    func `status item visibility default distinguishes enabled disabled and unset`() throws {
+        let suite = "StatusItemControllerSplitLifecycleTests-visibility-default-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(true, forKey: "NSStatusItem VisibleCC codexbar-merged")
+        defaults.set(false, forKey: "NSStatusItem VisibleCC codexbar-claude")
+        defer { defaults.removePersistentDomain(forName: suite) }
+
+        #expect(MenuBarStatusItemDefaultsRepair.visibilityDefault(
+            defaults: defaults,
+            autosaveName: "codexbar-merged") == true)
+        #expect(MenuBarStatusItemDefaultsRepair.visibilityDefault(
+            defaults: defaults,
+            autosaveName: "codexbar-claude") == false)
+        #expect(MenuBarStatusItemDefaultsRepair.visibilityDefault(
+            defaults: defaults,
+            autosaveName: "codexbar-codex") == nil)
     }
 
     @Test

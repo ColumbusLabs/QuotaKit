@@ -26,6 +26,7 @@ extension UsageMenuCardView.Model {
         let tokenCostMenuSectionEnabled: Bool
         let costComparisonPeriodsEnabled: Bool
         let showOptionalCreditsAndExtraUsage: Bool
+        let codexSparkUsageVisible: Bool
         let copilotBudgetExtrasEnabled: Bool
         let sourceLabel: String?
         let kiloAutoMode: Bool
@@ -60,6 +61,7 @@ extension UsageMenuCardView.Model {
             tokenCostMenuSectionEnabled: Bool? = nil,
             costComparisonPeriodsEnabled: Bool = false,
             showOptionalCreditsAndExtraUsage: Bool,
+            codexSparkUsageVisible: Bool = true,
             copilotBudgetExtrasEnabled: Bool = false,
             sourceLabel: String? = nil,
             kiloAutoMode: Bool = false,
@@ -93,6 +95,7 @@ extension UsageMenuCardView.Model {
             self.tokenCostMenuSectionEnabled = tokenCostMenuSectionEnabled ?? tokenCostUsageEnabled
             self.costComparisonPeriodsEnabled = costComparisonPeriodsEnabled
             self.showOptionalCreditsAndExtraUsage = showOptionalCreditsAndExtraUsage
+            self.codexSparkUsageVisible = codexSparkUsageVisible
             self.copilotBudgetExtrasEnabled = copilotBudgetExtrasEnabled
             self.sourceLabel = sourceLabel
             self.kiloAutoMode = kiloAutoMode

@@ -557,7 +557,8 @@ enum CostUsageScanner {
              .copilot, .devin, .minimax, .manus, .kilo, .kiro, .kimi, .kimik2, .moonshot, .augment, .jetbrains, .amp,
              .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
              .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .qoder, .stepfun,
-             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .crossmodel, .clawrouter:
+             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .crossmodel, .clawrouter,
+             .wayfinder:
             return emptyReport
         }
     }
@@ -699,45 +700,9 @@ enum CostUsageScanner {
     private static let codexCostFormulaVersion = 2
 
     private static func codexPricingKey(modelsDevArtifact: ModelsDevCacheArtifact?) -> String {
-        let versionPrefix = "costFormulaVersion=\(Self.codexCostFormulaVersion)\n"
-        guard let modelsDevArtifact else {
-            let fingerprint = versionPrefix + CostUsagePricing.codexBuiltInPricingFingerprint()
-            return "builtin-\(Self.sha256Hex(Data(fingerprint.utf8)))"
-        }
-        let fingerprint = versionPrefix + self.modelsDevPricingFingerprint(modelsDevArtifact.catalog)
-        return "models-dev-v\(modelsDevArtifact.version)-\(Self.sha256Hex(Data(fingerprint.utf8)))"
-    }
-
-    private static func modelsDevPricingFingerprint(_ catalog: ModelsDevCatalog) -> String {
-        var parts: [String] = []
-        for providerID in catalog.providers.keys.sorted() {
-            guard let provider = catalog.providers[providerID] else { continue }
-            parts.append("provider=\(providerID)|\(provider.id ?? "")")
-            for modelKey in provider.models.keys.sorted() {
-                guard let model = provider.models[modelKey] else { continue }
-                let cost = model.cost
-                let contextOver200K = cost?.contextOver200K
-                parts.append([
-                    "model=\(modelKey)",
-                    model.id,
-                    Self.optionalDoubleFingerprint(cost?.input),
-                    Self.optionalDoubleFingerprint(cost?.output),
-                    Self.optionalDoubleFingerprint(cost?.cacheRead),
-                    Self.optionalDoubleFingerprint(cost?.cacheWrite),
-                    Self.optionalDoubleFingerprint(contextOver200K?.input),
-                    Self.optionalDoubleFingerprint(contextOver200K?.output),
-                    Self.optionalDoubleFingerprint(contextOver200K?.cacheRead),
-                    Self.optionalDoubleFingerprint(contextOver200K?.cacheWrite),
-                    model.limit?.context.map(String.init) ?? "nil",
-                ].joined(separator: "|"))
-            }
-        }
-        return parts.joined(separator: "\n")
-    }
-
-    private static func optionalDoubleFingerprint(_ value: Double?) -> String {
-        guard let value else { return "nil" }
-        return String(format: "%.17g", value)
+        CostUsagePricingKey.codex(
+            modelsDevArtifact: modelsDevArtifact,
+            formulaVersion: self.codexCostFormulaVersion)
     }
 
     private static func codexPriorityMetadataKey(databaseURL: URL?) -> String {
