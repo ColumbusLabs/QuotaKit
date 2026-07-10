@@ -467,6 +467,7 @@
 "quota_warning_sound" = "เล่นเสียงแจ้งเตือน";
 "quota_warning_onscreen_alert" = "แสดงการแจ้งเตือนข้อความบนหน้าจอ";
 "quota_warning_provider_inherits" = "ใช้การตั้งค่าคําเตือนโควต้าส่วนกลาง เว้นแต่จะมีการกําหนดหน้าต่างเองที่นี่";
+"quota_warning_global" = "ส่วนกลาง";
 "quota_warning_customize_thresholds" = "ปรับแต่งเกณฑ์ %@";
 "quota_warning_enable_warnings" = "เปิดใช้งานคําเตือน %@";
 "quota_warning_window_warn_at" = "%@ เตือนที่";
@@ -667,6 +668,8 @@
 "display_mode_pace_desc" = "แสดงตัวบ่งชี้อัตราการก้าว (เช่น +5%)";
 "display_mode_both_desc" = "แสดงทั้งเปอร์เซ็นต์และความเร็ว (เช่น 45% · +5%)";
 "display_mode_reset_time_desc" = "แสดงเวลารีเซ็ตสําหรับเมตริกที่เลือก (เช่น ↻ 15:56 น.)";
+"menu_bar_reset_when_exhausted_title" = "แสดงเวลารีเซ็ตเมื่อโควตาหมด";
+"menu_bar_reset_when_exhausted_subtitle" = "เมื่อเหลือ 0% จะแสดงเวลาจนถึงการรีเซ็ตแทนเปอร์เซ็นต์";
 
 /* Provider status */
 "status_operational" = "การดําเนินงาน";
@@ -1163,3 +1166,8 @@
 "section_diagnostics" = "การวินิจฉัย";
 "section_updates" = "อัปเดต";
 "section_links" = "ลิงก์";
+"Show Codex Spark usage" = "แสดงการใช้งาน Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "แสดงแถวโควตา Codex Spark ในเมนูและตัวอย่างผู้ให้บริการ ต้องเปิดใช้ “แสดงเครดิต + การใช้งานเพิ่มเติม” ในการตั้งค่าการแสดงผล";
+"Scroll to see more models" = "เลื่อนเพื่อดูโมเดลเพิ่มเติม";
+"Projects" = "โปรเจ็กต์";
+"+ %d more" = "+ อีก %d รายการ";

@@ -467,7 +467,9 @@ extension ClaudeStatusProbe {
                 window: RateWindow(
                     usedPercent: usedPercent,
                     windowMinutes: 7 * 24 * 60,
-                    resetsAt: self.parseResetDate(from: resetDescription),
+                    resetsAt: self.parseResetDate(
+                        from: resetDescription,
+                        expectedWindow: 7 * 24 * 60 * 60),
                     resetDescription: resetDescription))
         }
     }
@@ -819,63 +821,173 @@ extension ClaudeStatusProbe {
         return cleaned
     }
 
-    /// Attempts to parse a Claude reset string into a Date, using the current year and handling optional timezones.
+    /// Parses a Claude reset string as its next calendar occurrence in any explicit timezone.
     public static func parseResetDate(from text: String?, now: Date = .init()) -> Date? {
+        self.parseResetDate(from: text, now: now, expectedWindow: nil)
+    }
+
+    /// Quota surfaces may accept a recently stale occurrence when the next occurrence cannot belong to that window.
+    package static func parseResetDate(
+        from text: String?,
+        now: Date = .init(),
+        expectedWindow: TimeInterval?) -> Date?
+    {
         guard let normalized = self.normalizeResetInput(text) else { return nil }
         let (raw, timeZone) = normalized
 
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.timeZone = timeZone ?? TimeZone.current
-        formatter.defaultDate = now
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = formatter.timeZone
+        // Parse yearless Feb 29 independently of the current year, then resolve validated calendar occurrences.
+        formatter.defaultDate = calendar.date(from: DateComponents(year: 2000, month: 1, day: 1))
 
         if let date = self.parseDate(raw, formats: Self.resetDateTimeWithMinutes, formatter: formatter) {
-            var comps = calendar.dateComponents([.year, .month, .day, .hour, .minute], from: date)
-            comps.second = 0
-            return self.bumpYearIfNeeded(calendar.date(from: comps), now: now, calendar: calendar)
+            let comps = calendar.dateComponents([.month, .day, .hour, .minute], from: date)
+            return self.resolveOccurrence(
+                self.yearlyOccurrences(for: comps, now: now, calendar: calendar),
+                now: now,
+                expectedWindow: expectedWindow)
         }
         if let date = self.parseDate(raw, formats: Self.resetDateTimeHourOnly, formatter: formatter) {
-            var comps = calendar.dateComponents([.year, .month, .day, .hour], from: date)
-            comps.minute = 0
-            comps.second = 0
-            return self.bumpYearIfNeeded(calendar.date(from: comps), now: now, calendar: calendar)
+            let comps = calendar.dateComponents([.month, .day, .hour], from: date)
+            return self.resolveOccurrence(
+                self.yearlyOccurrences(for: comps, now: now, calendar: calendar),
+                now: now,
+                expectedWindow: expectedWindow)
         }
 
         if let time = self.parseDate(raw, formats: Self.resetTimeWithMinutes, formatter: formatter) {
             let comps = calendar.dateComponents([.hour, .minute], from: time)
-            guard let anchored = calendar.date(
-                bySettingHour: comps.hour ?? 0,
-                minute: comps.minute ?? 0,
-                second: 0,
-                of: now) else { return nil }
-            if anchored >= now {
-                return anchored
-            }
-            return calendar.date(byAdding: .day, value: 1, to: anchored)
+            return self.resolveOccurrence(
+                self.dailyOccurrences(for: comps, now: now, calendar: calendar),
+                now: now,
+                expectedWindow: expectedWindow)
         }
 
         guard let time = self.parseDate(raw, formats: Self.resetTimeHourOnly, formatter: formatter) else { return nil }
         let comps = calendar.dateComponents([.hour], from: time)
-        guard let anchored = calendar.date(
-            bySettingHour: comps.hour ?? 0,
-            minute: 0,
-            second: 0,
-            of: now) else { return nil }
-        if anchored >= now {
-            return anchored
-        }
-        return calendar.date(byAdding: .day, value: 1, to: anchored)
+        return self.resolveOccurrence(
+            self.dailyOccurrences(for: comps, now: now, calendar: calendar),
+            now: now,
+            expectedWindow: expectedWindow)
     }
 
-    /// Yearless dates parsed just before New Year's can otherwise land nearly a year in the past.
-    private static func bumpYearIfNeeded(_ date: Date?, now: Date, calendar: Calendar) -> Date? {
-        guard let date else { return nil }
-        if date >= now {
-            return date
+    private static func resolveOccurrence(
+        _ candidates: [Date],
+        now: Date,
+        expectedWindow: TimeInterval?) -> Date?
+    {
+        let sortedCandidates = candidates.sorted()
+        guard let future = sortedCandidates.first(where: { $0 >= now }) else { return sortedCandidates.last }
+        guard let expectedWindow else { return future }
+
+        let horizon = max(0, expectedWindow)
+        let past = sortedCandidates.last(where: { $0 < now })
+        let pastIsPlausible = past.map { now.timeIntervalSince($0) <= horizon } ?? false
+        let futureIsPlausible = future.timeIntervalSince(now) <= horizon
+        return pastIsPlausible && !futureIsPlausible ? past : future
+    }
+
+    private static func yearlyOccurrences(
+        for components: DateComponents,
+        now: Date,
+        calendar: Calendar) -> [Date]
+    {
+        guard let month = components.month,
+              let day = components.day,
+              let hour = components.hour
+        else { return [] }
+        let currentYear = calendar.component(.year, from: now)
+        // Eight years covers the Gregorian century gap between leap days (for example, 2096 to 2104).
+        return ((currentYear - 8)...(currentYear + 8)).flatMap { year in
+            self.exactLocalOccurrences(
+                DateComponents(
+                    timeZone: calendar.timeZone,
+                    year: year,
+                    month: month,
+                    day: day,
+                    hour: hour,
+                    minute: components.minute ?? 0,
+                    second: 0),
+                calendar: calendar)
         }
-        return calendar.date(byAdding: .year, value: 1, to: date)
+    }
+
+    private static func dailyOccurrences(
+        for components: DateComponents,
+        now: Date,
+        calendar: Calendar) -> [Date]
+    {
+        guard let hour = components.hour else { return [] }
+        let startOfToday = calendar.startOfDay(for: now)
+        return (-1...1).flatMap { offset -> [Date] in
+            guard let day = calendar.date(byAdding: .day, value: offset, to: startOfToday) else { return [] }
+            let dayComponents = calendar.dateComponents([.year, .month, .day], from: day)
+            guard let year = dayComponents.year,
+                  let month = dayComponents.month,
+                  let dayOfMonth = dayComponents.day
+            else { return [] }
+            return self.exactLocalOccurrences(
+                DateComponents(
+                    timeZone: calendar.timeZone,
+                    year: year,
+                    month: month,
+                    day: dayOfMonth,
+                    hour: hour,
+                    minute: components.minute ?? 0,
+                    second: 0),
+                calendar: calendar)
+        }
+    }
+
+    /// Returns both instants when a local wall time repeats during a daylight-saving transition.
+    private static func exactLocalOccurrences(
+        _ target: DateComponents,
+        calendar: Calendar) -> [Date]
+    {
+        guard let year = target.year,
+              let month = target.month,
+              let day = target.day,
+              let hour = target.hour,
+              let minute = target.minute
+        else { return [] }
+        guard let firstApproximation = calendar.date(from: target) else { return [] }
+        let approximationComponents = calendar.dateComponents(
+            [.year, .month, .day, .hour, .minute, .second],
+            from: firstApproximation)
+        guard approximationComponents.year == year,
+              approximationComponents.month == month,
+              approximationComponents.day == day,
+              approximationComponents.hour == hour,
+              approximationComponents.minute == minute,
+              approximationComponents.second == 0
+        else { return [] }
+        let startOfDay = calendar.startOfDay(for: firstApproximation)
+        guard let searchStart = calendar.date(byAdding: .second, value: -1, to: startOfDay) else { return [] }
+
+        var results: [Date] = []
+        for policy in [Calendar.RepeatedTimePolicy.first, .last] {
+            guard let date = calendar.nextDate(
+                after: searchStart,
+                matching: target,
+                matchingPolicy: .strict,
+                repeatedTimePolicy: policy,
+                direction: .forward)
+            else { continue }
+            let resolved = calendar.dateComponents([.year, .month, .day, .hour, .minute, .second], from: date)
+            guard resolved.year == year,
+                  resolved.month == month,
+                  resolved.day == day,
+                  resolved.hour == hour,
+                  resolved.minute == minute,
+                  resolved.second == 0,
+                  !results.contains(date)
+            else { continue }
+            results.append(date)
+        }
+        return results
     }
 
     private static let resetTimeWithMinutes = ["h:mma", "h:mm a", "HH:mm", "H:mm"]

@@ -127,6 +127,29 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func `exhausted reset time display defaults off and persists`() throws {
+        let suite = "SettingsStoreTests-exhausted-reset-time"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(store.menuBarShowsResetTimeWhenExhausted == false)
+        store.menuBarShowsResetTimeWhenExhausted = true
+
+        let reloaded = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        #expect(reloaded.menuBarShowsResetTimeWhenExhausted == true)
+    }
+
+    @Test
     func `weekly confetti setting defaults off and persists`() throws {
         let suite = "SettingsStoreTests-weekly-confetti"
         let defaultsA = try #require(UserDefaults(suiteName: suite))
@@ -790,11 +813,14 @@ struct SettingsStoreTests {
         store.quotaWarningThresholds = [50, 20]
 
         #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
+        #expect(store.explicitQuotaWarningThresholds(provider: .codex, window: .session) == nil)
         store.setQuotaWarningThresholds(provider: .codex, window: .session, thresholds: [10])
+        #expect(store.explicitQuotaWarningThresholds(provider: .codex, window: .session) == [10])
         #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [10])
         #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .weekly) == [50, 20])
 
         store.setQuotaWarningThresholds(provider: .codex, window: .session, thresholds: nil)
+        #expect(store.explicitQuotaWarningThresholds(provider: .codex, window: .session) == nil)
         #expect(store.resolvedQuotaWarningThresholds(provider: .codex, window: .session) == [50, 20])
     }
 
@@ -1277,6 +1303,39 @@ struct SettingsStoreTests {
 
         store.openAIWebAccessEnabled = true
         #expect(store.openAIWebBatterySaverEnabled == false)
+    }
+
+    @Test
+    func `codex spark usage visibility defaults on persists and refreshes only menus`() async throws {
+        let suite = "SettingsStoreTests-codex-spark-usage-visible"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let store = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(store.codexSparkUsageVisible)
+        let backgroundRevision = store.backgroundWorkSettingsRevision
+        let menuDidChange = ObservationFlag()
+        withObservationTracking {
+            _ = store.menuObservationToken
+        } onChange: {
+            menuDidChange.set()
+        }
+        store.codexSparkUsageVisible = false
+        try? await Task.sleep(nanoseconds: 50_000_000)
+        #expect(store.backgroundWorkSettingsRevision == backgroundRevision)
+        #expect(menuDidChange.get())
+
+        let reloaded = SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        #expect(reloaded.codexSparkUsageVisible == false)
     }
 
     @Test

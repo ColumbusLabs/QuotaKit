@@ -471,6 +471,7 @@
 "quota_warning_sound" = "播放通知音效";
 "quota_warning_onscreen_alert" = "顯示螢幕文字提醒";
 "quota_warning_provider_inherits" = "預設使用全域配額提醒設定，除非在此自訂時段。";
+"quota_warning_global" = "全域";
 "quota_warning_customize_thresholds" = "自訂 %@ 門檻";
 "quota_warning_enable_warnings" = "啟用 %@ 提醒";
 "quota_warning_window_warn_at" = "%@ 提醒門檻";
@@ -655,6 +656,8 @@
 "display_mode_pace_desc" = "顯示進度指示器（例如 +5%）";
 "display_mode_both_desc" = "同時顯示百分比和進度（例如 45% · +5%）";
 "display_mode_reset_time_desc" = "顯示所選指標的重置時間（例如 ↻ 3:56 PM）";
+"menu_bar_reset_when_exhausted_title" = "配額用盡時顯示重設時間";
+"menu_bar_reset_when_exhausted_subtitle" = "剩餘 0% 時，顯示距重設的時間而非百分比";
 "status_operational" = "運作正常";
 "status_degraded" = "效能下降";
 "status_partial_outage" = "部分服務中斷";
@@ -1190,3 +1193,8 @@
 "section_diagnostics" = "診斷";
 "section_updates" = "更新";
 "section_links" = "連結";
+"Show Codex Spark usage" = "顯示 Codex Spark 使用量";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示 Codex Spark 配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
+"Scroll to see more models" = "捲動查看更多模型";
+"Projects" = "專案";
+"+ %d more" = "+ 另有 %d 個";

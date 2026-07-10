@@ -467,6 +467,7 @@
 "quota_warning_sound" = "Bildirim sesi çal";
 "quota_warning_onscreen_alert" = "Ekranda metin uyarısı göster";
 "quota_warning_provider_inherits" = "Bir pencere burada özelleştirilmediği sürece genel kota uyarı ayarlarını kullanır.";
+"quota_warning_global" = "Genel";
 "quota_warning_customize_thresholds" = "%@ eşiklerini özelleştir";
 "quota_warning_enable_warnings" = "%@ uyarılarını etkinleştir";
 "quota_warning_window_warn_at" = "%@ uyarı eşiği";
@@ -1128,6 +1129,8 @@
 "Request quota: %@ / %@" = "İstek kotası: %@ / %@";
 "display_mode_reset_time" = "Sıfırlama zamanı";
 "display_mode_reset_time_desc" = "Seçilen metrik için sıfırlama zamanını göster (örn. ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Kota bittiğinde sıfırlama zamanını göster";
+"menu_bar_reset_when_exhausted_subtitle" = "%0 kaldığında yüzde yerine sıfırlamaya kalan süreyi gösterir";
 "terminal_app_title" = "Varsayılan Terminal";
 "terminal_app_subtitle" = "Terminali Aç eyleminde kullanılan terminal";
 "language_arabic" = "العربية";
@@ -1162,3 +1165,8 @@
 "section_diagnostics" = "Tanılama";
 "section_updates" = "Güncellemeler";
 "section_links" = "Bağlantılar";
+"Show Codex Spark usage" = "Codex Spark kullanımını göster";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Codex Spark kota satırlarını menüde ve sağlayıcı önizlemesinde gösterir. Görünüm ayarlarında “Krediler + ekstra kullanımı göster” seçeneğinin etkin olmasını gerektirir.";
+"Scroll to see more models" = "Daha fazla model görmek için kaydırın";
+"Projects" = "Projeler";
+"+ %d more" = "+ %d daha";

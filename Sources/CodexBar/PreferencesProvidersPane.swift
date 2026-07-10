@@ -688,6 +688,7 @@ struct ProvidersPane: View {
             // available cost data in their Usage section.
             tokenCostMenuSectionEnabled: self.settings.isCostUsageEffectivelyEnabled(for: provider),
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            codexSparkUsageVisible: self.settings.codexSparkUsageVisible,
             copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             hidePersonalInfo: self.settings.hidePersonalInfo,
             weeklyPace: weeklyPace,

@@ -205,6 +205,25 @@ struct LocalizationLanguageCatalogTests {
                 "terminal_app_title": "Terminal predeterminado",
                 "terminal_app_subtitle": "Terminal usado pola acción Abrir terminal",
             ],
+            "ca": [
+                "A managed Codex login is already running. Wait for it to finish before adding ":
+                    "Ja hi ha un inici de sessió gestionat de Codex en curs. Espereu que acabi abans d'afegir ",
+                "%@: %@": "%@: %@",
+                "Sign in with Claude Code...": "Inicia sessió amb Claude Code...",
+                "keychain_access_caption":
+                    "Desactiveu totes les lectures i escriptures del Clauer. " +
+                    "Feu-ho si macOS continua mostrant sol·licituds de «Chrome/Brave/Edge Safe Storage» " +
+                    "fins i tot després de triar «Permet sempre». La importació de galetes del navegador no " +
+                    "estarà disponible mentre aquesta opció estigui activada; enganxeu manualment les " +
+                    "capçaleres Cookie a Proveïdors. L'OAuth de Claude/Codex mitjançant la CLI continuarà funcionant.",
+                "language_catalan": "Català",
+                "menu_bar_metric_subtitle_mistral":
+                    "Trieu entre la despesa de l'API de Mistral i l'ús del Monthly Plan per a la barra de menús.",
+                "quota_warning_notifications_subtitle":
+                    "Avisa quan la quota restant de sessió o setmanal baixa per sota dels llindars configurats.",
+                "refresh_on_open_subtitle":
+                    "Obté l'ús més recent de cada proveïdor cada vegada que obriu el menú.",
+            ],
         ]
 
         for (locale, expectedValues) in expectations {
@@ -229,6 +248,23 @@ struct LocalizationLanguageCatalogTests {
         let galician = try #require(NSDictionary(contentsOf: galicianURL) as? [String: String])
 
         #expect(Set(galician.keys) == Set(english.keys))
+    }
+
+    @Test
+    func `catalan localization matches the English catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let englishURL = resourcesURL.appendingPathComponent("en.lproj/Localizable.strings")
+        let catalanURL = resourcesURL.appendingPathComponent("ca.lproj/Localizable.strings")
+        let english = try #require(NSDictionary(contentsOf: englishURL) as? [String: String])
+        let catalan = try #require(NSDictionary(contentsOf: catalanURL) as? [String: String])
+
+        #expect(Set(catalan.keys) == Set(english.keys))
+        let statusFormat = try #require(catalan["%@: %@"])
+        #expect(String(format: statusFormat, "Quota", "42") == "Quota: 42")
     }
 
     @Test

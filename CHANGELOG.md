@@ -5,6 +5,43 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Added
+
+- Menu bar: add a display option to show reset time when quota runs out.
+- Kimi K2: add a Usage Dashboard shortcut to the legacy credits page.
+- Codex: add GPT-5.6 Sol, Terra, and Luna pricing, including alias and
+  cache-write handling.
+- Codex: add a provider option to hide Spark quota rows without hiding credits
+  or other extra usage.
+- Documentation: add Azure OpenAI provider setup and troubleshooting notes.
+
+### Changed
+
+- Synced upstream CodexBar Mac improvements through `2d58d098`
+  (`3b039d15..2d58d098`), including Codex OAuth account isolation, Spark quota
+  visibility, reset-time menu display, Kimi K2 dashboard links, GPT-5.6
+  pricing, bounded unknown-model pricing refresh, CLI serve timeout retention,
+  Claude reset occurrence handling, Claude never-prompt Keychain cache
+  hardening, Azure OpenAI provider documentation, cost-history chart stability,
+  Catalan localization updates, and broader provider/runtime test coverage
+  while preserving QuotaKit release ownership, appcast metadata, CloudKit
+  setup, config paths, and iOS build numbers.
+
+### Fixed
+
+- Codex accounts: isolate authenticated OAuth and browser-cookie requests from
+  shared URL caches and cookie stores.
+- Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI
+  paths and defer stale cache cleanup until Keychain access is re-enabled.
+- CLI server: retain timed-out route and provider work until it actually exits.
+- Token costs: coalesce bounded pricing-catalog refreshes when newly observed
+  models are still unpriced.
+- Cost history: keep model breakdown menus steady while hovering and make
+  overflowing histories scrollable.
+- Catalan: complete current strings and enforce catalog parity.
+
 ## 0.32.4.10 / iOS 1.11.1 — 2026-07-07
 
 ### Added

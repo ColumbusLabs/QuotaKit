@@ -468,6 +468,7 @@
 "quota_warning_sound" = "Play notification sound";
 "quota_warning_onscreen_alert" = "Show on-screen text alert";
 "quota_warning_provider_inherits" = "Uses the global quota warning settings unless a window is customized here.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Customize %@ thresholds";
 "quota_warning_enable_warnings" = "Enable %@ warnings";
 "quota_warning_window_warn_at" = "%@ warn at";
@@ -668,6 +669,8 @@
 "display_mode_pace_desc" = "Show pace indicator (e.g. +5%)";
 "display_mode_both_desc" = "Show both percentage and pace (e.g. 45% · +5%)";
 "display_mode_reset_time_desc" = "Show the reset time for the selected metric (e.g. ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Show reset time when quota runs out";
+"menu_bar_reset_when_exhausted_subtitle" = "At 0% remaining, show the time until reset instead of the percentage";
 
 /* Provider status */
 "status_operational" = "Operational";
@@ -1163,3 +1166,8 @@
 "section_diagnostics" = "Diagnostics";
 "section_updates" = "Updates";
 "section_links" = "Links";
+"Show Codex Spark usage" = "Show Codex Spark usage";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings.";
+"Scroll to see more models" = "Scroll to see more models";
+"Projects" = "Projects";
+"+ %d more" = "+ %d more";

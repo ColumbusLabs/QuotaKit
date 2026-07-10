@@ -199,16 +199,12 @@ jobs:
         run: ./Scripts/lint.sh lint
 
       - name: Swift Test
-        # Per-suite shards via ci_swift_test_by_suite.py — a single hung test
-        # fails its shard (120s wall-clock per suite) rather than the whole
-        # 50-minute Swift Test step. Adopted from upstream main after the
-        # post-0.25.1 commits (4dcabe1e, 086b3986, b0c18a1c) demonstrated
-        # the parallel/skip-list approach was insufficient for the grown
-        # suite size on macos-15-intel.
+        # Keep small suite batches so a hung suite fails its shard while avoiding one SwiftPM process per suite.
         timeout-minutes: 50
         run: |
-          CODEXBAR_TEST_GROUP_SIZE=1 \
+          CODEXBAR_TEST_GROUP_SIZE=4 \
             CODEXBAR_TEST_SUITE_TIMEOUT=120 \
+            CODEXBAR_TEST_RETRY_NON_TIMEOUT_FAILURES=0 \
             CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
             ./Scripts/test.sh
@@ -222,12 +218,13 @@ jobs:
           RUNS_LINT_MACOS: ${{ matrix.shard-index == 0 }}
         run: |
           set -euo pipefail
+          display_shard_index=$((SHARD_INDEX + 1))
           xcode_version="$(/usr/bin/xcodebuild -version 2>/dev/null | tr '\n' ' ' || true)"
           {
             printf '### macOS Swift shard\n\n'
             printf '| Field | Value |\n'
             printf '| --- | --- |\n'
-            printf '| Shard | `%s / %s` |\n' "$SHARD_INDEX" "$SHARD_COUNT"
+            printf '| Shard | `%s / %s` |\n' "$display_shard_index" "$SHARD_COUNT"
             printf '| Runner | `%s` |\n' "${RUNNER_NAME:-unknown}"
             printf '| Xcode | `%s` |\n' "${xcode_version:-unknown}"
             printf '| Runs lint-macos | `%s` |\n' "$RUNS_LINT_MACOS"

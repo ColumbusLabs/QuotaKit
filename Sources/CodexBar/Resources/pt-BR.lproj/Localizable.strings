@@ -463,6 +463,7 @@
 "quota_warning_sound" = "Reproduzir som de notificação";
 "quota_warning_onscreen_alert" = "Mostrar alerta de texto na tela";
 "quota_warning_provider_inherits" = "Usa as configurações globais de alerta de cota, a menos que uma janela seja personalizada aqui.";
+"quota_warning_global" = "Global";
 "quota_warning_customize_thresholds" = "Personalizar limites de %@";
 "quota_warning_enable_warnings" = "Ativar alertas de %@";
 "quota_warning_window_warn_at" = "%@: alertar em";
@@ -663,6 +664,8 @@
 "display_mode_pace_desc" = "Mostra o indicador de ritmo (ex.: +5%)";
 "display_mode_both_desc" = "Mostra porcentagem e ritmo (ex.: 45% · +5%)";
 "display_mode_reset_time_desc" = "Mostra o tempo de redefinição da métrica selecionada (ex.: ↻ 3:56 PM)";
+"menu_bar_reset_when_exhausted_title" = "Mostrar horário de redefinição quando a cota acabar";
+"menu_bar_reset_when_exhausted_subtitle" = "Com 0% restante, mostra o tempo até a redefinição em vez da porcentagem";
 
 /* Provider status */
 "status_operational" = "Operacional";
@@ -1157,3 +1160,8 @@
 "section_diagnostics" = "Diagnósticos";
 "section_updates" = "Atualizações";
 "section_links" = "Links";
+"Show Codex Spark usage" = "Mostrar uso do Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostra as linhas de cota do Codex Spark no menu e na prévia do provedor. Requer ativar “Mostrar créditos + uso extra” nos ajustes de Exibição.";
+"Scroll to see more models" = "Role para ver mais modelos";
+"Projects" = "Projetos";
+"+ %d more" = "+ mais %d";

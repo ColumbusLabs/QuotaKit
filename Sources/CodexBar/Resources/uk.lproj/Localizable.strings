@@ -466,6 +466,7 @@
 "quota_warning_sound" = "Відтворити звук сповіщення";
 "quota_warning_onscreen_alert" = "Показувати текстове сповіщення на екрані";
 "quota_warning_provider_inherits" = "Використовує глобальні параметри попередження про квоту, якщо тут не налаштовано вікно.";
+"quota_warning_global" = "Глобально";
 "quota_warning_customize_thresholds" = "Налаштувати порогові значення %@";
 "quota_warning_enable_warnings" = "Увімкнути %@ попереджень";
 "quota_warning_window_warn_at" = "%@ попередити о";
@@ -666,6 +667,8 @@
 "display_mode_pace_desc" = "Показати індикатор темпу (наприклад, +5%)";
 "display_mode_both_desc" = "Показати відсоток і темп (наприклад, 45% · +5%)";
 "display_mode_reset_time_desc" = "Показувати час скидання для вибраного показника (наприклад, ↻ 15:56)";
+"menu_bar_reset_when_exhausted_title" = "Показувати час скидання, коли квоту вичерпано";
+"menu_bar_reset_when_exhausted_subtitle" = "За залишку 0% показує час до скидання замість відсотка";
 
 /* Provider status */
 "status_operational" = "Працює";
@@ -1156,3 +1159,8 @@
 "section_diagnostics" = "Діагностика";
 "section_updates" = "Оновлення";
 "section_links" = "Посилання";
+"Show Codex Spark usage" = "Показати використання Codex Spark";
+"Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Показує рядки квоти Codex Spark у меню та попередньому перегляді провайдера. Потрібно ввімкнути «Показати кредити + додаткове використання» в налаштуваннях «Відображення».";
+"Scroll to see more models" = "Прокрутіть, щоб побачити більше моделей";
+"Projects" = "Проекти";
+"+ %d more" = "+ ще %d";

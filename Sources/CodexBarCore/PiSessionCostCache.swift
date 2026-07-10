@@ -1,14 +1,8 @@
 import Foundation
 
 enum PiSessionCostCacheIO {
-    /// Pi-session cache stores per-(day, provider, model) packed usage with
-    /// `costNanos` baked in at parse time, so cached costs go stale whenever
-    /// pricing changes. Version 4 matches upstream's Pi cached-input pricing
-    /// correction; bumping the file version sidesteps migration entirely (old
-    /// cache file ignored, fresh scan at next launch). The fork's
-    /// `pricingFingerprint` stamp additionally invalidates the cache when the
-    /// pricing table changes without a version bump.
-    private static let artifactVersion = 4
+    /// Artifact schema version. Pricing changes are tracked separately by `pricingKey`.
+    private static let artifactVersion = 5
 
     private static func defaultCacheRoot() -> URL {
         let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
@@ -24,18 +18,11 @@ enum PiSessionCostCacheIO {
 
     static func load(cacheRoot: URL? = nil) -> PiSessionCostCache {
         let url = self.cacheFileURL(cacheRoot: cacheRoot)
-        let expectedFingerprint = CostUsagePricing.pricingFingerprint
         guard let data = try? Data(contentsOf: url),
               let decoded = try? JSONDecoder().decode(PiSessionCostCache.self, from: data),
-              decoded.version == Self.artifactVersion,
-              // Same fingerprint-mismatch invalidation as CostUsageCacheIO.
-              // See `CostUsagePricing.pricingFingerprint` doc-comment for
-              // why baked-in costNanos can't be retroactively re-priced.
-              decoded.pricingFingerprint == expectedFingerprint
+              decoded.version == Self.artifactVersion
         else {
-            return PiSessionCostCache(
-                version: Self.artifactVersion,
-                pricingFingerprint: expectedFingerprint)
+            return PiSessionCostCache(version: Self.artifactVersion)
         }
         return decoded
     }
@@ -45,12 +32,8 @@ enum PiSessionCostCacheIO {
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        // Stamp the current fingerprint so a future launch can validate.
-        var stamped = cache
-        stamped.pricingFingerprint = CostUsagePricing.pricingFingerprint
-
         let tmp = dir.appendingPathComponent(".tmp-\(UUID().uuidString).json", isDirectory: false)
-        let data = (try? JSONEncoder().encode(stamped)) ?? Data()
+        let data = (try? JSONEncoder().encode(cache)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
             if FileManager.default.fileExists(atPath: url.path) {
@@ -69,16 +52,12 @@ struct PiSessionCostCache: Codable {
     var lastScanUnixMs: Int64 = 0
     var scanSinceKey: String?
     var scanUntilKey: String?
-    /// Pricing fingerprint at the moment this cache was written. Mismatches
-    /// trigger full re-scan in `load`. See
-    /// `CostUsagePricing.pricingFingerprint`.
-    var pricingFingerprint: String?
+    var pricingKey: String?
     var daysByProvider: [String: [String: [String: PiPackedUsage]]] = [:]
     var files: [String: PiSessionFileUsage] = [:]
 
-    init(version: Int = 4, pricingFingerprint: String? = nil) {
+    init(version: Int = 5) {
         self.version = version
-        self.pricingFingerprint = pricingFingerprint
     }
 }
 
