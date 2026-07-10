@@ -139,13 +139,13 @@ struct CodexFamilyResolverTests {
     // MARK: - End-to-end integration via CostUsagePricing
 
     @Test
-    func `codexCostUSD returns non-nil for unknown gpt-5.6 (was $0 before)`() {
+    func `codexCostUSD returns non-nil for gpt-5.6 alias`() {
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.6",
             inputTokens: 1000,
             cachedInputTokens: 0,
             outputTokens: 100)
-        // gpt-5.5 pricing: 5e-6 input, 3e-5 output → 1000*5e-6 + 100*3e-5 = 0.005 + 0.003 = 0.008
+        // Upstream maps the unsuffixed alias to Sol pricing.
         #expect(cost == 0.008)
     }
 
@@ -181,7 +181,7 @@ struct CodexFamilyResolverTests {
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.4-mini"))
         #expect(CostUsagePricing.isCodexModelKnown("gpt-5.3-codex-spark"))
-        #expect(!CostUsagePricing.isCodexModelKnown("gpt-5.6"))
+        #expect(CostUsagePricing.isCodexModelKnown("gpt-5.6"))
         #expect(!CostUsagePricing.isCodexModelKnown("gpt-5.5-turbo"))
         #expect(!CostUsagePricing.isCodexModelKnown("claude-opus-4-7"))
     }
