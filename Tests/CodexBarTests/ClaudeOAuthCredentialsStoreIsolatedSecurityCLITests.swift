@@ -91,7 +91,7 @@ struct ClaudeOAuthCredentialsStoreIsolatedSecurityCLITests {
     }
 
     @Test
-    func `never prompt mode still detects MCP-only payload via experimental security CLI reader`() {
+    func `never prompt mode skips MCP-only detection via experimental security CLI reader`() {
         let mcpOnlyPayload = Data(#"{"mcpOAuth":{"plugin:test":{"accessToken":"synthetic"}}}"#.utf8)
         let environment = [
             KeychainAccessGate.disableAccessEnvironmentKey: "1",
@@ -107,7 +107,7 @@ struct ClaudeOAuthCredentialsStoreIsolatedSecurityCLITests {
                     environment: environment)
             }
         }
-        #expect(isMcpOnly)
+        #expect(!isMcpOnly)
 
         let blockedViaSecurityFramework = ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
             ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(mcpOnlyPayload)) {

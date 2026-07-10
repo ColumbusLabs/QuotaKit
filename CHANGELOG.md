@@ -5,31 +5,17 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.10 / iOS 1.11.1 — 2026-07-07
+## Unreleased
 
 ### Added
 
-- Agent Sessions: list and focus live local or SSH-discovered Codex and Claude
-  Code sessions from the menu and CLI.
 - Menu bar: add a display option to show reset time when quota runs out.
 - Kimi K2: add a Usage Dashboard shortcut to the legacy credits page.
 - Codex: add GPT-5.6 Sol, Terra, and Luna pricing, including alias and
   cache-write handling.
 - Codex: add a provider option to hide Spark quota rows without hiding credits
   or other extra usage.
-- Wayfinder: add opt-in local gateway health, routing, savings, and latency
-  usage with configurable loopback URL support.
-- Claude: show opt-in read-only claude-swap accounts as stacked usage cards
-  without delaying ambient refreshes.
-- Claude: switch inactive claude-swap accounts directly from stacked usage
-  cards through claude-swap without reading Claude credentials.
-- Claude CLI: surface model-scoped weekly limits alongside all-model usage
-  without duplicating matching web limits.
-- Quota warnings: add opt-in predictive pace alerts for Codex and Claude
-  session and weekly limits, with one alert per risk episode.
-- Documentation: add provider references for Azure OpenAI, Mistral, Perplexity,
-  Qoder, Synthetic, and Wayfinder setup and troubleshooting.
-- Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.
+- Documentation: add Azure OpenAI provider setup and troubleshooting notes.
 
 ### Changed
 
@@ -42,6 +28,42 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   Catalan localization updates, and broader provider/runtime test coverage
   while preserving QuotaKit release ownership, appcast metadata, CloudKit
   setup, config paths, and iOS build numbers.
+
+### Fixed
+
+- Codex accounts: isolate authenticated OAuth and browser-cookie requests from
+  shared URL caches and cookie stores.
+- Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI
+  paths and defer stale cache cleanup until Keychain access is re-enabled.
+- CLI server: retain timed-out route and provider work until it actually exits.
+- Token costs: coalesce bounded pricing-catalog refreshes when newly observed
+  models are still unpriced.
+- Cost history: keep model breakdown menus steady while hovering and make
+  overflowing histories scrollable.
+- Catalan: complete current strings and enforce catalog parity.
+
+## 0.32.4.10 / iOS 1.11.1 — 2026-07-07
+
+### Added
+
+- Agent Sessions: list and focus live local or SSH-discovered Codex and Claude
+  Code sessions from the menu and CLI.
+- Wayfinder: add opt-in local gateway health, routing, savings, and latency
+  usage with configurable loopback URL support.
+- Claude: show opt-in read-only claude-swap accounts as stacked usage cards
+  without delaying ambient refreshes.
+- Claude: switch inactive claude-swap accounts directly from stacked usage
+  cards through claude-swap without reading Claude credentials.
+- Claude CLI: surface model-scoped weekly limits alongside all-model usage
+  without duplicating matching web limits.
+- Quota warnings: add opt-in predictive pace alerts for Codex and Claude
+  session and weekly limits, with one alert per risk episode.
+- Documentation: add provider references for Mistral, Perplexity, Qoder, and
+  Synthetic, plus Wayfinder setup and troubleshooting.
+- Widgets: make Kimi available with Weekly, Rate Limit, and Monthly quota rows.
+
+### Changed
+
 - Synced upstream CodexBar Mac improvements from the previous QuotaKit Mac
   release through `3b039d15`, including Agent Sessions, CLI cards,
   claude-swap accounts, Kimi widgets and subscription rows, Claude scoped
@@ -70,8 +92,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Claude history: quarantine same-directory account-switch samples until
   credential ownership is stable, preventing plan-utilization history from
   crossing accounts.
-- Claude OAuth: honor the never-prompt Keychain policy in CLI paths and defer
-  stale cache cleanup until Keychain access is re-enabled.
 - Sakana AI: parse server-rendered quota reset timestamps as UTC instead of
   device-local time.
 - Widgets: honor the shared used-versus-remaining display preference.

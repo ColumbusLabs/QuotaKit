@@ -422,7 +422,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
     func `bundled CLI resolves the owning app prompt policy domain`() throws {
         let tempDirectory = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        let appURL = tempDirectory.appendingPathComponent("CodexBar.app", isDirectory: true)
+        let appURL = tempDirectory.appendingPathComponent("QuotaKit.app", isDirectory: true)
         let contentsURL = appURL.appendingPathComponent("Contents", isDirectory: true)
         let helpersURL = contentsURL.appendingPathComponent("Helpers", isDirectory: true)
         let macOSURL = contentsURL.appendingPathComponent("MacOS", isDirectory: true)
@@ -433,7 +433,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
         defer { try? FileManager.default.removeItem(at: tempDirectory) }
 
         let info: [String: Any] = [
-            "CFBundleExecutable": "CodexBar",
+            "CFBundleExecutable": "QuotaKit",
             "CFBundleIdentifier": ClaudeOAuthKeychainPromptPreference.debugApplicationDefaultsDomain,
             "CFBundlePackageType": "APPL",
         ]
@@ -442,11 +442,11 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
             format: .xml,
             options: 0)
         try infoData.write(to: contentsURL.appendingPathComponent("Info.plist"))
-        try Data().write(to: macOSURL.appendingPathComponent("CodexBar"))
+        try Data().write(to: macOSURL.appendingPathComponent("QuotaKit"))
 
-        let helperURL = helpersURL.appendingPathComponent("CodexBarCLI")
+        let helperURL = helpersURL.appendingPathComponent("QuotaKitCLI")
         try Data().write(to: helperURL)
-        let symlinkURL = binURL.appendingPathComponent("codexbar")
+        let symlinkURL = binURL.appendingPathComponent("quotakit")
         try FileManager.default.createSymbolicLink(at: symlinkURL, withDestinationURL: helperURL)
 
         let bundledCLIDomain = ClaudeOAuthKeychainPromptPreference.resolveApplicationDefaultsDomain(
@@ -457,7 +457,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
         #expect(bundledCLIDomain == ClaudeOAuthKeychainPromptPreference.debugApplicationDefaultsDomain)
 
         let debugWidgetDomain = ClaudeOAuthKeychainPromptPreference.resolveApplicationDefaultsDomain(
-            bundleIdentifier: "com.steipete.codexbar.debug.widget",
+            bundleIdentifier: "com.columbuslabs.quotakit.mac.debug.widget",
             bundleURL: nil,
             executableURL: nil,
             invocationURL: nil)
@@ -466,7 +466,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
         let standaloneDomain = ClaudeOAuthKeychainPromptPreference.resolveApplicationDefaultsDomain(
             bundleIdentifier: nil,
             bundleURL: nil,
-            executableURL: URL(fileURLWithPath: "/usr/local/bin/codexbar"),
+            executableURL: URL(fileURLWithPath: "/usr/local/bin/quotakit"),
             invocationURL: nil)
         #expect(standaloneDomain == ClaudeOAuthKeychainPromptPreference.releaseApplicationDefaultsDomain)
 
@@ -609,7 +609,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
     }
 
     @Test
-    func `never mode bypasses oauth cache while preserving experimental security CLI reader`() throws {
+    func `never mode bypasses oauth cache and keychain derived readers`() throws {
         try self.withTestState { state in
             try self.withCredentialsFile(data: nil) { _ in
                 self.seedCache(state, accessToken: "cached-token")
@@ -618,43 +618,16 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                     expiresAt: Date(timeIntervalSinceNow: 3600),
                     refreshToken: "security-cli-refresh-token")
 
-                let credentials = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                    .securityCLIExperimental)
-                {
-                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
-                        try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(securityData)) {
-                            try ProviderInteractionContext.$current.withValue(.background) {
-                                try ClaudeOAuthCredentialsStore.load(
-                                    environment: [:],
-                                    allowKeychainPrompt: false)
-                            }
-                        }
-                    }
-                }
-
-                #expect(credentials.accessToken == "security-cli-token")
-                #expect(state.recorder.operations.isEmpty)
-                #expect(state.pendingStore.isPending)
-                let cachedToken = try self.cachedToken(state)
-                #expect(cachedToken == "cached-token")
-
                 do {
-                    _ = try ClaudeOAuthCredentialsStore.withIsolatedMemoryCacheForTesting {
-                        try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                            .securityCLIExperimental)
-                        {
-                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                                try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(nil)) {
-                                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                        data: Data(),
-                                        fingerprint: nil)
-                                    {
-                                        try ProviderInteractionContext.$current.withValue(.background) {
-                                            try ClaudeOAuthCredentialsStore.load(
-                                                environment: [:],
-                                                allowKeychainPrompt: false)
-                                        }
-                                    }
+                    _ = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                        .securityCLIExperimental)
+                    {
+                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
+                            try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(securityData)) {
+                                try ProviderInteractionContext.$current.withValue(.background) {
+                                    try ClaudeOAuthCredentialsStore.load(
+                                        environment: [:],
+                                        allowKeychainPrompt: false)
                                 }
                             }
                         }
@@ -666,11 +639,10 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                         return
                     }
                 }
-
+                #expect(state.recorder.operations.isEmpty)
                 #expect(!state.pendingStore.isPending)
-                #expect(state.recorder.operations == [.clear, .load])
-                let clearedToken = try self.cachedToken(state)
-                #expect(clearedToken == nil)
+                let cachedToken = try self.cachedToken(state)
+                #expect(cachedToken == "cached-token")
 
                 let mcpOnly = Data(#"{"mcpOAuth":{"plugin:test":{"accessToken":"synthetic"}}}"#.utf8)
                 let isMcpOnly = ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
@@ -686,7 +658,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                             ])
                     }
                 }
-                #expect(isMcpOnly)
+                #expect(!isMcpOnly)
             }
         }
     }

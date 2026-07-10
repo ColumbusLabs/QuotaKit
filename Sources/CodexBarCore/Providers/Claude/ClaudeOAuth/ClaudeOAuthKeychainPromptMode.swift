@@ -7,8 +7,8 @@ public enum ClaudeOAuthKeychainPromptMode: String, Sendable, Codable, CaseIterab
 }
 
 public enum ClaudeOAuthKeychainPromptPreference {
-    static let releaseApplicationDefaultsDomain = "com.steipete.codexbar"
-    static let debugApplicationDefaultsDomain = "com.steipete.codexbar.debug"
+    static let releaseApplicationDefaultsDomain = "com.columbuslabs.quotakit.mac"
+    static let debugApplicationDefaultsDomain = "com.columbuslabs.quotakit.mac.debug"
     private static let userDefaultsKey = "claudeOAuthKeychainPromptMode"
 
     static var applicationDefaultsDomain: String {

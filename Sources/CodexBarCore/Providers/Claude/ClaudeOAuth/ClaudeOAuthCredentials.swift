@@ -41,7 +41,7 @@ public enum ClaudeOAuthCredentialsStore {
     private static let pendingCodexBarOAuthKeychainCacheClearStore: ClaudeOAuthPendingCacheClearStore =
         ClaudeOAuthPendingCacheClearUserDefaultsStore(
             // The cache service is shared by release/debug apps and their CLIs, so its tombstone is shared too.
-            domain: "com.steipete.codexbar",
+            domain: ClaudeOAuthKeychainPromptPreference.releaseApplicationDefaultsDomain,
             key: ClaudeOAuthCredentialsStore.pendingCodexBarOAuthKeychainCacheClearKey)
     private static let claudeKeychainChangeCheckLock = NSLock()
     private nonisolated(unsafe) static var lastClaudeKeychainChangeCheckAt: Date?

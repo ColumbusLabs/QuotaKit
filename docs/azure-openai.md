@@ -19,8 +19,8 @@ Azure OpenAI requires three values:
 2. Resource endpoint
 3. Deployment name
 
-Settings -> Providers -> Azure OpenAI stores those values in the shared QuotaKit config. The same values can also be
-provided with environment variables:
+Settings -> Providers -> Azure OpenAI stores those values in the shared QuotaKit config
+(`~/.quotakit/config.json` for new installs). The same values can also be provided with environment variables:
 
 ```bash
 export AZURE_OPENAI_API_KEY="..."

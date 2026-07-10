@@ -93,6 +93,16 @@ extension ClaudeOAuthCredentialsStore {
     {
         guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
         let interactionMetadata = interaction == .userInitiated ? "user" : "background"
+        guard ClaudeOAuthKeychainPromptPreference.storedMode() != .never else {
+            self.log.debug(
+                "Claude keychain security CLI read skipped by prompt policy",
+                metadata: [
+                    "reader": "securityCLI",
+                    "callerInteraction": interactionMetadata,
+                    "promptMode": ClaudeOAuthKeychainPromptMode.never.rawValue,
+                ])
+            return nil
+        }
         guard interaction == .userInitiated || allowBackgroundReadForClassification else {
             self.log.debug(
                 "Claude keychain security CLI read skipped outside user action",
@@ -367,7 +377,7 @@ extension ClaudeOAuthCredentialsStore {
         guard !keychainAccessDisabled || self.isolatedSecurityCLIKeychainPath(environment: environment) != nil else {
             return false
         }
-        guard ClaudeOAuthKeychainPromptPreference.effectiveMode(readStrategy: readStrategy) != .never else {
+        guard ClaudeOAuthKeychainPromptPreference.storedMode() != .never else {
             return false
         }
         let payload: Data? = switch readStrategy {
