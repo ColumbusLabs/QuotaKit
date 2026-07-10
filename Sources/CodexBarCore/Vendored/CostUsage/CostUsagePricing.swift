@@ -1,5 +1,6 @@
 import Foundation
 
+// swiftlint:disable:next type_body_length
 enum CostUsagePricing {
     private static let codexPriorityInputTokenLimit = 272_000
 
@@ -468,6 +469,11 @@ enum CostUsagePricing {
     /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
     ///
     /// History:
+    /// - `17` (upstream sync through `501e95150`): merged upstream
+    ///   `CostUsageScanner.swift` parser and pricing-key stabilization changes
+    ///   for GPT-5.6 catalog pricing. Roll the pricingFingerprint so caches
+    ///   written by the previous scanner are invalidated and re-scanned with
+    ///   the merged parser.
     /// - `16` (issue #59 upstream sync): merged upstream
     ///   `CostUsageScanner.swift` parser changes through `3b039d15`. Roll the
     ///   pricingFingerprint so caches written by the previous scanner are
@@ -533,7 +539,7 @@ enum CostUsagePricing {
     ///   in `parseCodexFile`. Bumping rolls every previous version's
     ///   cache and re-scans with the fixed parser.
     /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 16
+    static let parserLogicVersion = 17
 
     /// Stable string fingerprint of the pricing tables + parser logic.
     /// `CostUsageCacheIO.load` compares this against the value stored
@@ -669,12 +675,17 @@ enum CostUsagePricing {
         let key = self.normalizeCodexModel(model)
         // 1) Live models.dev catalog (upstream 0.25) takes precedence so
         //    fresh pricing edits land without an app update.
-        if let lookup = self.modelsDevLookup(
+        let modelsDevLookup = self.modelsDevLookup(
             providerID: self.codexModelsDevProviderID,
             model: model,
             catalog: modelsDevCatalog,
             cacheRoot: modelsDevCacheRoot)
-        {
+            ?? (model == key ? nil : self.modelsDevLookup(
+                providerID: self.codexModelsDevProviderID,
+                model: key,
+                catalog: modelsDevCatalog,
+                cacheRoot: modelsDevCacheRoot))
+        if let lookup = modelsDevLookup {
             let bundled = self.codex[key]
             // A missing catalog context block means models.dev has no long-context opinion, so use
             // the bundled tuple. Once the block exists, preserve its omissions and normal fallback

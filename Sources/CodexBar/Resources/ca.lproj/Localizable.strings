@@ -148,7 +148,7 @@
 "Install the Claude CLI (npm i -g @anthropic-ai/claude-code) and try again." = "Instal·leu la CLI de Claude (npm i -g @anthropic-ai/claude-code) i torneu-ho a provar.";
 "Install the Codex CLI (npm i -g @openai/codex) and try again." = "Instal·leu la CLI de Codex (npm i -g @openai/codex) i torneu-ho a provar.";
 "Install the Gemini CLI (npm i -g @google/gemini-cli) and try again." = "Instal·leu la CLI de Gemini (npm i -g @google/gemini-cli) i torneu-ho a provar.";
-"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Instal·leu un IDE de JetBrains amb l'AI Assistant activat i després actualitzeu el CodexBar.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Instal·leu un IDE de JetBrains amb l'AI Assistant activat i després actualitzeu el QuotaKit.";
 "JetBrains AI is ready" = "JetBrains AI està a punt";
 "JetBrains IDE" = "IDE de JetBrains";
 "Keep CLI sessions alive" = "Mantingueu actives les sessions de la CLI";

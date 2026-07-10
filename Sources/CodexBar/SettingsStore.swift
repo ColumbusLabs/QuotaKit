@@ -353,6 +353,11 @@ extension SettingsStore {
         let predictivePaceWarningNotificationsEnabled: Bool
     }
 
+    private struct OptionalCreditsDefaults {
+        let showOptionalCreditsAndExtraUsage: Bool
+        let codexSparkUsageVisible: Bool
+    }
+
     private static func scheduleAppGroupMigration() {
         Task.detached(priority: .utility) {
             let result = AppGroupSupport.migrateLegacyDataIfNeeded()
@@ -439,16 +444,7 @@ extension SettingsStore {
         let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
         let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
-        let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
-        let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
-        if Self.isRunningTests, creditsExtrasDefault == nil {
-            userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
-        }
-        let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
-        let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
-        if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
-            userDefaults.set(true, forKey: "codexSparkUsageVisible")
-        }
+        let optionalCreditsDefaults = Self.loadOptionalCreditsDefaults(userDefaults: userDefaults)
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
         let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
@@ -519,8 +515,8 @@ extension SettingsStore {
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
-            showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
-            codexSparkUsageVisible: codexSparkUsageVisible,
+            showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
+            codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,
@@ -536,6 +532,24 @@ extension SettingsStore {
             terminalAppRaw: userDefaults.string(forKey: "terminalApp"),
             agentSessionsEnabled: agentSessionsEnabled,
             agentSessionsManualHosts: agentSessionsManualHosts)
+    }
+
+    private static func loadOptionalCreditsDefaults(userDefaults: UserDefaults) -> OptionalCreditsDefaults {
+        let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
+        let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
+        if Self.isRunningTests, creditsExtrasDefault == nil {
+            userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
+        }
+
+        let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
+        let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
+        if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
+            userDefaults.set(true, forKey: "codexSparkUsageVisible")
+        }
+
+        return OptionalCreditsDefaults(
+            showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
+            codexSparkUsageVisible: codexSparkUsageVisible)
     }
 
     private static func loadOpenAIWebDefaults(userDefaults: UserDefaults) -> (

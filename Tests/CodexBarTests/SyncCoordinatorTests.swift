@@ -57,6 +57,7 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
 
 @MainActor
 @Suite(.serialized)
+// swiftlint:disable:next type_body_length
 struct SyncCoordinatorTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
