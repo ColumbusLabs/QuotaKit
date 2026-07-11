@@ -829,6 +829,10 @@ extension StatusMenuViewportRestoreTests {
 
     @Test
     func `refresh row highlight clears while its action is in flight`() async throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false

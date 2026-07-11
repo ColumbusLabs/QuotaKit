@@ -90,7 +90,7 @@ enum BlockingEnrichmentStage: Sendable {
 
 @MainActor
 @Suite(.serialized)
-struct StatusMenuPersistentRefreshTests { // swiftlint:disable:this type_body_length
+struct StatusMenuPersistentRefreshTests {
     private func makeSettings() -> SettingsStore {
         testSettingsStore(suiteName: "StatusMenuPersistentRefreshTests")
     }
@@ -881,6 +881,10 @@ extension StatusMenuPersistentRefreshTests {
 
     @Test
     func `provider menu persistent refresh row and command R refresh only that provider`() async throws {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = false

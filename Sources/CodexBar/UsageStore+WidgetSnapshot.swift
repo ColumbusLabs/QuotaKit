@@ -151,6 +151,9 @@ extension UsageStore {
         {
             return rows
         }
+        if provider == .cursor {
+            return Self.cursorWidgetRows(metadata: metadata, snapshot: snapshot)
+        }
 
         let primaryTitle = Self.widgetPrimaryRateWindowLabel(
             provider: provider,
@@ -187,6 +190,51 @@ extension UsageStore {
         }
         if provider == .claude {
             rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
+        }
+        return rows.filter { $0.percentLeft != nil }
+    }
+
+    private nonisolated static func cursorWidgetRows(
+        metadata: ProviderMetadata?,
+        snapshot: UsageSnapshot) -> [WidgetSnapshot.WidgetUsageRowSnapshot]
+    {
+        func row(id: String, title: String, window: RateWindow?) -> WidgetSnapshot.WidgetUsageRowSnapshot {
+            WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: id,
+                title: title,
+                percentLeft: window?.remainingPercent,
+                window: window)
+        }
+
+        let rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
+        case .requests:
+            [row(id: "primary", title: "Requests", window: snapshot.primary)]
+        case .plan:
+            [row(id: "primary", title: "Plan", window: snapshot.primary)]
+        case .apiOnly:
+            [row(id: "primary", title: "API", window: snapshot.primary)]
+        case .autoAPI:
+            [
+                row(id: "primary", title: metadata?.sessionLabel ?? "Auto", window: snapshot.primary),
+                row(id: "secondary", title: metadata?.weeklyLabel ?? "API", window: snapshot.secondary),
+            ]
+        case .autoOnly:
+            [row(id: "primary", title: metadata?.sessionLabel ?? "Auto", window: snapshot.primary)]
+        case .none:
+            if snapshot.cursorRequests != nil {
+                [row(id: "primary", title: "Requests", window: snapshot.primary)]
+            } else if snapshot.tertiary != nil {
+                [
+                    row(id: "primary", title: "Total", window: snapshot.primary),
+                    row(id: "secondary", title: metadata?.sessionLabel ?? "Auto", window: snapshot.secondary),
+                    row(id: "tertiary", title: metadata?.weeklyLabel ?? "API", window: snapshot.tertiary),
+                ]
+            } else {
+                [
+                    row(id: "primary", title: metadata?.sessionLabel ?? "Auto", window: snapshot.primary),
+                    row(id: "secondary", title: metadata?.weeklyLabel ?? "API", window: snapshot.secondary),
+                ]
+            }
         }
         return rows.filter { $0.percentLeft != nil }
     }
