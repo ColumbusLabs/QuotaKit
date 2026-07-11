@@ -19,6 +19,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac fixes through `a0102190e`
+  (`820bfa145..a0102190e`), including Codex weekly reset-boundary ownership for
+  quota-reset celebrations while preserving QuotaKit release ownership, appcast
+  metadata, config paths, CloudKit setup, and iOS build numbers.
 - Synced upstream CodexBar Mac fixes through `820bfa145`
   (`98de97833..820bfa145`), including Gemini OAuth recovery when current CLI
   installs omit `oauth2.js` and the upstream Pi cumulative-token scanner revert,
@@ -46,6 +50,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex: require weekly reset-boundary advancement before celebrating quota
+  resets while keeping same-email workspace accounts isolated.
 - Codex accounts: isolate authenticated OAuth and browser-cookie requests from
   shared URL caches and cookie stores.
 - Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI
