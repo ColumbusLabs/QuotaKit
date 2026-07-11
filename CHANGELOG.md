@@ -5,6 +5,8 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.12 / iOS 1.11.1 — Unreleased
+
 ## 0.32.4.11 / iOS 1.11.1 — 2026-07-11
 
 ### Added
