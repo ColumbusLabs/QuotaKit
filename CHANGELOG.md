@@ -19,6 +19,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac fixes through `820bfa145`
+  (`98de97833..820bfa145`), including Gemini OAuth recovery when current CLI
+  installs omit `oauth2.js` and the upstream Pi cumulative-token scanner revert,
+  while preserving QuotaKit release ownership, appcast metadata, config paths,
+  CloudKit setup, and iOS build numbers.
 - Synced upstream CodexBar Mac improvements through `98de97833`
   (`2d58d098..98de97833`), including the settings pane reorganization,
   leading-aligned settings footers, menu viewport restoration after manual
@@ -40,6 +45,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   setup, config paths, and iOS build numbers.
 
 ### Fixed
+
 - Codex accounts: isolate authenticated OAuth and browser-cookie requests from
   shared URL caches and cookie stores.
 - Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI
