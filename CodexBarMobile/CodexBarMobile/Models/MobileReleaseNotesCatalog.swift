@@ -23,6 +23,19 @@ struct ReleaseNotesVersion: Identifiable {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
+            version: "1.11.2",
+            status: String(localized: "Latest"),
+            summary: String(
+                localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
             version: "1.11.1",
             status: String(localized: "Latest"),
             summary: String(
@@ -45,8 +58,6 @@ enum MobileReleaseNotesCatalog {
                             localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),
                         String(
                             localized: "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first."),
-                        String(
-                            localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
                         String(
                             localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                         String(

@@ -36,7 +36,7 @@ targets:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.sync
         GENERATE_INFOPLIST_FILE: true
-        MARKETING_VERSION: "1.11.1"
+        MARKETING_VERSION: "1.11.2"
         CURRENT_PROJECT_VERSION: "170"
 
   CodexBarMobilePushExtension:
@@ -57,7 +57,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios.pushextension
-        MARKETING_VERSION: "1.11.1"
+        MARKETING_VERSION: "1.11.2"
         CURRENT_PROJECT_VERSION: "170"
         DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
         INFOPLIST_FILE: CodexBarMobilePushExtension/Info.plist
@@ -79,7 +79,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios
-        MARKETING_VERSION: "1.11.1"
+        MARKETING_VERSION: "1.11.2"
         CURRENT_PROJECT_VERSION: "170"
         DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
         INFOPLIST_FILE: CodexBarMobile/Info.plist
@@ -110,7 +110,7 @@ targets:
     settings:
       base:
         PRODUCT_BUNDLE_IDENTIFIER: com.columbuslabs.quotakit.ios.widgets
-        MARKETING_VERSION: "1.11.1"
+        MARKETING_VERSION: "1.11.2"
         CURRENT_PROJECT_VERSION: "170"
         DEVELOPMENT_TEAM: QUOTAKIT_TEAM_ID
         INFOPLIST_FILE: CodexBarMobileWidgets/Info.plist
