@@ -18811,6 +18811,34 @@
         }
       }
     },
+    "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダー詳細の拡充 — CrossModel の残高と利用額、Codex のクレジット上限、より分かりやすいリセット時刻とトークン合計を表示します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多提供商详情 —— 显示 CrossModel 余额和消费、Codex 额度上限，以及更清晰的重置时间和令牌总数。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更多提供者詳細 —— 顯示 CrossModel 餘額和消費、Codex 額度上限，以及更清晰的重設時間和權杖總數。"
+          }
+        }
+      }
+    },
     "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers.": {
       "localizations": {
         "en": {

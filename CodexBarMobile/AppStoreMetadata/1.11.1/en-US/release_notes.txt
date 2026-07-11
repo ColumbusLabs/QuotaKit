@@ -1,8 +1,9 @@
-QuotaKit 1.11.1 adds provider logo polish across the app and widgets, improves widget sync from background CloudKit updates, and keeps the QuotaKit Pro widget experience aligned with the Mac app.
+QuotaKit 1.11.1 adds richer provider details, clearer quota data, and more reliable sync from QuotaKit for Mac.
 
 What's new:
-- Provider rows, usage cards, detail views, dashboard provider-share lists, and widgets now use the same provider logo assets as QuotaKit for Mac.
-- Widgets can refresh their stored snapshot directly from background CloudKit silent pushes, so new Mac sync data can update the widget without opening the app first.
-- Recent 1.11.1 updates also added in-app widget provider selection, provider reordering, and widget quota-window controls for Both, Session, or Weekly views.
+- CrossModel balances and daily, weekly, and monthly usage, spend, token, and request details now sync to iPhone.
+- Codex credit-limit windows now appear in companion app and widget data.
+- Provider ordering is clearer, with Sakana and Wayfinder branded consistently.
+- Quota reset times and large token totals are more accurate, with stronger multi-account sync and widget background refresh handling.
 
 QuotaKit for iPhone requires QuotaKit for Mac with iCloud Sync enabled.

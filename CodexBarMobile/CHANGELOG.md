@@ -5,6 +5,24 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.1 (170)] — 2026-07-11 — Provider details and sync reliability
+
+### Added
+
+- CrossModel balances plus daily, weekly, and monthly usage, spend, token, and
+  request details now sync from Mac to iPhone.
+- Codex credit-limit windows now appear in companion app and widget data.
+
+### Changed
+
+- Provider ordering is clearer, and Sakana and Wayfinder use their branded
+  presentation on iPhone.
+
+### Fixed
+
+- Quota reset times and large token totals render more accurately.
+- Hardened multi-account CloudKit sync and widget background refresh handling.
+
 ## [1.11.1 (169)] — 2026-06-18 — Provider logos in app and widgets
 
 ### Changed

@@ -46,6 +46,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first."),
                         String(
+                            localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
+                        String(
                             localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                         String(
                             localized: "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth."),
