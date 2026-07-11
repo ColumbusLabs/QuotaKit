@@ -68,12 +68,25 @@ extension CodexAccountScopedRefreshTests {
     }
 
     func makeUsageStore(settings: SettingsStore, environmentBase: [String: String] = [:]) -> UsageStore {
-        UsageStore(
-            fetcher: UsageFetcher(environment: [:]),
-            browserDetection: BrowserDetection(cacheTTL: 0),
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-tests", isDirectory: true)
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+        var environment = [
+            "HOME": root.path,
+            "CODEX_HOME": root.appendingPathComponent(".codex", isDirectory: true).path,
+            "XDG_CONFIG_HOME": root.appendingPathComponent(".config", isDirectory: true).path,
+        ]
+        if let reconciliationEnvironment = settings._test_codexReconciliationEnvironment {
+            environment.merge(reconciliationEnvironment) { _, override in override }
+        }
+        environment.merge(environmentBase) { _, override in override }
+        settings._test_codexReconciliationEnvironment = environment
+        return UsageStore(
+            fetcher: UsageFetcher(environment: environment),
+            browserDetection: BrowserDetection(homeDirectory: environment["HOME"] ?? root.path, cacheTTL: 0),
             settings: settings,
             startupBehavior: .testing,
-            environmentBase: environmentBase)
+            environmentBase: environment)
     }
 
     func liveAccount(email: String, identity: CodexIdentity = .unresolved) -> ObservedSystemCodexAccount {
@@ -402,7 +415,9 @@ actor BlockingCodexFetchStrategy {
     }
 
     func waitUntilStarted() async {
-        if self.didStart { return }
+        if self.didStart {
+            return
+        }
         await withCheckedContinuation { continuation in
             self.startedWaiters.append(continuation)
         }
@@ -430,7 +445,9 @@ actor BlockingOpenAIDashboardLoader {
     }
 
     func waitUntilStarted() async {
-        if self.didStart { return }
+        if self.didStart {
+            return
+        }
         await withCheckedContinuation { continuation in
             self.startedWaiters.append(continuation)
         }
@@ -457,7 +474,9 @@ actor BlockingWidgetSnapshotSaver {
     }
 
     func waitUntilStarted(count: Int) async {
-        if self.snapshots.count >= count { return }
+        if self.snapshots.count >= count {
+            return
+        }
         await withCheckedContinuation { continuation in
             self.startedWaiters.append(continuation)
         }

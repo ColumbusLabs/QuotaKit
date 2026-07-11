@@ -42,14 +42,11 @@ extension UsageStore {
         self.resetBoundaryRefreshTask = nil
         self.scheduledResetBoundaryRefreshAt = nil
         guard Self.shouldRecordResetBoundaryAttempt(isRefreshing: self.isRefreshing) else { return }
-        await self.refresh()
-        if Self.shouldRecordResetBoundaryAttempt(
-            isRefreshing: self.isRefreshing,
-            snapshots: self.snapshots,
-            boundaryRefreshAt: boundaryRefreshAt)
-        {
-            self.recordAttemptedResetBoundaryRefresh(boundaryRefreshAt)
-        }
+        // Mark the boundary before the pass so runRefresh cannot schedule the same stale boundary again.
+        self.recordAttemptedResetBoundaryRefresh(boundaryRefreshAt)
+        await self.runRefresh(
+            startupConnectivityRetryAttempt: nil,
+            waitForRefreshAvailability: true)
     }
 
     private func recordAttemptedResetBoundaryRefresh(_ refreshAt: Date) {

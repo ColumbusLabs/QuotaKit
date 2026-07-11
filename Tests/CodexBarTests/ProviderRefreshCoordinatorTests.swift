@@ -78,6 +78,18 @@ struct ProviderRefreshCoordinatorTests {
     }
 
     @Test
+    func `completed request is not offered for coalescing before deferred removal`() {
+        let coordinator = ProviderRefreshCoordinator<String>()
+        let request = coordinator.beginReplacingRequest(for: "codex")
+        let task = Task {}
+        request.state.install(task: task)
+
+        coordinator.complete(request.state, for: "codex", retryRequired: false)
+
+        #expect(coordinator.coalescingState(for: "codex") == nil)
+    }
+
+    @Test
     func `completion removal and activity counts are key scoped`() async {
         let coordinator = ProviderRefreshCoordinator<String>()
         let codex = coordinator.beginReplacingRequest(for: "codex")

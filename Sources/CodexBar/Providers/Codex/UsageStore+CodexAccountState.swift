@@ -51,6 +51,7 @@ extension UsageStore {
             await self.refreshOpenAIDashboardIfNeeded(
                 force: true,
                 expectedGuard: expectedGuard,
+                bypassCoalescing: true,
                 allowCodexUsageBackfill: true)
             phaseDidChange?(.dashboard)
         }

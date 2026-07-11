@@ -289,7 +289,12 @@ final class PersistentRefreshMenuView: NSView, MenuCardHighlighting {
         self.titleField.stringValue
     }
 
+    override func isAccessibilityEnabled() -> Bool {
+        self.isRowEnabled
+    }
+
     override func accessibilityPerformPress() -> Bool {
+        guard self.isRowEnabled else { return false }
         guard let onClick = self.onClick else {
             return super.accessibilityPerformPress()
         }
