@@ -19,6 +19,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac improvements through `566d61218`
+  (`2d58d098..566d61218`), including the settings pane reorganization,
+  leading-aligned settings footers, menu viewport restoration after manual
+  refresh, stale menu highlight fixes, Claude OAuth Keychain pre-alert
+  cooldowns, passive Claude probe update suppression, bounded Codex session
+  metadata reads, Pi Ultra token overcount fixes, Cursor/filter widget options,
+  Kimi K2 credential messaging, and broader menu/refresh/widget/provider test
+  coverage while preserving QuotaKit release ownership, appcast metadata,
+  CloudKit setup, config paths, Cursor mobile label parity, and iOS build
+  numbers.
 - Synced upstream CodexBar Mac improvements through `2d58d098`
   (`3b039d15..2d58d098`), including Codex OAuth account isolation, Spark quota
   visibility, reset-time menu display, Kimi K2 dashboard links, GPT-5.6

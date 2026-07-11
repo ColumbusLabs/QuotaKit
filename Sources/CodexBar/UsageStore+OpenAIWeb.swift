@@ -429,6 +429,10 @@ extension UsageStore {
             await task.value
             return
         }
+        if bypassCoalescing {
+            self.openAIDashboardBackgroundRefreshTask?.cancel()
+            self.openAIDashboardRefreshTask?.cancel()
+        }
         self.handleOpenAIWebTargetEmailChangeIfNeeded(
             targetEmail: targetEmail,
             targetScope: self.codexCookieCacheScopeForOpenAIWeb())
@@ -502,6 +506,7 @@ extension UsageStore {
                 }
             }
 
+            guard !Task.isCancelled else { return }
             await self.refreshOpenAIDashboardIfNeeded(force: false, expectedGuard: expectedGuard)
             guard !Task.isCancelled else { return }
             self.persistWidgetSnapshot(reason: "dashboard")

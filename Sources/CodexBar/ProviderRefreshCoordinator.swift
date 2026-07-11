@@ -22,7 +22,9 @@ final class ProviderRefreshCoordinator<Key: Hashable> {
 
     func coalescingState(for key: Key) -> ProviderRefreshTaskState? {
         guard let latestGeneration = self.latestGenerations[key] else { return nil }
-        return self.states[key]?.last { $0.generation == latestGeneration }
+        return self.states[key]?.last { state in
+            state.generation == latestGeneration && !state.isCompleted
+        }
     }
 
     func beginReplacingRequest(for key: Key) -> Request {
@@ -175,6 +177,10 @@ final class ProviderRefreshTaskState: @unchecked Sendable {
 
     fileprivate var shouldRetry: Bool {
         self.lock.withLock { self.retryRequired }
+    }
+
+    fileprivate var isCompleted: Bool {
+        self.lock.withLock { self.completed }
     }
 
     var canRemove: Bool {

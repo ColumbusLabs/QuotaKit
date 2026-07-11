@@ -424,11 +424,13 @@ public enum ClaudeOAuthCredentialsStore {
                 }
 
                 if effectiveAllowKeychainPrompt, ClaudeOAuthCredentialsStore.shouldNotifyClaudeKeychainPreAlert() {
-                    KeychainPromptHandler.notify(
-                        KeychainPromptContext(
-                            kind: .claudeOAuth,
-                            service: ClaudeOAuthCredentialsStore.claudeKeychainService,
-                            account: nil))
+                    ClaudeOAuthKeychainPreAlertGate.presentIfNeeded {
+                        KeychainPromptHandler.notifyIfHandled(
+                            KeychainPromptContext(
+                                kind: .claudeOAuth,
+                                service: ClaudeOAuthCredentialsStore.claudeKeychainService,
+                                account: nil))
+                    }
                 }
                 let keychainData: Data = if shouldPreferSecurityCLIKeychainRead {
                     try ClaudeOAuthCredentialsStore.loadFromClaudeKeychainUsingSecurityFramework(

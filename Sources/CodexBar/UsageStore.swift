@@ -32,6 +32,7 @@ extension UsageStore {
         _ = self.openAIDashboardAttachmentRevision
         _ = self.versions
         _ = self.isRefreshing
+        _ = self.hasForcedRefreshEnrichmentInFlight
         _ = self.refreshingProviders
         _ = self.pathDebugInfo
         _ = self.statuses
@@ -88,9 +89,15 @@ extension UsageStore {
 
     private static func isRunningTestsProcess() -> Bool {
         let environment = ProcessInfo.processInfo.environment
-        if environment["XCTestConfigurationFilePath"] != nil { return true }
-        if environment["XCTestSessionIdentifier"] != nil { return true }
-        if environment["SWIFT_TESTING_ENABLED"] != nil { return true }
+        if environment["XCTestConfigurationFilePath"] != nil {
+            return true
+        }
+        if environment["XCTestSessionIdentifier"] != nil {
+            return true
+        }
+        if environment["SWIFT_TESTING_ENABLED"] != nil {
+            return true
+        }
         return CommandLine.arguments.contains { argument in
             argument.contains("xctest") || argument.contains("swift-testing")
         }
@@ -115,7 +122,9 @@ extension UsageStore {
 
     var preferredSnapshot: UsageSnapshot? {
         for provider in self.enabledProviders() {
-            if let snap = self.snapshots[provider] { return snap }
+            if let snap = self.snapshots[provider] {
+                return snap
+            }
         }
         return nil
     }
@@ -181,6 +190,7 @@ final class UsageStore {
     var openAIDashboardCookieImportDebugLog: String?
     var versions: [UsageProvider: String] = [:]
     var isRefreshing = false
+    var hasForcedRefreshEnrichmentInFlight = false
     var refreshingProviders: Set<UsageProvider> = []
     var debugForceAnimation = false
     var pathDebugInfo: PathDebugSnapshot = .empty
@@ -237,6 +247,7 @@ final class UsageStore {
     @ObservationIgnored var _test_tokenUsageRefreshOverride: (@MainActor (UsageProvider, Bool) async -> Void)?
     @ObservationIgnored var _test_providerStatusFetchOverride: (@MainActor (
         UsageProvider) async throws -> ProviderStatus)?
+    @ObservationIgnored var _test_forcedRefreshEnrichmentWaitObserver: (@MainActor () -> Void)?
     @ObservationIgnored var _test_startupConnectivityRetryScheduled: (@MainActor (Int, TimeInterval) -> Void)?
     @ObservationIgnored var _test_startupConnectivityRetrySleepOverride: (@MainActor (
         TimeInterval) async throws -> Void)?
@@ -270,9 +281,20 @@ final class UsageStore {
     /// In-memory only; resets on every launch.
     @ObservationIgnored private(set) var lastMenuOpenAt: Date?
     @ObservationIgnored var adaptiveRefreshScheduledAt: Date?
-    @ObservationIgnored private var tokenTimerTask: Task<Void, Never>?
-    @ObservationIgnored private var tokenRefreshSequenceTask: Task<Void, Never>?
-    @ObservationIgnored private var tokenRefreshSequenceProvider: UsageProvider?
+    @ObservationIgnored var tokenTimerTask: Task<Void, Never>?
+    @ObservationIgnored var tokenRefreshSequenceTask: Task<Void, Never>?
+    @ObservationIgnored var tokenRefreshSequenceToken: UUID?
+    @ObservationIgnored var tokenRefreshSequenceProvider: UsageProvider?
+    @ObservationIgnored var forcedRefreshEnrichmentTask: Task<Void, Never>?
+    @ObservationIgnored var forcedRefreshEnrichmentToken: UUID?
+    @ObservationIgnored var pendingForcedRefreshEnrichmentTask: Task<Void, Never>?
+    @ObservationIgnored var pendingForcedRefreshEnrichmentToken: UUID?
+    @ObservationIgnored var forcedRefreshEnrichmentGeneration: UInt64 = 0
+    @ObservationIgnored var requiredRefreshTask: Task<Bool, Never>?
+    @ObservationIgnored var requiredRefreshTaskToken: UUID?
+    @ObservationIgnored var pendingRequiredRefreshRequest: RequiredRefreshRequest?
+    @ObservationIgnored var requiredRefreshRequestGeneration: UInt64 = 0
+    @ObservationIgnored var requiredRefreshCompletedGeneration: UInt64 = 0
     @ObservationIgnored var memoryPressureReliefTask: Task<Void, Never>?
     @ObservationIgnored var startupConnectivityRetryTask: Task<Void, Never>?
     @ObservationIgnored var startupConnectivityRetryNeeded = false
@@ -396,14 +418,16 @@ final class UsageStore {
         Task { @MainActor [weak self] in
             await self?.refreshHistoricalDatasetIfNeeded()
         }
-        Task { await self.refresh() }
+        Task { await self.refresh(enrichmentMode: .automatic) }
         self.startTimer()
         self.startTokenTimer()
     }
 
     var iconStyle: IconStyle {
         let enabled = self.enabledProviders()
-        if enabled.count > 1 { return .combined }
+        if enabled.count > 1 {
+            return .combined
+        }
         if let provider = enabled.first {
             return self.style(for: provider)
         }
@@ -551,55 +575,32 @@ final class UsageStore {
         self.providerAvailabilityCache.removeAll(keepingCapacity: true)
     }
 
-    func performRuntimeAction(_ action: ProviderRuntimeAction, for provider: UsageProvider) async {
-        guard let runtime = self.providerRuntimes[provider] else { return }
-        let context = ProviderRuntimeContext(provider: provider, settings: self.settings, store: self)
-        await runtime.perform(action: action, context: context)
-    }
-
-    private func updateProviderRuntimes() {
-        for (provider, runtime) in self.providerRuntimes {
-            let context = ProviderRuntimeContext(provider: provider, settings: self.settings, store: self)
-            if self.isEnabled(provider) {
-                runtime.start(context: context)
-            } else {
-                runtime.stop(context: context)
-            }
-            runtime.settingsDidChange(context: context)
-        }
-    }
-
-    func refresh(forceTokenUsage: Bool = false) async {
-        await self.runRefresh(forceTokenUsage: forceTokenUsage, startupConnectivityRetryAttempt: nil)
-    }
-
-    func noteMenuOpened(at date: Date = Date()) {
-        self.lastMenuOpenAt = date
-        guard self.settings.refreshFrequency == .adaptive else { return }
-
-        let decision = Self.adaptiveRefreshDecision(
-            now: date,
-            lastMenuOpenAt: date,
-            lowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled,
-            thermalState: ProcessInfo.processInfo.thermalState)
-        let candidate = date.addingTimeInterval(TimeInterval(decision.delay.components.seconds))
-        guard Self.shouldAdvanceAdaptiveTimer(
-            scheduledAt: self.adaptiveRefreshScheduledAt,
-            candidate: candidate)
-        else { return }
-        self.startTimer(preservingResetBoundaryRefresh: true)
-    }
-
     #if DEBUG
     @ObservationIgnored private(set) var completedRefreshCountForTesting = 0
     #endif
 
+    @discardableResult
     func runRefresh(
-        forceTokenUsage: Bool = false,
+        enrichmentMode: RefreshEnrichmentMode = .automatic,
         startupConnectivityRetryAttempt: Int?,
-        coalesceProviderRefreshesOverride: Bool? = nil) async
+        coalesceProviderRefreshesOverride: Bool? = nil,
+        waitForRefreshAvailability: Bool = false) async -> Bool
     {
-        guard !self.isRefreshing else { return }
+        if enrichmentMode == .automatic, waitForRefreshAvailability {
+            return await self.enqueueRequiredRefresh(
+                startupConnectivityRetryAttempt: startupConnectivityRetryAttempt,
+                coalesceProviderRefreshesOverride: coalesceProviderRefreshesOverride)
+        }
+
+        guard !self.isRefreshing else { return false }
+        guard enrichmentMode != .automatic || !self.hasForcedRefreshEnrichmentInFlight else { return false }
+        let forcedBackgroundGeneration: UInt64?
+        if enrichmentMode == .forcedBackground {
+            self.forcedRefreshEnrichmentGeneration &+= 1
+            forcedBackgroundGeneration = self.forcedRefreshEnrichmentGeneration
+        } else {
+            forcedBackgroundGeneration = nil
+        }
         self.prepareRefreshState()
         let refreshPhase = Self.refreshPhase(hasCompletedInitialRefresh: self.hasCompletedInitialRefresh)
         let openAIWebRefreshPhase = Self.openAIWebRefreshPhase(
@@ -614,7 +615,7 @@ final class UsageStore {
         let availableRefreshProviders = Set(self.enabledProviders())
         let refreshStartedAt = Date()
 
-        await ProviderRefreshContext.$current.withValue(refreshPhase) {
+        let completedRefresh = await ProviderRefreshContext.$current.withValue(refreshPhase) {
             self.isRefreshing = true
             defer {
                 self.isRefreshing = false
@@ -640,61 +641,51 @@ final class UsageStore {
                         group.addTask { await self.refreshProviderStatus(provider) }
                     }
                 }
-                if forceTokenUsage {
+                if enrichmentMode == .forcedForeground {
                     group.addTask { await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt) }
                 }
             }
+            guard !Task.isCancelled else { return false }
 
-            if !forceTokenUsage {
+            if enrichmentMode == .automatic {
                 self.scheduleCreditsRefreshIfNeeded(minimumSnapshotUpdatedAt: refreshStartedAt)
             }
 
-            if forceTokenUsage {
+            if enrichmentMode == .forcedForeground {
                 await self.refreshTokenUsageSequenceNow(force: true)
-            } else {
+            } else if enrichmentMode == .automatic {
                 // Token-cost usage can be slow; run it outside regular/menu-open refreshes so we don't block UI.
-                self.scheduleTokenRefresh(force: false)
+                self.scheduleTokenRefresh()
             }
 
             // OpenAI web scrape depends on the current Codex account email (which can change after login/account
             // switch). Run this after Codex usage refresh so we don't accidentally scrape with stale credentials.
-            self.syncOpenAIWebState()
-            let refreshPolicy = OpenAIWebRefreshPolicyContext(
-                accessEnabled: self.isEnabled(.codex) &&
-                    self.settings.openAIWebAccessEnabled &&
-                    self.settings.codexCookieSource.isEnabled,
-                batterySaverEnabled: self.settings.openAIWebBatterySaverEnabled,
-                force: forceTokenUsage,
-                refreshPhase: openAIWebRefreshPhase)
-            let shouldRefreshOpenAIWeb = Self.shouldRunOpenAIWebRefresh(refreshPolicy)
-            self.openAIWebLogger.debug(
-                "OpenAI web refresh gate",
-                metadata: [
-                    "allowed": shouldRefreshOpenAIWeb ? "1" : "0",
-                    "accessEnabled": refreshPolicy.accessEnabled ? "1" : "0",
-                    "batterySaverEnabled": refreshPolicy.batterySaverEnabled ? "1" : "0",
-                    "force": refreshPolicy.force ? "1" : "0",
-                    "interaction": ProviderInteractionContext.current == .userInitiated ? "user" : "background",
-                    "phase": openAIWebRefreshPhase == .startup ? "startup" : "regular",
-                ])
-            if shouldRefreshOpenAIWeb {
-                let codexDashboardGuard = self.freshCodexOpenAIWebRefreshGuard()
-                if forceTokenUsage {
-                    await self.refreshOpenAIDashboardIfNeeded(
-                        force: true,
-                        expectedGuard: codexDashboardGuard)
-                } else {
-                    self.scheduleOpenAIDashboardRefreshIfNeeded(expectedGuard: codexDashboardGuard)
-                }
+            if enrichmentMode == .forcedBackground {
+                // Account ownership must fail closed before the responsive foreground pass returns;
+                // only the expensive dashboard fetch belongs in the deferred enrichment tail.
+                self.syncOpenAIWebState()
+            } else {
+                await self.refreshOpenAIWebAfterProviderRefresh(
+                    force: enrichmentMode == .forcedForeground,
+                    refreshPhase: openAIWebRefreshPhase)
             }
 
-            if forceTokenUsage, self.openAIDashboardRequiresLogin {
+            if enrichmentMode == .forcedForeground, self.openAIDashboardRequiresLogin {
                 await self.refreshProvider(.codex)
                 await self.refreshCreditsNow(minimumSnapshotUpdatedAt: refreshStartedAt)
             }
 
             self.persistWidgetSnapshot(reason: "refresh")
+            if let forcedBackgroundGeneration {
+                self.enqueueForcedRefreshEnrichment(
+                    generation: forcedBackgroundGeneration,
+                    refreshStartedAt: refreshStartedAt,
+                    openAIWebRefreshPhase: openAIWebRefreshPhase)
+            }
+            return true
         }
+
+        guard completedRefresh else { return false }
 
         self.scheduleResetBoundaryRefreshIfNeeded(
             normalRefreshInterval: self.normalRefreshIntervalForHeuristics())
@@ -708,6 +699,7 @@ final class UsageStore {
         #if DEBUG
         self.completedRefreshCountForTesting += 1
         #endif
+        return true
     }
 
     /// For demo/testing: drop the snapshot so the loading animation plays, then restore the last snapshot.
@@ -765,90 +757,42 @@ final class UsageStore {
                     guard let sleepDuration = await Self.nextAdaptiveTimerSleepDuration(for: self) else { return }
                     try? await Task.sleep(for: sleepDuration)
                     guard !Task.isCancelled else { return }
-                    await self?.refresh()
+                    await self?.refresh(enrichmentMode: .automatic)
                 }
             }
             return
         }
 
         guard let wait = frequency.seconds else { return }
+        #if DEBUG
+        let fixedTimerSleepOverride = self.refreshTimerSleepOverrideForTesting
+        #else
+        let fixedTimerSleepOverride: Duration? = nil
+        #endif
 
         // Background poller so the menu stays responsive; canceled when settings change or store deallocates.
-        // `self` is only briefly borrowed to read the (DEBUG-only) sleep override, never held across the sleep.
+        // Fixed cadence is anchored to the scheduled tick time, not refresh completion, so slow provider
+        // work doesn't permanently stretch a two-minute interval into "refresh duration + two minutes".
         self.timerTask = Task.detached(priority: .utility) { [weak self] in
-            while !Task.isCancelled {
-                let sleepDuration = await self?.effectiveTimerSleepDuration(.seconds(wait)) ?? .seconds(wait)
-                try? await Task.sleep(for: sleepDuration)
-                guard !Task.isCancelled else { return }
-                await self?.refresh()
-            }
+            await Self.runFixedRefreshTimer(
+                interval: .seconds(wait),
+                sleepOverride: fixedTimerSleepOverride,
+                refresh: { [weak self] in
+                    await self?.refresh(enrichmentMode: .automatic)
+                })
         }
-    }
-
-    private func startTokenTimer() {
-        self.tokenTimerTask?.cancel()
-        let wait = self.tokenFetchTTL
-        self.tokenTimerTask = Task.detached(priority: .utility) { [weak self] in
-            while !Task.isCancelled {
-                try? await Task.sleep(for: .seconds(wait))
-                await self?.scheduleTokenRefresh(force: false)
-            }
-        }
-    }
-
-    private func scheduleTokenRefresh(force: Bool) {
-        if force {
-            self.tokenRefreshSequenceTask?.cancel()
-            self.tokenRefreshSequenceTask = nil
-        } else if self.tokenRefreshSequenceTask != nil {
-            return
-        }
-
-        self.tokenRefreshSequenceTask = Task(priority: .utility) { [weak self] in
-            guard let self else { return }
-            defer {
-                Task { @MainActor [weak self] in
-                    self?.tokenRefreshSequenceTask = nil
-                }
-            }
-            await self.refreshTokenUsageSequence(force: force)
-        }
-    }
-
-    private func refreshTokenUsageSequenceNow(force: Bool) async {
-        await self.drainScheduledTokenRefreshIfNeeded(force: force, scopedTo: nil)
-        await self.refreshTokenUsageSequence(force: force)
-    }
-
-    func refreshTokenUsageNow(for provider: UsageProvider, force: Bool) async {
-        await self.drainScheduledTokenRefreshIfNeeded(force: force, scopedTo: provider)
-        await self.refreshTokenUsage(provider, force: force)
-        self.scheduleMemoryPressureRelief()
-    }
-
-    private func drainScheduledTokenRefreshIfNeeded(force: Bool, scopedTo provider: UsageProvider?) async {
-        guard force, let existing = self.tokenRefreshSequenceTask else { return }
-        if let provider, self.tokenRefreshSequenceProvider != provider { return }
-        existing.cancel()
-        await existing.value
-        self.tokenRefreshSequenceTask = nil
-    }
-
-    private func refreshTokenUsageSequence(force: Bool) async {
-        defer { self.tokenRefreshSequenceProvider = nil }
-        for provider in self.enabledProvidersForBackgroundWork() {
-            if Task.isCancelled { break }
-            self.tokenRefreshSequenceProvider = provider
-            await self.refreshTokenUsage(provider, force: force)
-            self.tokenRefreshSequenceProvider = nil
-        }
-        self.scheduleMemoryPressureRelief()
     }
 
     deinit {
         self.timerTask?.cancel()
         self.tokenTimerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
+        self.forcedRefreshEnrichmentTask?.cancel()
+        self.pendingForcedRefreshEnrichmentTask?.cancel()
+        self.requiredRefreshTask?.cancel()
+        self.creditsRefreshTask?.cancel()
+        self.openAIDashboardBackgroundRefreshTask?.cancel()
+        self.openAIDashboardRefreshTask?.cancel()
         self.memoryPressureReliefTask?.cancel()
         self.startupConnectivityRetryTask?.cancel()
         self.storageRefreshTask?.cancel()
@@ -1495,7 +1439,7 @@ extension UsageStore {
         }
     }
 
-    private func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
+    func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.tokenSnapshots.removeValue(forKey: provider)
             self.tokenErrors[provider] = nil
@@ -1657,7 +1601,28 @@ extension UsageStore {
     /// Fast failures may retry on the next scheduled pass instead of waiting out the fetch
     /// TTL; timed-out scans keep the TTL so a slow corpus cannot thrash back-to-back rescans.
     nonisolated static func tokenFetchFailureAllowsEarlyRetry(_ error: Error) -> Bool {
-        if case CostUsageError.timedOut = error { return false }
+        if case CostUsageError.timedOut = error {
+            return false
+        }
         return true
+    }
+}
+
+extension UsageStore {
+    func noteMenuOpened(at date: Date = Date()) {
+        self.lastMenuOpenAt = date
+        guard self.settings.refreshFrequency == .adaptive else { return }
+
+        let decision = Self.adaptiveRefreshDecision(
+            now: date,
+            lastMenuOpenAt: date,
+            lowPowerModeEnabled: ProcessInfo.processInfo.isLowPowerModeEnabled,
+            thermalState: ProcessInfo.processInfo.thermalState)
+        let candidate = date.addingTimeInterval(TimeInterval(decision.delay.components.seconds))
+        guard Self.shouldAdvanceAdaptiveTimer(
+            scheduledAt: self.adaptiveRefreshScheduledAt,
+            candidate: candidate)
+        else { return }
+        self.startTimer(preservingResetBoundaryRefresh: true)
     }
 }
