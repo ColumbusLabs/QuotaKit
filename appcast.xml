@@ -5,6 +5,105 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.11</title>
+            <pubDate>Sat, 11 Jul 2026 11:16:40 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.11.1.11.1</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.11</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.11 Mobile 1.11.1</h2>
+<h3>Added</h3>
+<ul>
+<li>Menu bar: add a display option to show reset time when quota runs out.</li>
+<li>Kimi K2: add a Usage Dashboard shortcut to the legacy credits page.</li>
+<li>Codex: add GPT-5.6 Sol, Terra, and Luna pricing, including alias and</li>
+</ul>
+  cache-write handling.
+<ul>
+<li>Codex: add a provider option to hide Spark quota rows without hiding credits</li>
+</ul>
+  or other extra usage.
+<ul>
+<li>Documentation: add Azure OpenAI provider setup and troubleshooting notes.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced upstream CodexBar Mac fixes through <code>99c3d94d4</code></li>
+</ul>
+  (<code>a0102190e..99c3d94d4</code>), including Claude Auto fallback when expired CLI
+  credentials only have MCP Keychain state while preserving QuotaKit release
+  ownership, appcast metadata, config paths, CloudKit setup, and iOS build
+  numbers.
+<ul>
+<li>Synced upstream CodexBar Mac fixes through <code>a0102190e</code></li>
+</ul>
+  (<code>820bfa145..a0102190e</code>), including Codex weekly reset-boundary ownership for
+  quota-reset celebrations while preserving QuotaKit release ownership, appcast
+  metadata, config paths, CloudKit setup, and iOS build numbers.
+<ul>
+<li>Synced upstream CodexBar Mac fixes through <code>820bfa145</code></li>
+</ul>
+  (<code>98de97833..820bfa145</code>), including Gemini OAuth recovery when current CLI
+  installs omit <code>oauth2.js</code> and the upstream Pi cumulative-token scanner revert,
+  while preserving QuotaKit release ownership, appcast metadata, config paths,
+  CloudKit setup, and iOS build numbers.
+<ul>
+<li>Synced upstream CodexBar Mac improvements through <code>98de97833</code></li>
+</ul>
+  (<code>2d58d098..98de97833</code>), including the settings pane reorganization,
+  leading-aligned settings footers, menu viewport restoration after manual
+  refresh, stale menu highlight fixes, Claude OAuth Keychain pre-alert
+  cooldowns, passive Claude probe update suppression, bounded Codex session
+  metadata reads, Pi Ultra token overcount fixes, Cursor/filter widget options,
+  ChatGPT-bundled Codex CLI discovery, Kimi K2 credential messaging, and
+  broader menu/refresh/widget/provider test coverage while preserving QuotaKit
+  release ownership, appcast metadata, CloudKit setup, config paths, Cursor
+  mobile label parity, and iOS build numbers.
+<ul>
+<li>Synced upstream CodexBar Mac improvements through <code>2d58d098</code></li>
+</ul>
+  (<code>3b039d15..2d58d098</code>), including Codex OAuth account isolation, Spark quota
+  visibility, reset-time menu display, Kimi K2 dashboard links, GPT-5.6
+  pricing, bounded unknown-model pricing refresh, CLI serve timeout retention,
+  Claude reset occurrence handling, Claude never-prompt Keychain cache
+  hardening, Azure OpenAI provider documentation, cost-history chart stability,
+  Catalan localization updates, and broader provider/runtime test coverage
+  while preserving QuotaKit release ownership, appcast metadata, CloudKit
+  setup, config paths, and iOS build numbers.
+<h3>Fixed</h3>
+<ul>
+<li>Codex: require weekly reset-boundary advancement before celebrating quota</li>
+</ul>
+  resets while keeping same-email workspace accounts isolated.
+<ul>
+<li>Codex accounts: isolate authenticated OAuth and browser-cookie requests from</li>
+</ul>
+  shared URL caches and cookie stores.
+<ul>
+<li>Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI</li>
+</ul>
+  paths and defer stale cache cleanup until Keychain access is re-enabled.
+<ul>
+<li>Claude OAuth: let Auto mode fall through when expired CLI credentials only</li>
+</ul>
+  have MCP Keychain state, avoiding doomed background refresh attempts.
+<ul>
+<li>CLI server: retain timed-out route and provider work until it actually exits.</li>
+<li>Token costs: coalesce bounded pricing-catalog refreshes when newly observed</li>
+</ul>
+  models are still unpriced.
+<ul>
+<li>Cost history: keep model breakdown menus steady while hovering and make</li>
+</ul>
+  overflowing histories scrollable.
+<ul>
+<li>Catalan: complete current strings and enforce catalog parity.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.11/QuotaKit-macos-universal-0.32.4.11.zip" length="50380265" type="application/octet-stream" sparkle:edSignature="CUa3FWwgp5Od7mM/dpUSnG0MR7ZS57YKmTKt38e6fHL7F6ZPDlYfpMCFVyEAay1nl+2tIfohNxbY8RE8kJusCQ=="/>
+        </item>
+        <item>
             <title>0.32.4.10</title>
             <pubDate>Tue, 07 Jul 2026 13:06:34 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -157,47 +256,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.9/QuotaKit-macos-universal-0.32.4.9.zip" length="45460159" type="application/octet-stream" sparkle:edSignature="8PpwWQSfF+//cY7zffrNr9YGkfiSxz3IKAClXFUTWEJG2Ji/GA+DVSEE3vaUiopOmtebin2lumJb6XtrV2g8Aw=="/>
-        </item>
-        <item>
-            <title>0.32.4.8</title>
-            <pubDate>Tue, 23 Jun 2026 18:58:21 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.8.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.8</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.8 Mobile 1.11.1</h2>
-<h3>Changed</h3>
-<ul>
-<li>Synced upstream CodexBar Mac improvements through <code>af13c528</code></li>
-</ul>
-  (<code>ef8007fc..af13c528</code>), including CLI pace output, CI observability and
-  dependency updates, stricter blank-localization checks, and broader
-  provider/runtime test coverage.
-<h3>Fixed</h3>
-<ul>
-<li>Claude: stop installed-version checks from invoking a login shell and</li>
-</ul>
-  triggering unwanted Keychain prompts.
-<ul>
-<li>Usage totals: keep Today tied to the current local calendar day across cost,</li>
-</ul>
-  Admin API, and Poe surfaces instead of showing the latest historical bucket.
-<ul>
-<li>Antigravity: align compact icons and automatic highest-usage selection with</li>
-</ul>
-  grouped Gemini and Claude/GPT quota lanes while ignoring non-renderable
-  cadences.
-<ul>
-<li>Memory pressure: finish isolating utility-queue source reads from main-actor</li>
-</ul>
-  state to prevent the remaining callback crash.
-<ul>
-<li>Localization: reject blank translated values and restore affected Vietnamese</li>
-</ul>
-  provider prompts.
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.8/QuotaKit-macos-universal-0.32.4.8.zip" length="44704278" type="application/octet-stream" sparkle:edSignature="yBUgdBrXIelYNfnf21umlK4fYqloPQh2FCN1fNJH/6O0LogEzb29V7FkbLleSdPU6fV3rgsAxfp1XBuxc+9UBA=="/>
         </item>
     </channel>
 </rss>
