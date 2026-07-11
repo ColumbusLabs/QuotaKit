@@ -19,6 +19,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac fixes through `99c3d94d4`
+  (`a0102190e..99c3d94d4`), including Claude Auto fallback when expired CLI
+  credentials only have MCP Keychain state while preserving QuotaKit release
+  ownership, appcast metadata, config paths, CloudKit setup, and iOS build
+  numbers.
 - Synced upstream CodexBar Mac fixes through `a0102190e`
   (`820bfa145..a0102190e`), including Codex weekly reset-boundary ownership for
   quota-reset celebrations while preserving QuotaKit release ownership, appcast
@@ -56,6 +61,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
   shared URL caches and cookie stores.
 - Claude OAuth: honor QuotaKit's never-prompt Keychain policy in bundled CLI
   paths and defer stale cache cleanup until Keychain access is re-enabled.
+- Claude OAuth: let Auto mode fall through when expired CLI credentials only
+  have MCP Keychain state, avoiding doomed background refresh attempts.
 - CLI server: retain timed-out route and provider work until it actually exits.
 - Token costs: coalesce bounded pricing-catalog refreshes when newly observed
   models are still unpriced.
