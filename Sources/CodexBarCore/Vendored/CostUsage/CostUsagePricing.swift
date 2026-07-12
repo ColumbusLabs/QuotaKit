@@ -1,8 +1,8 @@
 import Foundation
 
-// swiftlint:disable:next type_body_length
 enum CostUsagePricing {
     private static let codexPriorityInputTokenLimit = 272_000
+    static let codexUnattributedModel = "unknown"
 
     struct CodexPricing {
         let inputCostPerToken: Double
@@ -456,159 +456,6 @@ enum CostUsagePricing {
     private static let codexModelsDevProviderID = "openai"
     private static let claudeModelsDevProviderID = "anthropic"
 
-    /// Manual version constant for the parser logic (`parseCodexFile` /
-    /// `parseClaudeFile` / `normalizeXxxModel`). Bump this when the parser
-    /// semantics change (e.g., model normalization rules, fallback ladder,
-    /// delta handling, line-size caps) — `pricingFingerprint` rolls
-    /// automatically on pricing-table edits, but parser-only changes
-    /// need this nudge so caches written by the old parser version are
-    /// invalidated.
-    ///
-    /// `Scripts/lint.sh audit-parser-version` enforces a bump whenever
-    /// `CostUsageScanner.swift`, `CostUsageScanner+Claude.swift`, or
-    /// `CostUsageJsonl.swift` change vs origin/mobile-dev.
-    ///
-    /// History:
-    /// - `18` (upstream sync through `98de97833`): merged upstream
-    ///   `CostUsageScanner.swift` parser changes. Roll the pricingFingerprint
-    ///   so caches written by the previous scanner are invalidated and
-    ///   re-scanned with the merged parser.
-    /// - `17` (upstream sync through `501e95150`): merged upstream
-    ///   `CostUsageScanner.swift` parser and pricing-key stabilization changes
-    ///   for GPT-5.6 catalog pricing. Roll the pricingFingerprint so caches
-    ///   written by the previous scanner are invalidated and re-scanned with
-    ///   the merged parser.
-    /// - `16` (issue #59 upstream sync): merged upstream
-    ///   `CostUsageScanner.swift` parser changes through `3b039d15`. Roll the
-    ///   pricingFingerprint so caches written by the previous scanner are
-    ///   invalidated and re-scanned with the merged parser.
-    /// - `15` (upstream sync through `b00797537`): merged upstream Claude
-    ///   Desktop local-agent project discovery in `CostUsageScanner+Claude`.
-    ///   Roll the pricingFingerprint so Claude caches written by the previous
-    ///   scanner are invalidated and re-scanned with the merged parser.
-    /// - `12` (upstream sync through `bf86b09e`): merged upstream scanner
-    ///   changes touching `CostUsageScanner.swift`. Roll the pricingFingerprint
-    ///   so cached rows are invalidated and re-scanned under the merged parser.
-    /// - `11` (issue #38 upstream sync): merged upstream Codex cached-input
-    ///   pricing formula and explicit cost-formula cache key changes. Roll the
-    ///   pricingFingerprint so rows priced with the old formula are invalidated
-    ///   and re-scanned with the corrected cache-read attribution.
-    /// - `10` (0.32.4.8 upstream tail): merged upstream Codex cost-history row
-    ///   identity and cache-dedupe changes through `e810f7e`. The regenerated
-    ///   parser hash rolls the Codex producerKey axis; this bump rolls the
-    ///   pricingFingerprint so cached rows written by the previous scanner are
-    ///   invalidated and re-scanned with the row-stable parser.
-    /// - `8` (issue #14 upstream sync): merged upstream scanner coverage for new
-    ///   non-token-cost providers (Zed, Poe, Chutes). This does not add local
-    ///   pricing, but the scanner switch changed, so roll the fingerprint
-    ///   under the lint-enforced cache invalidation contract.
-    /// - `6` (0.33.1 sync): merged upstream v0.32.4→0.33.1-dev cost-scanner
-    ///   changes — Claude parser now splits native 1-hour cache-write usage
-    ///   (`ClaudeCostTokens.cacheCreation1h`) under corrected Claude pricing
-    ///   (#1368/#1372), threads `pricingDate` for dated historical
-    ///   long-context rates, and Codex scans moved to the dedicated scan
-    ///   executor with reduced metadata work (#1392/#1430). The regenerated
-    ///   parser hash rolls the Codex producerKey axis; this bump rolls the
-    ///   pricingFingerprint so Claude caches (no producerKey) written by the
-    ///   v0.32.4 parser are invalidated and re-scanned.
-    /// - `9` (0.32.4.8): merged upstream Sakana provider scanner guard. The
-    ///   parser-version audit conservatively treats CostUsageScanner edits as
-    ///   parser-affecting, so roll the fingerprint with the new provider branch.
-    /// - `5` (0.32.4.1): merged upstream v0.32.0→v0.32.4 Codex cost-scanner
-    ///   rewrite (new `CostUsageScanner+CodexFastJSON.swift`, reworked truncated-prefix
-    ///   handling, scan-perf changes). The regenerated parser hash rolls the Codex
-    ///   producerKey axis; this parserLogicVersion bump rolls the pricingFingerprint so
-    ///   the Claude axis (no producerKey) also invalidates caches written by the v0.31
-    ///   parser and re-scans with the merged scanner.
-    /// - `4` (0.31.0.2): merged upstream v0.29.1→v0.31.0 cost-scanner
-    ///   changes — Codex `CostUsageScanner` rewrite (Spark model lane #1195,
-    ///   reworked token attribution) and `CostUsageScanner+Claude` now threads
-    ///   the models.dev catalog into Claude cost pricing. Upstream rolled its
-    ///   producerKey hash for the Codex axis (so Codex caches invalidate on
-    ///   the hash value change), but the fork's pricingFingerprint — the only
-    ///   invalidation axis for Claude, which has no producerKey — did not move.
-    ///   This bump rolls the fingerprint so Claude caches written by the v0.29
-    ///   parser are invalidated and re-scanned with the merged parser.
-    /// - `3` (0.29.0): merged upstream v0.28.0+v0.29.0 Codex cost-scanner
-    ///   changes — standard vs fast spend/token splits in model breakdowns
-    ///   (#1070) and no-recount of repeated local token snapshots when total
-    ///   usage is unchanged (#1062). These change Codex token attribution, so
-    ///   roll the fingerprint to invalidate caches written by the v0.27
-    ///   scanner and re-scan with the merged parser.
-    /// - `2` (0.23.3): parser scanner `prefixBytes` raised from 32 KB to
-    ///   256 KB. Earlier 32 KB cap silently truncated every Codex CLI
-    ///   0.125+ `turn_context` (~38–41 KB due to bundled AGENTS.md /
-    ///   user_instructions), so `currentModel` never updated and ~93%+
-    ///   of token_count events fell through to the `?? "gpt-5"` default
-    ///   in `parseCodexFile`. Bumping rolls every previous version's
-    ///   cache and re-scans with the fixed parser.
-    /// - `1` (0.23.1): initial fingerprint contract.
-    static let parserLogicVersion = 18
-
-    /// Stable string fingerprint of the pricing tables + parser logic.
-    /// `CostUsageCacheIO.load` compares this against the value stored
-    /// inside the cache file; on mismatch it returns an empty cache and
-    /// forces a full re-scan.
-    ///
-    /// **Why this exists:** Mac 0.20.3 → 0.23 added `gpt-5.5` to the
-    /// pricing table, but `codex-v4.json` cache from 0.20.3 era kept
-    /// stale per-(day, model) token attributions — tokens stored under
-    /// `gpt-5` (the old fallback default) silently survived the upgrade
-    /// and showed up at gpt-5 prices instead of gpt-5.5 prices. Bumping
-    /// the artifact version manually closes this round; the fingerprint
-    /// closes it for **every future round** without humans needing to
-    /// remember.
-    static var pricingFingerprint: String {
-        /// Sorted (key, encoded-prices) pairs are deterministic across
-        /// runs and machines. Identical pricing tables always yield the
-        /// same fingerprint; ANY edit — adding a model, removing one,
-        /// OR repricing an existing model — rolls the string and
-        /// invalidates every user's cache on next launch.
-        ///
-        /// 0.23.3 P1-2 fix: previously the fingerprint included only
-        /// model NAMES, so a same-name reprice (e.g., dropping gpt-5
-        /// input from $1.25/M to $1.0/M) didn't roll. That left stale
-        /// baked-in `costNanos` in PiSessionCostCache (which stores
-        /// costs at parse time, not on read) for repricing-only updates.
-        ///
-        /// Each Double is rendered with %.12g so 1.25e-6 stringifies
-        /// identically across runs — Swift's default String(Double)
-        /// format is already deterministic, but pinning explicit
-        /// formatting makes it robust to future libc / locale changes.
-        func d(_ value: Double) -> String {
-            String(format: "%.12g", value)
-        }
-        func dOpt(_ value: Double?) -> String {
-            value.map(d) ?? "_"
-        }
-        func iOpt(_ value: Int?) -> String {
-            value.map(String.init) ?? "_"
-        }
-
-        let codexEntries = self.codex.keys.sorted().map { key in
-            let p = self.codex[key]!
-            return "\(key):\(d(p.inputCostPerToken)):\(d(p.outputCostPerToken)):\(dOpt(p.cacheReadInputCostPerToken))"
-        }.joined(separator: ",")
-
-        let claudeEntries = self.claude.keys.sorted().map { key in
-            let p = self.claude[key]!
-            return [
-                key,
-                d(p.inputCostPerToken),
-                d(p.outputCostPerToken),
-                d(p.cacheCreationInputCostPerToken),
-                d(p.cacheReadInputCostPerToken),
-                iOpt(p.thresholdTokens),
-                dOpt(p.inputCostPerTokenAboveThreshold),
-                dOpt(p.outputCostPerTokenAboveThreshold),
-                dOpt(p.cacheCreationInputCostPerTokenAboveThreshold),
-                dOpt(p.cacheReadInputCostPerTokenAboveThreshold),
-            ].joined(separator: ":")
-        }.joined(separator: ",")
-
-        return "v\(Self.parserLogicVersion)|codex=\(codexEntries)|claude=\(claudeEntries)"
-    }
-
     static func normalizeCodexModel(_ raw: String) -> String {
         var trimmed = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         if trimmed.hasPrefix("openai/") {
@@ -631,6 +478,10 @@ enum CostUsagePricing {
             }
         }
         return trimmed
+    }
+
+    static func isCodexUnattributedModel(_ raw: String) -> Bool {
+        self.normalizeCodexModel(raw) == self.codexUnattributedModel
     }
 
     static func codexDisplayLabel(model: String) -> String? {
@@ -677,8 +528,7 @@ enum CostUsagePricing {
         modelsDevCacheRoot: URL? = nil) -> Double?
     {
         let key = self.normalizeCodexModel(model)
-        // 1) Live models.dev catalog (upstream 0.25) takes precedence so
-        //    fresh pricing edits land without an app update.
+        guard key != self.codexUnattributedModel else { return nil }
         let modelsDevLookup = self.modelsDevLookup(
             providerID: self.codexModelsDevProviderID,
             model: model,
@@ -726,18 +576,6 @@ enum CostUsagePricing {
                 outputTokens: outputTokens)
         }
 
-        // 2) Exact local-table hit.
-        if let pricing = self.codex[key] {
-            return self.codexCostUSD(
-                pricing: pricing,
-                inputTokens: inputTokens,
-                cachedInputTokens: cachedInputTokens,
-                cacheWriteInputTokens: cacheWriteInputTokens,
-                outputTokens: outputTokens)
-        }
-
-        // 3) Fork's family-fallback ladder (Research/018 fix — keeps
-        //    unknown gpt-X.Y names from collapsing to $0). Last-resort.
         guard let pricing = self.resolveCodexPricing(model: model) else { return nil }
         return self.codexCostUSD(
             pricing: pricing,
@@ -856,20 +694,10 @@ enum CostUsagePricing {
             outputTokens: outputTokens)
     }
 
-    /// Returns true iff the given raw Codex model name maps to an exact
-    /// row in the local pricing table (after standard normalization).
-    /// SyncCoordinator uses this in P4 to flag `isEstimated` on outbound
-    /// per-model breakdowns when the cost came from a fallback row.
     static func isCodexModelKnown(_ raw: String) -> Bool {
-        let key = self.normalizeCodexModel(raw)
-        return self.codex[key] != nil
+        self.codex[self.normalizeCodexModel(raw)] != nil
     }
 
-    /// Resolve a Codex pricing row, walking the fallback ladder when the
-    /// model name isn't in the local table. Returns nil only when the
-    /// name doesn't even match the `gpt-X.Y` grammar — for any parseable
-    /// Codex name we fall through to `gpt-5` rather than dropping the
-    /// row to $0 (the bug Research/018 exists to fix).
     private static func resolveCodexPricing(model: String) -> CodexPricing? {
         let key = self.normalizeCodexModel(model)
         if let exact = self.codex[key] { return exact }
@@ -877,9 +705,6 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.codex)
         else { return nil }
-        // Fire-and-forget diagnostic record. The actor handles dedup +
-        // log rate-limiting; we don't wait so the per-row cost loop
-        // stays sync.
         let strategy = fallback.strategy.rawValue
         let fallbackKey = fallback.key
         Task { @Sendable in
@@ -910,8 +735,6 @@ enum CostUsagePricing {
             cacheCreation1h: cacheCreationInputTokens1h,
             output: outputTokens)
         let key = self.normalizeClaudeModel(model)
-
-        // 0) Dated rows: historical long-context pricing (upstream 0.33).
         if let pricingDate,
            let historicalPricing = self.claudeHistoricalLongContext[key],
            let currentPricing = self.claude[key]
@@ -922,8 +745,6 @@ enum CostUsagePricing {
                     : currentPricing,
                 tokens: tokens)
         }
-
-        // 1) models.dev catalog (upstream 0.25).
         if let lookup = self.modelsDevLookup(
             providerID: self.claudeModelsDevProviderID,
             model: model,
@@ -935,14 +756,6 @@ enum CostUsagePricing {
                 tokens: tokens)
         }
 
-        // 2) Exact local-table hit.
-        if let pricing = self.claude[key] {
-            return self.claudeCostUSD(
-                pricing: pricing,
-                tokens: tokens)
-        }
-
-        // 3) Fork's family-fallback ladder (Research/018).
         guard let pricing = self.resolveClaudePricing(model: model) else { return nil }
         return self.claudeCostUSD(
             pricing: pricing,
@@ -999,20 +812,10 @@ enum CostUsagePricing {
             tokens: tokens)
     }
 
-    /// Returns true iff the given raw Claude model name maps to an exact
-    /// row in the local pricing table (after standard normalization).
-    /// Used by SyncCoordinator to mark `isEstimated` on outbound model
-    /// breakdowns when cost came from a fallback row.
     static func isClaudeModelKnown(_ raw: String) -> Bool {
-        let key = self.normalizeClaudeModel(raw)
-        return self.claude[key] != nil
+        self.claude[self.normalizeClaudeModel(raw)] != nil
     }
 
-    /// Resolve a Claude pricing row, walking the fallback ladder when the
-    /// model name isn't in the local table. Returns nil only when the
-    /// name doesn't match the `claude-{family}-…` grammar — for any
-    /// parseable Claude name we fall through to family flagship rather
-    /// than dropping the row to $0 (the bug Research/018 exists to fix).
     private static func resolveClaudePricing(model: String) -> ClaudePricing? {
         let key = self.normalizeClaudeModel(model)
         if let exact = self.claude[key] { return exact }
@@ -1020,9 +823,6 @@ enum CostUsagePricing {
         guard let parsed = resolver.parse(key),
               let fallback = resolver.findFallback(for: parsed, in: self.claude)
         else { return nil }
-        // Fire-and-forget diagnostic record. The actor handles dedup +
-        // log rate-limiting; we don't wait so the per-row cost loop
-        // stays sync.
         let strategy = fallback.strategy.rawValue
         let fallbackKey = fallback.key
         Task { @Sendable in

@@ -40,6 +40,9 @@ extension UsageStore {
             self.provider = provider
             self.accountDiscriminator = accountDiscriminator
         }
+
+        static let codex = Self(provider: .codex)
+        static let claude = Self(provider: .claude)
     }
 
     struct QuotaWarningAccountContext {

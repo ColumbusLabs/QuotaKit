@@ -76,6 +76,22 @@ struct MenuBarResetTimeDisplayTests {
         #expect(text == "↻ in 2h 15m")
     }
 
+    @Test
+    func `reset time mode surfaces daily reset metadata`() {
+        let window = RateWindow(
+            usedPercent: 39,
+            windowMinutes: 1440,
+            resetsAt: nil,
+            resetDescription: "resets daily")
+
+        let text = MenuBarDisplayText.displayText(
+            mode: .resetTime,
+            percentWindow: window,
+            showUsed: true)
+
+        #expect(text == "↻ resets daily")
+    }
+
     @Test(arguments: [
         "Resets in 2h",
         "tomorrow, 3:00 PM",

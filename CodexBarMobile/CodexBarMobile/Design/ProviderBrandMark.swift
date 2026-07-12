@@ -47,6 +47,7 @@ enum ProviderBrandAsset {
         "qoder",
         "sakana",
         "stepfun",
+        "sub2api",
         "synthetic",
         "t3chat",
         "venice",

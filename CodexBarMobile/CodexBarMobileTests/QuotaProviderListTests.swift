@@ -31,7 +31,7 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 50)
+        #expect(QuotaProviderList.providers.count == 51)
     }
 
     @Test
@@ -48,7 +48,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 150)
+        #expect(QuotaProviderList.providers.count * 3 == 153)
     }
 
     @Test
@@ -124,7 +124,7 @@ struct QuotaProviderListTests {
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
     @Test
-    func `Cause: new providers (v0.27 + v0.28/v0.29 + Sakana + Qoder) are appended at the tail`() {
+    func `Cause: new providers through Sub2API are appended at the tail`() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
         // IDs stay stable across upgrades. Pin the recent tail so a careless
@@ -134,11 +134,12 @@ struct QuotaProviderListTests {
         //  - iOS 1.9.0 appended 3 v0.28+v0.29 providers (positions [45..47]).
         //  - iOS 1.10.0 appended Sakana AI (position [48]).
         //  - Qoder catch-up appended Qoder (position [49]).
-        let tail = providers.suffix(10).map(\.id)
+        //  - Sub2API catch-up appended Sub2API (position [50]).
+        let tail = providers.suffix(11).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
-            "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder",
-        ], "v0.27 + v0.28/v0.29 + Sakana + Qoder catch-up additions must stay at the tail in this order")
+            "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api",
+        ], "provider catch-up additions through Sub2API must stay at the tail in this order")
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -238,8 +239,8 @@ struct QuotaProviderListTests {
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
     func `Cause: catalog 50/150 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 50)
-        #expect(QuotaProviderList.providers.count * 3 == 150)
+        #expect(QuotaProviderList.providers.count == 51)
+        #expect(QuotaProviderList.providers.count * 3 == 153)
     }
 
     @Test

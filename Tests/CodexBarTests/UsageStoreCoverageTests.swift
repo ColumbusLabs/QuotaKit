@@ -404,6 +404,29 @@ struct UsageStoreCoverageTests {
         #expect(store.userFacingError(for: .synthetic) == SyntheticSettingsError.missingToken.errorDescription)
         #expect(store.unavailableMessage(for: .synthetic) == SyntheticSettingsError.missingToken.errorDescription)
     }
+}
+
+extension UsageStoreCoverageTests {
+    @Test
+    func `sub2api unavailable message identifies the missing setting`() throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-sub2api-unavailable-message")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+
+        let metadata = ProviderRegistry.shared.metadata
+        for provider in UsageProvider.allCases {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(metadata[provider]),
+                enabled: provider == .sub2api)
+        }
+
+        let store = Self.makeUsageStore(settings: settings)
+        #expect(store.unavailableMessage(for: .sub2api) == Sub2APIUsageError.missingCredentials.errorDescription)
+
+        settings.sub2APIAPIKey = "group-key"
+        #expect(store.unavailableMessage(for: .sub2api) == Sub2APIUsageError.missingBaseURL.errorDescription)
+    }
 
     @Test
     func `refresh clears enabled but unavailable cached state`() async throws {
@@ -431,7 +454,12 @@ struct UsageStoreCoverageTests {
         store._setSnapshotForTesting(cachedSnapshot, provider: .synthetic)
         let account = ProviderTokenAccount(id: UUID(), label: "Account", token: "token", addedAt: 0, lastUsed: nil)
         store.accountSnapshots[.synthetic] = [
-            TokenAccountUsageSnapshot(account: account, snapshot: cachedSnapshot, error: nil, sourceLabel: "api"),
+            TokenAccountUsageSnapshot(
+                account: account,
+                snapshot: cachedSnapshot,
+                error: nil,
+                sourceLabel: "api",
+                cacheKey: store.tokenAccountSnapshotCacheKey(provider: .synthetic, account: account)),
         ]
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
@@ -948,7 +976,9 @@ private actor StartupConnectivityRetrySleepGate {
     }
 
     func waitUntilSleeping() async {
-        if self.continuation != nil { return }
+        if self.continuation != nil {
+            return
+        }
         await withCheckedContinuation { continuation in
             self.waiters.append(continuation)
         }

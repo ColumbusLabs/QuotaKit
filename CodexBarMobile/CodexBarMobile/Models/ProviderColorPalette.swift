@@ -88,6 +88,7 @@ enum ProviderColorPalette {
             (["zed"], RawColor(red: 8 / 255, green: 78 / 255, blue: 255 / 255)),
             (["poe"], RawColor(red: 93 / 255, green: 92 / 255, blue: 222 / 255)),
             (["clawrouter"], RawColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255)),
+            (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
             (["chutes"], RawColor(red: 0, green: 184 / 255, blue: 255 / 255)),
             (["qoder"], RawColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255)),
             (["wayfinder"], RawColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255)),

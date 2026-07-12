@@ -558,7 +558,7 @@ enum CostUsageScanner {
              .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
              .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .qoder, .stepfun,
              .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .crossmodel, .clawrouter,
-             .wayfinder:
+             .sub2api, .wayfinder:
             return emptyReport
         }
     }
@@ -1054,6 +1054,29 @@ enum CostUsageScanner {
     private static let codexJSONFieldType = Array("type".utf8)
     private static let codexJSONFieldCwd = Array("cwd".utf8)
 
+    static func codexModelEvidence(_ raw: String?) -> String? {
+        guard let trimmed = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !trimmed.isEmpty else { return nil }
+        return trimmed
+    }
+
+    static func codexTurnContextModel(
+        payloadModel: String?,
+        payloadModelName: String?,
+        infoModel: String?,
+        infoModelName: String?) -> String?
+    {
+        var sawCandidate = false
+        for candidate in [payloadModel, payloadModelName, infoModel, infoModelName] {
+            guard let candidate else { continue }
+            sawCandidate = true
+            if let model = self.codexModelEvidence(candidate) {
+                return model
+            }
+        }
+        // nil means the context omitted every model field; an empty value explicitly clears stale context.
+        return sawCandidate ? "" : nil
+    }
+
     private static func codexForkParentId(from payload: [String: Any]?) -> String? {
         guard let payload else { return nil }
         for key in ["forked_from_id", "forkedFromId", "parent_session_id", "parentSessionId"] {
@@ -1210,32 +1233,36 @@ enum CostUsageScanner {
                     in: objectRange,
                     atDepth: 1)
                 else { return .turnContext(model: nil) }
-                let model = Self.extractJSONByteStringField(
-                    Self.codexJSONFieldModel,
+                let infoRange = Self.extractJSONByteObjectField(
+                    Self.codexJSONFieldInfo,
                     from: rawBuffer,
                     in: payloadRange,
                     atDepth: 1)
-                    ?? Self.extractJSONByteStringField(
+                let model = Self.codexTurnContextModel(
+                    payloadModel: Self.extractJSONByteStringFieldAllowingEmpty(
+                        Self.codexJSONFieldModel,
+                        from: rawBuffer,
+                        in: payloadRange,
+                        atDepth: 1),
+                    payloadModelName: Self.extractJSONByteStringFieldAllowingEmpty(
                         Self.codexJSONFieldModelName,
                         from: rawBuffer,
                         in: payloadRange,
-                        atDepth: 1)
-                    ?? Self.extractJSONByteObjectField(
-                        Self.codexJSONFieldInfo,
-                        from: rawBuffer,
-                        in: payloadRange,
-                        atDepth: 1).flatMap {
-                        Self.extractJSONByteStringField(
+                        atDepth: 1),
+                    infoModel: infoRange.flatMap {
+                        Self.extractJSONByteStringFieldAllowingEmpty(
                             Self.codexJSONFieldModel,
                             from: rawBuffer,
                             in: $0,
                             atDepth: 1)
-                            ?? Self.extractJSONByteStringField(
-                                Self.codexJSONFieldModelName,
-                                from: rawBuffer,
-                                in: $0,
-                                atDepth: 1)
-                    }
+                    },
+                    infoModelName: infoRange.flatMap {
+                        Self.extractJSONByteStringFieldAllowingEmpty(
+                            Self.codexJSONFieldModelName,
+                            from: rawBuffer,
+                            in: $0,
+                            atDepth: 1)
+                    })
                 return .turnContext(model: model)
 
             case "event_msg":
@@ -1268,26 +1295,26 @@ enum CostUsageScanner {
                           atDepth: 1)
                 else { return nil }
 
-                let model = Self.extractJSONByteStringField(
+                let model = Self.codexModelEvidence(Self.extractJSONByteStringField(
                     Self.codexJSONFieldModel,
                     from: rawBuffer,
                     in: infoRange,
-                    atDepth: 1)
-                    ?? Self.extractJSONByteStringField(
+                    atDepth: 1))
+                    ?? Self.codexModelEvidence(Self.extractJSONByteStringField(
                         Self.codexJSONFieldModelName,
                         from: rawBuffer,
                         in: infoRange,
-                        atDepth: 1)
-                    ?? Self.extractJSONByteStringField(
+                        atDepth: 1))
+                    ?? Self.codexModelEvidence(Self.extractJSONByteStringField(
                         Self.codexJSONFieldModel,
                         from: rawBuffer,
                         in: payloadRange,
-                        atDepth: 1)
-                    ?? Self.extractJSONByteStringField(
+                        atDepth: 1))
+                    ?? Self.codexModelEvidence(Self.extractJSONByteStringField(
                         Self.codexJSONFieldModel,
                         from: rawBuffer,
                         in: objectRange,
-                        atDepth: 1)
+                        atDepth: 1))
                 let total = Self.codexTotals(
                     from: rawBuffer,
                     in: Self.extractJSONByteObjectField(
@@ -1707,7 +1734,9 @@ enum CostUsageScanner {
             guard let dayKey = Self.dayKeyFromTimestamp(record.timestamp) ?? Self.dayKeyFromParsedISO(record.timestamp)
             else { return }
 
-            let model = currentModel ?? record.model ?? "gpt-5"
+            let model = Self.codexModelEvidence(currentModel)
+                ?? Self.codexModelEvidence(record.model)
+                ?? CostUsagePricing.codexUnattributedModel
             let total = record.total
             let last = record.last
 
@@ -2017,10 +2046,12 @@ enum CostUsageScanner {
 
                         if type == "turn_context" {
                             if let payload = obj["payload"] as? [String: Any] {
-                                if let model = payload["model"] as? String {
-                                    currentModel = model
-                                } else if let info = payload["info"] as? [String: Any],
-                                          let model = info["model"] as? String
+                                let info = payload["info"] as? [String: Any]
+                                if let model = Self.codexTurnContextModel(
+                                    payloadModel: payload["model"] as? String,
+                                    payloadModelName: payload["model_name"] as? String,
+                                    infoModel: info?["model"] as? String,
+                                    infoModelName: info?["model_name"] as? String)
                                 {
                                     currentModel = model
                                 }
@@ -2037,11 +2068,13 @@ enum CostUsageScanner {
                         guard (payload["type"] as? String) == "token_count" else { return }
 
                         let info = payload["info"] as? [String: Any]
-                        let modelFromInfo = info?["model"] as? String
-                            ?? info?["model_name"] as? String
-                            ?? payload["model"] as? String
-                            ?? obj["model"] as? String
-                        let model = currentModel ?? modelFromInfo ?? "gpt-5"
+                        let modelFromInfo = Self.codexModelEvidence(info?["model"] as? String)
+                            ?? Self.codexModelEvidence(info?["model_name"] as? String)
+                            ?? Self.codexModelEvidence(payload["model"] as? String)
+                            ?? Self.codexModelEvidence(obj["model"] as? String)
+                        let model = Self.codexModelEvidence(currentModel)
+                            ?? modelFromInfo
+                            ?? CostUsagePricing.codexUnattributedModel
 
                         func toInt(_ v: Any?) -> Int {
                             if let n = v as? NSNumber { return n.intValue }
