@@ -101,6 +101,35 @@ struct CostUsageScannerBreakdownTests {
             + #""}}"#
     }
 
+    private func oversizedCodexTurnContextBlankFallbackLine(timestamp: String, model: String) -> String {
+        let largeInstructions = String(repeating: "x", count: 300 * 1024)
+        return #"{"type":"turn_context","timestamp":""#
+            + timestamp
+            + #"","payload":{"model":"   ","model_name":"","info":{"model":" ","model_name":""#
+            + model
+            + #""},"instructions":""#
+            + largeInstructions
+            + #""}}"#
+    }
+
+    private func oversizedCodexTurnContextAllBlankLine(timestamp: String) -> String {
+        let largeInstructions = String(repeating: "x", count: 300 * 1024)
+        return #"{"type":"turn_context","timestamp":""#
+            + timestamp
+            + #"","payload":{"model":"","model_name":" ","info":{"model":"   ","model_name":""},"instructions":""#
+            + largeInstructions
+            + #""}}"#
+    }
+
+    private func oversizedCodexTurnContextClosedBlankPayloadLine(timestamp: String) -> String {
+        let largeInstructions = String(repeating: "x", count: 300 * 1024)
+        return #"{"type":"turn_context","timestamp":""#
+            + timestamp
+            + #"","payload":{"model":"","model_name":" ","info":{"model":"   ","model_name":""}},"instructions":""#
+            + largeInstructions
+            + #""}"#
+    }
+
     private func oversizedCodexTurnContextPromptOnlyLine(timestamp: String, promptModel: String) -> String {
         let prompt = #"example: {\"type\":\"turn_context\",\"payload\":{\"model\":\"\#(promptModel)\"}}"#
             + String(repeating: "x", count: 300 * 1024)
@@ -1373,6 +1402,428 @@ struct CostUsageScannerBreakdownTests {
     }
 
     @Test
+    func `codex token count without model remains explicitly unknown`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contents = try env.jsonl([
+            self.codexTokenCountWithoutModel(
+                timestamp: env.isoString(for: day),
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "token-count-without-model.jsonl",
+            contents: contents)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[CostUsagePricing.codexUnattributedModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?["gpt-5"] == nil)
+    }
+
+    @Test
+    func `codex turn context remains authoritative over conflicting token model`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contents = try env.jsonl([
+            self.codexTurnContext(timestamp: env.isoString(for: day), model: "openai/gpt-5.5"),
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                model: "openai/gpt-5.6-sol",
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "token-count-model-override.jsonl",
+            contents: contents)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?["gpt-5.6-sol"] == nil)
+    }
+
+    @Test
+    func `codex turn context blank model falls through to model name`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contextModel = "codexbar-test-context-model-name"
+        let eventModel = "codexbar-test-event-model"
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": env.isoString(for: day),
+            "payload": [
+                "model": "   ",
+                "model_name": contextModel,
+            ],
+        ]
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "blank-context-model.jsonl",
+            contents: env.jsonl([
+                turnContext,
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                    model: eventModel,
+                    last: (input: 50, cached: 10, output: 5)),
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[contextModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[eventModel] == nil)
+    }
+
+    @Test
+    func `codex turn context blank payload fields fall through to nested model name`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contextModel = "codexbar-test-nested-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": env.isoString(for: day),
+            "payload": [
+                "model": " ",
+                "model_name": "   ",
+                "info": [
+                    "model": "",
+                    "model_name": contextModel,
+                ],
+            ],
+        ]
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "blank-nested-context-model.jsonl",
+            contents: env.jsonl([
+                turnContext,
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                    model: eventModel,
+                    last: (input: 50, cached: 10, output: 5)),
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[contextModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[eventModel] == nil)
+    }
+
+    @Test
+    func `codex oversized turn context blank fields fall through to nested model name`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contextModel = "codexbar-test-oversized-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let turnContextLine = self.oversizedCodexTurnContextBlankFallbackLine(
+            timestamp: env.isoString(for: day),
+            model: contextModel)
+        let tokenCountLine = try env.jsonl([
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                model: eventModel,
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "oversized-blank-context-model.jsonl",
+            contents: turnContextLine + "\n" + tokenCountLine)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[contextModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[eventModel] == nil)
+    }
+
+    @Test
+    func `codex all blank turn context clears stale model for event evidence`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let staleModel = "codexbar-test-stale-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let blankContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": env.isoString(for: day.addingTimeInterval(1)),
+            "payload": [
+                "model": "",
+                "model_name": " ",
+                "info": [
+                    "model": "   ",
+                    "model_name": "",
+                ],
+            ],
+        ]
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "all-blank-context-model.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: staleModel),
+                blankContext,
+                self.codexTokenCount(
+                    timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                    model: eventModel,
+                    last: (input: 50, cached: 10, output: 5)),
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[eventModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[staleModel] == nil)
+    }
+
+    @Test
+    func `codex all blank turn context clears stale model to unattributed`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let staleModel = "codexbar-test-stale-context-model"
+        let blankContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": env.isoString(for: day.addingTimeInterval(1)),
+            "payload": [
+                "model": "",
+                "model_name": " ",
+            ],
+        ]
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "all-blank-context-unattributed.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: staleModel),
+                blankContext,
+                self.codexTokenCountWithoutModel(
+                    timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                    last: (input: 50, cached: 10, output: 5)),
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[CostUsagePricing.codexUnattributedModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[staleModel] == nil)
+    }
+
+    @Test
+    func `codex incomplete oversized blank context preserves stale model`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let staleModel = "codexbar-test-stale-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let blankContextLine = self.oversizedCodexTurnContextAllBlankLine(
+            timestamp: env.isoString(for: day.addingTimeInterval(1)))
+        let tokenCountLine = try env.jsonl([
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                model: eventModel,
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "oversized-all-blank-context-model.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: staleModel),
+            ]) + blankContextLine + "\n" + tokenCountLine)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[staleModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[eventModel] == nil)
+    }
+
+    @Test
+    func `codex oversized closed blank payload clears stale model`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let staleModel = "codexbar-test-stale-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let blankContextLine = self.oversizedCodexTurnContextClosedBlankPayloadLine(
+            timestamp: env.isoString(for: day.addingTimeInterval(1)))
+        let tokenCountLine = try env.jsonl([
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                model: eventModel,
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "oversized-closed-blank-context-model.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: staleModel),
+            ]) + blankContextLine + "\n" + tokenCountLine)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[eventModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[staleModel] == nil)
+    }
+
+    @Test
+    func `codex foundation fallback skips blank turn context candidates`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contextModel = "codexbar-test-foundation-context-model"
+        let eventModel = "codexbar-test-event-model"
+        // The escaped root key bypasses the byte-fast parser. The nested marker admits the line
+        // through the cheap prefilter so JSONSerialization exercises the Foundation fallback.
+        let turnContextLine = #"{"\u0074ype":"turn_context","marker":{"type":"turn_context"},"timestamp":""#
+            + env.isoString(for: day)
+            + #"","payload":{"model":" ","model_name":"","info":{"model":"   ","model_name":""#
+            + contextModel
+            + #""}}}"#
+        let tokenCountLine = try env.jsonl([
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                model: eventModel,
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "foundation-blank-context-model.jsonl",
+            contents: turnContextLine + "\n" + tokenCountLine)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[contextModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[eventModel] == nil)
+    }
+
+    @Test
+    func `codex foundation fallback all blank context clears stale model`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let staleModel = "codexbar-test-stale-context-model"
+        let eventModel = "codexbar-test-event-model"
+        let blankContextLine = #"{"\u0074ype":"turn_context","marker":{"type":"turn_context"},"timestamp":""#
+            + env.isoString(for: day.addingTimeInterval(1))
+            + #"","payload":{"model":"","model_name":" ","info":{"model":"   ","model_name":""}}}"#
+        let tokenCountLine = try env.jsonl([
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(2)),
+                model: eventModel,
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "foundation-all-blank-context-model.jsonl",
+            contents: env.jsonl([
+                self.codexTurnContext(timestamp: env.isoString(for: day), model: staleModel),
+            ]) + blankContextLine + "\n" + tokenCountLine)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?[eventModel] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[staleModel] == nil)
+    }
+
+    @Test
+    func `codex blank token count model preserves turn context`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let contents = try env.jsonl([
+            self.codexTurnContext(timestamp: env.isoString(for: day), model: "openai/gpt-5.5"),
+            self.codexTokenCount(
+                timestamp: env.isoString(for: day.addingTimeInterval(1)),
+                model: "   ",
+                last: (input: 50, cached: 10, output: 5)),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "blank-token-count-model.jsonl",
+            contents: contents)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[""] == nil)
+    }
+
+    @Test
+    func `codex blank model falls through to model name`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 18)
+        let event: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": env.isoString(for: day),
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "model": "",
+                    "model_name": " openai/gpt-5.6-sol ",
+                    "last_token_usage": [
+                        "input_tokens": 50,
+                        "cached_input_tokens": 10,
+                        "output_tokens": 5,
+                    ],
+                ],
+            ],
+        ]
+        let contents = try env.jsonl([event])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "blank-model-valid-model-name.jsonl",
+            contents: contents)
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: CostUsageScanner.CostUsageDayRange(since: day, until: day))
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.6-sol"] == [50, 10, 5])
+        #expect(parsed.days[dayKey]?[""] == nil)
+    }
+
+    @Test
     func `codex daily report writes corrected cache artifact for oversized turn context`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -1417,7 +1868,7 @@ struct CostUsageScannerBreakdownTests {
         #expect(first.data[0].totalTokens == 132)
 
         let newCacheURL = CostUsageCacheIO.cacheFileURL(provider: .codex, cacheRoot: env.cacheRoot)
-        #expect(newCacheURL.lastPathComponent == "codex-v8.json")
+        #expect(newCacheURL.lastPathComponent == "codex-v9.json")
         #expect(FileManager.default.fileExists(atPath: newCacheURL.path))
         #expect(FileManager.default.fileExists(atPath: oldCacheURL.path))
 

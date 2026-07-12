@@ -31,7 +31,7 @@ struct QuotaProviderListTests {
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 50)
+        #expect(QuotaProviderList.providers.count == 51)
     }
 
     @Test
@@ -48,7 +48,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 150)
+        #expect(QuotaProviderList.providers.count * 3 == 153)
     }
 
     @Test
@@ -238,8 +238,8 @@ struct QuotaProviderListTests {
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
     func `Cause: catalog 50/150 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 50)
-        #expect(QuotaProviderList.providers.count * 3 == 150)
+        #expect(QuotaProviderList.providers.count == 51)
+        #expect(QuotaProviderList.providers.count * 3 == 153)
     }
 
     @Test

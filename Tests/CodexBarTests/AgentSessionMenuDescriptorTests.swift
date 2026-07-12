@@ -107,6 +107,59 @@ struct AgentSessionMenuDescriptorTests {
         #expect(!currentOutcome.shouldRetry)
     }
 
+    @Test
+    func `remote refresh gate coalesces ordinary overlaps without retry`() throws {
+        var gate = AgentSessionRemoteRefreshGate()
+        let generationCandidate = gate.begin()
+        let generation = try #require(generationCandidate)
+        #expect(gate.begin() == nil)
+
+        let outcome = gate.finish(generation: generation)
+        #expect(outcome.shouldPublish)
+        #expect(!outcome.shouldRetry)
+    }
+
+    @Test
+    func `remote refresh gate coalesces multiple ordinary overlaps into one pass`() throws {
+        var gate = AgentSessionRemoteRefreshGate()
+        let generationCandidate = gate.begin()
+        let generation = try #require(generationCandidate)
+        for _ in 0..<5 {
+            #expect(gate.begin() == nil)
+        }
+
+        let outcome = gate.finish(generation: generation)
+        #expect(outcome.shouldPublish)
+        #expect(!outcome.shouldRetry)
+        #expect(Self.remotePassCount(for: .ordinaryOverlaps(count: 5)) == 1)
+    }
+
+    @Test
+    func `remote refresh gate still retries after ordinary overlap then settings change`() throws {
+        var gate = AgentSessionRemoteRefreshGate()
+        let staleGenerationCandidate = gate.begin()
+        let staleGeneration = try #require(staleGenerationCandidate)
+        #expect(gate.begin() == nil)
+        gate.settingsDidChange()
+
+        let staleOutcome = gate.finish(generation: staleGeneration)
+        #expect(!staleOutcome.shouldPublish)
+        #expect(staleOutcome.shouldRetry)
+
+        let currentGenerationCandidate = gate.begin()
+        let currentGeneration = try #require(currentGenerationCandidate)
+        let currentOutcome = gate.finish(generation: currentGeneration)
+        #expect(currentOutcome.shouldPublish)
+        #expect(!currentOutcome.shouldRetry)
+        #expect(Self.remotePassCount(for: .ordinaryOverlapThenSettingsChange) == 2)
+    }
+
+    @Test
+    func `remote refresh gate pass counts stay at one for overlap and two for settings change`() {
+        #expect(Self.remotePassCount(for: .ordinaryOverlaps(count: 1)) == 1)
+        #expect(Self.remotePassCount(for: .settingsChangeDuringFlight) == 2)
+    }
+
     private static func session(id: String, host: String, activity: Date) -> AgentSession {
         AgentSession(
             id: id,
@@ -127,5 +180,40 @@ struct AgentSessionMenuDescriptorTests {
             guard case let .text(title, .headline) = entry else { return false }
             return title.hasPrefix("Agent Sessions (")
         }
+    }
+
+    private enum RemoteRefreshScenario {
+        case ordinaryOverlaps(count: Int)
+        case settingsChangeDuringFlight
+        case ordinaryOverlapThenSettingsChange
+    }
+
+    /// Pure state-machine pass counter: each successful `begin()`/`finish()` pair is one remote pass.
+    private static func remotePassCount(for scenario: RemoteRefreshScenario) -> Int {
+        var gate = AgentSessionRemoteRefreshGate()
+        var passes = 0
+
+        guard let generation = gate.begin() else { return 0 }
+        passes += 1
+
+        switch scenario {
+        case let .ordinaryOverlaps(count):
+            for _ in 0..<count {
+                _ = gate.begin()
+            }
+        case .settingsChangeDuringFlight:
+            gate.settingsDidChange()
+        case .ordinaryOverlapThenSettingsChange:
+            _ = gate.begin()
+            gate.settingsDidChange()
+        }
+
+        let outcome = gate.finish(generation: generation)
+        guard outcome.shouldRetry, let nextGeneration = gate.begin() else {
+            return passes
+        }
+        passes += 1
+        _ = gate.finish(generation: nextGeneration)
+        return passes
     }
 }

@@ -53,39 +53,22 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `accepts legacy factory cli source as compatibility alias`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .factory, source: .cli))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: {
+            $0.provider == .factory && $0.code == "unsupported_source"
+        }))
+        #expect(FactoryProviderDescriptor.descriptor.fetchPlan.sourceModes.contains(.cli))
+    }
+
+    @Test
     func `reports missing API key when source API`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .zai, source: .api, apiKey: nil))
         let issues = CodexBarConfigValidator.validate(config)
         #expect(issues.contains(where: { $0.code == "api_key_missing" }))
-    }
-
-    @Test
-    func `allows Cursor session backed API source without API key`() {
-        var config = CodexBarConfig.makeDefault()
-        config.setProviderConfig(ProviderConfig(id: .cursor, source: .api, apiKey: nil))
-        let issues = CodexBarConfigValidator.validate(config)
-        #expect(!issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_missing" }))
-    }
-
-    @Test
-    func `warns when Cursor API key is set because API source is session backed`() {
-        var config = CodexBarConfig.makeDefault()
-        config.setProviderConfig(ProviderConfig(id: .cursor, source: .api, apiKey: "sk-unused"))
-        let issues = CodexBarConfigValidator.validate(config)
-        #expect(issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_unused" }))
-        #expect(!issues.contains(where: { $0.provider == .cursor && $0.code == "api_key_missing" }))
-    }
-
-    @Test
-    func `normalizes unsupported Cursor source modes back to auto`() {
-        var webConfig = CodexBarConfig.makeDefault()
-        webConfig.setProviderConfig(ProviderConfig(id: .cursor, source: .web))
-        #expect(webConfig.normalized().providerConfig(for: .cursor)?.source == nil)
-
-        var apiConfig = CodexBarConfig.makeDefault()
-        apiConfig.setProviderConfig(ProviderConfig(id: .cursor, source: .api))
-        #expect(apiConfig.normalized().providerConfig(for: .cursor)?.source == .api)
     }
 
     @Test
@@ -101,17 +84,93 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `warns when Wayfinder API key is set because gateway is credentialless`() {
+    func `sub2api token accounts satisfy API credentials`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Primary",
+                    token: "fixture",
+                    addedAt: 0,
+                    lastUsed: nil),
+            ],
+            activeIndex: 0)
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(
-            id: .wayfinder,
+            id: .sub2api,
             source: .api,
-            apiKey: "unused",
-            enterpriseHost: "http://127.0.0.1:9191"))
+            enterpriseHost: "https://sub2api.example.com",
+            tokenAccounts: accounts))
         let issues = CodexBarConfigValidator.validate(config)
 
-        #expect(issues.contains(where: { $0.provider == .wayfinder && $0.code == "api_key_unused" }))
-        #expect(!issues.contains(where: { $0.provider == .wayfinder && $0.code == "api_key_missing" }))
+        #expect(!issues.contains(where: { $0.provider == .sub2api && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `sub2api accepts HTTPS and loopback HTTP base URLs`() {
+        for host in ["https://sub2api.example.com", "http://127.0.0.1:8080"] {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(ProviderConfig(
+                id: .sub2api,
+                source: .api,
+                apiKey: "fixture",
+                enterpriseHost: host))
+            let invalidHostIssue = CodexBarConfigValidator.validate(config).first { issue in
+                issue.provider == .sub2api && issue.code == "invalid_enterprise_host"
+            }
+
+            #expect(invalidHostIssue == nil)
+        }
+    }
+
+    @Test
+    func `sub2api rejects unsafe base URLs`() {
+        let invalidHosts = [
+            "http://sub2api.example.com",
+            "https://user:pass@sub2api.example.com",
+            "https://sub2api.example.com?token=secret",
+            "https://sub2api.example.com#fragment",
+        ]
+        for host in invalidHosts {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(ProviderConfig(
+                id: .sub2api,
+                source: .api,
+                apiKey: "fixture",
+                enterpriseHost: host))
+            let invalidHostIssue = CodexBarConfigValidator.validate(config).first { issue in
+                issue.provider == .sub2api &&
+                    issue.field == "enterpriseHost" &&
+                    issue.code == "invalid_enterprise_host"
+            }
+
+            #expect(invalidHostIssue != nil)
+        }
+    }
+
+    @Test
+    func `sub2api rejects blank token accounts as API credentials`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Blank",
+                    token: "   ",
+                    addedAt: 0,
+                    lastUsed: nil),
+            ],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .sub2api,
+            source: .api,
+            enterpriseHost: "https://sub2api.example.com",
+            tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(issues.contains(where: { $0.provider == .sub2api && $0.code == "api_key_missing" }))
     }
 
     @Test
@@ -196,7 +255,8 @@ struct ConfigValidationTests {
         }))
 
         #expect(issue.message ==
-            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, and wayfinder " +
+            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, sub2api, and " +
+            "wayfinder " +
             "support enterpriseHost.")
     }
 
@@ -259,52 +319,12 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `config store default url honors preferred environment override`() {
+    func `config store default url honors environment override`() {
         let url = CodexBarConfigStore.defaultURL(environment: [
-            CodexBarConfigStore.pathEnvironmentKey: "~/tmp/quotakit-test-config.json",
-        ])
-
-        #expect(url.path.hasSuffix("/tmp/quotakit-test-config.json"))
-    }
-
-    @Test
-    func `config store default url uses quotakit directory`() {
-        let home = URL(fileURLWithPath: "/tmp/quotakit-home", isDirectory: true)
-        let url = CodexBarConfigStore.defaultURL(home: home, environment: [:])
-
-        #expect(url.path == "/tmp/quotakit-home/.quotakit/config.json")
-    }
-
-    @Test
-    func `config store legacy environment override still works`() {
-        let url = CodexBarConfigStore.defaultURL(environment: [
-            CodexBarConfigStore.legacyPathEnvironmentKey: "~/tmp/codexbar-test-config.json",
+            CodexBarConfigStore.pathEnvironmentKey: "~/tmp/codexbar-test-config.json",
         ])
 
         #expect(url.path.hasSuffix("/tmp/codexbar-test-config.json"))
-    }
-
-    @Test
-    func `config store migrates legacy default config when preferred config is absent`() throws {
-        let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("quotakit-config-migration-\(UUID().uuidString)", isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: root) }
-
-        let legacyURL = CodexBarConfigStore.legacyDefaultURL(home: root)
-        try FileManager.default.createDirectory(
-            at: legacyURL.deletingLastPathComponent(),
-            withIntermediateDirectories: true)
-        let config = CodexBarConfig.makeDefault()
-        let data = try JSONEncoder().encode(config)
-        try data.write(to: legacyURL)
-
-        let preferredURL = CodexBarConfigStore.defaultURL(home: root, environment: [:])
-        let store = CodexBarConfigStore(fileURL: preferredURL)
-        let loaded = try store.load()
-
-        #expect(loaded != nil)
-        #expect(FileManager.default.fileExists(atPath: preferredURL.path))
-        #expect(FileManager.default.fileExists(atPath: legacyURL.path))
     }
 
     @Test
@@ -343,7 +363,7 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `config store default url keeps quotakit default for new installs`() throws {
+    func `config store default url creates in xdg default for new installs`() throws {
         let fileManager = FileManager.default
         let home = try Self.makeTemporaryHome()
         defer { try? fileManager.removeItem(at: home) }
@@ -354,7 +374,7 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `config store default url keeps preferred path when legacy config exists`() throws {
+    func `config store default url keeps existing legacy config`() throws {
         let fileManager = FileManager.default
         let home = try Self.makeTemporaryHome()
         defer { try? fileManager.removeItem(at: home) }
@@ -367,7 +387,7 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `config store default url prefers existing xdg default over preferred and legacy config`() throws {
+    func `config store default url prefers existing xdg default over legacy config`() throws {
         let fileManager = FileManager.default
         let home = try Self.makeTemporaryHome()
         defer { try? fileManager.removeItem(at: home) }

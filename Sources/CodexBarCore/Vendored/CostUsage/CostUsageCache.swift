@@ -9,15 +9,8 @@ enum CostUsageCacheIO {
     private static func artifactVersion(for provider: UsageProvider) -> Int {
         switch provider {
         case .codex:
-            // Upstream bumped to 8 in v0.27.0 (further pricing/parser
-            // changes: Codex JSONL shape benchmark, per-event token usage
-            // preference, long turn-context attribution). Supersedes
-            // fork's prior 4 → 5 → 6 history.
-            8
+            9
         case .claude, .vertexai:
-            // Upstream bumped to 4 with the 0.33 Claude pricing correction
-            // (Fable 5 rates, native 1-hour cache writes, Sonnet 4.6
-            // full-context rates). Supersedes fork's prior 2 → 3 history.
             4
         default:
             1
@@ -43,29 +36,22 @@ enum CostUsageCacheIO {
         producerKey: String? = nil) -> CostUsageCache
     {
         let url = self.cacheFileURL(provider: provider, cacheRoot: cacheRoot)
-        let expectedFingerprint = CostUsagePricing.pricingFingerprint
         let expectedProducerKey = producerKey ?? self.currentProducerKey(provider: provider)
         let compatibleProducerKeys = producerKey == nil && provider == .codex
             ? self.compatibleCodexProducerKeys
             : []
         if let decoded = self.loadCache(
             at: url,
-            expectedFingerprint: expectedFingerprint,
             expectedProducerKey: expectedProducerKey,
             compatibleProducerKeys: compatibleProducerKeys)
         {
             return decoded
         }
-        // Fresh cache stamps the current fingerprint so subsequent saves
-        // carry it forward — no separate "first save" path needed.
-        var fresh = CostUsageCache()
-        fresh.pricingFingerprint = expectedFingerprint
-        return fresh
+        return CostUsageCache()
     }
 
     private static func loadCache(
         at url: URL,
-        expectedFingerprint: String,
         expectedProducerKey: String?,
         compatibleProducerKeys: Set<String>) -> CostUsageCache?
     {
@@ -73,17 +59,6 @@ enum CostUsageCacheIO {
         guard let decoded = try? JSONDecoder().decode(CostUsageCache.self, from: data)
         else { return nil }
         guard decoded.version == 1 else { return nil }
-        // Fingerprint mismatch means the pricing tables OR parser logic
-        // changed since this cache was written. Token attributions are
-        // baked in at parse time and can't be retroactively fixed —
-        // safest action is to discard and force a fresh scan. See
-        // `CostUsagePricing.pricingFingerprint` for the fingerprint
-        // composition.
-        guard decoded.pricingFingerprint == expectedFingerprint else { return nil }
-        // Upstream's producerKey (scanner source hash, #1042) is a second,
-        // independent invalidation axis: a parser-source change rolls the hash
-        // even when the pricing fingerprint is unchanged. Validate both so a
-        // stale cache is discarded if EITHER signal moves.
         if let expectedProducerKey {
             guard decoded.producerKey == expectedProducerKey
                 || decoded.producerKey.map(compatibleProducerKeys.contains) == true
@@ -102,20 +77,11 @@ enum CostUsageCacheIO {
         let dir = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
 
-        // Always stamp the current fingerprint on save so a subsequent
-        // app launch will validate the match. Callers building a cache
-        // from scratch via `load(...)` already get the right fingerprint;
-        // this guard catches paths that synthesize a `CostUsageCache()`
-        // directly without going through `load`.
-        var stamped = cache
-        stamped.pricingFingerprint = CostUsagePricing.pricingFingerprint
-        // Also stamp upstream's producerKey so the scanner-hash invalidation
-        // axis (#1042) is carried forward on every save, not just on caches
-        // built through `load(...)`.
-        stamped.producerKey = producerKey ?? self.currentProducerKey(provider: provider)
+        var cache = cache
+        cache.producerKey = producerKey ?? self.currentProducerKey(provider: provider)
 
         let tmp = dir.appendingPathComponent(".tmp-\(UUID().uuidString).json", isDirectory: false)
-        let data = (try? JSONEncoder().encode(stamped)) ?? Data()
+        let data = (try? JSONEncoder().encode(cache)) ?? Data()
         do {
             try data.write(to: tmp, options: [.atomic])
             if FileManager.default.fileExists(atPath: url.path) {
@@ -148,13 +114,6 @@ struct CostUsageCache: Codable {
     var codexProjectMetadataVersion: Int?
     var codexPriorityTurnKeys: [String: String]?
     var codexPriorityTurnIDsByDay: [String: [String]]?
-
-    /// Pricing-table + parser fingerprint at the moment this cache was
-    /// written. `CostUsageCacheIO.load` invalidates any cache whose
-    /// fingerprint doesn't match the current `CostUsagePricing.pricingFingerprint`.
-    /// **Optional** so old caches without the field still decode (they
-    /// then mismatch nil ≠ current → invalidated, re-scan, win-win).
-    var pricingFingerprint: String?
 
     /// filePath -> file usage
     var files: [String: CostUsageFileUsage] = [:]

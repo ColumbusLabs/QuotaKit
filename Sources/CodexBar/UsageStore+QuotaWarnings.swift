@@ -136,6 +136,7 @@ extension UsageStore {
             }
             return
         }
+        guard !rateWindow.isSyntheticPlaceholder else { return }
 
         let thresholds = self.settings.resolvedQuotaWarningThresholds(
             provider: provider,

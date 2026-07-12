@@ -48,6 +48,7 @@ struct UsageStoreAccountScopedWarningTests {
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.quotaWarningNotificationsEnabled = true
+        settings.notificationPushToiOSEnabled = false
         settings.quotaWarningThresholds = [50]
         settings.setQuotaWarningWindowEnabled(.session, enabled: true)
 
@@ -87,11 +88,12 @@ struct UsageStoreAccountScopedWarningTests {
     }
 
     @Test
-    func `session quota transitions are scoped by account discriminator`() {
+    func `session quota transitions are scoped by account discriminator`() throws {
         let settings = self.makeSettings(suiteName: "UsageStoreAccountScopedWarningTests-session")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.sessionQuotaNotificationsEnabled = true
+        settings.notificationPushToiOSEnabled = false
 
         let notifier = SessionQuotaNotifierSpy()
         let store = UsageStore(
@@ -107,22 +109,30 @@ struct UsageStoreAccountScopedWarningTests {
             primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
             secondary: nil,
             updatedAt: Date())
+        let owner = try #require(CodexSessionQuotaOwnerKey(refreshGuard: CodexAccountScopedRefreshGuard(
+            source: .liveSystem,
+            identity: .providerAccount(id: "workspace-fixture"),
+            accountKey: "session-fixture@example.test")))
 
         store.handleSessionQuotaTransition(
             provider: .codex,
             snapshot: baseline,
+            codexOwnerKey: owner,
             accountDiscriminatorOverride: "account-a")
         store.handleSessionQuotaTransition(
             provider: .codex,
             snapshot: baseline,
+            codexOwnerKey: owner,
             accountDiscriminatorOverride: "account-b")
         store.handleSessionQuotaTransition(
             provider: .codex,
             snapshot: depleted,
+            codexOwnerKey: owner,
             accountDiscriminatorOverride: "account-a")
         store.handleSessionQuotaTransition(
             provider: .codex,
             snapshot: depleted,
+            codexOwnerKey: owner,
             accountDiscriminatorOverride: "account-b")
 
         #expect(notifier.posts.count == 2)

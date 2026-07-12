@@ -1,5 +1,10 @@
 # Changelog
 
+## Upstream sync — 2026-07-12
+
+- Integrated upstream through `fd1b6c780`, including safer provider refresh ownership, asynchronous plan-history loading, Factory API-key usage, Sub2API support, and Codex quota recovery hardening.
+- Preserved QuotaKit release metadata and added Sub2API parity for iOS colors and CloudKit quota notifications.
+
 Notable QuotaKit Mac and cross-platform release changes are documented here.
 
 Older upstream history is intentionally preserved in Git, but this file now focuses
