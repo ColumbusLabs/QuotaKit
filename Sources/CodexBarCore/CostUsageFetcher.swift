@@ -76,6 +76,31 @@ public struct CostUsageFetcher: Sendable {
             codexHomePath: codexHomePath,
             historyDays: historyDays,
             refreshPricingInBackground: refreshPricingInBackground,
+            bypassScannerDebounce: false,
+            scannerOptions: self.scannerOptionsOverride())
+    }
+
+    package func loadTokenSnapshot(
+        provider: UsageProvider,
+        environment: [String: String] = ProcessInfo.processInfo.environment,
+        now: Date = Date(),
+        forceRefresh: Bool = false,
+        allowVertexClaudeFallback: Bool = false,
+        codexHomePath: String? = nil,
+        historyDays: Int = 30,
+        refreshPricingInBackground: Bool = true,
+        bypassScannerDebounce: Bool) async throws -> CostUsageTokenSnapshot
+    {
+        try await Self.loadTokenSnapshot(
+            provider: provider,
+            environment: environment,
+            now: now,
+            forceRefresh: forceRefresh,
+            allowVertexClaudeFallback: allowVertexClaudeFallback,
+            codexHomePath: codexHomePath,
+            historyDays: historyDays,
+            refreshPricingInBackground: refreshPricingInBackground,
+            bypassScannerDebounce: bypassScannerDebounce,
             scannerOptions: self.scannerOptionsOverride())
     }
 
@@ -115,6 +140,7 @@ public struct CostUsageFetcher: Sendable {
         codexHomePath: String? = nil,
         historyDays: Int = 30,
         refreshPricingInBackground: Bool = true,
+        bypassScannerDebounce: Bool = false,
         scannerOptions overrideScannerOptions: CostUsageScanner.Options? = nil,
         piScannerOptions overridePiScannerOptions: PiSessionCostScanner
             .Options? = nil,
@@ -172,14 +198,14 @@ public struct CostUsageFetcher: Sendable {
         } else if provider == .claude {
             options.claudeLogProviderFilter = .excludeVertexAI
         }
-        if forceRefresh {
+        if forceRefresh || bypassScannerDebounce {
             options.refreshMinIntervalSeconds = 0
         }
         var resolvedPiOptions = overridePiScannerOptions ?? PiSessionCostScanner.Options()
         if resolvedPiOptions.cacheRoot == nil {
             resolvedPiOptions.cacheRoot = options.cacheRoot
         }
-        if forceRefresh {
+        if forceRefresh || bypassScannerDebounce {
             resolvedPiOptions.refreshMinIntervalSeconds = 0
         }
         let piOptions = resolvedPiOptions

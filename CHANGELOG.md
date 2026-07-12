@@ -15,7 +15,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## 0.32.4.11 / iOS 1.11.1 — 2026-07-11
 
 ### Added
-
 - Menu bar: add a display option to show reset time when quota runs out.
 - Kimi K2: add a Usage Dashboard shortcut to the legacy credits page.
 - Codex: add GPT-5.6 Sol, Terra, and Luna pricing, including alias and
@@ -23,6 +22,17 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Codex: add a provider option to hide Spark quota rows without hiding credits
   or other extra usage.
 - Documentation: add Azure OpenAI provider setup and troubleshooting notes.
+- sub2api: add group-key usage with daily, weekly, and monthly quotas, multi-account switching, wallet balance, and expiry details. Thanks @weirdo-adam!
+- Kimi: reuse fresh signed-in Kimi Code CLI credentials in Auto mode without refreshing or rewriting CLI-owned authentication state. Thanks @Leechael!
+- Factory: add API-key usage authentication with API-first Auto mode and recoverable fallback to the existing web session path. Thanks @araa47!
+- Developer tooling: add an offline adaptive-refresh replay CLI for comparing policy behavior against caller-supplied JSONL traces. Thanks @hhh2210!
+
+### Fixed
+- Linux CLI: prevent usage rendering from crashing in Foundation bundle discovery when formatting rate windows. Thanks @thanthi-del!
+- Startup: load persisted plan-utilization history away from the main thread so mature histories no longer delay app launch. Thanks @Yuxin-Qiao!
+- Provider cleanup: prevent in-flight usage, status, token-cost, and cached-hydration work from republishing stale state after a provider is disabled, unavailable, or re-enabled. Thanks @Yuxin-Qiao!
+- Agent Sessions: coalesce overlapping unchanged remote refresh requests so menu opens do not repeat Tailscale discovery and SSH passes. Thanks @Yuxin-Qiao!
+- Cost usage: zero the scanner's 60-second refresh debounce on app-driven fetches so non-forced refreshes (hourly timer, post-launch, scope/settings changes) reflect rows appended between fetches instead of serving a stale snapshot that `UsageStore.tokenFetchTTL` then pins for up to an hour (#2089). Thanks @Yuxin-Qiao!
 
 ### Changed
 
