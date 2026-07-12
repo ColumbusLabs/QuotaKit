@@ -29,6 +29,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 - Linux CLI: prevent usage rendering from crashing in Foundation bundle discovery when formatting rate windows. Thanks @thanthi-del!
+- Menus: keep overview provider-row clicks reliable during live menu rebuilds without stealing nested Copy or plan actions. Thanks @Yuxin-Qiao!
 - Startup: load persisted plan-utilization history away from the main thread so mature histories no longer delay app launch. Thanks @Yuxin-Qiao!
 - Provider cleanup: prevent in-flight usage, status, token-cost, and cached-hydration work from republishing stale state after a provider is disabled, unavailable, or re-enabled. Thanks @Yuxin-Qiao!
 - Agent Sessions: coalesce overlapping unchanged remote refresh requests so menu opens do not repeat Tailscale discovery and SSH passes. Thanks @Yuxin-Qiao!
@@ -36,6 +37,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar Mac changes through `7465c6a11`, including reliable
+  overview-card click routing, Kimi Code CLI credential reuse, fresh cost
+  snapshots, and Sub2API support while preserving QuotaKit release ownership,
+  branding, config paths, CloudKit setup, and iOS build numbers.
 - Synced upstream CodexBar Mac fixes through `99c3d94d4`
   (`a0102190e..99c3d94d4`), including Claude Auto fallback when expired CLI
   credentials only have MCP Keychain state while preserving QuotaKit release
