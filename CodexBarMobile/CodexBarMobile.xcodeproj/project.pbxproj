@@ -186,6 +186,7 @@
 		D049C768680FAF4763B7F5B8 /* QuotaProviderList.swift in Sources */ = {isa = PBXBuildFile; fileRef = 1CECA0608F74E3BA76EE5910 /* QuotaProviderList.swift */; };
 		D0624B0227BF503DC77AC09C /* Localizable.xcstrings in Resources */ = {isa = PBXBuildFile; fileRef = B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */; };
 		D41D674BDC188D9B94C80BBD /* MobileReleaseNotesCatalog.swift in Sources */ = {isa = PBXBuildFile; fileRef = 653C5C652EF27FF7622A5EE0 /* MobileReleaseNotesCatalog.swift */; };
+		D44CB6F43440B3F6D2785BB2 /* WidgetDisplayFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B126AEA8F4695CD6FDB8F7D4 /* WidgetDisplayFormatting.swift */; };
 		D4DB3A067B095809B2B2DB42 /* OpenAIDashboardSection.swift in Sources */ = {isa = PBXBuildFile; fileRef = 2A9CF0F889610D5155F92ABB /* OpenAIDashboardSection.swift */; };
 		D53B693BEEEC2ECC6BCDF377 /* ProFeatureAccess.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8846A940BF0B583A5FD58500 /* ProFeatureAccess.swift */; };
 		D5E7E85EEE6528E04FDA9446 /* PreviewData.swift in Sources */ = {isa = PBXBuildFile; fileRef = C92153BD74B2B08AE61B76E2 /* PreviewData.swift */; };
@@ -212,6 +213,7 @@
 		FC0FEB70E12166B43D931904 /* QuotaKitWidgetViews.swift in Sources */ = {isa = PBXBuildFile; fileRef = BE660972A1EA9F8504DB345C /* QuotaKitWidgetViews.swift */; };
 		FD719D625E6E8BE789EA3609 /* QKSectionHeader.swift in Sources */ = {isa = PBXBuildFile; fileRef = 4B8AACA585DD58DA4C1FD2D6 /* QKSectionHeader.swift */; };
 		FE0F6EED9F97E88267101B6C /* GrokBillingCard.swift in Sources */ = {isa = PBXBuildFile; fileRef = E8C6050FE3CCE339F505DF43 /* GrokBillingCard.swift */; };
+		FE66236B43329D29D175CECD /* WidgetDisplayFormatting.swift in Sources */ = {isa = PBXBuildFile; fileRef = B126AEA8F4695CD6FDB8F7D4 /* WidgetDisplayFormatting.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -449,6 +451,7 @@
 		AEB7FFB253C0CC0CA9876CCB /* CostShareCardView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = CostShareCardView.swift; sourceTree = "<group>"; };
 		AF5F72C23944E23883A57CA1 /* ClaudeAdminUsageCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ClaudeAdminUsageCard.swift; sourceTree = "<group>"; };
 		B07946DD625AF9E4DFFFAB41 /* AntigravityAccountSwitcher.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AntigravityAccountSwitcher.swift; sourceTree = "<group>"; };
+		B126AEA8F4695CD6FDB8F7D4 /* WidgetDisplayFormatting.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = WidgetDisplayFormatting.swift; sourceTree = "<group>"; };
 		B22B4D560AC765604858E821 /* LLMProxyStatsCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = LLMProxyStatsCard.swift; sourceTree = "<group>"; };
 		B2C6897E84FB3CBD02DC3D8C /* AlibabaTokenPlanCard.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AlibabaTokenPlanCard.swift; sourceTree = "<group>"; };
 		B47F282E1FA9E215551D09F6 /* Localizable.xcstrings */ = {isa = PBXFileReference; lastKnownFileType = text.json.xcstrings; path = Localizable.xcstrings; sourceTree = "<group>"; };
@@ -797,6 +800,7 @@
 				7F02C90907BEFBD7030162A3 /* QuotaKitWidgetSnapshot.swift */,
 				BE660972A1EA9F8504DB345C /* QuotaKitWidgetViews.swift */,
 				FF991DE8B8501F294971953F /* WidgetBackgroundSnapshotRefresh.swift */,
+				B126AEA8F4695CD6FDB8F7D4 /* WidgetDisplayFormatting.swift */,
 				1C5A41D0E76B2A56AD7BCDB2 /* WidgetSnapshotPublisher.swift */,
 				98242C480A15DE54C6BA2D89 /* WidgetTimelineRefresher.swift */,
 			);
@@ -1362,6 +1366,7 @@
 				6BEB6B051976D09ED07BFFD3 /* UtilizationAggregateView.swift in Sources */,
 				06AF0C16DB94FEF7CEB249F1 /* UtilizationHistoryView.swift in Sources */,
 				04BD82D44D338DB71AD1A570 /* WidgetBackgroundSnapshotRefresh.swift in Sources */,
+				FE66236B43329D29D175CECD /* WidgetDisplayFormatting.swift in Sources */,
 				CE75AEADE037D7CC995FE901 /* WidgetSnapshotPublisher.swift in Sources */,
 				8B4C9D4A49DD1DB82A71B012 /* WidgetTimelineRefresher.swift in Sources */,
 				F17B695DE47773A5DF665875 /* ZaiHourlyChart.swift in Sources */,
@@ -1424,6 +1429,7 @@
 				84FB21D288270ED2C70A986B /* QuotaKitWidgets.swift in Sources */,
 				245BDE7180336632728266D2 /* QuotaUsageColor.swift in Sources */,
 				2495246F7268FCE2EE0EDB2B /* UsageProgressBarView.swift in Sources */,
+				D44CB6F43440B3F6D2785BB2 /* WidgetDisplayFormatting.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

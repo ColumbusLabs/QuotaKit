@@ -544,6 +544,33 @@ final class QuotaKitWidgetTests: XCTestCase {
         }
     }
 
+    func testWidgetResetCountdownTemplatesAreTranslated() throws {
+        let testFileURL = URL(fileURLWithPath: #filePath)
+        let catalogURL = testFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("CodexBarMobile/Localizable.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try JSONDecoder().decode(StringCatalog.self, from: data)
+        let keys = [
+            "now",
+            "in %lldm",
+            "in %lldh",
+            "in %lldh %lldm",
+            "in %lldd",
+            "in %lldd %lldh",
+        ]
+
+        for key in keys {
+            let entry = try XCTUnwrap(catalog.strings[key])
+            for locale in ["en", "ja", "zh-Hans", "zh-Hant"] {
+                let localization = try XCTUnwrap(entry.localizations[locale])
+                XCTAssertEqual(localization.stringUnit.state, "translated")
+                XCTAssertFalse(localization.stringUnit.value.isEmpty)
+            }
+        }
+    }
+
     func testWidgetDisplayModeStoreDefaultsToBothForMissingAndInvalidValues() {
         let defaults = Self.makeDefaults()
         defer { defaults.removeObject(forKey: QuotaKitWidgetDisplayModeStore.key) }
@@ -1396,6 +1423,84 @@ final class QuotaKitWidgetTests: XCTestCase {
             "Expected paid small widget weekly configuration to render")
     }
 
+    func testWidgetWindowBadgeUsesCompactDurationsAndSafeFallbacks() {
+        let date = Date(timeIntervalSince1970: 1_803_000_000)
+        let window: (String, SyncRateWindowIdentity?) -> QuotaKitWidgetSnapshot.Provider.Window = { title, identity in
+            .init(
+                title: title,
+                usedPercent: 2,
+                remainingPercent: 98,
+                resetsAt: date,
+                pace: nil,
+                identity: identity)
+        }
+
+        XCTAssertEqual(
+            WidgetWindowBadgeFormatter.label(
+                for: window("5-hour", .session),
+                displayMode: .session),
+            "5H")
+        XCTAssertEqual(
+            WidgetWindowBadgeFormatter.label(
+                for: window("7 days", .weekly),
+                displayMode: .weekly),
+            "7D")
+        XCTAssertEqual(
+            WidgetWindowBadgeFormatter.label(
+                for: window("Weekly", .weekly),
+                displayMode: .weekly),
+            "7D")
+        XCTAssertEqual(
+            WidgetWindowBadgeFormatter.label(
+                for: window("Rolling", .session),
+                displayMode: .session),
+            String(localized: "Session"))
+    }
+
+    func testReferenceSmallWidgetRendersAllGlanceRegions() throws {
+        let snapshot = QuotaKitWidgetPreviewData.referenceSnapshot
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: snapshot.generatedAt,
+                snapshot: snapshot,
+                isUnlocked: true,
+                isPreview: true,
+                displayMode: .weekly),
+            overrideFamily: .systemSmall)
+
+        let image = try XCTUnwrap(
+            self.renderSmallWidgetToImage(view),
+            "Expected the reference small-widget glance to render")
+        let attachment = XCTAttachment(image: image)
+        attachment.name = "QuotaKit reference small widget"
+        attachment.lifetime = .keepAlways
+        self.add(attachment)
+        self.assertSmallWidgetGlanceRegionsAreVisible(in: image)
+    }
+
+    func testReferenceSmallWidgetRendersOnCompactCanvases() {
+        let snapshot = QuotaKitWidgetPreviewData.referenceSnapshot
+        let view = QuotaKitWidgetView(
+            entry: .init(
+                date: snapshot.generatedAt,
+                snapshot: snapshot,
+                isUnlocked: true,
+                isPreview: true,
+                displayMode: .weekly),
+            overrideFamily: .systemSmall)
+
+        for size: CGFloat in [148, 155] {
+            guard let image = self.renderSmallWidgetToImage(view, size: size) else {
+                XCTFail("Expected reference widget to render at \(size) points")
+                continue
+            }
+            XCTAssertGreaterThan(
+                self.visiblePixelCount(in: image, yPointRange: (size - 30)..<size),
+                70,
+                "Expected reset countdown to remain visible at \(size) points")
+        }
+    }
+
     func testEmptyWidgetRendersWithoutCrashing() {
         for family in Self.widgetFamilies {
             let view = QuotaKitWidgetView(
@@ -1428,8 +1533,10 @@ final class QuotaKitWidgetTests: XCTestCase {
         return renderer.uiImage
     }
 
-    private func renderSmallWidgetToImage(_ view: some View) -> UIImage? {
-        let renderer = ImageRenderer(content: view.frame(width: 170, height: 170))
+    private func renderSmallWidgetToImage(_ view: some View, size: CGFloat = 170) -> UIImage? {
+        let renderer = ImageRenderer(content: view
+            .frame(width: size, height: size)
+            .background(Color.black))
         renderer.scale = 2.0
         return renderer.uiImage
     }
@@ -1458,6 +1565,30 @@ final class QuotaKitWidgetTests: XCTestCase {
                 visiblePixels,
                 minimumVisiblePixels,
                 "Expected \(name) to have visible rendered content in accessory rectangular widget",
+                file: file,
+                line: line)
+        }
+    }
+
+    private func assertSmallWidgetGlanceRegionsAreVisible(
+        in image: UIImage,
+        file: StaticString = #filePath,
+        line: UInt = #line)
+    {
+        let visibleRegions = [
+            ("window and provider header", 8..<43, 80),
+            ("remaining percentage", 42..<105, 300),
+            ("quota bar", 112..<137, 120),
+            ("reset countdown", 135..<166, 70),
+        ].map { name, yRange, minimumVisiblePixels in
+            (name, self.visiblePixelCount(in: image, yPointRange: yRange), minimumVisiblePixels)
+        }
+
+        for (name, visiblePixels, minimumVisiblePixels) in visibleRegions {
+            XCTAssertGreaterThan(
+                visiblePixels,
+                minimumVisiblePixels,
+                "Expected \(name) to have visible rendered content in the small widget",
                 file: file,
                 line: line)
         }

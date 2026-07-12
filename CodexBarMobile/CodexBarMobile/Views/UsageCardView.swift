@@ -6,32 +6,6 @@ enum UsageCardLayout {
     case compact
 }
 
-enum MobileResetCountdownFormatter {
-    static func resetLine(from date: Date, now: Date = .init()) -> String {
-        String(format: String(localized: "Resets %@"), self.countdownDescription(from: date, now: now))
-    }
-
-    static func countdownDescription(from date: Date, now: Date = .init()) -> String {
-        let seconds = max(0, date.timeIntervalSince(now))
-        if seconds < 1 { return "now" }
-
-        let totalMinutes = max(1, Int(ceil(seconds / 60.0)))
-        let days = totalMinutes / (24 * 60)
-        let hours = (totalMinutes / 60) % 24
-        let minutes = totalMinutes % 60
-
-        if days > 0 {
-            if hours > 0 { return "in \(days)d \(hours)h" }
-            return "in \(days)d"
-        }
-        if hours > 0 {
-            if minutes > 0 { return "in \(hours)h \(minutes)m" }
-            return "in \(hours)h"
-        }
-        return "in \(totalMinutes)m"
-    }
-}
-
 struct UsageCardView: View {
     @Environment(\.quotaKitTheme) private var theme
     let label: String

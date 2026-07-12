@@ -17,6 +17,9 @@ current Columbus Labs product surface and recent release history.
 
 - Provider ordering is clearer, and Sakana and Wayfinder use their branded
   presentation on iPhone.
+- Small Session and Weekly widgets now use a cleaner glass-ready glance with a
+  compact window badge, large remaining percentage, neutral quota bar, and
+  reset countdown. Both mode keeps its two-window overview.
 
 ### Fixed
 

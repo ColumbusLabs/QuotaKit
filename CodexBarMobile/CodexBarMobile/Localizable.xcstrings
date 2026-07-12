@@ -6849,6 +6849,54 @@
         }
       }
     },
+    "in %lldd": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "in %lldd" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld日後" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld天后" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld天後" } }
+      }
+    },
+    "in %lldd %lldh": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "in %1$lldd %2$lldh" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld日%2$lld時間後" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld天%2$lld小时后" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld天%2$lld小時後" } }
+      }
+    },
+    "in %lldh": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "in %lldh" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld時間後" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld小时后" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld小時後" } }
+      }
+    },
+    "in %lldh %lldm": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "in %1$lldh %2$lldm" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld時間%2$lld分後" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld小时%2$lld分钟后" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld小時%2$lld分鐘後" } }
+      }
+    },
+    "in %lldm": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "in %lldm" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "%lld分後" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld分钟后" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld分鐘後" } }
+      }
+    },
+    "now": {
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "now" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "今" } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "现在" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "現在" } }
+      }
+    },
     "Selected Cost": {
       "localizations": {
         "en": {
@@ -18835,6 +18883,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "更多提供者詳細 —— 顯示 CrossModel 餘額和消費、Codex 額度上限，以及更清晰的重設時間和權杖總數。"
+          }
+        }
+      }
+    },
+    "Small widgets now show a cleaner, glass-ready quota glance with a compact window badge, large remaining percentage, neutral progress bar, and reset countdown.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Small widgets now show a cleaner, glass-ready quota glance with a compact window badge, large remaining percentage, neutral progress bar, and reset countdown."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小サイズのウィジェットは、コンパクトな期間バッジ、大きな残りパーセント表示、ニュートラルな進捗バー、リセットまでのカウントダウンを備えた、よりすっきりしたガラス対応のクォータ表示になりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小尺寸组件现在采用更简洁的玻璃效果配额概览，包含紧凑的周期徽章、醒目的剩余百分比、中性进度条和重置倒计时。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "小尺寸小工具現在採用更簡潔的玻璃效果配額概覽，包含精簡的週期徽章、醒目的剩餘百分比、中性進度列和重設倒數。"
           }
         }
       }

@@ -33,6 +33,8 @@ enum MobileReleaseNotesCatalog {
                     items: [
                         String(
                             localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
+                        String(
+                            localized: "Small widgets now show a cleaner, glass-ready quota glance with a compact window badge, large remaining percentage, neutral progress bar, and reset countdown."),
                     ]),
             ]),
         ReleaseNotesVersion(

@@ -93,9 +93,10 @@ struct QuotaKitProviderWidget: Widget {
 } timeline: {
     QuotaKitWidgetEntry(
         date: Date(),
-        snapshot: QuotaKitWidgetPreviewData.snapshot,
+        snapshot: QuotaKitWidgetPreviewData.referenceSnapshot,
         isUnlocked: true,
-        isPreview: true)
+        isPreview: true,
+        displayMode: .weekly)
     QuotaKitWidgetEntry(
         date: Date(),
         snapshot: QuotaKitWidgetPreviewData.snapshot,

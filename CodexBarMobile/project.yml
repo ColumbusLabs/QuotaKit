@@ -98,6 +98,7 @@ targets:
       - path: CodexBarMobile/Widgets/QuotaKitWidgetDisplayMode.swift
       - path: CodexBarMobile/Widgets/QuotaKitWidgetPresentation.swift
       - path: CodexBarMobile/Widgets/QuotaKitWidgetViews.swift
+      - path: CodexBarMobile/Widgets/WidgetDisplayFormatting.swift
       - path: CodexBarMobile/Views/UsageProgressBarView.swift
       - path: CodexBarMobile/Models/ProviderColorPalette.swift
       - path: CodexBarMobile/Design/QuotaUsageColor.swift
