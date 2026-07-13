@@ -224,7 +224,6 @@ check_llms_index() {
 
 run_portable_checks() {
   check_codex_parser_hash
-  audit_claude_parser_version
   check_package_product_paths
   check_package_strip
   check_package_signing
@@ -263,6 +262,7 @@ case "$cmd" in
   lint)
     check_app_locales
     run_portable_checks
+    audit_claude_parser_version
     run_swiftformat_lint
     run_swiftlint
     audit_xcstrings
