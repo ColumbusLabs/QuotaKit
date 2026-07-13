@@ -1016,6 +1016,34 @@
         }
       }
     },
+    "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "iOS がサイレントプッシュの実行時間を終了した後に、バックグラウンド同期がローカルデータベースへの書き込みを残さず完了するようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "后台同步现在会正常完成，不会在 iOS 结束静默推送执行窗口后继续进行本地数据库写入。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "背景同步現在會正常完成，不會在 iOS 結束靜默推播執行時段後繼續寫入本機資料庫。"
+          }
+        }
+      }
+    },
     "Bar Chart": {
       "localizations": {
         "en": {

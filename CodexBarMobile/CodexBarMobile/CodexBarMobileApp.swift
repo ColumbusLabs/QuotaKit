@@ -67,6 +67,11 @@ struct CodexBarMobileApp: App {
                     self.remoteConfigStore.start()
                     self.proEntitlementStore.start()
                     self.usageData.startObserving()
+                    if self.appDelegate.consumePendingProviderZoneChangeIfActive(
+                        applicationState: UIApplication.shared.applicationState)
+                    {
+                        Task { await self.usageData.refreshAfterPendingProviderZoneChange() }
+                    }
                     if self.proEntitlementStore.isProUnlocked {
                         WidgetTimelineRefresher.reloadAllTimelines()
                     }
@@ -85,6 +90,8 @@ struct CodexBarMobileApp: App {
                 }
                 .onChange(of: self.scenePhase) { _, phase in
                     guard phase == .active, !Self.isAutomatedTestLaunch else { return }
+                    let consumedPendingZoneChange = self.appDelegate
+                        .consumePendingProviderZoneChangeIfActive(applicationState: .active)
                     Task { await self.remoteConfigStore.refresh() }
                     // Foreground freshness: refresh synced usage when the
                     // last completed refresh is stale. Quick app switches
@@ -92,7 +99,11 @@ struct CodexBarMobileApp: App {
                     // from `startObserving()` is coalesced with this one
                     // inside SyncedUsageData, so cold start never double-
                     // fetches.
-                    Task { await self.usageData.refreshIfStale() }
+                    if consumedPendingZoneChange {
+                        Task { await self.usageData.refreshAfterPendingProviderZoneChange() }
+                    } else {
+                        Task { await self.usageData.refreshIfStale() }
+                    }
                 }
         }
         // P2a: attach SwiftData container. Views do not yet use @Query;
@@ -145,6 +156,8 @@ extension WidgetBackgroundSnapshotRefreshResult {
 /// 6. Allow alert-push to display in foreground via
 ///    `UNUserNotificationCenterDelegate`.
 final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDelegate {
+    private var hasPendingProviderZoneChange = false
+
     func application(
         _ application: UIApplication,
         didFinishLaunchingWithOptions _: [UIApplication.LaunchOptionsKey: Any]? = nil) -> Bool
@@ -182,10 +195,10 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     /// Handle silent CloudKit push. Today only the DeviceProvidersZone
     /// subscription fires here (quota subs render their alertBody without
     /// app code). On match, refresh the widget snapshot directly before
-    /// completing the background fetch. Then broadcast so an already-running
-    /// app scene can update its in-memory UI model too.
+    /// completing the background fetch. If the app is active, also broadcast
+    /// so its scene can update the in-memory UI model immediately.
     func application(
-        _: UIApplication,
+        _ application: UIApplication,
         didReceiveRemoteNotification userInfo: [AnyHashable: Any],
         fetchCompletionHandler completionHandler: @escaping (UIBackgroundFetchResult) -> Void)
     {
@@ -195,10 +208,43 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         }
         Task { @MainActor in
             let result = await WidgetBackgroundSnapshotRefresh.refresh()
-            NotificationCenter.default.post(
-                name: .quotaKitProviderZoneDidChange, object: nil)
+            // A background push already refreshed the widget snapshot above.
+            // Only update the in-memory scene model while the app is active.
+            // Starting that unowned refresh after calling the completion
+            // handler can let iOS suspend us during its SwiftData token save,
+            // producing a 0xDEAD10CC SQLite-lock termination.
+            self.postProviderZoneChangeOrDefer(
+                applicationState: application.applicationState)
             completionHandler(result.backgroundFetchResult)
         }
+    }
+
+    @discardableResult
+    func postProviderZoneChangeOrDefer(
+        applicationState: UIApplication.State,
+        post: @MainActor () -> Void = AppDelegate.postProviderZoneChange) -> Bool
+    {
+        guard applicationState == .active else {
+            self.hasPendingProviderZoneChange = true
+            return false
+        }
+        post()
+        return true
+    }
+
+    @discardableResult
+    func consumePendingProviderZoneChangeIfActive(
+        applicationState: UIApplication.State) -> Bool
+    {
+        guard applicationState == .active, self.hasPendingProviderZoneChange else { return false }
+        self.hasPendingProviderZoneChange = false
+        return true
+    }
+
+    private static func postProviderZoneChange() {
+        NotificationCenter.default.post(
+            name: .quotaKitProviderZoneDidChange,
+            object: nil)
     }
 
     func application(

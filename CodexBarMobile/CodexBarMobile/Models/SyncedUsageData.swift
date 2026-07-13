@@ -426,10 +426,12 @@ final class SyncedUsageData {
             // cache at next launch — safe because the next full fetch
             // overwrites with authoritative zone attribution.
             let context = ModelContainerFactory.sharedMainContext()
-            CloudSyncReader.persistToSwiftData(
-                deviceSnapshots: deviceSnapshots,
-                merged: merged,
-                context: context)
+            BackgroundExecutionLease.withExtendedTime(name: "Persist synced usage") {
+                CloudSyncReader.persistToSwiftData(
+                    deviceSnapshots: deviceSnapshots,
+                    merged: merged,
+                    context: context)
+            }
         } else {
             self.syncStatus = .incompatibleData
         }
@@ -489,6 +491,28 @@ final class SyncedUsageData {
         }
     }
 
+    /// Applies a provider-zone change that arrived while the app was inactive.
+    /// Unlike ordinary coalescing, this must run once after any older refresh
+    /// finishes: that older query may have started before the push and cannot
+    /// be assumed to contain the new records.
+    func refreshAfterPendingProviderZoneChange() async {
+        while let previousRefresh = self.inFlightRefresh {
+            await previousRefresh.value
+            if self.inFlightRefresh == previousRefresh {
+                self.inFlightRefresh = nil
+            }
+        }
+
+        let task = Task { @MainActor in
+            await self.performIncrementalRefresh()
+        }
+        self.inFlightRefresh = task
+        await task.value
+        if self.inFlightRefresh == task {
+            self.inFlightRefresh = nil
+        }
+    }
+
     private func performIncrementalRefresh() async {
         let zoneName = CloudSyncConstants.providerZoneName
         let context = ModelContainerFactory.sharedMainContext()
@@ -517,8 +541,10 @@ final class SyncedUsageData {
         //    we treat it as a FULL replacement of the per-provider bucket
         //    (equivalent to a full fetch of the new zone).
         if delta.tokenExpired {
-            try? SwiftDataBridge.saveChangeToken(
-                forZone: zoneName, tokenData: nil, context: context)
+            try? BackgroundExecutionLease.withExtendedTime(name: "Clear sync token") {
+                try SwiftDataBridge.saveChangeToken(
+                    forZone: zoneName, tokenData: nil, context: context)
+            }
             delta = await self.reader.fetchPerProviderZoneChanges(since: nil)
             if !delta.tokenExpired, !delta.zoneMissing {
                 self.cache.replacePerProviderFromReplay(delta.upserted)
@@ -539,8 +565,10 @@ final class SyncedUsageData {
             do {
                 let tokenData = try NSKeyedArchiver.archivedData(
                     withRootObject: newToken, requiringSecureCoding: true)
-                try SwiftDataBridge.saveChangeToken(
-                    forZone: zoneName, tokenData: tokenData, context: context)
+                try BackgroundExecutionLease.withExtendedTime(name: "Persist sync token") {
+                    try SwiftDataBridge.saveChangeToken(
+                        forZone: zoneName, tokenData: tokenData, context: context)
+                }
             } catch {
                 print("[CodexBar Sync v2] token persist failed: \(error)")
             }

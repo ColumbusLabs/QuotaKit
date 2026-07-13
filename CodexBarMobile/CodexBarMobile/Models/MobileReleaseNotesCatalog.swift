@@ -35,6 +35,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
                         String(
                             localized: "Small widgets now show a cleaner, glass-ready quota glance with a compact window badge, large remaining percentage, neutral progress bar, and reset countdown."),
+                        String(
+                            localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
                     ]),
             ]),
         ReleaseNotesVersion(

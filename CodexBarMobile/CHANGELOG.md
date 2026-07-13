@@ -25,6 +25,8 @@ current Columbus Labs product surface and recent release history.
 
 - Quota reset times and large token totals render more accurately.
 - Hardened multi-account CloudKit sync and widget background refresh handling.
+- Background sync no longer starts a local database write after iOS closes the
+  silent-push execution window, preventing repeated suspension terminations.
 
 ## [1.11.1 (169)] — 2026-06-18 — Provider logos in app and widgets
 
