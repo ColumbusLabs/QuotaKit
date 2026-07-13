@@ -82,6 +82,53 @@ check_codex_parser_hash() {
   "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
 }
 
+# Claude parsing is intentionally excluded from the generated Codex producer hash.
+# Keep its cache invalidation contract explicit: semantic scanner changes must bump
+# the Claude artifact version in CostUsageCache.swift.
+audit_claude_parser_version() {
+  if [[ "${ALLOW_PARSER_CHANGE:-0}" == "1" ]]; then
+    echo "Claude parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
+    return 0
+  fi
+
+  local base="${PARSER_LINT_BASE:-origin/HEAD}"
+  if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
+    if [[ "$base" == */* ]]; then
+      local remote="${base%%/*}"
+      local branch="${base#*/}"
+      git -C "$ROOT_DIR" fetch --quiet --no-tags --depth=50 "$remote" "$branch" 2>/dev/null || true
+    fi
+  fi
+
+  if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
+    if [[ "${ALLOW_MISSING_BASE:-0}" == "1" ]]; then
+      echo "Claude parser-version audit: ALLOW_MISSING_BASE=1 → skipping (base ref '$base' unavailable)"
+      return 0
+    fi
+    echo "ERROR: Claude parser-version audit can't find base ref '$base'." >&2
+    echo "       Set PARSER_LINT_BASE to the intended base or fetch that ref." >&2
+    return 1
+  fi
+
+  local scanner_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
+  local cache_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageCache.swift"
+  if git -C "$ROOT_DIR" diff --quiet "$base"...HEAD -- "$scanner_file"; then
+    echo "Claude parser-version audit: no parser code changes since $base"
+    return 0
+  fi
+
+  if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$cache_file" \
+       | grep -E '^[+-][[:space:]]*case[[:space:]]+\.claude([^[:alnum:]_]|$).*:[[:space:]]*[0-9]+' >/dev/null; then
+    echo "Claude parser-version audit: parser code changed AND artifact version bumped — OK"
+    return 0
+  fi
+
+  echo "ERROR: Claude parser code changed since $base without a Claude artifact-version bump." >&2
+  echo "       Bump the .claude case in $cache_file so stale cached attributions are rescanned." >&2
+  echo "       For comment-only edits set ALLOW_PARSER_CHANGE=1." >&2
+  return 1
+}
+
 check_package_product_paths() {
   "${ROOT_DIR}/Scripts/test_package_product_paths.sh"
 }
@@ -177,6 +224,7 @@ check_llms_index() {
 
 run_portable_checks() {
   check_codex_parser_hash
+  audit_claude_parser_version
   check_package_product_paths
   check_package_strip
   check_package_signing
@@ -247,7 +295,11 @@ case "$cmd" in
   audit-i18n)
     audit_xcstrings
     ;;
-  audit-parser-version | audit-parser-hash)
+  audit-parser-version)
+    check_codex_parser_hash
+    audit_claude_parser_version
+    ;;
+  audit-parser-hash)
     check_codex_parser_hash
     ;;
   audit-customer-branding)
