@@ -73,33 +73,25 @@ audit_xcstrings() {
   return "$rc"
 }
 
-# Guard: any change to the Codex / Claude cost-usage parser must come
-# with a `parserLogicVersion` bump in CostUsagePricing.swift, so the
-# pricingFingerprint rolls and every user's on-disk cache (which carries
-# token attributions baked-in by the previous parser) gets invalidated
-# on next launch.
-#
-# Why this exists: the 0.23.3 hotfix had to ship because a pre-existing
-# parser bug (32 KB prefixBytes truncating Codex CLI 0.125 turn_context
-# events) silently misattributed ~93% of token usage to gpt-5. The cache
-# wouldn't have rolled itself even after the parser fix without the
-# manual parserLogicVersion bump. Easy to forget; this lint catches it.
-#
-# Escape hatch: set ALLOW_PARSER_CHANGE=1 for cosmetic / comment-only
-# edits where invalidating user caches would be wasteful.
-audit_parser_version() {
+# Guard: the committed Sources/CodexBarCore/Generated/CodexParserHash.generated.swift
+# must match a fresh hash of every non-Claude Codex cost-usage Swift source. That hash
+# feeds the cache `producerKey` invalidation axis; a stale hash would leave users on
+# cached results produced by older parser semantics. Regenerate via:
+#   bash Scripts/regenerate-codex-parser-hash.sh
+check_codex_parser_hash() {
+  "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
+}
+
+# Claude parsing is intentionally excluded from the generated Codex producer hash.
+# Keep its cache invalidation contract explicit: semantic scanner changes must bump
+# the Claude artifact version in CostUsageCache.swift.
+audit_claude_parser_version() {
   if [[ "${ALLOW_PARSER_CHANGE:-0}" == "1" ]]; then
-    echo "parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
+    echo "Claude parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
     return 0
   fi
 
   local base="${PARSER_LINT_BASE:-origin/HEAD}"
-
-  # If the base ref isn't in the local repo (typical in shallow CI
-  # checkouts), try to fetch it. We MUST NOT silently skip — a missing
-  # base would otherwise let parser changes ship without a fingerprint
-  # bump, defeating the cache-invalidation contract this audit exists
-  # to enforce. Caught in 0.23.3 code review as P1-1.
   if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
     if [[ "$base" == */* ]]; then
       local remote="${base%%/*}"
@@ -110,77 +102,31 @@ audit_parser_version() {
 
   if ! git -C "$ROOT_DIR" rev-parse --verify "$base" >/dev/null 2>&1; then
     if [[ "${ALLOW_MISSING_BASE:-0}" == "1" ]]; then
-      echo "parser-version audit: ALLOW_MISSING_BASE=1 → skipping (base ref '$base' unavailable)"
+      echo "Claude parser-version audit: ALLOW_MISSING_BASE=1 → skipping (base ref '$base' unavailable)"
       return 0
     fi
-    echo "ERROR: parser-version audit can't find base ref '$base'." >&2
-    echo "       In CI, set PARSER_LINT_BASE to the event base commit/branch" >&2
-    echo "       and ensure actions/checkout fetches enough history for it." >&2
-    echo "       Locally, fetch the intended base ref, for example:" >&2
-    echo "         git fetch origin main" >&2
-    echo "       or run with PARSER_LINT_BASE=origin/main." >&2
-    echo "       To intentionally skip (e.g., on a fresh fork clone with" >&2
-    echo "       no network), set ALLOW_MISSING_BASE=1." >&2
+    echo "ERROR: Claude parser-version audit can't find base ref '$base'." >&2
+    echo "       Set PARSER_LINT_BASE to the intended base or fetch that ref." >&2
     return 1
   fi
 
-  # Parser-semantics-bearing files. Editing any of these without bumping
-  # parserLogicVersion risks shipping a fix whose results never reach
-  # users (their caches stay frozen with the old parser's attribution).
-  local guarded_files=(
-    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner.swift"
-    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
-    "Sources/CodexBarCore/Vendored/CostUsage/CostUsageJsonl.swift"
-  )
-  local pricing_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsagePricing.swift"
-
-  local changed_parser=()
-  local f
-  for f in "${guarded_files[@]}"; do
-    if ! git -C "$ROOT_DIR" diff --quiet "$base"...HEAD -- "$f"; then
-      changed_parser+=("$f")
-    fi
-  done
-
-  if [[ ${#changed_parser[@]} -eq 0 ]]; then
-    echo "parser-version audit: no parser code changes since $base"
+  local scanner_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
+  local cache_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageCache.swift"
+  if git -C "$ROOT_DIR" diff --quiet "$base"...HEAD -- "$scanner_file"; then
+    echo "Claude parser-version audit: no parser code changes since $base"
     return 0
   fi
 
-  # Parser code changed. Look for a +/- on the parserLogicVersion line
-  # in CostUsagePricing.swift. Pricing-table key edits don't count —
-  # those roll the fingerprint via sorted keys already; we want a
-  # genuine parserLogicVersion bump.
-  if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$pricing_file" \
-       | grep -E '^[+-][[:space:]]*static[[:space:]]+let[[:space:]]+parserLogicVersion' >/dev/null; then
-    echo "parser-version audit: parser code changed AND parserLogicVersion bumped — OK"
+  if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$cache_file" \
+       | grep -E '^[+-][[:space:]]*case[[:space:]]+\.claude([^[:alnum:]_]|$).*:[[:space:]]*[0-9]+' >/dev/null; then
+    echo "Claude parser-version audit: parser code changed AND artifact version bumped — OK"
     return 0
   fi
 
-  echo "ERROR: parser code changed since $base but parserLogicVersion was not bumped." >&2
-  echo "       Files changed:" >&2
-  printf '         - %s\n' "${changed_parser[@]}" >&2
-  echo "" >&2
-  echo "       Bump 'static let parserLogicVersion = N' in:" >&2
-  echo "         $pricing_file" >&2
-  echo "       so the pricingFingerprint rolls and every user's on-disk" >&2
-  echo "       cache (with old-parser attributions baked in) is invalidated" >&2
-  echo "       and re-scanned with the fixed parser on next launch." >&2
-  echo "" >&2
-  echo "       For comment-only / non-semantic edits set ALLOW_PARSER_CHANGE=1." >&2
+  echo "ERROR: Claude parser code changed since $base without a Claude artifact-version bump." >&2
+  echo "       Bump the .claude case in $cache_file so stale cached attributions are rescanned." >&2
+  echo "       For comment-only edits set ALLOW_PARSER_CHANGE=1." >&2
   return 1
-}
-
-# Guard: the committed Sources/CodexBarCore/Generated/CodexParserHash.generated.swift
-# must match a fresh hash of the Codex cost-usage parser source. That hash feeds the
-# cache `producerKey` invalidation axis that the v0.29.0 upstream merge combined into
-# CostUsageCache.swift (alongside the fork's pricingFingerprint axis). A stale hash
-# silently freezes producerKey so a later parser-source change would not roll it.
-# This complements audit_parser_version (which guards the parserLogicVersion
-# fingerprint axis). Regenerate via:
-#   bash Scripts/regenerate-codex-parser-hash.sh
-check_codex_parser_hash() {
-  "${ROOT_DIR}/Scripts/regenerate-codex-parser-hash.sh" --check
 }
 
 check_package_product_paths() {
@@ -316,12 +262,12 @@ case "$cmd" in
   lint)
     check_app_locales
     run_portable_checks
+    audit_claude_parser_version
     run_swiftformat_lint
     run_swiftlint
     audit_xcstrings
     audit_customer_branding
     audit_provider_palette
-    audit_parser_version
     ;;
   lint-linux)
     run_portable_checks
@@ -350,7 +296,8 @@ case "$cmd" in
     audit_xcstrings
     ;;
   audit-parser-version)
-    audit_parser_version
+    check_codex_parser_hash
+    audit_claude_parser_version
     ;;
   audit-parser-hash)
     check_codex_parser_hash
