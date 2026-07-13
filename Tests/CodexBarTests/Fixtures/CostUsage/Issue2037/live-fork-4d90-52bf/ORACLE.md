@@ -1,6 +1,6 @@
 # Hand oracle: live fork 4d90→52bf (sanitized)
 
-Derived from a local Sol/Terra Ultra-adjacent fork (`019f4d90` → `019f52bf`).
+Derived from a sanitized local Ultra-adjacent fork (`019f4d90` → `019f52bf`).
 Message bodies, paths, and real session IDs are stripped/aliased. Parent file is
 **truncated to the copied prefix** (N=180) so this is a clean resolved-fork golden;
 the live parent continued after the fork and is not fully represented here.

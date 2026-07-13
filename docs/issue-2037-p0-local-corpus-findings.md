@@ -20,7 +20,7 @@ Observed families (prefixes):
 - `019f33ce` → `019f3869` → `019f38ec` (parent → child → grandchild)
 - `019f32c8` → `019f331e` (mid-session / partial prefix fork)
 - `019f3cec` → `019f3e32` (partial prefix; parent continued after fork)
-- Later Ultra-adjacent: `019f4d90` → `019f52bf` / `019f52e6` / `019f52e7` / `019f52f3` (Sol/Terra, multi-agent v2)
+- Later Ultra-adjacent: `019f4d90` → `019f52bf` / `019f52e6` / `019f52e7` / `019f52f3` (multi-agent v2)
 
 ## Locked answers (local Codex)
 
@@ -104,11 +104,11 @@ Attempts to produce **intra-file interleaved cumulative streams** (multiple risi
 
 | Attempt | What appeared | Total drops ≥50k? |
 |---------|---------------|-------------------|
-| Sol/Terra + multi-agent v2 forks (`4d90` family) | Fork copies, monotonic totals | **No** |
+| Ultra multi-agent v2 forks (`4d90` family) | Fork copies, monotonic totals | **No** |
 | Parallel-worker P0 prompt (fixture sanitization) | New forks `52e6`/`52e7`/`52f3`, proactive mode sometimes | **No** |
 | Corpus-wide scan after those runs | — | **0 files** |
 
-**Conclusion:** Harder tasks and parallel Ultra workers on this Codex build produced useful **fork-copy** logs and Sol/Terra multi-agent metadata, but **not** the reporter’s interleaved gap-recount shape. Token drops are **not** required to proceed on cross-file provenance. Interleaved Ultra remains reporter-corpus-dependent.
+**Conclusion:** Harder tasks and parallel Ultra workers on this Codex build produced useful **fork-copy** logs and multi-agent v2 metadata, but **not** the reporter’s interleaved gap-recount shape. Token drops are **not** required to proceed on cross-file provenance. Interleaved Ultra remains reporter-corpus-dependent.
 
 “Ultra” string hits in older logs were mostly chat/tool text / schemas, not a structural Ultra mode flag on `token_count`.
 

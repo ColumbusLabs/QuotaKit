@@ -60,7 +60,7 @@ struct Issue2037ScannerIntegrationTests {
             """)
     }
 
-    /// Second parent-present golden from a local Sol/Terra-adjacent fork
+    /// Second parent-present golden from a sanitized local Ultra-adjacent fork
     /// (`4d90→52bf`). Parent is truncated to the copied prefix so `#1164`
     /// inheritance has a clean resolved-fork baseline.
     ///

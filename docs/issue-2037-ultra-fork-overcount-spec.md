@@ -1,6 +1,6 @@
 # Spec: Contain Ultra-mode interleaved-lineage token overcounting (issue #2037)
 
-- **Issue:** [steipete/CodexBar#2037](https://github.com/steipete/CodexBar/issues/2037) — "Ultra-mode Terra and Sol sessions can overcount forked context"
+- **Issue:** [steipete/CodexBar#2037](https://github.com/steipete/CodexBar/issues/2037) — "Ultra-mode sessions can overcount forked context"
 - **Status:** Implemented (rev 4 — Phase 1 post-latch containment + min-cap)
 - **Affected code:** `Sources/CodexBarCore/Vendored/CostUsage/` (Codex session scanner)
 - **Related prior fixes:** #968 (divergent totals), #1062 (repeated total snapshots), commit `45b68c34` (fork replay)
@@ -14,7 +14,7 @@ This spec deliberately ships in two phases:
 
 ## 1. Problem
 
-CodexBar massively overstates usage for `gpt-5.6-terra` and especially `gpt-5.6-sol` when they run in Ultra mode. In one reported Sol session, the raw log reached roughly **268M** cumulative input tokens while CodexBar attributed **3.29B** input tokens and about $4,000 of standard cost. A single forked turn contributed more than 3B tokens across hundreds of rows. Pricing tables are correct; the inflation comes from usage accounting.
+The cost scanner can massively overstate usage for some Ultra-mode sessions. In one reported session, the raw log reached roughly **268M** cumulative input tokens while the scanner attributed **3.29B** input tokens and about $4,000 of standard cost. A single forked turn contributed more than 3B tokens across hundreds of rows. Pricing tables are correct; the inflation comes from usage accounting.
 
 Ultra sessions fork multiple sub-agents that:
 
@@ -216,7 +216,7 @@ Contain Ultra-mode interleaved-lineage token overcounting (#2037)
 
 ## Summary
 
-- Ultra-mode Terra/Sol sessions can interleave cumulative `total_token_usage` snapshots from multiple lineages in one JSONL file. A single file-global baseline then recounts the high/low gap on every flip — turning ~268M real input tokens into ~3.29B (~$4,000) in a reported session.
+- Ultra-mode sessions can interleave cumulative `total_token_usage` snapshots from multiple lineages in one JSONL file. A single file-global baseline then recounts the high/low gap on every flip — turning ~268M real input tokens into ~3.29B (~$4,000) in a reported session.
 - Phase 1 makes inflation **provably bounded**: a never-lower watermark latches interleaved mode on any component drop; post-latch deltas use a dedicated containment helper (preserving #968 counted-baseline recovery) and `min(adjustedLast, containedTotalDelta)` so `last` cannot grow usage when the contained totals delta is zero.
 - **Single-lineage and pre-latch fork behavior is preserved** (including #1164 totals-only fork replay handling). The slow JSON path and fork-parent snapshot builder share the same policy.
 - Cache persists watermark + interleaved flag (`seenRawTotals` is optional precision only); incomplete critical state forces a full rescan. Parser hash invalidation rebuilds old caches once.
@@ -237,7 +237,7 @@ Fixes #2037. Related: #968, #1062, `45b68c34` (fork replay).
 - [x] Existing #968 / #1062 / fork replay tests
 - [x] `make check`
 - [ ] `make test`
-- [ ] Optional follow-up: rescan a real Sol/Ultra log for plausibility (not a merge blocker)
+- [ ] Optional follow-up: rescan a real Ultra log for plausibility (not a merge blocker)
 
 ## Notes for reviewers
 
