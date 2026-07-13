@@ -5,6 +5,13 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.3 (171)] — 2026-07-12 — Background sync reliability
+
+### Fixed
+
+- Background sync no longer starts a local database write after iOS closes the
+  silent-push execution window, preventing repeated suspension terminations.
+
 ## [1.11.2 (170)] — 2026-07-11 — Provider details and sync reliability
 
 ### Added

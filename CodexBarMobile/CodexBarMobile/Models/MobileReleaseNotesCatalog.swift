@@ -23,8 +23,21 @@ struct ReleaseNotesVersion: Identifiable {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.11.2",
+            version: "1.11.3",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.11.2",
+            status: "",
             summary: String(
                 localized: "More provider detail — CrossModel balances and spend, Codex credit limits, and clearer reset times and token totals."),
             sections: [
@@ -41,7 +54,7 @@ enum MobileReleaseNotesCatalog {
             ]),
         ReleaseNotesVersion(
             version: "1.11.1",
-            status: String(localized: "Latest"),
+            status: "",
             summary: String(
                 localized: "QuotaKit Pro now gates provider, cost, history, sharing, merge, notifications, and iOS widgets for real synced data, with a cleaner QuotaKit-branded iOS experience."),
             sections: [
