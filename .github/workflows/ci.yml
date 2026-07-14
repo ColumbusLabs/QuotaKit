@@ -244,7 +244,11 @@ jobs:
         run: |
           set -euo pipefail
           selected_xcode=""
-          for candidate in /Applications/Xcode.app /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app; do
+          for candidate in \
+            /Applications/Xcode_26.3.app \
+            /Applications/Xcode_26.2.app \
+            /Applications/Xcode_26.1.1.app \
+            /Applications/Xcode_26.1.app; do
             if [[ ! -d "$candidate" ]]; then
               continue
             fi
