@@ -13,6 +13,8 @@ extension SettingsStore {
     }
 
     func applyTokenCostDefaultIfNeeded() {
+        // Tests cover detection directly; skip filesystem-driven auto-enablement to keep startup deterministic.
+        guard !Self.isRunningTests else { return }
         // Settings are persisted in UserDefaults.standard.
         guard UserDefaults.standard.object(forKey: "tokenCostUsageEnabled") == nil else { return }
 

@@ -1388,12 +1388,17 @@ extension UsageStore {
         case .success:
             guard let snapshot else { return }
             let publicationGuard = Self.codexScopedRefreshGuard(for: account)
+            let codexOwnerKey = Self.codexSessionQuotaOwnerKey(for: publicationGuard)
             self.lastFetchAttempts[.codex] = outcome.attempts
             self.handleCodexResetCreditNotifications(snapshot: snapshot)
+            self.handleQuotaWarningTransitions(
+                provider: .codex,
+                snapshot: snapshot,
+                accountDiscriminator: codexOwnerKey?.rawValue)
             self.handleSessionQuotaTransition(
                 provider: .codex,
                 snapshot: snapshot,
-                codexOwnerKey: Self.codexSessionQuotaOwnerKey(for: publicationGuard))
+                codexOwnerKey: codexOwnerKey)
             self.handlePredictivePaceWarningTransitions(provider: .codex, snapshot: snapshot)
             self.lastKnownResetSnapshots[.codex] = snapshot
             self.lastCodexUsagePublicationGuard = publicationGuard
@@ -1459,17 +1464,16 @@ extension UsageStore {
                     return nil as UsageSnapshot?
                 }
                 let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
-                let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
-                    Self.predictivePaceWarningTokenAccountDiscriminator(account)
-                } else {
-                    nil
-                }
-                self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
+                let warningAccountDiscriminator = Self.warningTokenAccountDiscriminator(account)
+                self.handleQuotaWarningTransitions(
+                    provider: provider,
+                    snapshot: backfilled,
+                    accountDiscriminator: warningAccountDiscriminator)
                 self.handleSessionQuotaTransition(provider: provider, snapshot: backfilled)
                 self.handlePredictivePaceWarningTransitions(
                     provider: provider,
                     snapshot: backfilled,
-                    accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
+                    accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
                 self.lastSourceLabels[provider] = result.sourceLabel

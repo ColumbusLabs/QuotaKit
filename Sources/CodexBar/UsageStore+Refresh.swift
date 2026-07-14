@@ -41,6 +41,25 @@ extension UsageStore {
         let missingWindowBackfillSnapshot: UsageSnapshot?
     }
 
+    private static func warningAccountDiscriminator(
+        provider: UsageProvider,
+        tokenAccount: ProviderTokenAccount?,
+        result: ProviderFetchResult,
+        context: ProviderRefreshOutcomeContext) -> String?
+    {
+        if let tokenAccount {
+            return self.warningTokenAccountDiscriminator(tokenAccount)
+        }
+        if provider == .codex {
+            return context.codexSessionQuotaOwnerKey?.rawValue
+        }
+        guard provider == .claude else { return nil }
+        return self.warningClaudeAccountDiscriminator(
+            strategyKind: result.strategyKind,
+            observation: context.claudeOAuthActiveAccountObservation,
+            oauthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
+    }
+
     static func commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
         current: UsageSnapshot,
         previous: UsageSnapshot?) -> UsageSnapshot
@@ -500,15 +519,15 @@ extension UsageStore {
                 current: accountScoped,
                 previous: self.snapshots[provider])
             let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
-            let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
-                Self.predictivePaceWarningClaudeAccountDiscriminator(
-                    strategyKind: result.strategyKind,
-                    observation: context.claudeOAuthActiveAccountObservation,
-                    oauthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
-            } else {
-                nil
-            }
-            self.handleQuotaWarningTransitions(provider: provider, snapshot: backfilled)
+            let warningAccountDiscriminator = Self.warningAccountDiscriminator(
+                provider: provider,
+                tokenAccount: currentTokenAccount,
+                result: result,
+                context: context)
+            self.handleQuotaWarningTransitions(
+                provider: provider,
+                snapshot: backfilled,
+                accountDiscriminator: warningAccountDiscriminator)
             self.handleSessionQuotaTransition(
                 provider: provider,
                 snapshot: backfilled,
@@ -516,7 +535,7 @@ extension UsageStore {
             self.handlePredictivePaceWarningTransitions(
                 provider: provider,
                 snapshot: backfilled,
-                accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
+                accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
             if provider == .codex {
                 self.handleCodexResetCreditNotifications(snapshot: backfilled)
             }

@@ -101,27 +101,19 @@ extension UsageStore {
         let label: String
     }
 
-    /// Key for per-account, per-lane quota_low crossing history. Includes the stable
-    /// account identifier so that, when several accounts share one provider, one
-    /// account's usage observations cannot suppress, clear, or re-arm another
-    /// account's threshold crossing. `account` is an in-memory discriminator only;
-    /// it is never logged or forwarded to a hook.
-    struct QuotaLowHookUsageKey: Hashable {
-        let provider: UsageProvider
-        let window: QuotaWarningWindow
-        let windowID: String?
-        let account: String?
-    }
-
     /// Fires `quota_low` hooks driven by each rule's own usage threshold, crossed
     /// upward, independent of the notification thresholds and preferences. A rule
     /// with no threshold falls back to the provider's notification thresholds so a
     /// "notify me when quota is low" hook still fires at the app's warning points.
+    ///
+    /// Crossing history is keyed by the same account-scoped `QuotaWarningStateKey`
+    /// as the notification path (including `accountDiscriminator`), so accounts that
+    /// share a provider track their crossings independently.
     func dispatchQuotaLowHooks(
         provider: UsageProvider,
         lane: QuotaLowHookLane,
         rateWindow: RateWindow?,
-        accountKey: String?,
+        accountDiscriminator: String?,
         accountDisplayName: String?)
     {
         guard let hooks = self.settings.config.hooks, hooks.enabled else { return }
@@ -132,11 +124,11 @@ extension UsageStore {
         }
         guard !rules.isEmpty else { return }
 
-        let key = QuotaLowHookUsageKey(
+        let key = QuotaWarningStateKey(
             provider: provider,
             window: lane.window,
-            windowID: lane.windowID,
-            account: accountKey)
+            accountDiscriminator: accountDiscriminator,
+            windowID: lane.windowID)
         guard let rateWindow else {
             self.quotaLowHookUsage.removeValue(forKey: key)
             return
@@ -176,34 +168,6 @@ extension UsageStore {
                 rateLimiter: limiter,
                 baseEnvironment: environment)
         }
-    }
-
-    /// Stable in-memory discriminator for per-account quota_low hook state.
-    ///
-    /// Composes the full provider identity (email, organization, login method)
-    /// rather than the email alone, so accounts without an email, or sharing one
-    /// identity field, still key independently when any other field differs. Only
-    /// truly identical identities (same account) share a baseline. Returns nil when
-    /// no identity field is known. Never logged or forwarded to a hook.
-    nonisolated static func quotaHookAccountKey(
-        provider: UsageProvider,
-        snapshot: UsageSnapshot) -> String?
-    {
-        guard let identity = snapshot.identity(for: provider) else { return nil }
-        return self.quotaHookAccountKey(
-            email: identity.accountEmail,
-            organization: identity.accountOrganization,
-            loginMethod: identity.loginMethod)
-    }
-
-    nonisolated static func quotaHookAccountKey(
-        email: String?,
-        organization: String?,
-        loginMethod: String?) -> String?
-    {
-        let fields = [email, organization, loginMethod]
-        guard fields.contains(where: { $0?.isEmpty == false }) else { return nil }
-        return fields.map { $0 ?? "" }.joined(separator: "\u{1F}")
     }
 
     /// True when the user has an enabled hook rule for this event and provider.
