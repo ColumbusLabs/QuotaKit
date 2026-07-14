@@ -2,7 +2,7 @@
 
 ## Upstream sync — 2026-07-14
 
-- Integrated upstream through `7ccfd6c0c`, including account-scoped quota warnings, reliable PTY deadline output draining, process cleanup, provider-version probe caching, and temporary-session lifetime fixes.
+- Integrated upstream through `14b9d113a`, including account-scoped quota warnings, reliable PTY deadline output draining, inherited signal-mask cleanup, process cleanup, provider-version probe caching, and temporary-session lifetime fixes.
 - Preserved QuotaKit's account-scoped depletion/restoration state, iOS quota-transition writes, public identity, release metadata, CloudKit configuration, and build numbers.
 
 ## Upstream sync — 2026-07-12
