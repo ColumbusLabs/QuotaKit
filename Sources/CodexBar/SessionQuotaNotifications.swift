@@ -83,6 +83,7 @@ struct QuotaWarningEvent: Equatable {
     let threshold: Int
     let currentRemaining: Double
     let accountDisplayName: String?
+    let accountDiscriminator: String?
     /// Stable id of the extra rate window this warning is for (e.g. `claude-weekly-scoped-fable`),
     /// used to keep OS notification ids unique across sibling windows. `nil` for the primary
     /// session/weekly lanes.
@@ -96,6 +97,7 @@ struct QuotaWarningEvent: Equatable {
         threshold: Int,
         currentRemaining: Double,
         accountDisplayName: String? = nil,
+        accountDiscriminator: String? = nil,
         windowID: String? = nil,
         windowDisplayLabel: String? = nil)
     {
@@ -103,6 +105,7 @@ struct QuotaWarningEvent: Equatable {
         self.threshold = threshold
         self.currentRemaining = currentRemaining
         self.accountDisplayName = accountDisplayName
+        self.accountDiscriminator = accountDiscriminator
         self.windowID = windowID
         self.windowDisplayLabel = windowDisplayLabel
     }

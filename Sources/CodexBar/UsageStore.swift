@@ -840,7 +840,9 @@ final class UsageStore {
                 provider: provider,
                 window: event.window,
                 threshold: event.threshold,
-                accountDisplayName: event.accountDisplayName)
+                accountDisplayName: event.accountDisplayName,
+                accountDiscriminator: event.accountDiscriminator,
+                windowID: event.windowID)
         }
     }
 
@@ -984,7 +986,8 @@ final class UsageStore {
                 self.quotaTransitionWriter.write(
                     transition: transition,
                     provider: provider,
-                    accountDisplayName: accountDisplayName)
+                    accountDisplayName: accountDisplayName,
+                    accountDiscriminator: accountDiscriminator)
             }
         }
     }

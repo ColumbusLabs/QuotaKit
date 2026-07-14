@@ -743,7 +743,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         providerID: String,
         state: String,
         transitionAt: Date,
-        accountEmail: String? = nil) async -> SyncPushResult
+        accountEmail: String? = nil,
+        deduplicationScope: String? = nil) async -> SyncPushResult
     {
         guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -762,7 +763,11 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
         let deviceID = self.stableDeviceID()
         let hourBucket = Int(transitionAt.timeIntervalSince1970 / 3600)
-        let recordName = "\(providerID)-\(hourBucket)"
+        let recordName = if let deduplicationScope, !deduplicationScope.isEmpty {
+            "\(providerID)-\(deduplicationScope)-\(hourBucket)"
+        } else {
+            "\(providerID)-\(hourBucket)"
+        }
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
 
         let record = CKRecord(
@@ -835,7 +840,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         window: String,
         threshold: Int,
         transitionAt: Date,
-        accountEmail: String? = nil) async -> SyncPushResult
+        accountEmail: String? = nil,
+        deduplicationScope: String? = nil) async -> SyncPushResult
     {
         guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -861,7 +867,12 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         // than packed into recordName so each iOS NSE invocation
         // can fetch + display the triggering account without having
         // to re-parse a longer recordName.
-        let recordName = "\(providerID)-\(window)-t\(threshold)-\(hourBucket)"
+        let scopedProviderID = if let deduplicationScope, !deduplicationScope.isEmpty {
+            "\(providerID)-\(deduplicationScope)"
+        } else {
+            providerID
+        }
+        let recordName = "\(scopedProviderID)-\(window)-t\(threshold)-\(hourBucket)"
         let recordID = CKRecord.ID(recordName: recordName, zoneID: zone.zoneID)
 
         let record = CKRecord(

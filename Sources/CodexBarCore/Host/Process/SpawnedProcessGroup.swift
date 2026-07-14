@@ -25,6 +25,7 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
     private final class TerminationState: @unchecked Sendable {
         private let condition = NSCondition()
         private var exitObserved = false
+        private var exitObservedAt: Date?
         private var reapRequested = false
         private var status: Int32?
 
@@ -36,9 +37,14 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
             self.condition.withLock { self.status }
         }
 
+        var observationDate: Date? {
+            self.condition.withLock { self.exitObservedAt }
+        }
+
         func observeExit() {
             self.condition.withLock {
                 self.exitObserved = true
+                self.exitObservedAt = Date()
                 self.condition.broadcast()
             }
         }
@@ -322,6 +328,14 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
         self.startWaiter()
     }
 
+    package static func adopt(
+        pid: pid_t,
+        outputFileDescriptors: [Int32]) -> SpawnedProcessGroup
+    {
+        let outputPipes = Set(outputFileDescriptors.compactMap(OutputPipeIdentity.resolve(fileDescriptor:)))
+        return SpawnedProcessGroup(pid: pid, outputPipes: outputPipes)
+    }
+
     package static func launch(
         binary: String,
         arguments: [String],
@@ -522,6 +536,10 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
         self.termination.value
     }
 
+    package var exitObservationDate: Date? {
+        self.termination.observationDate
+    }
+
     package var hasResidualProcessGroup: Bool {
         Self.processGroupExists(self.processGroup)
     }
@@ -531,7 +549,7 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
         let deadline = Date().addingTimeInterval(max(0, grace))
         var processIdentities = self.currentResidualProcessIdentities(includeDescendants: true)
         processIdentities.formUnion(self.currentProcessGroupMemberIdentities())
-        if let rootIdentity = self.rootIdentity {
+        if self.isRunning, let rootIdentity = self.rootIdentity {
             processIdentities.insert(rootIdentity)
         }
         Self.signal(processIdentities: processIdentities, signal: SIGTERM)
@@ -546,6 +564,8 @@ package final class SpawnedProcessGroup: @unchecked Sendable {
         processIdentities.formUnion(self.currentProcessGroupMemberIdentities())
         if self.isRunning, let rootIdentity = self.rootIdentity {
             processIdentities.insert(rootIdentity)
+        } else if let rootIdentity = self.rootIdentity {
+            processIdentities.remove(rootIdentity)
         }
         Self.signal(processIdentities: processIdentities, signal: SIGKILL)
 

@@ -24,16 +24,20 @@ struct QuotaWarningPushFireTests {
         func write(
             transition: SessionQuotaTransition,
             provider: UsageProvider,
-            accountDisplayName: String?)
+            accountDisplayName: String?,
+            accountDiscriminator _: String?)
         {
             self.transitionWrites.append((transition, provider, accountDisplayName))
         }
 
+        // swiftlint:disable:next function_parameter_count
         func writeQuotaWarning(
             provider: UsageProvider,
             window: QuotaWarningWindow,
             threshold: Int,
-            accountDisplayName: String?)
+            accountDisplayName: String?,
+            accountDiscriminator _: String?,
+            windowID _: String?)
         {
             self.warningWrites.append((provider, window, threshold, accountDisplayName))
         }
@@ -191,5 +195,26 @@ struct QuotaWarningPushFireTests {
         #expect(writer.warningWrites.count == 2)
         let thresholds = writer.warningWrites.map(\.threshold).sorted()
         #expect(thresholds == [20, 50])
+    }
+
+    @Test
+    func `push deduplication scopes distinguish accounts and extra windows`() {
+        let firstAccount = QuotaTransitionWriter.deduplicationScope(
+            accountDiscriminator: "token-account:first",
+            windowID: nil)
+        let secondAccount = QuotaTransitionWriter.deduplicationScope(
+            accountDiscriminator: "token-account:second",
+            windowID: nil)
+        let fable = QuotaTransitionWriter.deduplicationScope(
+            accountDiscriminator: "token-account:first",
+            windowID: "claude-weekly-scoped-fable")
+        let routines = QuotaTransitionWriter.deduplicationScope(
+            accountDiscriminator: "token-account:first",
+            windowID: "claude-routines")
+
+        #expect(firstAccount != nil)
+        #expect(firstAccount != secondAccount)
+        #expect(fable != routines)
+        #expect(QuotaTransitionWriter.deduplicationScope(accountDiscriminator: nil, windowID: nil) == nil)
     }
 }

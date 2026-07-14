@@ -1,5 +1,10 @@
 # Changelog
 
+## Upstream sync — 2026-07-14
+
+- Integrated upstream through `7ccfd6c0c`, including account-scoped quota warnings, reliable PTY deadline output draining, process cleanup, provider-version probe caching, and temporary-session lifetime fixes.
+- Preserved QuotaKit's account-scoped depletion/restoration state, iOS quota-transition writes, public identity, release metadata, CloudKit configuration, and build numbers.
+
 ## Upstream sync — 2026-07-12
 
 - Integrated upstream through `fd1b6c780`, including safer provider refresh ownership, asynchronous plan-history loading, Factory API-key usage, Sub2API support, and Codex quota recovery hardening.
@@ -28,7 +33,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Developer tooling: add an offline adaptive-refresh replay CLI for comparing policy behavior against caller-supplied JSONL traces. Thanks @hhh2210!
 
 ### Fixed
+- Quota warnings: isolate threshold episodes by stable account ownership so one account cannot duplicate or suppress another account's alert. Thanks @vincent-peng!
+- Claude: cache successful CLI version probes for 30 minutes while invalidating on executable changes, avoiding repeated PTY launches without retaining failed or stale wrapper results. Thanks @Yuxin-Qiao!
+- Linux CLI: bootstrap the configured IANA timezone before Foundation startup on non-FHS systems, preventing SIGILL on NixOS (#2127). Thanks @xikhar!
+- Ollama: release temporary dashboard network sessions after each fetch, preventing repeated refreshes from retaining delegates and URL-cache resources. Thanks @astuteprogrammer!
+- Amp: release temporary API and dashboard network sessions after every fetch, preventing repeated refreshes from retaining delegates and URL-cache resources.
 - Linux CLI: prevent usage rendering from crashing in Foundation bundle discovery when formatting rate windows. Thanks @thanthi-del!
+- CLI: defer login-shell PATH probes until Codex RPC launch, preserve login PATH for explicit script overrides, and reap session-escaped helpers without cross-probe descriptor inheritance. Thanks @anagnorisis2peripeteia!
 - Menus: keep overview provider-row clicks reliable during live menu rebuilds without stealing nested Copy or plan actions. Thanks @Yuxin-Qiao!
 - Startup: load persisted plan-utilization history away from the main thread so mature histories no longer delay app launch. Thanks @Yuxin-Qiao!
 - Provider cleanup: prevent in-flight usage, status, token-cost, and cached-hydration work from republishing stale state after a provider is disabled, unavailable, or re-enabled. Thanks @Yuxin-Qiao!

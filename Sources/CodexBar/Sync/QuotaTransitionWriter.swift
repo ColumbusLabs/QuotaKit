@@ -1,5 +1,6 @@
 import CodexBarCore
 import CodexBarSync
+import CryptoKit
 import Foundation
 
 /// Protocol that wraps the `QuotaTransition` CloudKit record write so it can be
@@ -9,7 +10,9 @@ protocol QuotaTransitionWriting: AnyObject {
     func write(
         transition: SessionQuotaTransition,
         provider: UsageProvider,
-        accountDisplayName: String?)
+        accountDisplayName: String?,
+        accountDiscriminator: String?)
+    // swiftlint:disable function_parameter_count
     /// iOS 1.6.0 / Mac 0.25.2 — fires a `QuotaTransition` record with
     /// state=`"warning"` to the per-provider warning zone so iOS receives
     /// a push notification when the user crosses a configured threshold
@@ -23,7 +26,10 @@ protocol QuotaTransitionWriting: AnyObject {
         provider: UsageProvider,
         window: QuotaWarningWindow,
         threshold: Int,
-        accountDisplayName: String?)
+        accountDisplayName: String?,
+        accountDiscriminator: String?,
+        windowID: String?)
+    // swiftlint:enable function_parameter_count
 }
 
 /// Writes `QuotaTransition` records to CloudKit so iOS receives a visible alert push
@@ -88,13 +94,17 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     func write(
         transition: SessionQuotaTransition,
         provider: UsageProvider,
-        accountDisplayName: String?)
+        accountDisplayName: String?,
+        accountDiscriminator: String?)
     {
         guard transition != .none else { return }
 
         let stateString = stateString(for: transition)
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
-        let key = "\(provider.rawValue)|\(stateString)"
+        let deduplicationScope = Self.deduplicationScope(
+            accountDiscriminator: accountDiscriminator,
+            windowID: nil)
+        let key = "\(provider.rawValue)|\(stateString)|\(deduplicationScope ?? "legacy")"
         let now = Date()
 
         if let lastWrite = self.lastWriteByKey[key],
@@ -117,13 +127,14 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         // substitutes the localized text for its own locale. The new
         // `accountEmail` field flows through for the v0.27.0 NSE rewrite path.
 
-        Task { [providerName, stateString, accountDisplayName] in
+        Task { [providerName, stateString, accountDisplayName, deduplicationScope] in
             let result = await CloudSyncManager.shared.writeQuotaTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 state: stateString,
                 transitionAt: now,
-                accountEmail: accountDisplayName)
+                accountEmail: accountDisplayName,
+                deduplicationScope: deduplicationScope)
             if result.succeeded {
                 self.lastWriteByKey[key] = now
                 self.logger.info(
@@ -135,15 +146,21 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         }
     }
 
+    // swiftlint:disable:next function_parameter_count
     func writeQuotaWarning(
         provider: UsageProvider,
         window: QuotaWarningWindow,
         threshold: Int,
-        accountDisplayName: String?)
+        accountDisplayName: String?,
+        accountDiscriminator: String?,
+        windowID: String?)
     {
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         let windowString = window.rawValue
-        let key = "\(provider.rawValue)|\(windowString)|\(threshold)"
+        let deduplicationScope = Self.deduplicationScope(
+            accountDiscriminator: accountDiscriminator,
+            windowID: windowID)
+        let key = "\(provider.rawValue)|\(windowString)|\(threshold)|\(deduplicationScope ?? "legacy")"
         let now = Date()
 
         if let lastWrite = self.lastWarningWriteByKey[key],
@@ -155,14 +172,15 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
             return
         }
 
-        Task { [providerName, windowString, accountDisplayName] in
+        Task { [providerName, windowString, accountDisplayName, deduplicationScope] in
             let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
                 window: windowString,
                 threshold: threshold,
                 transitionAt: now,
-                accountEmail: accountDisplayName)
+                accountEmail: accountDisplayName,
+                deduplicationScope: deduplicationScope)
             if result.succeeded {
                 self.lastWarningWriteByKey[key] = now
                 self.logger.info(
@@ -173,6 +191,19 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
                     "QuotaWarning record write failed: \(result.message ?? "unknown")")
             }
         }
+    }
+
+    static func deduplicationScope(accountDiscriminator: String?, windowID: String?) -> String? {
+        let components = [accountDiscriminator, windowID].compactMap { value -> String? in
+            guard let value else { return nil }
+            let trimmed = value.trimmingCharacters(in: .whitespacesAndNewlines)
+            return trimmed.isEmpty ? nil : trimmed
+        }
+        guard !components.isEmpty else { return nil }
+        let material = components.joined(separator: "\u{1f}")
+        return SHA256.hash(data: Data(material.utf8)).prefix(8)
+            .map { String(format: "%02x", $0) }
+            .joined()
     }
 }
 

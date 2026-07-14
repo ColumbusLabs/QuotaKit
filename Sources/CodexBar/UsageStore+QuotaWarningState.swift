@@ -22,13 +22,13 @@ extension UsageStore {
         init(
             provider: UsageProvider,
             window: QuotaWarningWindow,
-            windowID: String? = nil,
-            accountDiscriminator: String? = nil)
+            accountDiscriminator: String? = nil,
+            windowID: String? = nil)
         {
             self.provider = provider
             self.window = window
-            self.windowID = windowID
             self.accountDiscriminator = accountDiscriminator
+            self.windowID = windowID
         }
     }
 

@@ -1409,12 +1409,17 @@ extension UsageStore {
         case .success:
             guard let snapshot else { return }
             let publicationGuard = Self.codexScopedRefreshGuard(for: account)
+            let codexOwnerKey = Self.codexSessionQuotaOwnerKey(for: publicationGuard)
             self.lastFetchAttempts[.codex] = outcome.attempts
             self.handleCodexResetCreditNotifications(snapshot: snapshot)
+            self.handleQuotaWarningTransitions(
+                provider: .codex,
+                snapshot: snapshot,
+                accountDiscriminator: codexOwnerKey?.rawValue)
             self.handleSessionQuotaTransition(
                 provider: .codex,
                 snapshot: snapshot,
-                codexOwnerKey: Self.codexSessionQuotaOwnerKey(for: publicationGuard))
+                codexOwnerKey: codexOwnerKey)
             self.handlePredictivePaceWarningTransitions(provider: .codex, snapshot: snapshot)
             self.lastKnownResetSnapshots[.codex] = snapshot
             self.lastCodexUsagePublicationGuard = publicationGuard
@@ -1480,20 +1485,20 @@ extension UsageStore {
                     return nil as UsageSnapshot?
                 }
                 let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
-                let tokenAccountDiscriminator = Self.predictivePaceWarningTokenAccountDiscriminator(account)
+                let warningAccountDiscriminator = Self.warningTokenAccountDiscriminator(account)
                 let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
-                    tokenAccountDiscriminator
+                    warningAccountDiscriminator
                 } else {
                     nil
                 }
                 self.handleQuotaWarningTransitions(
                     provider: provider,
                     snapshot: backfilled,
-                    accountDiscriminatorOverride: tokenAccountDiscriminator)
+                    accountDiscriminator: warningAccountDiscriminator)
                 self.handleSessionQuotaTransition(
                     provider: provider,
                     snapshot: backfilled,
-                    accountDiscriminatorOverride: tokenAccountDiscriminator)
+                    accountDiscriminatorOverride: warningAccountDiscriminator)
                 self.handlePredictivePaceWarningTransitions(
                     provider: provider,
                     snapshot: backfilled,
