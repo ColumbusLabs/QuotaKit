@@ -19,6 +19,7 @@
 - Startup: load persisted plan-utilization history away from the main thread so mature histories no longer delay app launch. Thanks @Yuxin-Qiao!
 - Provider cleanup: prevent in-flight usage, status, token-cost, and cached-hydration work from republishing stale state after a provider is disabled, unavailable, or re-enabled. Thanks @Yuxin-Qiao!
 - Agent Sessions: coalesce overlapping unchanged remote refresh requests so menu opens do not repeat Tailscale discovery and SSH passes. Thanks @Yuxin-Qiao!
+- Agent Sessions: keep Tailscale discovery headless and fall through across installed CLI variants, preventing repeated Tailscale menu-bar launches. Thanks @willsarg!
 - Cost usage: zero the scanner's 60-second refresh debounce on app-driven fetches so non-forced refreshes (hourly timer, post-launch, scope/settings changes) reflect rows appended between fetches instead of serving a stale snapshot that `UsageStore.tokenFetchTTL` then pins for up to an hour (#2089). Thanks @Yuxin-Qiao!
 - Codex cost usage: contain interleaved cumulative counters from Ultra-mode fork lineages so repeated lineage switches cannot inflate token and cost history (#2037). Thanks @Zihao-Qi!
 
