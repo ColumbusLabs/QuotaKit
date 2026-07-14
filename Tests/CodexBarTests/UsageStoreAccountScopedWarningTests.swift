@@ -137,4 +137,71 @@ struct UsageStoreAccountScopedWarningTests {
 
         #expect(notifier.posts.count == 2)
     }
+
+    @Test
+    func `selected token outcomes preserve independent session quota transitions`() async throws {
+        let settings = self.makeSettings(suiteName: "UsageStoreAccountScopedWarningTests-selected-session")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.sessionQuotaNotificationsEnabled = true
+        settings.notificationPushToiOSEnabled = false
+
+        let accounts = try [
+            ProviderTokenAccount(
+                id: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000011")),
+                label: "First",
+                token: "fixture",
+                addedAt: 0,
+                lastUsed: nil),
+            ProviderTokenAccount(
+                id: #require(UUID(uuidString: "00000000-0000-0000-0000-000000000012")),
+                label: "Second",
+                token: "fixture",
+                addedAt: 0,
+                lastUsed: nil),
+        ]
+        let notifier = SessionQuotaNotifierSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier,
+            startupBehavior: .testing)
+
+        for (step, account) in accounts.enumerated() {
+            await store.applySelectedOutcome(
+                Self.outcome(usedPercent: 40, updatedAt: Date(timeIntervalSince1970: 1_780_100_000 + Double(step))),
+                provider: .deepseek,
+                account: account,
+                fallbackSnapshot: nil)
+        }
+        for (step, account) in accounts.enumerated() {
+            await store.applySelectedOutcome(
+                Self.outcome(usedPercent: 100, updatedAt: Date(timeIntervalSince1970: 1_780_100_100 + Double(step))),
+                provider: .deepseek,
+                account: account,
+                fallbackSnapshot: nil)
+        }
+
+        #expect(notifier.posts.map(\.transition) == [.depleted, .depleted])
+    }
+
+    private static func outcome(usedPercent: Double, updatedAt: Date) -> ProviderFetchOutcome {
+        ProviderFetchOutcome(
+            result: .success(ProviderFetchResult(
+                usage: UsageSnapshot(
+                    primary: RateWindow(
+                        usedPercent: usedPercent,
+                        windowMinutes: 300,
+                        resetsAt: nil,
+                        resetDescription: nil),
+                    secondary: nil,
+                    updatedAt: updatedAt),
+                credits: nil,
+                dashboard: nil,
+                sourceLabel: "fixture",
+                strategyID: "fixture.api-token",
+                strategyKind: .apiToken)),
+            attempts: [])
+    }
 }

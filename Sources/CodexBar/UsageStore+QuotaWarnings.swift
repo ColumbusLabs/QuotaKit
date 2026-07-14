@@ -6,7 +6,7 @@ extension UsageStore {
     func handleQuotaWarningTransitions(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
-        accountDiscriminatorOverride: String? = nil)
+        accountDiscriminator: String? = nil)
     {
         guard self.settings.quotaWarningNotificationsEnabled else { return }
         if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
@@ -16,7 +16,7 @@ extension UsageStore {
             discriminator: self.quotaWarningAccountDiscriminator(
                 provider: provider,
                 snapshot: snapshot,
-                accountDiscriminatorOverride: accountDiscriminatorOverride))
+                accountDiscriminatorOverride: accountDiscriminator))
         let source: SessionQuotaWindowSource? = if provider == .antigravity {
             Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
                 ? .antigravityQuotaSummary
@@ -53,6 +53,17 @@ extension UsageStore {
             account: account)
     }
 
+    func handleQuotaWarningTransitions(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        accountDiscriminatorOverride: String?)
+    {
+        self.handleQuotaWarningTransitions(
+            provider: provider,
+            snapshot: snapshot,
+            accountDiscriminator: accountDiscriminatorOverride)
+    }
+
     /// Emit weekly-lane quota warnings for Claude's extra rate windows — model-scoped weekly
     /// carve-outs (`claude-weekly-scoped-*`, e.g. Fable) and Daily Routines — which surface in the
     /// menu but were otherwise silent. Antigravity's summary windows are already covered by the
@@ -64,12 +75,7 @@ extension UsageStore {
     {
         guard provider == .claude else { return }
         guard self.settings.quotaWarningEnabled(provider: provider, window: .weekly) else {
-            let extraWindowKeys = self.quotaWarningState.keys.filter {
-                $0.provider == provider && $0.windowID != nil
-            }
-            for key in extraWindowKeys {
-                self.quotaWarningState.removeValue(forKey: key)
-            }
+            self.clearQuotaWarningState(provider: provider, window: .weekly)
             return
         }
 
@@ -106,6 +112,15 @@ extension UsageStore {
         return named.id.hasPrefix("claude-weekly-scoped-") || named.id == "claude-routines"
     }
 
+    private func clearQuotaWarningState(provider: UsageProvider, window: QuotaWarningWindow) {
+        let keys = self.quotaWarningState.keys.filter {
+            $0.provider == provider && $0.window == window
+        }
+        for key in keys {
+            self.quotaWarningState.removeValue(forKey: key)
+        }
+    }
+
     private func handleQuotaWarningTransition(
         provider: UsageProvider,
         transition: QuotaWarningTransition,
@@ -114,8 +129,8 @@ extension UsageStore {
         let key = QuotaWarningStateKey(
             provider: provider,
             window: transition.window,
-            windowID: transition.windowID,
-            accountDiscriminator: account.discriminator)
+            accountDiscriminator: account.discriminator,
+            windowID: transition.windowID)
         guard self.settings.quotaWarningEnabled(provider: provider, window: transition.window) else {
             self.quotaWarningState = self.quotaWarningState.filter { existing in
                 !(existing.key.provider == provider &&
@@ -170,6 +185,7 @@ extension UsageStore {
                     threshold: threshold,
                     currentRemaining: currentRemaining,
                     accountDisplayName: account.displayName,
+                    accountDiscriminator: account.discriminator,
                     windowID: transition.windowID,
                     windowDisplayLabel: transition.windowDisplayLabel),
                 provider: provider)

@@ -3,7 +3,7 @@ import Testing
 @testable import CodexBarCLI
 @testable import CodexBarCore
 
-@Suite
+@Suite(.serialized)
 struct PlatformGatingTests {
     @Test
     func `shell probe requests a detached Linux session`() {

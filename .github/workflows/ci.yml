@@ -240,17 +240,37 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      - name: Select Xcode 26.1.1 (if present) or fallback to default
+      - name: Select Xcode with an available iOS simulator
         run: |
           set -euo pipefail
-          for candidate in /Applications/Xcode_26.1.1.app /Applications/Xcode_26.1.app /Applications/Xcode.app; do
-            if [[ -d "$candidate" ]]; then
-              sudo xcode-select -s "${candidate}/Contents/Developer"
-              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+          selected_xcode=""
+          for candidate in \
+            /Applications/Xcode_26.3.app \
+            /Applications/Xcode_26.2.app \
+            /Applications/Xcode_26.1.1.app \
+            /Applications/Xcode_26.1.app; do
+            if [[ ! -d "$candidate" ]]; then
+              continue
+            fi
+
+            sudo xcode-select -s "${candidate}/Contents/Developer"
+            if xcrun simctl list devices available | grep -q 'iPhone'; then
+              selected_xcode="$candidate"
               break
             fi
           done
+
+          if [[ -z "$selected_xcode" ]]; then
+            echo "No installed Xcode has an available iPhone simulator." >&2
+            xcrun simctl list devices available >&2 || true
+            exit 1
+          fi
+
+          simulator_id="$(xcrun simctl list devices available | awk -F '[()]' '/iPhone/{print $2; exit}')"
+          echo "DEVELOPER_DIR=${selected_xcode}/Contents/Developer" >> "$GITHUB_ENV"
+          echo "IOS_SIMULATOR_UDID=$simulator_id" >> "$GITHUB_ENV"
           /usr/bin/xcodebuild -version
+          echo "Selected iOS simulator: $simulator_id"
 
       - name: Install XcodeGen
         run: |
@@ -274,7 +294,7 @@ jobs:
           xcodebuild test \
             -project CodexBarMobile/CodexBarMobile.xcodeproj \
             -scheme CodexBarMobile \
-            -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
+            -destination "platform=iOS Simulator,id=$IOS_SIMULATOR_UDID" \
             -resultBundlePath "$RUNNER_TEMP/CodexBarMobile.xcresult" \
             CODE_SIGNING_ALLOWED=NO
 
