@@ -180,6 +180,28 @@ struct ClaudeOAuthTests {
     }
 
     @Test
+    func `uses all models scoped limit when legacy weekly window is absent`() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 11.0, "resets_at": "2026-07-03T00:30:00Z" },
+          "seven_day": null,
+          "limits": [
+            {
+              "kind": "weekly_scoped", "group": "weekly", "percent": 37,
+              "resets_at": "2026-07-08T09:00:00Z",
+              "scope": { "model": { "id": "claude/all_models", "display_name": "Weekly" } }
+            }
+          ]
+        }
+        """
+
+        let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
+
+        #expect(snap.secondary?.usedPercent == 37)
+        #expect(snap.extraRateWindows.contains { $0.id.contains("all-models") } == false)
+    }
+
+    @Test
     func `ignores weekly scoped limit without a model display name`() throws {
         let json = """
         {

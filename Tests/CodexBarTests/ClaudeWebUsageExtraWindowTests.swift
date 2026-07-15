@@ -80,4 +80,26 @@ struct ClaudeWebUsageExtraWindowTests {
         #expect(fable?.window.usedPercent == 5)
         #expect(fable?.window.resetsAt != nil)
     }
+
+    @Test
+    func `uses all models scoped limit when claude web weekly window is absent`() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 16, "resets_at": "2026-07-03T00:30:00Z" },
+          "seven_day": null,
+          "limits": [
+            {
+              "kind": "weekly_scoped", "group": "weekly", "percent": 41,
+              "resets_at": "2026-07-08T09:00:00Z",
+              "scope": { "model": { "id": "claude/all_models", "display_name": "Weekly" } }
+            }
+          ]
+        }
+        """
+
+        let parsed = try ClaudeWebAPIFetcher._parseUsageResponseForTesting(Data(json.utf8))
+
+        #expect(parsed.weeklyPercentUsed == 41)
+        #expect(parsed.extraRateWindows.contains { $0.id.contains("all-models") } == false)
+    }
 }
