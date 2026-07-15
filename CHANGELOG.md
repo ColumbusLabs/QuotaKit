@@ -1,5 +1,10 @@
 # Changelog
 
+## Upstream sync — 2026-07-15
+
+- Integrated upstream through `aea62e047`, including suppression of duplicate Claude all-model quota rows, clearer Ollama Cloud-quota guidance, and a more reliable shell cleanup timeout test.
+- Preserved QuotaKit's public identity, release metadata, CloudKit configuration, and build numbers.
+
 ## Upstream sync — 2026-07-14
 
 - Integrated upstream through `c61e01e77`, including account-scoped quota warnings, reliable PTY deadline output draining, inherited signal-mask cleanup, process cleanup, provider-version probe caching, temporary-session lifetime fixes, and headless Tailscale session discovery hardening.
@@ -16,6 +21,11 @@ Older upstream history is intentionally preserved in Git, but this file now focu
 on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.12 / iOS 1.11.1 — Unreleased
+
+### Fixed
+
+- Ollama: clarify that Cloud quota limits require a signed-in browser session with cookies when API-key verification is used.
+- Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.
 
 ## 0.32.4.11 / iOS 1.11.1 — 2026-07-11
 

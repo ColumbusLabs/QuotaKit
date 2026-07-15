@@ -1023,11 +1023,13 @@ extension ClaudeUsageFetcher {
         let loginMethod = ClaudePlan.oauthLoginMethod(
             subscriptionType: credentials.subscriptionType,
             rateLimitTier: credentials.rateLimitTier)
+        let scopedWeeklyFallback = Self.oauthAllModelsRateWindow(from: usage)
         let primary = makeWindow(usage.fiveHour, windowMinutes: 5 * 60)
             ?? makeWindow(usage.sevenDay, windowMinutes: 7 * 24 * 60)
             ?? makeWindow(usage.sevenDayOAuthApps, windowMinutes: 7 * 24 * 60)
             ?? makeWindow(usage.sevenDaySonnet, windowMinutes: 7 * 24 * 60)
             ?? makeWindow(usage.sevenDayOpus, windowMinutes: 7 * 24 * 60)
+            ?? scopedWeeklyFallback
         let treatAsSpendLimit = primary == nil && usage.extraUsage?.isEnabled == true
         let providerCost = Self.oauthExtraUsageCost(
             usage.extraUsage,
@@ -1058,6 +1060,7 @@ extension ClaudeUsageFetcher {
         }
 
         let weekly = makeWindow(usage.sevenDay, windowMinutes: 7 * 24 * 60)
+            ?? scopedWeeklyFallback
         let modelSpecific = makeWindow(
             usage.sevenDaySonnet ?? usage.sevenDayOpus,
             windowMinutes: 7 * 24 * 60)
@@ -1176,7 +1179,22 @@ extension ClaudeUsageFetcher {
     }
 
     private static func oauthScopedWeeklyLimitWindows(from usage: OAuthUsageResponse) -> [NamedRateWindow] {
-        let limits = usage.limits?.map { entry in
+        let limits = Self.oauthScopedWeeklyLimits(from: usage)
+        // `is_active` is intentionally not a filter: observed enforceable scoped limits report false.
+        return ClaudeScopedWeeklyLimitMapper.extraRateWindows(
+            from: limits,
+            resetDescription: Self.formatResetDate)
+    }
+
+    private static func oauthAllModelsRateWindow(from usage: OAuthUsageResponse) -> RateWindow? {
+        ClaudeScopedWeeklyLimitMapper.allModelsRateWindow(
+            from: self.oauthScopedWeeklyLimits(from: usage),
+            resetDescription: self.formatResetDate)
+    }
+
+    private static func oauthScopedWeeklyLimits(from usage: OAuthUsageResponse)
+    -> [ClaudeScopedWeeklyLimitMapper.Limit]? {
+        usage.limits?.map { entry in
             ClaudeScopedWeeklyLimitMapper.Limit(
                 kind: entry.kind,
                 group: entry.group,
@@ -1185,10 +1203,6 @@ extension ClaudeUsageFetcher {
                 modelID: entry.scope?.model?.id,
                 modelName: entry.scope?.model?.displayName)
         }
-        // `is_active` is intentionally not a filter: observed enforceable scoped limits report false.
-        return ClaudeScopedWeeklyLimitMapper.extraRateWindows(
-            from: limits,
-            resetDescription: Self.formatResetDate)
     }
 
     // MARK: - Web API path (uses browser cookies)

@@ -16,7 +16,11 @@ enum ClaudeWebExtraRateWindowParser {
             ]),
     ]
 
-    static func parse(from json: [String: Any]) -> (windows: [NamedRateWindow], sourceKeys: [String: String]) {
+    static func parse(from json: [String: Any]) -> (
+        windows: [NamedRateWindow],
+        sourceKeys: [String: String],
+        allModelsWeeklyFallback: RateWindow?)
+    {
         var windows: [NamedRateWindow] = []
         var sourceKeys: [String: String] = [:]
         windows.reserveCapacity(Self.definitions.count)
@@ -46,13 +50,17 @@ enum ClaudeWebExtraRateWindowParser {
                 sourceKeys[definition.id] = key
             }
         }
-        windows.append(contentsOf: Self.scopedWeeklyLimitWindows(from: json))
-        return (windows, sourceKeys)
+        let scopedLimits = Self.scopedWeeklyLimits(from: json)
+        windows.append(contentsOf: ClaudeScopedWeeklyLimitMapper.extraRateWindows(from: scopedLimits))
+        return (
+            windows,
+            sourceKeys,
+            ClaudeScopedWeeklyLimitMapper.allModelsRateWindow(from: scopedLimits))
     }
 
-    private static func scopedWeeklyLimitWindows(from json: [String: Any]) -> [NamedRateWindow] {
+    private static func scopedWeeklyLimits(from json: [String: Any]) -> [ClaudeScopedWeeklyLimitMapper.Limit]? {
         guard let limits = json["limits"] as? [[String: Any]] else { return [] }
-        let mappedLimits = limits.map { entry in
+        return limits.map { entry in
             let scope = entry["scope"] as? [String: Any]
             let model = scope?["model"] as? [String: Any]
             return ClaudeScopedWeeklyLimitMapper.Limit(
@@ -63,7 +71,6 @@ enum ClaudeWebExtraRateWindowParser {
                 modelID: model?["id"] as? String,
                 modelName: model?["display_name"] as? String)
         }
-        return ClaudeScopedWeeklyLimitMapper.extraRateWindows(from: mappedLimits)
     }
 
     private static func namedWindow(

@@ -22,6 +22,7 @@ enum ClaudeScopedWeeklyLimitMapper {
             guard limit.group == "weekly", limit.kind == "weekly_scoped" else { return nil }
             guard let percent = limit.percent, percent.isFinite else { return nil }
             guard let modelName = self.nonEmpty(limit.modelName) else { return nil }
+            guard !self.isAllModelsScope(modelID: limit.modelID, modelName: modelName) else { return nil }
             let identity = self.nonEmpty(limit.modelID) ?? modelName
             let slug = self.slug(identity)
             guard !slug.isEmpty else { return nil }
@@ -38,6 +39,25 @@ enum ClaudeScopedWeeklyLimitMapper {
                     resetsAt: limit.resetsAt,
                     resetDescription: limit.resetsAt.flatMap { resetDescription?($0) }))
         }
+    }
+
+    static func allModelsRateWindow(
+        from limits: [Limit]?,
+        resetDescription: ((Date) -> String)? = nil) -> RateWindow?
+    {
+        guard let limit = limits?.first(where: { limit in
+            limit.group == "weekly"
+                && limit.kind == "weekly_scoped"
+                && limit.percent?.isFinite == true
+                && self.isAllModelsScope(modelID: limit.modelID, modelName: limit.modelName)
+        }), let percent = limit.percent
+        else { return nil }
+
+        return RateWindow(
+            usedPercent: percent,
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: limit.resetsAt,
+            resetDescription: limit.resetsAt.flatMap { resetDescription?($0) })
     }
 
     private static func nonEmpty(_ value: String?) -> String? {
@@ -58,5 +78,14 @@ enum ClaudeScopedWeeklyLimitMapper {
             }
         }
         return result.trimmingCharacters(in: CharacterSet(charactersIn: "-"))
+    }
+
+    private static func isAllModelsScope(modelID: String?, modelName: String?) -> Bool {
+        if let modelName = self.nonEmpty(modelName), self.slug(modelName) == "all-models" {
+            return true
+        }
+        guard let modelID = self.nonEmpty(modelID) else { return false }
+        let idSlug = self.slug(modelID)
+        return idSlug == "all-models" || idSlug.hasSuffix("-all-models")
     }
 }

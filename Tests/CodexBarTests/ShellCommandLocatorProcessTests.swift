@@ -30,6 +30,18 @@ struct ShellCommandLocatorProcessTests {
             .path
         let stdoutPIDFile = "\(pidFile).stdout"
         let stderrPIDFile = "\(pidFile).stderr"
+        let pidFiles = [stdoutPIDFile, stderrPIDFile]
+        defer {
+            for file in pidFiles {
+                if let pidText = try? String(contentsOfFile: file, encoding: .utf8)
+                    .trimmingCharacters(in: .whitespacesAndNewlines),
+                    let pid = pid_t(pidText)
+                {
+                    kill(pid, SIGKILL)
+                }
+                try? FileManager.default.removeItem(atPath: file)
+            }
+        }
         let script = """
         import os
         import signal
@@ -60,18 +72,10 @@ struct ShellCommandLocatorProcessTests {
             timeout: 2.0)
         let elapsed = Date().timeIntervalSince(start)
 
-        let pids = try [stdoutPIDFile, stderrPIDFile].map { file in
+        let pids = try pidFiles.map { file in
             let pidText = try String(contentsOfFile: file, encoding: .utf8)
                 .trimmingCharacters(in: .whitespacesAndNewlines)
             return try #require(pid_t(pidText))
-        }
-        defer {
-            for pid in pids {
-                kill(pid, SIGKILL)
-            }
-            for file in [stdoutPIDFile, stderrPIDFile] {
-                try? FileManager.default.removeItem(atPath: file)
-            }
         }
 
         #expect(data == nil)

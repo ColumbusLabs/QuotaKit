@@ -643,6 +643,10 @@ public enum ClaudeWebAPIFetcher {
             opusPercent = Self.percentValue(from: sevenDayOpus["utilization"])
         }
         let extraRateParse = ClaudeWebExtraRateWindowParser.parse(from: json)
+        if weeklyPercent == nil, let fallback = extraRateParse.allModelsWeeklyFallback {
+            weeklyPercent = fallback.usedPercent
+            weeklyResets = fallback.resetsAt
+        }
         if let sourceKey = extraRateParse.sourceKeys["claude-routines"] {
             logger?("Usage API extra window key matched: routines=\(sourceKey)")
         }
