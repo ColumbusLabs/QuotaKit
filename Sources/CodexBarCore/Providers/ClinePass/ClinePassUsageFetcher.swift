@@ -58,12 +58,32 @@ public struct ClinePassUsageSnapshot: Sendable, Equatable {
     }
 }
 
-private enum ClinePassLimitType: String, Decodable, Sendable {
-    case fiveHour = "five_hour"
+private enum ClinePassLimitType: Decodable, Hashable, Sendable {
+    case fiveHour
     case weekly
     case monthly
+    case unknown(String)
 
-    var windowMinutes: Int {
+    init(from decoder: Decoder) throws {
+        let rawValue = try decoder.singleValueContainer().decode(String.self)
+        self = switch rawValue {
+        case "five_hour": .fiveHour
+        case "weekly": .weekly
+        case "monthly": .monthly
+        default: .unknown(rawValue)
+        }
+    }
+
+    var rawValue: String {
+        switch self {
+        case .fiveHour: "five_hour"
+        case .weekly: "weekly"
+        case .monthly: "monthly"
+        case let .unknown(value): value
+        }
+    }
+
+    var windowMinutes: Int? {
         switch self {
         case .fiveHour:
             5 * 60
@@ -71,6 +91,8 @@ private enum ClinePassLimitType: String, Decodable, Sendable {
             7 * 24 * 60
         case .monthly:
             30 * 24 * 60
+        case .unknown:
+            nil
         }
     }
 }
@@ -152,6 +174,9 @@ public struct ClinePassUsageFetcher: Sendable {
 
         var windows: [ClinePassLimitType: RateWindow] = [:]
         for limit in response.data.limits {
+            guard limit.type.windowMinutes != nil else {
+                continue
+            }
             windows[limit.type] = try self.rateWindow(for: limit)
         }
 
@@ -163,6 +188,10 @@ public struct ClinePassUsageFetcher: Sendable {
     }
 
     private static func rateWindow(for limit: ClinePassLimit) throws -> RateWindow {
+        guard let windowMinutes = limit.type.windowMinutes else {
+            throw ClinePassUsageError.parseFailed("Unknown ClinePass limit type \(limit.type.rawValue).")
+        }
+
         let resetsAt: Date?
         if let raw = limit.resetsAt {
             guard let parsed = self.parseISO8601Date(raw) else {
@@ -175,7 +204,7 @@ public struct ClinePassUsageFetcher: Sendable {
 
         return RateWindow(
             usedPercent: min(100, max(0, limit.percentUsed)),
-            windowMinutes: limit.type.windowMinutes,
+            windowMinutes: windowMinutes,
             resetsAt: resetsAt,
             resetDescription: nil)
     }

@@ -65,3 +65,47 @@ struct ClinePassProviderTests {
             environment: [:])))
     }
 }
+
+struct ClinePassUsageFetcherTests {
+    @Test
+    func `parser ignores unknown limit types without dropping known windows`() throws {
+        let payload = Data(#"""
+        {
+          "success": true,
+          "data": {
+            "limits": [
+              {
+                "type": "five_hour",
+                "percentUsed": 12.5,
+                "resetsAt": "2026-07-16T15:00:00Z"
+              },
+              {
+                "type": "experimental_pool",
+                "percentUsed": 77,
+                "resetsAt": "2026-07-16T15:00:00Z"
+              },
+              {
+                "type": "weekly",
+                "percentUsed": 25,
+                "resetsAt": "2026-07-20T00:00:00Z"
+              },
+              {
+                "type": "monthly",
+                "percentUsed": 40,
+                "resetsAt": null
+              }
+            ]
+          }
+        }
+        """#.utf8)
+
+        let snapshot = try ClinePassUsageFetcher._parseSnapshotForTesting(payload)
+
+        #expect(snapshot.primary?.usedPercent == 12.5)
+        #expect(snapshot.primary?.windowMinutes == 5 * 60)
+        #expect(snapshot.secondary?.usedPercent == 25)
+        #expect(snapshot.secondary?.windowMinutes == 7 * 24 * 60)
+        #expect(snapshot.tertiary?.usedPercent == 40)
+        #expect(snapshot.tertiary?.windowMinutes == 30 * 24 * 60)
+    }
+}
