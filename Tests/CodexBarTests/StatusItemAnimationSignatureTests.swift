@@ -385,9 +385,16 @@ struct StatusItemAnimationSignatureTests {
         #expect(button.attributedTitle.string == "\u{FFFC}\(expectedTitle)")
         #expect(button.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
 
-        controller.restoreStandardButtonTitleForImageOnlyContent(for: button)
+        #expect(controller.prepareButtonForImageOnlyCacheHit(button))
         #expect(button.image == nil)
         #expect(button.imagePosition == .noImage)
+        #expect(button.attributedTitle.string == "\u{FFFC}\(expectedTitle)")
+        #expect(button.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
+
+        button.attributedTitle = NSAttributedString()
+        #expect(!controller.prepareButtonForImageOnlyCacheHit(button))
+
+        controller.applyIcon(phase: nil)
         #expect(button.attributedTitle.string == "\u{FFFC}\(expectedTitle)")
         #expect(button.attributedTitle.attribute(.attachment, at: 0, effectiveRange: nil) is NSTextAttachment)
 

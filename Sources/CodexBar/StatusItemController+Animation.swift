@@ -325,7 +325,7 @@ extension StatusItemController {
         }
 
         // Brand + percent returns above; remaining paths are image-only apart from the debug marker.
-        self.restoreStandardButtonTitleForImageOnlyContent(for: button)
+        let canSkipCachedRender = self.prepareButtonForImageOnlyCacheHit(button)
         if let morphProgress {
             let signature = [
                 "mode=morph",
@@ -338,7 +338,7 @@ extension StatusItemController {
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
                 "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipMergedIconRender(signature) {
+            if self.shouldSkipMergedIconRender(signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -368,7 +368,7 @@ extension StatusItemController {
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
                 "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipMergedIconRender(signature) {
+            if self.shouldSkipMergedIconRender(signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -511,7 +511,7 @@ extension StatusItemController {
         let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
         let statusIndicator = self.store.statusIndicator(for: provider)
         // Brand + percent returns above; remaining paths are image-only apart from the debug marker.
-        self.restoreStandardButtonTitleForImageOnlyContent(for: button)
+        let canSkipCachedRender = self.prepareButtonForImageOnlyCacheHit(button)
         if let morphProgress {
             let signature = [
                 "mode=morph",
@@ -524,7 +524,7 @@ extension StatusItemController {
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
                 "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
+            if self.shouldSkipProviderIconRender(provider: provider, signature: signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -554,7 +554,7 @@ extension StatusItemController {
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
                 "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
+            if self.shouldSkipProviderIconRender(provider: provider, signature: signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -711,8 +711,18 @@ extension StatusItemController {
             && self.settings.menuBarIconStyle == .iconAndPercent
     }
 
-    func restoreStandardButtonTitleForImageOnlyContent(for button: NSStatusBarButton) {
-        guard !self.shouldUseHighContrastStatusItemContent else { return }
+    func prepareButtonForImageOnlyCacheHit(_ button: NSStatusBarButton) -> Bool {
+        if self.shouldUseHighContrastStatusItemContent {
+            guard button.image == nil,
+                  button.imagePosition == .noImage,
+                  button.attributedTitle.length > 0
+            else { return false }
+            return button.attributedTitle.attribute(
+                .attachment,
+                at: 0,
+                effectiveRange: nil) is NSTextAttachment
+        }
+
         let value = Self.buttonTitle(
             nil,
             hasImage: true,
@@ -724,6 +734,7 @@ extension StatusItemController {
         if button.imagePosition != position {
             button.imagePosition = position
         }
+        return true
     }
 
     private func setButtonContent(image: NSImage, title: String?, for button: NSStatusBarButton) {
