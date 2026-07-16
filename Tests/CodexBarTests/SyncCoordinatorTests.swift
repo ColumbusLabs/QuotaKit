@@ -1124,4 +1124,39 @@ struct SyncCoordinatorTests {
                 || e.provider.statusMessage != nil
         })
     }
+
+    @Test
+    func `identity only Copilot plan remains in per provider sync`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-copilot-identity-only")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .copilot,
+            metadata: #require(ProviderDefaults.metadata[.copilot]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: Date(),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .copilot,
+                    accountEmail: nil,
+                    accountOrganization: nil,
+                    loginMethod: "Business")),
+            provider: .copilot)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let copilot = try #require(mock.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == UsageProvider.copilot.rawValue
+        })
+        #expect(copilot.provider.primary == nil)
+        #expect(copilot.provider.secondary == nil)
+        #expect(copilot.provider.loginMethod == "Business")
+        #expect(copilot.provider.statusMessage == "Plan: Business")
+    }
 }
