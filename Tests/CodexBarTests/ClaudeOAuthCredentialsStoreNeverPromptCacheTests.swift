@@ -609,7 +609,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
     }
 
     @Test
-    func `never mode bypasses oauth cache and keychain derived readers`() throws {
+    func `never mode recovers through no UI keychain reader without using oauth cache`() throws {
         try self.withTestState { state in
             try self.withCredentialsFile(data: nil) { _ in
                 self.seedCache(state, accessToken: "cached-token")
@@ -618,12 +618,15 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                     expiresAt: Date(timeIntervalSinceNow: 3600),
                     refreshToken: "security-cli-refresh-token")
 
-                do {
-                    _ = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                        .securityCLIExperimental)
-                    {
-                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
-                            try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(securityData)) {
+                let credentials = try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                    .securityCLIExperimental)
+                {
+                    try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
+                        try ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(securityData)) {
+                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                data: securityData,
+                                fingerprint: nil)
+                            {
                                 try ProviderInteractionContext.$current.withValue(.background) {
                                     try ClaudeOAuthCredentialsStore.load(
                                         environment: [:],
@@ -632,15 +635,11 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                             }
                         }
                     }
-                    Issue.record("Expected ClaudeOAuthCredentialsError.notFound")
-                } catch let error as ClaudeOAuthCredentialsError {
-                    guard case .notFound = error else {
-                        Issue.record("Expected .notFound, got \(error)")
-                        return
-                    }
                 }
+
+                #expect(credentials.accessToken == "security-cli-token")
                 #expect(state.recorder.operations.isEmpty)
-                #expect(!state.pendingStore.isPending)
+                #expect(state.pendingStore.isPending)
                 let cachedToken = try self.cachedToken(state)
                 #expect(cachedToken == "cached-token")
 
