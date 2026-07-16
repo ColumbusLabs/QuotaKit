@@ -117,7 +117,6 @@ struct CursorProviderImplementation: ProviderImplementation {
     @MainActor
     func runLoginFlow(context: ProviderLoginContext) async -> Bool {
         await context.controller.runCursorLoginFlow()
-        return true
     }
 
     @MainActor

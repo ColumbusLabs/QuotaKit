@@ -78,6 +78,19 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `ZenMux PAYG balance does not sync as a zero-limit budget`() {
+        let balance = ProviderCostSnapshot(
+            used: 42.50,
+            limit: 0,
+            currencyCode: "USD",
+            period: "ZenMux PAYG balance",
+            updatedAt: Date())
+
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .zenmux, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+    }
+
+    @Test
     func `push skipped when sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false

@@ -1194,3 +1194,10 @@
 "Scroll to see more models" = "เลื่อนเพื่อดูโมเดลเพิ่มเติม";
 "Projects" = "โปรเจ็กต์";
 "+ %d more" = "+ อีก %d รายการ";
+"Choose a supported browser so QuotaKit can read the matching account." = "เลือกเบราว์เซอร์ที่รองรับเพื่อให้ QuotaKit อ่านบัญชีที่ตรงกันได้";
+"Choose Cursor account" = "เลือกบัญชี Cursor";
+"Choose which Cursor account QuotaKit should use." = "เลือกบัญชี Cursor ที่ QuotaKit ควรใช้";
+"Use Account" = "ใช้บัญชี";
+"Finish switching to a different Cursor account in your browser, then try again." = "สลับไปยังบัญชี Cursor อื่นในเบราว์เซอร์ให้เสร็จ แล้วลองอีกครั้ง";
+"Timed out waiting for Cursor account switch. %@" = "หมดเวลารอการสลับบัญชี Cursor %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "หมดเวลารอการสลับบัญชี Cursor %@ ข้อผิดพลาดล่าสุด: %@";

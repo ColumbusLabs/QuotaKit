@@ -614,15 +614,7 @@ final class SyncCoordinator {
         // Provider budget / spend (per-account when snapshot.providerCost is
         // set per-account by upstream; otherwise shared with active).
         let providerCost = snapshot?.providerCost
-        let budgetSnap: SyncBudgetSnapshot? = providerCost.map { pc in
-            SyncBudgetSnapshot(
-                usedAmount: pc.used,
-                limitAmount: pc.limit,
-                currencyCode: pc.currencyCode,
-                period: pc.period,
-                resetsAt: pc.resetsAt,
-                personalUsedAmount: pc.personalUsed)
-        }
+        let budgetSnap = Self.syncBudgetSnapshot(provider: provider, providerCost: providerCost)
 
         // Perplexity rich structured credit breakdown (only for Perplexity).
         let perplexityCredits: SyncPerplexityCreditSummary? = {
@@ -753,6 +745,25 @@ final class SyncCoordinator {
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             crossModelUsage: Self.mapCrossModelUsage(provider: provider, snapshot: snapshot))
+    }
+
+    static func syncBudgetSnapshot(
+        provider: UsageProvider,
+        providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
+    {
+        // ZenMux reports a remaining PAYG balance through ProviderCostSnapshot
+        // with a zero limit. That is not a used/limit budget and would render on
+        // iOS as the false statement "$balance / $0".
+        guard provider != .zenmux else { return nil }
+        return providerCost.map { pc in
+            SyncBudgetSnapshot(
+                usedAmount: pc.used,
+                limitAmount: pc.limit,
+                currencyCode: pc.currencyCode,
+                period: pc.period,
+                resetsAt: pc.resetsAt,
+                personalUsedAmount: pc.personalUsed)
+        }
     }
 
     private func visibleExtraRateWindows(
@@ -1453,7 +1464,8 @@ final class SyncCoordinator {
              // Upstream 0.33+ new providers. These quota numbers come
              // from their own APIs/local sessions — never via the local
              // pricing tables.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter, .wayfinder, .sub2api:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter, .wayfinder, .sub2api,
+             .zenmux:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

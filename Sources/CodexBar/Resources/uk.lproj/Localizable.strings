@@ -1187,3 +1187,10 @@
 "Scroll to see more models" = "Прокрутіть, щоб побачити більше моделей";
 "Projects" = "Проекти";
 "+ %d more" = "+ ще %d";
+"Choose a supported browser so QuotaKit can read the matching account." = "Виберіть підтримуваний браузер, щоб QuotaKit міг прочитати відповідний обліковий запис.";
+"Choose Cursor account" = "Вибрати обліковий запис Cursor";
+"Choose which Cursor account QuotaKit should use." = "Виберіть обліковий запис Cursor, який має використовувати QuotaKit.";
+"Use Account" = "Використати обліковий запис";
+"Finish switching to a different Cursor account in your browser, then try again." = "Завершіть перемикання на інший обліковий запис Cursor у браузері та повторіть спробу.";
+"Timed out waiting for Cursor account switch. %@" = "Час очікування перемикання облікового запису Cursor минув. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Час очікування перемикання облікового запису Cursor минув. %@ Остання помилка: %@";

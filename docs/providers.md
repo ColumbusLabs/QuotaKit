@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 58 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 60 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -28,7 +28,7 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
-| Cursor | Web API via cookies → stored WebKit session (`web`). |
+| Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
 | OpenCode Go | Web dashboard via cookies (`web`) -> local SQLite usage (`local`) in auto mode; optional workspace ID. |
 | Alibaba Coding Plan | Console RPC via web cookies (auto/manual) with API key fallback (`web`, `api`). |
@@ -77,6 +77,7 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
+| ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 
 ## Codex
@@ -179,7 +180,8 @@ QuotaKit installs; legacy `~/.codexbar/config.json` remains a compatibility fall
 
 ## Cursor
 - Web API via browser cookies (`cursor.com` + `cursor.sh`).
-- Fallback: stored WebKit session.
+- Fallbacks: a legacy stored session, then Cursor.app local auth.
+- Add Account and Switch Account open Cursor's authenticator in a supported browser; Switch Account prefers stable account IDs and falls back to normalized email when IDs are unavailable. CodexBar uses the supported system HTTPS handler when possible and otherwise asks the user to choose an eligible supported browser.
 - Status: Statuspage.io (Cursor).
 - Details: `docs/cursor.md`.
 

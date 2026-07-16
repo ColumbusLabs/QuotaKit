@@ -1186,3 +1186,10 @@
 "Scroll to see more models" = "Rulla för att se fler modeller";
 "Projects" = "Projekt";
 "+ %d more" = "+ %d till";
+"Choose a supported browser so QuotaKit can read the matching account." = "Välj en webbläsare som stöds så att QuotaKit kan läsa det matchande kontot.";
+"Choose Cursor account" = "Välj Cursor-konto";
+"Choose which Cursor account QuotaKit should use." = "Välj vilket Cursor-konto QuotaKit ska använda.";
+"Use Account" = "Använd konto";
+"Finish switching to a different Cursor account in your browser, then try again." = "Slutför bytet till ett annat Cursor-konto i webbläsaren och försök igen.";
+"Timed out waiting for Cursor account switch. %@" = "Tidsgränsen överskreds vid väntan på byte av Cursor-konto. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Tidsgränsen överskreds vid väntan på byte av Cursor-konto. %@ Senaste fel: %@";

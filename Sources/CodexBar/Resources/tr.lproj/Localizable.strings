@@ -1193,3 +1193,10 @@
 "Scroll to see more models" = "Daha fazla model görmek için kaydırın";
 "Projects" = "Projeler";
 "+ %d more" = "+ %d daha";
+"Choose a supported browser so QuotaKit can read the matching account." = "QuotaKit'in eşleşen hesabı okuyabilmesi için desteklenen bir tarayıcı seçin.";
+"Choose Cursor account" = "Cursor hesabını seçin";
+"Choose which Cursor account QuotaKit should use." = "QuotaKit'in hangi Cursor hesabını kullanacağını seçin.";
+"Use Account" = "Hesabı Kullan";
+"Finish switching to a different Cursor account in your browser, then try again." = "Tarayıcınızda farklı bir Cursor hesabına geçişi tamamlayın, ardından yeniden deneyin.";
+"Timed out waiting for Cursor account switch. %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@ Son hata: %@";

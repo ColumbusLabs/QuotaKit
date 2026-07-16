@@ -1194,3 +1194,10 @@
 "Scroll to see more models" = "برای دیدن مدل‌های بیشتر پیمایش کنید";
 "Projects" = "پروژه‌ها";
 "+ %d more" = "+ %d مورد دیگر";
+"Choose a supported browser so QuotaKit can read the matching account." = "یک مرورگر پشتیبانی‌شده انتخاب کنید تا QuotaKit بتواند حساب منطبق را بخواند.";
+"Choose Cursor account" = "حساب Cursor را انتخاب کنید";
+"Choose which Cursor account QuotaKit should use." = "انتخاب کنید QuotaKit از کدام حساب Cursor استفاده کند.";
+"Use Account" = "استفاده از حساب";
+"Finish switching to a different Cursor account in your browser, then try again." = "تغییر به یک حساب Cursor دیگر را در مرورگر کامل کنید، سپس دوباره تلاش کنید.";
+"Timed out waiting for Cursor account switch. %@" = "مهلت انتظار برای تغییر حساب Cursor به پایان رسید. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "مهلت انتظار برای تغییر حساب Cursor به پایان رسید. %@ آخرین خطا: %@";

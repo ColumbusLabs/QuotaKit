@@ -1192,3 +1192,10 @@
 "Scroll to see more models" = "Прокрутите, чтобы увидеть больше моделей";
 "Projects" = "Проекты";
 "+ %d more" = "+ еще %d";
+"Choose a supported browser so QuotaKit can read the matching account." = "Выберите поддерживаемый браузер, чтобы QuotaKit мог прочитать соответствующую учетную запись.";
+"Choose Cursor account" = "Выбрать учетную запись Cursor";
+"Choose which Cursor account QuotaKit should use." = "Выберите учетную запись Cursor, которую должен использовать QuotaKit.";
+"Use Account" = "Использовать учетную запись";
+"Finish switching to a different Cursor account in your browser, then try again." = "Завершите переключение на другую учетную запись Cursor в браузере и повторите попытку.";
+"Timed out waiting for Cursor account switch. %@" = "Истекло время ожидания переключения учетной записи Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Истекло время ожидания переключения учетной записи Cursor. %@ Последняя ошибка: %@";

@@ -112,6 +112,9 @@ public enum QuotaProviderList {
         // 49 → 50 providers × 3 states = 150 zones.
         Provider(id: "qoder", displayName: "Qoder"),
         Provider(id: "sub2api", displayName: "Sub2API"),
+        // iOS 1.11.3 catch-up — upstream v0.42.x live-tail provider.
+        // 51 → 52 providers × 3 states = 156 zones.
+        Provider(id: "zenmux", displayName: "ZenMux"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

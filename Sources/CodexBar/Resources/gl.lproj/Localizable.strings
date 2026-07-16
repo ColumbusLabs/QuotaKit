@@ -1189,3 +1189,10 @@
 "Scroll to see more models" = "Desprázate para ver máis modelos";
 "Projects" = "Proxectos";
 "+ %d more" = "+ %d máis";
+"Choose a supported browser so QuotaKit can read the matching account." = "Escolle un navegador compatible para que QuotaKit poida ler a conta correspondente.";
+"Choose Cursor account" = "Escoller conta de Cursor";
+"Choose which Cursor account QuotaKit should use." = "Escolle que conta de Cursor debe usar QuotaKit.";
+"Use Account" = "Usar conta";
+"Finish switching to a different Cursor account in your browser, then try again." = "Completa o cambio a outra conta de Cursor no navegador e téntao de novo.";
+"Timed out waiting for Cursor account switch. %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@ Último erro: %@";
