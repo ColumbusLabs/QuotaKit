@@ -528,7 +528,7 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
     }
 
     @Test
-    func `experimental reader does not fallback when stored mode never`() throws {
+    func `experimental reader recovers without prompting when stored mode never`() throws {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         try KeychainCacheStore.withServiceOverrideForTesting(service) {
             try KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -560,41 +560,34 @@ struct ClaudeOAuthCredentialsStorePromptPolicyTests {
                             preAlertHits += 1
                         }
 
-                        do {
-                            _ = try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
-                                preflightOverride,
-                                operation: {
-                                    try KeychainPromptHandler.withHandlerForTesting(promptHandler, operation: {
-                                        try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
-                                            .securityCLIExperimental)
-                                        {
-                                            try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
-                                                try ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                                    try ClaudeOAuthCredentialsStore
-                                                        .withClaudeKeychainOverridesForTesting(
-                                                            data: fallbackData,
-                                                            fingerprint: nil)
-                                                        {
-                                                            try ClaudeOAuthCredentialsStore
-                                                                .withSecurityCLIReadOverrideForTesting(.timedOut) {
-                                                                    try ClaudeOAuthCredentialsStore.load(
-                                                                        environment: [:],
-                                                                        allowKeychainPrompt: true)
-                                                                }
-                                                        }
-                                                }
+                        let credentials = try KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting(
+                            preflightOverride,
+                            operation: {
+                                try KeychainPromptHandler.withHandlerForTesting(promptHandler, operation: {
+                                    try ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+                                        .securityCLIExperimental)
+                                    {
+                                        try ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
+                                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                                try ClaudeOAuthCredentialsStore
+                                                    .withClaudeKeychainOverridesForTesting(
+                                                        data: fallbackData,
+                                                        fingerprint: nil)
+                                                    {
+                                                        try ClaudeOAuthCredentialsStore
+                                                            .withSecurityCLIReadOverrideForTesting(.timedOut) {
+                                                                try ClaudeOAuthCredentialsStore.load(
+                                                                    environment: [:],
+                                                                    allowKeychainPrompt: true)
+                                                            }
+                                                    }
                                             }
                                         }
-                                    })
+                                    }
                                 })
-                            Issue.record("Expected ClaudeOAuthCredentialsError.notFound")
-                        } catch let error as ClaudeOAuthCredentialsError {
-                            guard case .notFound = error else {
-                                Issue.record("Expected .notFound, got \(error)")
-                                return
-                            }
-                        }
+                            })
 
+                        #expect(credentials.accessToken == "fallback-token")
                         #expect(preAlertHits == 0)
                     }
                 }
