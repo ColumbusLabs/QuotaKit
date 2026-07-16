@@ -702,6 +702,19 @@ final class SyncCoordinator {
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
         let codexCreditLimit = Self.mapCodexCreditLimit(provider: provider, credits: codexCredits)
+        let syncedStatusMessage: String? = {
+            if let error { return error }
+            guard provider == .copilot,
+                  primaryWindow == nil,
+                  secondaryWindow == nil,
+                  rateWindows.isEmpty,
+                  let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !plan.isEmpty
+            else { return nil }
+            // Unlimited and token-billed Copilot plans intentionally have no metered windows. Keep a
+            // meaningful signal on the wire so QuotaKit's Mac/iOS ghost filters retain the provider.
+            return "Plan: \(plan)"
+        }()
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -710,7 +723,7 @@ final class SyncCoordinator {
             secondary: secondaryWindow,
             accountEmail: snapshot?.identity?.accountEmail,
             loginMethod: snapshot?.identity?.loginMethod,
-            statusMessage: error,
+            statusMessage: syncedStatusMessage,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
             costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),

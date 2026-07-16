@@ -2,7 +2,7 @@
 
 ## Upstream sync — 2026-07-16
 
-- Integrated upstream through `c47a20afb`, including hardened Cursor account switching, corrected Codex restarted-subagent and fork-baseline accounting, thread-safe browser/keychain helpers, no-prompt Claude credential recovery, status-item reuse, and ZenMux Management API support.
+- Integrated upstream through `6d71af30`, including hardened Cursor account switching, corrected Codex restarted-subagent and fork-baseline accounting, thread-safe browser/keychain helpers, isolated Claude OAuth rate-limit recovery, no-prompt Claude credential recovery, unlimited Copilot quota suppression, status-item reuse, and ZenMux Management API support.
 - Preserved QuotaKit's public identity, release metadata, CloudKit configuration, account-scoped sync behavior, and build numbers.
 
 ## Upstream sync — 2026-07-15
@@ -31,6 +31,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!
 
 ### Fixed
+- Claude: preserve each account’s last-good OAuth usage during rate limits and isolate retry cooldowns per credential. Thanks @ruushu!
 - Claude: recover a missing credentials file from a valid Claude Code Keychain item without showing Keychain UI when Never prompt is selected (#1975). Thanks @OfficialAbhinavSingh!
 - Codex cost usage: invalidate cached fork totals when the parent session appears, changes, or resolves to a different file, preventing stale inherited baselines. Thanks @xx205!
 - Cursor: bind interactive account login to one readable browser, preserve the active session on cancellation or failure, and prevent background refreshes from replacing the selected account. Thanks @chapati23!
@@ -38,6 +39,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Codex cost usage: count restarted subagent token counters without subtracting the parent's unrelated cumulative baseline (#2193). Thanks @qiuruiyu and @harjothkhara!
 - Ollama: clarify that Cloud quota limits require a signed-in browser session with cookies when API-key verification is used.
 - Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.
+- Copilot: hide quota bars explicitly marked unlimited while preserving finite Premium and Chat quotas. Thanks @Zihao-Qi!
 
 ## 0.32.4.11 / iOS 1.11.1 — 2026-07-11
 
