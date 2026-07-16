@@ -194,6 +194,47 @@ struct CursorImportedSessionScanningTests {
     }
 
     @Test
+    func `browser fallback cannot overwrite a login committed during an earlier request`() async {
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
+        let background = Self.makeSessionInfo(sourceLabel: "Background", cookieValue: "background")
+        let service = "cursor-login-race-\(UUID().uuidString)"
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                // A refresh captures this before its cached-session request. Model that request suspending before
+                // the refresh reaches browser fallback and the user commits a newly selected account meanwhile.
+                let observation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
+                await Task.yield()
+                #expect(CookieHeaderCache.storeResult(
+                    provider: .cursor,
+                    cookieHeader: "fixtureSession=selected",
+                    sourceLabel: "Interactive login"))
+
+                let outcome = await probe.fetchIfSessionAccepted(
+                    background,
+                    log: { _ in },
+                    fetchSnapshot: { _ in
+                        Self.makeBrowserLoginSnapshot(
+                            accountID: "background-id",
+                            email: "background@example.com")
+                    },
+                    cacheObservation: observation)
+
+                guard case .succeeded = outcome else {
+                    Issue.record("Expected the stale background fetch itself to succeed")
+                    return
+                }
+                #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == "fixtureSession=selected")
+            }
+        }
+    }
+
+    @Test
     func `imported session scan continues after non auth failure until later success`() async {
         let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
         let expected = CursorStatusSnapshot(

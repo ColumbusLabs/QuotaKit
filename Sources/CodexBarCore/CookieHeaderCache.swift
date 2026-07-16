@@ -461,29 +461,6 @@ public enum CookieHeaderCache {
         }
     }
 
-    /// Stores a replacement only when it can be normalized and durably written.
-    /// Unlike ``store(provider:scope:cookieHeader:sourceLabel:now:)``, invalid input leaves the current entry intact.
-    @discardableResult
-    public static func storeResult(
-        provider: UsageProvider,
-        scope: Scope? = nil,
-        cookieHeader: String,
-        sourceLabel: String,
-        now: Date = Date()) -> Bool
-    {
-        let trimmed = cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard let normalized = CookieHeaderNormalizer.normalize(trimmed), !normalized.isEmpty else { return false }
-        let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
-        do {
-            return try self.withLegacyMutationLock {
-                self.store(entry: entry, provider: provider, scope: scope, sourceLabel: sourceLabel)
-            }
-        } catch {
-            self.log.error("Cookie cache observable store lock failed: \(error)")
-            return false
-        }
-    }
-
     /// Stores only while the cache still matches the entry observed before an asynchronous refresh.
     /// A nil expected entry means the cache must still be empty.
     @discardableResult
@@ -920,7 +897,30 @@ public enum CookieHeaderCache {
 }
 
 extension CookieHeaderCache {
-    enum ConditionalMutationObservation {
+    /// Stores a replacement only when it can be normalized and durably written.
+    /// Unlike ``store(provider:scope:cookieHeader:sourceLabel:now:)``, invalid input leaves the current entry intact.
+    @discardableResult
+    public static func storeResult(
+        provider: UsageProvider,
+        scope: Scope? = nil,
+        cookieHeader: String,
+        sourceLabel: String,
+        now: Date = Date()) -> Bool
+    {
+        let trimmed = cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard let normalized = CookieHeaderNormalizer.normalize(trimmed), !normalized.isEmpty else { return false }
+        let entry = Entry(cookieHeader: normalized, storedAt: now, sourceLabel: sourceLabel)
+        do {
+            return try self.withLegacyMutationLock {
+                self.store(entry: entry, provider: provider, scope: scope, sourceLabel: sourceLabel)
+            }
+        } catch {
+            self.log.error("Cookie cache observable store lock failed: \(error)")
+            return false
+        }
+    }
+
+    enum ConditionalMutationObservation: Sendable {
         case authoritative(Entry?)
         case keychainTemporarilyUnavailable(legacyEntry: Entry?)
 

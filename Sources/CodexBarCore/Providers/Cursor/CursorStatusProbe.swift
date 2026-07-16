@@ -503,7 +503,9 @@ struct CursorAppAuthStore: CursorAppAuthSessionProviding {
         sqlite3_bind_text(stmt, 1, key, -1, SQLITE_TRANSIENT)
         let stepResult = sqlite3_step(stmt)
         guard stepResult == SQLITE_ROW else {
-            if stepResult == SQLITE_DONE { return nil }
+            if stepResult == SQLITE_DONE {
+                return nil
+            }
             let message = db.flatMap { String(cString: sqlite3_errmsg($0)) } ?? "unknown error"
             throw CursorStatusProbeError.networkError("SQLite error reading Cursor app auth: \(message)")
         }
@@ -702,6 +704,7 @@ public struct CursorStatusSnapshot: Sendable {
 
         let identity = ProviderIdentitySnapshot(
             providerID: .cursor,
+            accountID: self.accountID,
             accountEmail: self.accountEmail,
             accountOrganization: nil,
             loginMethod: self.membershipType.map { Self.formatMembershipType($0) },
@@ -886,7 +889,9 @@ public actor CursorSessionStore {
             var cookieProps: [HTTPCookiePropertyKey: Any] = [:]
             for (key, value) in props {
                 // Skip marker keys
-                if key.hasSuffix("_isDate") || key.hasSuffix("_isURL") { continue }
+                if key.hasSuffix("_isDate") || key.hasSuffix("_isURL") {
+                    continue
+                }
 
                 let propKey = HTTPCookiePropertyKey(key)
 
@@ -975,6 +980,12 @@ public struct CursorStatusProbe: Sendable {
             return try await self.fetchWithCookieHeader(override)
         }
 
+        #if os(macOS)
+        // Capture before any authentication request can suspend. A later browser fallback must not replace an
+        // interactive login that commits while this refresh is awaiting an earlier cached-session request.
+        let cacheObservation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
+        #endif
+
         if allowCachedSessions,
            let cached = CookieHeaderCache.load(provider: .cursor),
            !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
@@ -996,6 +1007,7 @@ public struct CursorStatusProbe: Sendable {
         #if os(macOS)
         // Try each browser in order. The first browser that *has* session cookie names is not always valid
         // (e.g. stale Chrome tokens); keep trying until the API accepts a session or we run out of browsers.
+        // The refresh-start observation prevents this asynchronous fallback from overwriting an interactive login.
         let browserCandidates = self.browserCookieImportOrder.cookieImportCandidates(using: self.browserDetection)
         switch await self.scanBrowsers(
             browserCandidates,
@@ -1006,7 +1018,10 @@ public struct CursorStatusProbe: Sendable {
                     logger: log)
             },
             attemptFetch: { session in
-                await self.fetchIfSessionAccepted(session, log: log)
+                await self.fetchIfSessionAccepted(
+                    session,
+                    log: log,
+                    cacheObservation: cacheObservation)
             })
         {
         case let .succeeded(snapshot):
@@ -1024,7 +1039,10 @@ public struct CursorStatusProbe: Sendable {
                     logger: log)
             },
             attemptFetch: { session in
-                await self.fetchIfSessionAccepted(session, log: log)
+                await self.fetchIfSessionAccepted(
+                    session,
+                    log: log,
+                    cacheObservation: cacheObservation)
             })
         {
         case let .succeeded(snapshot):
@@ -1272,6 +1290,7 @@ public struct CursorStatusProbe: Sendable {
         log: @escaping (String) -> Void,
         acceptSnapshot: (@Sendable (CursorStatusSnapshot) -> Bool)? = nil,
         fetchSnapshot: (@Sendable (String) async throws -> CursorStatusSnapshot)? = nil,
+        cacheObservation: CookieHeaderCache.ConditionalMutationObservation? = nil,
         cacheAcceptedSession: (@Sendable (CursorCookieImporter.SessionInfo) -> Void)? = nil) async
         -> ImportedSessionFetchOutcome
     {
@@ -1288,6 +1307,12 @@ public struct CursorStatusProbe: Sendable {
             }
             if let cacheAcceptedSession {
                 cacheAcceptedSession(session)
+            } else if let cacheObservation {
+                _ = CookieHeaderCache.storeIfObservationCurrent(
+                    provider: .cursor,
+                    expected: cacheObservation,
+                    cookieHeader: session.cookieHeader,
+                    sourceLabel: session.sourceLabel)
             } else {
                 CookieHeaderCache.store(
                     provider: .cursor,
@@ -1499,8 +1524,12 @@ public struct CursorStatusProbe: Sendable {
         let planLimitRaw = Double(summary.individualUsage?.plan?.limit ?? 0)
         func normPct(_ value: Double?) -> Double? {
             guard let v = value else { return nil }
-            if v < 0 { return 0 }
-            if v > 100 { return 100 }
+            if v < 0 {
+                return 0
+            }
+            if v > 100 {
+                return 100
+            }
             return v
         }
 

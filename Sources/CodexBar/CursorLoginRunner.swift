@@ -430,9 +430,7 @@ final class CursorLoginRunner {
 
         guard let priorEmail = normalizedCursorAccountEmail(priorAccount.email),
               let candidateEmail = normalizedCursorAccountEmail(snapshot.accountEmail)
-        else {
-            return false
-        }
+        else { return false }
         return candidateEmail != priorEmail
     }
 

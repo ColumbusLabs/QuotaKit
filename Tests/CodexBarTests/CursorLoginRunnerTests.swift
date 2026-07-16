@@ -246,6 +246,55 @@ struct CursorLoginRunnerTests {
     }
 
     @Test
+    func `switch account accepts a different stable ID with the same email`() async {
+        let sequence = SnapshotSequence([
+            Self.snapshot(id: "current-id", email: "same@example.com"),
+            Self.snapshot(id: "next-id", email: "same@example.com"),
+        ])
+        let runner = Self.runner(
+            priorAccount: .init(id: "current-id", email: "same@example.com"),
+            accountChooser: { $0.first?.selectionID },
+            loadSnapshot: { sequence.next() })
+
+        let result = await runner.run { _ in }
+
+        guard case .success = result.outcome else {
+            Issue.record("Expected stable account ID change to complete the switch")
+            return
+        }
+        #expect(sequence.count() == 2)
+        #expect(result.email == "same@example.com")
+    }
+
+    @Test
+    func `switch account accepts an ID only target`() async {
+        let sequence = SnapshotSequence([
+            Self.snapshot(id: "current-id", email: nil),
+            Self.snapshot(id: "next-id", email: nil),
+        ])
+        let runner = Self.runner(
+            priorAccount: .init(id: "current-id", email: nil),
+            accountChooser: { $0.first?.selectionID },
+            loadSnapshot: { sequence.next() })
+
+        let result = await runner.run { _ in }
+
+        guard case .success = result.outcome else {
+            Issue.record("Expected ID-only account change to complete the switch")
+            return
+        }
+        #expect(sequence.count() == 2)
+        #expect(result.email == nil)
+    }
+
+    @Test
+    func `Cursor usage identity preserves stable account ID`() {
+        let usage = Self.snapshot(id: "stable-id", email: "cursor@example.com").toUsageSnapshot()
+
+        #expect(usage.identity(for: .cursor)?.accountID == "stable-id")
+    }
+
+    @Test
     func `switch timeout preserves existing session and explains that a different account is required`() async {
         let replacementEvents = LockedArray<String>()
         let runner = CursorLoginRunner(
