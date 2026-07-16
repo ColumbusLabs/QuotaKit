@@ -177,6 +177,71 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
     }
 
     @Test
+    func `opaque delegated CLI honors stored prompt mode when read strategy effective mode differs`() async {
+        final class TouchCounter: @unchecked Sendable {
+            private let lock = NSLock()
+            private var value = 0
+
+            func increment() {
+                self.lock.lock()
+                self.value += 1
+                self.lock.unlock()
+            }
+
+            func count() -> Int {
+                self.lock.lock()
+                defer { self.lock.unlock() }
+                return self.value
+            }
+        }
+
+        let touches = TouchCounter()
+        let backgroundOutcome = await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+            .securityCLIExperimental)
+        {
+            #expect(ClaudeOAuthKeychainPromptPreference.effectiveMode() == .always)
+            return await self.withCoordinatorOverrides(
+                cliAvailable: true,
+                promptMode: .onlyOnUserAction,
+                touchAuthPath: { _, _ in touches.increment() },
+                operation: {
+                    await ProviderInteractionContext.$current.withValue(.background) {
+                        await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                            now: Date(timeIntervalSince1970: 20002),
+                            timeout: 0.1)
+                    }
+                })
+        }
+
+        #expect(backgroundOutcome == .skippedByPromptPolicy)
+        #expect(touches.count() == 0)
+
+        let userOutcome = await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
+            .securityCLIExperimental)
+        {
+            await self.withCoordinatorOverrides(
+                cliAvailable: true,
+                promptMode: .onlyOnUserAction,
+                touchAuthPath: { _, _ in touches.increment() },
+                operation: {
+                    await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(.data(Data("stub".utf8))) {
+                        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                            await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                                now: Date(timeIntervalSince1970: 20003),
+                                timeout: 0.1)
+                        }
+                    }
+                })
+        }
+
+        guard case .attemptedFailed = userOutcome else {
+            Issue.record("Expected explicit user refresh to launch the delegated CLI")
+            return
+        }
+        #expect(touches.count() == 1)
+    }
+
+    @Test
     func `successful auth touch reports attempted succeeded`() async {
         ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
         defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }

@@ -120,7 +120,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             environment: environment,
             interaction: interaction,
             readStrategy: readStrategy,
-            promptMode: ClaudeOAuthKeychainPromptPreference.effectiveMode(readStrategy: readStrategy),
+            // The delegated Claude process is an opaque Keychain boundary. Its policy must come
+            // from the user's stored preference, not the strategy-adjusted mode used by our own reads.
+            promptMode: ClaudeOAuthKeychainPromptPreference.storedMode(),
             keychainAccessDisabled: KeychainAccessGate.isDisabled,
             cliAvailableOverride: self.cliAvailableOverrideForTesting,
             touchAuthPathOverride: self.touchAuthPathOverrideForTesting,
@@ -132,7 +134,9 @@ public enum ClaudeOAuthDelegatedRefreshCoordinator {
             environment: environment,
             interaction: interaction,
             readStrategy: readStrategy,
-            promptMode: ClaudeOAuthKeychainPromptPreference.effectiveMode(readStrategy: readStrategy),
+            // The delegated Claude process is an opaque Keychain boundary. Its policy must come
+            // from the user's stored preference, not the strategy-adjusted mode used by our own reads.
+            promptMode: ClaudeOAuthKeychainPromptPreference.storedMode(),
             keychainAccessDisabled: KeychainAccessGate.isDisabled)
         #endif
         let task = Task.detached(priority: .utility) {
