@@ -1,5 +1,10 @@
 # Changelog
 
+## Upstream sync — 2026-07-16
+
+- Integrated upstream through `59c081332`, including hardened Cursor account switching, corrected Codex restarted-subagent and fork-baseline accounting, thread-safe browser/keychain helpers, status-item reuse, and ZenMux Management API support.
+- Preserved QuotaKit's public identity, release metadata, CloudKit configuration, account-scoped sync behavior, and build numbers.
+
 ## Upstream sync — 2026-07-15
 
 - Integrated upstream through `aea62e047`, including suppression of duplicate Claude all-model quota rows, clearer Ollama Cloud-quota guidance, and a more reliable shell cleanup timeout test.
@@ -22,8 +27,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.12 / iOS 1.11.1 — Unreleased
 
-### Fixed
+### Added
+- ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!
 
+### Fixed
+- Codex cost usage: invalidate cached fork totals when the parent session appears, changes, or resolves to a different file, preventing stale inherited baselines. Thanks @xx205!
+- Cursor: bind interactive account login to one readable browser, preserve the active session on cancellation or failure, and prevent background refreshes from replacing the selected account. Thanks @chapati23!
+- Menu bar: prevent duplicate provider items when usage updates re-enter initial status-item setup (#2162). Thanks @ss251!
+- Codex cost usage: count restarted subagent token counters without subtracting the parent's unrelated cumulative baseline (#2193). Thanks @qiuruiyu and @harjothkhara!
 - Ollama: clarify that Cloud quota limits require a signed-in browser session with cookies when API-key verification is used.
 - Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.
 

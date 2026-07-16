@@ -1194,3 +1194,10 @@
 "Scroll to see more models" = "Scroll to see more models";
 "Projects" = "Projects";
 "+ %d more" = "+ %d more";
+"Choose a supported browser so QuotaKit can read the matching account." = "Choose a supported browser so QuotaKit can read the matching account.";
+"Choose Cursor account" = "Choose Cursor account";
+"Choose which Cursor account QuotaKit should use." = "Choose which Cursor account QuotaKit should use.";
+"Use Account" = "Use Account";
+"Finish switching to a different Cursor account in your browser, then try again." = "Finish switching to a different Cursor account in your browser, then try again.";
+"Timed out waiting for Cursor account switch. %@" = "Timed out waiting for Cursor account switch. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Timed out waiting for Cursor account switch. %@ Last error: %@";

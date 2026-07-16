@@ -608,9 +608,14 @@ enum CostUsageScanner {
     }
 
     final class CodexInheritedTotalsResolver {
+        private struct SnapshotResolution {
+            let dependencyKey: String?
+            let snapshots: [CodexTimestampedTotals]?
+        }
+
         private let fileIndex: CodexSessionFileIndex
         private let checkCancellation: CancellationCheck?
-        private var snapshotsBySessionId: [String: [CodexTimestampedTotals]] = [:]
+        private var snapshotResolutions: [String: SnapshotResolution] = [:]
 
         init(fileIndex: CodexSessionFileIndex, checkCancellation: CancellationCheck?) {
             self.fileIndex = fileIndex
@@ -630,7 +635,7 @@ enum CostUsageScanner {
                     "Codex cost usage could not parse fork timestamp; falling back to lexical comparison",
                     metadata: ["sessionId": sessionId, "timestamp": cutoffTimestamp])
             }
-            guard let snapshots = try self.snapshots(for: sessionId) else { return .unresolved }
+            guard let snapshots = try self.snapshotResolution(for: sessionId).snapshots else { return .unresolved }
             var inherited: CostUsageCodexTotals?
             for snapshot in snapshots {
                 let isAtOrBefore: Bool = if let snapshotDate = snapshot.date, let cutoffDate {
@@ -645,8 +650,31 @@ enum CostUsageScanner {
             return .resolved(inherited)
         }
 
-        private func snapshots(for sessionId: String) throws -> [CodexTimestampedTotals]? {
-            if let cached = self.snapshotsBySessionId[sessionId] {
+        func currentDependencyKey(for sessionId: String) throws -> String {
+            guard let fileURL = try self.fileIndex.fileURL(for: sessionId) else {
+                return "missing:\(sessionId)"
+            }
+            return self.dependencyKey(for: sessionId, fileURL: fileURL)
+        }
+
+        func dependencyKeyUsed(for sessionId: String) -> String? {
+            self.snapshotResolutions[sessionId]?.dependencyKey
+        }
+
+        private func dependencyKey(for sessionId: String, fileURL: URL) -> String {
+            let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
+            return [
+                "file",
+                sessionId,
+                fileURL.standardizedFileURL.path,
+                metadata.fileId ?? "unknown",
+                String(metadata.mtimeUnixMs),
+                String(metadata.size),
+            ].joined(separator: "|")
+        }
+
+        private func snapshotResolution(for sessionId: String) throws -> SnapshotResolution {
+            if let cached = self.snapshotResolutions[sessionId] {
                 return cached
             }
             try self.checkCancellation?()
@@ -654,29 +682,58 @@ enum CostUsageScanner {
                 CostUsageScanner.log.warning(
                     "Codex cost usage parent session file not found",
                     metadata: ["sessionId": sessionId])
-                return nil
+                let resolution = SnapshotResolution(
+                    dependencyKey: "missing:\(sessionId)",
+                    snapshots: nil)
+                self.snapshotResolutions[sessionId] = resolution
+                return resolution
             }
-            let parsed = try CostUsageScanner.parseCodexTokenSnapshots(
-                fileURL: fileURL,
-                checkCancellation: self.checkCancellation)
-            guard let parsedSessionId = parsed.sessionId else {
-                CostUsageScanner.log.warning(
-                    "Codex cost usage parent session missing session metadata",
-                    metadata: ["sessionId": sessionId, "path": fileURL.path])
-                return nil
+
+            for _ in 0..<2 {
+                let dependencyKeyBeforeParse = self.dependencyKey(for: sessionId, fileURL: fileURL)
+                let parsed = try CostUsageScanner.parseCodexTokenSnapshots(
+                    fileURL: fileURL,
+                    checkCancellation: self.checkCancellation)
+                let dependencyKeyAfterParse = self.dependencyKey(for: sessionId, fileURL: fileURL)
+                guard dependencyKeyBeforeParse == dependencyKeyAfterParse else { continue }
+
+                guard let parsedSessionId = parsed.sessionId else {
+                    CostUsageScanner.log.warning(
+                        "Codex cost usage parent session missing session metadata",
+                        metadata: ["sessionId": sessionId, "path": fileURL.path])
+                    let resolution = SnapshotResolution(
+                        dependencyKey: dependencyKeyAfterParse,
+                        snapshots: nil)
+                    self.snapshotResolutions[sessionId] = resolution
+                    return resolution
+                }
+                if parsedSessionId != sessionId {
+                    CostUsageScanner.log.warning(
+                        "Codex cost usage parent session resolved to mismatched session id",
+                        metadata: [
+                            "requestedSessionId": sessionId,
+                            "resolvedSessionId": parsedSessionId,
+                            "path": fileURL.path,
+                        ])
+                    let resolution = SnapshotResolution(
+                        dependencyKey: dependencyKeyAfterParse,
+                        snapshots: nil)
+                    self.snapshotResolutions[sessionId] = resolution
+                    return resolution
+                }
+                let resolution = SnapshotResolution(
+                    dependencyKey: dependencyKeyAfterParse,
+                    snapshots: parsed.snapshots)
+                self.snapshotResolutions[sessionId] = resolution
+                return resolution
             }
-            if parsedSessionId != sessionId {
-                CostUsageScanner.log.warning(
-                    "Codex cost usage parent session resolved to mismatched session id",
-                    metadata: [
-                        "requestedSessionId": sessionId,
-                        "resolvedSessionId": parsedSessionId,
-                        "path": fileURL.path,
-                    ])
-                return nil
-            }
-            self.snapshotsBySessionId[sessionId] = parsed.snapshots
-            return parsed.snapshots
+
+            CostUsageScanner.log.warning(
+                "Codex cost usage parent session changed while reading; deferring inherited baseline",
+                metadata: ["sessionId": sessionId, "path": fileURL.path])
+            let resolution = SnapshotResolution(dependencyKey: nil, snapshots: nil)
+            self.snapshotResolutions[sessionId] = resolution
+            return resolution
         }
     }
 
@@ -769,7 +826,7 @@ enum CostUsageScanner {
              .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
              .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .qoder, .stepfun,
              .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .crossmodel, .clawrouter,
-             .sub2api, .wayfinder:
+             .sub2api, .wayfinder, .zenmux:
             return emptyReport
         }
     }
@@ -1235,6 +1292,7 @@ enum CostUsageScanner {
         let forkedFromId: String?
         let forkTimestamp: String?
         let projectPath: String?
+        let isSubagentThread: Bool
     }
 
     private struct CodexTokenCountRecord {
@@ -1266,6 +1324,8 @@ enum CostUsageScanner {
     private static let codexJSONFieldParentSessionId = Array("parent_session_id".utf8)
     private static let codexJSONFieldParentSessionIdCamel = Array("parentSessionId".utf8)
     private static let codexJSONFieldPayload = Array("payload".utf8)
+    private static let codexJSONFieldSource = Array("source".utf8)
+    private static let codexJSONFieldSubagent = Array("subagent".utf8)
     private static let codexJSONFieldSessionId = Array("session_id".utf8)
     private static let codexJSONFieldSessionIdCamel = Array("sessionId".utf8)
     private static let codexJSONFieldTimestamp = Array("timestamp".utf8)
@@ -1329,6 +1389,47 @@ enum CostUsageScanner {
         return nil
     }
 
+    private static func codexIsSubagentThread(from payload: [String: Any]?) -> Bool {
+        guard let payload else { return false }
+        if let source = payload["source"] as? String {
+            return source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "subagent"
+        }
+        if let source = payload["source"] as? [String: Any] {
+            return source["subagent"] is String || source["subagent"] is [String: Any]
+        }
+        return false
+    }
+
+    private static func codexIsSubagentThread(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        in payloadRange: Range<Int>) -> Bool
+    {
+        if let source = extractJSONByteStringField(
+            self.codexJSONFieldSource,
+            from: bytes,
+            in: payloadRange,
+            atDepth: 1)
+        {
+            return source.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "subagent"
+        }
+        guard let sourceRange = extractJSONByteObjectField(
+            self.codexJSONFieldSource,
+            from: bytes,
+            in: payloadRange,
+            atDepth: 1)
+        else { return false }
+        return extractJSONByteStringField(
+            self.codexJSONFieldSubagent,
+            from: bytes,
+            in: sourceRange,
+            atDepth: 1) != nil
+            || extractJSONByteObjectField(
+                self.codexJSONFieldSubagent,
+                from: bytes,
+                in: sourceRange,
+                atDepth: 1) != nil
+    }
+
     private static func codexTurnID(from bytes: UnsafeBufferPointer<UInt8>, in payloadRange: Range<Int>) -> String? {
         for key in [self.codexJSONFieldTurnId, self.codexJSONFieldTurnIdCamel, self.codexJSONFieldId] {
             if let value = extractJSONByteStringField(key, from: bytes, in: payloadRange, atDepth: 1), !value.isEmpty {
@@ -1350,21 +1451,24 @@ enum CostUsageScanner {
         in rootRange: Range<Int>,
         payloadRange: Range<Int>?) -> String?
     {
-        if let payloadRange {
-            for key in [self.codexJSONFieldSessionId, self.codexJSONFieldSessionIdCamel, self.codexJSONFieldId] {
-                if let value = extractJSONByteStringField(key, from: bytes, in: payloadRange, atDepth: 1),
-                   !value.isEmpty
-                {
-                    return value
-                }
-            }
-        }
-        for key in [Self.codexJSONFieldSessionId, Self.codexJSONFieldSessionIdCamel, Self.codexJSONFieldId] {
-            if let value = Self.extractJSONByteStringField(key, from: bytes, in: rootRange, atDepth: 1),
-               !value.isEmpty
-            {
-                return value
-            }
+        // `session_id` identifies the shared multi-agent tree. `id` identifies this rollout/thread,
+        // and both fields have appeared at either metadata level.
+        let candidates: [String?] = [
+            payloadRange.flatMap {
+                Self.extractJSONByteStringField(Self.codexJSONFieldId, from: bytes, in: $0, atDepth: 1)
+            },
+            Self.extractJSONByteStringField(Self.codexJSONFieldId, from: bytes, in: rootRange, atDepth: 1),
+            payloadRange.flatMap {
+                Self.extractJSONByteStringField(Self.codexJSONFieldSessionId, from: bytes, in: $0, atDepth: 1)
+            },
+            payloadRange.flatMap {
+                Self.extractJSONByteStringField(Self.codexJSONFieldSessionIdCamel, from: bytes, in: $0, atDepth: 1)
+            },
+            Self.extractJSONByteStringField(Self.codexJSONFieldSessionId, from: bytes, in: rootRange, atDepth: 1),
+            Self.extractJSONByteStringField(Self.codexJSONFieldSessionIdCamel, from: bytes, in: rootRange, atDepth: 1),
+        ]
+        for value in candidates where value?.isEmpty == false {
+            return value
         }
         return nil
     }
@@ -1445,7 +1549,10 @@ enum CostUsageScanner {
                         from: rawBuffer,
                         in: objectRange,
                         atDepth: 1),
-                    projectPath: Self.codexProjectPath(from: rawBuffer, payloadRange: payloadRange)))
+                    projectPath: Self.codexProjectPath(from: rawBuffer, payloadRange: payloadRange),
+                    isSubagentThread: payloadRange.map {
+                        Self.codexIsSubagentThread(from: rawBuffer, in: $0)
+                    } ?? false))
 
             case "turn_context":
                 guard let payloadRange = Self.extractJSONByteObjectField(
@@ -1572,6 +1679,23 @@ enum CostUsageScanner {
 
     static let codexSessionMetadataMaxLineBytes = 256 * 1024
 
+    private static func codexSessionMetadata(from obj: [String: Any]) -> CodexSessionMetadata? {
+        guard obj["type"] as? String == "session_meta" else { return nil }
+        let payload = obj["payload"] as? [String: Any]
+        return CodexSessionMetadata(
+            sessionId: payload?["id"] as? String
+                ?? obj["id"] as? String
+                ?? payload?["session_id"] as? String
+                ?? payload?["sessionId"] as? String
+                ?? obj["session_id"] as? String
+                ?? obj["sessionId"] as? String,
+            forkedFromId: Self.codexForkParentId(from: payload),
+            forkTimestamp: payload?["timestamp"] as? String
+                ?? obj["timestamp"] as? String,
+            projectPath: Self.normalizedCodexProjectPath(payload?["cwd"] as? String),
+            isSubagentThread: Self.codexIsSubagentThread(from: payload))
+    }
+
     private static func parseCodexSessionMetadata(
         fileURL: URL,
         checkCancellation: CancellationCheck? = nil) throws -> CodexSessionMetadata?
@@ -1598,19 +1722,7 @@ enum CostUsageScanner {
             return autoreleasepool {
                 guard let obj = (try? JSONSerialization.jsonObject(with: lineData)) as? [String: Any]
                 else { return nil }
-                guard obj["type"] as? String == "session_meta" else { return nil }
-                let payload = obj["payload"] as? [String: Any]
-                return CodexSessionMetadata(
-                    sessionId: payload?["session_id"] as? String
-                        ?? payload?["sessionId"] as? String
-                        ?? payload?["id"] as? String
-                        ?? obj["session_id"] as? String
-                        ?? obj["sessionId"] as? String
-                        ?? obj["id"] as? String,
-                    forkedFromId: Self.codexForkParentId(from: payload),
-                    forkTimestamp: payload?["timestamp"] as? String
-                        ?? obj["timestamp"] as? String,
-                    projectPath: Self.normalizedCodexProjectPath(payload?["cwd"] as? String))
+                return Self.codexSessionMetadata(from: obj)
             }
         }
 
@@ -1856,6 +1968,7 @@ enum CostUsageScanner {
         var sessionId: String?
         var forkedFromId: String?
         var projectPath: String?
+        var isSubagentThread = false
         var inheritedTotals: CostUsageCodexTotals?
         var remainingInheritedTotals: CostUsageCodexTotals?
         var forkBaselineResolved = false
@@ -1912,8 +2025,18 @@ enum CostUsageScanner {
             if projectPath == nil {
                 projectPath = metadata.projectPath
             }
+            isSubagentThread = isSubagentThread || metadata.isSubagentThread
             if let forkedFromId {
-                try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: metadata.forkTimestamp ?? "")
+                if isSubagentThread {
+                    // Codex subagent rollouts own an independent cumulative counter; their parent
+                    // identifiers describe lineage, not a token baseline to subtract (#2193).
+                    forkBaselineResolved = true
+                    inheritedTotals = nil
+                    remainingInheritedTotals = nil
+                    hasUnresolvedForkBaseline = false
+                } else {
+                    try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: metadata.forkTimestamp ?? "")
+                }
             }
         }
 
@@ -1954,8 +2077,9 @@ enum CostUsageScanner {
                 return adjusted
             }
 
-            // Fork children are measured against the parent-inherited baseline so every cumulative
-            // comparison in this file happens on a single scale.
+            // Generic fork children are measured against their parent-inherited baseline so every
+            // cumulative comparison in this file happens on a single scale. Subagents use their
+            // independent counter directly.
             let adjustedTotal: CostUsageCodexTotals? = total.map { rawTotals in
                 guard let inheritedTotals, !hasUnresolvedForkBaseline else { return rawTotals }
                 return CostUsageCodexTotals(
@@ -2154,15 +2278,7 @@ enum CostUsageScanner {
                fileURL: fileURL,
                checkCancellation: checkCancellation)
         {
-            sessionId = metadata.sessionId
-            forkedFromId = metadata.forkedFromId
-            projectPath = metadata.projectPath
-            if let forkedFromId = metadata.forkedFromId,
-               inheritedTotals == nil
-            {
-                let forkedAt = metadata.forkTimestamp ?? ""
-                try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: forkedAt)
-            }
+            try handleSessionMetadata(metadata)
         }
 
         var parsedBytes: Int64
@@ -2215,31 +2331,11 @@ enum CostUsageScanner {
                         else { return }
 
                         if type == "session_meta" {
-                            let payload = obj["payload"] as? [String: Any]
-                            if sessionId == nil {
-                                sessionId = payload?["session_id"] as? String
-                                    ?? payload?["sessionId"] as? String
-                                    ?? payload?["id"] as? String
-                                    ?? obj["session_id"] as? String
-                                    ?? obj["sessionId"] as? String
-                                    ?? obj["id"] as? String
-                            }
-                            if forkedFromId == nil {
-                                forkedFromId = Self.codexForkParentId(from: payload)
-                            }
-                            if projectPath == nil {
-                                projectPath = Self.normalizedCodexProjectPath(payload?["cwd"] as? String)
-                            }
-                            if let forkedFromId {
-                                let forkedAt = payload?["timestamp"] as? String
-                                    ?? obj["timestamp"] as? String
-                                    ?? ""
-                                do {
-                                    try resolveForkBaseline(parentSessionId: forkedFromId, forkedAt: forkedAt)
-                                } catch {
-                                    deferredError = error
-                                    return
-                                }
+                            guard let metadata = Self.codexSessionMetadata(from: obj) else { return }
+                            do {
+                                try handleSessionMetadata(metadata)
+                            } catch {
+                                deferredError = error
                             }
                             return
                         }
@@ -2362,7 +2458,7 @@ enum CostUsageScanner {
         let cached = cache.files[metadata.path]
 
         let input = CodexFileScanInput(fileURL: fileURL, metadata: metadata, cached: cached)
-        if Self.keepCachedCodexFileIfFresh(input: input, context: context, cache: &cache, state: &state) {
+        if try Self.keepCachedCodexFileIfFresh(input: input, context: context, cache: &cache, state: &state) {
             return
         }
         if try Self.appendCodexFileIncrementIfPossible(input: input, context: context, cache: &cache, state: &state) {

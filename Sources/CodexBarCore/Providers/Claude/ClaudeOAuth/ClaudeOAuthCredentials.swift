@@ -636,9 +636,7 @@ public enum ClaudeOAuthCredentialsStore {
                 {
                     return (try? ClaudeOAuthCredentials.parse(data: data)) != nil
                 }
-                if let data = ClaudeOAuthCredentialsStore.taskClaudeKeychainDataOverride
-                    ?? ClaudeOAuthCredentialsStore.claudeKeychainDataOverride
-                {
+                if let data = ClaudeOAuthCredentialsStore.taskClaudeKeychainDataOverride {
                     return (try? ClaudeOAuthCredentials.parse(data: data)) != nil
                 }
                 #endif
@@ -932,7 +930,6 @@ public enum ClaudeOAuthCredentialsStore {
                 #if DEBUG
                 let override = ClaudeOAuthCredentialsStore.taskClaudeKeychainOverrideStore?.data
                     ?? ClaudeOAuthCredentialsStore.taskClaudeKeychainDataOverride
-                    ?? ClaudeOAuthCredentialsStore.claudeKeychainDataOverride
                 if let override,
                    !override.isEmpty,
                    let creds = try? ClaudeOAuthCredentials.parse(data: override),
@@ -1427,8 +1424,8 @@ public enum ClaudeOAuthCredentialsStore {
                 data: store.data,
                 persistentRefHash: store.fingerprint?.persistentRefHash).map { .value($0) } ?? .unavailable
         }
-        let overrideData = self.taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride
-        let overrideFingerprint = self.taskClaudeKeychainFingerprintOverride ?? self.claudeKeychainFingerprintOverride
+        let overrideData = self.taskClaudeKeychainDataOverride
+        let overrideFingerprint = self.taskClaudeKeychainFingerprintOverride
         if overrideData != nil || overrideFingerprint != nil {
             return self.makeClaudeKeychainCredentialEvidence(
                 data: overrideData,
@@ -1542,12 +1539,12 @@ public enum ClaudeOAuthCredentialsStore {
                 return true
             }
         }
-        if let data = self.taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride,
+        if let data = self.taskClaudeKeychainDataOverride,
            !data.isEmpty
         {
             return true
         }
-        if self.taskClaudeKeychainFingerprintOverride ?? self.claudeKeychainFingerprintOverride != nil {
+        if self.taskClaudeKeychainFingerprintOverride != nil {
             return true
         }
         #endif
@@ -1575,9 +1572,7 @@ public enum ClaudeOAuthCredentialsStore {
         // Unit tests can supply TaskLocal overrides for the Claude keychain data/fingerprint. Those tests often run
         // concurrently with other suites, so the global throttle becomes nondeterministic. When an override is
         // present, bypass the throttle so test expectations don't depend on unrelated activity.
-        if self.taskClaudeKeychainOverrideStore != nil || self.taskClaudeKeychainFingerprintOverride != nil
-            || self.claudeKeychainFingerprintOverride != nil
-        {
+        if self.taskClaudeKeychainOverrideStore != nil || self.taskClaudeKeychainFingerprintOverride != nil {
             return true
         }
         #endif
@@ -1643,9 +1638,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let store = taskClaudeKeychainOverrideStore {
             return .value(store.fingerprint)
         }
-        if let override = taskClaudeKeychainFingerprintOverride ?? self
-            .claudeKeychainFingerprintOverride
-        {
+        if let override = taskClaudeKeychainFingerprintOverride {
             return .value(override)
         }
         #endif
@@ -1719,7 +1712,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let store = taskClaudeKeychainOverrideStore {
             return store.data
         }
-        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride {
+        if let override = taskClaudeKeychainDataOverride {
             return override
         }
         #endif
@@ -1755,7 +1748,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let store = self.taskClaudeKeychainOverrideStore {
             return store.data
         }
-        if let override = self.taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride {
+        if let override = self.taskClaudeKeychainDataOverride {
             return override
         }
         #endif
@@ -1792,7 +1785,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let store = taskClaudeKeychainOverrideStore, let override = store.data {
             return override
         }
-        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride {
+        if let override = taskClaudeKeychainDataOverride {
             return override
         }
         #endif
@@ -1850,7 +1843,7 @@ public enum ClaudeOAuthCredentialsStore {
         if let store = taskClaudeKeychainOverrideStore, let override = store.data {
             return override
         }
-        if let override = taskClaudeKeychainDataOverride ?? self.claudeKeychainDataOverride {
+        if let override = taskClaudeKeychainDataOverride {
             return override
         }
         #endif
@@ -2466,8 +2459,6 @@ public enum ClaudeOAuthCredentialsStore {
     static func _resetClaudeKeychainChangeTrackingForTesting() {
         UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintKey)
         UserDefaults.standard.removeObject(forKey: self.claudeKeychainFingerprintLegacyKey)
-        self.setClaudeKeychainDataOverrideForTesting(nil)
-        self.setClaudeKeychainFingerprintOverrideForTesting(nil)
         self.claudeKeychainChangeCheckLock.lock()
         self.lastClaudeKeychainChangeCheckAt = nil
         self.claudeKeychainChangeCheckLock.unlock()

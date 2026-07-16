@@ -56,6 +56,7 @@ enum ProviderBrandAsset {
         "windsurf",
         "zai",
         "zed",
+        "zenmux",
     ]
 
     private static let aliases: [String: String] = [

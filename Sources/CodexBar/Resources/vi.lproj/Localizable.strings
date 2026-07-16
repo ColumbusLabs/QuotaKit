@@ -1188,3 +1188,10 @@
 "Scroll to see more models" = "Cuộn để xem thêm mô hình";
 "Projects" = "Dự án";
 "+ %d more" = "+ %d nữa";
+"Choose a supported browser so QuotaKit can read the matching account." = "Chọn trình duyệt được hỗ trợ để QuotaKit có thể đọc tài khoản phù hợp.";
+"Choose Cursor account" = "Chọn tài khoản Cursor";
+"Choose which Cursor account QuotaKit should use." = "Chọn tài khoản Cursor mà QuotaKit nên sử dụng.";
+"Use Account" = "Dùng tài khoản";
+"Finish switching to a different Cursor account in your browser, then try again." = "Hoàn tất việc chuyển sang tài khoản Cursor khác trong trình duyệt rồi thử lại.";
+"Timed out waiting for Cursor account switch. %@" = "Hết thời gian chờ chuyển tài khoản Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Hết thời gian chờ chuyển tài khoản Cursor. %@ Lỗi gần nhất: %@";
