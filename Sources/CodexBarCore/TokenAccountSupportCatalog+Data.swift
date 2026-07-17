@@ -10,6 +10,13 @@ extension TokenAccountSupportCatalog {
             requiresManualCookieSource: false,
             cookieName: nil,
             environmentKeysToScrub: [OpenAIAPISettingsReader.projectIDEnvironmentKey]),
+        .openrouter: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple OpenRouter API keys.",
+            placeholder: "sk-or-v1-...",
+            injection: .environment(key: OpenRouterSettingsReader.envKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
         .claude: TokenAccountSupport(
             title: "Claude credentials",
             subtitle: "Store Claude sessionKey cookies, OAuth tokens, or Anthropic Admin API keys.",
