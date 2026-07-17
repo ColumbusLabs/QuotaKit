@@ -27,6 +27,10 @@ struct HookDispatchTests {
             executable: "/bin/echo").matches(event))
         #expect(!HookRule(
             event: .quotaLow,
+            threshold: 0,
+            executable: "/bin/echo").matches(event))
+        #expect(!HookRule(
+            event: .quotaLow,
             provider: "unknown",
             executable: "/bin/echo").matches(event))
         #expect(!HookRule(

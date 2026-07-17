@@ -50,6 +50,7 @@ extension UsageStore {
         // Hooks have their own enable switch and per-rule thresholds, so quota_low
         // hooks run on a separate path that does not depend on the notification
         // preference or the notification thresholds.
+        self.resetQuotaLowHookUsageIfConfigurationChanged()
         let hooksActive = self.hasQuotaHookRule(event: .quotaLow, provider: provider)
         if !hooksActive {
             self.clearQuotaLowHookUsage(provider: provider)

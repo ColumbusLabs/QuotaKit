@@ -53,6 +53,21 @@ struct QuotaLowHookAccountScopingTests {
     }
 
     @Test
+    func `configuration revision discards quota-low baselines`() {
+        let store = self.makeStore(suiteName: "QuotaLowHookAccountScopingTests-revision")
+        let key = UsageStore.QuotaWarningStateKey(
+            provider: .claude, window: .session, accountDiscriminator: "account")
+        store.resetQuotaLowHookUsageIfConfigurationChanged()
+        store.quotaLowHookUsage[key] = 0.4
+
+        store.settings.setHooksEnabled(true)
+        store.resetQuotaLowHookUsageIfConfigurationChanged()
+
+        #expect(store.quotaLowHookUsage[key] == nil)
+        #expect(store.quotaLowHookConfigRevision == store.settings.configRevision)
+    }
+
+    @Test
     func `vanished extra lanes discard quota-low baselines`() {
         let store = self.makeStore(suiteName: "QuotaLowHookAccountScopingTests-extra")
         let retained = UsageStore.QuotaWarningStateKey(

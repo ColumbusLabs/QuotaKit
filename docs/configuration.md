@@ -76,7 +76,8 @@ JSON on stdin. Only configure executables you trust.
 
 Events:
 
-- `quota_low`: a quota lane crosses the rule's `threshold` upward. Thresholds are usage fractions from `0` to `1`;
+- `quota_low`: a quota lane crosses the rule's `threshold` upward. Thresholds are usage fractions greater than `0`
+  and at most `1`;
   rules without a threshold use the provider's configured warning thresholds.
 - `quota_reached`: the primary session quota crosses into depletion.
 - `quota_reset`: a confirmed session or weekly reset occurs.

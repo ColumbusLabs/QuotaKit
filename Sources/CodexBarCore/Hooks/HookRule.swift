@@ -94,7 +94,7 @@ public struct HookRule: Codable, Sendable, Equatable, Identifiable {
 
     public var hasValidThreshold: Bool {
         guard let threshold = self.threshold else { return true }
-        return threshold.isFinite && 0...1 ~= threshold
+        return threshold.isFinite && threshold > 0 && threshold <= 1
     }
 
     public var hasValidCommandShape: Bool {

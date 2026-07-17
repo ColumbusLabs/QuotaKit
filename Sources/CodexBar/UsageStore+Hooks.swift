@@ -17,12 +17,15 @@ extension UsageStore {
         status: String? = nil,
         accountDisplayName: String? = nil)
     {
-        guard let hooks = self.settings.config.hooks, hooks.enabled else { return }
+        guard let hooks = self.settings.config.hooks,
+              hooks.enabled,
+              hooks.events.count <= HooksConfig.maximumRuleCount
+        else { return }
 
         let event = HookEvent(
             event: type,
             provider: provider.rawValue,
-            account: accountDisplayName,
+            account: self.settings.hidePersonalInfo ? nil : accountDisplayName,
             window: window,
             usagePercent: usagePercent,
             resetAt: resetAt,
@@ -116,7 +119,10 @@ extension UsageStore {
         accountDiscriminator: String?,
         accountDisplayName: String?)
     {
-        guard let hooks = self.settings.config.hooks, hooks.enabled else { return }
+        guard let hooks = self.settings.config.hooks,
+              hooks.enabled,
+              hooks.events.count <= HooksConfig.maximumRuleCount
+        else { return }
         let rules = hooks.events.filter { rule in
             rule.enabled
                 && rule.event == .quotaLow
@@ -153,7 +159,7 @@ extension UsageStore {
         let event = HookEvent(
             event: .quotaLow,
             provider: provider.rawValue,
-            account: accountDisplayName,
+            account: self.settings.hidePersonalInfo ? nil : accountDisplayName,
             window: lane.label,
             usagePercent: current,
             resetAt: rateWindow.resetsAt,
@@ -175,6 +181,16 @@ extension UsageStore {
     /// while command execution was disabled.
     func clearQuotaLowHookUsage(provider: UsageProvider) {
         self.quotaLowHookUsage = self.quotaLowHookUsage.filter { $0.key.provider != provider }
+    }
+
+    /// Any persisted config edit can include a hook disable/re-enable or rule
+    /// replacement. Reset crossing baselines on the next sample so transitions
+    /// that occurred while the prior configuration was inactive never execute.
+    func resetQuotaLowHookUsageIfConfigurationChanged() {
+        let revision = self.settings.configRevision
+        guard self.quotaLowHookConfigRevision != revision else { return }
+        self.quotaLowHookUsage.removeAll()
+        self.quotaLowHookConfigRevision = revision
     }
 
     /// Extra quota lanes can disappear between snapshots. Forget their baselines

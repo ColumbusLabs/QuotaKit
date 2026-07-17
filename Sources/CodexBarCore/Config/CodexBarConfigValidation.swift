@@ -103,7 +103,7 @@ public enum CodexBarConfigValidator {
                 issues.append(self.hookIssue(
                     field: "\(field).threshold",
                     code: "invalid_hook_threshold",
-                    message: "Hook thresholds must be between 0 and 1."))
+                    message: "Hook thresholds must be greater than 0 and at most 1."))
             }
             if !rule.hasValidTimeout {
                 issues.append(self.hookIssue(

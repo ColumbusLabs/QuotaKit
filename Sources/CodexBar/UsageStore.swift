@@ -342,6 +342,7 @@ final class UsageStore {
     /// Last observed usage fraction (0...1) per account and quota-warning lane, used
     /// to detect upward crossings of a quota_low hook rule's own threshold.
     @ObservationIgnored var quotaLowHookUsage: [QuotaWarningStateKey: Double] = [:]
+    @ObservationIgnored var quotaLowHookConfigRevision: Int?
     @ObservationIgnored var predictivePaceWarningNotifiedKeys: Set<PredictivePaceWarningStateKey> = []
     @ObservationIgnored var lastPermissionPromptNotificationAt: [UsageProvider: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [UsageProvider: Date] = [:]
