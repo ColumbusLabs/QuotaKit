@@ -235,7 +235,20 @@ extension CodexBarCLI {
                 message: "Cookie cache could not be read safely; no browser import was attempted.")
         }
         defer { CookieHeaderCache.endRefreshReadSuppression(gate) }
-        return await operation()
+        let result = await operation()
+        guard !result.isFailure else { return result }
+
+        let commit = CookieHeaderCache.commitRefreshReadSuppression(gate)
+        guard commit.stagedCount > 0,
+              commit.committedCount == commit.stagedCount,
+              commit.failedCount == 0
+        else {
+            return CookieRefreshResult(
+                provider: providerName,
+                status: .failed,
+                message: "Browser cookie validation succeeded, but the refreshed session could not be saved.")
+        }
+        return result
     }
 
     private static func cookieRefreshSkipResult(

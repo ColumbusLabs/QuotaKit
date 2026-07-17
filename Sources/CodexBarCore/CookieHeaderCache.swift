@@ -32,8 +32,28 @@ public struct CookieHeaderCacheEntry: Codable, Equatable, Sendable {
 }
 
 public struct CookieRefreshReadSuppressionGate: Sendable {
-    fileprivate let keys: [KeychainCacheStore.Key]
     fileprivate let token: UUID
+}
+
+public struct CookieRefreshCommitSummary: Equatable, Sendable {
+    public let stagedCount: Int
+    public let committedCount: Int
+    public let failedCount: Int
+}
+
+private enum CookieRefreshStagedMutation: Sendable {
+    case store(CookieHeaderCacheEntry)
+    case clear
+}
+
+private struct CookieRefreshSuppressionState: Sendable {
+    let provider: UsageProvider
+    var stagedMutations: [KeychainCacheStore.Key: CookieRefreshStagedMutation] = [:]
+}
+
+private enum CookieRefreshReadResolution {
+    case noGate
+    case visible(CookieHeaderCacheEntry?)
 }
 
 public enum CookieHeaderCache {
@@ -125,7 +145,7 @@ public enum CookieHeaderCache {
     private static let conditionalMutationGateLock = NSLock()
     private static let refreshReadSuppressionLock = NSLock()
     private nonisolated(unsafe) static var refreshReadSuppressions:
-        [KeychainCacheStore.Key: [UUID: Entry]] = [:]
+        [UUID: CookieRefreshSuppressionState] = [:]
     private struct ConditionalMutationGateState {
         var generation: UInt64 = 0
         var activeTokens: Set<UUID> = []
@@ -388,13 +408,24 @@ public enum CookieHeaderCache {
                 let key = self.key(for: provider, scope: scope)
                 switch KeychainCacheStore.load(key: key, as: Entry.self) {
                 case let .found(entry):
-                    return self.isRefreshEntrySuppressed(entry, key: key) ? nil : entry
+                    if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: entry) {
+                        return visible
+                    }
+                    return entry
                 case .temporarilyUnavailable:
+                    if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                        return visible
+                    }
                     return nil
                 case .invalid:
+                    if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                        return visible
+                    }
                     KeychainCacheStore.clear(key: key)
                 case .missing:
-                    break
+                    if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                        return visible
+                    }
                 }
                 guard scope == nil else { return nil }
                 return self.migrateLegacyEntryIfNeededLocked(provider: provider)
@@ -413,18 +444,27 @@ public enum CookieHeaderCache {
         let key = self.key(for: provider, scope: scope)
         switch KeychainCacheStore.load(key: key, as: Entry.self) {
         case let .found(entry):
-            guard !self.isRefreshEntrySuppressed(entry, key: key) else {
-                return .authoritative(nil, loadedFromLegacy: false)
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: entry) {
+                return .authoritative(visible, loadedFromLegacy: false)
             }
             self.log.debug("Cookie cache hit", metadata: ["provider": provider.rawValue])
             return .authoritative(entry, loadedFromLegacy: false)
         case .temporarilyUnavailable:
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                return .authoritative(visible, loadedFromLegacy: false)
+            }
             self.log.debug("Cookie cache temporarily unavailable", metadata: ["provider": provider.rawValue])
             return .temporarilyUnavailable
         case .invalid:
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                return .authoritative(visible, loadedFromLegacy: false)
+            }
             self.log.warning("Cookie cache invalid; clearing", metadata: ["provider": provider.rawValue])
             KeychainCacheStore.clear(key: key)
         case .missing:
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                return .authoritative(visible, loadedFromLegacy: false)
+            }
             self.log.debug("Cookie cache miss", metadata: ["provider": provider.rawValue])
         }
 
@@ -550,53 +590,6 @@ public enum CookieHeaderCache {
         }
     }
 
-    private static func currentEntryMatches(
-        _ expected: Entry?,
-        provider: UsageProvider,
-        scope: Scope?) -> Bool
-    {
-        let key = self.key(for: provider, scope: scope)
-        switch KeychainCacheStore.load(key: key, as: Entry.self) {
-        case let .found(current):
-            return self.entriesMatch(current, expected)
-        case .missing:
-            if scope == nil, let legacy = self.loadLegacyEntry(for: provider) {
-                return self.entriesMatch(legacy, expected)
-            }
-            return expected == nil
-        case .invalid, .temporarilyUnavailable:
-            return false
-        }
-    }
-
-    private static func entriesMatch(_ current: Entry, _ expected: Entry?) -> Bool {
-        guard let expected else { return false }
-        return current.cookieHeader == expected.cookieHeader
-            && current.storedAt == expected.storedAt
-            && current.sourceLabel == expected.sourceLabel
-            && current.authenticationFailurePolicy == expected.authenticationFailurePolicy
-    }
-
-    @discardableResult
-    private static func storeLocked(
-        entry: Entry,
-        provider: UsageProvider,
-        scope: Scope?,
-        sourceLabel: String) -> Bool
-    {
-        guard entry.authenticationFailurePolicy == .stopFallback
-            || !self.hasPinnedEntry(provider: provider, scope: scope)
-        else { return false }
-        let key = self.key(for: provider, scope: scope)
-        guard KeychainCacheStore.storeResult(key: key, entry: entry) else { return false }
-        self.updateDisplaySnapshot(key: key, entry: entry)
-        if scope == nil {
-            _ = self.removeLegacyEntry(for: provider)
-        }
-        self.log.debug("Cookie cache stored", metadata: ["provider": provider.rawValue, "source": sourceLabel])
-        return true
-    }
-
     @discardableResult
     public static func clear(provider: UsageProvider, scope: Scope? = nil) -> Int {
         self.clearDetailed(provider: provider, scope: scope).clearedCount
@@ -615,6 +608,9 @@ public enum CookieHeaderCache {
 
     private static func clearDetailedLocked(provider: UsageProvider, scope: Scope?) -> ClearSummary {
         let key = self.key(for: provider, scope: scope)
+        if self.stageRefreshMutation(.clear, key: key) {
+            return ClearSummary(clearedCount: 1, failedCount: 0)
+        }
         let result = KeychainCacheStore.clearResult(key: key)
         var cleared = result == .removed ? 1 : 0
         var failed = result == .failed ? 1 : 0
@@ -939,63 +935,156 @@ public enum CookieHeaderCache {
 }
 
 extension CookieHeaderCache {
-    /// Hides the currently cached entry from reads without deleting it. A replacement written while
-    /// the gate is active becomes visible immediately because only the captured entry is suppressed.
-    /// Returns nil when the cache cannot be read safely, so callers can avoid a destructive refresh.
+    private static func currentEntryMatches(
+        _ expected: Entry?,
+        provider: UsageProvider,
+        scope: Scope?) -> Bool
+    {
+        let key = self.key(for: provider, scope: scope)
+        if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+            return self.optionalEntriesMatch(visible, expected)
+        }
+        switch KeychainCacheStore.load(key: key, as: Entry.self) {
+        case let .found(current):
+            return self.entriesMatch(current, expected)
+        case .missing:
+            if scope == nil, let legacy = self.loadLegacyEntry(for: provider) {
+                return self.entriesMatch(legacy, expected)
+            }
+            return expected == nil
+        case .invalid, .temporarilyUnavailable:
+            return false
+        }
+    }
+
+    private static func entriesMatch(_ current: Entry, _ expected: Entry?) -> Bool {
+        guard let expected else { return false }
+        return current.cookieHeader == expected.cookieHeader
+            && current.storedAt == expected.storedAt
+            && current.sourceLabel == expected.sourceLabel
+            && current.authenticationFailurePolicy == expected.authenticationFailurePolicy
+    }
+
+    @discardableResult
+    private static func storeLocked(
+        entry: Entry,
+        provider: UsageProvider,
+        scope: Scope?,
+        sourceLabel: String) -> Bool
+    {
+        let key = self.key(for: provider, scope: scope)
+        if self.stageRefreshMutation(.store(entry), key: key) {
+            self.log.debug("Cookie cache refresh staged", metadata: [
+                "provider": provider.rawValue,
+                "source": sourceLabel,
+            ])
+            return true
+        }
+        guard entry.authenticationFailurePolicy == .stopFallback
+            || !self.hasPinnedEntry(provider: provider, scope: scope)
+        else { return false }
+        guard KeychainCacheStore.storeResult(key: key, entry: entry) else { return false }
+        self.updateDisplaySnapshot(key: key, entry: entry)
+        if scope == nil {
+            _ = self.removeLegacyEntry(for: provider)
+        }
+        self.log.debug("Cookie cache stored", metadata: ["provider": provider.rawValue, "source": sourceLabel])
+        return true
+    }
+
+    /// Hides current entries and stages refresh mutations in memory. The caller explicitly commits
+    /// staged replacements after successful validation; process interruption leaves persisted entries intact.
     public static func beginRefreshReadSuppression(provider: UsageProvider) -> CookieRefreshReadSuppressionGate? {
         let token = UUID()
+        return self.refreshReadSuppressionLock.withLock {
+            guard !self.refreshReadSuppressions.values.contains(where: { $0.provider == provider }) else {
+                return nil
+            }
+            self.refreshReadSuppressions[token] = CookieRefreshSuppressionState(provider: provider)
+            return CookieRefreshReadSuppressionGate(token: token)
+        }
+    }
+
+    public static func commitRefreshReadSuppression(
+        _ gate: CookieRefreshReadSuppressionGate) -> CookieRefreshCommitSummary
+    {
         do {
             return try self.withLegacyMutationLock {
-                let (keys, enumerationFailed) = self.cookieKeysResult(for: provider)
-                guard !enumerationFailed else { return nil }
-                let globalKey = self.key(for: provider, scope: nil)
-                var entries: [KeychainCacheStore.Key: Entry] = [:]
-                for key in keys {
-                    switch KeychainCacheStore.load(key: key, as: Entry.self) {
-                    case let .found(entry):
-                        entries[key] = entry
-                    case .temporarilyUnavailable:
-                        return nil
-                    case .invalid:
-                        KeychainCacheStore.clear(key: key)
-                    case .missing:
-                        if key == globalKey,
-                           let legacy = self.migrateLegacyEntryIfNeededLocked(provider: provider)
-                        {
-                            entries[key] = legacy
+                guard let state = self.refreshReadSuppressionLock.withLock({
+                    self.refreshReadSuppressions[gate.token]
+                }) else {
+                    return CookieRefreshCommitSummary(stagedCount: 0, committedCount: 0, failedCount: 1)
+                }
+
+                var committedCount = 0
+                var failedCount = 0
+                for (key, mutation) in state.stagedMutations {
+                    switch mutation {
+                    case let .store(entry):
+                        if KeychainCacheStore.storeResult(key: key, entry: entry) {
+                            committedCount += 1
+                            self.updateDisplaySnapshot(key: key, entry: entry)
+                            if key == self.key(for: state.provider, scope: nil) {
+                                _ = self.removeLegacyEntry(for: state.provider)
+                            }
+                        } else {
+                            failedCount += 1
                         }
+                    case .clear:
+                        failedCount += 1
                     }
                 }
-                self.refreshReadSuppressionLock.withLock {
-                    for (key, entry) in entries {
-                        self.refreshReadSuppressions[key, default: [:]][token] = entry
-                    }
-                }
-                return CookieRefreshReadSuppressionGate(keys: keys, token: token)
+                return CookieRefreshCommitSummary(
+                    stagedCount: state.stagedMutations.count,
+                    committedCount: committedCount,
+                    failedCount: failedCount)
             }
         } catch {
-            self.log.error("Cookie refresh read suppression lock failed: \(error)")
-            return nil
+            self.log.error("Cookie refresh commit lock failed: \(error)")
+            return CookieRefreshCommitSummary(stagedCount: 0, committedCount: 0, failedCount: 1)
         }
     }
 
     public static func endRefreshReadSuppression(_ gate: CookieRefreshReadSuppressionGate) {
-        self.refreshReadSuppressionLock.withLock {
-            for key in gate.keys {
-                guard var entries = self.refreshReadSuppressions[key] else { continue }
-                entries.removeValue(forKey: gate.token)
-                self.refreshReadSuppressions[key] = entries.isEmpty ? nil : entries
-            }
+        _ = self.refreshReadSuppressionLock.withLock {
+            self.refreshReadSuppressions.removeValue(forKey: gate.token)
         }
     }
 
-    private static func isRefreshEntrySuppressed(
-        _ entry: Entry,
+    private static func resolveRefreshRead(
+        key: KeychainCacheStore.Key,
+        persisted _: Entry?) -> CookieRefreshReadResolution
+    {
+        self.refreshReadSuppressionLock.withLock {
+            guard let state = self.refreshReadSuppressions.values.first(where: {
+                self.key(key, belongsTo: $0.provider)
+            }) else { return .noGate }
+            if let mutation = state.stagedMutations[key] {
+                return switch mutation {
+                case let .store(entry): .visible(entry)
+                case .clear: .visible(nil)
+                }
+            }
+            return .visible(nil)
+        }
+    }
+
+    private static func stageRefreshMutation(
+        _ mutation: CookieRefreshStagedMutation,
         key: KeychainCacheStore.Key) -> Bool
     {
         self.refreshReadSuppressionLock.withLock {
-            self.refreshReadSuppressions[key]?.values.contains(where: { self.entriesMatch($0, entry) }) == true
+            guard let token = self.refreshReadSuppressions.first(where: {
+                self.key(key, belongsTo: $0.value.provider)
+            })?.key else { return false }
+            self.refreshReadSuppressions[token]?.stagedMutations[key] = mutation
+            return true
         }
+    }
+
+    private static func key(_ key: KeychainCacheStore.Key, belongsTo provider: UsageProvider) -> Bool {
+        key.category == "cookie" &&
+            (key.identifier == provider.rawValue || key.identifier.hasPrefix("\(provider.rawValue)."))
     }
 
     /// Prevents conditional background refresh writes for the lifetime of an interactive credential mutation.
@@ -1088,6 +1177,9 @@ extension CookieHeaderCache {
         self.conditionalMutationGateLock.withLock {
             let key = self.key(for: provider, scope: scope)
             let gateGeneration = self.conditionalMutationGates[key]?.generation ?? 0
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                return .authoritative(visible, gateGeneration: gateGeneration)
+            }
             do {
                 return try self.withLegacyMutationLock {
                     switch KeychainCacheStore.load(key: key, as: Entry.self) {
@@ -1178,7 +1270,6 @@ extension CookieHeaderCache {
         switch KeychainCacheStore.load(key: key, as: Entry.self) {
         case let .found(current):
             return current.authenticationFailurePolicy == .stopFallback
-                && !self.isRefreshEntrySuppressed(current, key: key)
         case .temporarilyUnavailable:
             return true
         case .missing:

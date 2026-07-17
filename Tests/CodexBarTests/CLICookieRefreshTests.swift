@@ -95,6 +95,11 @@ struct CLICookieRefreshTests {
                     #expect(CookieHeaderCache.load(provider: provider) == nil)
                     #expect(CookieHeaderCache.loadSerialized(provider: provider) == nil)
                     #expect(CookieHeaderCache.load(provider: provider, scope: accountScope) == nil)
+                    CookieHeaderCache.store(
+                        provider: provider,
+                        cookieHeader: "unvalidated-test-cookie",
+                        sourceLabel: "Test unvalidated")
+                    #expect(CookieHeaderCache.load(provider: provider)?.cookieHeader == "unvalidated-test-cookie")
                     return CookieRefreshResult(provider: "opencode", status: .failed, message: "test failure")
                 }
 
@@ -123,15 +128,44 @@ struct CLICookieRefreshTests {
                     provider: provider,
                     providerName: "opencode")
                 {
-                    CookieHeaderCache.store(
+                    let observation = CookieHeaderCache.observeForConditionalMutation(provider: provider)
+                    #expect(observation.entry == nil)
+                    let stored = CookieHeaderCache.storeIfObservationCurrent(
                         provider: provider,
+                        expected: observation,
                         cookieHeader: "new-test-cookie",
                         sourceLabel: "Test new")
+                    #expect(stored)
                     return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "ok")
                 }
 
                 #expect(result.status == .refreshed)
                 #expect(CookieHeaderCache.load(provider: provider)?.cookieHeader == "new-test-cookie")
+            }
+        }
+    }
+
+    @Test
+    func `successful provider result without a staged cookie fails safely`() async {
+        let provider = UsageProvider.opencode
+        let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
+
+        await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            await KeychainCacheStore.withImplicitTestStoreForTesting {
+                CookieHeaderCache.store(
+                    provider: provider,
+                    cookieHeader: "old-test-cookie",
+                    sourceLabel: "Test old")
+
+                let result = await CodexBarCLI.withCookieRefreshCacheSuppressed(
+                    provider: provider,
+                    providerName: "opencode")
+                {
+                    CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+                }
+
+                #expect(result.status == .failed)
+                #expect(CookieHeaderCache.load(provider: provider)?.cookieHeader == "old-test-cookie")
             }
         }
     }
