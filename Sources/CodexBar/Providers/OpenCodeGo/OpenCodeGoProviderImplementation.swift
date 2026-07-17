@@ -71,7 +71,32 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
                     OpenCodeProviderUI.cachedCookieTrailingText(
                         provider: .opencodego,
                         cookieSource: context.settings.opencodegoCookieSource)
-                }),
+                },
+                trailingActions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "opencodego-reimport-cookie",
+                        title: "↻",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieHeaderCache.clear(provider: .opencodego)
+                            #if os(macOS)
+                            do {
+                                let session = try OpenCodeCookieImporter.importSession(
+                                    browserDetection: BrowserDetection(),
+                                    preferredBrowsers: [])
+                                CookieHeaderCache.store(
+                                    provider: .opencodego,
+                                    cookieHeader: session.cookieHeader,
+                                    sourceLabel: session.sourceLabel)
+                                context.setStatusText("opencodego-cookie-status", "✅ Refreshed from \(session.sourceLabel)")
+                            } catch {
+                                context.setStatusText("opencodego-cookie-status", "Cache cleared. Will re-import on next refresh.")
+                            }
+                            #endif
+                            await context.store.refreshProvider(.opencodego, allowDisabled: true)
+                        }),
+                ]),
         ]
     }
 

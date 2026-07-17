@@ -71,7 +71,32 @@ struct OpenCodeProviderImplementation: ProviderImplementation {
                     OpenCodeProviderUI.cachedCookieTrailingText(
                         provider: .opencode,
                         cookieSource: context.settings.opencodeCookieSource)
-                }),
+                },
+                trailingActions: [
+                    ProviderSettingsActionDescriptor(
+                        id: "opencode-reimport-cookie",
+                        title: "↻",
+                        style: .bordered,
+                        isVisible: nil,
+                        perform: {
+                            CookieHeaderCache.clear(provider: .opencode)
+                            #if os(macOS)
+                            do {
+                                let session = try OpenCodeCookieImporter.importSession(
+                                    browserDetection: BrowserDetection(),
+                                    preferredBrowsers: [])
+                                CookieHeaderCache.store(
+                                    provider: .opencode,
+                                    cookieHeader: session.cookieHeader,
+                                    sourceLabel: session.sourceLabel)
+                                context.setStatusText("opencode-cookie-status", "✅ Refreshed from \(session.sourceLabel)")
+                            } catch {
+                                context.setStatusText("opencode-cookie-status", "Cache cleared. Will re-import on next refresh.")
+                            }
+                            #endif
+                            await context.store.refreshProvider(.opencode, allowDisabled: true)
+                        }),
+                ]),
         ]
     }
 
