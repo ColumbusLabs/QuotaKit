@@ -328,6 +328,7 @@ extension UsageStore {
         sessionWindow: RateWindow,
         weeklyWindow: RateWindow,
         weeklyWindowID: String? = nil,
+        historyIdentity: String? = nil,
         now: Date = .init()) -> SessionEquivalentForecast?
     {
         guard sessionWindow.windowMinutes.map({ PlanUtilizationSeriesName.session.canonicalWindowMinutes($0) })
@@ -342,7 +343,7 @@ extension UsageStore {
         guard self.sessionEquivalentHistoryIdentityMatches(
             provider: provider,
             accountKey: selection.accountKey,
-            weeklyWindowID: weeklyWindowID)
+            historyIdentity: historyIdentity)
         else {
             return nil
         }

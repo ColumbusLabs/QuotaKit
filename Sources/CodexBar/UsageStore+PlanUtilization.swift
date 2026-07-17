@@ -202,7 +202,10 @@ extension UsageStore {
                 samples: detectorSamples)
         }
 
-        guard !samples.isEmpty else { return }
+        let shouldInvalidateAmbiguousSessionEquivalentPair =
+            ![UsageProvider.codex, .claude, .antigravity].contains(provider)
+            && Self.genericSessionEquivalentWindowPairResolution(snapshot: snapshot).isAmbiguous
+        guard !samples.isEmpty || shouldInvalidateAmbiguousSessionEquivalentPair else { return }
         guard self.shouldRecordPlanUtilizationHistory(for: provider) else { return }
         guard !self.shouldDeferClaudePlanUtilizationHistory(provider: provider) else { return }
 
@@ -236,6 +239,8 @@ extension UsageStore {
                 shouldAdoptUnscopedHistory: shouldAdoptUnscopedHistory,
                 providerBuckets: &providerBuckets)
             var histories = providerBuckets.histories(for: accountKey)
+            let originalHistories = histories
+            var samplesToPersist = samples
             if provider == .antigravity,
                samples.contains(where: { $0.name == .session }),
                !histories.contains(where: { $0.name == .session })
@@ -244,20 +249,29 @@ extension UsageStore {
                 // Drop it before starting the Gemini-pinned session/weekly pair.
                 histories.removeAll { $0.name == .weekly }
             }
-            if ![UsageProvider.codex, .claude, .antigravity].contains(provider),
-               samples.contains(where: { $0.name == .session }),
-               samples.contains(where: { $0.name == .weekly }),
-               let windows = self.sessionEquivalentWindows(provider: provider, snapshot: snapshot)
-            {
-                let identity = windows.weeklyWindowID ?? Self.sessionEquivalentStandardWindowIdentity
+            if ![UsageProvider.codex, .claude, .antigravity].contains(provider) {
                 let identityKey = Self.sessionEquivalentHistoryIdentityKey(
                     provider: provider,
                     accountKey: accountKey)
                 var identities = self.settings.userDefaults.dictionary(
                     forKey: Self.sessionEquivalentHistoryIdentityDefaultsKey) as? [String: String] ?? [:]
-                if identities[identityKey] != identity {
+                var identitiesChanged = false
+                switch Self.genericSessionEquivalentWindowPairResolution(snapshot: snapshot) {
+                case let .resolved(_, _, _, resolvedIdentity):
+                    guard identities[identityKey] != resolvedIdentity else { break }
                     histories.removeAll { $0.name == .session || $0.name == .weekly }
-                    identities[identityKey] = identity
+                    identities[identityKey] = resolvedIdentity
+                    identitiesChanged = true
+                case .incomplete:
+                    if identities[identityKey] != nil {
+                        samplesToPersist.removeAll { $0.name == .session || $0.name == .weekly }
+                    }
+                case .ambiguous:
+                    histories.removeAll { $0.name == .session || $0.name == .weekly }
+                    samplesToPersist.removeAll { $0.name == .session || $0.name == .weekly }
+                    identitiesChanged = identities.removeValue(forKey: identityKey) != nil
+                }
+                if identitiesChanged {
                     self.settings.userDefaults.set(
                         identities,
                         forKey: Self.sessionEquivalentHistoryIdentityDefaultsKey)
@@ -265,10 +279,10 @@ extension UsageStore {
                 }
             }
 
-            if let updatedHistories = Self.updatedPlanUtilizationHistories(
+            let updatedHistories = Self.updatedPlanUtilizationHistories(
                 existingHistories: histories,
-                samples: samples)
-            {
+                samples: samplesToPersist) ?? histories
+            if updatedHistories != originalHistories {
                 providerBuckets.setHistories(updatedHistories, for: accountKey)
             }
 
@@ -548,8 +562,16 @@ extension UsageStore {
                 }
             }
         default:
-            appendWindow(self.planUtilizationSessionWindow(provider: provider, snapshot: snapshot), name: .session)
-            appendWindow(self.planUtilizationWeeklyWindow(provider: provider, snapshot: snapshot), name: .weekly)
+            switch Self.genericSessionEquivalentWindowPairResolution(snapshot: snapshot) {
+            case let .resolved(session, weekly, _, _):
+                appendWindow(session, name: .session)
+                appendWindow(weekly, name: .weekly)
+            case .incomplete:
+                appendWindow(self.planUtilizationSessionWindow(provider: provider, snapshot: snapshot), name: .session)
+                appendWindow(self.planUtilizationWeeklyWindow(provider: provider, snapshot: snapshot), name: .weekly)
+            case .ambiguous:
+                break
+            }
         }
 
         return samplesByKey.values.sorted { lhs, rhs in

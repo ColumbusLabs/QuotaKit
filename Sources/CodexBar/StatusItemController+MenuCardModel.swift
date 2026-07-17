@@ -117,6 +117,7 @@ extension StatusItemController {
                 sessionWindow: windows.session,
                 weeklyWindow: windows.weekly,
                 weeklyWindowID: windows.weeklyWindowID,
+                historyIdentity: windows.historyIdentity,
                 now: now)
         } else {
             nil

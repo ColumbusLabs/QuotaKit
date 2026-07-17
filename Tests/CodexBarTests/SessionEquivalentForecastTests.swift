@@ -581,13 +581,13 @@ struct SessionEquivalentForecastTests {
         #expect(!store.sessionEquivalentHistoryIdentityMatches(
             provider: .zai,
             accountKey: nil,
-            weeklyWindowID: "zai-weekly-a"))
+            historyIdentity: store.sessionEquivalentWindows(provider: .zai, snapshot: first)?.historyIdentity))
 
         await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: first, now: first.updatedAt)
         #expect(store.sessionEquivalentHistoryIdentityMatches(
             provider: .zai,
             accountKey: nil,
-            weeklyWindowID: "zai-weekly-a"))
+            historyIdentity: store.sessionEquivalentWindows(provider: .zai, snapshot: first)?.historyIdentity))
         await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: second, now: second.updatedAt)
 
         let histories = store.planUtilizationHistory(for: .zai)
@@ -596,7 +596,203 @@ struct SessionEquivalentForecastTests {
         #expect(store.sessionEquivalentHistoryIdentityMatches(
             provider: .zai,
             accountKey: nil,
-            weeklyWindowID: "zai-weekly-b"))
+            historyIdentity: store.sessionEquivalentWindows(provider: .zai, snapshot: second)?.historyIdentity))
+    }
+
+    @MainActor
+    @Test
+    func `generic named history resets when session window identity changes`() async throws {
+        let store = UsageStorePlanUtilizationTests.makeStore()
+        store.settings.historicalTrackingEnabled = true
+        let now = Date(timeIntervalSince1970: 1_900_000_000)
+
+        func snapshot(sessionID: String, sessionUsed: Double, at date: Date) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: nil,
+                secondary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: 10080,
+                    resetsAt: date.addingTimeInterval(3 * 24 * 3600),
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: sessionID,
+                        title: "Session",
+                        window: RateWindow(
+                            usedPercent: sessionUsed,
+                            windowMinutes: 300,
+                            resetsAt: date.addingTimeInterval(3600),
+                            resetDescription: nil)),
+                ],
+                updatedAt: date)
+        }
+
+        let first = snapshot(sessionID: "zai-session-a", sessionUsed: 20, at: now)
+        let second = snapshot(
+            sessionID: "zai-session-b",
+            sessionUsed: 30,
+            at: now.addingTimeInterval(3600))
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: first, now: first.updatedAt)
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: second, now: second.updatedAt)
+
+        let histories = store.planUtilizationHistory(for: .zai)
+        #expect(findSeries(histories, name: .session, windowMinutes: 300)?.entries.map(\.usedPercent) == [30])
+        #expect(findSeries(histories, name: .weekly, windowMinutes: 10080)?.entries.map(\.usedPercent) == [40])
+        let identity = try #require(store.sessionEquivalentWindows(provider: .zai, snapshot: second)?.historyIdentity)
+        #expect(store.sessionEquivalentHistoryIdentityMatches(
+            provider: .zai,
+            accountKey: nil,
+            historyIdentity: identity))
+    }
+
+    @MainActor
+    @Test
+    func `generic forecast rejects ambiguous named session families and invalidates prior identity`() async throws {
+        let store = UsageStorePlanUtilizationTests.makeStore()
+        store.settings.historicalTrackingEnabled = true
+        let now = Date(timeIntervalSince1970: 1_900_000_000)
+        let session = RateWindow(
+            usedPercent: 20,
+            windowMinutes: 300,
+            resetsAt: now.addingTimeInterval(3600),
+            resetDescription: nil)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: RateWindow(
+                usedPercent: 40,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(3 * 24 * 3600),
+                resetDescription: nil),
+            extraRateWindows: [
+                NamedRateWindow(id: "family-a-session", title: "A", window: session),
+                NamedRateWindow(id: "family-b-session", title: "B", window: session),
+            ],
+            updatedAt: now)
+
+        #expect(store.sessionEquivalentWindows(provider: .zai, snapshot: snapshot) == nil)
+
+        func exactSnapshot(usedPercent: Double, at date: Date) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: nil,
+                secondary: snapshot.secondary,
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "family-a-session",
+                        title: "A",
+                        window: RateWindow(
+                            usedPercent: usedPercent,
+                            windowMinutes: 300,
+                            resetsAt: date.addingTimeInterval(3600),
+                            resetDescription: nil)),
+                ],
+                updatedAt: date)
+        }
+
+        let first = exactSnapshot(usedPercent: 10, at: now.addingTimeInterval(-3600))
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: first, now: first.updatedAt)
+        let firstIdentity = try #require(store.sessionEquivalentWindows(
+            provider: .zai,
+            snapshot: first)?.historyIdentity)
+        #expect(store.sessionEquivalentHistoryIdentityMatches(
+            provider: .zai,
+            accountKey: nil,
+            historyIdentity: firstIdentity))
+
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: snapshot, now: now)
+        #expect(!store.sessionEquivalentHistoryIdentityMatches(
+            provider: .zai,
+            accountKey: nil,
+            historyIdentity: firstIdentity))
+
+        let restored = exactSnapshot(usedPercent: 30, at: now.addingTimeInterval(3600))
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: restored, now: restored.updatedAt)
+        let histories = store.planUtilizationHistory(for: .zai)
+        #expect(findSeries(histories, name: .session, windowMinutes: 300)?.entries.map(\.usedPercent) == [30])
+    }
+
+    @MainActor
+    @Test
+    func `generic pair identity cannot collide through named window delimiters`() throws {
+        let store = UsageStorePlanUtilizationTests.makeStore()
+        let now = Date(timeIntervalSince1970: 1_900_000_000)
+
+        func identity(sessionID: String, weeklyID: String) throws -> String {
+            let snapshot = UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: sessionID,
+                        title: "Session",
+                        window: RateWindow(
+                            usedPercent: 20,
+                            windowMinutes: 300,
+                            resetsAt: now.addingTimeInterval(3600),
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: weeklyID,
+                        title: "Weekly",
+                        window: RateWindow(
+                            usedPercent: 40,
+                            windowMinutes: 10080,
+                            resetsAt: now.addingTimeInterval(3 * 24 * 3600),
+                            resetDescription: nil)),
+                ],
+                updatedAt: now)
+            return try #require(store.sessionEquivalentWindows(
+                provider: .zai,
+                snapshot: snapshot)?.historyIdentity)
+        }
+
+        let first = try identity(sessionID: "a|weekly:named:b", weeklyID: "c")
+        let second = try identity(sessionID: "a", weeklyID: "b|weekly:named:c")
+        #expect(first != second)
+    }
+
+    @MainActor
+    @Test
+    func `generic incomplete refresh preserves established pair history`() async throws {
+        let store = UsageStorePlanUtilizationTests.makeStore()
+        store.settings.historicalTrackingEnabled = true
+        let now = Date(timeIntervalSince1970: 1_900_000_000)
+        let session = RateWindow(
+            usedPercent: 20,
+            windowMinutes: 300,
+            resetsAt: now.addingTimeInterval(3600),
+            resetDescription: nil)
+        let complete = UsageSnapshot(
+            primary: session,
+            secondary: RateWindow(
+                usedPercent: 40,
+                windowMinutes: 10080,
+                resetsAt: now.addingTimeInterval(3 * 24 * 3600),
+                resetDescription: nil),
+            updatedAt: now)
+        let incomplete = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 30,
+                windowMinutes: 300,
+                resetsAt: now.addingTimeInterval(2 * 3600),
+                resetDescription: nil),
+            secondary: nil,
+            updatedAt: now.addingTimeInterval(3600))
+
+        await store.recordPlanUtilizationHistorySample(provider: .zai, snapshot: complete, now: complete.updatedAt)
+        let identity = try #require(store.sessionEquivalentWindows(
+            provider: .zai,
+            snapshot: complete)?.historyIdentity)
+        await store.recordPlanUtilizationHistorySample(
+            provider: .zai,
+            snapshot: incomplete,
+            now: incomplete.updatedAt)
+
+        #expect(store.sessionEquivalentHistoryIdentityMatches(
+            provider: .zai,
+            accountKey: nil,
+            historyIdentity: identity))
+        let histories = store.planUtilizationHistory(for: .zai)
+        #expect(findSeries(histories, name: .session, windowMinutes: 300)?.entries.map(\.usedPercent) == [20])
+        #expect(findSeries(histories, name: .weekly, windowMinutes: 10080)?.entries.map(\.usedPercent) == [40])
     }
 
     @MainActor
