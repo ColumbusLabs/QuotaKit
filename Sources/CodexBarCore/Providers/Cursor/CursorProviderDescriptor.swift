@@ -34,8 +34,8 @@ public enum CursorProviderDescriptor {
                     ProviderColor(hex: 0xEDECEC),
                 ]),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Cursor cost summary is not supported." }),
+                supportsTokenCost: true,
+                noDataMessage: { "No Cursor cost usage found. Sign in to Cursor in your browser or the Cursor app." }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .cli, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [CursorStatusFetchStrategy()] })),

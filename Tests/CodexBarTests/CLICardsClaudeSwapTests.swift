@@ -308,10 +308,17 @@ struct CLICardsClaudeSwapTests {
             .appendingPathComponent("cards-claude-swap-tests-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let executable = directory.appendingPathComponent("cswap")
-        let arguments = directory.appendingPathComponent("arguments")
+        let invocationMarker = directory.appendingPathComponent("invoked", isDirectory: true)
+        let duplicateMarker = directory.appendingPathComponent("duplicate")
         let script = """
         #!/bin/sh
-        printf '%s\\n' "$@" >> '\(arguments.path)'
+        mkdir '\(invocationMarker.path)' || {
+          touch '\(duplicateMarker.path)'
+          exit 2
+        }
+        [ "$#" -eq 2 ] || exit 2
+        [ "$1" = "--list" ] || exit 2
+        [ "$2" = "--json" ] || exit 2
         cat <<'JSON'
         {"schemaVersion":1,"activeAccountNumber":2,"accounts":[
           {"number":1,"email":"one@example.com","active":false,"usageStatus":"api_key"},
@@ -327,11 +334,12 @@ struct CLICardsClaudeSwapTests {
             executablePath: executable.path,
             renderOptions: self.renderOptions(),
             ambientFetch: { self.ambientOutput() })
-        let invokedArguments = try String(contentsOf: arguments, encoding: .utf8)
 
-        #expect(invokedArguments == "--list\n--json\n")
-        #expect(!invokedArguments.contains("switch"))
+        #expect(output.exitCode == .success)
+        #expect(output.cardFailures.isEmpty)
         #expect(output.cards.count == 2)
+        #expect(FileManager.default.fileExists(atPath: invocationMarker.path))
+        #expect(!FileManager.default.fileExists(atPath: duplicateMarker.path))
     }
 
     @Test

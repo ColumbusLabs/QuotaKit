@@ -1225,6 +1225,18 @@
 "Show Codex Spark usage" = "Show Codex Spark usage";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings.";
 "Scroll to see more models" = "Scroll to see more models";
+
+/* Shareable usage card */
+"Copy Image" = "Copy Image";
+"Copy Stats" = "Copy Stats";
+"Could not copy image" = "Could not copy image";
+"Image copied" = "Image copied";
+"Image saved" = "Image saved";
+"Nothing is uploaded. This image is created on your Mac." = "Nothing is uploaded. This image is created on your Mac.";
+"Save..." = "Save...";
+"Share AI Usage" = "Share AI Usage";
+"Share Stats…" = "Share Stats…";
+"Stats copied" = "Stats copied";
 "Finish switching to a different Cursor account in your browser, then try again." = "Finish switching to a different Cursor account in your browser, then try again.";
 "Timed out waiting for Cursor account switch. %@" = "Timed out waiting for Cursor account switch. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Timed out waiting for Cursor account switch. %@ Last error: %@";

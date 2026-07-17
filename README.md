@@ -121,6 +121,8 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
 - [ClinePass](docs/providers.md) — API key usage for five-hour, weekly, and monthly plan limits.
 - [LongCat](docs/providers.md) — Browser or manual-cookie usage for LongCat plan quotas.
+- [Neuralwatt](docs/neuralwatt.md) — API key for subscription kWh usage and prepaid credit balance.
+- [ZenMux](docs/zenmux.md) — Management API key for rolling five-hour and seven-day quota windows plus PAYG balance.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Upstream And Credits

@@ -1224,6 +1224,18 @@
 "Show Codex Spark usage" = "Tampilkan penggunaan Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Menampilkan baris kuota Codex Spark di menu dan pratinjau penyedia. Mengharuskan “Tampilkan kredit + penggunaan ekstra” diaktifkan di pengaturan Tampilan.";
 "Scroll to see more models" = "Gulir untuk melihat model lainnya";
+
+/* Shareable usage card */
+"Copy Image" = "Salin Gambar";
+"Copy Stats" = "Salin Statistik";
+"Could not copy image" = "Gambar tidak dapat disalin";
+"Image copied" = "Gambar disalin";
+"Image saved" = "Gambar disimpan";
+"Nothing is uploaded. This image is created on your Mac." = "Tidak ada data yang diunggah. Gambar ini dibuat di Mac Anda.";
+"Save..." = "Simpan...";
+"Share AI Usage" = "Bagikan Penggunaan AI";
+"Share Stats…" = "Bagikan Statistik…";
+"Stats copied" = "Statistik disalin";
 "Finish switching to a different Cursor account in your browser, then try again." = "Selesaikan peralihan ke akun Cursor lain di browser Anda, lalu coba lagi.";
 "Timed out waiting for Cursor account switch. %@" = "Waktu tunggu untuk beralih akun Cursor habis. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Waktu tunggu untuk beralih akun Cursor habis. %@ Kesalahan terakhir: %@";

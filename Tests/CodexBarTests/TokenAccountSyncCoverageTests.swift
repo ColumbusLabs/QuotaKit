@@ -36,7 +36,7 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains the 24 providers known after upstream Sub2API sync (regression sentinel)`() {
+    func `Catalog contains the 25 providers known after upstream Neuralwatt sync (regression sentinel)`() {
         // v0.33.0 baseline — 22 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -46,6 +46,7 @@ struct TokenAccountSyncCoverageTests {
         //   Upstream v0.33.0 added LiteLLM as another API-key provider.
         //   Upstream Qoder sync added Qoder as a cookie/API-key provider.
         //   Upstream Sub2API sync added Sub2API as an API-key provider.
+        //   Upstream Neuralwatt sync added Neuralwatt as an API-key provider.
         // If this count changes (up or down), confirm the catalog change
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
@@ -63,6 +64,8 @@ struct TokenAccountSyncCoverageTests {
             "qoder",
             // Sub2API sync addition
             "sub2api",
+            // Neuralwatt sync addition
+            "neuralwatt",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

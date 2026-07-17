@@ -78,7 +78,7 @@ struct SyncCoordinatorTests {
     }
 
     @Test
-    func `ZenMux PAYG balance does not sync as a zero-limit budget`() {
+    func `remaining provider balances do not sync as zero-limit budgets`() {
         let balance = ProviderCostSnapshot(
             used: 42.50,
             limit: 0,
@@ -87,6 +87,7 @@ struct SyncCoordinatorTests {
             updatedAt: Date())
 
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .zenmux, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .neuralwatt, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
     }
 

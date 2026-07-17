@@ -73,6 +73,13 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let historyDays: Int
     public let historyCoverageIsEstablished: Bool
     public let historyLabel: String?
+    /// Provider-metered spend over the same window as `last30DaysCostUSD` — what the plan
+    /// actually deducts, as opposed to the API-rate estimate. Only some providers (e.g. Cursor)
+    /// report this; `nil` when unknown.
+    public let meteredCostUSD: Double?
+    /// Internal credential scope used to prevent cross-account cache publication. This is a
+    /// non-reversible fingerprint, not account identity, and is not emitted by CLI payloads.
+    public let credentialScopeFingerprint: String?
     public let daily: [CostUsageDailyReport.Entry]
     public let projects: [CostUsageProjectBreakdown]
     public let sessions: [CostUsageSessionBreakdown]
@@ -89,6 +96,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         historyDays: Int = 30,
         historyCoverageIsEstablished: Bool = true,
         historyLabel: String? = nil,
+        meteredCostUSD: Double? = nil,
+        credentialScopeFingerprint: String? = nil,
         daily: [CostUsageDailyReport.Entry],
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
@@ -105,6 +114,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.historyDays = historyDays
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
         self.historyLabel = historyLabel
+        self.meteredCostUSD = meteredCostUSD
+        self.credentialScopeFingerprint = credentialScopeFingerprint
         self.daily = daily
         self.projects = projects
         self.sessions = sessions

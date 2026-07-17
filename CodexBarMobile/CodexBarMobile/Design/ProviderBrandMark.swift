@@ -40,6 +40,7 @@ enum ProviderBrandAsset {
         "mimo",
         "minimax",
         "mistral",
+        "neuralwatt",
         "ollama",
         "opencode",
         "opencodego",

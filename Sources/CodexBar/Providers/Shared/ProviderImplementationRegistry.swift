@@ -68,6 +68,7 @@ enum ProviderImplementationRegistry {
         case .deepgram: DeepgramProviderImplementation()
         case .poe: PoeProviderImplementation()
         case .chutes: ChutesProviderImplementation()
+        case .neuralwatt: NeuralWattProviderImplementation()
         case .clawrouter: ClawRouterProviderImplementation()
         case .longcat: LongCatProviderImplementation()
         case .sub2api: Sub2APIProviderImplementation()

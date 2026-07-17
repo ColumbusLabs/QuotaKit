@@ -789,6 +789,34 @@ extension UsageStore {
                 return (index, account, descriptor, context)
             }
 
+        if let delay = TokenAccountSupportCatalog.support(for: provider)?.minimumDelayBetweenAccountRefreshes {
+            var results: [TokenAccountFetchResult] = []
+            results.reserveCapacity(requests.count)
+            for request in requests {
+                if !results.isEmpty {
+                    do {
+                        try await Task.sleep(for: delay)
+                    } catch {
+                        for pending in requests.dropFirst(results.count) {
+                            results.append(TokenAccountFetchResult(
+                                index: pending.index,
+                                account: pending.account,
+                                outcome: ProviderFetchOutcome(
+                                    result: .failure(CancellationError()),
+                                    attempts: [])))
+                        }
+                        return results
+                    }
+                }
+                let outcome = await request.descriptor.fetchOutcome(context: request.context)
+                results.append(TokenAccountFetchResult(
+                    index: request.index,
+                    account: request.account,
+                    outcome: outcome))
+            }
+            return results
+        }
+
         return await withTaskGroup(
             of: TokenAccountFetchResult.self,
             returning: [TokenAccountFetchResult].self)
@@ -1613,36 +1641,5 @@ extension UsageStore {
                 }
             }
         }
-    }
-
-    func applyAccountLabel(
-        _ snapshot: UsageSnapshot,
-        provider: UsageProvider,
-        account: ProviderTokenAccount) -> UsageSnapshot
-    {
-        let label = account.label.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !label.isEmpty else { return snapshot }
-        let existing = snapshot.identity(for: provider)
-        let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? label : email
-        let identity = ProviderIdentitySnapshot(
-            providerID: provider,
-            accountEmail: resolvedEmail,
-            accountOrganization: existing?.accountOrganization,
-            loginMethod: existing?.loginMethod)
-        return snapshot.withIdentity(identity)
-    }
-
-    func applyCodexVisibleAccountLabel(_ snapshot: UsageSnapshot, account: CodexVisibleAccount) -> UsageSnapshot {
-        let existing = snapshot.identity(for: .codex)
-        let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
-        let resolvedEmail = (email?.isEmpty ?? true) ? account.email : email
-        let loginMethod = existing?.loginMethod ?? account.workspaceLabel
-        let identity = ProviderIdentitySnapshot(
-            providerID: .codex,
-            accountEmail: resolvedEmail,
-            accountOrganization: existing?.accountOrganization,
-            loginMethod: loginMethod)
-        return snapshot.withIdentity(identity)
     }
 }

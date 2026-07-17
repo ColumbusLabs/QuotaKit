@@ -15,7 +15,7 @@ current Columbus Labs product surface and recent release history.
 ### Changed
 
 - Provider presentation, colors, icons, and quota-alert subscriptions now
-  recognize ClinePass and LongCat synced from the Mac app.
+  recognize ClinePass, LongCat, and Neuralwatt synced from the Mac app.
 
 ## [1.11.2 (170)] — 2026-07-11 — Provider details and sync reliability
 

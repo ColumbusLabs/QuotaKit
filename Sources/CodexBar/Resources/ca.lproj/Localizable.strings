@@ -1224,6 +1224,17 @@
 "Show Codex Spark usage" = "Mostreu l'ús de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostreu les files de quota de Codex Spark al menú i a la previsualització del proveïdor. Cal activar «Mostreu crèdits + ús addicional» a la configuració de Pantalla.";
 "Scroll to see more models" = "Desplaceu-vos per veure més models";
+/* Shareable usage card */
+"Copy Image" = "Copia la imatge";
+"Copy Stats" = "Copia les estadístiques";
+"Could not copy image" = "No s’ha pogut copiar la imatge";
+"Image copied" = "Imatge copiada";
+"Image saved" = "Imatge desada";
+"Nothing is uploaded. This image is created on your Mac." = "No es puja res. Aquesta imatge es crea al Mac.";
+"Save..." = "Desa...";
+"Share AI Usage" = "Comparteix l’ús de la IA";
+"Share Stats…" = "Comparteix les estadístiques…";
+"Stats copied" = "Estadístiques copiades";
 "Finish switching to a different Cursor account in your browser, then try again." = "Acabeu de canviar a un compte de Cursor diferent al navegador i torneu-ho a provar.";
 "Timed out waiting for Cursor account switch. %@" = "S'ha esgotat el temps d'espera del canvi de compte de Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "S'ha esgotat el temps d'espera del canvi de compte de Cursor. %@ Últim error: %@";

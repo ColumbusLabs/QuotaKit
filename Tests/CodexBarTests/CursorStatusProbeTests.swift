@@ -1084,6 +1084,8 @@ extension CursorStatusProbeTests {
             }
         }
 
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
         let baseURL = try #require(URL(string: "https://cursor-web.test"))
         let snapshot = try await CursorStatusProbe(
             baseURL: baseURL,
@@ -1186,6 +1188,8 @@ extension CursorStatusProbeTests {
             }
         }
 
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
         let baseURL = try #require(URL(string: "https://cursor.test"))
         let accessToken = try makeCursorAppAuthToken()
         let snapshot = try await CursorStatusProbe(

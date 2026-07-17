@@ -22,6 +22,39 @@ struct CursorImportedSessionScanningTests {
     }
 
     @Test
+    func `resolved browser scan stops on non authentication data failure`() async {
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
+        let attempts = LockedArray<String>()
+        let paginationError = CostUsageError.cursorPaginationIncomplete(expected: 10, received: 5)
+
+        let error = await #expect(throws: CostUsageError.self) {
+            _ = try await probe.scanResolvedBrowsers(
+                [.chrome],
+                importSessions: { _ in
+                    [
+                        Self.makeSessionInfo(sourceLabel: "Account A"),
+                        Self.makeSessionInfo(sourceLabel: "Account B"),
+                    ]
+                },
+                attemptFetch: { session in
+                    attempts.append(session.sourceLabel)
+                    if session.sourceLabel == "Account A" {
+                        throw paginationError
+                    }
+                    return .succeeded("wrong account")
+                })
+        }
+
+        guard case let .cursorPaginationIncomplete(expected, received) = error else {
+            Issue.record("Expected the original pagination error")
+            return
+        }
+        #expect(expected == 10)
+        #expect(received == 5)
+        #expect(attempts.snapshot() == ["Account A"])
+    }
+
+    @Test
     func `browser login candidates return every valid unique session without committing cache`() async throws {
         let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
         let strictPersonal = Self.makeSessionInfo(sourceLabel: "Comet Default", cookieValue: "personal")
@@ -230,6 +263,84 @@ struct CursorImportedSessionScanningTests {
                     return
                 }
                 #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == "fixtureSession=selected")
+            }
+        }
+    }
+
+    @Test
+    func `resolved session accepts result when the same credential is cached concurrently`() async throws {
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
+        let session = Self.makeSessionInfo(sourceLabel: "Background", cookieValue: "background")
+        let service = "cursor-login-same-credential-race-\(UUID().uuidString)"
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        try await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                let observation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
+                let outcome = try await probe.resolveImportedSession(
+                    session,
+                    perform: { cookieHeader, _ in
+                        #expect(CookieHeaderCache.storeResult(
+                            provider: .cursor,
+                            cookieHeader: cookieHeader,
+                            sourceLabel: "Interactive login"))
+                        return cookieHeader
+                    },
+                    log: { _ in },
+                    cacheObservation: observation)
+
+                guard case let .succeeded(cookieHeader) = outcome else {
+                    Issue.record("Expected the matching concurrent credential result")
+                    return
+                }
+                #expect(cookieHeader == session.cookieHeader)
+                #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == session.cookieHeader)
+            }
+        }
+    }
+
+    @Test
+    func `resolved session retries a different credential cached concurrently`() async throws {
+        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
+        let session = Self.makeSessionInfo(sourceLabel: "Background", cookieValue: "background")
+        let replacement = "fixtureSession=replacement"
+        let attempts = LockedArray<String>()
+        let service = "cursor-login-replacement-race-\(UUID().uuidString)"
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
+
+        try await KeychainCacheStore.withServiceOverrideForTesting(service) {
+            try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+
+                let observation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
+                let outcome = try await probe.resolveImportedSession(
+                    session,
+                    perform: { cookieHeader, _ in
+                        attempts.append(cookieHeader)
+                        if cookieHeader == session.cookieHeader {
+                            #expect(CookieHeaderCache.storeResult(
+                                provider: .cursor,
+                                cookieHeader: replacement,
+                                sourceLabel: "Interactive login"))
+                        }
+                        return cookieHeader
+                    },
+                    log: { _ in },
+                    cacheObservation: observation)
+
+                guard case let .succeeded(cookieHeader) = outcome else {
+                    Issue.record("Expected the replacement credential result")
+                    return
+                }
+                #expect(cookieHeader == replacement)
+                #expect(attempts.snapshot() == [session.cookieHeader, replacement])
+                #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == replacement)
             }
         }
     }

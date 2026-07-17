@@ -252,10 +252,10 @@ extension UsageMenuCardView.Model {
         {
             return Self.poeInlineDashboard(usage, now: input.now)
         }
-        if [.codex, .claude, .vertexai, .bedrock].contains(input.provider),
+        if [.codex, .claude, .vertexai, .bedrock, .cursor].contains(input.provider),
            input.tokenCostInlineDashboardEnabled,
            let tokenSnapshot = input.tokenSnapshot,
-           !tokenSnapshot.daily.isEmpty
+           !tokenSnapshot.daily.isEmpty || tokenSnapshot.meteredCostUSD != nil
         {
             return Self.costHistoryInlineDashboard(
                 provider: input.provider,
@@ -425,26 +425,35 @@ extension UsageMenuCardView.Model {
         } else {
             "\(providerName) \(periodLabel) cost trend"
         }
+        var kpis = [
+            InlineUsageDashboardModel.KPI(
+                title: provider == .codex
+                    ? "\(L("Today")) · \(L("codex_api_estimate_header"))"
+                    : usesLatestPrimary ? L("Latest") : L("Today"),
+                value: primaryCostUSD.map { Self.costString($0, currencyCode: snapshot.currencyCode) } ?? "—",
+                emphasis: true),
+            .init(
+                title: historyTitle,
+                value: snapshot.last30DaysCostUSD
+                    .map { Self.costString($0, currencyCode: snapshot.currencyCode) } ?? "—",
+                emphasis: false),
+            .init(
+                title: tokenHistoryTitle,
+                value: snapshot.last30DaysTokens.map(UsageFormatter.tokenCountString) ?? "—",
+                emphasis: false),
+        ] + Self.costHistoryTrailingKPIs(snapshot: snapshot, latest: latest)
+        if provider == .cursor, let meteredCostUSD = snapshot.meteredCostUSD {
+            kpis.insert(
+                .init(
+                    title: "Cursor-metered",
+                    value: Self.costString(meteredCostUSD, currencyCode: snapshot.currencyCode),
+                    emphasis: true),
+                at: 0)
+        }
         var model = InlineUsageDashboardModel(
             accessibilityLabel: accessibilityLabel,
             valueStyle: Self.costValueStyle(currencyCode: snapshot.currencyCode),
-            kpis: [
-                .init(
-                    title: provider == .codex
-                        ? "\(L("Today")) · \(L("codex_api_estimate_header"))"
-                        : usesLatestPrimary ? L("Latest") : L("Today"),
-                    value: primaryCostUSD.map { Self.costString($0, currencyCode: snapshot.currencyCode) } ?? "—",
-                    emphasis: true),
-                .init(
-                    title: historyTitle,
-                    value: snapshot.last30DaysCostUSD
-                        .map { Self.costString($0, currencyCode: snapshot.currencyCode) } ?? "—",
-                    emphasis: false),
-                .init(
-                    title: tokenHistoryTitle,
-                    value: snapshot.last30DaysTokens.map(UsageFormatter.tokenCountString) ?? "—",
-                    emphasis: false),
-            ] + Self.costHistoryTrailingKPIs(snapshot: snapshot, latest: latest),
+            kpis: kpis,
             points: points,
             detailLines: details)
         model.currencyCode = snapshot.currencyCode
@@ -707,7 +716,9 @@ extension UsageMenuCardView.Model {
             }
         }
         return tokens.max {
-            if $0.value == $1.value { return $0.key > $1.key }
+            if $0.value == $1.value {
+                return $0.key > $1.key
+            }
             return $0.value < $1.value
         }?.key
     }
@@ -720,7 +731,9 @@ extension UsageMenuCardView.Model {
             }
         }
         return tokens.max {
-            if $0.value == $1.value { return $0.key > $1.key }
+            if $0.value == $1.value {
+                return $0.key > $1.key
+            }
             return $0.value < $1.value
         }?.key
     }
@@ -738,7 +751,9 @@ extension UsageMenuCardView.Model {
     }
 
     private static func costValueStyle(currencyCode: String) -> InlineUsageDashboardModel.ValueStyle {
-        if currencyCode == "USD" { return .currencyUSD }
+        if currencyCode == "USD" {
+            return .currencyUSD
+        }
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
         formatter.currencyCode = currencyCode
@@ -770,7 +785,9 @@ extension UsageMenuCardView.Model {
             }
         }
         return scores.max {
-            if $0.value.cost == $1.value.cost { return $0.value.tokens < $1.value.tokens }
+            if $0.value.cost == $1.value.cost {
+                return $0.value.tokens < $1.value.tokens
+            }
             return $0.value.cost < $1.value.cost
         }?.key
     }

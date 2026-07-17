@@ -85,6 +85,27 @@ When **Settings -> Advanced -> Track provider local storage** is enabled on macO
 
 The storage detail lists measured paths and their sizes. QuotaKit does not delete Cursor data.
 
+## Token cost (dashboard API)
+The cost summary's Cursor section is opt-in: it only fetches when **Show cost summary** is enabled and the Cursor provider is on.
+Unlike Claude and Codex cost (scanned from local session logs on this machine), Cursor cost is remote, account-wide data from the cursor.com dashboard, so it covers usage from every machine on the account.
+
+Auth reuses the exact status-probe session resolution and cookie-source policy:
+- **Auto**: cached cookie header → browser cookie import → stored WebKit session → Cursor.app local auth.
+- **Manual**: a non-empty pasted cookie header is required and forwarded as-is, so cost and status share the same session; an empty header fails closed instead of falling back to another account.
+- **Off**: the fetch is skipped in the app; `codexbar cost --provider cursor` fails explicitly and `/cost` returns a provider error row.
+
+Fetch behavior:
+- `POST https://cursor.com/api/dashboard/get-filtered-usage-events` (cookie-authenticated; requires a matching `Origin` for CSRF).
+- Pages of 1000 events (up to 200 pages), with exact page-boundary overlap removed before aggregation. Reaching the safety cap or otherwise receiving fewer events than Cursor reports fails the refresh instead of publishing a partial total.
+- The window start is snapped to the local day boundary so a 1-day window covers all of today and wider windows keep their full first day.
+
+Two totals are reported from the same events:
+- **API-rate estimate**: vendor list price from each event's `tokenUsage` cents, aggregated per day/model (comparable to the Claude/Codex estimates).
+- **Cursor-metered** (`meteredCostUSD`): what Cursor's plan actually deducts over the window, shown as its own "Cursor-metered:" line.
+- Metered-only request events remain visible even when Cursor does not include token details; cookie/config resolution failures stop the fetch instead of falling back to another session.
+
+Caching: the app holds the snapshot for an in-memory hourly TTL, keyed by the history window plus the cookie source and resolved account (manual-cookie hash or auto-mode account fingerprint), so switching accounts or pasting a new cookie invalidates it immediately.
+
 ## Snapshot mapping
 - Primary: plan usage percent (included plan).
 - Secondary: Auto + Composer usage percent.

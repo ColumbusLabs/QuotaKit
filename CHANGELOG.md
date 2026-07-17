@@ -1,5 +1,10 @@
 # Changelog
 
+## Upstream sync tail — 2026-07-17
+
+- Integrated upstream through `e6b2ea490`, including Neuralwatt quota and prepaid-credit tracking, Cursor dashboard token-cost reporting, private local usage-sharing cards, and hardened shared-stat aggregation and rendering.
+- Preserved QuotaKit and Columbus Labs public identity, release and appcast ownership, CloudKit configuration, shipped upstream version tracking, and all Mac/iOS build numbers.
+
 ## Upstream sync — 2026-07-17
 
 - Integrated upstream through `63215da42`, including ClinePass and LongCat providers, the unified usage and spend dashboard, external quota/provider hooks, safer background credential discovery, account-scoped quota and cost fixes, and hardened CLI/dashboard serving.

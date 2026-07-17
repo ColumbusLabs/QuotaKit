@@ -44,7 +44,9 @@ See `docs/configuration.md` for the schema.
 ## Command
 - `quotakit` defaults to the `usage` command.
   - `--format text|json` (default: text).
-- `quotakit cost` prints local token cost usage for Claude + Codex without web/CLI access.
+- `quotakit cost` prints token cost usage for Claude, Codex, and Cursor.
+  - Claude and Codex are scanned from local session logs without web/CLI access.
+  - Cursor is fetched from the cookie-authenticated cursor.com dashboard API (macOS only; see `docs/cursor.md`) and honors the configured cookie source: a non-empty Manual header is required and forwarded, while Off fails explicitly instead of silently omitting Cursor.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
 - `quotakit cards` prints a one-shot usage snapshot as a responsive terminal card grid.
@@ -141,12 +143,14 @@ payloads include the visible account label in `account`.
 
 ### Cost JSON payload
 `quotakit cost --format json` emits an array of payloads (one per provider).
-- `provider`, `source`, `updatedAt`
+- `provider`, `source` (`local` for Claude/Codex log scans, `web` for Cursor dashboard data), `updatedAt`
 - `sessionTokens`, `sessionCostUSD`
 - `last30DaysTokens`, `last30DaysCostUSD`
+- Cursor only: `meteredCostUSD` — what Cursor's plan actually deducts over the window, alongside the API-rate estimate in `last30DaysCostUSD`.
 - `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)
 - Codex only: `projects[]`: `name`, `path`, `totalTokens`, `totalCost`, `daily[]`, `modelBreakdowns[]`, `sources[]`
 - `totals`: `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`
+- `error`: structured provider error when a fetch fails (for example Cursor requested while its cookie source is Off).
 
 ## Example usage
 ```
@@ -159,6 +163,7 @@ quotakit cost                     # local cost usage (default 30-day window + to
 quotakit cost --days 90           # choose a 1...365 day cost window
 quotakit cost --provider codex --group-by project
 quotakit cost --provider claude --format json --pretty
+quotakit cost --provider cursor   # Cursor dashboard cost (API-rate + Cursor-metered)
 quotakit serve --port 8080        # localhost HTTP JSON server
 quotakit serve --request-timeout 0 # disable serve request deadlines
 QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve # token-gated dashboard snapshot

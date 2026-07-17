@@ -243,6 +243,8 @@ extension CodexBarCLI {
             KiloSettingsReader.apiKey(environment: environment) != nil
         case .factory:
             FactorySettingsReader.apiKey(environment: environment) != nil
+        case .neuralwatt:
+            NeuralWattSettingsReader.apiKey(environment: environment) != nil
         default:
             false
         }

@@ -1205,6 +1205,16 @@
 "Show Codex Spark usage" = "Visa Codex Spark-användning";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Visar kvotrader för Codex Spark i menyn och i förhandsvisningen för leverantören. Kräver att ”Visa krediter och extra användning” är aktiverat under Visning i Inställningar.";
 "Scroll to see more models" = "Rulla för att se fler modeller";
+"Copy Image" = "Kopiera bild";
+"Copy Stats" = "Kopiera statistik";
+"Could not copy image" = "Kunde inte kopiera bilden";
+"Image copied" = "Bilden kopierades";
+"Image saved" = "Bilden sparades";
+"Nothing is uploaded. This image is created on your Mac." = "Inget laddas upp. Bilden skapas på din Mac.";
+"Save..." = "Spara...";
+"Share AI Usage" = "Dela AI-användning";
+"Share Stats…" = "Dela statistik…";
+"Stats copied" = "Statistiken kopierades";
 "DeepSeek this month token usage trend" = "Trend för DeepSeek-tokenanvändning den här månaden";
 "Chrome profile" = "Chrome-profil";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Välj vilken inloggad DeepSeek Platform-session som ska ge detaljerad användning.";

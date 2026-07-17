@@ -1206,6 +1206,16 @@
 "Show Codex Spark usage" = "Codex-Spark-Nutzung anzeigen";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Zeigt die Codex-Spark-Kontingentzeilen im Menü und in der Anbietervorschau an. Erfordert, dass „Credits + zusätzliche Nutzung anzeigen“ in den Anzeigeeinstellungen aktiviert ist.";
 "Scroll to see more models" = "Scrollen, um weitere Modelle zu sehen";
+"Copy Image" = "Bild kopieren";
+"Copy Stats" = "Statistiken kopieren";
+"Could not copy image" = "Bild konnte nicht kopiert werden";
+"Image copied" = "Bild kopiert";
+"Image saved" = "Bild gespeichert";
+"Nothing is uploaded. This image is created on your Mac." = "Es wird nichts hochgeladen. Dieses Bild wird auf deinem Mac erstellt.";
+"Save..." = "Speichern...";
+"Share AI Usage" = "KI-Nutzung teilen";
+"Share Stats…" = "Statistiken teilen…";
+"Stats copied" = "Statistiken kopiert";
 "DeepSeek this month token usage trend" = "Trend der DeepSeek-Token-Nutzung in diesem Monat";
 "Chrome profile" = "Chrome-Profil";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Wähle aus, welche angemeldete DeepSeek-Platform-Sitzung detaillierte Nutzungsdaten liefert.";
