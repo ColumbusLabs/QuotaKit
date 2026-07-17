@@ -1,5 +1,25 @@
 /* Ukrainian localization for CodexBar */
 
+"tab_hooks" = "Хуки";
+"hooks_enable_title" = "Увімкнути хуки";
+"hooks_enable_subtitle" = "Запускати зовнішні команди під час подій квоти або провайдера.";
+"hooks_trust_warning" = "Хуки можуть виконувати локальні команди на вашому Mac. Налаштовуйте лише надійні команди.";
+"hooks_rules_header" = "Правила";
+"hooks_empty" = "Хуки не налаштовано.";
+"hooks_add_rule" = "Додати правило";
+"hooks_delete_rule" = "Видалити правило";
+"hooks_rule_enabled" = "Увімкнено";
+"hooks_event" = "Подія";
+"hooks_provider" = "Провайдер";
+"hooks_any_provider" = "Будь-який провайдер";
+"hooks_threshold" = "Запускати за використання ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Аргументи";
+"hooks_argument_placeholder" = "Аргумент";
+"hooks_add_argument" = "Додати аргумент";
+"hooks_delete_argument" = "Видалити аргумент";
+
 "ollama_safari_cookie_access_hint" = "Для файлів cookie Safari програмі CodexBar потрібен повний доступ до диска (Системні параметри > Конфіденційність і безпека).";
 "ollama_browser_cookie_decryption_denied" = "Розшифрування файлів cookie %@ було відхилено у В’язці ключів; повторіть спробу за допомогою ручного оновлення.";
 "ollama_browser_cookie_decryption_disabled" = "Розшифрування файлів cookie %@ вимкнено в CodexBar; увімкніть доступ до В’язки ключів і оновіть.";
@@ -7,6 +27,7 @@
 " providers" = "провайдерів";
 "(System)" = "(Система)";
 "30d" = "30д";
+"7d" = "7д";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Керований вхід до Codex вже запущено. Перш ніж додавати, зачекайте, поки він закінчиться";
 "API key" = "Ключ API";
 "API region" = "регіон API";
@@ -301,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Зберігайте кілька заголовків OpenCode Go Cookie.";
 "Stored in the CodexBar config file." = "Зберігається у конфігураційному файлі CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Зберігається в ~/.codexbar/config.json.";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Зберігається в ~/.codexbar/config.json. Згенеруйте його на kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Зберігається в ~/.codexbar/config.json. Вставте ключ із панелі приладів Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Зберігається в ~/.codexbar/config.json. Вставте ключ API плану кодування з Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Зберігається в ~/.codexbar/config.json. Вставте ключ MiniMax API.";
@@ -529,7 +549,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Показує баланс DeepSeek на панелі меню.";
 "menu_bar_metric_subtitle_moonshot" = "Показує баланс API Moonshot / Kimi на панелі меню.";
 "menu_bar_metric_subtitle_mistral" = "Показує поточні витрати Mistral API на панелі меню.";
-"menu_bar_metric_subtitle_kimik2" = "Показує кредити API-ключа Kimi K2 на панелі меню.";
 "automatic" = "Автоматичний";
 "primary_api_key_limit" = "Основний (обмеження ключа API)";
 
@@ -1025,7 +1044,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш заголовок cookie Cursor, щоб отримати інформацію про використання. Натисніть OK, щоб продовжити.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш заголовок Factory cookie, щоб отримати дані про використання. Натисніть OK, щоб продовжити.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш маркер GitHub Copilot, щоб отримати інформацію про використання. Натисніть OK, щоб продовжити.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш ключ API Kimi K2, щоб він міг отримати дані про використання. Натисніть OK, щоб продовжити.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш токен автентифікації Kimi, щоб отримати інформацію про використання. Натисніть OK, щоб продовжити.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш токен MiniMax API, щоб отримати інформацію про використання. Натисніть OK, щоб продовжити.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar запитає у macOS Keychain ваш заголовок cookie MiniMax, щоб отримати інформацію про використання. Натисніть OK, щоб продовжити.";
@@ -1174,7 +1192,6 @@
 "byte_unit_megabytes" = "мегабайти";
 "byte_unit_gigabyte" = "гігабайт";
 "byte_unit_gigabytes" = "гігабайти";
-"CrossModel API spend trend" = "Тенденція витрат CrossModel API";
 
 /* Settings sidebar redesign */
 "Enable" = "Увімкнути";
@@ -1209,3 +1226,25 @@
 "Timed out waiting for Cursor account switch. %@" = "Минув час очікування зміни облікового запису Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Минув час очікування зміни облікового запису Cursor. %@ Остання помилка: %@";
 "Use Account" = "Використати обліковий запис";
+/* Spend dashboard */
+"tab_usage_spend" = "Використання й витрати";
+"Usage & Spend" = "Використання й витрати";
+"Local estimated cost history across supported providers." = "Локальна історія орієнтовних витрат у підтримуваних провайдерів.";
+"Time range" = "Період";
+"Track costs" = "Відстежувати витрати";
+"Cost tracking is off" = "Відстеження витрат вимкнено";
+"Turn on Track costs to build local estimates." = "Увімкніть «Відстежувати витрати», щоб створювати локальні оцінки.";
+"No local cost history yet" = "Локальної історії витрат ще немає";
+"Turn on cost tracking or refresh after using a supported provider." = "Увімкніть відстеження витрат або оновіть дані після використання підтримуваного провайдера.";
+"Refresh failures" = "Помилки оновлення";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Вихідні валюти залишаються розділеними; рядки облікових записів Codex не включають історію сеансів Pi.";
+"Spend unavailable" = "Витрати недоступні";
+"Model breakdown unavailable" = "Розподіл за моделями недоступний";
+"Local estimated history" = "Локальна історія оцінок";
+"Coverage" = "Охоплення";
+"Estimated spend" = "Орієнтовні витрати";
+"Tracked tokens" = "Відстежувані токени";
+"Subscriptions" = "Підписки";
+"By subscription" = "За підписками";
+"No model-level history" = "Немає історії за моделями";
+"Daily estimated spend" = "Орієнтовні щоденні витрати";

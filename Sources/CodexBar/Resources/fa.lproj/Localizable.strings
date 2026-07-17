@@ -7,6 +7,7 @@
 " providers" = " providers";
 "(System)" = "(سیستم)";
 "30d" = "30 روز";
+"7d" = "7 روز";
 "A managed Codex login is already running. Wait for it to finish before adding " = "یک ورود Codex مدیریت شده هم اکنون در حال اجرا است. صبر کنید تا تمام شود و بعد   را اضافه کنید";
 "API key" = "کلید API";
 "API region" = "منطقه API";
@@ -307,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "چندین هدر OpenCode Go Cookie را ذخیره کنید.";
 "Stored in the CodexBar config file." = "در فایل پیکربندی CodexBar ذخیره شده است.";
 "Stored in ~/.codexbar/config.json. " = "ذخیره شده در ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "ذخیره شده در ~/.codexbar/config.json. یکی را در kimi-k2.ai تولید کنید.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "ذخیره شده در ~/.codexbar/config.json. کلید را از داشبورد Synthetic پیست کنید.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "ذخیره شده در ~/.codexbar/config.json. کلید API برنامه کدنویسی خود را از مدل استودیو چسبانده کنید.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "ذخیره شده در ~/.codexbar/config.json. کلید MiniMax API خود را بچسبانید.";
@@ -510,7 +510,28 @@
 "tab_menu_bar" = "نوار منو";
 "tab_menu" = "منو";
 "tab_advanced" = "پیشرفته";
+"tab_hooks" = "قلاب‌ها";
 "tab_about" = "درباره";
+
+/* Hooks Pane */
+"hooks_enable_title" = "فعال‌سازی قلاب‌ها";
+"hooks_enable_subtitle" = "اجرای دستورهای خارجی هنگام رخ‌دادن رویدادهای سهمیه یا ارائه‌دهنده.";
+"hooks_trust_warning" = "قلاب‌ها می‌توانند دستورهای محلی را روی مک شما اجرا کنند. فقط دستورهایی را تنظیم کنید که به آن‌ها اعتماد دارید.";
+"hooks_rules_header" = "قوانین";
+"hooks_empty" = "هیچ قلابی پیکربندی نشده است.";
+"hooks_add_rule" = "افزودن قانون";
+"hooks_delete_rule" = "حذف قانون";
+"hooks_rule_enabled" = "فعال";
+"hooks_event" = "رویداد";
+"hooks_provider" = "ارائه‌دهنده";
+"hooks_any_provider" = "هر ارائه‌دهنده";
+"hooks_threshold" = "اجرا در مصرف ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "آرگومان‌ها";
+"hooks_argument_placeholder" = "آرگومان";
+"hooks_add_argument" = "افزودن آرگومان";
+"hooks_delete_argument" = "حذف آرگومان";
 "tab_debug" = "اشکال زدایی";
 
 /* Providers Pane */
@@ -534,7 +555,6 @@
 "menu_bar_metric_subtitle_deepseek" = "تعادل DeepSeek را در نوار منو نشان می دهد.";
 "menu_bar_metric_subtitle_moonshot" = "تعادل Moonshot / Kimi API را در نوار منو نشان می دهد.";
 "menu_bar_metric_subtitle_mistral" = "هزینه های Mistral API ماه جاری را در نوار منو نشان می دهد.";
-"menu_bar_metric_subtitle_kimik2" = "Kimi تیتراژ API کلید K2 در نوار منو نمایش داده می شود.";
 "automatic" = "اتوماتیک";
 "primary_api_key_limit" = "کلید اصلی (API حد کلید)";
 
@@ -1041,7 +1061,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain Cursor هدر کوکی تان را می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain Factory هدر کوکی تان را می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain توکن GitHub Copilot شما را درخواست می کند تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain کلید API K2 Kimi می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain توکن احراز هویت Kimi می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain توکن MiniMax API شما را درخواست می کند تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar از macOS Keychain MiniMax هدر کوکی تان را می خواهید تا بتواند استفاده را دریافت کند. برای ادامه روی OK کلیک کنید.";
@@ -1192,7 +1211,6 @@
 "byte_unit_megabytes" = "مگابایت";
 "byte_unit_gigabyte" = "گیگابایت";
 "byte_unit_gigabytes" = "گیگابایت";
-"CrossModel API spend trend" = "روند هزینه‌ی CrossModel API";
 
 /* Settings sidebar redesign */
 "Enable" = "فعال‌سازی";
@@ -1210,3 +1228,26 @@
 "Finish switching to a different Cursor account in your browser, then try again." = "تغییر به یک حساب Cursor دیگر را در مرورگر کامل کنید، سپس دوباره تلاش کنید.";
 "Timed out waiting for Cursor account switch. %@" = "مهلت انتظار برای تغییر حساب Cursor به پایان رسید. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "مهلت انتظار برای تغییر حساب Cursor به پایان رسید. %@ آخرین خطا: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "مصرف و هزینه";
+"Usage & Spend" = "مصرف و هزینه";
+"Local estimated cost history across supported providers." = "تاریخچه برآورد هزینه محلی در ارائه‌دهندگان پشتیبانی‌شده.";
+"Time range" = "بازه زمانی";
+"Track costs" = "پیگیری هزینه‌ها";
+"Cost tracking is off" = "پیگیری هزینه خاموش است";
+"Turn on Track costs to build local estimates." = "برای ایجاد برآوردهای محلی، «پیگیری هزینه‌ها» را روشن کنید.";
+"No local cost history yet" = "هنوز تاریخچه هزینه محلی وجود ندارد";
+"Turn on cost tracking or refresh after using a supported provider." = "پیگیری هزینه را روشن کنید یا پس از استفاده از یک ارائه‌دهنده پشتیبانی‌شده تازه‌سازی کنید.";
+"Refresh failures" = "خطاهای تازه‌سازی";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "ارزهای اصلی جدا نگه داشته می‌شوند؛ ردیف‌های حساب Codex تاریخچه نشست‌های Pi را دربر نمی‌گیرند.";
+"Spend unavailable" = "هزینه در دسترس نیست";
+"Model breakdown unavailable" = "تفکیک مدل در دسترس نیست";
+"Local estimated history" = "تاریخچه برآورد محلی";
+"Coverage" = "پوشش";
+"Estimated spend" = "برآورد هزینه";
+"Tracked tokens" = "توکن‌های پیگیری‌شده";
+"Subscriptions" = "اشتراک‌ها";
+"By subscription" = "بر اساس اشتراک";
+"No model-level history" = "تاریخچه‌ای در سطح مدل وجود ندارد";
+"Daily estimated spend" = "برآورد هزینه روزانه";

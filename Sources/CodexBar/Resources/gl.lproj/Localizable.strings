@@ -7,6 +7,7 @@
 " providers" = " provedores";
 "(System)" = "(Sistema)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Xa hai un inicio de sesión xestionado de Codex en curso. Agarda a que remate antes de engadir ";
 "API key" = "Chave de API";
 "API region" = "Rexión da API";
@@ -304,7 +305,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Garda varias cabeceiras de Cookie de OpenCode Go.";
 "Stored in the CodexBar config file." = "Gardado no ficheiro de configuración de CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Gardado en ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Gardado en ~/.codexbar/config.json. Xera un en kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Gardado en ~/.codexbar/config.json. Pega a chave do panel de Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Gardado en ~/.codexbar/config.json. Pega a túa chave de API do plan de programación desde Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Gardado en ~/.codexbar/config.json. Pega a túa chave de API de MiniMax.";
@@ -485,6 +485,27 @@
 "tab_menu_bar" = "Barra de menús";
 "tab_menu" = "Menú";
 "tab_advanced" = "Avanzado";
+"tab_hooks" = "Ganchos";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Activar ganchos";
+"hooks_enable_subtitle" = "Executa comandos externos cando se producen eventos de cota ou provedor.";
+"hooks_trust_warning" = "Os ganchos poden executar comandos locais no teu Mac. Configura só comandos nos que confíes.";
+"hooks_rules_header" = "Regras";
+"hooks_empty" = "Non hai ganchos configurados.";
+"hooks_add_rule" = "Engadir regra";
+"hooks_delete_rule" = "Eliminar regra";
+"hooks_rule_enabled" = "Activado";
+"hooks_event" = "Evento";
+"hooks_provider" = "Provedor";
+"hooks_any_provider" = "Calquera provedor";
+"hooks_threshold" = "Activar cun uso ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumentos";
+"hooks_argument_placeholder" = "Argumento";
+"hooks_add_argument" = "Engadir argumento";
+"hooks_delete_argument" = "Eliminar argumento";
 "tab_about" = "Acerca de";
 "tab_debug" = "Depuración";
 
@@ -507,7 +528,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Amosa o saldo de DeepSeek na barra de menús.";
 "menu_bar_metric_subtitle_moonshot" = "Amosa o saldo da API de Moonshot / Kimi na barra de menús.";
 "menu_bar_metric_subtitle_mistral" = "Amosa o gasto da API de Mistral do mes actual na barra de menús.";
-"menu_bar_metric_subtitle_kimik2" = "Amosa os créditos da chave de API de Kimi K2 na barra de menús.";
 "automatic" = "Automático";
 "primary_api_key_limit" = "Principal (límite da chave de API)";
 
@@ -872,7 +892,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS a túa cabeceira Cookie de Cursor para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS a túa cabeceira Cookie de Factory para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS o teu token de GitHub Copilot para obter o uso. Preme Aceptar para continuar.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS a túa chave de API de Kimi K2 para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS o teu token de autenticación de Kimi para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS o teu token de API de MiniMax para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar pediralle ao Chaveiro de macOS a túa cabeceira Cookie de MiniMax para obter o uso. Preme Aceptar para continuar.";
@@ -1063,7 +1082,6 @@
 "Clearing removes per-session environment metadata." = "Ao limpar elimínanse os metadatos de contorno de cada sesión.";
 "Clearing removes provider-owned cached data." = "Ao limpar elimínanse os datos da caché propiedade do provedor.";
 "Credits unavailable; keep Codex running to refresh." = "Os créditos non están dispoñibles; mantén Codex en execución para actualizalos.";
-"CrossModel API spend trend" = "Tendencia de gasto da API de CrossModel";
 "Daily" = "Diario";
 "Disable" = "Desactivar";
 "Disabled — no recent data" = "Desactivado — sen datos recentes";
@@ -1205,3 +1223,26 @@
 "Finish switching to a different Cursor account in your browser, then try again." = "Completa o cambio a outra conta de Cursor no navegador e téntao de novo.";
 "Timed out waiting for Cursor account switch. %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@ Último erro: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Uso e gasto";
+"Usage & Spend" = "Uso e gasto";
+"Local estimated cost history across supported providers." = "Historial local de custos estimados dos provedores compatibles.";
+"Time range" = "Intervalo de tempo";
+"Track costs" = "Rastrexar custos";
+"Cost tracking is off" = "O seguimento de custos está desactivado";
+"Turn on Track costs to build local estimates." = "Activa «Rastrexar custos» para crear estimacións locais.";
+"No local cost history yet" = "Aínda non hai historial local de custos";
+"Turn on cost tracking or refresh after using a supported provider." = "Activa o seguimento de custos ou actualiza despois de usar un provedor compatible.";
+"Refresh failures" = "Actualizacións falladas";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "As moedas orixinais mantéñense separadas; as filas das contas de Codex exclúen o historial de sesións de Pi.";
+"Spend unavailable" = "Gasto non dispoñible";
+"Model breakdown unavailable" = "Desglose por modelo non dispoñible";
+"Local estimated history" = "Historial local estimado";
+"Coverage" = "Cobertura";
+"Estimated spend" = "Gasto estimado";
+"Tracked tokens" = "Tokens rexistrados";
+"Subscriptions" = "Subscricións";
+"By subscription" = "Por subscrición";
+"No model-level history" = "Sen historial por modelo";
+"Daily estimated spend" = "Gasto diario estimado";

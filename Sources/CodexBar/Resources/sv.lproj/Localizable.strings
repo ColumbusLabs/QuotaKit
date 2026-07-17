@@ -1,5 +1,25 @@
 /* Swedish localization for CodexBar */
 
+"tab_hooks" = "Hooks";
+"hooks_enable_title" = "Aktivera hooks";
+"hooks_enable_subtitle" = "Kör externa kommandon vid kvot- eller leverantörshändelser.";
+"hooks_trust_warning" = "Hooks kan köra lokala kommandon på din Mac. Konfigurera endast kommandon du litar på.";
+"hooks_rules_header" = "Regler";
+"hooks_empty" = "Inga hooks har konfigurerats.";
+"hooks_add_rule" = "Lägg till regel";
+"hooks_delete_rule" = "Ta bort regel";
+"hooks_rule_enabled" = "Aktiverad";
+"hooks_event" = "Händelse";
+"hooks_provider" = "Leverantör";
+"hooks_any_provider" = "Valfri leverantör";
+"hooks_threshold" = "Kör vid användning ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argument";
+"hooks_argument_placeholder" = "Argument";
+"hooks_add_argument" = "Lägg till argument";
+"hooks_delete_argument" = "Ta bort argument";
+
 "ollama_safari_cookie_access_hint" = "Safari-cookies kräver full skivåtkomst för CodexBar (Systeminställningar > Integritet och säkerhet).";
 "ollama_browser_cookie_decryption_denied" = "Dekryptering av %@-cookies nekades i Nyckelhanteraren; försök igen med en manuell uppdatering.";
 "ollama_browser_cookie_decryption_disabled" = "Dekryptering av %@-cookies är inaktiverad i CodexBar; aktivera åtkomst till Nyckelhanteraren och uppdatera.";
@@ -7,6 +27,7 @@
 " providers" = " leverantörer";
 "(System)" = "(System)";
 "30d" = "30 d";
+"7d" = "7 d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "En hanterad Codex-inloggning körs redan. Vänta tills den är klar innan du lägger till ";
 "API key" = "API-nyckel";
 "API region" = "API-region";
@@ -302,7 +323,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Spara flera Cookie-headers för OpenCode Go.";
 "Stored in the CodexBar config file." = "Sparas i CodexBars konfigurationsfil.";
 "Stored in ~/.codexbar/config.json. " = "Sparas i ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Sparas i ~/.codexbar/config.json. Skapa en på kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Sparas i ~/.codexbar/config.json. Klistra in nyckeln från Synthetic-instrumentpanelen.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Sparas i ~/.codexbar/config.json. Klistra in din Coding Plan-API-nyckel från Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Sparas i ~/.codexbar/config.json. Klistra in din MiniMax-API-nyckel.";
@@ -528,7 +548,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Visar DeepSeek-saldot i menyraden.";
 "menu_bar_metric_subtitle_moonshot" = "Visar saldot för Moonshot/Kimi API i menyraden.";
 "menu_bar_metric_subtitle_mistral" = "Visar den aktuella månadens Mistral API-utgift i menyraden.";
-"menu_bar_metric_subtitle_kimik2" = "Visar Kimi K2-API-nyckelkrediter i menyraden.";
 "automatic" = "Automatiskt";
 "primary_api_key_limit" = "Primär (API-nyckelgräns)";
 
@@ -1116,7 +1135,6 @@
 "Paste a Cookie header or full cURL capture from T3 Chat settings." = "Klistra in en Cookie-header eller fullständig cURL-fångst från T3 Chat-inställningarna.";
 "%d days of credits data" = "%d dagar med kreditdata";
 "used after next regen" = "använt efter nästa regenerering";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar kommer att be macOS Nyckelring om din Kimi K2-API-nyckel så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Usage breakdown chart" = "Diagram över användningsfördelning";
 "Could not open browser for Antigravity" = "Kunde inte öppna webbläsare för Antigravity";
 "Stored in ~/.codexbar/config.json. AZURE_OPENAI_API_KEY is also supported." = "Sparas i ~/.codexbar/config.json. AZURE_OPENAI_API_KEY stöds också.";
@@ -1173,7 +1191,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"CrossModel API spend trend" = "CrossModel API-utgiftstrend";
 
 /* Settings sidebar redesign */
 "Enable" = "Aktivera";
@@ -1208,3 +1225,25 @@
 "Timed out waiting for Cursor account switch. %@" = "Tidsgränsen överskreds i väntan på byte av Cursor-konto. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Tidsgränsen överskreds i väntan på byte av Cursor-konto. %@ Senaste fel: %@";
 "Use Account" = "Använd konto";
+/* Spend dashboard */
+"tab_usage_spend" = "Användning och utgifter";
+"Usage & Spend" = "Användning och utgifter";
+"Local estimated cost history across supported providers." = "Lokal historik över uppskattade kostnader från leverantörer som stöds.";
+"Time range" = "Tidsintervall";
+"Track costs" = "Spåra kostnader";
+"Cost tracking is off" = "Kostnadsspårning är avstängd";
+"Turn on Track costs to build local estimates." = "Aktivera ”Spåra kostnader” för att skapa lokala uppskattningar.";
+"No local cost history yet" = "Ingen lokal kostnadshistorik än";
+"Turn on cost tracking or refresh after using a supported provider." = "Aktivera kostnadsspårning eller uppdatera efter att ha använt en leverantör som stöds.";
+"Refresh failures" = "Misslyckade uppdateringar";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Ursprungliga valutor hålls åtskilda; rader för Codex-konton utesluter Pi-sessionshistorik.";
+"Spend unavailable" = "Utgifter ej tillgängliga";
+"Model breakdown unavailable" = "Modellfördelning ej tillgänglig";
+"Local estimated history" = "Lokal uppskattad historik";
+"Coverage" = "Täckning";
+"Estimated spend" = "Uppskattade utgifter";
+"Tracked tokens" = "Spårade token";
+"Subscriptions" = "Abonnemang";
+"By subscription" = "Per abonnemang";
+"No model-level history" = "Ingen historik på modellnivå";
+"Daily estimated spend" = "Uppskattade dagliga utgifter";

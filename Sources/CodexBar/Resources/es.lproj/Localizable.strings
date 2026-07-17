@@ -1,5 +1,25 @@
 /* Spanish localization for CodexBar */
 
+"tab_hooks" = "Hooks";
+"hooks_enable_title" = "Activar hooks";
+"hooks_enable_subtitle" = "Ejecuta comandos externos cuando ocurran eventos de cuota o proveedor.";
+"hooks_trust_warning" = "Los hooks pueden ejecutar comandos locales en tu Mac. Configura solo comandos de confianza.";
+"hooks_rules_header" = "Reglas";
+"hooks_empty" = "No hay hooks configurados.";
+"hooks_add_rule" = "Añadir regla";
+"hooks_delete_rule" = "Eliminar regla";
+"hooks_rule_enabled" = "Activado";
+"hooks_event" = "Evento";
+"hooks_provider" = "Proveedor";
+"hooks_any_provider" = "Cualquier proveedor";
+"hooks_threshold" = "Ejecutar con uso ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumentos";
+"hooks_argument_placeholder" = "Argumento";
+"hooks_add_argument" = "Añadir argumento";
+"hooks_delete_argument" = "Eliminar argumento";
+
 "ollama_safari_cookie_access_hint" = "Las cookies de Safari necesitan acceso total al disco para CodexBar (Ajustes del Sistema > Privacidad y seguridad).";
 "ollama_browser_cookie_decryption_denied" = "Se rechazó en el Llavero el descifrado de las cookies de %@; vuelve a intentarlo con una actualización manual.";
 "ollama_browser_cookie_decryption_disabled" = "El descifrado de las cookies de %@ está desactivado en CodexBar; activa el acceso al Llavero y actualiza.";
@@ -7,6 +27,7 @@
 " providers" = " proveedores";
 "(System)" = "(Sistema)";
 "30d" = "30 d";
+"7d" = "7 d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Ya hay un inicio de sesión gestionado de Codex en curso. Espera a que termine antes de añadir ";
 "API key" = "Clave de API";
 "API region" = "Región de API";
@@ -302,7 +323,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Almacena varias cabeceras Cookie de OpenCode Go.";
 "Stored in the CodexBar config file." = "Almacenado en el archivo de configuración de CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Almacenado en ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Almacenado en ~/.codexbar/config.json. Genera una en kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Almacenado en ~/.codexbar/config.json. Pega la clave del panel de Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Almacenado en ~/.codexbar/config.json. Pega tu clave de API del plan de programación desde Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Almacenado en ~/.codexbar/config.json. Pega tu clave de API de MiniMax.";
@@ -521,7 +541,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Muestra el saldo de DeepSeek en la barra de menús.";
 "menu_bar_metric_subtitle_moonshot" = "Muestra el saldo de la API de Moonshot / Kimi en la barra de menús.";
 "menu_bar_metric_subtitle_mistral" = "Muestra el gasto de la API de Mistral del mes actual en la barra de menús.";
-"menu_bar_metric_subtitle_kimik2" = "Muestra los créditos de la clave de API de Kimi K2 en la barra de menús.";
 "automatic" = "Automático";
 "primary_api_key_limit" = "Principal (límite de la clave de API)";
 
@@ -881,7 +900,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu cabecera Cookie de Cursor para obtener el uso. Haz clic en OK para continuar.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu cabecera Cookie de Factory para obtener el uso. Haz clic en OK para continuar.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu token de GitHub Copilot para obtener el uso. Haz clic en OK para continuar.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu clave API de Kimi K2 para obtener el uso. Haz clic en OK para continuar.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu token de autenticación de Kimi para obtener el uso. Haz clic en OK para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu token API de MiniMax para obtener el uso. Haz clic en OK para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar pedirá a Llaveros de macOS tu cabecera Cookie de MiniMax para obtener el uso. Haz clic en OK para continuar.";
@@ -1035,7 +1053,6 @@
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabytes";
 "Open Status Page" = "Abrir página de estado";
-"CrossModel API spend trend" = "Tendencia de gasto de la API de CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Activar";
@@ -1208,3 +1225,25 @@
 "Use Account" = "Usar cuenta";
 "Weekly" = "Semanal";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "No se encontró el token de API de z.ai. Define apiKey en ~/.codexbar/config.json o Z_AI_API_KEY.";
+/* Spend dashboard */
+"tab_usage_spend" = "Uso y gasto";
+"Usage & Spend" = "Uso y gasto";
+"Local estimated cost history across supported providers." = "Historial local de costes estimados de proveedores compatibles.";
+"Time range" = "Intervalo de tiempo";
+"Track costs" = "Registrar costes";
+"Cost tracking is off" = "El seguimiento de costes está desactivado";
+"Turn on Track costs to build local estimates." = "Activa «Registrar costes» para crear estimaciones locales.";
+"No local cost history yet" = "Aún no hay historial local de costes";
+"Turn on cost tracking or refresh after using a supported provider." = "Activa el seguimiento local de costes o actualiza después de usar un proveedor compatible.";
+"Refresh failures" = "Actualizaciones fallidas";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Las divisas originales se mantienen separadas; las filas de cuentas de Codex excluyen el historial de sesiones de Pi.";
+"Spend unavailable" = "Gasto no disponible";
+"Model breakdown unavailable" = "Desglose por modelo no disponible";
+"Local estimated history" = "Historial local estimado";
+"Coverage" = "Cobertura";
+"Estimated spend" = "Gasto estimado";
+"Tracked tokens" = "Tokens registrados";
+"Subscriptions" = "Suscripciones";
+"By subscription" = "Por suscripción";
+"No model-level history" = "No hay historial por modelo";
+"Daily estimated spend" = "Gasto diario estimado";

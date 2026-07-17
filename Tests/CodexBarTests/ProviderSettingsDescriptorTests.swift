@@ -341,7 +341,9 @@ struct ProviderSettingsDescriptorTests {
 
         #expect(detailLine == fixture.store.sourceLabel(for: .alibaba))
     }
+}
 
+extension ProviderSettingsDescriptorTests {
     @Test
     func `devin presentation follows store source label`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-presentation")
@@ -355,7 +357,9 @@ struct ProviderSettingsDescriptorTests {
 
         #expect(detailLine == "web")
     }
+}
 
+extension ProviderSettingsDescriptorTests {
     @Test
     func `alibaba token plan settings expose cookie controls`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-alibaba-token-plan-settings")
@@ -837,6 +841,23 @@ struct ProviderSettingsDescriptorTests {
             modelPlaceholder: nil) == "No usage yet")
     }
 
+    @Test
+    func `deepseek hides profile picker when only one validated profile remains`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepseek-single-profile")
+        fixture.store.snapshots[.deepseek] = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            deepseekPlatformProfiles: [
+                DeepSeekPlatformProfile(id: "chrome:Default", name: "Chrome — Personal"),
+            ],
+            updatedAt: Date())
+        let context = fixture.settingsContext(provider: .deepseek)
+
+        #expect(DeepSeekProviderImplementation().settingsPickers(context: context).isEmpty)
+    }
+}
+
+extension ProviderSettingsDescriptorTests {
     private func makeSettingsFixture(
         suite: String,
         environmentBase: [String: String] = [:]) throws -> ProviderSettingsFixture
@@ -913,22 +934,5 @@ struct ProviderSettingsDescriptorTests {
     private final class ProviderSettingsContextState {
         var statusByID: [String: String] = [:]
         var lastRunAtByID: [String: Date] = [:]
-    }
-}
-
-extension ProviderSettingsDescriptorTests {
-    @Test
-    func `deepseek hides profile picker when only one validated profile remains`() throws {
-        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepseek-single-profile")
-        fixture.store.snapshots[.deepseek] = UsageSnapshot(
-            primary: nil,
-            secondary: nil,
-            deepseekPlatformProfiles: [
-                DeepSeekPlatformProfile(id: "chrome:Default", name: "Chrome — Personal"),
-            ],
-            updatedAt: Date())
-        let context = fixture.settingsContext(provider: .deepseek)
-
-        #expect(DeepSeekProviderImplementation().settingsPickers(context: context).isEmpty)
     }
 }

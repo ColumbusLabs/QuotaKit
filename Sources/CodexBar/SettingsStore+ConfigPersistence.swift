@@ -58,6 +58,17 @@ extension SettingsStore {
         }
     }
 
+    func updateHooks(_ mutate: (inout HooksConfig) -> Void) {
+        // Hooks never affect provider fetching, so mark the change as not affecting
+        // background work: the config persists and the pane re-renders (via
+        // configRevision), but no provider refresh is triggered.
+        self.updateConfig(reason: "hooks", affectsBackgroundWork: false) { config in
+            var hooks = config.hooks ?? HooksConfig()
+            mutate(&hooks)
+            config.hooks = (hooks.enabled || !hooks.events.isEmpty) ? hooks : nil
+        }
+    }
+
     /// Persists provider settings that only affect an already-visible provider detail.
     /// This avoids rebuilding status items and open menus for a local selection change.
     func updateProviderDetailConfig(

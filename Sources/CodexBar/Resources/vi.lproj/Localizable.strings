@@ -1,5 +1,25 @@
 /* English localization for CodexBar (base/fallback) */
 
+"tab_hooks" = "Hook";
+"hooks_enable_title" = "Bật hook";
+"hooks_enable_subtitle" = "Chạy lệnh bên ngoài khi có sự kiện hạn mức hoặc nhà cung cấp.";
+"hooks_trust_warning" = "Hook có thể chạy lệnh cục bộ trên máy Mac. Chỉ cấu hình các lệnh bạn tin cậy.";
+"hooks_rules_header" = "Quy tắc";
+"hooks_empty" = "Chưa cấu hình hook.";
+"hooks_add_rule" = "Thêm quy tắc";
+"hooks_delete_rule" = "Xóa quy tắc";
+"hooks_rule_enabled" = "Đã bật";
+"hooks_event" = "Sự kiện";
+"hooks_provider" = "Nhà cung cấp";
+"hooks_any_provider" = "Nhà cung cấp bất kỳ";
+"hooks_threshold" = "Chạy khi mức sử dụng ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Đối số";
+"hooks_argument_placeholder" = "Đối số";
+"hooks_add_argument" = "Thêm đối số";
+"hooks_delete_argument" = "Xóa đối số";
+
 "ollama_safari_cookie_access_hint" = "Cookie Safari cần Quyền truy cập toàn bộ ổ đĩa cho CodexBar (Cài đặt hệ thống > Quyền riêng tư & Bảo mật).";
 "ollama_browser_cookie_decryption_denied" = "Việc giải mã cookie %@ đã bị từ chối trong Chuỗi khóa; hãy thử lại bằng cách làm mới thủ công.";
 "ollama_browser_cookie_decryption_disabled" = "Việc giải mã cookie %@ bị tắt trong CodexBar; hãy bật quyền truy cập Chuỗi khóa rồi làm mới.";
@@ -7,6 +27,7 @@
 " providers" = "nhà cung cấp";
 "(System)" = "(Hệ thống)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Đăng nhập Codex được quản lý đã chạy. Đợi quá trình này hoàn tất trước khi thêm";
 "API key" = "API khóa";
 "API region" = "API khu vực";
@@ -301,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Lưu trữ nhiều tiêu đề Cookie OpenCode Go.";
 "Stored in the CodexBar config file." = "Được lưu trữ trong tệp cấu hình CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "Được lưu trữ trong ~/.codexbar/config.json.";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Được lưu trữ trong ~/.codexbar/config.json. Tạo một cái tại kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa từ bảng điều khiển Tổng hợp.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa Kế hoạch mã hóa API của bạn từ Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Được lưu trữ trong ~/.codexbar/config.json. Dán khóa MiniMax API của bạn.";
@@ -525,7 +545,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Hiển thị số dư DeepSeek trong thanh menu .";
 "menu_bar_metric_subtitle_moonshot" = "Hiển thị số dư Moonshot / Kimi API trong thanh menu .";
 "menu_bar_metric_subtitle_mistral" = "Hiển thị mức chi tiêu API của Mistral trong tháng hiện tại trong thanh menu .";
-"menu_bar_metric_subtitle_kimik2" = "Hiển thị Kimi K2 API -các khoản tín dụng chính trong thanh menu .";
 "automatic" = "Tự động";
 "primary_api_key_limit" = "Chính ( API giới hạn khóa)";
 
@@ -1021,7 +1040,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie Con trỏ của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie Factory của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho GitHub Copilot token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp khóa Kimi K2 API của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho Kimi auth token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cung cấp MiniMax API token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar sẽ yêu cầu macOS Keychain cho tiêu đề cookie MiniMax của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
@@ -1175,7 +1193,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Bật";
@@ -1210,3 +1227,25 @@
 "Timed out waiting for Cursor account switch. %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@ Lỗi gần nhất: %@";
 "Use Account" = "Sử dụng tài khoản";
+/* Spend dashboard */
+"tab_usage_spend" = "Sử dụng & Chi tiêu";
+"Usage & Spend" = "Sử dụng & Chi tiêu";
+"Local estimated cost history across supported providers." = "Lịch sử chi phí ước tính cục bộ trên các nhà cung cấp được hỗ trợ.";
+"Time range" = "Khoảng thời gian";
+"Track costs" = "Theo dõi chi phí";
+"Cost tracking is off" = "Đang tắt tính năng theo dõi chi phí";
+"Turn on Track costs to build local estimates." = "Bật “Theo dõi chi phí” để tạo ước tính cục bộ.";
+"No local cost history yet" = "Chưa có lịch sử chi phí cục bộ";
+"Turn on cost tracking or refresh after using a supported provider." = "Bật tính năng theo dõi chi phí hoặc làm mới sau khi sử dụng nhà cung cấp được hỗ trợ.";
+"Refresh failures" = "Lần làm mới thất bại";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Đơn vị tiền tệ gốc được giữ riêng biệt; các hàng tài khoản Codex không bao gồm lịch sử phiên Pi.";
+"Spend unavailable" = "Không có dữ liệu chi tiêu";
+"Model breakdown unavailable" = "Phân tích theo mô hình không khả dụng";
+"Local estimated history" = "Lịch sử ước tính cục bộ";
+"Coverage" = "Phạm vi";
+"Estimated spend" = "Chi tiêu ước tính";
+"Tracked tokens" = "Token được theo dõi";
+"Subscriptions" = "Gói đăng ký";
+"By subscription" = "Theo gói đăng ký";
+"No model-level history" = "Không có lịch sử theo mô hình";
+"Daily estimated spend" = "Chi tiêu ước tính hằng ngày";

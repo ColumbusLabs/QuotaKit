@@ -20,7 +20,7 @@ public enum MistralProviderDescriptor {
                 defaultEnabled: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
+                browserCookieOrder: ProviderBrowserCookieDefaults.mistralCookieImportOrder,
                 dashboardURL: "https://admin.mistral.ai/organization/usage",
                 statusPageURL: nil,
                 statusLinkURL: "https://status.mistral.ai"),
@@ -52,11 +52,12 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let cookieSource = context.settings?.mistral?.cookieSource ?? .auto
+        let session = try Self.resolveCookieSession(context: context, allowCached: true)
         do {
-            let (cookieHeader, csrfToken) = try Self.resolveCookieHeader(context: context, allowCached: true)
+            let csrf = session.csrfToken
             let usage = try await Self.fetchUsageWithVibe(
-                cookieHeader: cookieHeader,
-                csrfToken: csrfToken,
+                cookieHeader: session.cookieHeader,
+                csrfToken: csrf,
                 timeout: context.webTimeout)
             return self.makeResult(
                 usage: usage,
@@ -64,11 +65,26 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
         } catch MistralUsageError.invalidCredentials where cookieSource != .manual {
             #if os(macOS)
             CookieHeaderCache.clear(provider: .mistral)
-            let (cookieHeader, csrfToken) = try Self.resolveCookieHeader(context: context, allowCached: false)
-            let usage = try await Self.fetchUsageWithVibe(
-                cookieHeader: cookieHeader,
-                csrfToken: csrfToken,
+            let excludedSourceLabels = if session.wasCached {
+                Set<String>()
+            } else {
+                Set([session.sourceLabel].compactMap(\.self))
+            }
+            let sessions: [MistralCookieImporter.SessionInfo]
+            do {
+                sessions = try MistralCookieImporter.importSessions(
+                    browserDetection: context.browserDetection,
+                    excludingSourceLabels: excludedSourceLabels)
+            } catch MistralCookieImportError.noCookies {
+                throw MistralUsageError.invalidCredentials
+            }
+            let (usage, session) = try await Self.fetchUsageFromSessions(
+                sessions,
                 timeout: context.webTimeout)
+            CookieHeaderCache.store(
+                provider: .mistral,
+                cookieHeader: session.cookieHeader,
+                sourceLabel: session.sourceLabel)
             return self.makeResult(
                 usage: usage,
                 sourceLabel: "web")
@@ -77,6 +93,30 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
             #endif
         }
     }
+
+    #if os(macOS)
+    static func fetchUsageFromSessions(
+        _ sessions: [MistralCookieImporter.SessionInfo],
+        timeout: TimeInterval,
+        transport: ProviderHTTPTransport = ProviderHTTPClient.shared) async throws
+        -> (usage: UsageSnapshot, session: MistralCookieImporter.SessionInfo)
+    {
+        for session in sessions {
+            do {
+                let csrf = session.csrfToken
+                let usage = try await Self.fetchUsageWithVibe(
+                    cookieHeader: session.cookieHeader,
+                    csrfToken: csrf,
+                    timeout: timeout,
+                    transport: transport)
+                return (usage, session)
+            } catch MistralUsageError.invalidCredentials {
+                continue
+            }
+        }
+        throw MistralUsageError.invalidCredentials
+    }
+    #endif
 
     static func fetchUsageWithVibe(
         cookieHeader: String,
@@ -174,9 +214,10 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
         false
     }
 
-    private static func resolveCookieHeader(
+    private static func resolveCookieSession(
         context: ProviderFetchContext,
-        allowCached: Bool) throws -> (cookieHeader: String, csrfToken: String?)
+        allowCached: Bool) throws
+        -> (cookieHeader: String, csrfToken: String?, sourceLabel: String?, wasCached: Bool)
     {
         if let settings = context.settings?.mistral, settings.cookieSource == .manual {
             if let header = CookieHeaderNormalizer.normalize(settings.manualCookieHeader) {
@@ -184,7 +225,7 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
                 let hasSessionCookie = pairs.contains { $0.name.hasPrefix("ory_session_") }
                 if hasSessionCookie {
                     let csrfToken = pairs.first { $0.name == "csrftoken" }?.value
-                    return (header, csrfToken)
+                    return (header, csrfToken, nil, false)
                 }
             }
             throw MistralSettingsError.invalidCookie
@@ -197,14 +238,14 @@ struct MistralWebFetchStrategy: ProviderFetchStrategy {
         {
             let pairs = CookieHeaderNormalizer.pairs(from: cached.cookieHeader)
             let csrfToken = pairs.first { $0.name == "csrftoken" }?.value
-            return (cached.cookieHeader, csrfToken)
+            return (cached.cookieHeader, csrfToken, cached.sourceLabel, true)
         }
         let session = try MistralCookieImporter.importSession(browserDetection: context.browserDetection)
         CookieHeaderCache.store(
             provider: .mistral,
             cookieHeader: session.cookieHeader,
             sourceLabel: session.sourceLabel)
-        return (session.cookieHeader, session.csrfToken)
+        return (session.cookieHeader, session.csrfToken, session.sourceLabel, false)
         #else
         throw MistralSettingsError.missingCookie
         #endif

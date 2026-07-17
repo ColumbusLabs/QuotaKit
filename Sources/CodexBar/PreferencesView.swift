@@ -5,10 +5,12 @@ import SwiftUI
 /// Sidebar destinations of the settings window: fixed app panes plus one entry per provider.
 enum SettingsPane: Hashable {
     case general
+    case usageSpend
     case notifications
     case menuBar
     case menu
     case advanced
+    case hooks
     case about
     case debug
     case provider(UsageProvider)
@@ -23,10 +25,12 @@ enum SettingsPane: Hashable {
     var title: String {
         switch self {
         case .general: L("tab_general")
+        case .usageSpend: L("tab_usage_spend")
         case .notifications: L("tab_notifications")
         case .menuBar: L("tab_menu_bar")
         case .menu: L("tab_menu")
         case .advanced: L("tab_advanced")
+        case .hooks: L("tab_hooks")
         case .about: L("tab_about")
         case .debug: L("tab_debug")
         case let .provider(provider):
@@ -115,6 +119,8 @@ struct PreferencesView: View {
         switch self.selection.pane {
         case .general:
             GeneralPane(settings: self.settings)
+        case .usageSpend:
+            SpendDashboardPane(settings: self.settings, store: self.store)
         case .notifications:
             NotificationsPane(settings: self.settings)
         case .menuBar:
@@ -123,6 +129,8 @@ struct PreferencesView: View {
             MenuPane(settings: self.settings, store: self.store)
         case .advanced:
             AdvancedPane(settings: self.settings, store: self.store)
+        case .hooks:
+            HooksPane(settings: self.settings)
         case .about:
             AboutPane(updater: self.updater)
         case .debug:

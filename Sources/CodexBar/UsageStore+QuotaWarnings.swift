@@ -46,7 +46,16 @@ extension UsageStore {
         snapshot: UsageSnapshot,
         accountDiscriminator: String? = nil)
     {
-        guard self.settings.quotaWarningNotificationsEnabled else { return }
+        let notificationsEnabled = self.settings.quotaWarningNotificationsEnabled
+        // Hooks have their own enable switch and per-rule thresholds, so quota_low
+        // hooks run on a separate path that does not depend on the notification
+        // preference or the notification thresholds.
+        self.resetQuotaLowHookUsageIfConfigurationChanged()
+        let hooksActive = self.hasQuotaHookRule(event: .quotaLow, provider: provider)
+        if !hooksActive {
+            self.clearQuotaLowHookUsage(provider: provider)
+        }
+        guard notificationsEnabled || hooksActive else { return }
         if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
 
         let accountContext = QuotaWarningAccountContext(
@@ -68,22 +77,60 @@ extension UsageStore {
             primaryWindow = provider == .mimo || provider == .qoder ? nil : snapshot.primary
             secondaryWindow = provider == .mimo || provider == .qoder ? nil : snapshot.secondary
         }
-        self.handleQuotaWarningTransition(
-            provider: provider,
-            window: .session,
-            rateWindow: primaryWindow,
-            source: source,
-            accountContext: accountContext)
-        self.handleQuotaWarningTransition(
-            provider: provider,
-            window: .weekly,
-            rateWindow: secondaryWindow,
-            source: source,
-            accountContext: accountContext)
-        self.handleClaudeExtraWindowQuotaWarnings(
-            provider: provider,
-            snapshot: snapshot,
-            accountContext: accountContext)
+        if notificationsEnabled {
+            self.handleQuotaWarningTransition(
+                provider: provider,
+                window: .session,
+                rateWindow: primaryWindow,
+                source: source,
+                accountContext: accountContext)
+            self.handleQuotaWarningTransition(
+                provider: provider,
+                window: .weekly,
+                rateWindow: secondaryWindow,
+                source: source,
+                accountContext: accountContext)
+            self.handleClaudeExtraWindowQuotaWarnings(
+                provider: provider,
+                snapshot: snapshot,
+                accountContext: accountContext)
+        }
+
+        if hooksActive {
+            self.dispatchQuotaLowHooks(
+                provider: provider,
+                lane: QuotaLowHookLane(
+                    window: .session,
+                    windowID: nil,
+                    label: QuotaWarningWindow.session.displayName),
+                rateWindow: primaryWindow,
+                accountDiscriminator: accountContext.discriminator,
+                accountDisplayName: accountContext.displayName)
+            self.dispatchQuotaLowHooks(
+                provider: provider,
+                lane: QuotaLowHookLane(
+                    window: .weekly,
+                    windowID: nil,
+                    label: QuotaWarningWindow.weekly.displayName),
+                rateWindow: secondaryWindow,
+                accountDiscriminator: accountContext.discriminator,
+                accountDisplayName: accountContext.displayName)
+            let extraWindows = provider == .claude
+                ? (snapshot.extraRateWindows ?? []).filter(Self.isClaudeNotifiableExtraWindow)
+                : []
+            for named in extraWindows {
+                self.dispatchQuotaLowHooks(
+                    provider: provider,
+                    lane: QuotaLowHookLane(window: .weekly, windowID: named.id, label: named.title),
+                    rateWindow: named.window,
+                    accountDiscriminator: accountContext.discriminator,
+                    accountDisplayName: accountContext.displayName)
+            }
+            self.pruneQuotaLowHookUsage(
+                provider: provider,
+                accountDiscriminator: accountContext.discriminator,
+                keepingExtraWindowIDs: Set(extraWindows.map(\.id)))
+        }
     }
 
     /// Emit weekly-lane quota warnings for Claude's extra rate windows — model-scoped weekly

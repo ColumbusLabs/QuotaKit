@@ -251,6 +251,33 @@ extension CodexBarCLI {
         """
     }
 
+    static func hooksHelp(version: String) -> String {
+        """
+        CodexBar \(version)
+
+        Usage:
+          codexbar hooks list [--format text|json] [--pretty]
+          codexbar hooks enable
+          codexbar hooks disable
+          codexbar hooks test <event> --provider <name>
+
+        Description:
+          Run external commands when quota/provider events occur. Rules are stored in the
+          shared config file and are disabled by default. Events:
+          quota_low, quota_reached, quota_reset, provider_unavailable, provider_recovered,
+          refresh_failed.
+
+          Commands run directly (no shell), receive event metadata via CODEXBAR_* environment
+          variables and a JSON payload on stdin, and are timed out. Only configure commands you trust.
+
+        Examples:
+          codexbar hooks list
+          codexbar hooks enable
+          codexbar hooks test quota_reached --provider codex
+          codexbar hooks test quota_low --provider claude
+        """
+    }
+
     static func diagnoseHelp(version: String) -> String {
         """
         CodexBar \(version)
@@ -312,6 +339,8 @@ extension CodexBarCLI {
           codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)
           codexbar config set-api-key --provider zai --stdin --usage-scope team
                                    --organization-id <org> --workspace-id <project>
+          codexbar hooks <list|enable|disable> [--format text|json] [--pretty]
+          codexbar hooks test <event> --provider <name>
           codexbar cache clear <--cookies|--cost|--all> [--provider <name>]
           codexbar diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
 
@@ -336,6 +365,7 @@ extension CodexBarCLI {
           codexbar config validate --format json --pretty
           codexbar config enable --provider grok
           codexbar config set-api-key --provider elevenlabs --stdin
+          codexbar hooks test quota_reached --provider codex
           codexbar cache clear --cookies
           codexbar diagnose --provider minimax --format json --redact --output diagnostic.json
           codexbar diagnose --provider minimax --format json --pretty

@@ -1,5 +1,25 @@
 /* Chinese (Simplified) localization for CodexBar */
 
+"tab_hooks" = "钩子";
+"hooks_enable_title" = "启用钩子";
+"hooks_enable_subtitle" = "在配额或提供商事件发生时运行外部命令。";
+"hooks_trust_warning" = "钩子可以在 Mac 上执行本地命令。请仅配置你信任的命令。";
+"hooks_rules_header" = "规则";
+"hooks_empty" = "未配置钩子。";
+"hooks_add_rule" = "添加规则";
+"hooks_delete_rule" = "删除规则";
+"hooks_rule_enabled" = "已启用";
+"hooks_event" = "事件";
+"hooks_provider" = "提供商";
+"hooks_any_provider" = "任意提供商";
+"hooks_threshold" = "使用率 ≥ 时运行";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "参数";
+"hooks_argument_placeholder" = "参数";
+"hooks_add_argument" = "添加参数";
+"hooks_delete_argument" = "删除参数";
+
 "ollama_safari_cookie_access_hint" = "CodexBar 需要“完全磁盘访问权限”才能读取 Safari Cookie（系统设置 > 隐私与安全性）。";
 "ollama_browser_cookie_decryption_denied" = "钥匙串拒绝解密 %@ Cookie；请通过手动刷新重试。";
 "ollama_browser_cookie_decryption_disabled" = "CodexBar 中已停用 %@ Cookie 解密；请启用钥匙串访问权限并刷新。";
@@ -7,6 +27,7 @@
 " providers" = " 提供商";
 "(System)" = "（System）";
 "30d" = "30 天";
+"7d" = "7 天";
 "A managed Codex login is already running. Wait for it to finish before adding " = "托管 Codex 登录已在运行。请等待其完成后再添加 ";
 "API key" = "API 密钥";
 "API key limit" = "API 密钥限制";
@@ -310,7 +331,6 @@
 "Store multiple OpenCode Go Cookie headers." = "存储多个 OpenCode Go Cookie 标头。";
 "Stored in the CodexBar config file." = "存储在 CodexBar 配置文件中。";
 "Stored in ~/.codexbar/config.json. " = "存储在 ~/.codexbar/config.json 中。";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "存储在 ~/.codexbar/config.json 中。可在 kimi-k2.ai 生成。";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "存储在 ~/.codexbar/config.json 中。请粘贴来自 Synthetic 仪表盘的密钥。";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "存储在 ~/.codexbar/config.json 中。请粘贴来自 Model Studio 的 Coding Plan API 密钥。";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "存储在 ~/.codexbar/config.json 中。请粘贴你的 MiniMax API 密钥。";
@@ -509,7 +529,6 @@
 "menu_bar_metric_subtitle_deepseek" = "在菜单栏显示 DeepSeek 余额。";
 "menu_bar_metric_subtitle_moonshot" = "在菜单栏显示 Moonshot / Kimi API 余额。";
 "menu_bar_metric_subtitle_mistral" = "在菜单栏显示 Mistral API 本月支出。";
-"menu_bar_metric_subtitle_kimik2" = "在菜单栏显示 Kimi K2 API 密钥额度。";
 "automatic" = "自动";
 "primary_api_key_limit" = "主要（API 密钥限制）";
 "menu_bar_style_title" = "菜单栏样式";
@@ -756,7 +775,7 @@
 "This week" = "本周";
 "Week" = "本周";
 "Month" = "本月";
-"Models" = "模型数";
+"Models" = "模型";
 "24h tokens" = "24 小时 token 用量";
 "Latest hour" = "最近 1 小时";
 "Peak hour" = "峰值小时";
@@ -867,7 +886,6 @@
 "Cache read" = "缓存读取";
 "Claude Admin API 30 day spend trend" = "Claude Admin API 30 天支出趋势";
 "OpenRouter API key spend trend" = "OpenRouter API 密钥支出趋势";
-"CrossModel API spend trend" = "CrossModel API 支出趋势";
 "z.ai hourly token trend" = "z.ai 每小时 token 趋势";
 "MiniMax 30 day token usage trend" = "MiniMax 30 天 token 用量趋势";
 "Today cash" = "今日现金";
@@ -997,7 +1015,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 Cursor Cookie 标头，以获取用量。点击“确定”继续。";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 Factory Cookie 标头，以获取用量。点击“确定”继续。";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 GitHub Copilot token，以获取用量。点击“确定”继续。";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 Kimi K2 API 密钥，以获取用量。点击“确定”继续。";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 Kimi 认证 token，以获取用量。点击“确定”继续。";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 MiniMax API token，以获取用量。点击“确定”继续。";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar 将向 macOS 钥匙串请求你的 MiniMax Cookie 标头，以获取用量。点击“确定”继续。";
@@ -1185,3 +1202,25 @@
 "Timed out waiting for Cursor account switch. %@" = "等待切换 Cursor 账户超时。%@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "等待切换 Cursor 账户超时。%@ 最近错误：%@";
 "Use Account" = "使用此账户";
+/* Spend dashboard */
+"tab_usage_spend" = "用量与支出";
+"Usage & Spend" = "用量与支出";
+"Local estimated cost history across supported providers." = "所有受支持提供商的本地估算费用历史。";
+"Time range" = "时间范围";
+"Track costs" = "跟踪费用";
+"Cost tracking is off" = "费用跟踪已关闭";
+"Turn on Track costs to build local estimates." = "启用“跟踪费用”以生成本地估算。";
+"No local cost history yet" = "暂无本地费用历史";
+"Turn on cost tracking or refresh after using a supported provider." = "启用费用跟踪，或在使用受支持的提供商后刷新。";
+"Refresh failures" = "刷新失败";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "各原始币种保持分开；Codex 帐户行不包含 Pi 会话历史。";
+"Spend unavailable" = "支出数据不可用";
+"Model breakdown unavailable" = "模型明细不可用";
+"Local estimated history" = "本地估算历史";
+"Coverage" = "覆盖范围";
+"Estimated spend" = "估算支出";
+"Tracked tokens" = "已跟踪 token";
+"Subscriptions" = "订阅";
+"By subscription" = "按订阅";
+"No model-level history" = "暂无模型级历史";
+"Daily estimated spend" = "每日估算支出";

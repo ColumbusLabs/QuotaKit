@@ -208,6 +208,11 @@ extension UsageStore {
             ])
         switch descriptor.seriesName {
         case .session:
+            self.emitQuotaResetHook(
+                provider: context.provider,
+                window: .session,
+                usedPercent: currentUsed,
+                accountLabel: accountLabel)
             let event = SessionLimitResetEvent(
                 provider: context.provider,
                 accountIdentifier: accountIdentifier,
@@ -215,6 +220,11 @@ extension UsageStore {
                 usedPercent: currentUsed)
             NotificationCenter.default.post(name: .codexbarSessionLimitReset, object: event)
         case .weekly:
+            self.emitQuotaResetHook(
+                provider: context.provider,
+                window: .weekly,
+                usedPercent: currentUsed,
+                accountLabel: accountLabel)
             let event = WeeklyLimitResetEvent(
                 provider: context.provider,
                 accountIdentifier: accountIdentifier,

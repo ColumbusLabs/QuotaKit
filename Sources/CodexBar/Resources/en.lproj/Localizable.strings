@@ -7,6 +7,7 @@
 " providers" = " providers";
 "(System)" = "(System)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "A managed Codex login is already running. Wait for it to finish before adding ";
 "API key" = "API key";
 "API region" = "API region";
@@ -307,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Store multiple OpenCode Go Cookie headers.";
 "Stored in the CodexBar config file." = "Stored in the CodexBar config file.";
 "Stored in ~/.codexbar/config.json. " = "Stored in ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Stored in ~/.codexbar/config.json. Paste your MiniMax API key.";
@@ -510,8 +510,29 @@
 "tab_menu_bar" = "Menu Bar";
 "tab_menu" = "Menu";
 "tab_advanced" = "Advanced";
+"tab_hooks" = "Hooks";
 "tab_about" = "About";
 "tab_debug" = "Debug";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Enable hooks";
+"hooks_enable_subtitle" = "Run external commands when quota or provider events occur.";
+"hooks_trust_warning" = "Hooks can execute local commands on your Mac. Only configure commands you trust.";
+"hooks_rules_header" = "Rules";
+"hooks_empty" = "No hooks configured.";
+"hooks_add_rule" = "Add rule";
+"hooks_delete_rule" = "Delete rule";
+"hooks_rule_enabled" = "Enabled";
+"hooks_event" = "Event";
+"hooks_provider" = "Provider";
+"hooks_any_provider" = "Any provider";
+"hooks_threshold" = "Fire at usage ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Arguments";
+"hooks_argument_placeholder" = "Argument";
+"hooks_add_argument" = "Add argument";
+"hooks_delete_argument" = "Delete argument";
 
 /* Providers Pane */
 "select_a_provider" = "Select a provider";
@@ -534,7 +555,6 @@
 "menu_bar_metric_subtitle_deepseek" = "Shows the DeepSeek balance in the menu bar.";
 "menu_bar_metric_subtitle_moonshot" = "Shows the Moonshot / Kimi API balance in the menu bar.";
 "menu_bar_metric_subtitle_mistral" = "Choose Mistral API spend or Monthly Plan usage for the menu bar.";
-"menu_bar_metric_subtitle_kimik2" = "Shows Kimi K2 API-key credits in the menu bar.";
 "automatic" = "Automatic";
 "primary_api_key_limit" = "Primary (API key limit)";
 
@@ -907,7 +927,6 @@
 "Cache read" = "Cache read";
 "Claude Admin API 30 day spend trend" = "Claude Admin API 30 day spend trend";
 "OpenRouter API key spend trend" = "OpenRouter API key spend trend";
-"CrossModel API spend trend" = "CrossModel API spend trend";
 "z.ai hourly token trend" = "z.ai hourly token trend";
 "MiniMax 30 day token usage trend" = "MiniMax 30 day token usage trend";
 "Today cash" = "Today cash";
@@ -1042,7 +1061,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue.";
@@ -1210,3 +1228,26 @@
 "Finish switching to a different Cursor account in your browser, then try again." = "Finish switching to a different Cursor account in your browser, then try again.";
 "Timed out waiting for Cursor account switch. %@" = "Timed out waiting for Cursor account switch. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Timed out waiting for Cursor account switch. %@ Last error: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Usage & Spend";
+"Usage & Spend" = "Usage & Spend";
+"Local estimated cost history across supported providers." = "Local estimated cost history across supported providers.";
+"Time range" = "Time range";
+"Track costs" = "Track costs";
+"Cost tracking is off" = "Cost tracking is off";
+"Turn on Track costs to build local estimates." = "Turn on Track costs to build local estimates.";
+"No local cost history yet" = "No local cost history yet";
+"Turn on cost tracking or refresh after using a supported provider." = "Turn on cost tracking or refresh after using a supported provider.";
+"Refresh failures" = "Refresh failures";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Native currencies stay separate; Codex account rows exclude Pi session history.";
+"Spend unavailable" = "Spend unavailable";
+"Model breakdown unavailable" = "Model breakdown unavailable";
+"Local estimated history" = "Local estimated history";
+"Coverage" = "Coverage";
+"Estimated spend" = "Estimated spend";
+"Tracked tokens" = "Tracked tokens";
+"Subscriptions" = "Subscriptions";
+"By subscription" = "By subscription";
+"No model-level history" = "No model-level history";
+"Daily estimated spend" = "Daily estimated spend";

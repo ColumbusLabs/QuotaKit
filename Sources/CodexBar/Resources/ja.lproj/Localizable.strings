@@ -1,5 +1,25 @@
 /* Japanese localization for CodexBar */
 
+"tab_hooks" = "フック";
+"hooks_enable_title" = "フックを有効にする";
+"hooks_enable_subtitle" = "クォータまたはプロバイダーのイベント発生時に外部コマンドを実行します。";
+"hooks_trust_warning" = "フックはMac上でローカルコマンドを実行できます。信頼できるコマンドのみ設定してください。";
+"hooks_rules_header" = "ルール";
+"hooks_empty" = "フックは設定されていません。";
+"hooks_add_rule" = "ルールを追加";
+"hooks_delete_rule" = "ルールを削除";
+"hooks_rule_enabled" = "有効";
+"hooks_event" = "イベント";
+"hooks_provider" = "プロバイダー";
+"hooks_any_provider" = "すべてのプロバイダー";
+"hooks_threshold" = "使用率 ≥ で実行";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "引数";
+"hooks_argument_placeholder" = "引数";
+"hooks_add_argument" = "引数を追加";
+"hooks_delete_argument" = "引数を削除";
+
 "ollama_safari_cookie_access_hint" = "Safari Cookie を読み込むには、CodexBar にフルディスクアクセスが必要です（システム設定 > プライバシーとセキュリティ）。";
 "ollama_browser_cookie_decryption_denied" = "%@ Cookie の復号がキーチェーンで拒否されました。手動で更新して再試行してください。";
 "ollama_browser_cookie_decryption_disabled" = "%@ Cookie の復号が CodexBar で無効です。キーチェーンへのアクセスを有効にして更新してください。";
@@ -7,6 +27,7 @@
 " providers" = " 件のプロバイダ";
 "(System)" = "（システム）";
 "30d" = "30日";
+"7d" = "7日";
 "A managed Codex login is already running. Wait for it to finish before adding " = "管理対象の Codex ログインがすでに実行中です。完了を待ってから追加してください ";
 "API key" = "API キー";
 "API region" = "API リージョン";
@@ -301,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "複数の OpenCode Go Cookie ヘッダーを保存します。";
 "Stored in the CodexBar config file." = "CodexBar の設定ファイルに保存されます。";
 "Stored in ~/.codexbar/config.json. " = "~/.codexbar/config.json に保存されます。 ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "~/.codexbar/config.json に保存されます。kimi-k2.ai で生成できます。";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "~/.codexbar/config.json に保存されます。Synthetic ダッシュボードのキーを貼り付けてください。";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "~/.codexbar/config.json に保存されます。Model Studio の Coding Plan API キーを貼り付けてください。";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "~/.codexbar/config.json に保存されます。MiniMax API キーを貼り付けてください。";
@@ -526,7 +546,6 @@
 "menu_bar_metric_subtitle_deepseek" = "DeepSeek の残高をメニューバーに表示します。";
 "menu_bar_metric_subtitle_moonshot" = "Moonshot / Kimi API の残高をメニューバーに表示します。";
 "menu_bar_metric_subtitle_mistral" = "今月の Mistral API 支出をメニューバーに表示します。";
-"menu_bar_metric_subtitle_kimik2" = "Kimi K2 API キーのクレジットをメニューバーに表示します。";
 "automatic" = "自動";
 "primary_api_key_limit" = "プライマリ（API キー上限）";
 
@@ -1022,7 +1041,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Cursor の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Factory の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに GitHub Copilot のトークンへのアクセスを求めます。続けるには OK をクリックしてください。";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Kimi K2 の API キーへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに Kimi の認証トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに MiniMax の API トークンへのアクセスを求めます。続けるには OK をクリックしてください。";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar は使用量を取得するために、macOS キーチェーンに MiniMax の Cookie ヘッダーへのアクセスを求めます。続けるには OK をクリックしてください。";
@@ -1175,7 +1193,6 @@
 "byte_unit_megabytes" = "メガバイト";
 "byte_unit_gigabyte" = "ギガバイト";
 "byte_unit_gigabytes" = "ギガバイト";
-"CrossModel API spend trend" = "CrossModel API の支出推移";
 
 /* Settings sidebar redesign */
 "Enable" = "有効にする";
@@ -1210,3 +1227,25 @@
 "Timed out waiting for Cursor account switch. %@" = "Cursor アカウントの切り替え待機中にタイムアウトしました。%@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor アカウントの切り替え待機中にタイムアウトしました。%@ 最後のエラー: %@";
 "Use Account" = "アカウントを使用する";
+/* Spend dashboard */
+"tab_usage_spend" = "使用量と支出";
+"Usage & Spend" = "使用量と支出";
+"Local estimated cost history across supported providers." = "対応プロバイダ全体のローカル推定コスト履歴。";
+"Time range" = "期間";
+"Track costs" = "コストを追跡";
+"Cost tracking is off" = "コスト追跡はオフです";
+"Turn on Track costs to build local estimates." = "「コストを追跡」をオンにしてローカル推定を作成してください。";
+"No local cost history yet" = "ローカルのコスト履歴はまだありません";
+"Turn on cost tracking or refresh after using a supported provider." = "コスト追跡をオンにするか、対応プロバイダの使用後に更新してください。";
+"Refresh failures" = "更新失敗";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "各通貨は別々に扱われ、Codex アカウント行には Pi セッション履歴を含めません。";
+"Spend unavailable" = "支出を取得できません";
+"Model breakdown unavailable" = "モデル別の内訳を取得できません";
+"Local estimated history" = "ローカル推定履歴";
+"Coverage" = "対象範囲";
+"Estimated spend" = "推定支出";
+"Tracked tokens" = "追跡対象トークン";
+"Subscriptions" = "サブスクリプション";
+"By subscription" = "サブスクリプション別";
+"No model-level history" = "モデル別の履歴はありません";
+"Daily estimated spend" = "日別推定支出";

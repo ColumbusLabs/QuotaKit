@@ -7,6 +7,7 @@
 " providers" = " providers";
 "(System)" = "(النظام)";
 "30d" = "30 يومًا";
+"7d" = "7 أيام";
 "A managed Codex login is already running. Wait for it to finish before adding " = "تسجيل دخول Codex المدار يعمل بالفعل. انتظر حتى ينتهي قبل إضافة  ";
 "API key" = "مفتاح API";
 "API region" = "منطقة API";
@@ -307,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "تخزين عدة رؤوس OpenCode Go Cookie.";
 "Stored in the CodexBar config file." = "مخزنة في ملف الإعدادات CodexBar.";
 "Stored in ~/.codexbar/config.json. " = "مخزنة في ~/.codexbar/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "مخزن في ~/.codexbar/config.json. تولد واحدا عند kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "مخزنة في ~/.codexbar/config.json. الصق المفتاح من لوحة Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "مخزن في ~/.codexbar/config.json. الصق مفتاح خطة البرمجة الخاصة بك API من Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "مخزن في ~/.codexbar/config.json. الصق مفتاح MiniMax API الخاص بك.";
@@ -510,7 +510,28 @@
 "tab_menu_bar" = "شريط القوائم";
 "tab_menu" = "القائمة";
 "tab_advanced" = "متقدمة";
+"tab_hooks" = "الخطافات";
 "tab_about" = "حول";
+
+/* Hooks Pane */
+"hooks_enable_title" = "تفعيل الخطافات";
+"hooks_enable_subtitle" = "تشغيل أوامر خارجية عند وقوع أحداث الحصة أو المزود.";
+"hooks_trust_warning" = "يمكن للخطافات تنفيذ أوامر محلية على جهاز Mac. اضبط فقط الأوامر التي تثق بها.";
+"hooks_rules_header" = "القواعد";
+"hooks_empty" = "لا توجد خطافات مُهيأة.";
+"hooks_add_rule" = "إضافة قاعدة";
+"hooks_delete_rule" = "حذف القاعدة";
+"hooks_rule_enabled" = "مُفعّل";
+"hooks_event" = "الحدث";
+"hooks_provider" = "المزود";
+"hooks_any_provider" = "أي مزود";
+"hooks_threshold" = "التشغيل عند الاستخدام ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "الوسائط";
+"hooks_argument_placeholder" = "الوسيطة";
+"hooks_add_argument" = "إضافة وسيطة";
+"hooks_delete_argument" = "حذف الوسيطة";
 "tab_debug" = "تصحيح الأخطاء";
 
 /* Providers Pane */
@@ -534,7 +555,6 @@
 "menu_bar_metric_subtitle_deepseek" = "يظهر توازن DeepSeek في شريط القوائم.";
 "menu_bar_metric_subtitle_moonshot" = "يظهر توازن Moonshot / Kimi API في شريط القوائم.";
 "menu_bar_metric_subtitle_mistral" = "يعرض الإنفاق Mistral API الشهري الحالي في شريط القوائم.";
-"menu_bar_metric_subtitle_kimik2" = "يعرض Kimi اعتمادات K2 API المفاتيح في شريط القوائم.";
 "automatic" = "أوتوماتيكي";
 "primary_api_key_limit" = "الحد الأساسي (API المفاتيح)";
 
@@ -1041,7 +1061,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رأس الكوكيز Cursor الخاص بك حتى يتمكن من استخدام الاستخدام. انقر موافقا للمتابعة.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رأس الكوكيز Factory الخاص بك حتى يتمكن من استخدام الاستخدام. انقر موافقا للمتابعة.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رمز GitHub Copilot الخاص بك حتى يتمكن من استدعاء الاستخدام. انقر موافقا للمتابعة.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain مفتاح API K2 Kimi الخاص بك حتى يتمكن من جلب الاستخدام. انقر موافقا للمتابعة.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رمز التوثيق Kimi الخاص بك حتى يتمكن من استدعاء الاستخدام. انقر موافقا للمتابعة.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رمز MiniMax API الخاص بك حتى يتمكن من استدعاء الاستخدام. انقر موافقا للمتابعة.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "CodexBar سيطلب macOS Keychain رأس الكوكيز MiniMax الخاص بك حتى يتمكن من استخدام الاستخدام. انقر موافقا للمتابعة.";
@@ -1192,7 +1211,6 @@
 "byte_unit_megabytes" = "ميغابايتات";
 "byte_unit_gigabyte" = "غيغابايت";
 "byte_unit_gigabytes" = "غيغابايتات";
-"CrossModel API spend trend" = "اتجاه إنفاق CrossModel API";
 
 /* Settings sidebar redesign */
 "Enable" = "تفعيل";
@@ -1210,3 +1228,26 @@
 "Finish switching to a different Cursor account in your browser, then try again." = "أكمل التبديل إلى حساب Cursor مختلف في متصفحك، ثم حاول مرة أخرى.";
 "Timed out waiting for Cursor account switch. %@" = "انتهت مهلة انتظار تبديل حساب Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "انتهت مهلة انتظار تبديل حساب Cursor. %@ آخر خطأ: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "الاستخدام والإنفاق";
+"Usage & Spend" = "الاستخدام والإنفاق";
+"Local estimated cost history across supported providers." = "سجل التكاليف التقديري المحلي عبر المزوّدين المدعومين.";
+"Time range" = "النطاق الزمني";
+"Track costs" = "تتبّع التكاليف";
+"Cost tracking is off" = "تتبّع التكاليف متوقف";
+"Turn on Track costs to build local estimates." = "فعّل «تتبّع التكاليف» لإنشاء تقديرات محلية.";
+"No local cost history yet" = "لا يوجد سجل تكاليف محلي بعد";
+"Turn on cost tracking or refresh after using a supported provider." = "فعّل تتبّع التكاليف أو حدّث بعد استخدام مزوّد مدعوم.";
+"Refresh failures" = "حالات فشل التحديث";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "تبقى العملات الأصلية منفصلة؛ تستبعد صفوف حساب Codex سجل جلسات Pi.";
+"Spend unavailable" = "الإنفاق غير متاح";
+"Model breakdown unavailable" = "تفصيل الإنفاق حسب النموذج غير متاح";
+"Local estimated history" = "السجل التقديري المحلي";
+"Coverage" = "التغطية";
+"Estimated spend" = "الإنفاق التقديري";
+"Tracked tokens" = "الرموز المتتبعة";
+"Subscriptions" = "الاشتراكات";
+"By subscription" = "حسب الاشتراك";
+"No model-level history" = "لا يوجد سجل على مستوى النموذج";
+"Daily estimated spend" = "الإنفاق اليومي التقديري";
