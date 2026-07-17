@@ -14,6 +14,13 @@ struct CLIHooksTests {
     }
 
     @Test
+    func `sample refresh failure uses production status`() {
+        let event = CodexBarCLI.sampleHookEvent(type: .refreshFailed, provider: UsageProvider.codex.rawValue)
+
+        #expect(event.status == "error")
+    }
+
+    @Test
     func `hook test JSON result is structured`() throws {
         let result = HookTestResult(
             ruleID: "fixture",

@@ -167,7 +167,7 @@ extension CodexBarCLI {
             status = "none"
         case .refreshFailed:
             usagePercent = nil
-            status = "test failure"
+            status = "error"
         }
         return HookEvent(
             event: type,
