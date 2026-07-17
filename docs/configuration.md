@@ -18,7 +18,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
   ignored.
 - `~/.config/quotakit/config.json` when that file already exists.
 - `~/.quotakit/config.json` by default for new QuotaKit installs.
-- `~/.codexbar/config.json` is copied to the QuotaKit default path when the preferred file is absent.
+- `~/.quotakit/config.json` is copied to the QuotaKit default path when the preferred file is absent.
 - The directory is created if missing.
 - Permissions are set to `0600` whenever QuotaKit writes the file on macOS and Linux.
 
@@ -26,6 +26,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 ```json
 {
   "version": 1,
+  "hooks": null,
   "providers": [
     {
       "id": "codex",
@@ -42,6 +43,73 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
   ]
 }
 ```
+
+## External event hooks
+
+Hooks are local, explicit opt-in automation. Configure them in Settings > Hooks or in this local config file; no
+HTTP or remote-config endpoint can create or enable hook rules. The top-level `hooks.enabled` switch defaults to
+`false`, and each rule also has its own `enabled` switch.
+
+```json
+{
+  "hooks": {
+    "enabled": true,
+    "events": [
+      {
+        "id": "quota-alert",
+        "enabled": true,
+        "event": "quota_low",
+        "provider": "codex",
+        "threshold": 0.9,
+        "executable": "/usr/local/bin/quota-alert",
+        "arguments": ["--message", "Codex quota is low", ""],
+        "timeoutSeconds": 10
+      }
+    ]
+  }
+}
+```
+
+Commands run as direct executable invocations, never through a shell. `executable` must be an absolute path,
+`arguments` preserves exact argument boundaries (including spaces and empty arguments), and `timeoutSeconds` must be
+between `0.1` and `300`. Hook processes receive only a small allowlist of general environment variables plus the
+event's `QUOTAKIT_*` variables and legacy `CODEXBAR_*` aliases; QuotaKit provider keys and tokens are not inherited. The same event is also encoded as
+JSON on stdin. Only configure executables you trust.
+
+Events:
+
+- `quota_low`: a quota lane crosses the rule's `threshold` upward. Thresholds are usage fractions greater than `0`
+  and at most `1`;
+  rules without a threshold use the provider's configured warning thresholds.
+- `quota_reached`: the primary session quota crosses into depletion.
+- `quota_reset`: a confirmed session or weekly reset occurs.
+- `provider_unavailable`: a provider status changes to a minor, major, or critical outage.
+- `provider_recovered`: that tracked outage returns to normal.
+- `refresh_failed`: a provider refresh fails; `QUOTAKIT_STATUS` is a coarse category such as `timeout`, `offline`,
+  `network_error`, `auth_required`, `cancelled`, or `error`.
+
+`provider_unavailable` and `refresh_failed` are coalesced per provider/account/window for ten minutes so background
+refresh failures cannot create command storms. Quota and recovery events use their transition detectors instead. Hook
+failures are contained and never block provider refresh.
+
+Payload environment variables are `QUOTAKIT_EVENT`, `QUOTAKIT_PROVIDER`, `QUOTAKIT_TIMESTAMP`, and, when available,
+`QUOTAKIT_ACCOUNT`, `QUOTAKIT_WINDOW`, `QUOTAKIT_USAGE_PERCENT`, `QUOTAKIT_USED`, `QUOTAKIT_LIMIT`,
+`QUOTAKIT_RESET_AT`, and `QUOTAKIT_STATUS`. Matching `CODEXBAR_*` aliases remain available for upstream-compatible
+scripts. Enabling Hide personal info omits both account variables and the matching JSON field.
+
+The stdin JSON uses the same camel-case field names without the `QUOTAKIT_` prefix. Dates are UTC ISO 8601 strings,
+usage percentages are `0...1` fractions, unavailable optional fields are omitted rather than encoded as `null`, and
+keys are emitted in sorted order. A `quota_reached` payload is exactly shaped like this (the timestamps vary):
+
+```json
+{"event":"quota_reached","provider":"claude","resetAt":"2023-11-14T22:13:20Z","timestamp":"2023-11-14T22:15:00Z","usagePercent":0.42,"window":"session"}
+```
+
+The v1 field names and meanings are compatibility-stable. Hook consumers should ignore unknown fields so QuotaKit can
+add optional observability data without breaking existing commands.
+
+Safety limits: at most 32 rules, 32 arguments per rule, 4 KiB per executable or argument string, 32 KiB per command,
+and 4 KiB per event payload. Configurations beyond these limits fail closed and do not execute.
 
 ## Provider fields
 All provider fields are optional unless noted.
@@ -197,8 +265,8 @@ and never paste real cookie values or readable DevTools screenshots into public 
 z.ai team accounts also use `usageScope`, `organizationId`, and `workspaceID`; see [z.ai](zai.md).
 
 ## Provider IDs
-Current IDs (see `Sources/CodexBarCore/Providers/Providers.swift`):
-`codex`, `openai`, `azureopenai`, `claude`, `cursor`, `opencode`, `opencodego`, `alibaba`, `alibabatokenplan`, `factory`, `gemini`, `antigravity`, `copilot`, `devin`, `zai`, `minimax`, `manus`, `kimi`, `kilo`, `kiro`, `vertexai`, `augment`, `jetbrains`, `kimik2`, `moonshot`, `amp`, `t3chat`, `ollama`, `synthetic`, `warp`, `openrouter`, `elevenlabs`, `windsurf`, `zed`, `perplexity`, `mimo`, `doubao`, `sakana`, `abacus`, `mistral`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`, `qoder`, `stepfun`, `bedrock`, `grok`, `groq`, `llmproxy`, `litellm`, `deepgram`, `poe`, `chutes`, `crossmodel`, `clawrouter`, `sub2api`, `wayfinder`, `zenmux`.
+Current IDs (see `Sources/QuotaKitCore/Providers/Providers.swift`):
+`codex`, `openai`, `azureopenai`, `claude`, `clinepass`, `cursor`, `opencode`, `opencodego`, `alibaba`, `alibabatokenplan`, `factory`, `gemini`, `antigravity`, `copilot`, `devin`, `zai`, `minimax`, `manus`, `kimi`, `kilo`, `kiro`, `vertexai`, `augment`, `jetbrains`, `moonshot`, `amp`, `t3chat`, `ollama`, `synthetic`, `warp`, `openrouter`, `elevenlabs`, `windsurf`, `zed`, `perplexity`, `mimo`, `doubao`, `sakana`, `abacus`, `mistral`, `deepseek`, `codebuff`, `crof`, `venice`, `commandcode`, `qoder`, `stepfun`, `bedrock`, `grok`, `groq`, `llmproxy`, `litellm`, `deepgram`, `poe`, `chutes`, `clawrouter`, `longcat`, `sub2api`, `wayfinder`, `zenmux`.
 
 ## Ordering
 The order of `providers` controls display/order in the app and CLI. Reorder the array to change ordering.

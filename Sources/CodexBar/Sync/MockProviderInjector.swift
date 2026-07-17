@@ -115,7 +115,7 @@ enum MockProviderInjector {
     ///   error/rich) — exercise the high-traffic UI paths.
     /// - 35 simple single-account mocks (cursor, opencode, opencodego,
     ///   alibaba, factory, gemini, antigravity, copilot, zai, minimax,
-    ///   kimi, kilo, kiro, vertexai, augment, jetbrains, kimik2, amp,
+    ///   kimi, kilo, kiro, vertexai, augment, jetbrains, clinepass, amp,
     ///   ollama, synthetic, warp, openrouter, abacus, mistral) — exercise
     ///   each provider's first-class card on iPhone, plus 30-day
     ///   aggregate cost dashboard contribution.
@@ -250,7 +250,7 @@ enum MockProviderInjector {
         "codex", "claude", "cursor", "opencode", "opencodego",
         "alibaba", "factory", "gemini", "antigravity", "copilot",
         "zai", "minimax", "kimi", "kilo", "kiro",
-        "vertexai", "augment", "jetbrains", "kimik2", "amp",
+        "vertexai", "augment", "jetbrains", "clinepass", "amp",
         "ollama", "synthetic", "warp", "openrouter", "perplexity",
         "abacus", "mistral",
         // iOS 1.6.0 catch-up — must stay in sync with `simpleProviderProfiles`
@@ -1133,8 +1133,8 @@ enum MockProviderInjector {
             secondary: nil,
             thirtyDayCostUSD: 2.40, sessionCostUSD: 0.10),
         .init(
-            providerID: "kimik2", providerName: "Kimi K2",
-            accountLocal: "k2", loginMethod: "K2",
+            providerID: "clinepass", providerName: "ClinePass",
+            accountLocal: "personal", loginMethod: "API key",
             primaryUsage: 8, primaryLabel: "Daily",
             primaryWindowMinutes: 1440,
             primaryResetsInSeconds: 3600 * 4,

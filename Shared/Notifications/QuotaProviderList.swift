@@ -115,6 +115,10 @@ public enum QuotaProviderList {
         // iOS 1.11.3 catch-up — upstream v0.42.x live-tail provider.
         // 51 → 52 providers × 3 states = 156 zones.
         Provider(id: "zenmux", displayName: "ZenMux"),
+        // iOS 1.11.3 upstream-sync catch-up. Retired providers remain above so
+        // existing CloudKit subscription IDs and historical pushes stay compatible.
+        Provider(id: "clinepass", displayName: "ClinePass"),
+        Provider(id: "longcat", displayName: "LongCat"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

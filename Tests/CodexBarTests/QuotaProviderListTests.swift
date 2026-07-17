@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (52 after ZenMux catch-up)`() {
+    func `Provider list has expected count (54 after ClinePass and LongCat catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -23,9 +23,10 @@ struct QuotaProviderListTests {
         // v0.27.0) → 48 in iOS 1.9.0 (Azure OpenAI, Alibaba Token Plan,
         // T3 Chat from upstream v0.28.0+v0.29.0) → 49 in iOS 1.10.0
         // (Sakana AI from upstream v0.36.x) → 50 after Qoder from the
-        // same upstream line → 51 after Sub2API → 52 after ZenMux. Must stay synced with iOS-side test in
+        // same upstream line → 51 after Sub2API → 52 after ZenMux →
+        // 54 after ClinePass and LongCat. Must stay synced with iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift.
-        #expect(QuotaProviderList.providers.count == 52)
+        #expect(QuotaProviderList.providers.count == 54)
     }
 
     @Test
@@ -107,7 +108,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 52 × 3 = 156 (depleted + restored + warning)`() {
+    func `iOS subscription count is 54 × 3 = 162 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -116,14 +117,15 @@ struct QuotaProviderListTests {
         // 144 in iOS 1.9.0 (48 × 3 after the v0.28+v0.29 catch-up:
         // +azureopenai, +alibabatokenplan, +t3chat) →
         // 147 in iOS 1.10.0 (49 × 3 after adding Sakana AI) →
-        // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux.
+        // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux →
+        // 162 after adding ClinePass and LongCat.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 156)
+        #expect(subscriptionCount == 162)
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

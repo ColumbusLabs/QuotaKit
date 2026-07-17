@@ -78,7 +78,7 @@ enum MenuSettingsMenuOptions {
 
     static func weeklyProgressWorkDaysLabel(_ workDays: Int?) -> String {
         switch workDays {
-        case nil: L("Off")
+        case nil: L("Automatic")
         case 4: L("4 days")
         case 5: L("5 days")
         case 7: L("7 days")

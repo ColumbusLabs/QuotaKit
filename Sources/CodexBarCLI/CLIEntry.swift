@@ -71,6 +71,8 @@ enum CodexBarCLI {
                 self.runConfigSetProviderEnabled(invocation.parsedValues, enabled: false)
             case ["config", "set-api-key"]:
                 self.runConfigSetAPIKey(invocation.parsedValues)
+            case let path where path.first == "hooks":
+                await self.runHooks(path: path, values: invocation.parsedValues)
             case ["cache", "clear"]:
                 self.runCacheClear(invocation.parsedValues)
             case ["diagnose"]:
@@ -105,6 +107,8 @@ enum CodexBarCLI {
         let configSetAPIKeySignature = CommandSignature.describe(ConfigSetAPIKeyOptions())
         let cacheSignature = CommandSignature.describe(CacheOptions())
         let diagnoseSignature = CommandSignature.describe(DiagnoseOptions())
+        let hooksSignature = CommandSignature.describe(HooksOptions())
+        let hooksTestSignature = CommandSignature.describe(HooksTestOptions())
 
         return [
             CommandDescriptor(
@@ -142,7 +146,7 @@ enum CodexBarCLI {
                 defaultSubcommandName: "list"),
             CommandDescriptor(
                 name: "serve",
-                abstract: "Serve usage and cost JSON over localhost HTTP",
+                abstract: "Serve usage, cost, and dashboard JSON over HTTP",
                 discussion: nil,
                 signature: serveSignature),
             CommandDescriptor(
@@ -183,6 +187,34 @@ enum CodexBarCLI {
                         signature: configSetAPIKeySignature),
                 ],
                 defaultSubcommandName: "validate"),
+            CommandDescriptor(
+                name: "hooks",
+                abstract: "Run external commands on quota/provider events",
+                discussion: nil,
+                signature: CommandSignature(),
+                subcommands: [
+                    CommandDescriptor(
+                        name: "list",
+                        abstract: "List configured hooks",
+                        discussion: nil,
+                        signature: hooksSignature),
+                    CommandDescriptor(
+                        name: "enable",
+                        abstract: "Enable hooks",
+                        discussion: nil,
+                        signature: hooksSignature),
+                    CommandDescriptor(
+                        name: "disable",
+                        abstract: "Disable hooks",
+                        discussion: nil,
+                        signature: hooksSignature),
+                    CommandDescriptor(
+                        name: "test",
+                        abstract: "Fire matching hooks for an event",
+                        discussion: nil,
+                        signature: hooksTestSignature),
+                ],
+                defaultSubcommandName: "list"),
             CommandDescriptor(
                 name: "cache",
                 abstract: "Cache management",

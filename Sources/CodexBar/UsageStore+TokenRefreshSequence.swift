@@ -21,7 +21,9 @@ extension UsageStore {
 
     func scheduleTokenRefresh() {
         guard self.tokenRefreshSequenceTask == nil, !self.hasForcedRefreshEnrichmentInFlight else { return }
-        if self.startPendingTokenRefreshRetryIfPossible() { return }
+        if self.startPendingTokenRefreshRetryIfPossible() {
+            return
+        }
         self.startTokenRefreshSequence(force: false, scope: .all)
     }
 
@@ -119,7 +121,7 @@ extension UsageStore {
     private func startPendingTokenRefreshRetryIfPossible() -> Bool {
         guard !self.tokenRefreshRetryProviders.isEmpty,
               self.tokenRefreshSequenceTask == nil,
-              self.settings.costUsageEnabled
+              self.settings.costUsageEnabled || self.settings.codexLocalSessionCostLedgerEnabled
         else {
             return false
         }

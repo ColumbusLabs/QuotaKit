@@ -691,8 +691,8 @@ struct PiSessionCostScannerTests {
         #expect(FileManager.default.fileExists(atPath: newCacheURL.path))
         let newCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         let rebuilt = newCache.daysByProvider[UsageProvider.codex.rawValue]?[dayKey]?[model]
-        #expect(newCacheURL.lastPathComponent == "pi-sessions-v5.json")
-        #expect(newCache.version == 5)
+        #expect(newCacheURL.lastPathComponent == "pi-sessions-v6.json")
+        #expect(newCache.version == 6)
         #expect(rebuilt?.usageSampleCount == 1)
         #expect(rebuilt?.costSampleCount == 1)
         #expect(rebuilt?.costNanos == Int64((expectedCost * 1_000_000_000).rounded()))
@@ -700,7 +700,7 @@ struct PiSessionCostScannerTests {
 
     @Test
     func `pi scanner ignores v4 cache with stale gpt56 cache write pricing`() throws {
-        // v4 stored complete costNanos before cache-write rates existed; v5 must reprice.
+        // v4 stored complete costNanos before cache-write rates existed; v6 must reprice.
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
@@ -800,7 +800,7 @@ struct PiSessionCostScannerTests {
 
         let newCache = PiSessionCostCacheIO.load(cacheRoot: env.cacheRoot)
         let rebuilt = newCache.daysByProvider[UsageProvider.codex.rawValue]?[dayKey]?[model]
-        #expect(newCache.version == 5)
+        #expect(newCache.version == 6)
         #expect(rebuilt?.costNanos == Int64((expectedCost * 1_000_000_000).rounded()))
     }
 }

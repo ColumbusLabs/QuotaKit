@@ -256,11 +256,11 @@ extension SettingsStore {
     }
 
     func menuBarMetricSupportsTertiary(for provider: UsageProvider) -> Bool {
-        provider == .perplexity || provider == .zai
+        provider == .cursor || provider == .perplexity || provider == .zai
     }
 
     func menuBarMetricSupportsTertiary(for provider: UsageProvider, snapshot: UsageSnapshot?) -> Bool {
-        if provider == .zai {
+        if provider == .cursor || provider == .zai {
             return snapshot?.tertiary != nil
         }
         return self.menuBarMetricSupportsTertiary(for: provider)
@@ -292,8 +292,9 @@ extension SettingsStore {
     }
 
     func isCostUsageEffectivelyEnabled(for provider: UsageProvider) -> Bool {
-        self.costUsageEnabled
-            && ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost
+        let isEnabled = self.costUsageEnabled ||
+            (provider == .codex && self.codexLocalSessionCostLedgerEnabled)
+        return isEnabled && ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost
     }
 
     var resetTimeDisplayStyle: ResetTimeDisplayStyle {
@@ -302,7 +303,7 @@ extension SettingsStore {
 
     static func isBalanceOnlyProvider(_ provider: UsageProvider) -> Bool {
         switch provider {
-        case .deepseek, .mistral, .kimik2, .moonshot, .poe, .crossmodel:
+        case .deepseek, .mistral, .moonshot, .poe:
             true
         default:
             false

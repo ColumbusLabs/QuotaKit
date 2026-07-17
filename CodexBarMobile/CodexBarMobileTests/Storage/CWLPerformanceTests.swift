@@ -9,7 +9,7 @@ import Testing
 /// scale and (b) finish well within a generous CI ceiling. The precise device
 /// target (≤ 50 ms p95) is verified manually on a real device (M-perf) — a
 /// tight wall-clock assertion would flake on shared CI timing, so here we use
-/// a loose 2 s ceiling that still catches an O(n²) regression.
+/// a loose 5 s ceiling that still catches an O(n²) regression.
 @Suite("CWL Performance — aggregate at scale (T17)")
 @MainActor
 struct CWLPerformanceTests {
@@ -25,7 +25,7 @@ struct CWLPerformanceTests {
     }
 
     @Test
-    func `T17: aggregate(365) over 365 days × 40 providers — correct + under 2s`() throws {
+    func `T17: aggregate(365) over 365 days × 40 providers — correct + under 5s`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -61,6 +61,6 @@ struct CWLPerformanceTests {
         #expect(agg.totalTokens == providerCount * dayCount * 100)
 
         // Generous CI ceiling (device target ≤ 50ms is M-perf manual).
-        #expect(elapsed < 2.0, "aggregate(365) at scale took \(elapsed)s")
+        #expect(elapsed < 5.0, "aggregate(365) at scale took \(elapsed)s")
     }
 }

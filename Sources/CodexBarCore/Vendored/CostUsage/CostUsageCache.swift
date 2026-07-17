@@ -11,9 +11,9 @@ enum CostUsageCacheIO {
     private static func artifactVersion(for provider: UsageProvider) -> Int {
         switch provider {
         case .codex:
-            9
+            10
         case .claude, .vertexai:
-            4
+            5
         default:
             1
         }

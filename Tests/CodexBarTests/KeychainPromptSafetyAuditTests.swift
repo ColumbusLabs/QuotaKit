@@ -104,6 +104,18 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
+    func `prompt audit accepts interactive Claude keychain read double`() {
+        let lines: [Substring] = [
+            "ClaudeOAuthCredentialsStore.withInteractiveClaudeKeychainReadOverridesForTesting(",
+            "    operation: {",
+            "        allowKeychainPrompt: true",
+            "    })",
+        ]
+
+        #expect(Self.hasOpenKeychainTestDouble(lines: lines, before: 3))
+    }
+
+    @Test
     func `tests do not call Security item APIs except no UI query coverage`() throws {
         let securityItemCalls = ["SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete"]
         let offenders = try Self.swiftTestFiles().filter { file in
@@ -135,7 +147,6 @@ struct KeychainPromptSafetyAuditTests {
         let files = [
             "Sources/CodexBar/CookieHeaderStore.swift",
             "Sources/CodexBar/CopilotTokenStore.swift",
-            "Sources/CodexBar/KimiK2TokenStore.swift",
             "Sources/CodexBar/KimiTokenStore.swift",
             "Sources/CodexBar/MiniMaxAPITokenStore.swift",
             "Sources/CodexBar/MiniMaxCookieStore.swift",
@@ -169,29 +180,6 @@ struct KeychainPromptSafetyAuditTests {
         #expect(migration.contains("let updateStatus = client.update(updateQuery, attributes)"))
         #expect(!migration.contains("SecItemDelete"))
         #expect(!migration.contains("SecItemAdd"))
-    }
-
-    @Test
-    func `claude background startup prompt bootstrap is explicitly gated`() throws {
-        let fetcher = try Self.readRepoFile("Sources/CodexBarCore/Providers/Claude/ClaudeUsageFetcher.swift")
-        let descriptor = try Self.readRepoFile(
-            "Sources/CodexBarCore/Providers/Claude/ClaudeProviderDescriptor.swift")
-        let credentialsStore = try Self.readRepoFile(
-            "Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials.swift")
-        let securityCLIReader = try Self.readRepoFile(
-            "Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials+SecurityCLIReader.swift")
-
-        #expect(fetcher.contains("guard self.fetcher.allowStartupBootstrapPrompt else { return false }"))
-        #expect(fetcher.contains("guard !hasCache else { return false }"))
-        #expect(fetcher.contains("securityFrameworkFallbackMode() == .onlyOnUserAction"))
-        #expect(fetcher.contains("guard policy.interaction == .background else { return false }"))
-        #expect(fetcher.contains("return ProviderRefreshContext.current == .startup"))
-        #expect(descriptor.contains("allowStartupBootstrapPrompt: context.runtime == .app &&"))
-        #expect(descriptor.contains("(context.sourceMode == .auto || context.sourceMode == .oauth)"))
-        #expect(credentialsStore.contains("@TaskLocal static var allowBackgroundPromptBootstrap: Bool = false"))
-        #expect(securityCLIReader
-            .contains("guard interaction == .userInitiated || allowBackgroundReadForClassification else"))
-        #expect(securityCLIReader.contains("allowBackgroundReadForClassification: true"))
     }
 
     @Test
@@ -261,6 +249,7 @@ struct KeychainPromptSafetyAuditTests {
     private static func hasOpenKeychainTestDouble(lines: [Substring], before oneBasedLineNumber: Int) -> Bool {
         let helperNames = [
             "withClaudeKeychainOverridesForTesting",
+            "withInteractiveClaudeKeychainReadOverridesForTesting",
             "withKeychainAccessOverrideForTesting(true)",
             "withSecurityCLIReadOverrideForTesting",
             "KeychainAccessPreflight.withCheckGenericPasswordOverrideForTesting",

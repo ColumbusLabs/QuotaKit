@@ -907,9 +907,11 @@ extension CostUsageScanner {
         }
         if let parentSessionId = cached.forkedFromId {
             guard let cachedDependencyKey = cached.forkBaselineDependencyKey else { return false }
-            let currentDependencyKey = try context.resources.inheritedResolver
-                .currentDependencyKey(for: parentSessionId)
-            guard cachedDependencyKey == currentDependencyKey else { return false }
+            if cachedDependencyKey != Self.codexForkDependencyNotRequiredKey {
+                let currentDependencyKey = try context.resources.inheritedResolver
+                    .currentDependencyKey(for: parentSessionId)
+                guard cachedDependencyKey == currentDependencyKey else { return false }
+            }
         }
 
         if sessionAlreadyContributed {
@@ -972,6 +974,14 @@ extension CostUsageScanner {
         guard let cached = input.cached, cached.sessionId != nil, !context.forceFullScan else { return false }
         guard !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) else { return false }
         if Self.cachedCodexRowsNeedIdentityRescan(cached) {
+            return false
+        }
+        // Subagent shape depends on the complete lineage prefix. Appended metadata can change an
+        // independent counter into a copied-prefix rollout, so a tail-only parse is not sound.
+        if try Self.codexFileIsSubagentThread(
+            fileURL: input.fileURL,
+            checkCancellation: context.checkCancellation)
+        {
             return false
         }
         let startOffset = cached.parsedBytes ?? cached.size
@@ -1131,11 +1141,10 @@ extension CostUsageScanner {
             range: context.range,
             inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:),
             checkCancellation: context.checkCancellation)
-        let forkBaselineDependencyKey: String? = if let parentSessionId = parsed.forkedFromId {
-            context.resources.inheritedResolver.dependencyKeyUsed(for: parentSessionId)
-        } else {
-            nil
-        }
+        let forkBaselineDependencyKey = Self.codexForkBaselineDependencyKey(
+            parentSessionId: parsed.forkedFromId,
+            dependsOnParentTotals: parsed.dependsOnParentTotals,
+            inheritedResolver: context.resources.inheritedResolver)
         let sessionId = parsed.sessionId ?? input.cached?.sessionId
         let projectPath = parsed.projectPath ?? input.cached?.projectPath
         let canonicalProjectPath = parsed.projectPath.map {
@@ -1235,6 +1244,19 @@ extension CostUsageScanner {
             rows: uniqueRows,
             context: context,
             state: &state)
+    }
+
+    static func codexForkBaselineDependencyKey(
+        parentSessionId: String?,
+        dependsOnParentTotals: Bool,
+        inheritedResolver: CodexInheritedTotalsResolver) -> String?
+    {
+        guard let parentSessionId else { return nil }
+        guard dependsOnParentTotals else { return Self.codexForkDependencyNotRequiredKey }
+
+        // A nil key means the parent changed while its snapshots were read (or no stable
+        // snapshot was resolved). Preserve nil so the child cannot be reused on the next scan.
+        return inheritedResolver.dependencyKeyUsed(for: parentSessionId)
     }
 
     static func mergeFileDays(

@@ -97,6 +97,7 @@ extension CodexBarCLI {
         let resetStyle = Self.resetTimeDisplayStyleFromDefaults()
         let weeklyWorkDays = Self.weeklyProgressWorkDaysFromDefaults()
         let providerList = provider.asList
+        let claudeConfig = config.providerConfig(for: .claude)
 
         let tokenSelection: TokenAccountCLISelection
         do {
@@ -171,13 +172,29 @@ extension CodexBarCLI {
 
         for provider in providerList {
             let status = includeStatus ? await Self.fetchStatus(for: provider) : nil
-            let result = await ProviderInteractionContext.$current.withValue(.background) {
-                await Self.fetchUsageOutputs(
-                    provider: provider,
+            let claudeSwapEligible = CLIClaudeSwapCards.isEligible(
+                provider: provider,
+                integrationEnabled: claudeConfig?.claudeSwapEnabled == true,
+                hasExplicitAccountSelection: tokenSelection.usesOverride,
+                sourceModeOverride: parsedSourceMode)
+            let result = await CLIClaudeSwapCards.fetch(
+                eligible: claudeSwapEligible,
+                executablePath: CLIClaudeSwapCards.executablePath(from: claudeConfig),
+                renderOptions: CLIClaudeSwapCardsRenderOptions(
                     status: status,
-                    tokenContext: tokenContext,
-                    command: command)
-            }
+                    useColor: useColor,
+                    resetStyle: resetStyle,
+                    weeklyWorkDays: weeklyWorkDays,
+                    now: Date()),
+                ambientFetch: {
+                    await ProviderInteractionContext.$current.withValue(.background) {
+                        await Self.fetchUsageOutputs(
+                            provider: provider,
+                            status: status,
+                            tokenContext: tokenContext,
+                            command: command)
+                    }
+                })
             if result.exitCode != .success {
                 exitCode = result.exitCode
             }

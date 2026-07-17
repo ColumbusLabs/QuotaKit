@@ -8,6 +8,7 @@ on:
   push:
     branches: [main]
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review, converted_to_draft]
   workflow_dispatch:
 
 permissions:
@@ -28,6 +29,7 @@ jobs:
     timeout-minutes: 5
     outputs:
       macos-tests: ${{ steps.macos-tests.outputs.macos-tests }}
+      macos-tests-deferred: ${{ steps.macos-tests.outputs.macos-tests-deferred }}
       macos-tests-reason: ${{ steps.macos-tests.outputs.macos-tests-reason }}
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
       ios-tests: ${{ steps.ios-tests.outputs.ios-tests }}
@@ -66,6 +68,8 @@ jobs:
       - name: Detect macOS test impact
         id: macos-tests
         shell: bash
+        env:
+          CI_PULL_REQUEST_DRAFT: ${{ github.event.pull_request.draft || false }}
         run: |
           set -euo pipefail
           ./Scripts/ci_macos_test_gate.sh "${{ steps.changed-paths.outputs.changed-paths }}"
@@ -131,7 +135,7 @@ jobs:
 
   swift-test-macos:
     needs: changes
-    if: ${{ needs.changes.outputs.macos-tests == 'true' }}
+    if: ${{ needs.changes.outputs.macos-tests == 'true' && needs.changes.outputs.macos-tests-deferred != 'true' }}
     runs-on: macos-15-intel
     # Bumped 35 → 70 alongside the v0.24/v0.25/v0.25.1 fold-in: the suite
     # grew enough that the prior 25-minute `swift test` timeout regularly
@@ -324,6 +328,7 @@ jobs:
             "${{ needs.changes.result }}" \
             "${{ needs.changes.outputs.macos-tests }}" \
             "${{ needs.swift-test-macos.result }}" \
+            "${{ needs.changes.outputs.macos-tests-deferred }}" \
             "${{ needs.changes.outputs.ios-tests }}" \
             "${{ needs.ios-test.result }}"
 
@@ -336,6 +341,7 @@ jobs:
           MACOS_TESTS: ${{ needs.changes.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ needs.changes.outputs.macos-tests-reason }}
           MACOS_RESULT: ${{ needs.swift-test-macos.result }}
+          MACOS_TESTS_DEFERRED: ${{ needs.changes.outputs.macos-tests-deferred }}
           IOS_TESTS: ${{ needs.changes.outputs.ios-tests }}
           IOS_TESTS_REASON: ${{ needs.changes.outputs.ios-tests-reason }}
           IOS_RESULT: ${{ needs.ios-test.result }}
@@ -352,6 +358,7 @@ jobs:
             printf '| lint result | `%s` |\n' "$LINT_RESULT"
             printf '| changes result | `%s` |\n' "$CHANGES_RESULT"
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
+            printf '| macOS Swift tests deferred | `%s` |\n' "${MACOS_TESTS_DEFERRED:-<unset>}"
             printf '| macOS gate reason | %s |\n' "$macos_reason"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"

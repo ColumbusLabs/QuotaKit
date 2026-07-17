@@ -26,7 +26,12 @@ public enum ManusProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .manus,
                 iconResourceName: "ProviderIcon-manus",
-                color: ProviderColor(red: 63 / 255, green: 58 / 255, blue: 50 / 255)),
+                color: ProviderColor(red: 63 / 255, green: 58 / 255, blue: 50 / 255),
+                confettiPalette: [
+                    ProviderColor(hex: 0x34322D),
+                    ProviderColor(hex: 0xF2F0E9),
+                    ProviderColor(hex: 0x0099FF),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Manus cost summary is not supported." }),

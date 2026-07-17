@@ -11,6 +11,9 @@ read_when:
 The T3 Chat provider tracks the 4-hour Base and monthly Overage usage buckets from
 [t3.chat](https://t3.chat).
 
+> **Unofficial integration:** T3 Chat does not publish an API for this data. QuotaKit reads a cookie-authenticated
+> endpoint used by the website, so the integration may change or stop working without notice.
+
 ## Setup
 
 ### Automatic (recommended)
@@ -106,8 +109,8 @@ data, while `quotakit cost --provider t3chat` is unsupported.
 
 ## Key files
 
-- `Sources/CodexBarCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
-- `Sources/CodexBarCore/Providers/T3Chat/T3ChatUsageFetcher.swift` — tRPC request, cookie import, and cURL parsing
-- `Sources/CodexBarCore/Providers/T3Chat/T3ChatUsageSnapshot.swift` — response decoding and window mapping
-- `Sources/CodexBar/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
-- `Sources/CodexBar/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence
+- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
+- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatUsageFetcher.swift` — tRPC request, cookie import, and cURL parsing
+- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatUsageSnapshot.swift` — response decoding and window mapping
+- `Sources/QuotaKit/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
+- `Sources/QuotaKit/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence

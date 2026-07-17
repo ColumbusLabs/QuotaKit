@@ -26,7 +26,12 @@ public enum KimiProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .kimi,
                 iconResourceName: "ProviderIcon-kimi",
-                color: ProviderColor(red: 244 / 255, green: 63 / 255, blue: 94 / 255)),
+                color: ProviderColor(red: 244 / 255, green: 63 / 255, blue: 94 / 255),
+                confettiPalette: [
+                    ProviderColor(hex: 0x000000),
+                    ProviderColor(hex: 0x4E6EF2),
+                    ProviderColor(hex: 0xFFFFFF),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Kimi cost summary is not supported." }),

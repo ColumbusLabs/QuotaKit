@@ -12,6 +12,11 @@ current Columbus Labs product surface and recent release history.
 - Background sync no longer starts a local database write after iOS closes the
   silent-push execution window, preventing repeated suspension terminations.
 
+### Changed
+
+- Provider presentation, colors, icons, and quota-alert subscriptions now
+  recognize ClinePass and LongCat synced from the Mac app.
+
 ## [1.11.2 (170)] — 2026-07-11 — Provider details and sync reliability
 
 ### Added

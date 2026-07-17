@@ -35,6 +35,7 @@ actor ClaudeCLISession {
         case ioFailed(String)
         case timedOut
         case processExited
+        case outputTooLarge
 
         var errorDescription: String? {
             switch self {
@@ -42,6 +43,7 @@ actor ClaudeCLISession {
             case let .ioFailed(msg): "Claude CLI PTY I/O failed: \(msg)"
             case .timedOut: "Claude CLI session timed out."
             case .processExited: "Claude CLI session exited."
+            case .outputTooLarge: "Claude CLI session produced more output than QuotaKit can safely process."
             }
         }
     }
@@ -156,7 +158,13 @@ actor ClaudeCLISession {
         var scanBuffer = RollingBuffer(maxNeedle: maxNeedle)
         var triggeredSends = Set<String>()
 
-        var buffer = Data()
+        var buffer = BoundedOutputBuffer()
+        func appendOutput(_ data: Data) throws {
+            guard buffer.append(data) else {
+                self.cleanup()
+                throw SessionError.outputTooLarge
+            }
+        }
         var scanTailText = ""
         var normalizedScan = ""
         var utf8Carry = Data()
@@ -171,7 +179,7 @@ actor ClaudeCLISession {
         while Date() < deadline {
             let newData = self.readChunk()
             if !newData.isEmpty {
-                buffer.append(newData)
+                try appendOutput(newData)
                 lastOutputAt = Date()
                 Self.appendScanText(newData: newData, scanTailText: &scanTailText, utf8Carry: &utf8Carry)
                 if scanTailText.count > 8192 {
@@ -224,14 +232,14 @@ actor ClaudeCLISession {
                 while Date() < settleDeadline {
                     let newData = self.readChunk()
                     if !newData.isEmpty {
-                        buffer.append(newData)
+                        try appendOutput(newData)
                     }
                     try await Task.sleep(nanoseconds: 50_000_000)
                 }
             }
         }
 
-        guard !buffer.isEmpty, let text = String(data: buffer, encoding: .utf8) else {
+        guard !buffer.data.isEmpty, let text = String(data: buffer.data, encoding: .utf8) else {
             throw SessionError.timedOut
         }
         return text

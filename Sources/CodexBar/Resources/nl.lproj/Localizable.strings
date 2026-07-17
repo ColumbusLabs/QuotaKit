@@ -1,8 +1,33 @@
 /* Dutch localization for CodexBar */
 
+"tab_hooks" = "Hooks";
+"hooks_enable_title" = "Hooks inschakelen";
+"hooks_enable_subtitle" = "Voer externe opdrachten uit bij quota- of providergebeurtenissen.";
+"hooks_trust_warning" = "Hooks kunnen lokale opdrachten op je Mac uitvoeren. Configureer alleen opdrachten die je vertrouwt.";
+"hooks_rules_header" = "Regels";
+"hooks_empty" = "Geen hooks geconfigureerd.";
+"hooks_add_rule" = "Regel toevoegen";
+"hooks_delete_rule" = "Regel verwijderen";
+"hooks_rule_enabled" = "Ingeschakeld";
+"hooks_event" = "Gebeurtenis";
+"hooks_provider" = "Provider";
+"hooks_any_provider" = "Elke provider";
+"hooks_threshold" = "Uitvoeren bij gebruik ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumenten";
+"hooks_argument_placeholder" = "Argument";
+"hooks_add_argument" = "Argument toevoegen";
+"hooks_delete_argument" = "Argument verwijderen";
+
+"ollama_safari_cookie_access_hint" = "Safari-cookies vereisen volledige schijftoegang voor QuotaKit (Systeeminstellingen > Privacy en beveiliging).";
+"ollama_browser_cookie_decryption_denied" = "Het ontsleutelen van %@-cookies is geweigerd in Sleutelhanger; probeer opnieuw met handmatig vernieuwen.";
+"ollama_browser_cookie_decryption_disabled" = "Het ontsleutelen van %@-cookies is uitgeschakeld in QuotaKit; schakel Sleutelhangertoegang in en vernieuw.";
+
 " providers" = " providers";
 "(System)" = "(Systeem)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Er is al een beheerde Codex-aanmelding actief. Wacht tot het klaar is voordat je het toevoegt";
 "API key" = "API-sleutel";
 "API region" = "API-regio";
@@ -297,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Bewaar meerdere OpenCode Go Cookie-headers.";
 "Stored in the CodexBar config file." = "Opgeslagen in het QuotaKit-configuratiebestand.";
 "Stored in ~/.codexbar/config.json. " = "Opgeslagen in ~/.quotakit/config.json.";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Opgeslagen in ~/.quotakit/config.json. Genereer er een op kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Opgeslagen in ~/.quotakit/config.json. Plak de sleutel uit het synthetische dashboard.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Opgeslagen in ~/.quotakit/config.json. Plak de API-sleutel van uw codeerplan uit Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Opgeslagen in ~/.quotakit/config.json. Plak uw MiniMax API-sleutel.";
@@ -426,7 +450,6 @@
 "language_polish" = "Pools";
 "start_at_login_title" = "Begin bij Inloggen";
 "start_at_login_subtitle" = "Opent automatisch QuotaKit wanneer u uw Mac start.";
-"show_cost_summary" = "Kostenoverzicht weergeven";
 "show_cost_summary_subtitle" = "Leest lokale gebruikslogboeken. Toont vandaag + het geselecteerde geschiedenisvenster in het menu.";
 "cost_summary_style_title" = "Weergavestijl";
 "cost_summary_style_inline" = "Alleen inline";
@@ -441,8 +464,6 @@
 "cost_auto_refresh_info" = "Automatisch vernieuwen: elk uur · Time-out: 10m";
 "cost_comparison_periods_title" = "Kortere vergelijkingsperioden tonen";
 "cost_comparison_periods_subtitle" = "Voegt totalen voor 7, 30 en 90 dagen toe wanneer ze binnen het geselecteerde geschiedenisvenster vallen. Deze totalen gebruiken dezelfde lokale scan.";
-"refresh_cadence_title" = "Cadans vernieuwen";
-"refresh_cadence_subtitle" = "Hoe vaak QuotaKit providers op de achtergrond ondervraagt.";
 "refresh_interval_title" = "Vernieuwingsinterval";
 "manual_refresh_hint" = "Automatisch vernieuwen is uitgeschakeld; gebruik de opdracht Vernieuwen van het menu.";
 "refresh_on_open_title" = "Vernieuwen bij openen van menu";
@@ -528,13 +549,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Toont het DeepSeek-saldo in de menubalk.";
 "menu_bar_metric_subtitle_moonshot" = "Toont het Moonshot / Kimi API-saldo in de menubalk.";
 "menu_bar_metric_subtitle_mistral" = "Toont de Mistral API-uitgaven van de huidige maand in de menubalk.";
-"menu_bar_metric_subtitle_kimik2" = "Toont Kimi K2 API-sleutelcredits in de menubalk.";
 "automatic" = "Automatisch";
 "primary_api_key_limit" = "Primair (API-sleutellimiet)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Menubalkstijl";
 "menu_bar_style_subtitle" = "Hoe het menubalkitem wordt weergegeven.";
+"menu_bar_inactive_display_contrast_title" = "Zichtbaarheid op inactieve beeldschermen verbeteren";
+"menu_bar_inactive_display_contrast_subtitle" = "Gebruikt weergave met hoog contrast zodat het pictogram en de metriek leesbaar blijven op andere beeldschermen.";
 "menu_bar_style_critters" = "Critters";
 "menu_bar_style_bars" = "Meterbalken";
 "menu_bar_style_icon_percent" = "Pictogram en percentage";
@@ -715,6 +737,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Kosten (geschat)";
 "cost_estimate_hint" = "Geschat op basis van lokale logboeken · kan afwijken van uw factuur";
+"codex_api_estimate_header" = "API-equivalente schatting";
+"codex_api_estimate_hint" = "Lokaal gebruik × openbare API-prijzen · geen abonnementsfactuur of planwaarde";
+"codex_api_estimate_not_billed" = "geen abonnementsfactuur of planwaarde";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Geen JetBrains IDE met AI Assistant gedetecteerd. Installeer een JetBrains IDE en schakel AI Assistant in.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "OpenRouter API-token niet geconfigureerd. Stel de omgevingsvariabele OPENROUTER_API_KEY in of configureer deze in Instellingen.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "z.ai API-token niet gevonden. Stel apiKey in ~/.quotakit/config.json of Z_AI_API_KEY.";
@@ -1019,7 +1044,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit zal macOS Keychain om uw Cursor-cookieheader vragen, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit zal macOS Keychain om uw Factory-cookieheader vragen, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit zal macOS Keychain om uw GitHub Copilot-token vragen, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit vraagt ​​macOS Keychain om je Kimi K2 API-sleutel, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit vraagt ​​macOS Keychain om je Kimi-authenticatietoken, zodat het gebruik kan worden opgehaald. Klik op OK om door te gaan.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit zal macOS Keychain om uw MiniMax API-token vragen, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit zal macOS Keychain om uw MiniMax-cookieheader vragen, zodat deze het gebruik kan ophalen. Klik op OK om door te gaan.";
@@ -1168,9 +1192,6 @@
 "byte_unit_megabytes" = "megabytes";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabytes";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "CrossModel API-uitgaventrend";
 
 /* Settings sidebar redesign */
 "Enable" = "Inschakelen";
@@ -1185,12 +1206,45 @@
 "Show Codex Spark usage" = "Codex Spark-gebruik tonen";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Toont Codex Spark-quotumregels in het menu en de voorvertoning van de provider. Vereist dat ‘Toon credits + extra gebruik’ is ingeschakeld in de instellingen voor Weergave.";
 "Scroll to see more models" = "Scroll om meer modellen te bekijken";
-"Projects" = "Projecten";
-"+ %d more" = "+ nog %d";
-"Choose a supported browser so QuotaKit can read the matching account." = "Kies een ondersteunde browser zodat QuotaKit het bijbehorende account kan lezen.";
-"Choose Cursor account" = "Cursor-account kiezen";
-"Choose which Cursor account QuotaKit should use." = "Kies welk Cursor-account QuotaKit moet gebruiken.";
-"Use Account" = "Account gebruiken";
-"Finish switching to a different Cursor account in your browser, then try again." = "Voltooi het wisselen naar een ander Cursor-account in je browser en probeer het opnieuw.";
-"Timed out waiting for Cursor account switch. %@" = "Time-out bij wachten op het wisselen van Cursor-account. %@";
-"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Time-out bij wachten op het wisselen van Cursor-account. %@ Laatste fout: %@";
+"DeepSeek this month token usage trend" = "Trend van DeepSeek-tokengebruik deze maand";
+"Chrome profile" = "Chrome-profiel";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Kies welke aangemelde DeepSeek Platform-sessie gedetailleerd gebruik levert.";
+"Detailed usage unavailable." = "Gedetailleerd gebruik niet beschikbaar.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Meld je in Chrome aan bij DeepSeek Platform voor gedetailleerd gebruik.";
+"Select a DeepSeek Chrome profile in Settings." = "Selecteer een DeepSeek Chrome-profiel in Instellingen.";
+"Select profile…" = "Profiel selecteren…";
+
+"%@: %@" = "%@: %@";
+"Alternatively, set a custom path in Settings." = "U kunt ook een aangepast pad instellen in Instellingen.";
+"Choose a supported browser so CodexBar can read the matching account." = "Kies een ondersteunde browser zodat QuotaKit het overeenkomende account kan lezen.";
+"Choose Cursor account" = "Kies Cursoraccount";
+"Choose which Cursor account CodexBar should use." = "Kies welk Cursor-account QuotaKit moet gebruiken.";
+"Finish switching to a different Cursor account in your browser, then try again." = "Voltooi het overschakelen naar een ander Cursor-account in uw browser en probeer het vervolgens opnieuw.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Installeer een JetBrains IDE met AI Assistant ingeschakeld en vernieuw vervolgens QuotaKit.";
+"Request quota: %@ / %@" = "Aanvraagquotum: %@ / %@";
+"Sign in with Claude Code..." = "Aanmelden met Claude Code...";
+"Timed out waiting for Cursor account switch. %@" = "Er is een time-out opgetreden tijdens het wachten op het wisselen van Cursor-account. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Er is een time-out opgetreden tijdens het wachten op het wisselen van Cursor-account. %@ Laatste fout: %@";
+"Use Account" = "Gebruik account";
+/* Spend dashboard */
+"tab_usage_spend" = "Gebruik en uitgaven";
+"Usage & Spend" = "Gebruik en uitgaven";
+"Local estimated cost history across supported providers." = "Lokale geschiedenis met geschatte kosten voor ondersteunde aanbieders.";
+"Time range" = "Tijdsbereik";
+"Track costs" = "Kosten bijhouden";
+"Cost tracking is off" = "Kostenregistratie is uitgeschakeld";
+"Turn on Track costs to build local estimates." = "Schakel ‘Kosten bijhouden’ in om lokale schattingen op te bouwen.";
+"No local cost history yet" = "Nog geen lokale kostengeschiedenis";
+"Turn on cost tracking or refresh after using a supported provider." = "Schakel kostenregistratie in of vernieuw nadat je een ondersteunde aanbieder hebt gebruikt.";
+"Refresh failures" = "Mislukte vernieuwingen";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Oorspronkelijke valuta’s blijven gescheiden; rijen met Codex-accounts sluiten Pi-sessiegeschiedenis uit.";
+"Spend unavailable" = "Uitgaven niet beschikbaar";
+"Model breakdown unavailable" = "Uitsplitsing per model niet beschikbaar";
+"Local estimated history" = "Lokaal geschatte geschiedenis";
+"Coverage" = "Dekking";
+"Estimated spend" = "Geschatte uitgaven";
+"Tracked tokens" = "Bijgehouden tokens";
+"Subscriptions" = "Abonnementen";
+"By subscription" = "Per abonnement";
+"No model-level history" = "Geen geschiedenis op modelniveau";
+"Daily estimated spend" = "Geschatte dagelijkse uitgaven";

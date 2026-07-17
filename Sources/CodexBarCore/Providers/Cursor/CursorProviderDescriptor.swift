@@ -9,10 +9,10 @@ public enum CursorProviderDescriptor {
             metadata: ProviderMetadata(
                 id: .cursor,
                 displayName: "Cursor",
-                sessionLabel: "Auto",
-                weeklyLabel: "API",
-                opusLabel: nil,
-                supportsOpus: false,
+                sessionLabel: "Total",
+                weeklyLabel: "Auto",
+                opusLabel: "API",
+                supportsOpus: true,
                 supportsCredits: true,
                 creditsHint: "On-demand usage beyond included plan limits.",
                 toggleTitle: "Show Cursor usage",
@@ -28,12 +28,16 @@ public enum CursorProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .cursor,
                 iconResourceName: "ProviderIcon-cursor",
-                color: ProviderColor(red: 0, green: 0, blue: 0)),
+                color: ProviderColor(red: 0, green: 0, blue: 0),
+                confettiPalette: [
+                    ProviderColor(hex: 0x1B1913),
+                    ProviderColor(hex: 0xEDECEC),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Cursor cost summary is not supported." }),
             fetchPlan: ProviderFetchPlan(
-                sourceModes: [.auto, .api, .web],
+                sourceModes: [.auto, .cli, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [CursorStatusFetchStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "cursor",
@@ -56,7 +60,7 @@ struct CursorStatusFetchStrategy: ProviderFetchStrategy {
         let snap = try await probe.fetch(cookieHeaderOverride: manual)
         return self.makeResult(
             usage: snap.toUsageSnapshot(),
-            sourceLabel: context.sourceMode == .api ? "api" : "auto")
+            sourceLabel: "web")
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

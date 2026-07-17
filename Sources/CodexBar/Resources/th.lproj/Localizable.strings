@@ -1,8 +1,13 @@
 /* Thai localization for CodexBar */
 
+"ollama_safari_cookie_access_hint" = "คุกกี้ Safari ต้องใช้สิทธิ์เข้าถึงดิสก์แบบเต็มสำหรับ QuotaKit (การตั้งค่าระบบ > ความเป็นส่วนตัวและความปลอดภัย)";
+"ollama_browser_cookie_decryption_denied" = "การถอดรหัสคุกกี้ %@ ถูกปฏิเสธในพวงกุญแจ โปรดลองอีกครั้งด้วยการรีเฟรชด้วยตนเอง";
+"ollama_browser_cookie_decryption_disabled" = "การถอดรหัสคุกกี้ %@ ถูกปิดใช้งานใน QuotaKit ให้เปิดการเข้าถึงพวงกุญแจแล้วรีเฟรช";
+
 " providers" = "ผู้ให้บริการ  ";
 "(System)" = "(ระบบ)";
 "30d" = "30 วัน";
+"7d" = "7 วัน";
 "A managed Codex login is already running. Wait for it to finish before adding " = "การเข้าสู่ระบบ Codex ที่มีการจัดการกําลังทํางานอยู่แล้ว รอให้เสร็จก่อนที่จะเพิ่ม  ";
 "API key" = "ปุ่ม API";
 "API region" = "ภูมิภาค API";
@@ -58,13 +63,16 @@
 "Check for updates automatically" = "ตรวจสอบการอัปเดตโดยอัตโนมัติ";
 "Check if you like your agents having some fun up there." = "ตรวจสอบว่าคุณชอบให้ตัวแทนของคุณสนุกสนานที่นั่นหรือไม่";
 "Check provider status" = "ตรวจสอบสถานะผู้ให้บริการ";
+"Choose a supported browser so CodexBar can read the matching account." = "เลือกเบราว์เซอร์ที่รองรับเพื่อให้ QuotaKit อ่านบัญชีที่ตรงกันได้";
 "Choose Codex workspace" = "เลือกพื้นที่ทํางาน Codex";
+"Choose Cursor account" = "เลือกบัญชี Cursor";
 "Choose the MiniMax host (global .io or China mainland .com)." = "เลือกโฮสต์ MiniMax (.io ทั่วโลกหรือจีนแผ่นดินใหญ่ .com)";
 "Choose up to " = "เลือกได้ถึง  ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "เลือกผู้ให้บริการได้สูงสุด \\(Self.maxOverviewProviders) ราย";
 "Choose up to \\(count) providers" = "เลือกผู้ให้บริการได้สูงสุด \\(count) ราย";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "เลือกสิ่งที่จะแสดงในแถบเมนู (อัตราก้าวแสดงการใช้งานเทียบกับที่คาดไว้)";
 "Choose which Codex account CodexBar should follow." = "เลือกบัญชี Codex QuotaKit ควรติดตาม";
+"Choose which Cursor account CodexBar should use." = "เลือกบัญชี Cursor ที่ QuotaKit ควรใช้";
 "Choose which window drives the menu bar percent." = "เลือกหน้าต่างที่จะขับเคลื่อนเปอร์เซ็นต์ของแถบเมนู";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "ไม่พบ Claude CLI";
@@ -300,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "จัดเก็บส่วนหัวคุกกี้ OpenCode Go หลายรายการ";
 "Stored in the CodexBar config file." = "เก็บไว้ในไฟล์กําหนดค่า QuotaKit";
 "Stored in ~/.codexbar/config.json. " = "เก็บไว้ใน ~/.quotakit/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "เก็บไว้ใน ~/.quotakit/config.json. สร้างที่ kimi-k2.ai";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "เก็บไว้ใน ~/.quotakit/config.json. วางคีย์จากแดชบอร์ด Synthetic";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "เก็บไว้ใน ~/.quotakit/config.json. วาง API คีย์แผนการเข้ารหัสของคุณจาก Model Studio";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "เก็บไว้ใน ~/.quotakit/config.json. วางคีย์ MiniMax API ของคุณ";
@@ -330,6 +337,7 @@
 "Usage breakdown" = "รายละเอียดการใช้งาน";
 "Usage history (30 days)" = "ประวัติการใช้งาน";
 "Usage source" = "แหล่งที่มาของการใช้งาน";
+"Use Account" = "ใช้บัญชี";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "ใช้ BigModel สําหรับปลายทางจีนแผ่นดินใหญ่ (open.bigmodel.cn)";
 "Use a single menu bar icon with a provider switcher." = "ใช้ไอคอนแถบเมนูเดียวกับตัวสลับผู้ให้บริการ";
 "Use international or China mainland console gateways for quota fetches." = "ใช้เกตเวย์คอนโซลระหว่างประเทศหรือจีนแผ่นดินใหญ่สําหรับการดึงข้อมูลโควต้า";
@@ -427,7 +435,6 @@
 "language_polish" = "Polski";
 "start_at_login_title" = "เริ่มต้นที่เข้าสู่ระบบ";
 "start_at_login_subtitle" = "เปิด QuotaKit โดยอัตโนมัติเมื่อคุณเริ่มต้นระบบ Mac";
-"show_cost_summary" = "แสดงสรุปค่าใช้จ่าย";
 "show_cost_summary_subtitle" = "อ่านบันทึกการใช้งานในเครื่อง แสดงวันนี้ + หน้าต่างประวัติที่เลือกในเมนู";
 "cost_summary_style_title" = "รูปแบบการแสดงผล";
 "cost_summary_style_inline" = "อินไลน์เท่านั้น";
@@ -442,8 +449,6 @@
 "cost_comparison_periods_title" = "แสดงช่วงเปรียบเทียบที่สั้นกว่า";
 "cost_comparison_periods_subtitle" = "เพิ่มยอดรวม 7, 30 และ 90 วันเมื่ออยู่ภายในกรอบเวลาประวัติที่เลือก โดยใช้การสแกนในเครื่องเดียวกัน";
 "cost_auto_refresh_info" = "รีเฟรชอัตโนมัติ: รายชั่วโมง · หมดเวลา: 10m";
-"refresh_cadence_title" = "จังหวะการรีเฟรช";
-"refresh_cadence_subtitle" = "ความถี่ในการ QuotaKit ผู้ให้บริการโพลในเบื้องหลัง";
 "refresh_interval_title" = "ช่วงเวลาการรีเฟรช";
 "manual_refresh_hint" = "การรีเฟรชอัตโนมัติปิดอยู่ ใช้คําสั่งรีเฟรชของเมนู";
 "refresh_on_open_title" = "รีเฟรชเมื่อเปิดเมนู";
@@ -505,7 +510,28 @@
 "tab_menu_bar" = "แถบเมนู";
 "tab_menu" = "เมนู";
 "tab_advanced" = "ขั้นสูง";
+"tab_hooks" = "ฮุก";
 "tab_about" = "เกี่ยวกับ";
+
+/* Hooks Pane */
+"hooks_enable_title" = "เปิดใช้งานฮุก";
+"hooks_enable_subtitle" = "เรียกใช้คำสั่งภายนอกเมื่อเกิดเหตุการณ์โควตาหรือผู้ให้บริการ";
+"hooks_trust_warning" = "ฮุกสามารถเรียกใช้คำสั่งในเครื่อง Mac ของคุณได้ ตั้งค่าเฉพาะคำสั่งที่คุณเชื่อถือเท่านั้น";
+"hooks_rules_header" = "กฎ";
+"hooks_empty" = "ยังไม่ได้ตั้งค่าฮุก";
+"hooks_add_rule" = "เพิ่มกฎ";
+"hooks_delete_rule" = "ลบกฎ";
+"hooks_rule_enabled" = "เปิดใช้งาน";
+"hooks_event" = "เหตุการณ์";
+"hooks_provider" = "ผู้ให้บริการ";
+"hooks_any_provider" = "ผู้ให้บริการใดก็ได้";
+"hooks_threshold" = "เรียกใช้เมื่อการใช้งาน ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "อาร์กิวเมนต์";
+"hooks_argument_placeholder" = "อาร์กิวเมนต์";
+"hooks_add_argument" = "เพิ่มอาร์กิวเมนต์";
+"hooks_delete_argument" = "ลบอาร์กิวเมนต์";
 "tab_debug" = "แก้ไขข้อบกพร่อง";
 
 /* Providers Pane */
@@ -529,13 +555,14 @@
 "menu_bar_metric_subtitle_deepseek" = "แสดงยอดคงเหลือ DeepSeek ในแถบเมนู";
 "menu_bar_metric_subtitle_moonshot" = "แสดงยอดคงเหลือ Moonshot / Kimi API ในแถบเมนู";
 "menu_bar_metric_subtitle_mistral" = "แสดงการใช้จ่าย Mistral API เดือนปัจจุบันในแถบเมนู";
-"menu_bar_metric_subtitle_kimik2" = "แสดงเครดิต API คีย์ K2 Kimi ในแถบเมนู";
 "automatic" = "อัตโนมัติ";
 "primary_api_key_limit" = "หลัก (จํากัดคีย์ API)";
 
 /* Display Pane */
 "menu_bar_style_title" = "รูปแบบแถบเมนู";
 "menu_bar_style_subtitle" = "รูปแบบการแสดงรายการในแถบเมนู";
+"menu_bar_inactive_display_contrast_title" = "เพิ่มการมองเห็นบนจอแสดงผลที่ไม่ได้ใช้งาน";
+"menu_bar_inactive_display_contrast_subtitle" = "ใช้การแสดงผลแบบคอนทราสต์สูงเพื่อให้ไอคอนและค่าชี้วัดอ่านได้บนจออื่น";
 "menu_bar_style_critters" = "ตัวการ์ตูน";
 "menu_bar_style_bars" = "แถบวัด";
 "menu_bar_style_icon_percent" = "ไอคอนและเปอร์เซ็นต์";
@@ -716,6 +743,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "ต้นทุน (โดยประมาณ)";
 "cost_estimate_hint" = "ประมาณการจากบันทึกท้องถิ่น · อาจแตกต่างจากใบเรียกเก็บเงินของคุณ";
+"codex_api_estimate_header" = "ค่าประมาณเทียบเท่า API";
+"codex_api_estimate_hint" = "การใช้งานในเครื่อง × ราคา API สาธารณะ · ไม่ใช่ใบเรียกเก็บเงินค่าสมาชิกหรือมูลค่าแพ็กเกจ";
+"codex_api_estimate_not_billed" = "ไม่ใช่ใบเรียกเก็บเงินค่าสมาชิกหรือมูลค่าแพ็กเกจ";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "ตรวจไม่พบ JetBrains IDE ที่มี AI Assistant ติดตั้ง JetBrains IDE และเปิดใช้งาน AI Assistant";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "โทเค็น OpenRouter API ไม่ได้กําหนดค่า ตั้งค่าตัวแปรสภาพแวดล้อม OPENROUTER_API_KEY หรือกําหนดค่าในการตั้งค่า";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "ไม่พบโทเค็น z.ai API ตั้งค่า apiKey เป็น ~/.quotakit/config.json หรือ Z_AI_API_KEY";
@@ -901,6 +931,13 @@
 "MiniMax 30 day token usage trend" = "MiniMax แนวโน้มการใช้โทเค็น 30 วัน";
 "Today cash" = "เงินสดวันนี้";
 "DeepSeek 30 day token usage trend" = "DeepSeek แนวโน้มการใช้โทเค็น 30 วัน";
+"Detailed usage unavailable." = "ไม่มีข้อมูลการใช้งานโดยละเอียด";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "ลงชื่อเข้าใช้ DeepSeek Platform ใน Chrome เพื่อดูรายละเอียดการใช้งาน";
+"Select a DeepSeek Chrome profile in Settings." = "เลือกโปรไฟล์ Chrome ของ DeepSeek ในการตั้งค่า";
+"DeepSeek this month token usage trend" = "แนวโน้มการใช้โทเค็น DeepSeek เดือนนี้";
+"Chrome profile" = "โปรไฟล์ Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "เลือกเซสชัน DeepSeek Platform ที่ลงชื่อเข้าใช้เพื่อแสดงรายละเอียดการใช้งาน";
+"Select profile…" = "เลือกโปรไฟล์…";
 "cache-hit input" = "อินพุต cache-hit";
 "cache-miss input" = "อินพุตแคชพลาด";
 "output" = "เอาท์พุท";
@@ -1024,7 +1061,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit จะขอส่วนหัวคุกกี้ Cursor macOS Keychain ของคุณเพื่อให้สามารถดึงข้อมูลการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit จะขอส่วนหัวคุกกี้ Factory macOS Keychain ของคุณเพื่อให้สามารถดึงข้อมูลการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit จะขอโทเค็น GitHub Copilot ของคุณจาก macOS Keychain เพื่อให้สามารถดึงข้อมูลการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit จะขอ macOS Keychain สําหรับคีย์ API Kimi K2 ของคุณเพื่อให้สามารถดึงการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit จะขอโทเค็นการรับรองความถูกต้อง Kimi macOS Keychain เพื่อให้สามารถดึงการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit จะขอโทเค็น MiniMax API ของคุณจาก macOS Keychain เพื่อให้สามารถดึงข้อมูลการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit จะขอส่วนหัวคุกกี้ MiniMax macOS Keychain ของคุณเพื่อให้สามารถดึงข้อมูลการใช้งานได้ คลิก ตกลง เพื่อดําเนินการต่อ";
@@ -1175,9 +1211,6 @@
 "byte_unit_megabytes" = "เมกะไบต์";
 "byte_unit_gigabyte" = "กิกะไบต์";
 "byte_unit_gigabytes" = "กิกะไบต์";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "แนวโน้มค่าใช้จ่ายของ CrossModel API";
 
 /* Settings sidebar redesign */
 "Enable" = "เปิดใช้งาน";
@@ -1192,12 +1225,29 @@
 "Show Codex Spark usage" = "แสดงการใช้งาน Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "แสดงแถวโควตา Codex Spark ในเมนูและตัวอย่างผู้ให้บริการ ต้องเปิดใช้ “แสดงเครดิต + การใช้งานเพิ่มเติม” ในการตั้งค่าการแสดงผล";
 "Scroll to see more models" = "เลื่อนเพื่อดูโมเดลเพิ่มเติม";
-"Projects" = "โปรเจ็กต์";
-"+ %d more" = "+ อีก %d รายการ";
-"Choose a supported browser so QuotaKit can read the matching account." = "เลือกเบราว์เซอร์ที่รองรับเพื่อให้ QuotaKit อ่านบัญชีที่ตรงกันได้";
-"Choose Cursor account" = "เลือกบัญชี Cursor";
-"Choose which Cursor account QuotaKit should use." = "เลือกบัญชี Cursor ที่ QuotaKit ควรใช้";
-"Use Account" = "ใช้บัญชี";
 "Finish switching to a different Cursor account in your browser, then try again." = "สลับไปยังบัญชี Cursor อื่นในเบราว์เซอร์ให้เสร็จ แล้วลองอีกครั้ง";
 "Timed out waiting for Cursor account switch. %@" = "หมดเวลารอการสลับบัญชี Cursor %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "หมดเวลารอการสลับบัญชี Cursor %@ ข้อผิดพลาดล่าสุด: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "การใช้งานและค่าใช้จ่าย";
+"Usage & Spend" = "การใช้งานและค่าใช้จ่าย";
+"Local estimated cost history across supported providers." = "ประวัติค่าใช้จ่ายโดยประมาณในเครื่องจากผู้ให้บริการที่รองรับ";
+"Time range" = "ช่วงเวลา";
+"Track costs" = "ติดตามค่าใช้จ่าย";
+"Cost tracking is off" = "ปิดการติดตามค่าใช้จ่ายอยู่";
+"Turn on Track costs to build local estimates." = "เปิด “ติดตามค่าใช้จ่าย” เพื่อสร้างการประมาณการในเครื่อง";
+"No local cost history yet" = "ยังไม่มีประวัติค่าใช้จ่ายในเครื่อง";
+"Turn on cost tracking or refresh after using a supported provider." = "เปิดการติดตามค่าใช้จ่ายหรือรีเฟรชหลังจากใช้ผู้ให้บริการที่รองรับ";
+"Refresh failures" = "การรีเฟรชที่ล้มเหลว";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "สกุลเงินต้นทางแยกจากกัน แถวบัญชี Codex ไม่รวมประวัติเซสชัน Pi";
+"Spend unavailable" = "ไม่มีข้อมูลค่าใช้จ่าย";
+"Model breakdown unavailable" = "ไม่มีรายละเอียดแยกตามโมเดล";
+"Local estimated history" = "ประวัติโดยประมาณในเครื่อง";
+"Coverage" = "ความครอบคลุม";
+"Estimated spend" = "ค่าใช้จ่ายโดยประมาณ";
+"Tracked tokens" = "โทเค็นที่ติดตาม";
+"Subscriptions" = "การสมัครสมาชิก";
+"By subscription" = "แยกตามการสมัครสมาชิก";
+"No model-level history" = "ไม่มีประวัติระดับโมเดล";
+"Daily estimated spend" = "ค่าใช้จ่ายรายวันโดยประมาณ";

@@ -110,7 +110,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let dataSource: ClaudeUsageDataSource
         let oauthKeychainPromptCooldownEnabled: Bool
         let allowBackgroundDelegatedRefresh: Bool
-        let allowStartupBootstrapPrompt: Bool
         let useWebExtras: Bool
         let manualCookieHeader: String?
         let webOrganizationID: String?
@@ -150,10 +149,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
 
     private var allowBackgroundDelegatedRefresh: Bool {
         self.configuration.allowBackgroundDelegatedRefresh
-    }
-
-    private var allowStartupBootstrapPrompt: Bool {
-        self.configuration.allowStartupBootstrapPrompt
     }
 
     private var useWebExtras: Bool {
@@ -272,7 +267,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         dataSource: ClaudeUsageDataSource = .oauth,
         oauthKeychainPromptCooldownEnabled: Bool = false,
         allowBackgroundDelegatedRefresh: Bool = false,
-        allowStartupBootstrapPrompt: Bool = false,
         useWebExtras: Bool = false,
         manualCookieHeader: String? = nil,
         webOrganizationID: String? = nil,
@@ -284,7 +278,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             dataSource: dataSource,
             oauthKeychainPromptCooldownEnabled: oauthKeychainPromptCooldownEnabled,
             allowBackgroundDelegatedRefresh: allowBackgroundDelegatedRefresh,
-            allowStartupBootstrapPrompt: allowStartupBootstrapPrompt,
             useWebExtras: useWebExtras,
             manualCookieHeader: manualCookieHeader,
             webOrganizationID: webOrganizationID,
@@ -311,23 +304,16 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                 let hasCache = ClaudeOAuthCredentialsStore.hasCachedCredentials(environment: self.fetcher.environment)
                 #endif
 
-                let startupBootstrapOverride = self.shouldAllowStartupBootstrapPrompt(
-                    policy: promptPolicy,
-                    hasCache: hasCache)
-                let allowKeychainPrompt = (promptPolicy.canPromptNow || startupBootstrapOverride) && !hasCache
+                let allowKeychainPrompt = promptPolicy.canPromptNow && !hasCache
                 ClaudeUsageFetcher.logOAuthBootstrapPromptDecision(
                     allowKeychainPrompt: allowKeychainPrompt,
                     policy: promptPolicy,
-                    hasCache: hasCache,
-                    startupBootstrapOverride: startupBootstrapOverride)
+                    hasCache: hasCache)
 
-                let credentialRecord = try await ClaudeOAuthCredentialsStore.$allowBackgroundPromptBootstrap
-                    .withValue(startupBootstrapOverride) {
-                        try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
-                            environment: self.fetcher.environment,
-                            allowKeychainPrompt: allowKeychainPrompt,
-                            respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
-                    }
+                let credentialRecord = try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
+                    environment: self.fetcher.environment,
+                    allowKeychainPrompt: allowKeychainPrompt,
+                    respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
                 let credentials = credentialRecord.credentials
 
                 try self.validateRequiredOAuthScope(credentials)
@@ -373,19 +359,6 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             }
         }
 
-        private func shouldAllowStartupBootstrapPrompt(
-            policy: ClaudeOAuthKeychainPromptPolicy,
-            hasCache: Bool) -> Bool
-        {
-            guard self.fetcher.allowStartupBootstrapPrompt else { return false }
-            guard !hasCache else { return false }
-            guard ClaudeOAuthKeychainPromptPreference.securityFrameworkFallbackMode() == .onlyOnUserAction else {
-                return false
-            }
-            guard policy.interaction == .background else { return false }
-            return ProviderRefreshContext.current == .startup
-        }
-
         private func loadAfterDelegatedRefresh(allowDelegatedRetry: Bool) async throws -> ClaudeUsageSnapshot {
             guard allowDelegatedRetry else {
                 throw ClaudeUsageError.oauthFailed(
@@ -411,7 +384,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             do {
                 if self.fetcher.oauthKeychainPromptCooldownEnabled {
                     switch delegatedOutcome {
-                    case .skippedByCooldown, .cliUnavailable:
+                    case .skippedByCooldown, .skippedByPromptPolicy, .cliUnavailable:
                         throw ClaudeUsageError.oauthFailed(
                             "Claude OAuth token expired; delegated refresh is unavailable (outcome="
                                 + "\(ClaudeUsageFetcher.delegatedRefreshOutcomeLabel(delegatedOutcome))).")
@@ -458,10 +431,12 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                         ])
                 }
 
-                let refreshedRecord = try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
-                    environment: self.fetcher.environment,
-                    allowKeychainPrompt: retryAllowKeychainPrompt,
-                    respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
+                let refreshedRecord = try await ProviderRefreshRequestContext.$id.withValue(UUID()) {
+                    try await ClaudeUsageFetcher.loadOAuthCredentialRecord(
+                        environment: self.fetcher.environment,
+                        allowKeychainPrompt: retryAllowKeychainPrompt,
+                        respectKeychainPromptCooldown: promptPolicy.shouldRespectKeychainPromptCooldown)
+                }
                 let refreshedCredentials = refreshedRecord.credentials
                 if ClaudeUsageFetcher.isClaudeOAuthFlowDebugEnabled {
                     ClaudeUsageFetcher.log.debug(
@@ -842,8 +817,7 @@ extension ClaudeUsageFetcher {
     private static func logOAuthBootstrapPromptDecision(
         allowKeychainPrompt: Bool,
         policy: ClaudeOAuthKeychainPromptPolicy,
-        hasCache: Bool,
-        startupBootstrapOverride: Bool)
+        hasCache: Bool)
     {
         guard allowKeychainPrompt else { return }
         self.log.info(
@@ -853,7 +827,6 @@ extension ClaudeUsageFetcher {
                 "promptMode": policy.mode.rawValue,
                 "promptPolicyApplicable": "\(policy.isApplicable)",
                 "hasCache": "\(hasCache)",
-                "startupBootstrapOverride": "\(startupBootstrapOverride)",
             ])
     }
 
@@ -935,6 +908,8 @@ extension ClaudeUsageFetcher {
         switch outcome {
         case .skippedByCooldown:
             "skippedByCooldown"
+        case .skippedByPromptPolicy:
+            "skippedByPromptPolicy"
         case .cliUnavailable:
             "cliUnavailable"
         case .attemptedSucceeded:
@@ -958,6 +933,9 @@ extension ClaudeUsageFetcher {
         case .skippedByCooldown:
             return "Claude OAuth token expired and delegated refresh is cooling down. "
                 + "Please retry shortly, or run `claude login`."
+        case .skippedByPromptPolicy:
+            return "Claude OAuth token expired; background refresh is disabled by the Keychain prompt policy. "
+                + "Refresh QuotaKit manually or run `claude login`."
         case .cliUnavailable:
             return "Claude OAuth token expired and Claude CLI is not available for delegated refresh. "
                 + "Install/configure `claude`, or run `claude login`."

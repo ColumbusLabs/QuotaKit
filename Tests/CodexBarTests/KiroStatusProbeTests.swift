@@ -935,7 +935,7 @@ extension KiroStatusProbeTests {
         fi
 
         if [ "$1" = "chat" ] && [ "$3" = "/context" ]; then
-          exit 0
+          printf 'Context window: 40%% used\\n'; exit 0
         fi
 
         exit 1
@@ -964,9 +964,9 @@ extension KiroStatusProbeTests {
             try await Task.sleep(for: .milliseconds(20))
         }
 
-        // The PTY runner must return promptly and reap a detached helper that keeps the terminal open.
+        // Keep the optional context probe parseable so this timing check covers detached-child cleanup.
         #expect(snapshot.planName == "KIRO FREE")
-        #expect(snapshot.creditsUsed == 12.50)
+        #expect(snapshot.creditsUsed == 12.50 && snapshot.contextUsage?.totalPercentUsed == 40)
         #expect(elapsed < 8, "Kiro usage capture should return promptly even with a detached child, took \(elapsed)s")
         #expect(kill(childPID, 0) == -1)
     }

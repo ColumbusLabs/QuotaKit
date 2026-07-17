@@ -64,6 +64,8 @@ struct ProviderColorPaletteTests {
             ("litellm", 76 / 255, 137 / 255, 192 / 255),
             ("deepgram", 0.49, 0.23, 0.93),
             ("zenmux", 90 / 255, 40 / 255, 190 / 255),
+            ("clinepass", 0.38, 0.64, 0.98),
+            ("longcat", 1, 209 / 255, 0),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -138,7 +140,7 @@ private let knownDistinctProviders = [
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
-    "crossmodel",
+    "crossmodel", "clinepass", "longcat",
     "zenmux",
 ]
 

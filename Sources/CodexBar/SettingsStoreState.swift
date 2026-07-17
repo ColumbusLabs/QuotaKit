@@ -28,6 +28,7 @@ struct SettingsDefaultsState {
     var providerChangelogLinksEnabled: Bool
     var menuBarShowsBrandIconWithPercent: Bool
     var menuBarHidesCritters: Bool
+    var menuBarHighContrastOnInactiveDisplays: Bool
     var menuBarDisplayModeRaw: String?
     var menuBarShowsResetTimeWhenExhausted: Bool
     var kiroMenuBarDisplayModeRaw: String?
@@ -39,6 +40,7 @@ struct SettingsDefaultsState {
     var copilotBudgetExtrasEnabled: Bool
     var copilotIconSecondaryWindowIDRaw: String
     var costUsageEnabled: Bool
+    var codexLocalSessionCostLedgerEnabled: Bool
     var costUsageHistoryDays: Int
     var costComparisonPeriodsEnabled: Bool
     var costSummaryDisplayStyleRaw: String

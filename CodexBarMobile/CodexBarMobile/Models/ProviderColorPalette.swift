@@ -90,6 +90,8 @@ enum ProviderColorPalette {
             (["clawrouter"], RawColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255)),
             (["sub2api"], RawColor(red: 45 / 255, green: 198 / 255, blue: 216 / 255)),
             (["zenmux"], RawColor(red: 90 / 255, green: 40 / 255, blue: 190 / 255)),
+            (["clinepass"], RawColor(red: 0.38, green: 0.64, blue: 0.98)),
+            (["longcat"], RawColor(red: 1, green: 209 / 255, blue: 0)),
             (["chutes"], RawColor(red: 0, green: 184 / 255, blue: 255 / 255)),
             (["qoder"], RawColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255)),
             (["wayfinder"], RawColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255)),

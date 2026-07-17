@@ -1,8 +1,13 @@
 /* Italian localization for CodexBar */
 
+"ollama_safari_cookie_access_hint" = "I cookie di Safari richiedono l’accesso completo al disco per QuotaKit (Impostazioni di Sistema > Privacy e sicurezza).";
+"ollama_browser_cookie_decryption_denied" = "La decrittografia dei cookie di %@ è stata rifiutata nel Portachiavi; riprova con un aggiornamento manuale.";
+"ollama_browser_cookie_decryption_disabled" = "La decrittografia dei cookie di %@ è disabilitata in QuotaKit; abilita l’accesso al Portachiavi e aggiorna.";
+
 " providers" = " provider";
 "(System)" = "(Sistema)";
 "30d" = "30 g";
+"7d" = "7 g";
 "A managed Codex login is already running. Wait for it to finish before adding " = "È già in corso un accesso gestito a Codex. Attendi che termini prima di aggiungere ";
 "API key" = "Chiave API";
 "API region" = "Regione API";
@@ -17,7 +22,7 @@
 "Add Workspace" = "Aggiungi workspace";
 "Advanced" = "Avanzate";
 "All" = "Tutti";
-"Always allow prompts" = "Consenti sempre nelle azioni dell'utente";
+"Always allow prompts" = "Consenti sempre i prompt";
 "Animation pattern" = "Schema animazione";
 "Antigravity login is managed in the app" = "L'accesso ad Antigravity è gestito nell'app";
 "Applies only to the Security.framework OAuth keychain reader." = "Si applica solo al lettore OAuth del portachiavi di Security.framework.";
@@ -58,13 +63,16 @@
 "Check for updates automatically" = "Controlla automaticamente gli aggiornamenti";
 "Check if you like your agents having some fun up there." = "Attivalo se vuoi che i tuoi agenti si divertano un po' lassù.";
 "Check provider status" = "Controlla stato provider";
+"Choose a supported browser so CodexBar can read the matching account." = "Scegli un browser supportato affinché QuotaKit possa leggere l'account corrispondente.";
 "Choose Codex workspace" = "Scegli il workspace Codex";
+"Choose Cursor account" = "Scegli account Cursor";
 "Choose the MiniMax host (global .io or China mainland .com)." = "Scegli l'host MiniMax (.io globale o .com per la Cina continentale).";
 "Choose up to " = "Scegli fino a ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "Scegli fino a \\(Self.maxOverviewProviders) provider";
 "Choose up to \\(count) providers" = "Scegli fino a \\(count) provider";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "Scegli cosa mostrare nella barra menu (Andamento mostra l'uso rispetto al previsto).";
 "Choose which Codex account CodexBar should follow." = "Scegli quale account Codex deve seguire QuotaKit.";
+"Choose which Cursor account CodexBar should use." = "Scegli quale account Cursor deve usare QuotaKit.";
 "Choose which window drives the menu bar percent." = "Scegli quale finestra determina la percentuale nella barra menu.";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "Claude CLI non trovata";
@@ -300,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Memorizza più header Cookie di OpenCode Go.";
 "Stored in the CodexBar config file." = "Memorizzato nel file di configurazione di QuotaKit.";
 "Stored in ~/.codexbar/config.json. " = "Memorizzato in ~/.quotakit/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Memorizzato in ~/.quotakit/config.json. Generane uno su kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Memorizzato in ~/.quotakit/config.json. Incolla la chiave dalla dashboard di Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Memorizzato in ~/.quotakit/config.json. Incolla la tua chiave API Coding Plan da Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Memorizzato in ~/.quotakit/config.json. Incolla la tua chiave API MiniMax.";
@@ -330,6 +337,7 @@
 "Usage breakdown" = "Dettaglio utilizzo";
 "Usage history (30 days)" = "Storico utilizzo (30 giorni)";
 "Usage source" = "Fonte utilizzo";
+"Use Account" = "Usa account";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Usa BigModel per gli endpoint della Cina continentale (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Usa una singola icona nella barra menu con selettore provider.";
 "Use international or China mainland console gateways for quota fetches." = "Usa i gateway console internazionali o della Cina continentale per recuperare le quote.";
@@ -429,7 +437,6 @@
 "language_indonesian" = "Indonesiano";
 "start_at_login_title" = "Avvia all'accesso";
 "start_at_login_subtitle" = "Apre automaticamente QuotaKit quando avvii il Mac.";
-"show_cost_summary" = "Mostra riepilogo costi";
 "show_cost_summary_subtitle" = "Legge i log di utilizzo locali. Mostra oggi + la finestra storica selezionata nel menu.";
 "cost_summary_style_title" = "Stile di visualizzazione";
 "cost_summary_style_inline" = "Solo in linea";
@@ -444,8 +451,6 @@
 "cost_comparison_periods_title" = "Mostra periodi di confronto più brevi";
 "cost_comparison_periods_subtitle" = "Aggiungi i totali di 7, 30 e 90 giorni quando rientrano nell'intervallo di cronologia selezionato. Questi totali riutilizzano la stessa scansione locale.";
 "cost_auto_refresh_info" = "Aggiornamento automatico: ogni ora · Timeout: 10 min";
-"refresh_cadence_title" = "Frequenza aggiornamento";
-"refresh_cadence_subtitle" = "Con quale frequenza QuotaKit interroga i provider in background.";
 "refresh_interval_title" = "Intervallo di aggiornamento";
 "manual_refresh_hint" = "Aggiornamento automatico disattivato; usa il comando Aggiorna nel menu.";
 "refresh_on_open_title" = "Aggiorna all'apertura del menu";
@@ -507,6 +512,27 @@
 "tab_menu_bar" = "Barra menu";
 "tab_menu" = "Menu";
 "tab_advanced" = "Avanzate";
+"tab_hooks" = "Hook";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Abilita hook";
+"hooks_enable_subtitle" = "Esegui comandi esterni al verificarsi di eventi di quota o provider.";
+"hooks_trust_warning" = "Gli hook possono eseguire comandi locali sul tuo Mac. Configura solo comandi di cui ti fidi.";
+"hooks_rules_header" = "Regole";
+"hooks_empty" = "Nessun hook configurato.";
+"hooks_add_rule" = "Aggiungi regola";
+"hooks_delete_rule" = "Elimina regola";
+"hooks_rule_enabled" = "Abilitato";
+"hooks_event" = "Evento";
+"hooks_provider" = "Provider";
+"hooks_any_provider" = "Qualsiasi provider";
+"hooks_threshold" = "Attiva a utilizzo ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argomenti";
+"hooks_argument_placeholder" = "Argomento";
+"hooks_add_argument" = "Aggiungi argomento";
+"hooks_delete_argument" = "Elimina argomento";
 "tab_about" = "Informazioni";
 "tab_debug" = "Diagnostica";
 
@@ -531,13 +557,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Mostra il saldo DeepSeek nella barra menu.";
 "menu_bar_metric_subtitle_moonshot" = "Mostra il saldo API Moonshot / Kimi nella barra menu.";
 "menu_bar_metric_subtitle_mistral" = "Mostra la spesa API Mistral del mese corrente nella barra menu.";
-"menu_bar_metric_subtitle_kimik2" = "Mostra i crediti della chiave API Kimi K2 nella barra menu.";
 "automatic" = "Automatico";
 "primary_api_key_limit" = "Principale (limite chiave API)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Stile barra menu";
 "menu_bar_style_subtitle" = "Come viene rappresentato l'elemento della barra menu.";
+"menu_bar_inactive_display_contrast_title" = "Migliora la visibilità sugli schermi inattivi";
+"menu_bar_inactive_display_contrast_subtitle" = "Usa un rendering ad alto contrasto per mantenere leggibili icona e metrica sugli altri schermi.";
 "menu_bar_style_critters" = "Creature";
 "menu_bar_style_bars" = "Barre di livello";
 "menu_bar_style_icon_percent" = "Icona + percentuale";
@@ -718,6 +745,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Costo (stimato)";
 "cost_estimate_hint" = "Stimato dai log locali · può differire dalla fattura";
+"codex_api_estimate_header" = "Stima equivalente API";
+"codex_api_estimate_hint" = "Utilizzo locale × prezzi API pubblici · non è una fattura di abbonamento né il valore di un piano";
+"codex_api_estimate_not_billed" = "non è una fattura di abbonamento né il valore di un piano";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Nessun IDE JetBrains con AI Assistant rilevato. Installa un IDE JetBrains e abilita AI Assistant.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "Token API OpenRouter non configurato. Imposta la variabile d'ambiente OPENROUTER_API_KEY oppure configuralo nelle Impostazioni.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "Token API z.ai non trovato. Imposta apiKey in ~/.quotakit/config.json o Z_AI_API_KEY.";
@@ -903,6 +933,13 @@
 "MiniMax 30 day token usage trend" = "Trend utilizzo token 30 giorni MiniMax";
 "Today cash" = "Spesa di oggi";
 "DeepSeek 30 day token usage trend" = "Trend utilizzo token 30 giorni DeepSeek";
+"DeepSeek this month token usage trend" = "Trend utilizzo token DeepSeek di questo mese";
+"Chrome profile" = "Profilo Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Scegli quale sessione di DeepSeek Platform con accesso effettuato fornisce l'utilizzo dettagliato.";
+"Detailed usage unavailable." = "Utilizzo dettagliato non disponibile.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Accedi a DeepSeek Platform in Chrome per l'utilizzo dettagliato.";
+"Select a DeepSeek Chrome profile in Settings." = "Seleziona un profilo Chrome di DeepSeek nelle Impostazioni.";
+"Select profile…" = "Seleziona profilo…";
 "cache-hit input" = "input cache-hit";
 "cache-miss input" = "input cache-miss";
 "output" = "uscita";
@@ -1026,7 +1063,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo header Cookie di Cursor per recuperare l'utilizzo. Fai clic su OK per continuare.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo header Cookie di Factory per recuperare l'utilizzo. Fai clic su OK per continuare.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo token GitHub Copilot per recuperare l'utilizzo. Fai clic su OK per continuare.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS la tua chiave API Kimi K2 per recuperare l'utilizzo. Fai clic su OK per continuare.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo token di autenticazione Kimi per recuperare l'utilizzo. Fai clic su OK per continuare.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo token API MiniMax per recuperare l'utilizzo. Fai clic su OK per continuare.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit chiederà al Portachiavi di macOS il tuo header Cookie di MiniMax per recuperare l'utilizzo. Fai clic su OK per continuare.";
@@ -1174,9 +1210,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "Andamento di spesa dell'API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Attiva";
@@ -1191,12 +1224,29 @@
 "Show Codex Spark usage" = "Mostra l’utilizzo di Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostra le righe della quota Codex Spark nel menu e nell’anteprima del provider. Richiede di attivare «Mostra crediti + uso extra» nelle impostazioni Aspetto.";
 "Scroll to see more models" = "Scorri per vedere altri modelli";
-"Projects" = "Progetti";
-"+ %d more" = "+ altri %d";
-"Choose a supported browser so QuotaKit can read the matching account." = "Scegli un browser supportato affinché QuotaKit possa leggere l'account corrispondente.";
-"Choose Cursor account" = "Scegli account Cursor";
-"Choose which Cursor account QuotaKit should use." = "Scegli quale account Cursor deve usare QuotaKit.";
-"Use Account" = "Usa account";
 "Finish switching to a different Cursor account in your browser, then try again." = "Completa il passaggio a un altro account Cursor nel browser, quindi riprova.";
 "Timed out waiting for Cursor account switch. %@" = "Tempo scaduto in attesa del cambio di account Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Tempo scaduto in attesa del cambio di account Cursor. %@ Ultimo errore: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Utilizzo e spesa";
+"Usage & Spend" = "Utilizzo e spesa";
+"Local estimated cost history across supported providers." = "Cronologia locale dei costi stimati per i provider supportati.";
+"Time range" = "Intervallo di tempo";
+"Track costs" = "Tieni traccia dei costi";
+"Cost tracking is off" = "Il monitoraggio dei costi è disattivato";
+"Turn on Track costs to build local estimates." = "Attiva «Tieni traccia dei costi» per creare stime locali.";
+"No local cost history yet" = "Ancora nessuna cronologia locale dei costi";
+"Turn on cost tracking or refresh after using a supported provider." = "Attiva il monitoraggio dei costi o aggiorna dopo aver usato un provider supportato.";
+"Refresh failures" = "Aggiornamenti non riusciti";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Le valute originali rimangono separate; le righe degli account Codex escludono la cronologia delle sessioni Pi.";
+"Spend unavailable" = "Spesa non disponibile";
+"Model breakdown unavailable" = "Ripartizione per modello non disponibile";
+"Local estimated history" = "Cronologia locale stimata";
+"Coverage" = "Copertura";
+"Estimated spend" = "Spesa stimata";
+"Tracked tokens" = "Token tracciati";
+"Subscriptions" = "Abbonamenti";
+"By subscription" = "Per abbonamento";
+"No model-level history" = "Nessuna cronologia a livello di modello";
+"Daily estimated spend" = "Spesa giornaliera stimata";

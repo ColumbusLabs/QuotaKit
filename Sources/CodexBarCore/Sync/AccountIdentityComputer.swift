@@ -56,7 +56,7 @@ public enum AccountIdentityComputer {
         case .vertexai:
             self.vertexAI(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
-             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
              // iOS falls back to per-device legacy bucket. Promote to a
@@ -78,8 +78,8 @@ public enum AccountIdentityComputer {
              // user files a cross-Mac merging request for them.
              .azureopenai, .alibabatokenplan, .t3chat,
              // Upstream 0.33+ new providers. Same rationale as above.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter, .wayfinder, .sub2api,
-             .zenmux:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
+             .zenmux, .clinepass, .longcat:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

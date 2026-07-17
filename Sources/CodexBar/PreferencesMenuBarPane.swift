@@ -13,6 +13,10 @@ struct MenuBarPane: View {
         L("overview_choose_providers", String(limit))
     }
 
+    static func inactiveDisplayContrastAvailable(for style: MenuBarIconStyle) -> Bool {
+        style == .iconAndPercent
+    }
+
     var body: some View {
         Form {
             Section {
@@ -49,6 +53,14 @@ struct MenuBarPane: View {
                 .disabled(
                     self.settings.menuBarIconStyle != .iconAndPercent
                         || self.settings.menuBarDisplayMode == .resetTime)
+
+                Toggle(isOn: self.$settings.menuBarHighContrastOnInactiveDisplays) {
+                    SettingsRowLabel(
+                        L("menu_bar_inactive_display_contrast_title"),
+                        subtitle: "\(MenuBarIconStyle.iconAndPercent.label): "
+                            + L("menu_bar_inactive_display_contrast_subtitle"))
+                }
+                .disabled(!Self.inactiveDisplayContrastAvailable(for: self.settings.menuBarIconStyle))
             } header: {
                 Text(L("section_icon"))
             }

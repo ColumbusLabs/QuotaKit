@@ -1,5 +1,11 @@
 # Changelog
 
+## Upstream sync — 2026-07-17
+
+- Integrated upstream through `63215da42`, including ClinePass and LongCat providers, the unified usage and spend dashboard, external quota/provider hooks, safer background credential discovery, account-scoped quota and cost fixes, and hardened CLI/dashboard serving.
+- Retired the unverified Kimi K2 and CrossModel Mac relays while preserving historical mobile sync decoding, and added ClinePass/LongCat mobile notification and presentation parity.
+- Preserved QuotaKit and Columbus Labs public identity, release and appcast ownership, CloudKit configuration, shipped upstream version tracking, and all Mac/iOS build numbers.
+
 ## Upstream sync — 2026-07-16
 
 - Integrated upstream through `6d71af30`, including hardened Cursor account switching, corrected Codex restarted-subagent and fork-baseline accounting, thread-safe browser/keychain helpers, isolated Claude OAuth rate-limit recovery, no-prompt Claude credential recovery, unlimited Copilot quota suppression, status-item reuse, and ZenMux Management API support.

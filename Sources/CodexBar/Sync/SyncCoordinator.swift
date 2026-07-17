@@ -757,7 +757,7 @@ final class SyncCoordinator {
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
-            crossModelUsage: Self.mapCrossModelUsage(provider: provider, snapshot: snapshot))
+            crossModelUsage: nil)
     }
 
     static func syncBudgetSnapshot(
@@ -847,22 +847,29 @@ final class SyncCoordinator {
         metadata: ProviderMetadata?,
         snapshot: UsageSnapshot?) -> (primary: String?, secondary: String?, tertiary: String)
     {
-        let primary: String? = if provider == .cursor {
-            switch snapshot?.cursorRateWindowLayout {
+        if provider == .cursor {
+            // Cursor's legacy projection stored Auto/API in primary/secondary,
+            // while the current projection uses Total/Auto/API across all
+            // three lanes. Preserve the labels that match the recorded layout
+            // so older snapshots do not get relabeled as Total/Auto on iOS.
+            return switch snapshot?.cursorRateWindowLayout {
             case .requests:
-                "Requests"
+                ("Requests", nil, metadata?.opusLabel ?? "API")
             case .plan:
-                "Plan"
+                ("Plan", nil, metadata?.opusLabel ?? "API")
             case .apiOnly:
-                "API"
-            case .autoAPI, .autoOnly, .none:
-                metadata?.sessionLabel
+                ("API", nil, metadata?.opusLabel ?? "API")
+            case .autoOnly:
+                ("Auto", nil, metadata?.opusLabel ?? "API")
+            case .autoAPI:
+                ("Auto", "API", metadata?.opusLabel ?? "API")
+            case .none:
+                (metadata?.sessionLabel, metadata?.weeklyLabel, metadata?.opusLabel ?? "API")
             }
-        } else {
-            metadata?.sessionLabel
         }
+
         return (
-            primary,
+            metadata?.sessionLabel,
             metadata?.weeklyLabel,
             metadata?.opusLabel ?? "Sonnet")
     }
@@ -1452,7 +1459,7 @@ final class SyncCoordinator {
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
-             .minimax, .kilo, .kiro, .kimi, .kimik2, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers — pre-computed costs from
              // their own APIs, never go through the local Codex/Claude
@@ -1477,8 +1484,8 @@ final class SyncCoordinator {
              // Upstream 0.33+ new providers. These quota numbers come
              // from their own APIs/local sessions — never via the local
              // pricing tables.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .crossmodel, .clawrouter, .wayfinder, .sub2api,
-             .zenmux:
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
+             .zenmux, .clinepass, .longcat:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

@@ -1,8 +1,33 @@
 /* Chinese (Traditional) localization for CodexBar */
 
+"tab_hooks" = "掛鉤";
+"hooks_enable_title" = "啟用掛鉤";
+"hooks_enable_subtitle" = "在配額或提供者事件發生時執行外部指令。";
+"hooks_trust_warning" = "掛鉤可以在 Mac 上執行本機指令。請只設定你信任的指令。";
+"hooks_rules_header" = "規則";
+"hooks_empty" = "尚未設定掛鉤。";
+"hooks_add_rule" = "新增規則";
+"hooks_delete_rule" = "刪除規則";
+"hooks_rule_enabled" = "已啟用";
+"hooks_event" = "事件";
+"hooks_provider" = "提供者";
+"hooks_any_provider" = "任何提供者";
+"hooks_threshold" = "使用率 ≥ 時執行";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "引數";
+"hooks_argument_placeholder" = "引數";
+"hooks_add_argument" = "新增引數";
+"hooks_delete_argument" = "刪除引數";
+
+"ollama_safari_cookie_access_hint" = "QuotaKit 需要「完整磁碟存取權」才能讀取 Safari Cookie（系統設定 > 隱私權與安全性）。";
+"ollama_browser_cookie_decryption_denied" = "鑰匙圈拒絕解密 %@ Cookie；請透過手動重新整理再試一次。";
+"ollama_browser_cookie_decryption_disabled" = "QuotaKit 中已停用 %@ Cookie 解密；請啟用鑰匙圈存取權並重新整理。";
+
 " providers" = " 提供者";
 "(System)" = "（系統）";
 "30d" = "30 天";
+"7d" = "7 天";
 "A managed Codex login is already running. Wait for it to finish before adding " = "託管 Codex 登入已在執行。請等待其完成後再新增 ";
 "API key" = "API 金鑰";
 "API key limit" = "API 金鑰限制";
@@ -66,8 +91,8 @@
 "Choose up to " = "選擇最多 ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "選擇最多 \\(Self.maxOverviewProviders) 個提供者";
 "Choose up to \\(count) providers" = "選擇最多 \\(count) 個提供者";
-"Choose which Codex account CodexBar should follow." = "選擇 QuotaKit 要追蹤的 Codex 帳號。";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "選擇選單列要顯示的內容（進度會比較目前用量和時間進度）。";
+"Choose which Codex account CodexBar should follow." = "選擇 QuotaKit 要追蹤的 Codex 帳號。";
 "Choose which window drives the menu bar percent." = "選擇選單列百分比要依據哪個時段。";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "找不到 Claude CLI";
@@ -309,7 +334,6 @@
 "Store multiple OpenCode Go Cookie headers." = "儲存多個 OpenCode Go Cookie 標頭。";
 "Stored in the CodexBar config file." = "儲存在 QuotaKit 設定檔中。";
 "Stored in ~/.codexbar/config.json. " = "儲存在 ~/.quotakit/config.json 中。";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "儲存在 ~/.quotakit/config.json 中。可在 kimi-k2.ai 產生。";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "儲存在 ~/.quotakit/config.json 中。請貼上來自 Synthetic 儀表板的金鑰。";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "儲存在 ~/.quotakit/config.json 中。請貼上來自 Model Studio 的 Coding Plan API 金鑰。";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "儲存在 ~/.quotakit/config.json 中。請貼上你的 MiniMax API 金鑰。";
@@ -431,7 +455,6 @@
 "language_polish" = "Polski";
 "start_at_login_title" = "登入時啟動";
 "start_at_login_subtitle" = "登入 Mac 時自動開啟 QuotaKit。";
-"show_cost_summary" = "顯示費用摘要";
 "show_cost_summary_subtitle" = "讀取本機使用量記錄。在選單中顯示今天及所選歷史時段的費用。";
 "cost_summary_style_title" = "顯示樣式";
 "cost_summary_style_inline" = "僅內嵌";
@@ -446,8 +469,6 @@
 "cost_auto_refresh_info" = "自動重新整理：每小時 · 逾時：10 分鐘";
 "cost_comparison_periods_title" = "顯示較短的比較期間";
 "cost_comparison_periods_subtitle" = "當 7 天、30 天和 90 天落在所選歷史時段內時，加入相應總計。這些總計會重複使用同一次本機掃描。";
-"refresh_cadence_title" = "重新整理頻率";
-"refresh_cadence_subtitle" = "QuotaKit 在背景輪詢提供者的頻率。";
 "refresh_interval_title" = "重新整理間隔";
 "manual_refresh_hint" = "自動重新整理已關閉；請使用選單中的「重新整理」指令。";
 "refresh_on_open_title" = "開啟選單時重新整理";
@@ -529,11 +550,12 @@
 "menu_bar_metric_subtitle_deepseek" = "在選單列顯示 DeepSeek 餘額。";
 "menu_bar_metric_subtitle_moonshot" = "在選單列顯示 Moonshot / Kimi API 餘額。";
 "menu_bar_metric_subtitle_mistral" = "在選單列顯示 Mistral API 本月支出。";
-"menu_bar_metric_subtitle_kimik2" = "在選單列顯示 Kimi K2 API 金鑰額度。";
 "automatic" = "自動";
 "primary_api_key_limit" = "主要（API 金鑰限制）";
 "menu_bar_style_title" = "選單列樣式";
 "menu_bar_style_subtitle" = "選單列項目的繪製方式。";
+"menu_bar_inactive_display_contrast_title" = "改善非使用中顯示器上的可見度";
+"menu_bar_inactive_display_contrast_subtitle" = "使用高對比顯示，讓其他顯示器上的圖示與指標保持清晰可讀。";
 "menu_bar_style_critters" = "小動物";
 "menu_bar_style_bars" = "進度條";
 "menu_bar_style_icon_percent" = "圖示和百分比";
@@ -700,6 +722,9 @@
 "macOS Tahoe can block menu bar apps in System Settings → Menu Bar → Allow in the Menu Bar. CodexBar is running, but macOS may be hiding its icon. Open Menu Bar settings and turn CodexBar on." = "macOS Tahoe 可能會在「系統設定」→「選單列」→「允許顯示在選單列」中封鎖選單列 App。QuotaKit 正在執行，但 macOS 可能隱藏了它的圖示。請開啟選單列設定並啟用 QuotaKit。";
 "cost_header_estimated" = "費用（估算）";
 "cost_estimate_hint" = "根據本機記錄估算 · 可能與帳單不同";
+"codex_api_estimate_header" = "API 等值估算";
+"codex_api_estimate_hint" = "本機用量 × 公開 API 價格 · 不是訂閱帳單或方案價值";
+"codex_api_estimate_not_billed" = "不是訂閱帳單或方案價值";
 "copilot_device_code" = "裝置碼已複製到剪貼簿：%1$@\n\n請到以下網址驗證：%2$@";
 "copilot_waiting_text" = "請在瀏覽器中完成登入。\n登入完成後，此視窗會自動關閉。";
 "vertex_ai_login_instructions" = "要追蹤 Vertex AI 使用量，請透過 Google Cloud 進行認證。\n\n1. 開啟終端\n2. 執行：gcloud auth application-default login\n3. 依照瀏覽器提示登入\n4. 設定你的專案：gcloud config set project PROJECT_ID\n\n要現在開啟終端嗎？";
@@ -800,7 +825,7 @@
 "This week" = "本週";
 "Week" = "週";
 "Month" = "月";
-"Models" = "模型數";
+"Models" = "模型";
 "24h tokens" = "24 小時 token";
 "Latest hour" = "最新小時";
 "Peak hour" = "尖峰小時";
@@ -885,7 +910,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 Cursor Cookie 標頭，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 Factory Cookie 標頭，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 GitHub Copilot token，以取得使用量。按一下「確定」繼續。";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 Kimi K2 API 金鑰，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 Kimi 認證 token，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 MiniMax API token，以取得使用量。按一下「確定」繼續。";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit 將向 macOS 鑰匙圈要求你的 MiniMax Cookie 標頭，以取得使用量。按一下「確定」繼續。";
@@ -989,7 +1013,7 @@
 "Stored in ~/.codexbar/config.json. You can also provide KILO_API_KEY or ~/.local/share/kilo/auth.json (kilo.access)." = "儲存在 ~/.quotakit/config.json 中。你也可以提供 KILO_API_KEY 或 ~/.local/share/kilo/auth.json（kilo.access）。";
 "T3 Chat cookie" = "T3 Chat Cookie";
 "Team mode" = "團隊模式";
-"That account is no longer available in CodexBar. Refresh the account list and try again." = "該帳號已無法在 QuotaKit 中使用。請重新整理帳號列表後再試。";
+"That account is no longer available in CodexBar. Refresh the account list and try again." = "該帳號已無法在 QuotaKit 中使用。請重新整理帳號清單後再試。";
 "The browser login did not complete in time. Try Antigravity login again." = "瀏覽器登入未在時限內完成。請再次嘗試 Antigravity 登入。";
 "Timed out waiting for Cursor login. %@" = "等待 Cursor 登入逾時。%@";
 "Timed out waiting for Cursor login. %@ Last error: %@" = "等待 Cursor 登入逾時。%@ 最後錯誤：%@";
@@ -1041,7 +1065,6 @@
 "byte_unit_megabytes" = "MB";
 "byte_unit_gigabyte" = "GB";
 "byte_unit_gigabytes" = "GB";
-"CrossModel API spend trend" = "CrossModel API 支出趨勢";
 
 /* Added zh-Hant parity with English catalog */
 "minimax_service_music_generation" = "音樂生成";
@@ -1165,7 +1188,7 @@
 "Codex usage is temporarily unavailable. Try refreshing." = "Codex 使用量暫時無法取得。請嘗試重新整理。";
 "Last OpenAI dashboard refresh failed: %1$@. Cached values from %2$@." = "上次 OpenAI 儀表板重新整理失敗：%1$@。使用 %2$@ 的快取值。";
 "Last Codex credits refresh failed: %1$@. Cached values from %2$@." = "上次 Codex 額度重新整理失敗：%1$@。使用 %2$@ 的快取值。";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI Web 儀表板重新整理逾時。QuotaKit 會在重新整理冷卻時間後重試。";
+"OpenAI web dashboard refresh timed out. CodexBar will retry after the refresh cooldown." = "OpenAI Web 儀表板重新整理逾時。QuotaKit 會在重新整理冷卻時間後重試。";
 "Codex account changed; importing browser cookies…" = "Codex 帳號已變更；正在匯入瀏覽器 Cookie…";
 "Managed Codex account data is unavailable." = "無法取得託管 Codex 帳號資料。";
 "Fix the managed account store before importing OpenAI cookies." = "請先修復託管帳號儲存區，再匯入 OpenAI Cookie。";
@@ -1182,7 +1205,7 @@
 "OpenAI cookies are for %1$@, not %2$@." = "OpenAI Cookie 屬於 %1$@，不是 %2$@。";
 "Codex credits are still loading; will retry shortly." = "Codex 額度仍在載入；稍後會重試。";
 "Could Not Identify GitHub Account" = "無法識別 GitHub 帳號";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub 登入成功，但 QuotaKit 無法確認這屬於哪個帳號。請再試一次。";
+"GitHub login succeeded, but CodexBar could not verify which account it belongs to. Please try again." = "GitHub 登入成功，但 QuotaKit 無法確認這屬於哪個帳號。請再試一次。";
 "Token Refreshed" = "Token 已重新整理";
 "Account Added" = "已新增帳號";
 "Login Successful" = "登入成功";
@@ -1219,12 +1242,40 @@
 "Show Codex Spark usage" = "顯示 Codex Spark 使用量";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示 Codex Spark 配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
 "Scroll to see more models" = "捲動查看更多模型";
-"Projects" = "專案";
-"+ %d more" = "+ 另有 %d 個";
-"Choose a supported browser so QuotaKit can read the matching account." = "請選擇支援的瀏覽器，讓 QuotaKit 讀取相符的帳號。";
+"DeepSeek this month token usage trend" = "DeepSeek 本月 token 使用量趨勢";
+"Chrome profile" = "Chrome 設定檔";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "選擇要提供詳細使用量的已登入 DeepSeek Platform 工作階段。";
+"Detailed usage unavailable." = "無法取得詳細使用量。";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "請在 Chrome 中登入 DeepSeek Platform 以查看詳細使用量。";
+"Select a DeepSeek Chrome profile in Settings." = "請在「設定」中選擇 DeepSeek Chrome 設定檔。";
+"Select profile…" = "選擇設定檔…";
+
+"Choose a supported browser so CodexBar can read the matching account." = "選擇一個支援的瀏覽器，讓 QuotaKit 可以讀取對應帳號。";
 "Choose Cursor account" = "選擇 Cursor 帳號";
-"Choose which Cursor account QuotaKit should use." = "選擇 QuotaKit 應使用的 Cursor 帳號。";
-"Use Account" = "使用帳號";
-"Finish switching to a different Cursor account in your browser, then try again." = "請在瀏覽器中完成切換至另一個 Cursor 帳號，然後再試一次。";
-"Timed out waiting for Cursor account switch. %@" = "等待 Cursor 帳號切換逾時。%@";
-"Timed out waiting for Cursor account switch. %@ Last error: %@" = "等待 Cursor 帳號切換逾時。%@ 最後錯誤：%@";
+"Choose which Cursor account CodexBar should use." = "選擇 QuotaKit 應使用的 Cursor 帳號。";
+"Finish switching to a different Cursor account in your browser, then try again." = "在瀏覽器中完成切換到其他 Cursor 帳號，然後再試一次。";
+"Timed out waiting for Cursor account switch. %@" = "等待切換 Cursor 帳號逾時。%@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "等待切換 Cursor 帳號逾時。%@ 最近錯誤：%@";
+"Use Account" = "使用此帳號";
+/* Spend dashboard */
+"tab_usage_spend" = "使用量與支出";
+"Usage & Spend" = "使用量與支出";
+"Local estimated cost history across supported providers." = "所有支援提供者的本機預估費用歷史。";
+"Time range" = "時間範圍";
+"Track costs" = "追蹤費用";
+"Cost tracking is off" = "費用追蹤已關閉";
+"Turn on Track costs to build local estimates." = "開啟「追蹤費用」以建立本機預估。";
+"No local cost history yet" = "尚無本機費用歷史";
+"Turn on cost tracking or refresh after using a supported provider." = "開啟費用追蹤，或在使用支援的提供者後重新整理。";
+"Refresh failures" = "重新整理失敗";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "各原始幣別保持分開；Codex 帳號列不包含 Pi 工作階段歷史。";
+"Spend unavailable" = "無法取得支出資料";
+"Model breakdown unavailable" = "無法取得模型明細";
+"Local estimated history" = "本機預估歷史";
+"Coverage" = "涵蓋範圍";
+"Estimated spend" = "預估支出";
+"Tracked tokens" = "已追蹤 token";
+"Subscriptions" = "訂閱";
+"By subscription" = "依訂閱";
+"No model-level history" = "尚無模型層級歷史";
+"Daily estimated spend" = "每日預估支出";

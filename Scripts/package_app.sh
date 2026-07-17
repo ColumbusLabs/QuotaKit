@@ -13,6 +13,25 @@ resolve_package_signing_mode() {
   SIGNING_MODE="$requested"
 }
 
+verify_no_quarantine_attribute() {
+  local bundle="$1"
+  local quarantined
+  quarantined="$(xattr -r -p com.apple.quarantine "$bundle" 2>/dev/null || true)"
+  if [[ -n "$quarantined" ]]; then
+    echo "ERROR: Packaged app still has com.apple.quarantine: ${bundle}" >&2
+    return 1
+  fi
+}
+
+verify_packaged_app_integrity() {
+  local bundle="$1"
+  local sparkle="$bundle/Contents/Frameworks/Sparkle.framework"
+
+  verify_no_quarantine_attribute "$bundle" || return 1
+  codesign --verify --deep --strict --verbose=2 "$sparkle" || return 1
+  codesign --verify --deep --strict --verbose=2 "$bundle" || return 1
+}
+
 CONF=${1:-release}
 ALLOW_LLDB=${CODEXBAR_ALLOW_LLDB:-0}
 SIGNING_MODE=
@@ -721,4 +740,5 @@ fi
 copy_app_bundle "$APP" "$APP_FINAL"
 rm -rf "$(dirname "$APP")"
 APP="$APP_FINAL"
+verify_packaged_app_integrity "$APP"
 echo "Created $APP"

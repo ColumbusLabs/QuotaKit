@@ -30,7 +30,12 @@ public enum DeepgramProviderDescriptor {
                 color: ProviderColor(
                     red: 0.49,
                     green: 0.23,
-                    blue: 0.93)),
+                    blue: 0.93),
+                confettiPalette: [
+                    ProviderColor(hex: 0x13EF95),
+                    ProviderColor(hex: 0x149AFB),
+                    ProviderColor(hex: 0x1A1A1F),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: {

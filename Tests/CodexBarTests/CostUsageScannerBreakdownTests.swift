@@ -1870,7 +1870,7 @@ struct CostUsageScannerBreakdownTests {
         #expect(first.data[0].totalTokens == 132)
 
         let newCacheURL = CostUsageCacheIO.cacheFileURL(provider: .codex, cacheRoot: env.cacheRoot)
-        #expect(newCacheURL.lastPathComponent == "codex-v9.json")
+        #expect(newCacheURL.lastPathComponent == "codex-v10.json")
         #expect(FileManager.default.fileExists(atPath: newCacheURL.path))
         #expect(FileManager.default.fileExists(atPath: oldCacheURL.path))
 
@@ -4267,6 +4267,64 @@ struct CostUsageScannerBreakdownTests {
     }
 
     @Test
+    func `codex unstable parent snapshot keeps fork dependency uncached`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let parentDay = try env.makeLocalNoon(year: 2026, month: 2, day: 1)
+        let parentSessionId = "sess-parent-unstable"
+        let model = "openai/gpt-5.2-codex"
+        let metadata: [String: Any] = [
+            "type": "session_meta",
+            "payload": ["id": parentSessionId],
+        ]
+        let firstContents = try env.jsonl([
+            metadata,
+            self.codexTurnContext(timestamp: env.isoString(for: parentDay), model: model),
+            self.codexTokenCount(
+                timestamp: env.isoString(for: parentDay.addingTimeInterval(1)),
+                model: model,
+                total: (input: 20, cached: 5, output: 2)),
+        ])
+        let secondContents = try env.jsonl([
+            metadata,
+            self.codexTurnContext(timestamp: env.isoString(for: parentDay), model: model),
+            self.codexTokenCount(
+                timestamp: env.isoString(for: parentDay.addingTimeInterval(1)),
+                model: model,
+                total: (input: 21, cached: 5, output: 2)),
+        ])
+        let parentURL = try env.writeCodexSessionFile(
+            day: parentDay,
+            filename: "rollout-2026-02-01T12-00-00-\(parentSessionId).jsonl",
+            contents: firstContents)
+        let fileIndex = CostUsageScanner.CodexSessionFileIndex(
+            files: [parentURL],
+            roots: [],
+            cachedSessionFiles: [parentSessionId: parentURL])
+        var mutationCount = 0
+        let resolver = CostUsageScanner.CodexInheritedTotalsResolver(
+            fileIndex: fileIndex,
+            checkCancellation: {
+                mutationCount += 1
+                let contents = mutationCount.isMultiple(of: 2) ? firstContents : secondContents
+                try contents.write(to: parentURL, atomically: true, encoding: .utf8)
+            })
+
+        let baseline = try resolver.inheritedTotals(
+            for: parentSessionId,
+            atOrBefore: env.isoString(for: parentDay.addingTimeInterval(2)))
+        if case .resolved = baseline {
+            Issue.record("Expected an unstable parent snapshot to stay unresolved")
+        }
+        #expect(resolver.dependencyKeyUsed(for: parentSessionId) == nil)
+        #expect(CostUsageScanner.codexForkBaselineDependencyKey(
+            parentSessionId: parentSessionId,
+            dependsOnParentTotals: true,
+            inheritedResolver: resolver) == nil)
+    }
+
+    @Test
     func `codex forked child skips cumulative totals when parent session is missing`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -4774,15 +4832,28 @@ struct CostUsageScannerBreakdownTests {
             claudeProjectsRoots: nil,
             cacheRoot: env.cacheRoot)
         options.refreshMinIntervalSeconds = 0
-        options.forceRescan = true
-
-        let report = CostUsageScanner.loadDailyReport(
+        let coldReport = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
             now: forkDate.addingTimeInterval(3),
             options: options)
+        let warmReport = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: forkDate.addingTimeInterval(4),
+            options: options)
+        options.forceRescan = true
+        let report = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: forkDate.addingTimeInterval(5),
+            options: options)
 
+        #expect(coldReport.data.first?.totalTokens == 63_065_400)
+        #expect(warmReport.data.first?.totalTokens == 63_065_400)
         #expect(report.data.count == 1)
         #expect(report.data[0].inputTokens == 60_062_200)
         #expect(report.data[0].cacheReadTokens == 48_051_000)
@@ -4802,6 +4873,8 @@ struct CostUsageScannerBreakdownTests {
         #expect(abs((report.data[0].costUSD ?? 0) - expectedCost) < 0.000001)
 
         let cache = CostUsageCacheIO.load(provider: .codex, cacheRoot: env.cacheRoot)
+        let childUsage = try #require(cache.files.values.first(where: { $0.sessionId == "child-session" }))
+        #expect(childUsage.forkBaselineDependencyKey == CostUsageScanner.codexForkDependencyNotRequiredKey)
         let projects = CostUsageScanner.buildCodexProjectBreakdownsFromCache(
             cache: cache,
             range: CostUsageScanner.CostUsageDayRange(since: day, until: day),

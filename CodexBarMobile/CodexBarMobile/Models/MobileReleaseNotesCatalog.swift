@@ -33,6 +33,8 @@ enum MobileReleaseNotesCatalog {
                     items: [
                         String(
                             localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
+                        String(
+                            localized: "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac."),
                     ]),
             ]),
         ReleaseNotesVersion(

@@ -1,8 +1,13 @@
-/* Turkish localization for QuotaKit */
+/* Turkish localization for CodexBar */
+
+"ollama_safari_cookie_access_hint" = "Safari çerezleri için QuotaKit’a Tam Disk Erişimi gerekir (Sistem Ayarları > Gizlilik ve Güvenlik).";
+"ollama_browser_cookie_decryption_denied" = "%@ çerezlerinin şifresini çözme Anahtar Zinciri’nde reddedildi; manuel yenilemeyle tekrar deneyin.";
+"ollama_browser_cookie_decryption_disabled" = "%@ çerezlerinin şifresini çözme QuotaKit’da devre dışı; Anahtar Zinciri erişimini etkinleştirip yenileyin.";
 
 " providers" = " sağlayıcı";
 "(System)" = "(Sistem)";
 "30d" = "30 gün";
+"7d" = "7 gün";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Yönetilen bir Codex girişi zaten çalışıyor. Eklemeden önce bitmesini bekleyin ";
 "API key" = "API anahtarı";
 "API region" = "API bölgesi";
@@ -17,7 +22,7 @@
 "Add Workspace" = "Çalışma Alanı Ekle";
 "Advanced" = "Gelişmiş";
 "All" = "Tümü";
-"Always allow prompts" = "Kullanıcı eylemlerinde her zaman izin ver";
+"Always allow prompts" = "Her zaman istemlere izin ver";
 "Animation pattern" = "Animasyon deseni";
 "Antigravity login is managed in the app" = "Antigravity girişi uygulama içinden yönetilir";
 "Applies only to the Security.framework OAuth keychain reader." = "Yalnızca Security.framework OAuth Anahtarlık okuyucusu için geçerlidir.";
@@ -58,13 +63,16 @@
 "Check for updates automatically" = "Güncellemeleri otomatik denetle";
 "Check if you like your agents having some fun up there." = "Ajanlarınızın yukarıda biraz eğlenmesini istiyorsanız işaretleyin.";
 "Check provider status" = "Sağlayıcı durumunu denetle";
+"Choose a supported browser so CodexBar can read the matching account." = "QuotaKit'ın eşleşen hesabı okuyabilmesi için desteklenen bir tarayıcı seçin.";
 "Choose Codex workspace" = "Codex çalışma alanını seçin";
+"Choose Cursor account" = "Cursor hesabını seçin";
 "Choose the MiniMax host (global .io or China mainland .com)." = "MiniMax sunucusunu seçin (küresel .io veya Çin anakarası .com).";
 "Choose up to " = "En fazla seçin ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "En fazla \\(Self.maxOverviewProviders) sağlayıcı seçin";
 "Choose up to \\(count) providers" = "En fazla \\(count) sağlayıcı seçin";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "Menü çubuğunda ne gösterileceğini seçin (Hız, kullanımı beklentiyle karşılaştırır).";
 "Choose which Codex account CodexBar should follow." = "QuotaKit'ın hangi Codex hesabını izleyeceğini seçin.";
+"Choose which Cursor account CodexBar should use." = "QuotaKit'ın hangi Cursor hesabını kullanacağını seçin.";
 "Choose which window drives the menu bar percent." = "Menü çubuğu yüzdesini hangi pencerenin belirleyeceğini seçin.";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "Claude CLI bulunamadı";
@@ -300,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Birden fazla OpenCode Go Çerez başlığı depolayın.";
 "Stored in the CodexBar config file." = "QuotaKit yapılandırma dosyasında depolandı.";
 "Stored in ~/.codexbar/config.json. " = "~/.quotakit/config.json dosyasında depolandı. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "~/.quotakit/config.json dosyasında depolandı. kimi-k2.ai adresinden bir tane oluşturun.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "~/.quotakit/config.json dosyasında depolandı. Synthetic panelinden anahtarı yapıştırın.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "~/.quotakit/config.json dosyasında depolandı. Model Studio'dan Kodlama Planı API anahtarınızı yapıştırın.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "~/.quotakit/config.json dosyasında depolandı. MiniMax API anahtarınızı yapıştırın.";
@@ -328,6 +335,7 @@
 "Usage breakdown" = "Kullanım dağılımı";
 "Usage history (30 days)" = "Kullanım geçmişi";
 "Usage source" = "Kullanım kaynağı";
+"Use Account" = "Hesabı Kullan";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Çin anakarası uç noktaları için BigModel kullanın (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Sağlayıcı değiştiricisiyle tek bir menü çubuğu simgesi kullan.";
 "Use international or China mainland console gateways for quota fetches." = "Kota getirmeleri için uluslararası veya Çin anakarası konsol ağ geçitlerini kullan.";
@@ -427,7 +435,6 @@
 "language_polish" = "Lehçe";
 "start_at_login_title" = "Girişte Başlat";
 "start_at_login_subtitle" = "Mac'inizi başlattığınızda QuotaKit'ı otomatik olarak açar.";
-"show_cost_summary" = "Maliyet özetini göster";
 "show_cost_summary_subtitle" = "Yerel kullanım günlüklerini okur. Menüde bugün + seçilen geçmiş penceresini gösterir.";
 "cost_summary_style_title" = "Görüntüleme stili";
 "cost_summary_style_inline" = "Yalnızca satır içi";
@@ -442,8 +449,6 @@
 "cost_comparison_periods_title" = "Daha kısa karşılaştırma dönemlerini göster";
 "cost_comparison_periods_subtitle" = "Seçilen geçmiş aralığına sığdığında 7, 30 ve 90 günlük toplamları ekler. Bu toplamlar aynı yerel taramayı yeniden kullanır.";
 "cost_auto_refresh_info" = "Otomatik yenileme: saatlik · Zaman aşımı: 10 dk";
-"refresh_cadence_title" = "Yenileme sıklığı";
-"refresh_cadence_subtitle" = "QuotaKit'ın arka planda sağlayıcıları ne sıklıkla sorgulayacağı.";
 "refresh_interval_title" = "Yenileme aralığı";
 "manual_refresh_hint" = "Otomatik yenileme kapalı; menüdeki Yenile komutunu kullanın.";
 "refresh_on_open_title" = "Menü açıldığında yenile";
@@ -505,10 +510,29 @@
 "tab_menu_bar" = "Menü çubuğu";
 "tab_menu" = "Menü";
 "tab_advanced" = "Gelişmiş";
+"tab_hooks" = "Kancalar";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Kancaları etkinleştir";
+"hooks_enable_subtitle" = "Kota veya sağlayıcı olayları gerçekleştiğinde harici komutlar çalıştır.";
+"hooks_trust_warning" = "Kancalar Mac'inizde yerel komutlar çalıştırabilir. Yalnızca güvendiğiniz komutları yapılandırın.";
+"hooks_rules_header" = "Kurallar";
+"hooks_empty" = "Yapılandırılmış kanca yok.";
+"hooks_add_rule" = "Kural ekle";
+"hooks_delete_rule" = "Kuralı sil";
+"hooks_rule_enabled" = "Etkin";
+"hooks_event" = "Olay";
+"hooks_provider" = "Sağlayıcı";
+"hooks_any_provider" = "Herhangi bir sağlayıcı";
+"hooks_threshold" = "Şu kullanımda tetikle ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argümanlar";
+"hooks_argument_placeholder" = "Argüman";
+"hooks_add_argument" = "Argüman ekle";
+"hooks_delete_argument" = "Argümanı sil";
 "tab_about" = "Hakkında";
 "tab_debug" = "Hata Ayıklama";
-
-/* Mobile Sync */
 
 /* Providers Pane */
 "select_a_provider" = "Bir sağlayıcı seçin";
@@ -531,13 +555,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Menü çubuğunda DeepSeek bakiyesini gösterir.";
 "menu_bar_metric_subtitle_moonshot" = "Menü çubuğunda Moonshot / Kimi API bakiyesini gösterir.";
 "menu_bar_metric_subtitle_mistral" = "Menü çubuğunda geçerli ayın Mistral API harcamasını gösterir.";
-"menu_bar_metric_subtitle_kimik2" = "Menü çubuğunda Kimi K2 API anahtarı kredilerini gösterir.";
 "automatic" = "Otomatik";
 "primary_api_key_limit" = "Birincil (API anahtarı limiti)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Menü çubuğu stili";
 "menu_bar_style_subtitle" = "Menü çubuğu öğesinin nasıl çizileceğini belirler.";
+"menu_bar_inactive_display_contrast_title" = "Etkin olmayan ekranlarda görünürlüğü artır";
+"menu_bar_inactive_display_contrast_subtitle" = "Simge ve ölçümün diğer ekranlarda okunabilir kalması için yüksek kontrastlı işleme kullanır.";
 "menu_bar_style_critters" = "Canavarlar";
 "menu_bar_style_bars" = "Ölçüm çubukları";
 "menu_bar_style_icon_percent" = "Simge ve yüzde";
@@ -714,6 +739,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Maliyet (tahmini)";
 "cost_estimate_hint" = "Yerel günlüklerden tahmini · faturanızdan farklı olabilir";
+"codex_api_estimate_header" = "API eşdeğeri tahmin";
+"codex_api_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · abonelik faturası veya plan değeri değildir";
+"codex_api_estimate_not_billed" = "abonelik faturası veya plan değeri değildir";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "AI Asistan içeren JetBrains IDE algılanmadı. Bir JetBrains IDE kurun ve AI Asistan'ı etkinleştirin.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "OpenRouter API jetonu yapılandırılmamış. OPENROUTER_API_KEY ortam değişkenini ayarlayın veya Ayarlar'dan yapılandırın.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "z.ai API jetonu bulunamadı. ~/.quotakit/config.json dosyasında apiKey ayarlayın veya Z_AI_API_KEY kullanın.";
@@ -899,6 +927,13 @@
 "MiniMax 30 day token usage trend" = "MiniMax 30 günlük jeton kullanım trendi";
 "Today cash" = "Bugünkü nakit";
 "DeepSeek 30 day token usage trend" = "DeepSeek 30 günlük jeton kullanım trendi";
+"DeepSeek this month token usage trend" = "DeepSeek bu ayki jeton kullanım trendi";
+"Chrome profile" = "Chrome profili";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Ayrıntılı kullanımı sağlayacak, oturum açılmış DeepSeek Platform oturumunu seçin.";
+"Detailed usage unavailable." = "Ayrıntılı kullanım kullanılamıyor.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Ayrıntılı kullanım için Chrome'da DeepSeek Platform'a giriş yapın.";
+"Select a DeepSeek Chrome profile in Settings." = "Ayarlarda bir DeepSeek Chrome profili seçin.";
+"Select profile…" = "Profil seç…";
 "cache-hit input" = "önbellek-isabetli girdi";
 "cache-miss input" = "önbellek-kaçan girdi";
 "output" = "çıktı";
@@ -1021,7 +1056,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan Cursor çerez başlığınızı isteyecek. Devam etmek için Tamam'a tıklayın.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan Factory çerez başlığınızı isteyecek. Devam etmek için Tamam'a tıklayın.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan GitHub Copilot jetonunuzu isteyecek. Devam etmek için Tamam'a tıklayın.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan Kimi K2 API anahtarınızı isteyecek. Devam etmek için Tamam'a tıklayın.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan Kimi kimlik doğrulama jetonunuzu isteyecek. Devam etmek için Tamam'a tıklayın.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan MiniMax API jetonunuzu isteyecek. Devam etmek için Tamam'a tıklayın.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit, kullanımı getirmek için macOS Anahtarlığı'ndan MiniMax çerez başlığınızı isteyecek. Devam etmek için Tamam'a tıklayın.";
@@ -1174,9 +1208,6 @@
 "byte_unit_megabytes" = "megabayt";
 "byte_unit_gigabyte" = "gigabayt";
 "byte_unit_gigabytes" = "gigabayt";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "CrossModel API harcama eğilimi";
 
 /* Settings sidebar redesign */
 "Enable" = "Etkinleştir";
@@ -1191,12 +1222,29 @@
 "Show Codex Spark usage" = "Codex Spark kullanımını göster";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Codex Spark kota satırlarını menüde ve sağlayıcı önizlemesinde gösterir. Görünüm ayarlarında “Krediler + ekstra kullanımı göster” seçeneğinin etkin olmasını gerektirir.";
 "Scroll to see more models" = "Daha fazla model görmek için kaydırın";
-"Projects" = "Projeler";
-"+ %d more" = "+ %d daha";
-"Choose a supported browser so QuotaKit can read the matching account." = "QuotaKit'in eşleşen hesabı okuyabilmesi için desteklenen bir tarayıcı seçin.";
-"Choose Cursor account" = "Cursor hesabını seçin";
-"Choose which Cursor account QuotaKit should use." = "QuotaKit'in hangi Cursor hesabını kullanacağını seçin.";
-"Use Account" = "Hesabı Kullan";
 "Finish switching to a different Cursor account in your browser, then try again." = "Tarayıcınızda farklı bir Cursor hesabına geçişi tamamlayın, ardından yeniden deneyin.";
 "Timed out waiting for Cursor account switch. %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@ Son hata: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Kullanım ve Harcama";
+"Usage & Spend" = "Kullanım ve Harcama";
+"Local estimated cost history across supported providers." = "Desteklenen sağlayıcılardaki yerel tahmini maliyet geçmişi.";
+"Time range" = "Zaman aralığı";
+"Track costs" = "Maliyetleri izle";
+"Cost tracking is off" = "Maliyet takibi kapalı";
+"Turn on Track costs to build local estimates." = "Yerel tahminler oluşturmak için “Maliyetleri izle” seçeneğini açın.";
+"No local cost history yet" = "Henüz yerel maliyet geçmişi yok";
+"Turn on cost tracking or refresh after using a supported provider." = "Maliyet takibini açın veya desteklenen bir sağlayıcıyı kullandıktan sonra yenileyin.";
+"Refresh failures" = "Yenileme hataları";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Kaynak para birimleri ayrı tutulur; Codex hesap satırlarına Pi oturum geçmişi dahil edilmez.";
+"Spend unavailable" = "Harcama verisi kullanılamıyor";
+"Model breakdown unavailable" = "Model dökümü kullanılamıyor";
+"Local estimated history" = "Yerel tahmini geçmiş";
+"Coverage" = "Kapsam";
+"Estimated spend" = "Tahmini harcama";
+"Tracked tokens" = "İzlenen tokenlar";
+"Subscriptions" = "Abonelikler";
+"By subscription" = "Aboneliğe göre";
+"No model-level history" = "Model düzeyinde geçmiş yok";
+"Daily estimated spend" = "Günlük tahmini harcama";

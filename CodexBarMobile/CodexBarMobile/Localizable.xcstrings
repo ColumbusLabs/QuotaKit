@@ -6879,50 +6879,170 @@
     },
     "in %lldd": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "in %lldd" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%lld日後" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld天后" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld天後" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %lldd"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld日後"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld天后"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld天後"
+          }
+        }
       }
     },
     "in %lldd %lldh": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "in %1$lldd %2$lldh" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld日%2$lld時間後" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld天%2$lld小时后" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld天%2$lld小時後" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %1$lldd %2$lldh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld日%2$lld時間後"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld天%2$lld小时后"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld天%2$lld小時後"
+          }
+        }
       }
     },
     "in %lldh": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "in %lldh" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%lld時間後" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld小时后" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld小時後" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %lldh"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld時間後"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld小时后"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld小時後"
+          }
+        }
       }
     },
     "in %lldh %lldm": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "in %1$lldh %2$lldm" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%1$lld時間%2$lld分後" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%1$lld小时%2$lld分钟后" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%1$lld小時%2$lld分鐘後" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %1$lldh %2$lldm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld時間%2$lld分後"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld小时%2$lld分钟后"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%1$lld小時%2$lld分鐘後"
+          }
+        }
       }
     },
     "in %lldm": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "in %lldm" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "%lld分後" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "%lld分钟后" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "%lld分鐘後" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "in %lldm"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分後"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分钟后"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%lld分鐘後"
+          }
+        }
       }
     },
     "now": {
       "localizations": {
-        "en": { "stringUnit": { "state": "translated", "value": "now" } },
-        "ja": { "stringUnit": { "state": "translated", "value": "今" } },
-        "zh-Hans": { "stringUnit": { "state": "translated", "value": "现在" } },
-        "zh-Hant": { "stringUnit": { "state": "translated", "value": "現在" } }
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "now"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在"
+          }
+        }
       }
     },
     "Selected Cost": {
@@ -19080,6 +19200,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "%@ リクエスト"
+          }
+        }
+      }
+    },
+    "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Macから同期されたClinePassとLongCatが、プロバイダ表示とクォータ通知で認識されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "提供商显示和配额提醒现在可识别从 Mac 同步的 ClinePass 和 LongCat。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "供應商顯示和配額提醒現在可識別從 Mac 同步的 ClinePass 與 LongCat。"
           }
         }
       }
