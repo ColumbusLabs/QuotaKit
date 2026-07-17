@@ -264,6 +264,31 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
+    func `model breakdown unavailable exists in every app catalog`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let catalogs = try FileManager.default.contentsOfDirectory(
+            at: resourcesURL,
+            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+
+        #expect(catalogs.count == 23)
+        for catalogURL in catalogs {
+            let stringsURL = catalogURL.appendingPathComponent("Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
+            let value = try #require(catalog["Model breakdown unavailable"])
+            #expect(!value.isEmpty, "\(catalogURL.lastPathComponent)")
+            #expect(!value.contains("%"), "\(catalogURL.lastPathComponent)")
+            if catalogURL.lastPathComponent == "en.lproj" {
+                #expect(value == "Model breakdown unavailable")
+            }
+        }
+    }
+
+    @Test
     func `catalan localization matches the English catalog`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
@@ -463,11 +488,9 @@ struct LocalizationLanguageCatalogTests {
             "Endpoint",
             "Gemini Flash",
             "GitHub",
-            "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.",
             "Google OAuth",
             "No",
             "Oasis-Token",
-            "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.",
             "Password",
             "Provider",
             "Token",
@@ -476,6 +499,9 @@ struct LocalizationLanguageCatalogTests {
             "byte_unit_gigabyte",
             "byte_unit_kilobyte",
             "byte_unit_megabyte",
+            "hooks_executable_placeholder",
+            "hooks_provider",
+            "hooks_threshold_placeholder",
             "language_arabic",
             "language_galician",
             "language_italian",

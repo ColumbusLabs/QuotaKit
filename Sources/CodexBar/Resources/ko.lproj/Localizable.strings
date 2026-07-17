@@ -1,8 +1,33 @@
 /* Korean (한국어) localization for CodexBar */
 
+"tab_hooks" = "훅";
+"hooks_enable_title" = "훅 활성화";
+"hooks_enable_subtitle" = "할당량 또는 공급자 이벤트가 발생하면 외부 명령을 실행합니다.";
+"hooks_trust_warning" = "훅은 Mac에서 로컬 명령을 실행할 수 있습니다. 신뢰하는 명령만 구성하세요.";
+"hooks_rules_header" = "규칙";
+"hooks_empty" = "구성된 훅이 없습니다.";
+"hooks_add_rule" = "규칙 추가";
+"hooks_delete_rule" = "규칙 삭제";
+"hooks_rule_enabled" = "활성화됨";
+"hooks_event" = "이벤트";
+"hooks_provider" = "공급자";
+"hooks_any_provider" = "모든 공급자";
+"hooks_threshold" = "사용량 ≥ 에서 실행";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "인수";
+"hooks_argument_placeholder" = "인수";
+"hooks_add_argument" = "인수 추가";
+"hooks_delete_argument" = "인수 삭제";
+
+"ollama_safari_cookie_access_hint" = "Safari 쿠키를 읽으려면 QuotaKit에 전체 디스크 접근 권한이 필요합니다(시스템 설정 > 개인정보 보호 및 보안).";
+"ollama_browser_cookie_decryption_denied" = "%@ 쿠키 복호화가 키체인에서 거부되었습니다. 수동 새로 고침으로 다시 시도하세요.";
+"ollama_browser_cookie_decryption_disabled" = "%@ 쿠키 복호화가 QuotaKit에서 비활성화되어 있습니다. 키체인 접근을 활성화하고 새로 고침하세요.";
+
 " providers" = " 공급자";
 "(System)" = "(시스템)";
 "30d" = "30일";
+"7d" = "7일";
 "A managed Codex login is already running. Wait for it to finish before adding " = "관리되는 Codex 로그인이 이미 실행 중입니다. 추가하기 전에 완료될 때까지 기다리세요. ";
 "API key" = "API 키";
 "API region" = "API 지역";
@@ -17,7 +42,7 @@
 "Add Workspace" = "작업 공간 추가";
 "Advanced" = "고급";
 "All" = "전체";
-"Always allow prompts" = "사용자 작업 시 항상 허용";
+"Always allow prompts" = "항상 프롬프트 허용";
 "Animation pattern" = "애니메이션 패턴";
 "Antigravity login is managed in the app" = "Antigravity 로그인은 앱에서 관리됩니다";
 "Applies only to the Security.framework OAuth keychain reader." = "Security.framework OAuth 키체인 리더에만 적용됩니다.";
@@ -297,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "여러 OpenCode Go 쿠키 헤더를 저장합니다.";
 "Stored in the CodexBar config file." = "QuotaKit 설정 파일에 저장됩니다.";
 "Stored in ~/.codexbar/config.json. " = "~/.quotakit/config.json에 저장됩니다. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "~/.quotakit/config.json에 저장됩니다. kimi-k2.ai에서 생성하세요.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "~/.quotakit/config.json에 저장됩니다. Synthetic 대시보드에서 키를 붙여넣으세요.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "~/.quotakit/config.json에 저장됩니다. Model Studio에서 Coding Plan API 키를 붙여넣으세요.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "~/.quotakit/config.json에 저장됩니다. MiniMax API 키를 붙여넣으세요.";
@@ -421,7 +445,6 @@
 "language_polish" = "폴란드어";
 "start_at_login_title" = "로그인 시 시작";
 "start_at_login_subtitle" = "Mac을 시작할 때 QuotaKit를 자동으로 엽니다.";
-"show_cost_summary" = "비용 요약 표시";
 "show_cost_summary_subtitle" = "로컬 사용량 로그를 읽습니다. 메뉴에 오늘 및 선택한 기록 범위를 표시합니다.";
 "cost_summary_style_title" = "표시 스타일";
 "cost_summary_style_inline" = "인라인만";
@@ -436,8 +459,6 @@
 "cost_auto_refresh_info" = "자동 새로 고침: 매시간 · 시간 초과: 10분";
 "cost_comparison_periods_title" = "더 짧은 비교 기간 표시";
 "cost_comparison_periods_subtitle" = "선택한 기록 범위에 포함되는 경우 7일, 30일, 90일 합계를 추가합니다. 이 합계에는 동일한 로컬 스캔을 재사용합니다.";
-"refresh_cadence_title" = "새로 고침 주기";
-"refresh_cadence_subtitle" = "QuotaKit가 백그라운드에서 공급자를 폴링하는 빈도입니다.";
 "refresh_interval_title" = "새로 고침 주기";
 "manual_refresh_hint" = "자동 새로 고침이 꺼져 있습니다. 메뉴의 새로 고침 명령을 사용하세요.";
 "refresh_on_open_title" = "메뉴를 열 때 새로 고침";
@@ -519,11 +540,12 @@
 "menu_bar_metric_subtitle_deepseek" = "메뉴 막대에 DeepSeek 잔액을 표시합니다.";
 "menu_bar_metric_subtitle_moonshot" = "메뉴 막대에 Moonshot / Kimi API 잔액을 표시합니다.";
 "menu_bar_metric_subtitle_mistral" = "메뉴 막대에 이번 달 Mistral API 지출을 표시합니다.";
-"menu_bar_metric_subtitle_kimik2" = "메뉴 막대에 Kimi K2 API 키 크레딧을 표시합니다.";
 "automatic" = "자동";
 "primary_api_key_limit" = "기본 (API 키 한도)";
 "menu_bar_style_title" = "메뉴 막대 스타일";
 "menu_bar_style_subtitle" = "메뉴 막대 항목의 표시 방식을 선택합니다.";
+"menu_bar_inactive_display_contrast_title" = "비활성 디스플레이에서 가시성 향상";
+"menu_bar_inactive_display_contrast_subtitle" = "고대비 렌더링을 사용하여 다른 디스플레이에서도 아이콘과 지표를 읽기 쉽게 유지합니다.";
 "menu_bar_style_critters" = "크리터";
 "menu_bar_style_bars" = "미터 막대";
 "menu_bar_style_icon_percent" = "아이콘 및 백분율";
@@ -686,6 +708,9 @@
 "not_found" = "찾을 수 없음";
 "cost_header_estimated" = "비용(추정)";
 "cost_estimate_hint" = "로컬 로그에서 추정 · 실제 청구액과 다를 수 있음";
+"codex_api_estimate_header" = "API 등가 추정치";
+"codex_api_estimate_hint" = "로컬 사용량 × 공개 API 가격 · 구독 청구서나 플랜 가치가 아닙니다";
+"codex_api_estimate_not_billed" = "구독 청구서나 플랜 가치가 아닙니다";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "AI Assistant가 있는 JetBrains IDE를 찾지 못했습니다. JetBrains IDE를 설치하고 AI Assistant를 사용하세요.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "OpenRouter API 토큰이 구성되지 않았습니다. OPENROUTER_API_KEY 환경 변수를 설정하거나 설정에서 구성하세요.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "z.ai API 토큰을 찾을 수 없습니다. ~/.quotakit/config.json에 apiKey를 설정하거나 Z_AI_API_KEY를 설정하세요.";
@@ -984,7 +1009,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 Cursor 쿠키 헤더를 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 Factory 쿠키 헤더를 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 GitHub Copilot 토큰을 요청합니다. 계속하려면 확인을 클릭하세요.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 Kimi K2 API 키를 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 Kimi 인증 토큰을 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 MiniMax API 토큰을 요청합니다. 계속하려면 확인을 클릭하세요.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit가 사용량을 가져올 수 있도록 macOS 키체인에 MiniMax 쿠키 헤더를 요청합니다. 계속하려면 확인을 클릭하세요.";
@@ -1137,9 +1161,6 @@
 "byte_unit_megabytes" = "메가바이트";
 "byte_unit_gigabyte" = "기가바이트";
 "byte_unit_gigabytes" = "기가바이트";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "CrossModel API 지출 추이";
 
 /* Settings sidebar redesign */
 "Enable" = "활성화";
@@ -1154,12 +1175,44 @@
 "Show Codex Spark usage" = "Codex Spark 사용량 표시";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "메뉴와 공급자 미리보기에 Codex Spark 할당량 행을 표시합니다. 표시 설정에서 ‘크레딧 + 추가 사용량 표시’를 활성화해야 합니다.";
 "Scroll to see more models" = "스크롤하여 더 많은 모델 보기";
-"Projects" = "프로젝트";
-"+ %d more" = "+ %d개 더";
-"Choose a supported browser so QuotaKit can read the matching account." = "QuotaKit이 일치하는 계정을 읽을 수 있도록 지원되는 브라우저를 선택하세요.";
+"DeepSeek this month token usage trend" = "이번 달 DeepSeek 토큰 사용량 추이";
+"Chrome profile" = "Chrome 프로필";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "상세 사용량을 제공할 로그인된 DeepSeek Platform 세션을 선택하세요.";
+"Detailed usage unavailable." = "상세 사용량을 확인할 수 없습니다.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "상세 사용량을 보려면 Chrome에서 DeepSeek Platform에 로그인하세요.";
+"Select a DeepSeek Chrome profile in Settings." = "설정에서 DeepSeek Chrome 프로필을 선택하세요.";
+"Select profile…" = "프로필 선택…";
+
+"%@: %@" = "%@: %@";
+"Alternatively, set a custom path in Settings." = "또는 설정에서 사용자 정의 경로를 설정하세요.";
+"Choose a supported browser so CodexBar can read the matching account." = "QuotaKit가 일치하는 계정을 읽을 수 있도록 지원되는 브라우저를 선택하세요.";
 "Choose Cursor account" = "Cursor 계정 선택";
-"Choose which Cursor account QuotaKit should use." = "QuotaKit이 사용할 Cursor 계정을 선택하세요.";
-"Use Account" = "계정 사용";
+"Choose which Cursor account CodexBar should use." = "QuotaKit에서 사용할 Cursor 계정을 선택하세요.";
 "Finish switching to a different Cursor account in your browser, then try again." = "브라우저에서 다른 Cursor 계정으로 전환을 완료한 후 다시 시도하세요.";
-"Timed out waiting for Cursor account switch. %@" = "Cursor 계정 전환 대기 시간이 초과되었습니다. %@";
-"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor 계정 전환 대기 시간이 초과되었습니다. %@ 마지막 오류: %@";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "AI Assistant가 활성화된 JetBrains IDE를 설치한 다음 QuotaKit를 새로 고치세요.";
+"Sign in with Claude Code..." = "Claude Code로 로그인하세요...";
+"Timed out waiting for Cursor account switch. %@" = "Cursor 계정 전환을 기다리는 동안 시간이 초과되었습니다. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor 계정 전환을 기다리는 동안 시간이 초과되었습니다. %@ 마지막 오류: %@";
+"Use Account" = "계정 사용";
+/* Spend dashboard */
+"tab_usage_spend" = "사용량 및 지출";
+"Usage & Spend" = "사용량 및 지출";
+"Local estimated cost history across supported providers." = "지원되는 공급자의 로컬 예상 비용 내역입니다.";
+"Time range" = "기간";
+"Track costs" = "비용 추적";
+"Cost tracking is off" = "비용 추적이 꺼져 있습니다";
+"Turn on Track costs to build local estimates." = "로컬 예상치를 만들려면 ‘비용 추적’을 켜세요.";
+"No local cost history yet" = "아직 로컬 비용 내역이 없습니다";
+"Turn on cost tracking or refresh after using a supported provider." = "비용 추적을 켜거나 지원되는 공급자를 사용한 후 새로 고치세요.";
+"Refresh failures" = "새로 고침 실패";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "각 통화는 별도로 유지되며 Codex 계정 행에서는 Pi 세션 기록이 제외됩니다.";
+"Spend unavailable" = "지출 정보 없음";
+"Model breakdown unavailable" = "모델별 내역을 사용할 수 없습니다";
+"Local estimated history" = "로컬 예상 내역";
+"Coverage" = "포함 범위";
+"Estimated spend" = "예상 지출";
+"Tracked tokens" = "추적된 토큰";
+"Subscriptions" = "구독";
+"By subscription" = "구독별";
+"No model-level history" = "모델별 내역이 없습니다";
+"Daily estimated spend" = "일별 예상 지출";

@@ -44,32 +44,6 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
-    func `menu bar display text uses crossmodel balance currency`() {
-        let settings = self.makeSettings(
-            suiteName: "StatusItemBalanceDisplayTests-crossmodel-eur-balance",
-            provider: .crossmodel)
-        settings.setMenuBarMetricPreference(.automatic, for: .crossmodel)
-        let (store, controller) = self.makeStoreAndController(settings: settings)
-        defer { controller.releaseStatusItemsForTesting() }
-        let snapshot = CrossModelUsageSnapshot(
-            currency: "EUR",
-            balance: 8.059489,
-            uncollected: 0,
-            daily: nil,
-            weekly: nil,
-            monthly: nil,
-            updatedAt: Date())
-            .toUsageSnapshot()
-
-        store._setSnapshotForTesting(snapshot, provider: .crossmodel)
-        store._setErrorForTesting(nil, provider: .crossmodel)
-
-        let displayText = controller.menuBarDisplayText(for: .crossmodel, snapshot: snapshot)
-
-        #expect(displayText == "€8.06")
-    }
-
-    @Test
     func `menu bar display text uses zen balance when open code has no subscription`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-opencodego-zen-only",
@@ -421,29 +395,6 @@ struct StatusItemBalanceDisplayTests {
     }
 
     @Test
-    func `menu bar display text uses kimi k2 api key credits`() {
-        let settings = self.makeSettings(
-            suiteName: "StatusItemBalanceDisplayTests-kimik2-credits",
-            provider: .kimik2)
-        let (store, controller) = self.makeStoreAndController(settings: settings)
-        defer { controller.releaseStatusItemsForTesting() }
-        let snapshot = KimiK2UsageSummary(
-            consumed: 75,
-            remaining: 1234.5,
-            averageTokens: nil,
-            updatedAt: Date()).toUsageSnapshot()
-
-        store._setSnapshotForTesting(snapshot, provider: .kimik2)
-        store._setErrorForTesting(nil, provider: .kimik2)
-
-        let displayText = controller.menuBarDisplayText(for: .kimik2, snapshot: snapshot)
-
-        #expect(snapshot.primary == nil)
-        #expect(snapshot.identity?.loginMethod == "Credits: 1234.5 left")
-        #expect(displayText == "1234.5")
-    }
-
-    @Test
     func `kiro menu bar automatic uses credits left`() {
         let settings = self.makeSettings(
             suiteName: "StatusItemBalanceDisplayTests-kiro-automatic",
@@ -665,6 +616,22 @@ struct StatusItemBalanceDisplayTests {
         #expect(StatusItemController.buttonTitle(nil, hasImage: true, isDebugApp: true) == " D")
         #expect(StatusItemController.buttonTitle("42%", hasImage: true, isDebugApp: true) == " 42% D")
         #expect(StatusItemController.buttonTitle("42%", hasImage: false, isDebugApp: true) == "42% D")
+    }
+
+    @Test
+    func `high contrast button title embeds image and metric in attributed content`() throws {
+        let image = NSImage(size: NSSize(width: 18, height: 18))
+        image.isTemplate = true
+
+        let title = StatusItemController.highContrastButtonTitle(image: image, title: " 42%")
+
+        #expect(title.string == "\u{FFFC} 42%")
+        let attachment = try #require(title.attribute(.attachment, at: 0, effectiveRange: nil) as? NSTextAttachment)
+        #expect(attachment.image === image)
+        #expect(attachment.bounds.width == 18)
+        #expect(attachment.bounds.height == 18)
+        #expect(title.attribute(.font, at: 1, effectiveRange: nil) is NSFont)
+        #expect(title.attribute(.foregroundColor, at: 1, effectiveRange: nil) as? NSColor == .labelColor)
     }
 
     @Test

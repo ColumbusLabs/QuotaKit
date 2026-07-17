@@ -41,6 +41,7 @@ MOBILE_ALIAS_TARGETS = {
     "vertex": "vertexai",
     "xiaomimimo": "mimo",
 }
+MOBILE_LEGACY_ONLY = {"kimik2", "crossmodel"}
 
 
 def evaluate_channel(expression: str) -> float:
@@ -103,7 +104,7 @@ def main() -> int:
             failures.append(
                 f"{provider}: Mac {mac_color!r} != mobile {mobile_color!r}")
 
-    extra = sorted(set(mobile) - set(mac))
+    extra = sorted(set(mobile) - set(mac) - MOBILE_LEGACY_ONLY)
     for provider in extra:
         failures.append(f"{provider}: mobile canonical alias has no Mac descriptor")
 

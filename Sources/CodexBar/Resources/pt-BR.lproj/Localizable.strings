@@ -1,8 +1,33 @@
 /* Brazilian Portuguese localization for CodexBar */
 
+"tab_hooks" = "Hooks";
+"hooks_enable_title" = "Ativar hooks";
+"hooks_enable_subtitle" = "Executa comandos externos quando ocorrerem eventos de cota ou provedor.";
+"hooks_trust_warning" = "Hooks podem executar comandos locais no seu Mac. Configure apenas comandos confiáveis.";
+"hooks_rules_header" = "Regras";
+"hooks_empty" = "Nenhum hook configurado.";
+"hooks_add_rule" = "Adicionar regra";
+"hooks_delete_rule" = "Excluir regra";
+"hooks_rule_enabled" = "Ativado";
+"hooks_event" = "Evento";
+"hooks_provider" = "Provedor";
+"hooks_any_provider" = "Qualquer provedor";
+"hooks_threshold" = "Executar com uso ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumentos";
+"hooks_argument_placeholder" = "Argumento";
+"hooks_add_argument" = "Adicionar argumento";
+"hooks_delete_argument" = "Excluir argumento";
+
+"ollama_safari_cookie_access_hint" = "Os cookies do Safari precisam de Acesso Total ao Disco para o QuotaKit (Ajustes do Sistema > Privacidade e Segurança).";
+"ollama_browser_cookie_decryption_denied" = "A descriptografia dos cookies do %@ foi recusada nas Chaves; tente novamente com uma atualização manual.";
+"ollama_browser_cookie_decryption_disabled" = "A descriptografia dos cookies do %@ está desativada no QuotaKit; ative o acesso às Chaves e atualize.";
+
 " providers" = " provedores";
 "(System)" = "(Sistema)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Um login gerenciado do Codex já está em andamento. Aguarde terminar antes de adicionar ";
 "API key" = "Chave de API";
 "API region" = "Região da API";
@@ -297,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Armazena vários cabeçalhos Cookie do OpenCode Go.";
 "Stored in the CodexBar config file." = "Armazenado no arquivo de configuração do QuotaKit.";
 "Stored in ~/.codexbar/config.json. " = "Armazenado em ~/.quotakit/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Armazenado em ~/.quotakit/config.json. Gere um em kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Armazenado em ~/.quotakit/config.json. Cole a chave do dashboard Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Armazenado em ~/.quotakit/config.json. Cole sua chave de API do Coding Plan do Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Armazenado em ~/.quotakit/config.json. Cole sua chave de API do MiniMax.";
@@ -423,7 +447,6 @@
 "language_polish" = "Polski";
 "start_at_login_title" = "Iniciar ao fazer login";
 "start_at_login_subtitle" = "Abre o QuotaKit automaticamente ao iniciar o Mac.";
-"show_cost_summary" = "Mostrar resumo de custos";
 "show_cost_summary_subtitle" = "Lê logs de uso locais. Mostra o custo de hoje + janela selecionada no menu.";
 "cost_summary_style_title" = "Estilo de exibição";
 "cost_summary_style_inline" = "Somente embutido";
@@ -438,8 +461,6 @@
 "cost_auto_refresh_info" = "Atualização automática: a cada hora · Timeout: 10 min";
 "cost_comparison_periods_title" = "Mostrar períodos de comparação mais curtos";
 "cost_comparison_periods_subtitle" = "Adiciona totais de 7, 30 e 90 dias quando couberem na janela de histórico selecionada. Esses totais reutilizam a mesma varredura local.";
-"refresh_cadence_title" = "Cadência de atualização";
-"refresh_cadence_subtitle" = "Frequência com que o QuotaKit consulta provedores em segundo plano.";
 "refresh_interval_title" = "Intervalo de atualização";
 "manual_refresh_hint" = "A atualização automática está desativada; use Atualizar no menu.";
 "refresh_on_open_title" = "Atualizar ao abrir o menu";
@@ -525,13 +546,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Mostra o saldo do DeepSeek na barra de menus.";
 "menu_bar_metric_subtitle_moonshot" = "Mostra o saldo da API Moonshot / Kimi na barra de menus.";
 "menu_bar_metric_subtitle_mistral" = "Mostra o gasto da API Mistral no mês atual na barra de menus.";
-"menu_bar_metric_subtitle_kimik2" = "Mostra os créditos da chave de API do Kimi K2 na barra de menus.";
 "automatic" = "Automático";
 "primary_api_key_limit" = "Primário (limite da chave de API)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Estilo da barra de menus";
 "menu_bar_style_subtitle" = "Como o item da barra de menus é desenhado.";
+"menu_bar_inactive_display_contrast_title" = "Melhorar a visibilidade em telas inativas";
+"menu_bar_inactive_display_contrast_subtitle" = "Usa renderização de alto contraste para manter o ícone e a métrica legíveis em outras telas.";
 "menu_bar_style_critters" = "Bichinhos";
 "menu_bar_style_bars" = "Barras de medição";
 "menu_bar_style_icon_percent" = "Ícone e porcentagem";
@@ -712,6 +734,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Custo (estimado)";
 "cost_estimate_hint" = "Estimado a partir de logs locais · pode diferir da sua fatura";
+"codex_api_estimate_header" = "Estimativa equivalente à API";
+"codex_api_estimate_hint" = "Uso local × preços públicos de API · não é uma fatura de assinatura nem o valor de um plano";
+"codex_api_estimate_not_billed" = "não é uma fatura de assinatura nem o valor de um plano";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Nenhuma IDE JetBrains com AI Assistant detectada. Instale uma IDE JetBrains e ative o AI Assistant.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "Token de API do OpenRouter não configurado. Defina a variável de ambiente OPENROUTER_API_KEY ou configure em Ajustes.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "Token de API do z.ai não encontrado. Defina apiKey em ~/.quotakit/config.json ou Z_AI_API_KEY.";
@@ -1016,7 +1041,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o cabeçalho Cookie do Cursor para buscar uso. Clique em OK para continuar.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o cabeçalho Cookie do Factory para buscar uso. Clique em OK para continuar.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o token do GitHub Copilot para buscar uso. Clique em OK para continuar.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS a chave API do Kimi K2 para buscar uso. Clique em OK para continuar.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o token de autenticação do Kimi para buscar uso. Clique em OK para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o token API do MiniMax para buscar uso. Clique em OK para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "O QuotaKit pedirá ao Chaves do macOS o cabeçalho Cookie do MiniMax para buscar uso. Clique em OK para continuar.";
@@ -1169,9 +1193,6 @@
 "byte_unit_megabytes" = "megabytes";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabytes";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "Tendência de gastos da API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Ativar";
@@ -1186,12 +1207,45 @@
 "Show Codex Spark usage" = "Mostrar uso do Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Mostra as linhas de cota do Codex Spark no menu e na prévia do provedor. Requer ativar “Mostrar créditos + uso extra” nos ajustes de Exibição.";
 "Scroll to see more models" = "Role para ver mais modelos";
-"Projects" = "Projetos";
-"+ %d more" = "+ mais %d";
-"Choose a supported browser so QuotaKit can read the matching account." = "Escolha um navegador compatível para que o QuotaKit possa ler a conta correspondente.";
-"Choose Cursor account" = "Escolher conta do Cursor";
-"Choose which Cursor account QuotaKit should use." = "Escolha qual conta do Cursor o QuotaKit deve usar.";
+"DeepSeek this month token usage trend" = "Tendência de uso de tokens do DeepSeek neste mês";
+"Chrome profile" = "Perfil do Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Escolha qual sessão conectada do DeepSeek Platform fornece o uso detalhado.";
+"Detailed usage unavailable." = "Uso detalhado indisponível.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Entre no DeepSeek Platform pelo Chrome para ver o uso detalhado.";
+"Select a DeepSeek Chrome profile in Settings." = "Selecione um perfil do Chrome para o DeepSeek nos Ajustes.";
+"Select profile…" = "Selecionar perfil…";
+
+"%@: %@" = "%@: %@";
+"Alternatively, set a custom path in Settings." = "Como alternativa, defina um caminho personalizado em Configurações.";
+"Choose a supported browser so CodexBar can read the matching account." = "Escolha um navegador compatível para que o QuotaKit possa ler a conta correspondente.";
+"Choose Cursor account" = "Escolha a conta do Cursor";
+"Choose which Cursor account CodexBar should use." = "Escolha qual conta de Cursor o QuotaKit deve usar.";
+"Finish switching to a different Cursor account in your browser, then try again." = "Termine de mudar para uma conta diferente do Cursor no seu navegador e tente novamente.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Instale um IDE JetBrains com AI Assistant habilitado e atualize o QuotaKit.";
+"Request quota: %@ / %@" = "Cota de solicitação: %@ / %@";
+"Sign in with Claude Code..." = "Faça login com Claude Code...";
+"Timed out waiting for Cursor account switch. %@" = "Tempo limite esgotado aguardando a troca de conta do Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Tempo limite esgotado aguardando a troca de conta do Cursor. %@ Último erro: %@";
 "Use Account" = "Usar conta";
-"Finish switching to a different Cursor account in your browser, then try again." = "Conclua a troca para outra conta do Cursor no navegador e tente novamente.";
-"Timed out waiting for Cursor account switch. %@" = "Tempo esgotado ao aguardar a troca de conta do Cursor. %@";
-"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Tempo esgotado ao aguardar a troca de conta do Cursor. %@ Último erro: %@";
+/* Spend dashboard */
+"tab_usage_spend" = "Uso e gastos";
+"Usage & Spend" = "Uso e gastos";
+"Local estimated cost history across supported providers." = "Histórico local de custos estimados nos provedores compatíveis.";
+"Time range" = "Intervalo de tempo";
+"Track costs" = "Acompanhar custos";
+"Cost tracking is off" = "O acompanhamento de custos está desativado";
+"Turn on Track costs to build local estimates." = "Ative “Acompanhar custos” para criar estimativas locais.";
+"No local cost history yet" = "Ainda não há histórico local de custos";
+"Turn on cost tracking or refresh after using a supported provider." = "Ative o acompanhamento de custos ou atualize após usar um provedor compatível.";
+"Refresh failures" = "Falhas de atualização";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "As moedas originais permanecem separadas; as linhas de contas do Codex excluem o histórico de sessões do Pi.";
+"Spend unavailable" = "Gastos indisponíveis";
+"Model breakdown unavailable" = "Detalhamento por modelo indisponível";
+"Local estimated history" = "Histórico local estimado";
+"Coverage" = "Cobertura";
+"Estimated spend" = "Gastos estimados";
+"Tracked tokens" = "Tokens acompanhados";
+"Subscriptions" = "Assinaturas";
+"By subscription" = "Por assinatura";
+"No model-level history" = "Sem histórico por modelo";
+"Daily estimated spend" = "Gasto diário estimado";

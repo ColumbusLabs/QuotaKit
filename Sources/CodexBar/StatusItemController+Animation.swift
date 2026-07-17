@@ -2,32 +2,24 @@ import AppKit
 import CodexBarCore
 import QuartzCore
 
-private struct MergedIconRenderContext {
-    let button: NSStatusBarButton
-    let provider: UsageProvider
-    let snapshot: UsageSnapshot?
-    let style: IconStyle
-    let statusIndicator: ProviderStatusIndicator
-    let warningFlash: Bool
-    let needsAnimation: Bool
-}
-
-private struct MergedIconRenderMetrics {
-    var primary: Double?
-    var weekly: Double?
-    var credits: Double?
-    var creditsPercent: Double?
-    var stale: Bool
-    var morphProgress: Double?
-}
-
-private struct MergedIconMotion {
-    let blink: CGFloat
-    let wiggle: CGFloat
-    let tilt: CGFloat
-}
-
 extension StatusItemController {
+    private struct MergedIconRenderState {
+        let button: NSStatusBarButton
+        let provider: UsageProvider
+        let snapshot: UsageSnapshot?
+        let style: IconStyle
+        let primary: Double?
+        let weekly: Double?
+        let credits: Double?
+        let creditsPercent: Double?
+        let stale: Bool
+        let morphProgress: Double?
+        let statusIndicator: ProviderStatusIndicator
+        let warningFlash: Bool
+        let needsAnimation: Bool
+        let phase: Double?
+    }
+
     private static let loadingPercentEpsilon = 0.0001
     private static let appStatusIconSize = NSSize(width: 18, height: 18)
     private static let blinkActiveTickInterval: Duration = .milliseconds(75)
@@ -282,34 +274,14 @@ extension StatusItemController {
             style: resolverStyle,
             showUsed: showUsed,
             renderingStyle: style)
-        var metrics = MergedIconRenderMetrics(
-            primary: resolved?.primary,
-            weekly: resolved?.secondary,
-            credits: self.menuBarCreditsRemainingForIcon(
-                provider: primaryProvider,
-                snapshot: snapshot),
-            creditsPercent: self.menuBarCreditsRemainingPercentForIcon(
-                provider: primaryProvider,
-                snapshot: snapshot),
-            stale: self.store.isStale(provider: primaryProvider),
-            morphProgress: nil)
-        if showUsed,
-           primaryProvider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining <= 0
-        {
-            // Preserve Warp "no bonus/exhausted bonus" layout even in show-used mode.
-            metrics.weekly = 0
-        }
-        if showUsed,
-           primaryProvider == .warp,
-           let remaining = snapshot?.secondary?.remainingPercent,
-           remaining > 0,
-           metrics.weekly == 0
-        {
-            // In show-used mode, `0` means "unused", not "missing". Keep the weekly lane present.
-            metrics.weekly = Self.loadingPercentEpsilon
-        }
+        var primary = resolved?.primary
+        var weekly = resolved?.secondary
+        var credits = self.menuBarCreditsRemainingForIcon(provider: primaryProvider, snapshot: snapshot)
+        var creditsPercent = self.menuBarCreditsRemainingPercentForIcon(
+            provider: primaryProvider,
+            snapshot: snapshot)
+        var stale = self.store.isStale(provider: primaryProvider)
+        var morphProgress: Double?
 
         let needsAnimation = self.needsMenuBarIconAnimation()
         if let phase, needsAnimation {
@@ -318,198 +290,175 @@ extension StatusItemController {
                 pattern = .cylon
             }
             if pattern == .unbraid {
-                metrics.morphProgress = pattern.value(phase: phase) / 100
-                metrics.primary = nil
-                metrics.weekly = nil
-                metrics.credits = nil
-                metrics.creditsPercent = nil
-                metrics.stale = false
+                morphProgress = pattern.value(phase: phase) / 100
+                primary = nil
+                weekly = nil
+                credits = nil
+                creditsPercent = nil
+                stale = false
             } else {
                 // Keep loading animation layout stable: IconRenderer uses `weeklyRemaining > 0` to switch layouts,
                 // so hitting an exact 0 would flip between "normal" and "weekly exhausted" rendering.
-                metrics.primary = max(pattern.value(phase: phase), Self.loadingPercentEpsilon)
-                metrics.weekly = max(
+                primary = max(pattern.value(phase: phase), Self.loadingPercentEpsilon)
+                weekly = max(
                     pattern.value(phase: phase + pattern.secondaryOffset),
                     Self.loadingPercentEpsilon)
-                metrics.credits = nil
-                metrics.creditsPercent = nil
-                metrics.stale = false
+                credits = nil
+                creditsPercent = nil
+                stale = false
             }
         }
 
-        let motion = MergedIconMotion(
-            blink: style == .combined ? 0 : self.blinkAmount(for: primaryProvider),
-            wiggle: style == .combined ? 0 : self.wiggleAmount(for: primaryProvider),
-            tilt: style == .combined ? 0 : self.tiltAmount(for: primaryProvider) * .pi / 28)
-        let context = MergedIconRenderContext(
+        let blink: CGFloat = style == .combined ? 0 : self.blinkAmount(for: primaryProvider)
+        let wiggle: CGFloat = style == .combined ? 0 : self.wiggleAmount(for: primaryProvider)
+        let tilt: CGFloat =
+            style == .combined ? 0 : self.tiltAmount(for: primaryProvider) * .pi / 28
+
+        let statusIndicator = self.store.statusIndicator(for: primaryProvider)
+        let renderState = MergedIconRenderState(
             button: button,
             provider: primaryProvider,
             snapshot: snapshot,
             style: style,
-            statusIndicator: self.store.statusIndicator(for: primaryProvider),
+            primary: primary,
+            weekly: weekly,
+            credits: credits,
+            creditsPercent: creditsPercent,
+            stale: stale,
+            morphProgress: morphProgress,
+            statusIndicator: statusIndicator,
             warningFlash: warningFlash,
-            needsAnimation: needsAnimation)
-        let shouldUseAppIconFallback =
-            metrics.primary == nil
-                && metrics.weekly == nil
-                && metrics.credits == nil
-                && metrics.creditsPercent == nil
-                && metrics.morphProgress == nil
-                && (!needsAnimation || phase == nil)
-                && !context.statusIndicator.hasIssue
-        if showBrandPercent, let rendered = self.applyBrandPercentIcon(
-            context: context,
-            metrics: metrics)
-        {
+            needsAnimation: needsAnimation,
+            phase: phase)
+        if showBrandPercent, let rendered = self.applyBrandPercentIcon(state: renderState) {
+            return rendered
+        }
+        if let rendered = self.applyAppFallbackIcon(state: renderState) {
             return rendered
         }
 
-        self.setButtonTitle(nil, for: button)
-        if shouldUseAppIconFallback, let rendered = self.applyAppFallbackIcon(
-            context: context,
-            metrics: metrics)
-        {
-            return rendered
-        }
-        if self.applyMergedQuotaIcon(context: context, metrics: metrics, motion: motion) {
-            return true
-        }
-        self.noteIconPerfRender(skipped: false)
-        return false
-    }
-
-    private func applyBrandPercentIcon(
-        context: MergedIconRenderContext,
-        metrics: MergedIconRenderMetrics)
-        -> Bool?
-    {
-        guard let brand = ProviderBrandIcon.image(for: context.provider) else { return nil }
-        let displayText = self.menuBarDisplayText(
-            for: context.provider,
-            snapshot: context.snapshot)
-        let signature = [
-            "mode=brandPercent",
-            "provider=\(context.provider.rawValue)",
-            "style=\(String(describing: context.style))",
-            "primary=\(Self.iconSignatureValue(metrics.primary))",
-            "weekly=\(Self.iconSignatureValue(metrics.weekly))",
-            "credits=\(Self.iconSignatureValue(metrics.credits))",
-            "creditsPercent=\(Self.iconSignatureValue(metrics.creditsPercent))",
-            "stale=\(metrics.stale ? "1" : "0")",
-            "status=\(context.statusIndicator.rawValue)",
-            "text=\(displayText ?? "nil")",
-            "warningFlash=\(context.warningFlash ? "1" : "0")",
-            "anim=\(context.needsAnimation ? "1" : "0")",
-            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
-        ].joined(separator: "|")
-        if self.shouldSkipMergedIconRender(signature) {
-            // AppKit can lose button title/image-position state independently of the cached render signature.
-            self.setButtonTitle(displayText, for: context.button)
-            self.noteIconPerfRender(skipped: true)
-            return true
-        }
-        self.setButtonImage(
-            context.warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand,
-            for: context.button)
-        self.setButtonTitle(displayText, for: context.button)
-        self.noteIconPerfRender(skipped: false)
-        return false
-    }
-
-    private func applyAppFallbackIcon(
-        context: MergedIconRenderContext,
-        metrics: MergedIconRenderMetrics)
-        -> Bool?
-    {
-        guard let appIcon = Self.appStatusIconForMenuBar() else { return nil }
-        let signature = [
-            "mode=appIcon",
-            "provider=\(context.provider.rawValue)",
-            "style=\(String(describing: context.style))",
-            "stale=\(metrics.stale ? "1" : "0")",
-            "warningFlash=\(context.warningFlash ? "1" : "0")",
-            "anim=\(context.needsAnimation ? "1" : "0")",
-            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
-        ].joined(separator: "|")
-        if self.shouldSkipMergedIconRender(signature) {
-            self.noteIconPerfRender(skipped: true)
-            return true
-        }
-        self.setButtonImage(
-            context.warningFlash ? Self.quotaWarningFlashImage(base: appIcon) : appIcon,
-            for: context.button)
-        self.noteIconPerfRender(skipped: false)
-        return false
-    }
-
-    private func applyMergedQuotaIcon(
-        context: MergedIconRenderContext,
-        metrics: MergedIconRenderMetrics,
-        motion: MergedIconMotion)
-        -> Bool
-    {
-        if let morphProgress = metrics.morphProgress {
+        // Brand + percent and app fallback return above; remaining paths are image-only.
+        let canSkipCachedRender = self.prepareButtonForImageOnlyCacheHit(button)
+        if let morphProgress {
             let signature = [
                 "mode=morph",
-                "provider=\(context.provider.rawValue)",
-                "style=\(String(describing: context.style))",
+                "provider=\(primaryProvider.rawValue)",
+                "style=\(String(describing: style))",
                 "morph=\(Self.iconSignatureValue(morphProgress))",
-                "status=\(context.statusIndicator.rawValue)",
-                "warningFlash=\(context.warningFlash ? "1" : "0")",
-                "anim=\(context.needsAnimation ? "1" : "0")",
+                "status=\(statusIndicator.rawValue)",
+                "warningFlash=\(warningFlash ? "1" : "0")",
+                "anim=\(needsAnimation ? "1" : "0")",
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+                "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipMergedIconRender(signature) {
+            if self.shouldSkipMergedIconRender(signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
             let image = IconRenderer.makeMorphIcon(
                 progress: morphProgress,
-                style: context.style,
+                style: style,
                 hideCritters: self.settings.menuBarHidesCritters)
-            self.setButtonImage(
-                context.warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
-                for: context.button)
-            return false
+            self.setButtonContent(
+                image: warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
+                title: nil,
+                for: button)
+        } else {
+            let signature = [
+                "mode=icon",
+                "provider=\(primaryProvider.rawValue)",
+                "style=\(String(describing: style))",
+                "primary=\(Self.iconSignatureValue(primary))",
+                "weekly=\(Self.iconSignatureValue(weekly))",
+                "credits=\(Self.iconSignatureValue(credits))",
+                "stale=\(stale ? "1" : "0")",
+                "status=\(statusIndicator.rawValue)",
+                "blink=\(Self.iconSignatureValue(Double(blink)))",
+                "wiggle=\(Self.iconSignatureValue(Double(wiggle)))",
+                "tilt=\(Self.iconSignatureValue(Double(tilt)))",
+                "warningFlash=\(warningFlash ? "1" : "0")",
+                "anim=\(needsAnimation ? "1" : "0")",
+                "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+                "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
+            ].joined(separator: "|")
+            if self.shouldSkipMergedIconRender(signature), canSkipCachedRender {
+                self.noteIconPerfRender(skipped: true)
+                return true
+            }
+            let image = IconRenderer.makeIcon(
+                primaryRemaining: primary,
+                weeklyRemaining: weekly,
+                creditsRemaining: credits,
+                creditsRemainingPercent: creditsPercent,
+                stale: stale,
+                style: style,
+                blink: blink,
+                wiggle: wiggle,
+                tilt: tilt,
+                statusIndicator: statusIndicator,
+                hideCritters: self.settings.menuBarHidesCritters)
+            self.setButtonContent(
+                image: warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
+                title: nil,
+                for: button)
         }
-
-        let signature = [
-            "mode=icon",
-            "provider=\(context.provider.rawValue)",
-            "style=\(String(describing: context.style))",
-            "primary=\(Self.iconSignatureValue(metrics.primary))",
-            "weekly=\(Self.iconSignatureValue(metrics.weekly))",
-            "credits=\(Self.iconSignatureValue(metrics.credits))",
-            "creditsPercent=\(Self.iconSignatureValue(metrics.creditsPercent))",
-            "stale=\(metrics.stale ? "1" : "0")",
-            "status=\(context.statusIndicator.rawValue)",
-            "blink=\(Self.iconSignatureValue(Double(motion.blink)))",
-            "wiggle=\(Self.iconSignatureValue(Double(motion.wiggle)))",
-            "tilt=\(Self.iconSignatureValue(Double(motion.tilt)))",
-            "warningFlash=\(context.warningFlash ? "1" : "0")",
-            "anim=\(context.needsAnimation ? "1" : "0")",
-            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
-        ].joined(separator: "|")
-        if self.shouldSkipMergedIconRender(signature) {
-            self.noteIconPerfRender(skipped: true)
-            return true
-        }
-        let image = IconRenderer.makeIcon(
-            primaryRemaining: metrics.primary,
-            weeklyRemaining: metrics.weekly,
-            creditsRemaining: metrics.credits,
-            creditsRemainingPercent: metrics.creditsPercent,
-            stale: metrics.stale,
-            style: context.style,
-            blink: motion.blink,
-            wiggle: motion.wiggle,
-            tilt: motion.tilt,
-            statusIndicator: context.statusIndicator,
-            hideCritters: self.settings.menuBarHidesCritters)
-        self.setButtonImage(
-            context.warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
-            for: context.button)
+        self.noteIconPerfRender(skipped: false)
         return false
+    }
+
+    private func applyBrandPercentIcon(state: MergedIconRenderState) -> Bool? {
+        guard let brand = ProviderBrandIcon.image(for: state.provider) else { return nil }
+        let displayText = self.menuBarDisplayText(for: state.provider, snapshot: state.snapshot)
+        let displayedImage = state.warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand
+        let signature = [
+            "mode=brandPercent",
+            "provider=\(state.provider.rawValue)",
+            "style=\(String(describing: state.style))",
+            "primary=\(Self.iconSignatureValue(state.primary))",
+            "weekly=\(Self.iconSignatureValue(state.weekly))",
+            "credits=\(Self.iconSignatureValue(state.credits))",
+            "creditsPercent=\(Self.iconSignatureValue(state.creditsPercent))",
+            "stale=\(state.stale ? "1" : "0")",
+            "status=\(state.statusIndicator.rawValue)",
+            "text=\(displayText ?? "nil")",
+            "warningFlash=\(state.warningFlash ? "1" : "0")",
+            "anim=\(state.needsAnimation ? "1" : "0")",
+            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+            "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
+        ].joined(separator: "|")
+        let skipped = self.shouldSkipMergedIconRender(signature)
+        // AppKit can lose button content independently of the cached signature.
+        self.setButtonContent(image: displayedImage, title: displayText, for: state.button)
+        self.noteIconPerfRender(skipped: skipped)
+        return skipped
+    }
+
+    private func applyAppFallbackIcon(state: MergedIconRenderState) -> Bool? {
+        let shouldUseFallback =
+            state.primary == nil
+                && state.weekly == nil
+                && state.credits == nil
+                && state.creditsPercent == nil
+                && state.morphProgress == nil
+                && (!state.needsAnimation || state.phase == nil)
+                && !state.statusIndicator.hasIssue
+        guard shouldUseFallback, let appIcon = Self.appStatusIconForMenuBar() else { return nil }
+
+        let displayedImage = state.warningFlash ? Self.quotaWarningFlashImage(base: appIcon) : appIcon
+        let signature = [
+            "mode=appIcon",
+            "provider=\(state.provider.rawValue)",
+            "style=\(String(describing: state.style))",
+            "stale=\(state.stale ? "1" : "0")",
+            "warningFlash=\(state.warningFlash ? "1" : "0")",
+            "anim=\(state.needsAnimation ? "1" : "0")",
+            "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+            "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
+        ].joined(separator: "|")
+        let skipped = self.shouldSkipMergedIconRender(signature)
+        self.setButtonContent(image: displayedImage, title: nil, for: state.button)
+        self.noteIconPerfRender(skipped: skipped)
+        return skipped
     }
 
     private func deferMergedIconRenderDuringMenuTrackingIfNeeded() -> Bool {
@@ -566,25 +515,24 @@ extension StatusItemController {
            let brand = ProviderBrandIcon.image(for: provider)
         {
             let displayText = self.menuBarDisplayText(for: provider, snapshot: snapshot)
+            let displayedImage = warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand
             let signature = [
                 "mode=brandPercent",
                 "provider=\(provider.rawValue)",
                 "style=\(String(describing: style))",
                 "text=\(displayText ?? "nil")",
                 "warningFlash=\(warningFlash ? "1" : "0")",
+                "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
             if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
+                self.setButtonContent(image: displayedImage, title: displayText, for: button)
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
-            self.setButtonImage(
-                warningFlash ? Self.quotaWarningFlashImage(base: brand) : brand, for: button)
-            self.setButtonTitle(displayText, for: button)
+            self.setButtonContent(image: displayedImage, title: displayText, for: button)
             self.noteIconPerfRender(skipped: false)
             return false
         }
-
-        self.setButtonTitle(nil, for: button)
 
         // OpenRouter always gets a meter here — the brand-logo fallback was removed on purpose.
         let resolved = self.resolvedMenuBarIconPercents(
@@ -634,6 +582,8 @@ extension StatusItemController {
         let wiggle = self.wiggleAmount(for: provider)
         let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
         let statusIndicator = self.store.statusIndicator(for: provider)
+        // Brand + percent returns above; remaining paths are image-only apart from the debug marker.
+        let canSkipCachedRender = self.prepareButtonForImageOnlyCacheHit(button)
         if let morphProgress {
             let signature = [
                 "mode=morph",
@@ -644,8 +594,9 @@ extension StatusItemController {
                 "warningFlash=\(warningFlash ? "1" : "0")",
                 "loading=\(isLoading ? "1" : "0")",
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+                "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
+            if self.shouldSkipProviderIconRender(provider: provider, signature: signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -653,8 +604,10 @@ extension StatusItemController {
                 progress: morphProgress,
                 style: style,
                 hideCritters: self.settings.menuBarHidesCritters)
-            self.setButtonImage(
-                warningFlash ? Self.quotaWarningFlashImage(base: image) : image, for: button)
+            self.setButtonContent(
+                image: warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
+                title: nil,
+                for: button)
         } else {
             let signature = [
                 "mode=icon",
@@ -672,8 +625,9 @@ extension StatusItemController {
                 "warningFlash=\(warningFlash ? "1" : "0")",
                 "loading=\(isLoading ? "1" : "0")",
                 "hideCritters=\(self.settings.menuBarHidesCritters ? "1" : "0")",
+                "highContrast=\(self.shouldUseHighContrastStatusItemContent ? "1" : "0")",
             ].joined(separator: "|")
-            if self.shouldSkipProviderIconRender(provider: provider, signature: signature) {
+            if self.shouldSkipProviderIconRender(provider: provider, signature: signature), canSkipCachedRender {
                 self.noteIconPerfRender(skipped: true)
                 return true
             }
@@ -689,8 +643,10 @@ extension StatusItemController {
                 tilt: tilt,
                 statusIndicator: statusIndicator,
                 hideCritters: self.settings.menuBarHidesCritters)
-            self.setButtonImage(
-                warningFlash ? Self.quotaWarningFlashImage(base: image) : image, for: button)
+            self.setButtonContent(
+                image: warningFlash ? Self.quotaWarningFlashImage(base: image) : image,
+                title: nil,
+                for: button)
         }
         self.noteIconPerfRender(skipped: false)
         return false
@@ -831,17 +787,27 @@ extension StatusItemController {
         return image
     }
 
-    private func setButtonImage(_ image: NSImage, for button: NSStatusBarButton) {
-        if button.image === image { return }
-        button.image = image
+    private var shouldUseHighContrastStatusItemContent: Bool {
+        self.settings.menuBarHighContrastOnInactiveDisplays
+            && self.settings.menuBarIconStyle == .iconAndPercent
     }
 
-    private func setButtonTitle(_ title: String?, for button: NSStatusBarButton) {
-        let isDebugApp = Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier)
+    func prepareButtonForImageOnlyCacheHit(_ button: NSStatusBarButton) -> Bool {
+        if self.shouldUseHighContrastStatusItemContent {
+            guard button.image == nil,
+                  button.imagePosition == .noImage,
+                  button.attributedTitle.length > 0
+            else { return false }
+            return button.attributedTitle.attribute(
+                .attachment,
+                at: 0,
+                effectiveRange: nil) is NSTextAttachment
+        }
+
         let value = Self.buttonTitle(
-            title,
-            hasImage: button.image != nil || title == nil,
-            isDebugApp: isDebugApp)
+            nil,
+            hasImage: true,
+            isDebugApp: Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier))
         if button.title != value {
             button.title = value
         }
@@ -849,6 +815,55 @@ extension StatusItemController {
         if button.imagePosition != position {
             button.imagePosition = position
         }
+        return true
+    }
+
+    private func setButtonContent(image: NSImage, title: String?, for button: NSStatusBarButton) {
+        let isDebugApp = Self.isDebugApp(bundleIdentifier: Bundle.main.bundleIdentifier)
+        let value = Self.buttonTitle(
+            title,
+            hasImage: true,
+            isDebugApp: isDebugApp)
+
+        if self.shouldUseHighContrastStatusItemContent {
+            button.image = nil
+            button.imagePosition = .noImage
+            button.attributedTitle = Self.highContrastButtonTitle(image: image, title: value)
+            return
+        }
+
+        if button.image !== image {
+            button.image = image
+        }
+        if button.title != value {
+            button.title = value
+        }
+        let position: NSControl.ImagePosition = value.isEmpty ? .imageOnly : .imageLeft
+        if button.imagePosition != position {
+            button.imagePosition = position
+        }
+    }
+
+    static func highContrastButtonTitle(image: NSImage, title: String) -> NSAttributedString {
+        let font = NSFont.systemFont(ofSize: NSFont.systemFontSize)
+        let attachment = NSTextAttachment()
+        attachment.image = image
+        attachment.bounds = NSRect(
+            x: 0,
+            y: ((font.capHeight - image.size.height) / 2).rounded(),
+            width: image.size.width,
+            height: image.size.height)
+
+        let value = NSMutableAttributedString(attachment: attachment)
+        if !title.isEmpty {
+            value.append(NSAttributedString(
+                string: title,
+                attributes: [
+                    .font: font,
+                    .foregroundColor: NSColor.labelColor,
+                ]))
+        }
+        return value
     }
 
     nonisolated static func buttonTitle(_ title: String?, hasImage: Bool, isDebugApp: Bool = false) -> String {
@@ -909,12 +924,6 @@ extension StatusItemController {
         {
             return UsageFormatter.usdString(balance)
         }
-        if provider == .crossmodel,
-           self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
-           let usage = snapshot?.crossModelUsage
-        {
-            return usage.balanceDisplay
-        }
         if provider == .opencodego,
            let balance = Self.openCodeGoZenBalanceDisplayText(snapshot: snapshot)
         {
@@ -950,11 +959,6 @@ extension StatusItemController {
             {
                 return spend
             }
-        }
-        if provider == .kimik2,
-           let credits = Self.kimiK2CreditsDisplayText(snapshot: snapshot)
-        {
-            return credits
         }
         if provider == .kiro {
             return Self.kiroDisplayText(
@@ -1092,13 +1096,6 @@ extension StatusItemController {
             from: snapshot?.identity?.loginMethod,
             prefix: "API spend:",
             removingSuffix: " this month")
-    }
-
-    nonisolated static func kimiK2CreditsDisplayText(snapshot: UsageSnapshot?) -> String? {
-        self.displayValue(
-            from: snapshot?.identity?.loginMethod,
-            prefix: "Credits:",
-            removingSuffix: " left")
     }
 
     nonisolated static func extraUsageSpendDisplayText(snapshot: UsageSnapshot?) -> String? {

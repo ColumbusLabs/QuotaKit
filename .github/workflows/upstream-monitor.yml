@@ -107,15 +107,22 @@ jobs:
       - name: Create or update issue
         if: steps.check.outputs.upstream_commits > 0
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          UPSTREAM_COMMITS: ${{ steps.check.outputs.upstream_commits }}
+          UPSTREAM_REF: ${{ steps.check.outputs.upstream_ref }}
+          UPSTREAM_VERSION: ${{ steps.check.outputs.upstream_version }}
+          UPSTREAM_BASE_REF: ${{ steps.check.outputs.upstream_base_ref }}
+          UPSTREAM_BASE_LABEL: ${{ steps.check.outputs.upstream_base_label }}
+          UPSTREAM_SUMMARY: ${{ steps.check.outputs.upstream_summary }}
         with:
           script: |
-            const upstreamCommits = '${{ steps.check.outputs.upstream_commits }}';
-            const upstreamRef = '${{ steps.check.outputs.upstream_ref }}';
-            const upstreamVersion = '${{ steps.check.outputs.upstream_version }}';
-            const upstreamBaseRef = '${{ steps.check.outputs.upstream_base_ref }}';
-            const upstreamBaseLabel = '${{ steps.check.outputs.upstream_base_label }}';
+            const upstreamCommits = process.env.UPSTREAM_COMMITS;
+            const upstreamRef = process.env.UPSTREAM_REF;
+            const upstreamVersion = process.env.UPSTREAM_VERSION;
+            const upstreamBaseRef = process.env.UPSTREAM_BASE_REF;
+            const upstreamBaseLabel = process.env.UPSTREAM_BASE_LABEL;
             const upstreamBranch = upstreamRef.replace('upstream/', '');
-            const upstreamSummary = `${{ steps.check.outputs.upstream_summary }}`;
+            const upstreamSummary = process.env.UPSTREAM_SUMMARY;
             
             const body = `## Upstream Changes Detected
             

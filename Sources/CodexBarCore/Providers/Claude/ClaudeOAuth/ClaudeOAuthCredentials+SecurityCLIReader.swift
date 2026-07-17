@@ -379,7 +379,16 @@ extension ClaudeOAuthCredentialsStore {
         guard !keychainAccessDisabled || self.isolatedSecurityCLIKeychainPath(environment: environment) != nil else {
             return false
         }
-        guard ClaudeOAuthKeychainPromptPreference.storedMode() != .never else {
+        let promptMode = ClaudeOAuthKeychainPromptPreference.effectiveMode(readStrategy: readStrategy)
+        guard promptMode != .never else {
+            return false
+        }
+        // A Security.framework query configured as "no UI" can still display a legacy Keychain ACL dialog.
+        // Respect the user-action-only policy before background discovery touches Claude Code credentials.
+        guard readStrategy != .securityFramework
+            || promptMode != .onlyOnUserAction
+            || interaction == .userInitiated
+        else {
             return false
         }
         let payload: Data? = switch readStrategy {

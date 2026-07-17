@@ -287,6 +287,7 @@ public struct TTYCommandRunner {
         case binaryNotFound(String)
         case launchFailed(String)
         case timedOut
+        case outputTooLarge
 
         public var errorDescription: String? {
             switch self {
@@ -294,6 +295,7 @@ public struct TTYCommandRunner {
                 "Missing CLI '\(bin)'. Install it (e.g. npm i -g @openai/codex) or add it to PATH."
             case let .launchFailed(msg): "Failed to launch process: \(msg)"
             case .timedOut: "PTY command timed out."
+            case .outputTooLarge: "PTY command produced more output than QuotaKit can safely process."
             }
         }
     }
@@ -682,7 +684,16 @@ public struct TTYCommandRunner {
         let isCodex = (binaryName == "codex") || options.forceCodexStatusMode
         let isCodexStatus = isCodex && trimmed == "/status"
 
-        var buffer = Data()
+        var buffer = BoundedOutputBuffer()
+        var didExceedOutputLimit = false
+
+        func checkOutputLimit() throws {
+            if didExceedOutputLimit {
+                Self.log.warning("PTY output exceeded memory limit", metadata: ["binary": binaryName])
+                throw Error.outputTooLarge
+            }
+        }
+
         func readChunkResult() -> (data: Data, terminalRead: Int, errno: Int32) {
             var appended = Data()
             var terminalRead = 0
@@ -693,7 +704,10 @@ public struct TTYCommandRunner {
                 let n = read(primaryFD, &tmp, tmp.count)
                 if n > 0 {
                     let slice = tmp.prefix(n)
-                    buffer.append(contentsOf: slice)
+                    guard buffer.append(Data(slice)) else {
+                        didExceedOutputLimit = true
+                        break
+                    }
                     appended.append(contentsOf: slice)
                     continue
                 }
@@ -709,6 +723,9 @@ public struct TTYCommandRunner {
         }
 
         func readDrainChunk() -> DrainReadResult {
+            if didExceedOutputLimit {
+                return .closed
+            }
             let result = readChunkResult()
             return Self.drainReadResult(for: result.data, terminalRead: result.terminalRead, errno: result.errno)
         }
@@ -831,6 +848,7 @@ public struct TTYCommandRunner {
                     ptyClosed = true
                     newData = Data()
                 }
+                try checkOutputLimit()
                 if processNonCodexChunk(newData, allowSends: true, allowStop: true) {
                     stoppedEarly = true
                     break
@@ -883,6 +901,7 @@ public struct TTYCommandRunner {
                     while Date() < settleDeadline {
                         try checkCancellation()
                         let newData = readChunk()
+                        try checkOutputLimit()
                         let scanData = scanBuffer.append(newData)
                         if Date() >= nextCursorCheckAt,
                            !scanData.isEmpty,
@@ -900,7 +919,8 @@ public struct TTYCommandRunner {
                 drainNonCodexOutput(for: min(0.5, max(0.2, options.settleAfterStop)))
             }
 
-            let text = String(data: buffer, encoding: .utf8) ?? ""
+            try checkOutputLimit()
+            let text = String(data: buffer.data, encoding: .utf8) ?? ""
             let exitStatus: Int32? = if stoppedEarly {
                 !process.isRunning ? process.finishSynchronously() : nil
             } else {
@@ -963,6 +983,7 @@ public struct TTYCommandRunner {
         while Date() < deadline {
             try checkCancellation()
             let newData = readChunk()
+            try checkOutputLimit()
             let scanData = statusScanBuffer.append(newData)
             if Date() >= nextCursorCheckAt,
                !scanData.isEmpty,
@@ -1055,6 +1076,7 @@ public struct TTYCommandRunner {
             while Date() < settleDeadline {
                 try checkCancellation()
                 let newData = readChunk()
+                try checkOutputLimit()
                 let scanData = statusScanBuffer.append(newData)
                 if Date() >= nextCursorCheckAt,
                    !scanData.isEmpty,
@@ -1067,7 +1089,8 @@ public struct TTYCommandRunner {
             }
         }
 
-        guard let text = String(data: buffer, encoding: .utf8), !text.isEmpty else {
+        try checkOutputLimit()
+        guard let text = String(data: buffer.data, encoding: .utf8), !text.isEmpty else {
             throw Error.timedOut
         }
 

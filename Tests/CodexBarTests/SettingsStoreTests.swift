@@ -327,6 +327,32 @@ struct SettingsStoreTests {
     }
 
     @Test
+    func `inactive display contrast setting defaults off and persists`() throws {
+        let suite = "SettingsStoreTests-inactive-display-contrast"
+        let defaultsA = try #require(UserDefaults(suiteName: suite))
+        defaultsA.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let storeA = SettingsStore(
+            userDefaults: defaultsA,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeA.menuBarHighContrastOnInactiveDisplays == false)
+        #expect(defaultsA.bool(forKey: "menuBarHighContrastOnInactiveDisplays") == false)
+        storeA.menuBarHighContrastOnInactiveDisplays = true
+
+        let defaultsB = try #require(UserDefaults(suiteName: suite))
+        let storeB = SettingsStore(
+            userDefaults: defaultsB,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+
+        #expect(storeB.menuBarHighContrastOnInactiveDisplays == true)
+    }
+
+    @Test
     func `persists selected menu provider across instances`() throws {
         let suite = "SettingsStoreTests-selectedMenuProvider"
         let defaultsA = try #require(UserDefaults(suiteName: suite))

@@ -525,6 +525,7 @@ extension StatusItemController {
             historyDays: tokenSnapshot.historyDays,
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],
+            sessions: provider == .codex ? tokenSnapshot.sessions : [],
             width: width)
         let hosting = MenuHostingView(rootView: chartView)
         hosting.applyMeasuredHeight(

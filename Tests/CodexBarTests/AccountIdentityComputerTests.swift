@@ -95,9 +95,9 @@ struct AccountIdentityComputerTests {
         // Sample a few; the implementation switch lists them all.
         let nonTierA: [UsageProvider] = [
             .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
-            .alibaba, .factory, .minimax, .kimi, .kimik2, .augment, .jetbrains,
+            .alibaba, .factory, .minimax, .kimi, .augment, .jetbrains,
             .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
-            .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes,
+            .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
         ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,

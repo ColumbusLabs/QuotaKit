@@ -1,8 +1,13 @@
 /* Indonesian localization for CodexBar */
 
+"ollama_safari_cookie_access_hint" = "Cookie Safari memerlukan Akses Disk Penuh untuk QuotaKit (Pengaturan Sistem > Privasi & Keamanan).";
+"ollama_browser_cookie_decryption_denied" = "Dekripsi cookie %@ ditolak di Rantai Kunci; coba lagi dengan penyegaran manual.";
+"ollama_browser_cookie_decryption_disabled" = "Dekripsi cookie %@ dinonaktifkan di QuotaKit; aktifkan akses Rantai Kunci lalu segarkan.";
+
 " providers" = " penyedia";
 "(System)" = "(Sistem)";
 "30d" = "30 hari";
+"7d" = "7 hari";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Login Codex terkelola sudah berjalan. Tunggu hingga selesai sebelum menambahkan ";
 "API key" = "Kunci API";
 "API region" = "Wilayah API";
@@ -17,7 +22,7 @@
 "Add Workspace" = "Tambah Workspace";
 "Advanced" = "Lanjutan";
 "All" = "Semua";
-"Always allow prompts" = "Selalu izinkan saat tindakan pengguna";
+"Always allow prompts" = "Selalu izinkan permintaan";
 "Animation pattern" = "Pola animasi";
 "Antigravity login is managed in the app" = "Login Antigravity dikelola di dalam aplikasi";
 "Applies only to the Security.framework OAuth keychain reader." = "Hanya berlaku untuk pembaca keychain OAuth Security.framework.";
@@ -58,13 +63,16 @@
 "Check for updates automatically" = "Periksa pembaruan secara otomatis";
 "Check if you like your agents having some fun up there." = "Centang jika Anda suka agen bersenang-senang di atas sana.";
 "Check provider status" = "Periksa status penyedia";
+"Choose a supported browser so CodexBar can read the matching account." = "Pilih browser yang didukung agar QuotaKit dapat membaca akun yang sesuai.";
 "Choose Codex workspace" = "Pilih workspace Codex";
+"Choose Cursor account" = "Pilih akun Cursor";
 "Choose the MiniMax host (global .io or China mainland .com)." = "Pilih host MiniMax (global .io atau Tiongkok daratan .com).";
 "Choose up to " = "Pilih hingga ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "Pilih hingga \\(Self.maxOverviewProviders) penyedia";
 "Choose up to \\(count) providers" = "Pilih hingga \\(count) penyedia";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "Pilih apa yang ditampilkan di menu bar (Pace menampilkan penggunaan vs. perkiraan).";
 "Choose which Codex account CodexBar should follow." = "Pilih akun Codex mana yang harus diikuti QuotaKit.";
+"Choose which Cursor account CodexBar should use." = "Pilih akun Cursor yang harus digunakan QuotaKit.";
 "Choose which window drives the menu bar percent." = "Pilih jendela mana yang menggerakkan persentase menu bar.";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "Claude CLI tidak ditemukan";
@@ -300,7 +308,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Simpan beberapa header Cookie OpenCode Go.";
 "Stored in the CodexBar config file." = "Disimpan dalam file konfigurasi QuotaKit.";
 "Stored in ~/.codexbar/config.json. " = "Disimpan di ~/.quotakit/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Disimpan di ~/.quotakit/config.json. Buat satu di kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Disimpan di ~/.quotakit/config.json. Tempel kunci dari dasbor Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Disimpan di ~/.quotakit/config.json. Tempel kunci API Coding Plan Anda dari Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Disimpan di ~/.quotakit/config.json. Tempel kunci API MiniMax Anda.";
@@ -330,6 +337,7 @@
 "Usage breakdown" = "Rincian penggunaan";
 "Usage history (30 days)" = "Riwayat penggunaan";
 "Usage source" = "Sumber penggunaan";
+"Use Account" = "Gunakan Akun";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Gunakan BigModel untuk endpoint Tiongkok daratan (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Gunakan satu ikon menu bar dengan pengalih penyedia.";
 "Use international or China mainland console gateways for quota fetches." = "Gunakan gateway konsol internasional atau Tiongkok daratan untuk pengambilan kuota.";
@@ -429,7 +437,6 @@
 "language_polish" = "Bahasa Polandia";
 "start_at_login_title" = "Mulai saat Login";
 "start_at_login_subtitle" = "Otomatis membuka QuotaKit saat Anda menyalakan Mac.";
-"show_cost_summary" = "Tampilkan ringkasan biaya";
 "show_cost_summary_subtitle" = "Membaca log penggunaan lokal. Menampilkan hari ini + jendela riwayat yang dipilih di menu.";
 "cost_summary_style_title" = "Gaya tampilan";
 "cost_summary_style_inline" = "Hanya sebaris";
@@ -444,8 +451,6 @@
 "cost_comparison_periods_title" = "Tampilkan periode perbandingan yang lebih singkat";
 "cost_comparison_periods_subtitle" = "Tambahkan total 7, 30, dan 90 hari jika termasuk dalam rentang riwayat yang dipilih. Total ini menggunakan kembali pemindaian lokal yang sama.";
 "cost_auto_refresh_info" = "Penyegaran otomatis: per jam · Batas waktu: 10m";
-"refresh_cadence_title" = "Frekuensi penyegaran";
-"refresh_cadence_subtitle" = "Seberapa sering QuotaKit memeriksa penyedia di latar belakang.";
 "refresh_interval_title" = "Interval penyegaran";
 "manual_refresh_hint" = "Penyegaran otomatis nonaktif; gunakan perintah Segarkan di menu.";
 "refresh_on_open_title" = "Segarkan saat menu dibuka";
@@ -507,6 +512,27 @@
 "tab_menu_bar" = "Menu bar";
 "tab_menu" = "Menu";
 "tab_advanced" = "Lanjutan";
+"tab_hooks" = "Hook";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Aktifkan hook";
+"hooks_enable_subtitle" = "Jalankan perintah eksternal saat terjadi peristiwa kuota atau penyedia.";
+"hooks_trust_warning" = "Hook dapat menjalankan perintah lokal di Mac Anda. Hanya konfigurasikan perintah yang Anda percayai.";
+"hooks_rules_header" = "Aturan";
+"hooks_empty" = "Belum ada hook yang dikonfigurasi.";
+"hooks_add_rule" = "Tambah aturan";
+"hooks_delete_rule" = "Hapus aturan";
+"hooks_rule_enabled" = "Aktif";
+"hooks_event" = "Peristiwa";
+"hooks_provider" = "Penyedia";
+"hooks_any_provider" = "Penyedia apa pun";
+"hooks_threshold" = "Picu saat penggunaan ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumen";
+"hooks_argument_placeholder" = "Argumen";
+"hooks_add_argument" = "Tambah argumen";
+"hooks_delete_argument" = "Hapus argumen";
 "tab_about" = "Tentang";
 "tab_debug" = "Debug";
 
@@ -531,13 +557,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Menampilkan saldo DeepSeek di menu bar.";
 "menu_bar_metric_subtitle_moonshot" = "Menampilkan saldo API Moonshot / Kimi di menu bar.";
 "menu_bar_metric_subtitle_mistral" = "Menampilkan pengeluaran API Mistral bulan ini di menu bar.";
-"menu_bar_metric_subtitle_kimik2" = "Menampilkan kredit kunci API Kimi K2 di menu bar.";
 "automatic" = "Otomatis";
 "primary_api_key_limit" = "Utama (batas kunci API)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Gaya menu bar";
 "menu_bar_style_subtitle" = "Cara item menu bar digambar.";
+"menu_bar_inactive_display_contrast_title" = "Tingkatkan visibilitas di layar tidak aktif";
+"menu_bar_inactive_display_contrast_subtitle" = "Gunakan rendering kontras tinggi agar ikon dan metrik tetap terbaca di layar lain.";
 "menu_bar_style_critters" = "Critter";
 "menu_bar_style_bars" = "Bilah meter";
 "menu_bar_style_icon_percent" = "Ikon & persentase";
@@ -718,6 +745,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Biaya (perkiraan)";
 "cost_estimate_hint" = "Diperkirakan dari log lokal · mungkin berbeda dari tagihan Anda";
+"codex_api_estimate_header" = "Estimasi setara API";
+"codex_api_estimate_hint" = "Penggunaan lokal × harga API publik · bukan tagihan langganan atau nilai paket";
+"codex_api_estimate_not_billed" = "bukan tagihan langganan atau nilai paket";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Tidak ada JetBrains IDE dengan AI Assistant terdeteksi. Pasang JetBrains IDE dan aktifkan AI Assistant.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "Token API OpenRouter belum dikonfigurasi. Atur variabel lingkungan OPENROUTER_API_KEY atau konfigurasi di Pengaturan.";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "Token API z.ai tidak ditemukan. Atur apiKey di ~/.quotakit/config.json atau Z_AI_API_KEY.";
@@ -903,6 +933,13 @@
 "MiniMax 30 day token usage trend" = "Tren penggunaan token 30 hari MiniMax";
 "Today cash" = "Kas hari ini";
 "DeepSeek 30 day token usage trend" = "Tren penggunaan token 30 hari DeepSeek";
+"DeepSeek this month token usage trend" = "Tren penggunaan token DeepSeek bulan ini";
+"Chrome profile" = "Profil Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Pilih sesi DeepSeek Platform yang telah masuk untuk menyediakan rincian penggunaan.";
+"Detailed usage unavailable." = "Rincian penggunaan tidak tersedia.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Masuk ke DeepSeek Platform di Chrome untuk melihat rincian penggunaan.";
+"Select a DeepSeek Chrome profile in Settings." = "Pilih profil Chrome DeepSeek di Pengaturan.";
+"Select profile…" = "Pilih profil…";
 "cache-hit input" = "input cache-hit";
 "cache-miss input" = "input cache-miss";
 "output" = "output";
@@ -1018,7 +1055,7 @@
 "CodexBar could not save the current system account before switching." = "QuotaKit tidak dapat menyimpan akun sistem saat ini sebelum beralih.";
 "CodexBar could not update managed account storage." = "QuotaKit tidak dapat memperbarui penyimpanan akun terkelola.";
 "CodexBar found another managed account that already uses the current system account. Resolve the duplicate account before switching." = "QuotaKit menemukan akun terkelola lain yang sudah menggunakan akun sistem saat ini. Selesaikan akun duplikat sebelum beralih.";
-"CodexBar will ask macOS Keychain for “%@” so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk \U201c%@\U201d agar dapat mendekripsi cookie browser dan mengautentikasi akun Anda. Klik OK untuk melanjutkan.";
+"CodexBar will ask macOS Keychain for \U201c%@\U201d so it can decrypt browser cookies and authenticate your account. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk \U201c%@\U201d agar dapat mendekripsi cookie browser dan mengautentikasi akun Anda. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for the Claude Code OAuth token so it can fetch your Claude usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk token OAuth Claude Code agar dapat mengambil penggunaan Claude Anda. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your Amp cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Amp Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your Augment cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Augment Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
@@ -1026,7 +1063,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Cursor Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie Factory Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk token GitHub Copilot Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk kunci API Kimi K2 Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk token auth Kimi Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk token API MiniMax Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit akan meminta Keychain macOS untuk header cookie MiniMax Anda agar dapat mengambil penggunaan. Klik OK untuk melanjutkan.";
@@ -1174,9 +1210,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "Tren pengeluaran API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Aktifkan";
@@ -1191,12 +1224,29 @@
 "Show Codex Spark usage" = "Tampilkan penggunaan Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Menampilkan baris kuota Codex Spark di menu dan pratinjau penyedia. Mengharuskan “Tampilkan kredit + penggunaan ekstra” diaktifkan di pengaturan Tampilan.";
 "Scroll to see more models" = "Gulir untuk melihat model lainnya";
-"Projects" = "Proyek";
-"+ %d more" = "+ %d lagi";
-"Choose a supported browser so QuotaKit can read the matching account." = "Pilih browser yang didukung agar QuotaKit dapat membaca akun yang sesuai.";
-"Choose Cursor account" = "Pilih akun Cursor";
-"Choose which Cursor account QuotaKit should use." = "Pilih akun Cursor yang harus digunakan QuotaKit.";
-"Use Account" = "Gunakan Akun";
 "Finish switching to a different Cursor account in your browser, then try again." = "Selesaikan peralihan ke akun Cursor lain di browser Anda, lalu coba lagi.";
 "Timed out waiting for Cursor account switch. %@" = "Waktu tunggu untuk beralih akun Cursor habis. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Waktu tunggu untuk beralih akun Cursor habis. %@ Kesalahan terakhir: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Penggunaan & Pengeluaran";
+"Usage & Spend" = "Penggunaan & Pengeluaran";
+"Local estimated cost history across supported providers." = "Riwayat perkiraan biaya lokal di seluruh penyedia yang didukung.";
+"Time range" = "Rentang waktu";
+"Track costs" = "Lacak biaya";
+"Cost tracking is off" = "Pelacakan biaya dinonaktifkan";
+"Turn on Track costs to build local estimates." = "Aktifkan “Lacak biaya” untuk membuat perkiraan lokal.";
+"No local cost history yet" = "Belum ada riwayat biaya lokal";
+"Turn on cost tracking or refresh after using a supported provider." = "Aktifkan pelacakan biaya atau segarkan setelah menggunakan penyedia yang didukung.";
+"Refresh failures" = "Kegagalan penyegaran";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Mata uang asli tetap dipisahkan; baris akun Codex tidak menyertakan riwayat sesi Pi.";
+"Spend unavailable" = "Data pengeluaran tidak tersedia";
+"Model breakdown unavailable" = "Rincian per model tidak tersedia";
+"Local estimated history" = "Riwayat perkiraan lokal";
+"Coverage" = "Cakupan";
+"Estimated spend" = "Perkiraan pengeluaran";
+"Tracked tokens" = "Token yang dilacak";
+"Subscriptions" = "Langganan";
+"By subscription" = "Berdasarkan langganan";
+"No model-level history" = "Tidak ada riwayat tingkat model";
+"Daily estimated spend" = "Perkiraan pengeluaran harian";

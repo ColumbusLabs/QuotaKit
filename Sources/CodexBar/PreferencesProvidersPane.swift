@@ -98,7 +98,9 @@ struct ProvidersPane: View {
                 isPresented: Binding(
                     get: { self.activeConfirmation != nil },
                     set: { isPresented in
-                        if !isPresented { self.activeConfirmation = nil }
+                        if !isPresented {
+                            self.activeConfirmation = nil
+                        }
                     }),
                 actions: {
                     if let active = self.activeConfirmation {
@@ -163,7 +165,7 @@ struct ProvidersPane: View {
             usageText = L("last_fetch_failed")
         } else if self.store.knownLimitsAvailability(for: provider)?.isUnavailable == true {
             usageText = L("Limits not available")
-        } else if let snapshot = self.store.snapshot(for: provider) {
+        } else if let snapshot = self.store.presentationSnapshot(for: provider) {
             let relative = snapshot.updatedAt.relativeDescription()
             usageText = relative
         } else {
@@ -189,7 +191,7 @@ struct ProvidersPane: View {
             L("last_fetch_failed")
         } else if self.store.knownLimitsAvailability(for: provider)?.isUnavailable == true {
             L("Limits not available")
-        } else if let snapshot = self.store.snapshot(for: provider) {
+        } else if let snapshot = self.store.presentationSnapshot(for: provider) {
             snapshot.updatedAt.relativeDescription()
         } else {
             L("usage_not_fetched_yet")
@@ -325,7 +327,9 @@ struct ProvidersPane: View {
     }
 
     func providerErrorDisplay(_ provider: UsageProvider) -> ProviderErrorDisplay? {
-        guard let full = self.store.error(for: provider), !full.isEmpty else { return nil }
+        guard let full = self.store.error(for: provider) ?? self.store.diagnostic(for: provider),
+              !full.isEmpty
+        else { return nil }
         let preview = self.store.userFacingError(for: provider) ?? full
         return ProviderErrorDisplay(
             preview: self.truncated(preview, prefix: ""),
@@ -611,8 +615,6 @@ struct ProvidersPane: View {
             L("menu_bar_metric_subtitle_moonshot")
         case .mistral:
             L("menu_bar_metric_subtitle_mistral")
-        case .kimik2:
-            L("menu_bar_metric_subtitle_kimik2")
         default:
             L("menu_bar_metric_subtitle")
         }
@@ -620,7 +622,7 @@ struct ProvidersPane: View {
 
     func menuCardModel(for provider: UsageProvider) -> UsageMenuCardView.Model {
         let metadata = self.store.metadata(for: provider)
-        let snapshot = self.store.snapshot(for: provider)
+        let snapshot = self.store.presentationSnapshot(for: provider)
         let now = Date()
         let codexProjection = self.store.codexConsumerProjectionIfNeeded(
             for: provider,
@@ -684,6 +686,7 @@ struct ProvidersPane: View {
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             resetTimeDisplayStyle: self.settings.resetTimeDisplayStyle,
             tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: provider),
+            codexLocalSessionCostLedgerEnabled: self.settings.codexLocalSessionCostLedgerEnabled,
             tokenCostInlineDashboardEnabled: self.settings.costSummaryShowsInlineDashboard(for: provider),
             // Display style only controls the main menu. Provider details always expose
             // available cost data in their Usage section.

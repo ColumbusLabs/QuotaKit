@@ -1,8 +1,33 @@
 /* English localization for CodexBar (base/fallback) */
 
+"tab_hooks" = "Hook";
+"hooks_enable_title" = "Bật hook";
+"hooks_enable_subtitle" = "Chạy lệnh bên ngoài khi có sự kiện hạn mức hoặc nhà cung cấp.";
+"hooks_trust_warning" = "Hook có thể chạy lệnh cục bộ trên máy Mac. Chỉ cấu hình các lệnh bạn tin cậy.";
+"hooks_rules_header" = "Quy tắc";
+"hooks_empty" = "Chưa cấu hình hook.";
+"hooks_add_rule" = "Thêm quy tắc";
+"hooks_delete_rule" = "Xóa quy tắc";
+"hooks_rule_enabled" = "Đã bật";
+"hooks_event" = "Sự kiện";
+"hooks_provider" = "Nhà cung cấp";
+"hooks_any_provider" = "Nhà cung cấp bất kỳ";
+"hooks_threshold" = "Chạy khi mức sử dụng ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Đối số";
+"hooks_argument_placeholder" = "Đối số";
+"hooks_add_argument" = "Thêm đối số";
+"hooks_delete_argument" = "Xóa đối số";
+
+"ollama_safari_cookie_access_hint" = "Cookie Safari cần Quyền truy cập toàn bộ ổ đĩa cho QuotaKit (Cài đặt hệ thống > Quyền riêng tư & Bảo mật).";
+"ollama_browser_cookie_decryption_denied" = "Việc giải mã cookie %@ đã bị từ chối trong Chuỗi khóa; hãy thử lại bằng cách làm mới thủ công.";
+"ollama_browser_cookie_decryption_disabled" = "Việc giải mã cookie %@ bị tắt trong QuotaKit; hãy bật quyền truy cập Chuỗi khóa rồi làm mới.";
+
 " providers" = "nhà cung cấp";
 "(System)" = "(Hệ thống)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Đăng nhập Codex được quản lý đã chạy. Đợi quá trình này hoàn tất trước khi thêm";
 "API key" = "API khóa";
 "API region" = "API khu vực";
@@ -297,7 +322,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Lưu trữ nhiều tiêu đề Cookie OpenCode Go.";
 "Stored in the CodexBar config file." = "Được lưu trữ trong tệp cấu hình QuotaKit.";
 "Stored in ~/.codexbar/config.json. " = "Được lưu trữ trong ~/.quotakit/config.json.";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Được lưu trữ trong ~/.quotakit/config.json. Tạo một cái tại kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Được lưu trữ trong ~/.quotakit/config.json. Dán khóa từ bảng điều khiển Tổng hợp.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Được lưu trữ trong ~/.quotakit/config.json. Dán khóa Kế hoạch mã hóa API của bạn từ Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Được lưu trữ trong ~/.quotakit/config.json. Dán khóa MiniMax API của bạn.";
@@ -422,7 +446,6 @@
 "language_italian" = "Italiano";
 "start_at_login_title" = "Bắt đầu khi đăng nhập";
 "start_at_login_subtitle" = "Tự động mở QuotaKit khi bạn khởi động máy Mac.";
-"show_cost_summary" = "Hiển thị tóm tắt chi phí";
 "show_cost_summary_subtitle" = "Đọc nhật ký Mức sử dụng cục bộ. Hiển thị hôm nay + cửa sổ lịch sử đã chọn trong menu.";
 "cost_summary_style_title" = "Kiểu hiển thị";
 "cost_summary_style_inline" = "Chỉ nội tuyến";
@@ -437,8 +460,6 @@
 "cost_auto_refresh_info" = "Tự động làm mới: hàng giờ · Thời gian chờ: 10 phút";
 "cost_comparison_periods_title" = "Hiển thị các khoảng so sánh ngắn hơn";
 "cost_comparison_periods_subtitle" = "Thêm tổng 7, 30 và 90 ngày khi nằm trong cửa sổ lịch sử đã chọn. Các tổng này dùng lại cùng một lần quét cục bộ.";
-"refresh_cadence_title" = "Nhịp làm mới";
-"refresh_cadence_subtitle" = "Tần suất QuotaKit thăm dò ý kiến ​​các nhà cung cấp trong nền.";
 "refresh_interval_title" = "Khoảng thời gian làm mới";
 "manual_refresh_hint" = "Tính năng tự động làm mới bị tắt; sử dụng lệnh Làm mới của menu.";
 "refresh_on_open_title" = "Làm mới khi mở menu";
@@ -524,13 +545,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Hiển thị số dư DeepSeek trong thanh menu .";
 "menu_bar_metric_subtitle_moonshot" = "Hiển thị số dư Moonshot / Kimi API trong thanh menu .";
 "menu_bar_metric_subtitle_mistral" = "Hiển thị mức chi tiêu API của Mistral trong tháng hiện tại trong thanh menu .";
-"menu_bar_metric_subtitle_kimik2" = "Hiển thị Kimi K2 API -các khoản tín dụng chính trong thanh menu .";
 "automatic" = "Tự động";
 "primary_api_key_limit" = "Chính ( API giới hạn khóa)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Kiểu thanh menu";
 "menu_bar_style_subtitle" = "Cách hiển thị mục trên thanh menu.";
+"menu_bar_inactive_display_contrast_title" = "Cải thiện khả năng hiển thị trên màn hình không hoạt động";
+"menu_bar_inactive_display_contrast_subtitle" = "Sử dụng hiển thị tương phản cao để biểu tượng và chỉ số vẫn dễ đọc trên các màn hình khác.";
 "menu_bar_style_critters" = "Sinh vật";
 "menu_bar_style_bars" = "Thanh đo";
 "menu_bar_style_icon_percent" = "Biểu tượng & phần trăm";
@@ -711,6 +733,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Chi phí (ước tính)";
 "cost_estimate_hint" = "Ước tính từ nhật ký cục bộ · có thể khác với hóa đơn của bạn";
+"codex_api_estimate_header" = "Ước tính tương đương API";
+"codex_api_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải hóa đơn đăng ký hoặc giá trị gói";
+"codex_api_estimate_not_billed" = "không phải hóa đơn đăng ký hoặc giá trị gói";
 "No JetBrains IDE with AI Assistant detected. Install a JetBrains IDE and enable AI Assistant." = "Không phát hiện thấy IDE JetBrains nào có Trợ lý AI. Cài đặt JetBrains IDE và bật Trợ lý AI.";
 "OpenRouter API token not configured. Set OPENROUTER_API_KEY environment variable or configure in Settings." = "OpenRouter API token chưa được định cấu hình. Đặt biến môi trường OPENROUTER_API_KEY hoặc định cấu hình trong Cài đặt .";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "không tìm thấy z.ai API token. Đặt apiKey trong ~/.quotakit/config.json hoặc Z_AI_API_KEY.";
@@ -1015,7 +1040,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cho tiêu đề cookie Con trỏ của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cho tiêu đề cookie Factory của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cho GitHub Copilot token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cung cấp khóa Kimi K2 API của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cho Kimi auth token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cung cấp MiniMax API token của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit sẽ yêu cầu macOS Keychain cho tiêu đề cookie MiniMax của bạn để nó có thể tìm nạp Mức sử dụng . Nhấn OK để tiếp tục.";
@@ -1169,9 +1193,6 @@
 "byte_unit_megabytes" = "megabyte";
 "byte_unit_gigabyte" = "gigabyte";
 "byte_unit_gigabytes" = "gigabyte";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown.";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again.";
-"CrossModel API spend trend" = "Xu hướng chi tiêu API CrossModel";
 
 /* Settings sidebar redesign */
 "Enable" = "Bật";
@@ -1186,12 +1207,45 @@
 "Show Codex Spark usage" = "Hiển thị mức sử dụng Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị các hàng hạn mức Codex Spark trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
 "Scroll to see more models" = "Cuộn để xem thêm mô hình";
-"Projects" = "Dự án";
-"+ %d more" = "+ %d nữa";
-"Choose a supported browser so QuotaKit can read the matching account." = "Chọn trình duyệt được hỗ trợ để QuotaKit có thể đọc tài khoản phù hợp.";
+"DeepSeek this month token usage trend" = "Xu hướng sử dụng token DeepSeek trong tháng này";
+"Chrome profile" = "Hồ sơ Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Chọn phiên DeepSeek Platform đã đăng nhập để cung cấp thông tin sử dụng chi tiết.";
+"Detailed usage unavailable." = "Không có thông tin sử dụng chi tiết.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Đăng nhập vào DeepSeek Platform trong Chrome để xem thông tin sử dụng chi tiết.";
+"Select a DeepSeek Chrome profile in Settings." = "Chọn một hồ sơ Chrome cho DeepSeek trong Cài đặt.";
+"Select profile…" = "Chọn hồ sơ…";
+
+"%@: %@" = "%@: %@";
+"Alternatively, set a custom path in Settings." = "Ngoài ra, hãy đặt đường dẫn tùy chỉnh trong Cài đặt.";
+"Choose a supported browser so CodexBar can read the matching account." = "Chọn một trình duyệt được hỗ trợ để QuotaKit có thể đọc tài khoản phù hợp.";
 "Choose Cursor account" = "Chọn tài khoản Cursor";
-"Choose which Cursor account QuotaKit should use." = "Chọn tài khoản Cursor mà QuotaKit nên sử dụng.";
-"Use Account" = "Dùng tài khoản";
-"Finish switching to a different Cursor account in your browser, then try again." = "Hoàn tất việc chuyển sang tài khoản Cursor khác trong trình duyệt rồi thử lại.";
-"Timed out waiting for Cursor account switch. %@" = "Hết thời gian chờ chuyển tài khoản Cursor. %@";
-"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Hết thời gian chờ chuyển tài khoản Cursor. %@ Lỗi gần nhất: %@";
+"Choose which Cursor account CodexBar should use." = "Chọn tài khoản Cursor mà QuotaKit nên sử dụng.";
+"Finish switching to a different Cursor account in your browser, then try again." = "Hoàn tất việc chuyển sang tài khoản Cursor khác trong trình duyệt, sau đó thử lại.";
+"Install a JetBrains IDE with AI Assistant enabled, then refresh CodexBar." = "Cài đặt JetBrains IDE có bật AI Assistant, sau đó làm mới QuotaKit.";
+"Request quota: %@ / %@" = "Hạn mức yêu cầu: %@ / %@";
+"Sign in with Claude Code..." = "Đăng nhập bằng Claude Code...";
+"Timed out waiting for Cursor account switch. %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@";
+"Timed out waiting for Cursor account switch. %@ Last error: %@" = "Đã hết thời gian chờ chuyển đổi tài khoản Cursor. %@ Lỗi gần nhất: %@";
+"Use Account" = "Sử dụng tài khoản";
+/* Spend dashboard */
+"tab_usage_spend" = "Sử dụng & Chi tiêu";
+"Usage & Spend" = "Sử dụng & Chi tiêu";
+"Local estimated cost history across supported providers." = "Lịch sử chi phí ước tính cục bộ trên các nhà cung cấp được hỗ trợ.";
+"Time range" = "Khoảng thời gian";
+"Track costs" = "Theo dõi chi phí";
+"Cost tracking is off" = "Đang tắt tính năng theo dõi chi phí";
+"Turn on Track costs to build local estimates." = "Bật “Theo dõi chi phí” để tạo ước tính cục bộ.";
+"No local cost history yet" = "Chưa có lịch sử chi phí cục bộ";
+"Turn on cost tracking or refresh after using a supported provider." = "Bật tính năng theo dõi chi phí hoặc làm mới sau khi sử dụng nhà cung cấp được hỗ trợ.";
+"Refresh failures" = "Lần làm mới thất bại";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "Đơn vị tiền tệ gốc được giữ riêng biệt; các hàng tài khoản Codex không bao gồm lịch sử phiên Pi.";
+"Spend unavailable" = "Không có dữ liệu chi tiêu";
+"Model breakdown unavailable" = "Phân tích theo mô hình không khả dụng";
+"Local estimated history" = "Lịch sử ước tính cục bộ";
+"Coverage" = "Phạm vi";
+"Estimated spend" = "Chi tiêu ước tính";
+"Tracked tokens" = "Token được theo dõi";
+"Subscriptions" = "Gói đăng ký";
+"By subscription" = "Theo gói đăng ký";
+"No model-level history" = "Không có lịch sử theo mô hình";
+"Daily estimated spend" = "Chi tiêu ước tính hằng ngày";

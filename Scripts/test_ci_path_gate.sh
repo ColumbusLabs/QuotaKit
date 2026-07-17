@@ -29,6 +29,13 @@ assert_gate() {
     exit 1
   fi
 
+  local deferred
+  deferred="$(sed -n 's/^macos-tests-deferred=//p' "$output_file")"
+  if [[ "$deferred" != false ]]; then
+    printf '%s: expected macos-tests-deferred=false, got %s\n' "$name" "${deferred:-<empty>}" >&2
+    exit 1
+  fi
+
   local path_count
   path_count="$(sed -n 's/^changed-path-count=//p' "$output_file")"
   if ! [[ "$path_count" =~ ^[0-9]+$ ]]; then
@@ -61,6 +68,18 @@ assert_gate true empty
 assert_gate true source-to-docs $'R100\tSources/CodexBar/App.swift\tdocs/App.md'
 assert_gate true docs-to-source $'R100\tdocs/App.md\tSources/CodexBar/App.swift'
 assert_gate false docs-to-site $'R100\tdocs/old.md\tdocs/site.css'
+
+draft_paths="${tmp_dir}/draft-source.paths"
+draft_output="${tmp_dir}/draft-source.output"
+printf '%s\n' $'M\tSources/CodexBar/App.swift' > "$draft_paths"
+CI_PULL_REQUEST_DRAFT=true GITHUB_OUTPUT="$draft_output" \
+  "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$draft_paths" >/dev/null
+if [[ "$(sed -n 's/^macos-tests=//p' "$draft_output")" != true ]] \
+  || [[ "$(sed -n 's/^macos-tests-deferred=//p' "$draft_output")" != true ]]
+then
+  printf 'draft source: expected macOS tests to remain required while deferred\n' >&2
+  exit 1
+fi
 
 assert_ios_gate() {
   local expected="$1"
@@ -167,10 +186,10 @@ if [[ -s "$ios_unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success true success >/dev/null
-"$verify" success success false skipped false skipped >/dev/null
-"$verify" success success true success false skipped >/dev/null
-"$verify" success success false skipped true success >/dev/null
+"$verify" success success true success false true success >/dev/null
+"$verify" success success false skipped false false skipped >/dev/null
+"$verify" success success true success false false skipped >/dev/null
+"$verify" success success false skipped false true success >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -179,13 +198,14 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped true success
-assert_verify_fails success success false success true success
-assert_verify_fails success success true success true skipped
-assert_verify_fails success success true success false success
-assert_verify_fails success success "" skipped false skipped
-assert_verify_fails success success false skipped "" skipped
-assert_verify_fails failure success true success true success
-assert_verify_fails success failure true success true success
+assert_verify_fails success success true skipped false true success
+assert_verify_fails success success true skipped true true success
+assert_verify_fails success success false success false true success
+assert_verify_fails success success true success false true skipped
+assert_verify_fails success success true success false false success
+assert_verify_fails success success "" skipped false false skipped
+assert_verify_fails success success false skipped false "" skipped
+assert_verify_fails failure success true success false true success
+assert_verify_fails success failure true success false true success
 
 printf 'CI path gate tests passed.\n'

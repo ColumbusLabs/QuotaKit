@@ -16,18 +16,29 @@ Use it when you need usage numbers in scripts, CI, or dashboards without UI.
 - From the repo, after installing `QuotaKit.app` in `/Applications`: `./bin/install-quotakit-cli.sh` (same symlink targets).
 - Manual: `ln -sf "/Applications/QuotaKit.app/Contents/Helpers/QuotaKitCLI" /usr/local/bin/quotakit`.
 
-Standalone CLI tarballs are not part of the Columbus Labs public release lane yet.
+### Release tarball install (macOS/Linux)
+- Homebrew formula (Linux today): `brew install steipete/tap/quotakit`.
+- Download release tarballs from GitHub Releases:
+  - macOS: `QuotaKitCLI-v<tag>-macos-arm64.tar.gz`, `QuotaKitCLI-v<tag>-macos-x86_64.tar.gz`
+  - Linux (glibc): `QuotaKitCLI-v<tag>-linux-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-x86_64.tar.gz`
+  - Linux (static musl): `QuotaKitCLI-v<tag>-linux-musl-aarch64.tar.gz`, `QuotaKitCLI-v<tag>-linux-musl-x86_64.tar.gz`
+- Extract and run `./quotakit` (symlink) or `./QuotaKitCLI`.
+
+```
+tar -xzf QuotaKitCLI-v0.17.0-macos-x86_64.tar.gz
+./quotakit --version
+./quotakit usage --format json --pretty
+```
 
 ## Build
-- `./Scripts/package_app.sh` (or `./Scripts/compile_and_run.sh`) bundles the SwiftPM CLI product into `QuotaKit.app/Contents/Helpers/QuotaKitCLI`.
-- Standalone: `swift build -c release --product CodexBarCLI` (binary at `./.build/release/CodexBarCLI`).
+- `./Scripts/package_app.sh` (or `./Scripts/compile_and_run.sh`) bundles `QuotaKitCLI` into `QuotaKit.app/Contents/Helpers/QuotaKitCLI`.
+- Standalone: `swift build -c release --product QuotaKitCLI` (binary at `./.build/release/QuotaKitCLI`).
 - Dependencies: Swift 6.2+, Commander package (`https://github.com/steipete/Commander`).
 
 ## Configuration
 QuotaKit reads the resolved config file for provider settings, secrets, and ordering. New installs use
-`~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths resolve to
-`$XDG_CONFIG_HOME/quotakit/config.json`; `QUOTAKIT_CONFIG` overrides the path,
-and `CODEXBAR_CONFIG` remains supported for compatibility with migrated installs.
+`~/.config/quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths and `CODEXBAR_CONFIG` are supported, and existing
+`~/.quotakit/config.json` installs keep using the legacy file when no XDG config exists.
 See `docs/configuration.md` for the schema.
 
 ## Command
@@ -42,22 +53,33 @@ See `docs/configuration.md` for the schema.
   - `--brief` renders a compact table (Provider / Usage / Reset) instead of the card grid.
   - Stdout is always rendered text; `--json-output` only affects stderr logs (no JSON card payload).
   - Failed providers are summarized in a footer (not rendered as error cards).
+  - When the opt-in Claude claude-swap integration returns two or more accounts, cards renders every account in
+    active-first/slot order instead of the ambient or token-account Claude cards. This applies on macOS and Linux,
+    including an explicit `--provider claude`; `--source auto` remains eligible.
+  - `--account`, `--account-index`, `--all-accounts`, and explicit non-auto source flags preserve their requested
+    ambient behavior and do not invoke claude-swap. Zero/one-account lists likewise retain ambient Claude output.
+  - claude-swap sentinel accounts remain successful cards with their problem text and no fabricated usage metrics.
+    A list adapter, parser, or timeout failure retains useful ambient Claude output, adds a distinct
+    `Claude (claude-swap)` failure footer entry, and makes the command exit non-zero.
+  - This precedence is cards-only: `quotakit usage` and `quotakit serve` keep their existing output cardinality.
   - Honors `$COLUMNS` for layout; falls back to 80 columns. Use `--no-color` for plain output.
   - Kitty, Ghostty, WezTerm, and other truecolor terminals auto-enable enhanced gradients/outlines.
   - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
   - Exit code is non-zero when any provider fetch fails.
-- `quotakit sessions` lists live local or SSH-discovered Codex and Claude Code sessions.
-  - `--json` emits machine-readable session rows; `--pretty` pretty-prints JSON.
-  - `quotakit sessions focus <id>` opens or focuses the selected session when supported.
-- `quotakit serve` starts a foreground localhost-only HTTP server for usage and cost JSON.
+- `quotakit serve` starts a foreground HTTP server for usage and cost JSON plus a token-gated dashboard snapshot.
+  - `--host <host>` accepts `localhost` or an IPv4 address and defaults to `127.0.0.1`; `localhost` is normalized to `127.0.0.1`. Binding a non-loopback host requires a dashboard token **and** `--allow-plain-http` (see `docs/dashboard-api.md` for the threat model).
   - `--port <port>` defaults to `8080`.
   - `--refresh-interval <seconds>` defaults to `60` and controls the in-memory response cache TTL.
   - `--request-timeout <seconds>` defaults to `30` and bounds each request before returning `504 Gateway Timeout`; use `0` to keep waiting indefinitely.
+  - `--dashboard-token <token>` sets the static bearer token for `GET /dashboard/v1/snapshot`. Prefer the `QUOTAKIT_DASHBOARD_TOKEN` environment variable (it wins over the flag; a flag value leaks via `ps`). Empty or whitespace-only tokens are startup errors. Without a token the snapshot route fails closed with `401`.
+  - On a **non-loopback** host the token gates **all data routes** — `/usage`, `/cost`, and `/dashboard/v1/snapshot` all require `Authorization: Bearer YOUR_TOKEN`, so account data is never exposed to the network unauthenticated. `/health` is always open. On the default loopback bind, `/usage` and `/cost` stay unauthenticated.
+  - `--allow-plain-http` is the explicit acknowledgment that the bearer token crosses the network **in cleartext on every request** when serving on a non-loopback host. `serve` refuses to start on a non-loopback host without it.
   - Provider config is reloaded for each usage/cost request; cache entries are keyed by the loaded config so provider toggles and source changes do not require restarting `serve`.
   - Transient refresh failures fall back to the last good response for up to ten refresh intervals (minimum five minutes) so polling clients do not flicker between data and errors; disabled when `--refresh-interval 0`.
-  - v1 binds to `127.0.0.1` only and rejects non-loopback `Host` headers. It does not expose remote bind, auth, CORS, TLS, or daemon mode.
-  - Endpoints: `GET /health`, `GET /usage`, `GET /usage?provider=<id|both|all>`, `GET /cost`, `GET /cost?provider=<id|both|all>`.
-  - `GET /health` returns `{"status":"ok"}` plus a `version` field with the running build (for example, `"0.32.4.7"`) when resolvable; clients can compare it against `quotakit --version` to detect a `serve` process still running an older binary after an update.
+  - The default loopback bind rejects non-loopback `Host` headers; a configured non-loopback `--host` additionally accepts its own name. No CORS, TLS, or daemon mode.
+  - Endpoints: `GET /health`, `GET /usage`, `GET /usage?provider=<id|both|all>`, `GET /cost`, `GET /cost?provider=<id|both|all>`, `GET /dashboard/v1/snapshot`.
+  - `GET /dashboard/v1/snapshot` requires `Authorization: Bearer YOUR_TOKEN`; responses (and all `401`s) carry `Cache-Control: no-store`. The token is never accepted via query string. See `docs/dashboard-api.md` for the payload contract.
+  - `GET /health` returns `{"status":"ok"}` plus a `version` field with the running build (e.g. `"0.37.2"`) when resolvable; clients can compare it against `quotakit --version` to detect a `serve` process still running an older binary after an update.
   - Codex usage responses include every visible Codex account, matching the menu bar switcher.
 - `quotakit cache clear` clears local QuotaKit caches.
   - `--cookies` removes cached browser-cookie headers from the QuotaKit Keychain cache.
@@ -78,7 +100,7 @@ See `docs/configuration.md` for the schema.
     - `web`: web-only where that provider exposes an explicit web source; no CLI/API fallback. Browser import is macOS-only, while supported providers can use configured manual cookies on Linux.
     - `cli`: CLI/local-helper source where the provider exposes one (for example Codex RPC/PTy, Claude PTY, Kilo CLI fallback, Kiro CLI, local probes).
     - `oauth`: OAuth-backed source where supported (Codex, Claude, Vertex AI).
-    - `api`: API-key/token flow when the provider supports it (OpenAI, Claude Admin API, z.ai, Gemini, Alibaba, Copilot, Kilo, Kimi, Kimi K2, MiniMax, Ollama, Warp, OpenRouter, ElevenLabs, Deepgram, Synthetic, DeepSeek, Moonshot, Doubao, Codebuff, Crof, Venice, AWS Bedrock).
+    - `api`: API-key/token flow when the provider supports it (OpenAI, Claude Admin API, z.ai, Gemini, Alibaba, Copilot, Kilo, Kimi, MiniMax, Ollama, Warp, OpenRouter, ElevenLabs, Deepgram, Synthetic, DeepSeek, Moonshot, Doubao, Codebuff, Crof, Venice, AWS Bedrock).
     - Output `source` reflects the strategy actually used (`openai-web`, `web`, `oauth`, `api`, `local`, `cli`, or provider CLI label).
     - Codex web: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
         - `--web-timeout <seconds>` (default: 60)
@@ -95,6 +117,12 @@ See `docs/configuration.md` for the schema.
   - `--format text|json`, `--pretty`, and `--json-only` are supported.
   - Warnings keep exit code 0; errors exit non-zero.
 - `quotakit config dump` prints the normalized config JSON.
+- `quotakit hooks list` shows the local hook configuration; `--format json` and `--pretty` are supported.
+- `quotakit hooks enable|disable` changes the explicit top-level opt-in switch in the local config file.
+- `quotakit hooks test <event> --provider <id>` invokes matching enabled rules with a representative event. Hook
+  commands run directly without a shell and receive `QUOTAKIT_*` variables (plus legacy `CODEXBAR_*` aliases) and JSON on stdin. `--format json` and
+  `--json-only` return structured per-rule results. See
+  `docs/configuration.md#external-event-hooks` for the event, payload, timeout, and security contract.
 
 ### Token accounts
 The CLI reads multi-account tokens from the same resolved config file as the app.
@@ -133,6 +161,8 @@ quotakit cost --provider codex --group-by project
 quotakit cost --provider claude --format json --pretty
 quotakit serve --port 8080        # localhost HTTP JSON server
 quotakit serve --request-timeout 0 # disable serve request deadlines
+QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve # token-gated dashboard snapshot
+QUOTAKIT_DASHBOARD_TOKEN=... quotakit serve --host 0.0.0.0 --allow-plain-http # LAN, cleartext accepted
 COPILOT_API_TOKEN=... quotakit --provider copilot --format json --pretty
 quotakit --status                 # include status page indicator/description
 quotakit --provider codex --source oauth --format json --pretty

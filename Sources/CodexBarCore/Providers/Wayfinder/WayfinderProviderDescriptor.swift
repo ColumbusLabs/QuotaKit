@@ -23,7 +23,12 @@ public enum WayfinderProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .wayfinder,
                 iconResourceName: "ProviderIcon-wayfinder",
-                color: ProviderColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255)),
+                color: ProviderColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255),
+                confettiPalette: [
+                    ProviderColor(hex: 0x10A37F),
+                    ProviderColor(hex: 0xBD6A13),
+                    ProviderColor(hex: 0x0D0D0D),
+                ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Wayfinder savings are reported by its local gateway." }),

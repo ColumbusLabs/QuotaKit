@@ -2,6 +2,9 @@ import CodexBarCore
 import CryptoKit
 import Foundation
 
+// Token-account orchestration and its shared state transitions remain together to preserve actor isolation.
+// swiftlint:disable file_length
+
 struct TokenAccountUsageSnapshot: Identifiable {
     let id: UUID
     let account: ProviderTokenAccount
@@ -70,9 +73,11 @@ extension UsageStore {
         if let snapshot = cached.snapshot {
             self.snapshots[provider] = snapshot
             self.lastKnownResetSnapshots[provider] = snapshot
+            self.installProviderDerivedTokenSnapshot(from: snapshot, for: provider)
         } else {
             self.snapshots.removeValue(forKey: provider)
             self.lastKnownResetSnapshots.removeValue(forKey: provider)
+            self.resetProviderDerivedTokenSnapshot(for: provider)
         }
         self.errors[provider] = cached.error
         if let sourceLabel = cached.sourceLabel {
@@ -131,6 +136,7 @@ extension UsageStore {
 
     private func clearTokenAccountLiveSnapshot(provider: UsageProvider) {
         self.snapshots.removeValue(forKey: provider)
+        self.resetProviderDerivedTokenSnapshot(for: provider)
         self.errors.removeValue(forKey: provider)
         self.lastSourceLabels.removeValue(forKey: provider)
         self.lastKnownResetSnapshots.removeValue(forKey: provider)
@@ -158,6 +164,9 @@ extension UsageStore {
         var material = Data(provider.rawValue.utf8)
         material.append((try? encoder.encode(config)) ?? Data())
         material.append((try? encoder.encode(account)) ?? Data())
+        if Self.tokenCostRequiresProviderSnapshot(provider) {
+            material.append(Data(self.tokenSnapshotScopeSignature(for: provider).utf8))
+        }
         return SHA256.hash(data: material).map { String(format: "%02x", $0) }.joined()
     }
 
@@ -911,7 +920,6 @@ extension UsageStore {
             tokenOverride: override,
             codexActiveSourceOverride: codexActiveSourceOverride)
         let fetcher = ProviderRegistry.makeFetcher(base: self.codexFetcher, provider: provider, env: env)
-        let verbose = self.settings.isVerboseLoggingEnabled
         let contextProvider = provider
         let publicationGeneration = self.providerRefreshPublicationContexts[provider]?.generation
         let contextConfigRevision = self.settings.providerConfigRevision(for: provider)
@@ -921,10 +929,13 @@ extension UsageStore {
             runtime: .app,
             sourceMode: sourceMode,
             includeCredits: includeCredits,
-            includeOptionalUsage: self.settings.showOptionalCreditsAndExtraUsage,
+            includeOptionalUsage: ProviderTokenAccountSelection.shouldIncludeOptionalUsage(
+                provider: provider,
+                settings: self.settings,
+                override: override),
             webTimeout: 60,
             webDebugDumpHTML: false,
-            verbose: verbose,
+            verbose: self.settings.isVerboseLoggingEnabled,
             env: env,
             settings: snapshot,
             fetcher: fetcher,
@@ -1516,7 +1527,11 @@ extension UsageStore {
                 guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else {
                     return nil as UsageSnapshot?
                 }
-                let backfilled = labeled.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
+                let profileStable = provider == .deepseek
+                    ? labeled.preservingDeepSeekPlatformProfiles(
+                        from: self.presentationSnapshot(for: .deepseek))
+                    : labeled
+                let backfilled = profileStable.backfillingResetTimes(from: self.lastKnownResetSnapshots[provider])
                 let warningAccountDiscriminator = Self.warningTokenAccountDiscriminator(account)
                 let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
                     warningAccountDiscriminator
@@ -1537,6 +1552,10 @@ extension UsageStore {
                     accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
+                if provider == .deepseek {
+                    self.clearDeepSeekProfileTransition()
+                }
+                self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
                 self.lastSourceLabels[provider] = result.sourceLabel
                 self.errors[provider] = nil
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
@@ -1575,6 +1594,9 @@ extension UsageStore {
                     return
                 }
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider)
+                if provider == .deepseek {
+                    self.markDeepSeekProfileTransitionUnavailable()
+                }
                 guard let message = self.tokenAccountErrorMessage(error) else {
                     self.errors[provider] = nil
                     return
@@ -1585,6 +1607,7 @@ extension UsageStore {
                 if shouldSurface {
                     self.errors[provider] = message
                     self.snapshots.removeValue(forKey: provider)
+                    self.clearProviderDerivedTokenSnapshot(for: provider)
                 } else {
                     self.errors[provider] = nil
                 }

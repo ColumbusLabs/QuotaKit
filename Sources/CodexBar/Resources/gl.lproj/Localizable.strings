@@ -1,8 +1,13 @@
-/* Galician localization for QuotaKit */
+/* Galician localization for CodexBar */
+
+"ollama_safari_cookie_access_hint" = "As cookies de Safari precisan acceso total ao disco para QuotaKit (Axustes do Sistema > Privacidade e seguridade).";
+"ollama_browser_cookie_decryption_denied" = "Rexeitouse no Chaveiro o descifrado das cookies de %@; téntao de novo cunha actualización manual.";
+"ollama_browser_cookie_decryption_disabled" = "O descifrado das cookies de %@ está desactivado en QuotaKit; activa o acceso ao Chaveiro e actualiza.";
 
 " providers" = " provedores";
 "(System)" = "(Sistema)";
 "30d" = "30d";
+"7d" = "7d";
 "A managed Codex login is already running. Wait for it to finish before adding " = "Xa hai un inicio de sesión xestionado de Codex en curso. Agarda a que remate antes de engadir ";
 "API key" = "Chave de API";
 "API region" = "Rexión da API";
@@ -57,13 +62,16 @@
 "Check for updates automatically" = "Buscar actualizacións automaticamente";
 "Check if you like your agents having some fun up there." = "Actívao se che gusta que os teus axentes se divirtan aí arriba.";
 "Check provider status" = "Comprobar o estado do provedor";
+"Choose a supported browser so CodexBar can read the matching account." = "Escolle un navegador compatible para que QuotaKit poida ler a conta correspondente.";
 "Choose Codex workspace" = "Escoller espazo de traballo de Codex";
+"Choose Cursor account" = "Escoller conta de Cursor";
 "Choose the MiniMax host (global .io or China mainland .com)." = "Escolle o servidor de MiniMax (global .io ou China continental .com).";
 "Choose up to " = "Escolle ata ";
 "Choose up to \\(Self.maxOverviewProviders) providers" = "Escolle ata \\(Self.maxOverviewProviders) provedores";
 "Choose up to \\(count) providers" = "Escolle ata \\(count) provedores";
 "Choose what to show in the menu bar (Pace shows usage vs. expected)." = "Escolle que amosar na barra de menús (Ritmo amosa o uso fronte ao previsto).";
 "Choose which Codex account CodexBar should follow." = "Escolle que conta de Codex debe seguir QuotaKit.";
+"Choose which Cursor account CodexBar should use." = "Escolle que conta de Cursor debe usar QuotaKit.";
 "Choose which window drives the menu bar percent." = "Escolle que xanela determina a porcentaxe da barra de menús.";
 "Chrome" = "Chrome";
 "Claude CLI not found" = "Non se atopou a CLI de Claude";
@@ -137,7 +145,6 @@
 "General" = "Xeral";
 "GitHub" = "GitHub";
 "GitHub Copilot Login" = "Inicio de sesión de GitHub Copilot";
-"GitHub login succeeded, but QuotaKit could not verify which account it belongs to. Please try again." = "O inicio de sesión de GitHub realizouse correctamente, pero QuotaKit non puido verificar a que conta pertence. Téntao de novo.";
 "GitHub Login" = "Inicio de sesión de GitHub";
 "Hide details" = "Ocultar os detalles";
 "Hide personal information" = "Ocultar a información persoal";
@@ -215,7 +222,6 @@
 "Open menu" = "Abrir o menú";
 "Open token file" = "Abrir o ficheiro de token";
 "OpenAI cookies" = "Cookies de OpenAI";
-"OpenAI web dashboard refresh timed out. QuotaKit will retry after the refresh cooldown." = "A actualización do panel web de OpenAI esgotou o tempo de espera. QuotaKit tentarao de novo tras o tempo de espera de actualización.";
 "OpenAI web extras" = "Extras web de OpenAI";
 "Option A" = "Opción A";
 "Option B" = "Opción B";
@@ -299,7 +305,6 @@
 "Store multiple OpenCode Go Cookie headers." = "Garda varias cabeceiras de Cookie de OpenCode Go.";
 "Stored in the CodexBar config file." = "Gardado no ficheiro de configuración de QuotaKit.";
 "Stored in ~/.codexbar/config.json. " = "Gardado en ~/.quotakit/config.json. ";
-"Stored in ~/.codexbar/config.json. Generate one at kimi-k2.ai." = "Gardado en ~/.quotakit/config.json. Xera un en kimi-k2.ai.";
 "Stored in ~/.codexbar/config.json. Paste the key from the Synthetic dashboard." = "Gardado en ~/.quotakit/config.json. Pega a chave do panel de Synthetic.";
 "Stored in ~/.codexbar/config.json. Paste your Coding Plan API key from Model Studio." = "Gardado en ~/.quotakit/config.json. Pega a túa chave de API do plan de programación desde Model Studio.";
 "Stored in ~/.codexbar/config.json. Paste your MiniMax API key." = "Gardado en ~/.quotakit/config.json. Pega a túa chave de API de MiniMax.";
@@ -327,6 +332,7 @@
 "Usage breakdown" = "Desglose de uso";
 "Usage history (30 days)" = "Historial de uso (30 días)";
 "Usage source" = "Orixe de uso";
+"Use Account" = "Usar conta";
 "Use BigModel for the China mainland endpoints (open.bigmodel.cn)." = "Usa BigModel para os endpoints de China continental (open.bigmodel.cn).";
 "Use a single menu bar icon with a provider switcher." = "Usa unha única icona na barra de menús cun selector de provedor.";
 "Use international or China mainland console gateways for quota fetches." = "Usa pasarelas de consola internacionais ou de China continental para a obtención de cotas.";
@@ -425,7 +431,6 @@
 "terminal_app_subtitle" = "Terminal usado pola acción Abrir terminal";
 "start_at_login_title" = "Abrir ao iniciar a sesión";
 "start_at_login_subtitle" = "Abre QuotaKit automaticamente ao iniciar o teu Mac.";
-"show_cost_summary" = "Amosar o resumo de custos";
 "show_cost_summary_subtitle" = "Le os rexistros de uso locais. Amosa o custo de hoxe + a xanela de historial seleccionada no menú.";
 "cost_summary_style_title" = "Estilo de visualización";
 "cost_summary_style_inline" = "Só integrado";
@@ -440,8 +445,6 @@
 "cost_auto_refresh_info" = "Actualización automática: cada hora · Tempo de espera: 10 m";
 "cost_comparison_periods_title" = "Mostrar períodos de comparación máis curtos";
 "cost_comparison_periods_subtitle" = "Engade totais de 7, 30 e 90 días cando caiban na xanela de historial seleccionada. Estes totais reutilizan a mesma análise local.";
-"refresh_cadence_title" = "Frecuencia de actualización";
-"refresh_cadence_subtitle" = "Con que frecuencia QuotaKit consulta os provedores en segundo plano.";
 "refresh_interval_title" = "Intervalo de actualización";
 "manual_refresh_hint" = "A actualización automática está desactivada; usa a orde Actualizar do menú.";
 "check_provider_status_title" = "Comprobar o estado do provedor";
@@ -482,6 +485,27 @@
 "tab_menu_bar" = "Barra de menús";
 "tab_menu" = "Menú";
 "tab_advanced" = "Avanzado";
+"tab_hooks" = "Ganchos";
+
+/* Hooks Pane */
+"hooks_enable_title" = "Activar ganchos";
+"hooks_enable_subtitle" = "Executa comandos externos cando se producen eventos de cota ou provedor.";
+"hooks_trust_warning" = "Os ganchos poden executar comandos locais no teu Mac. Configura só comandos nos que confíes.";
+"hooks_rules_header" = "Regras";
+"hooks_empty" = "Non hai ganchos configurados.";
+"hooks_add_rule" = "Engadir regra";
+"hooks_delete_rule" = "Eliminar regra";
+"hooks_rule_enabled" = "Activado";
+"hooks_event" = "Evento";
+"hooks_provider" = "Provedor";
+"hooks_any_provider" = "Calquera provedor";
+"hooks_threshold" = "Activar cun uso ≥";
+"hooks_threshold_placeholder" = "90";
+"hooks_executable_placeholder" = "/usr/local/bin/my-command";
+"hooks_arguments_placeholder" = "Argumentos";
+"hooks_argument_placeholder" = "Argumento";
+"hooks_add_argument" = "Engadir argumento";
+"hooks_delete_argument" = "Eliminar argumento";
 "tab_about" = "Acerca de";
 "tab_debug" = "Depuración";
 
@@ -504,13 +528,14 @@
 "menu_bar_metric_subtitle_deepseek" = "Amosa o saldo de DeepSeek na barra de menús.";
 "menu_bar_metric_subtitle_moonshot" = "Amosa o saldo da API de Moonshot / Kimi na barra de menús.";
 "menu_bar_metric_subtitle_mistral" = "Amosa o gasto da API de Mistral do mes actual na barra de menús.";
-"menu_bar_metric_subtitle_kimik2" = "Amosa os créditos da chave de API de Kimi K2 na barra de menús.";
 "automatic" = "Automático";
 "primary_api_key_limit" = "Principal (límite da chave de API)";
 
 /* Display Pane */
 "menu_bar_style_title" = "Estilo da barra de menús";
 "menu_bar_style_subtitle" = "Como se debuxa o elemento da barra de menús.";
+"menu_bar_inactive_display_contrast_title" = "Mellorar a visibilidade nas pantallas inactivas";
+"menu_bar_inactive_display_contrast_subtitle" = "Usa unha representación de alto contraste para manter lexibles a icona e a métrica nas outras pantallas.";
 "menu_bar_style_critters" = "Animaliños";
 "menu_bar_style_bars" = "Barras de medición";
 "menu_bar_style_icon_percent" = "Icona e porcentaxe";
@@ -690,6 +715,9 @@
 /* Cost estimation */
 "cost_header_estimated" = "Custo (estimado)";
 "cost_estimate_hint" = "Estimado a partir de rexistros locais · pode diferir da túa factura";
+"codex_api_estimate_header" = "Estimación equivalente á API";
+"codex_api_estimate_hint" = "Uso local × prezos públicos da API · non é unha factura de subscrición nin o valor dun plan";
+"codex_api_estimate_not_billed" = "non é unha factura de subscrición nin o valor dun plan";
 
 /* Popup panels */
 "No usage configured." = "Non hai ningún uso configurado.";
@@ -760,6 +788,13 @@
 "MiniMax 30 day token usage trend" = "Tendencia de uso de tokens de MiniMax en 30 días";
 "Today cash" = "Gasto de hoxe";
 "DeepSeek 30 day token usage trend" = "Tendencia de uso de tokens de DeepSeek en 30 días";
+"DeepSeek this month token usage trend" = "Tendencia de uso de tokens de DeepSeek este mes";
+"Chrome profile" = "Perfil de Chrome";
+"Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Escolle que sesión iniciada de DeepSeek Platform fornece o uso detallado.";
+"Detailed usage unavailable." = "O uso detallado non está dispoñible.";
+"Sign in to DeepSeek Platform in Chrome for detailed usage." = "Inicia sesión en DeepSeek Platform en Chrome para ver o uso detallado.";
+"Select a DeepSeek Chrome profile in Settings." = "Selecciona un perfil de Chrome de DeepSeek en Axustes.";
+"Select profile…" = "Seleccionar perfil…";
 "cache-hit input" = "entrada atopada na caché";
 "cache-miss input" = "entrada non atopada na caché";
 "output" = "saída";
@@ -857,7 +892,6 @@
 "CodexBar will ask macOS Keychain for your Cursor cookie header so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS a túa cabeceira Cookie de Cursor para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your Factory cookie header so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS a túa cabeceira Cookie de Factory para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your GitHub Copilot token so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS o teu token de GitHub Copilot para obter o uso. Preme Aceptar para continuar.";
-"CodexBar will ask macOS Keychain for your Kimi K2 API key so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS a túa chave de API de Kimi K2 para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your Kimi auth token so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS o teu token de autenticación de Kimi para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax API token so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS o teu token de API de MiniMax para obter o uso. Preme Aceptar para continuar.";
 "CodexBar will ask macOS Keychain for your MiniMax cookie header so it can fetch usage. Click OK to continue." = "QuotaKit pediralle ao Chaveiro de macOS a túa cabeceira Cookie de MiniMax para obter o uso. Preme Aceptar para continuar.";
@@ -1048,7 +1082,6 @@
 "Clearing removes per-session environment metadata." = "Ao limpar elimínanse os metadatos de contorno de cada sesión.";
 "Clearing removes provider-owned cached data." = "Ao limpar elimínanse os datos da caché propiedade do provedor.";
 "Credits unavailable; keep Codex running to refresh." = "Os créditos non están dispoñibles; mantén Codex en execución para actualizalos.";
-"CrossModel API spend trend" = "Tendencia de gasto da API de CrossModel";
 "Daily" = "Diario";
 "Disable" = "Desactivar";
 "Disabled — no recent data" = "Desactivado — sen datos recentes";
@@ -1187,12 +1220,29 @@
 "Show Codex Spark usage" = "Amosar o uso de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Amosa as filas de cota de Codex Spark no menú e na previsualización do provedor. Require activar «Amosar créditos + uso adicional» nos axustes de Pantalla.";
 "Scroll to see more models" = "Desprázate para ver máis modelos";
-"Projects" = "Proxectos";
-"+ %d more" = "+ %d máis";
-"Choose a supported browser so QuotaKit can read the matching account." = "Escolle un navegador compatible para que QuotaKit poida ler a conta correspondente.";
-"Choose Cursor account" = "Escoller conta de Cursor";
-"Choose which Cursor account QuotaKit should use." = "Escolle que conta de Cursor debe usar QuotaKit.";
-"Use Account" = "Usar conta";
 "Finish switching to a different Cursor account in your browser, then try again." = "Completa o cambio a outra conta de Cursor no navegador e téntao de novo.";
 "Timed out waiting for Cursor account switch. %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Esgotouse o tempo de espera para cambiar de conta de Cursor. %@ Último erro: %@";
+
+/* Spend dashboard */
+"tab_usage_spend" = "Uso e gasto";
+"Usage & Spend" = "Uso e gasto";
+"Local estimated cost history across supported providers." = "Historial local de custos estimados dos provedores compatibles.";
+"Time range" = "Intervalo de tempo";
+"Track costs" = "Rastrexar custos";
+"Cost tracking is off" = "O seguimento de custos está desactivado";
+"Turn on Track costs to build local estimates." = "Activa «Rastrexar custos» para crear estimacións locais.";
+"No local cost history yet" = "Aínda non hai historial local de custos";
+"Turn on cost tracking or refresh after using a supported provider." = "Activa o seguimento de custos ou actualiza despois de usar un provedor compatible.";
+"Refresh failures" = "Actualizacións falladas";
+"Native currencies stay separate; Codex account rows exclude Pi session history." = "As moedas orixinais mantéñense separadas; as filas das contas de Codex exclúen o historial de sesións de Pi.";
+"Spend unavailable" = "Gasto non dispoñible";
+"Model breakdown unavailable" = "Desglose por modelo non dispoñible";
+"Local estimated history" = "Historial local estimado";
+"Coverage" = "Cobertura";
+"Estimated spend" = "Gasto estimado";
+"Tracked tokens" = "Tokens rexistrados";
+"Subscriptions" = "Subscricións";
+"By subscription" = "Por subscrición";
+"No model-level history" = "Sen historial por modelo";
+"Daily estimated spend" = "Gasto diario estimado";

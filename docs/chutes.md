@@ -9,6 +9,13 @@ read_when:
 
 QuotaKit reads subscription and quota usage from Chutes' management API with a manually configured API key.
 
+## Service context
+
+Chutes' [terms are governed by the laws of Nevis, Saint Kitts and Nevis](https://chutes.ai/terms), and its
+[decentralized backend uses independent miners](https://chutes.ai/docs/miner-resources/overview). Its pricing surface
+has changed over time and should be treated as historically unstable; check the [current pricing page](https://chutes.ai/pricing)
+before relying on a plan or rate.
+
 ## Authentication
 
 Create a Chutes API key using the [official authentication guide](https://chutes.ai/docs/getting-started/authentication), then add it in QuotaKit Settings → Providers → Chutes.
@@ -42,11 +49,11 @@ The provider prefers the rolling four-hour window as the primary meter and month
 ## CLI Usage
 
 ```bash
-codexbar --provider chutes
+quotakit --provider chutes
 ```
 
 ## Troubleshooting
 
 - Confirm the key can read `https://api.chutes.ai/users/me/subscription_usage`.
 - A `401` or `403` means Chutes rejected the key.
-- `CHUTES_API_URL` can override the management API base URL, but CodexBar accepts HTTPS endpoints only.
+- `CHUTES_API_URL` can override the management API base URL, but QuotaKit accepts HTTPS endpoints only.

@@ -14,10 +14,11 @@ Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the
 
 ## Highlights
 
-- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, Vertex AI, Mistral, Perplexity, OpenRouter, LiteLLM, ElevenLabs, Deepgram, and more.
+- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, ClinePass, LongCat, Vertex AI, Mistral, Perplexity, OpenRouter, LiteLLM, ElevenLabs, Deepgram, and more.
 - iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
 - iPhone alerts when a provider runs out of quota or becomes available again.
 - Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.
+- A unified Mac usage-and-spend dashboard plus optional external hooks for quota and provider-state events.
 - QuotaKit Pro widgets for Home Screen and Lock Screen status at a glance.
 - Share cards for usage and cost views.
 
@@ -81,7 +82,6 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [MiniMax](docs/minimax.md) — API token, cookie header, or browser cookies for coding-plan usage.
 - [T3 Chat](docs/t3chat.md) — Browser cookies capture for Base and Overage usage buckets.
 - [Kimi](docs/kimi.md) — Auth token (JWT from `kimi-auth` cookie) for weekly quota + 5‑hour rate limit.
-- [Kimi K2 (unofficial)](docs/kimi-k2.md) — Legacy API key flow for credit-based usage totals.
 - [Kilo](docs/kilo.md) — API token with CLI-auth fallback for Kilo Pass usage.
 - [Kiro](docs/kiro.md) — CLI-based usage; monthly credits + bonus credits.
 - [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
@@ -93,7 +93,6 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
 - [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
 - [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
-- [CrossModel](docs/crossmodel.md) — API key wallet balance with daily, weekly, and monthly spend.
 - [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
 - [Zed](docs/zed.md) — Zed editor Keychain session for plan, edit-prediction quota, billing cycle, and overdue invoices.
 - [Perplexity](docs/perplexity.md) — Account usage credits from Perplexity usage data.
@@ -120,6 +119,8 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
 - [Poe](docs/poe.md) — API key for current point balance and recent points history.
 - [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
+- [ClinePass](docs/providers.md) — API key usage for five-hour, weekly, and monthly plan limits.
+- [LongCat](docs/providers.md) — Browser or manual-cookie usage for LongCat plan quotas.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
 ## Upstream And Credits

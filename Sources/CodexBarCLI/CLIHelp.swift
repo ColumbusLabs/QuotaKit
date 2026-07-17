@@ -18,6 +18,9 @@ extension CodexBarCLI {
           Print a one-shot usage snapshot as a responsive card grid in the terminal.
           Honors enabled providers from config and reuses the same fetch flags as quotakit usage.
           Failed providers are summarized in a footer instead of error cards.
+          Enabled claude-swap lists with 2+ accounts replace Claude cards unless an account or
+          explicit non-auto `--source` CLI flag is selected.
+          Sentinel accounts remain visible without metrics; claude-swap adapter failures use a separate footer entry.
           Use --brief for a compact table layout (Provider / Usage / Reset).
           Stdout is always the rendered card/table text; --json-output only affects stderr logs.
 
@@ -134,14 +137,25 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit serve [--port <port>] [--refresh-interval <seconds>]
+          quotakit serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                          [--request-timeout <seconds>]
+                         [--dashboard-token <token>] [--allow-plain-http]
                          [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
                          [-v|--verbose]
 
         Description:
-          Start a foreground localhost-only HTTP server that exposes existing CLI JSON payloads.
-          The server binds to 127.0.0.1 only in this initial version.
+          Start a foreground HTTP server that exposes existing CLI JSON payloads and a
+          token-gated dashboard snapshot. The server binds to 127.0.0.1 by default;
+          `localhost` is normalized to 127.0.0.1.
+          GET /dashboard/v1/snapshot requires "Authorization: Bearer YOUR_TOKEN" and fails
+          closed (401) when no token is configured. Set the token with --dashboard-token or,
+          preferably, the QUOTAKIT_DASHBOARD_TOKEN environment variable (argv leaks via ps).
+          Transport is plain HTTP: the token crosses the network in cleartext on every
+          request. A non-loopback --host therefore requires both a dashboard token and
+          --allow-plain-http, which records that you accept that trade-off. On a
+          non-loopback host the token also gates /usage and /cost (account data);
+          /health is always open. Use a TLS-terminating reverse proxy for anything
+          beyond a trusted network segment.
 
         Endpoints:
           GET /health
@@ -150,11 +164,16 @@ extension CodexBarCLI {
           GET /usage?provider=all
           GET /cost
           GET /cost?provider=codex
+          GET /dashboard/v1/snapshot
 
         Examples:
           quotakit serve
           quotakit serve --port 8080 --refresh-interval 60 --request-timeout 30
+          QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve
+          QUOTAKIT_DASHBOARD_TOKEN=... quotakit serve --host 0.0.0.0 --allow-plain-http
           curl http://127.0.0.1:8080/usage?provider=all
+          curl -H "Authorization: Bearer $QUOTAKIT_DASHBOARD_TOKEN" \\
+            http://127.0.0.1:8080/dashboard/v1/snapshot
         """
     }
 
@@ -232,6 +251,33 @@ extension CodexBarCLI {
         """
     }
 
+    static func hooksHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit hooks list [--format text|json] [--pretty]
+          quotakit hooks enable
+          quotakit hooks disable
+          quotakit hooks test <event> --provider <name>
+
+        Description:
+          Run external commands when quota/provider events occur. Rules are stored in the
+          shared config file and are disabled by default. Events:
+          quota_low, quota_reached, quota_reset, provider_unavailable, provider_recovered,
+          refresh_failed.
+
+          Commands run directly (no shell), receive event metadata via CODEXBAR_* environment
+          variables and a JSON payload on stdin, and are timed out. Only configure commands you trust.
+
+        Examples:
+          quotakit hooks list
+          quotakit hooks enable
+          quotakit hooks test quota_reached --provider codex
+          quotakit hooks test quota_low --provider claude
+        """
+    }
+
     static func diagnoseHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -270,11 +316,6 @@ extension CodexBarCLI {
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
                   [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           quotakit cards [--provider \(ProviderHelp.list)] [--brief] [--no-color] [--status]
-                         [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
-                         [--provider \(ProviderHelp.list)]
-                         [--account <label>] [--account-index <index>] [--all-accounts]
-                         [--no-credits] [--no-color] [--status] [--source <auto|web|cli|oauth|api>]
-                         [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           quotakit cost [--format text|json]
                        [--json]
                        [--json-only]
@@ -283,8 +324,9 @@ extension CodexBarCLI {
                        [--days <days>] [--group-by project]
           quotakit sessions [--json] [--pretty]
           quotakit sessions focus <id>
-          quotakit serve [--port <port>] [--refresh-interval <seconds>]
+          quotakit serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
+                       [--dashboard-token <token>] [--allow-plain-http]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
           quotakit config <validate|dump|providers> [--format text|json]
                                         [--json]
@@ -297,6 +339,8 @@ extension CodexBarCLI {
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
           quotakit config set-api-key --provider zai --stdin --usage-scope team
                                    --organization-id <org> --workspace-id <project>
+          quotakit hooks <list|enable|disable> [--format text|json] [--pretty]
+          quotakit hooks test <event> --provider <name>
           quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
           quotakit diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
 
@@ -321,6 +365,7 @@ extension CodexBarCLI {
           quotakit config validate --format json --pretty
           quotakit config enable --provider grok
           quotakit config set-api-key --provider elevenlabs --stdin
+          quotakit hooks test quota_reached --provider codex
           quotakit cache clear --cookies
           quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
           quotakit diagnose --provider minimax --format json --pretty
