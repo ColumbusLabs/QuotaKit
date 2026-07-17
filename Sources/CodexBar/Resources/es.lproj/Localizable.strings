@@ -1067,6 +1067,16 @@
 "Show Codex Spark usage" = "Mostrar el uso de Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Muestra las filas de cuota de Codex Spark en el menú y en la vista previa del proveedor. Requiere activar «Mostrar créditos + uso adicional» en los ajustes de Pantalla.";
 "Scroll to see more models" = "Desplázate para ver más modelos";
+"Copy Image" = "Copiar imagen";
+"Copy Stats" = "Copiar estadísticas";
+"Could not copy image" = "No se pudo copiar la imagen";
+"Image copied" = "Imagen copiada";
+"Image saved" = "Imagen guardada";
+"Nothing is uploaded. This image is created on your Mac." = "No se sube nada. Esta imagen se crea en tu Mac.";
+"Save..." = "Guardar...";
+"Share AI Usage" = "Compartir uso de IA";
+"Share Stats…" = "Compartir estadísticas…";
+"Stats copied" = "Estadísticas copiadas";
 "DeepSeek this month token usage trend" = "Tendencia de uso de tokens de DeepSeek este mes";
 "Chrome profile" = "Perfil de Chrome";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Elige qué sesión iniciada de DeepSeek Platform proporciona el uso detallado.";

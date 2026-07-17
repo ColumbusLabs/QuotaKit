@@ -297,4 +297,54 @@ struct CLICostTests {
         #expect(hint.contains("Estimated"))
         #expect(UsageFormatter.costEstimateHint(provider: .claude).contains("cache read/write tokens"))
     }
+
+    @Test
+    func `cursor cookie source off produces a failed JSON payload`() throws {
+        let settings = ProviderSettingsSnapshot.CursorProviderSettings(
+            cookieSource: .off,
+            manualCookieHeader: nil)
+        let error = try #require(CodexBarCLI.cursorCostAvailabilityError(.cursor, settings: settings))
+        let payload = CodexBarCLI.makeCostPayload(provider: .cursor, snapshot: nil, error: error)
+        let json = try #require(CodexBarCLI.encodeJSON([payload], pretty: false))
+
+        #expect(CodexBarCLI.mapError(error) == .failure)
+        #expect(json.contains("\"provider\":\"cursor\""))
+        #expect(json.contains("\"code\":1"))
+        #expect(json.contains("cookie source is set to Off"))
+        #expect(CodexBarCLI.cursorCostAvailabilityError(.cursor, settings: nil) == nil)
+        #expect(CodexBarCLI.cursorCostAvailabilityError(.codex, settings: settings) == nil)
+    }
+
+    @Test
+    func `cursor manual cookie source rejects an empty header`() throws {
+        let settings = ProviderSettingsSnapshot.CursorProviderSettings(
+            cookieSource: .manual,
+            manualCookieHeader: "  ")
+        let error = try #require(CodexBarCLI.cursorCostAvailabilityError(.cursor, settings: settings))
+
+        #expect(CodexBarCLI.mapError(error) == .failure)
+        #expect(error.localizedDescription.contains("non-empty Manual cookie header"))
+        #expect(CodexBarCLI.cursorCostHeaderOverride(.cursor, settings: settings) == nil)
+    }
+
+    @Test
+    func `cursor settings resolution errors fail closed`() throws {
+        let resolutionError = CursorCostSettingsTestError()
+        let error = try #require(CodexBarCLI.cursorCostAvailabilityError(
+            .cursor,
+            settings: nil,
+            resolutionError: resolutionError))
+
+        #expect(error.localizedDescription == resolutionError.localizedDescription)
+        #expect(CodexBarCLI.cursorCostAvailabilityError(
+            .codex,
+            settings: nil,
+            resolutionError: resolutionError) == nil)
+    }
+}
+
+private struct CursorCostSettingsTestError: LocalizedError {
+    var errorDescription: String? {
+        "Cursor settings resolution failed."
+    }
 }

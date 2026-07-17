@@ -950,15 +950,38 @@ public actor CursorSessionStore {
     }
 }
 
+// MARK: - Cursor Cost Report
+
+/// A windowed Cursor cost report: the API-rate per-day breakdown plus the Cursor-metered
+/// total (what the plan actually deducts) over the same window.
+///
+/// `daily` carries vendor list-price costs (`tokenUsage.totalCents`); `meteredCostUSD` sums
+/// each event's `chargedCents` and is `nil` when the events reported no metered amount.
+public struct CursorCostReport: Sendable {
+    public let daily: CostUsageDailyReport
+    public let meteredCostUSD: Double?
+    public let credentialScopeFingerprint: String
+
+    public init(
+        daily: CostUsageDailyReport,
+        meteredCostUSD: Double?,
+        credentialScopeFingerprint: String)
+    {
+        self.daily = daily
+        self.meteredCostUSD = meteredCostUSD
+        self.credentialScopeFingerprint = credentialScopeFingerprint
+    }
+}
+
 // MARK: - Cursor Status Probe
 
 public struct CursorStatusProbe: Sendable {
     public let baseURL: URL
     public var timeout: TimeInterval = 15.0
-    private let browserDetection: BrowserDetection
-    private let browserCookieImportOrder: BrowserCookieImportOrder
+    let browserDetection: BrowserDetection
+    let browserCookieImportOrder: BrowserCookieImportOrder
     private let urlSession: any ProviderHTTPTransport
-    private let appAuthStore: any CursorAppAuthSessionProviding
+    let appAuthStore: any CursorAppAuthSessionProviding
 
     public init(
         baseURL: URL = URL(string: "https://cursor.com")!,
@@ -1011,194 +1034,52 @@ public struct CursorStatusProbe: Sendable {
         logger: ((String) -> Void)? = nil)
         async throws -> CursorStatusSnapshot
     {
-        let log: (String) -> Void = { msg in logger?("[cursor] \(msg)") }
-        var firstRecoverableError: CursorStatusProbeError?
-
-        if let override = CookieHeaderNormalizer.normalize(cookieHeaderOverride) {
-            log("Using manual cookie header")
-            return try await self.fetchWithCookieHeader(override)
+        try await self.resolveSession(
+            cookieHeaderOverride: cookieHeaderOverride,
+            allowCachedSessions: allowCachedSessions,
+            allowAppAuthFallback: allowAppAuthFallback,
+            logger: logger)
+        { cookieHeader, requestUsageUserIDFallback in
+            try await self.fetchWithCookieHeader(
+                cookieHeader,
+                requestUsageUserIDFallback: requestUsageUserIDFallback)
         }
-
-        #if os(macOS)
-        // Capture before any authentication request can suspend. A later browser fallback must not replace an
-        // interactive login that commits while this refresh is awaiting an earlier cached-session request.
-        var cacheObservation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
-        #endif
-
-        if allowCachedSessions,
-           let cached = CookieHeaderCache.load(provider: .cursor),
-           !cached.cookieHeader.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-        {
-            switch try await self.fetchCachedSession(
-                cached,
-                cookieHeaderOverride: cookieHeaderOverride,
-                allowAppAuthFallback: allowAppAuthFallback,
-                logger: logger,
-                log: log)
-            {
-            case let .succeeded(snapshot): return snapshot
-            case .resumeFallback:
-                #if os(macOS)
-                // The cached-session path cleared its own stale entry. Browser fallback now owns that empty slot,
-                // while the original gate generation still protects any concurrent interactive login.
-                cacheObservation = cacheObservation.afterOwnedClear()
-                #endif
-            }
-        }
-
-        #if os(macOS)
-        // Try each browser in order. The first browser that *has* session cookie names is not always valid
-        // (e.g. stale Chrome tokens); keep trying until the API accepts a session or we run out of browsers.
-        // The refresh-start observation prevents this asynchronous fallback from overwriting an interactive login.
-        let browserCandidates = self.browserCookieImportOrder.cookieImportCandidates(using: self.browserDetection)
-        switch await self.scanBrowsers(
-            browserCandidates,
-            importSessions: { browser in
-                CursorCookieImporter.importSessionsIfPresent(
-                    browser: browser,
-                    browserDetection: self.browserDetection,
-                    logger: log)
-            },
-            attemptFetch: { session in
-                await self.fetchIfSessionAccepted(
-                    session,
-                    log: log,
-                    cacheObservation: cacheObservation)
-            })
-        {
-        case let .succeeded(snapshot):
-            return snapshot
-        case let .exhausted(error):
-            firstRecoverableError = error ?? firstRecoverableError
-        }
-
-        switch await self.scanBrowsers(
-            browserCandidates,
-            importSessions: { browser in
-                CursorCookieImporter.importDomainCookieSessionsIfPresent(
-                    browser: browser,
-                    browserDetection: self.browserDetection,
-                    logger: log)
-            },
-            attemptFetch: { session in
-                await self.fetchIfSessionAccepted(
-                    session,
-                    log: log,
-                    cacheObservation: cacheObservation)
-            })
-        {
-        case let .succeeded(snapshot):
-            return snapshot
-        case let .exhausted(error):
-            firstRecoverableError = error ?? firstRecoverableError
-        }
-        #endif
-
-        // Fall back to stored session cookies (from "Add Account" login flow)
-        if allowCachedSessions {
-            let storedCookies = await CursorSessionStore.shared.getCookies()
-            if !storedCookies.isEmpty {
-                log("Using stored session cookies")
-                let cookieHeader = storedCookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
-                do {
-                    return try await self.fetchWithCookieHeader(cookieHeader)
-                } catch let error as CursorStatusProbeError {
-                    if case .notLoggedIn = error {
-                        // Clear only when auth is invalid; keep for transient failures.
-                        await CursorSessionStore.shared.clearCookies()
-                        log("Stored session invalid, cleared")
-                    } else {
-                        log("Stored session failed: \(error.localizedDescription)")
-                        firstRecoverableError = firstRecoverableError ?? error
-                    }
-                } catch {
-                    log("Stored session failed: \(error.localizedDescription)")
-                    firstRecoverableError = firstRecoverableError ?? .networkError(error.localizedDescription)
-                }
-            }
-        }
-
-        // A transient failure for an explicitly selected session must not switch to Cursor.app's account.
-        if let firstRecoverableError {
-            throw firstRecoverableError
-        }
-
-        // Last fallback: derive Cursor's first-party web session from the app token in its global state DB.
-        // Reusing the web flow preserves modern billing, legacy request quotas, and account-scoped identity.
-        if allowAppAuthFallback,
-           let appSession = try? self.appAuthStore.loadSession(),
-           appSession.isUsable
-        {
-            log("Using Cursor.app local auth fallback")
-            do {
-                return try await self.fetchWithAppAuthSession(appSession)
-            } catch let error as CursorStatusProbeError {
-                if case .notLoggedIn = error {
-                    log("Cursor.app local auth was rejected")
-                } else {
-                    firstRecoverableError = firstRecoverableError ?? error
-                }
-            } catch {
-                firstRecoverableError = firstRecoverableError ?? .networkError(error.localizedDescription)
-            }
-        }
-
-        if let firstRecoverableError {
-            throw firstRecoverableError
-        }
-
-        throw CursorStatusProbeError.noSessionCookie
     }
 
-    private enum CachedSessionFetchResult {
-        case succeeded(CursorStatusSnapshot)
-        case resumeFallback
-    }
-
-    private func fetchCachedSession(
-        _ cached: CookieHeaderCache.Entry,
-        cookieHeaderOverride: String?,
-        allowAppAuthFallback: Bool,
-        logger: ((String) -> Void)?,
-        log: @escaping (String) -> Void) async throws -> CachedSessionFetchResult
+    #if os(macOS)
+    /// Fetch Cursor token-cost data using the same hardened session resolution as status.
+    public func fetchCostReport(
+        since: Date?,
+        until: Date?,
+        calendar: Calendar = .current,
+        cookieHeaderOverride: String? = nil,
+        allowCachedSessions: Bool = true,
+        allowAppAuthFallback: Bool = true,
+        logger: (@Sendable (String) -> Void)? = nil) async throws -> CursorCostReport
     {
-        log("Using cached cookie header from \(cached.sourceLabel)")
-        do {
-            return try await .succeeded(self.fetchWithCookieHeader(cached.cookieHeader))
-        } catch let error as CursorStatusProbeError {
-            guard case .notLoggedIn = error else { throw error }
-            if let replacement = CookieHeaderCache.load(provider: .cursor), replacement != cached {
-                if cached.authenticationFailurePolicy == .stopFallback,
-                   replacement.authenticationFailurePolicy != .stopFallback
-                {
-                    log("Selected cached session was rejected; ignoring an unselected cache replacement")
-                    throw error
-                }
-                log("Cached session changed while its request was in flight; retrying replacement")
-                return try await .succeeded(self.fetch(
-                    cookieHeaderOverride: cookieHeaderOverride,
-                    allowCachedSessions: true,
-                    allowAppAuthFallback: allowAppAuthFallback,
-                    logger: logger))
-            }
-            if cached.authenticationFailurePolicy == .stopFallback {
-                log("Selected cached session was rejected; refusing automatic account fallback")
-                throw error
-            }
-            guard CookieHeaderCache.clearIfCurrent(provider: .cursor, expected: cached) else {
-                if let replacement = CookieHeaderCache.load(provider: .cursor), replacement != cached {
-                    log("Cached session changed before stale-session cleanup; retrying replacement")
-                    return try await .succeeded(self.fetch(
-                        cookieHeaderOverride: cookieHeaderOverride,
-                        allowCachedSessions: true,
-                        allowAppAuthFallback: allowAppAuthFallback,
-                        logger: logger))
-                }
-                throw error
-            }
-            return .resumeFallback
+        let fetcher = CursorUsageEventsFetcher(
+            baseURL: self.baseURL,
+            transport: self.urlSession,
+            timeout: self.timeout)
+        return try await self.resolveSession(
+            cookieHeaderOverride: cookieHeaderOverride,
+            allowCachedSessions: allowCachedSessions,
+            allowAppAuthFallback: allowAppAuthFallback,
+            logger: logger)
+        { cookieHeader, _ in
+            let result = try await fetcher.fetchUsage(
+                cookieHeader: cookieHeader,
+                since: since,
+                until: until,
+                calendar: calendar,
+                logger: logger)
+            return CursorCostReport(
+                daily: result.daily,
+                meteredCostUSD: result.meteredCostUSD,
+                credentialScopeFingerprint: CookieHeaderCache.credentialFingerprint(cookieHeader))
         }
     }
+    #endif
 
     /// Fetch every API-valid session from the exact browser that opened an interactive login URL.
     /// Results remain uncommitted until the caller chooses one and calls ``commitBrowserLoginSession(_:)``.
@@ -1377,6 +1258,102 @@ public struct CursorStatusProbe: Sendable {
         }
 
         return .exhausted(firstFailure)
+    }
+
+    enum ResolvedSessionFetchOutcome<Value> {
+        case succeeded(Value)
+        case tryNextBrowser
+    }
+
+    enum ResolvedSessionScanResult<Value> {
+        case succeeded(Value)
+        case exhausted
+    }
+
+    struct ResolvedSessionReconciliationContext<Value: Sendable> {
+        let cookieHeader: String
+        let sourceLabel: String
+        let cacheObservation: CookieHeaderCache.ConditionalMutationObservation
+        let perform: @Sendable (String, String?) async throws -> Value
+        let log: (String) -> Void
+    }
+
+    func scanResolvedBrowsers<Value>(
+        _ browsers: [Browser],
+        importSessions: (Browser) -> [CursorCookieImporter.SessionInfo],
+        attemptFetch: (CursorCookieImporter.SessionInfo) async throws
+            -> ResolvedSessionFetchOutcome<Value>) async throws
+        -> ResolvedSessionScanResult<Value>
+    {
+        for browser in browsers {
+            let sessions = importSessions(browser)
+            guard !sessions.isEmpty else { continue }
+            for session in sessions {
+                switch try await attemptFetch(session) {
+                case let .succeeded(value):
+                    return .succeeded(value)
+                case .tryNextBrowser:
+                    continue
+                }
+            }
+        }
+        return .exhausted
+    }
+
+    func resolveImportedSession<Value: Sendable>(
+        _ session: CursorCookieImporter.SessionInfo,
+        perform: @escaping @Sendable (String, String?) async throws -> Value,
+        log: @escaping (String) -> Void,
+        cacheObservation: CookieHeaderCache.ConditionalMutationObservation) async throws
+        -> ResolvedSessionFetchOutcome<Value>
+    {
+        log("Trying Cursor session from \(session.sourceLabel)")
+        let value: Value
+        do {
+            value = try await perform(session.cookieHeader, nil)
+        } catch let error as CursorStatusProbeError {
+            if case .notLoggedIn = error {
+                log("Cursor API rejected cookies from \(session.sourceLabel); trying next browser if any")
+                return .tryNextBrowser
+            }
+            log("Cursor fetch failed using \(session.sourceLabel): \(error.localizedDescription)")
+            throw error
+        } catch {
+            log("Cursor fetch failed using \(session.sourceLabel): \(error.localizedDescription)")
+            throw error
+        }
+        let context = ResolvedSessionReconciliationContext(
+            cookieHeader: session.cookieHeader,
+            sourceLabel: session.sourceLabel,
+            cacheObservation: cacheObservation,
+            perform: perform,
+            log: log)
+        let reconciled = try await self.reconcileResolvedSession(value: value, context: context)
+        return .succeeded(reconciled)
+    }
+
+    func reconcileResolvedSession<Value: Sendable>(
+        value: Value,
+        context: ResolvedSessionReconciliationContext<Value>) async throws -> Value
+    {
+        let stored = CookieHeaderCache.storeIfObservationCurrent(
+            provider: .cursor,
+            expected: context.cacheObservation,
+            cookieHeader: context.cookieHeader,
+            sourceLabel: context.sourceLabel)
+        guard !stored else { return value }
+        guard let replacement = CookieHeaderCache.load(provider: .cursor) else {
+            context.log("Cursor session from \(context.sourceLabel) lost cache ownership without a replacement")
+            throw CursorStatusProbeError.networkError("Cursor session changed during refresh")
+        }
+        let fetchedFingerprint = CookieHeaderCache.credentialFingerprint(context.cookieHeader)
+        let replacementFingerprint = CookieHeaderCache.credentialFingerprint(replacement.cookieHeader)
+        guard replacementFingerprint != fetchedFingerprint else {
+            context.log("Cursor session from \(context.sourceLabel) was cached concurrently; accepting its result")
+            return value
+        }
+        context.log("Cursor session changed while \(context.sourceLabel) was in flight; retrying current cache")
+        return try await context.perform(replacement.cookieHeader, nil)
     }
 
     func fetchIfSessionAccepted(

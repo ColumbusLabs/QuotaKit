@@ -1242,6 +1242,16 @@
 "Show Codex Spark usage" = "顯示 Codex Spark 使用量";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "在選單和提供者預覽中顯示 Codex Spark 配額列。需要在「顯示」設定中啟用「顯示額度 + 額外使用量」。";
 "Scroll to see more models" = "捲動查看更多模型";
+"Copy Image" = "拷貝影像";
+"Copy Stats" = "拷貝統計資料";
+"Could not copy image" = "無法拷貝影像";
+"Image copied" = "已拷貝影像";
+"Image saved" = "已儲存影像";
+"Nothing is uploaded. This image is created on your Mac." = "不會上傳任何內容。此影像是在你的 Mac 上製作。";
+"Save..." = "儲存...";
+"Share AI Usage" = "分享 AI 使用情況";
+"Share Stats…" = "分享統計資料…";
+"Stats copied" = "已拷貝統計資料";
 "DeepSeek this month token usage trend" = "DeepSeek 本月 token 使用量趨勢";
 "Chrome profile" = "Chrome 設定檔";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "選擇要提供詳細使用量的已登入 DeepSeek Platform 工作階段。";

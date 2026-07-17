@@ -102,6 +102,7 @@ extension StatusItemController {
         let lines = [
             tokenUsage?.sessionLine,
             tokenUsage?.monthLine,
+            tokenUsage?.meteredLine,
         ]
             .compactMap(\.self)
             + (tokenUsage?.comparisonLines ?? [])
@@ -127,6 +128,7 @@ extension StatusItemController {
         let primaryLines = ([
             tokenUsage?.sessionLine,
             tokenUsage?.monthLine,
+            tokenUsage?.meteredLine,
         ]
             .compactMap(\.self)
             + (tokenUsage?.comparisonLines ?? [])

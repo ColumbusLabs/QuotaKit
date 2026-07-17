@@ -829,7 +829,7 @@ enum CostUsageScanner {
              .copilot, .devin, .minimax, .manus, .kilo, .kiro, .kimi, .moonshot, .augment, .jetbrains, .amp,
              .ollama, .t3chat, .synthetic, .openrouter, .elevenlabs, .warp, .perplexity, .mimo, .doubao, .sakana,
              .abacus, .mistral, .deepseek, .codebuff, .crof, .windsurf, .zed, .venice, .commandcode, .qoder, .stepfun,
-             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .clawrouter,
+             .bedrock, .grok, .groq, .llmproxy, .litellm, .deepgram, .poe, .chutes, .neuralwatt, .clawrouter,
              .longcat, .sub2api, .wayfinder, .zenmux:
             return emptyReport
         }

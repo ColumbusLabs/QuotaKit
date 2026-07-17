@@ -1225,6 +1225,17 @@
 "Show Codex Spark usage" = "แสดงการใช้งาน Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "แสดงแถวโควตา Codex Spark ในเมนูและตัวอย่างผู้ให้บริการ ต้องเปิดใช้ “แสดงเครดิต + การใช้งานเพิ่มเติม” ในการตั้งค่าการแสดงผล";
 "Scroll to see more models" = "เลื่อนเพื่อดูโมเดลเพิ่มเติม";
+/* Shareable usage card */
+"Copy Image" = "คัดลอกรูปภาพ";
+"Copy Stats" = "คัดลอกสถิติ";
+"Could not copy image" = "ไม่สามารถคัดลอกรูปภาพได้";
+"Image copied" = "คัดลอกรูปภาพแล้ว";
+"Image saved" = "บันทึกรูปภาพแล้ว";
+"Nothing is uploaded. This image is created on your Mac." = "ไม่มีการอัปโหลด รูปภาพนี้สร้างขึ้นบน Mac ของคุณ";
+"Save..." = "บันทึก...";
+"Share AI Usage" = "แชร์การใช้งาน AI";
+"Share Stats…" = "แชร์สถิติ…";
+"Stats copied" = "คัดลอกสถิติแล้ว";
 "Finish switching to a different Cursor account in your browser, then try again." = "สลับไปยังบัญชี Cursor อื่นในเบราว์เซอร์ให้เสร็จ แล้วลองอีกครั้ง";
 "Timed out waiting for Cursor account switch. %@" = "หมดเวลารอการสลับบัญชี Cursor %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "หมดเวลารอการสลับบัญชี Cursor %@ ข้อผิดพลาดล่าสุด: %@";

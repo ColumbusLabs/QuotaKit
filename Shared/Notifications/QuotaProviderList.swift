@@ -119,6 +119,7 @@ public enum QuotaProviderList {
         // existing CloudKit subscription IDs and historical pushes stay compatible.
         Provider(id: "clinepass", displayName: "ClinePass"),
         Provider(id: "longcat", displayName: "LongCat"),
+        Provider(id: "neuralwatt", displayName: "Neuralwatt"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

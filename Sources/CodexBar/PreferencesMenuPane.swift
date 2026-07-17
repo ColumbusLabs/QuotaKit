@@ -126,6 +126,7 @@ struct CostSummarySettingsSection: View {
                         Text(L("cost_auto_refresh_info"))
                         self.costStatusLine(provider: .claude)
                         self.costStatusLine(provider: .codex)
+                        self.costStatusLine(provider: .cursor)
                     }
                 }
             }
@@ -135,7 +136,7 @@ struct CostSummarySettingsSection: View {
     private func costStatusLine(provider: UsageProvider) -> Text {
         let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
 
-        guard provider == .claude || provider == .codex else {
+        guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             return Text(String(format: L("cost_status_unsupported"), name))
         }
 

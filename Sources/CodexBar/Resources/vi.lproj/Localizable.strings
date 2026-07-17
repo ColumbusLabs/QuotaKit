@@ -1207,6 +1207,16 @@
 "Show Codex Spark usage" = "Hiển thị mức sử dụng Codex Spark";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Hiển thị các hàng hạn mức Codex Spark trong menu và bản xem trước của nhà cung cấp. Yêu cầu bật “Hiển thị tín dụng + mức sử dụng bổ sung” trong phần cài đặt Hiển thị.";
 "Scroll to see more models" = "Cuộn để xem thêm mô hình";
+"Copy Image" = "Sao chép hình ảnh";
+"Copy Stats" = "Sao chép số liệu";
+"Could not copy image" = "Không thể sao chép hình ảnh";
+"Image copied" = "Đã sao chép hình ảnh";
+"Image saved" = "Đã lưu hình ảnh";
+"Nothing is uploaded. This image is created on your Mac." = "Không có dữ liệu nào được tải lên. Hình ảnh này được tạo trên máy Mac của bạn.";
+"Save..." = "Lưu...";
+"Share AI Usage" = "Chia sẻ mức sử dụng AI";
+"Share Stats…" = "Chia sẻ số liệu…";
+"Stats copied" = "Đã sao chép số liệu";
 "DeepSeek this month token usage trend" = "Xu hướng sử dụng token DeepSeek trong tháng này";
 "Chrome profile" = "Hồ sơ Chrome";
 "Choose which signed-in DeepSeek Platform session supplies detailed usage." = "Chọn phiên DeepSeek Platform đã đăng nhập để cung cấp thông tin sử dụng chi tiết.";

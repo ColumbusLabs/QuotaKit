@@ -19,12 +19,33 @@ struct TokenSnapshotPublication: Sendable, Equatable {
 }
 
 extension UsageStore {
+    enum CursorCostCookiePreparation {
+        case proceed(String?)
+        case reject
+    }
+
+    func prepareCursorCostCookie(for provider: UsageProvider) -> CursorCostCookiePreparation {
+        guard provider == .cursor, self.settings.cursorCookieSource == .manual else {
+            return .proceed(nil)
+        }
+        guard let header = CookieHeaderNormalizer.normalize(self.settings.cursorCookieHeader) else {
+            self.lastTokenFetchAt.removeValue(forKey: provider)
+            self.lastTokenFetchScope.removeValue(forKey: provider)
+            self.clearTokenSnapshot(for: provider)
+            self.tokenErrors[provider] = "Cursor cost requires a non-empty Manual cookie header."
+            self.tokenFailureGates[provider]?.reset()
+            return .reject
+        }
+        return .proceed(header)
+    }
+
     func loadTokenUsageSnapshot(
         provider: UsageProvider,
         force: Bool,
         now: Date,
         codexHomePath: String?,
-        historyDays: Int) async throws -> CostUsageTokenSnapshot
+        historyDays: Int,
+        cursorCookieHeaderOverride: String? = nil) async throws -> CostUsageTokenSnapshot
     {
         if let override = self._test_tokenUsageSnapshotLoaderOverride {
             return try await override(provider, force, now, codexHomePath, historyDays)
@@ -50,6 +71,7 @@ extension UsageStore {
                     allowVertexClaudeFallback: !self.isEnabled(.claude),
                     codexHomePath: codexHomePath,
                     historyDays: historyDays,
+                    cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     allowPricingRefresh: allowPricingRefresh,
                     bypassScannerDebounce: true)
             }
@@ -275,8 +297,37 @@ extension UsageStore {
 
     func tokenSnapshotScopeSignature(for provider: UsageProvider) -> String {
         let scope = self.tokenCostScope(for: provider)
-        return "\(scope.signature)|historyDays=\(self.settings.costUsageHistoryDays)" +
+        let historyDays = self.settings.costUsageHistoryDays
+        let base = "\(scope.signature)|historyDays=\(historyDays)" +
             "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
+        guard provider == .cursor else {
+            return base
+        }
+
+        let source = self.settings.cursorCookieSource
+        if source == .manual {
+            let headerFingerprint = CookieHeaderNormalizer.normalize(self.settings.cursorCookieHeader)
+                .map(CookieHeaderCache.credentialFingerprint) ?? "missing"
+            return "\(base)|cursorCookie=manual:\(headerFingerprint)"
+        }
+
+        let credentialFingerprint = CookieHeaderCache.loadForDisplay(provider: .cursor)
+            .map { CookieHeaderCache.credentialFingerprint($0.cookieHeader) } ?? "unresolved"
+        return self.cursorCostScopeSignature(
+            historyDays: historyDays,
+            source: source,
+            credentialFingerprint: credentialFingerprint)
+    }
+
+    func cursorCostScopeSignature(
+        historyDays: Int,
+        source: ProviderCookieSource,
+        credentialFingerprint: String) -> String
+    {
+        let scope = self.tokenCostScope(for: .cursor)
+        return "\(scope.signature)|historyDays=\(historyDays)" +
+            "|settingsRevision=\(self.settings.costUsageSettingsRevision)" +
+            "|cursorCookie=\(source.rawValue):\(credentialFingerprint)"
     }
 
     func tokenRefreshCanReuseCurrentSnapshot(
@@ -297,16 +348,47 @@ extension UsageStore {
         provider: UsageProvider,
         publicationRevision: ProviderPublicationRevision,
         providerConfigRevision: UInt64,
-        costScopeSignature: String) -> Bool
+        historyDays: Int,
+        costScopeSignature: String,
+        fetchedCredentialScopeFingerprint: String? = nil) -> Bool
     {
         guard self.providerPublicationRevisionIsCurrent(publicationRevision, for: provider),
               self.settings.providerConfigRevision(for: provider) == providerConfigRevision,
               self.settings.costUsageEnabled,
-              self.isEnabled(provider)
+              self.isEnabled(provider),
+              self.settings.costUsageHistoryDays == historyDays
         else {
             return false
         }
-        return self.tokenSnapshotScopeSignature(for: provider) == costScopeSignature
+        let currentSignature = self.tokenSnapshotScopeSignature(for: provider)
+        if provider == .cursor,
+           self.settings.cursorCookieSource == .auto,
+           costScopeSignature.contains("|cursorCookie=auto:"),
+           let fetchedCredentialScopeFingerprint
+        {
+            let resolvedSignature = self.cursorCostScopeSignature(
+                historyDays: historyDays,
+                source: .auto,
+                credentialFingerprint: fetchedCredentialScopeFingerprint)
+            return currentSignature == resolvedSignature
+        }
+        return currentSignature == costScopeSignature
+    }
+
+    func completedTokenCostScopeSignature(
+        provider: UsageProvider,
+        historyDays: Int,
+        initialSignature: String,
+        snapshot: CostUsageTokenSnapshot) -> String
+    {
+        guard provider == .cursor,
+              self.settings.cursorCookieSource == .auto,
+              let fingerprint = snapshot.credentialScopeFingerprint
+        else { return initialSignature }
+        return self.cursorCostScopeSignature(
+            historyDays: historyDays,
+            source: .auto,
+            credentialFingerprint: fingerprint)
     }
 
     func tokenSnapshot(

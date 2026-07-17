@@ -764,10 +764,10 @@ final class SyncCoordinator {
         provider: UsageProvider,
         providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
     {
-        // ZenMux reports a remaining PAYG balance through ProviderCostSnapshot
-        // with a zero limit. That is not a used/limit budget and would render on
-        // iOS as the false statement "$balance / $0".
-        guard provider != .zenmux else { return nil }
+        // ZenMux and Neuralwatt report remaining balances through
+        // ProviderCostSnapshot with a zero limit. Those are not used/limit
+        // budgets and would render on iOS as the false statement "$balance / $0".
+        guard provider != .zenmux, provider != .neuralwatt else { return nil }
         return providerCost.map { pc in
             SyncBudgetSnapshot(
                 usedAmount: pc.used,
@@ -1458,7 +1458,11 @@ final class SyncCoordinator {
             !ModelFallbackPricing.isClaudeModelKnown(modelName)
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
-        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+        case .cursor:
+            // Cursor's daily cost is an API/list-price estimate. The separate
+            // metered total is not yet part of the mobile sync wire format.
+            true
+        case .zai, .gemini, .antigravity, .opencode, .opencodego, .alibaba, .factory, .copilot,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
              // Upstream 0.24–0.25.1 providers — pre-computed costs from
@@ -1485,7 +1489,7 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat:
+             .zenmux, .clinepass, .longcat, .neuralwatt:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

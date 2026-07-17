@@ -1222,6 +1222,18 @@
 "Show Codex Spark usage" = "Codex Spark kullanımını göster";
 "Shows Codex Spark quota rows in the menu and provider preview. Requires optional credits and extra usage in Display settings." = "Codex Spark kota satırlarını menüde ve sağlayıcı önizlemesinde gösterir. Görünüm ayarlarında “Krediler + ekstra kullanımı göster” seçeneğinin etkin olmasını gerektirir.";
 "Scroll to see more models" = "Daha fazla model görmek için kaydırın";
+
+/* Shareable usage card */
+"Copy Image" = "Görseli Kopyala";
+"Copy Stats" = "İstatistikleri Kopyala";
+"Could not copy image" = "Görsel kopyalanamadı";
+"Image copied" = "Görsel kopyalandı";
+"Image saved" = "Görsel kaydedildi";
+"Nothing is uploaded. This image is created on your Mac." = "Hiçbir şey yüklenmez. Bu görsel Mac'inizde oluşturulur.";
+"Save..." = "Kaydet...";
+"Share AI Usage" = "Yapay Zekâ Kullanımını Paylaş";
+"Share Stats…" = "İstatistikleri Paylaş…";
+"Stats copied" = "İstatistikler kopyalandı";
 "Finish switching to a different Cursor account in your browser, then try again." = "Tarayıcınızda farklı bir Cursor hesabına geçişi tamamlayın, ardından yeniden deneyin.";
 "Timed out waiting for Cursor account switch. %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@";
 "Timed out waiting for Cursor account switch. %@ Last error: %@" = "Cursor hesap değişikliği beklenirken zaman aşımına uğradı. %@ Son hata: %@";

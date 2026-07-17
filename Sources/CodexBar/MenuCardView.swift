@@ -86,14 +86,18 @@ struct UsageMenuCardView: View {
         struct TokenUsageSection {
             let sessionLine: String
             let monthLine: String
+            let meteredLine: String?
             let comparisonLines: [String]
             let hintLine: String?
             let errorLine: String?
             let errorCopyText: String?
 
+            /// Explicit initializer so `meteredLine`/`comparisonLines` default to empty: callers
+            /// that predate them (and providers that never report them) keep their call sites.
             init(
                 sessionLine: String,
                 monthLine: String,
+                meteredLine: String? = nil,
                 comparisonLines: [String] = [],
                 hintLine: String?,
                 errorLine: String?,
@@ -101,6 +105,7 @@ struct UsageMenuCardView: View {
             {
                 self.sessionLine = sessionLine
                 self.monthLine = monthLine
+                self.meteredLine = meteredLine
                 self.comparisonLines = comparisonLines
                 self.hintLine = hintLine
                 self.errorLine = errorLine
@@ -212,39 +217,10 @@ struct UsageMenuCardView: View {
                         Divider()
                     }
                     if let tokenUsage = liveModel.tokenUsage {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(UsageMenuCardView.Model.tokenUsageHeader(provider: liveModel.provider))
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(tokenUsage.sessionLine)
-                                .font(.footnote)
-                                .lineLimit(1)
-                            Text(tokenUsage.monthLine)
-                                .font(.footnote)
-                                .lineLimit(1)
-                            ForEach(tokenUsage.comparisonLines, id: \.self) { line in
-                                Text(line)
-                                    .font(.footnote)
-                                    .lineLimit(1)
-                            }
-                            if let hint = tokenUsage.hintLine, !hint.isEmpty {
-                                Text(hint)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                    .lineLimit(4)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            if let error = tokenUsage.errorLine, !error.isEmpty {
-                                Text(error)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
-                                    .lineLimit(4)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .overlay {
-                                        ClickToCopyOverlay(copyText: tokenUsage.errorCopyText ?? error)
-                                    }
-                            }
-                        }
+                        TokenUsageSectionContent(
+                            provider: liveModel.provider,
+                            tokenUsage: tokenUsage,
+                            lineFont: .footnote)
                     }
                 }
             }
@@ -425,6 +401,56 @@ private struct CopyIconButton: View {
                 self.didCopy = false
             }
         })
+    }
+}
+
+/// Shared token-cost block (header, Today/window/metered/comparison lines, hint, error) used by
+/// both the inline card body and the standalone cost section; only the value-line font differs.
+private struct TokenUsageSectionContent: View {
+    let provider: UsageProvider
+    let tokenUsage: UsageMenuCardView.Model.TokenUsageSection
+    let lineFont: Font
+    @Environment(\.menuItemHighlighted) private var isHighlighted
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 6) {
+            Text(UsageMenuCardView.Model.tokenUsageHeader(provider: self.provider))
+                .font(.body)
+                .fontWeight(.medium)
+            Text(self.tokenUsage.sessionLine)
+                .font(self.lineFont)
+                .lineLimit(1)
+            Text(self.tokenUsage.monthLine)
+                .font(self.lineFont)
+                .lineLimit(1)
+            if let metered = self.tokenUsage.meteredLine, !metered.isEmpty {
+                Text(metered)
+                    .font(self.lineFont)
+                    .lineLimit(1)
+            }
+            ForEach(self.tokenUsage.comparisonLines, id: \.self) { line in
+                Text(line)
+                    .font(self.lineFont)
+                    .lineLimit(1)
+            }
+            if let hint = self.tokenUsage.hintLine, !hint.isEmpty {
+                Text(hint)
+                    .font(.footnote)
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
+            }
+            if let error = self.tokenUsage.errorLine, !error.isEmpty {
+                Text(error)
+                    .font(.footnote)
+                    .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
+                    .lineLimit(4)
+                    .fixedSize(horizontal: false, vertical: true)
+                    .overlay {
+                        ClickToCopyOverlay(copyText: self.tokenUsage.errorCopyText ?? error)
+                    }
+            }
+        }
     }
 }
 
@@ -757,39 +783,10 @@ struct UsageMenuCardCostSectionView: View {
             if hasTokenCost {
                 VStack(alignment: .leading, spacing: 10) {
                     if let tokenUsage = liveModel.tokenUsage {
-                        VStack(alignment: .leading, spacing: 6) {
-                            Text(UsageMenuCardView.Model.tokenUsageHeader(provider: liveModel.provider))
-                                .font(.body)
-                                .fontWeight(.medium)
-                            Text(tokenUsage.sessionLine)
-                                .font(.caption)
-                                .lineLimit(1)
-                            Text(tokenUsage.monthLine)
-                                .font(.caption)
-                                .lineLimit(1)
-                            ForEach(tokenUsage.comparisonLines, id: \.self) { line in
-                                Text(line)
-                                    .font(.caption)
-                                    .lineLimit(1)
-                            }
-                            if let hint = tokenUsage.hintLine, !hint.isEmpty {
-                                Text(hint)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                                    .lineLimit(4)
-                                    .fixedSize(horizontal: false, vertical: true)
-                            }
-                            if let error = tokenUsage.errorLine, !error.isEmpty {
-                                Text(error)
-                                    .font(.footnote)
-                                    .foregroundStyle(MenuHighlightStyle.error(self.isHighlighted))
-                                    .lineLimit(4)
-                                    .fixedSize(horizontal: false, vertical: true)
-                                    .overlay {
-                                        ClickToCopyOverlay(copyText: tokenUsage.errorCopyText ?? error)
-                                    }
-                            }
-                        }
+                        TokenUsageSectionContent(
+                            provider: liveModel.provider,
+                            tokenUsage: tokenUsage,
+                            lineFont: .caption)
                     }
                 }
                 .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
@@ -1280,7 +1277,7 @@ extension UsageMenuCardView.Model {
         {
             primaryDetailLeft = detail
         }
-        if [.warp, .kilo, .mimo, .deepseek, .qoder, .mistral, .litellm].contains(input.provider),
+        if [.warp, .kilo, .mimo, .deepseek, .qoder, .mistral, .neuralwatt, .litellm].contains(input.provider),
            let detail = primary.resetDescription,
            !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {
@@ -1309,7 +1306,7 @@ extension UsageMenuCardView.Model {
                 primaryResetText = nil
             }
         }
-        if [.warp, .kilo, .mimo, .deepseek, .qoder, .mistral, .litellm, .zenmux].contains(input.provider),
+        if [.warp, .kilo, .mimo, .deepseek, .qoder, .mistral, .neuralwatt, .litellm, .zenmux].contains(input.provider),
            primary.resetsAt == nil
         {
             primaryResetText = nil

@@ -253,6 +253,7 @@ extension UsageMenuCardView.Model {
         case let (current?, candidate?):
             current.hintLine == candidate.hintLine &&
                 current.errorLine == candidate.errorLine &&
+                (current.meteredLine == nil) == (candidate.meteredLine == nil) &&
                 current.comparisonLines.count == candidate.comparisonLines.count
         default:
             false

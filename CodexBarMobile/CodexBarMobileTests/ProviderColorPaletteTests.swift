@@ -66,6 +66,7 @@ struct ProviderColorPaletteTests {
             ("zenmux", 90 / 255, 40 / 255, 190 / 255),
             ("clinepass", 0.38, 0.64, 0.98),
             ("longcat", 1, 209 / 255, 0),
+            ("neuralwatt", 0.12, 0.72, 0.38),
         ]
 
         for (provider, red, green, blue) in expected {

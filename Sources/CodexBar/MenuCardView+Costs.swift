@@ -150,10 +150,17 @@ extension UsageMenuCardView.Model {
             }
             return "\(windowLabel): \(monthCost)"
         }()
+        // Plan-metered spend over the same window (what the provider actually deducts);
+        // only providers that report it (currently Cursor) populate `meteredCostUSD`.
+        let meteredLine: String? = snapshot.meteredCostUSD.map {
+            let amount = UsageFormatter.currencyString($0, currencyCode: snapshot.currencyCode)
+            return String(format: L("Cursor-metered: %@ (%@)"), amount, windowLabel.lowercased())
+        }
         let err = (error?.isEmpty ?? true) ? nil : error
         return TokenUsageSection(
             sessionLine: sessionLine,
             monthLine: monthLine,
+            meteredLine: meteredLine,
             comparisonLines: comparisonPeriodsEnabled
                 ? snapshot.comparisonSummaries().map {
                     Self.costWindowLine(summary: $0, currencyCode: snapshot.currencyCode)
@@ -194,7 +201,7 @@ extension UsageMenuCardView.Model {
                 L("codex_api_estimate_not_billed"),
                 L("codex_api_estimate_hint"),
             ]
-        case .claude:
+        case .claude, .cursor:
             [UsageFormatter.costEstimateHint(provider: provider)]
         case .vertexai:
             [L("cost_estimate_hint")]
@@ -333,7 +340,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .zenmux {
+        if provider == .zenmux || provider == .neuralwatt {
             let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             return ProviderCostSection(
                 title: L("metric_mistral_payg"),
