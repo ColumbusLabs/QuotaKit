@@ -24,6 +24,7 @@ struct DeepSeekProviderImplementation: ProviderImplementation {
         else { return [] }
         let apiKey = context.settings.selectedTokenAccount(for: .deepseek)?.token
             ?? DeepSeekSettingsReader.apiKey(environment: context.store.environmentBase)
+        let source = context.settings.providerConfig(for: .deepseek)?.source ?? .auto
         let selectedProfileID = context.settings.deepseekProfileID(apiKey: apiKey)
         let hasValidSelection = profiles.contains { $0.id == selectedProfileID }
         let profileBinding = Binding(
@@ -33,7 +34,7 @@ struct DeepSeekProviderImplementation: ProviderImplementation {
             },
             set: { profileID in
                 guard !profileID.isEmpty else { return }
-                context.store.beginDeepSeekProfileTransition(preservingBalance: apiKey != nil)
+                context.store.beginDeepSeekProfileTransition(preservingBalance: apiKey != nil && source != .web)
                 context.settings.setDeepSeekProfileID(profileID, apiKey: apiKey)
             })
         let options = (hasValidSelection
