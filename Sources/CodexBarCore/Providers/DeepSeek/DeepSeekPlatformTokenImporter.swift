@@ -41,6 +41,13 @@ enum DeepSeekPlatformTokenImporter {
     private struct ValidationResult: Sendable {
         let candidate: TokenInfo
         let outcome: ValidationOutcome
+
+        var isValid: Bool {
+            if case .valid = self.outcome {
+                return true
+            }
+            return false
+        }
     }
 
     private static let validationCache = DeepSeekPlatformValidationCache()
@@ -154,16 +161,46 @@ enum DeepSeekPlatformTokenImporter {
             }
         }
 
-        var outcomes = await self.validate(
+        var outcomes: [ValidationResult] = []
+        var deferredCandidates: [TokenInfo] = []
+        if let selectedProfileID = selection.profileID,
+           let selectedCandidate = candidatesToValidate.first(where: { $0.id == selectedProfileID })
+        {
+            let selectedOutcome = await self.validate(
+                candidates: [selectedCandidate],
+                logger: logger,
+                validate: validate)
+            outcomes.append(contentsOf: selectedOutcome)
+            candidatesToValidate.removeAll { $0.id == selectedProfileID }
+
+            if !Task.isCancelled, selectedOutcome.contains(where: \.isValid) {
+                // The selected session is required; catalog refreshes are best-effort and must not delay it.
+                self.validateInBackground(
+                    candidates: candidatesToValidate,
+                    logger: logger,
+                    cache: cache,
+                    validate: validate)
+                deferredCandidates = candidatesToValidate
+                candidatesToValidate = []
+            }
+        }
+
+        let remainingOutcomes = await self.validate(
             candidates: candidatesToValidate,
             logger: logger,
             validate: validate)
+        outcomes.append(contentsOf: remainingOutcomes)
         guard !Task.isCancelled else {
             return Resolution(profiles: [], selectedSummary: nil, detailedUsageState: .unavailable)
         }
         await self.record(outcomes: outcomes, cache: cache, now: now)
 
         var statusByID = self.resolvedStatuses(candidates: candidates, lookups: lookups, outcomes: outcomes)
+        for candidate in deferredCandidates {
+            if let lastKnownStatus = lookups[candidate.id]?.lastKnownStatus {
+                statusByID[candidate.id] = lastKnownStatus
+            }
+        }
         var validCandidates = candidates.filter { statusByID[$0.id] == true }
         var sessionDataByID = self.sessionDataByID(outcomes: outcomes)
 
@@ -254,6 +291,19 @@ enum DeepSeekPlatformTokenImporter {
             }
         }
         return results
+    }
+
+    private static func validateInBackground(
+        candidates: [TokenInfo],
+        logger: (@Sendable (String) -> Void)?,
+        cache: DeepSeekPlatformValidationCache,
+        validate: @escaping @Sendable (String) async throws -> PlatformSessionData)
+    {
+        guard !candidates.isEmpty else { return }
+        Task(priority: .utility) {
+            let outcomes = await self.validate(candidates: candidates, logger: logger, validate: validate)
+            await self.record(outcomes: outcomes, cache: cache, now: Date())
+        }
     }
 
     private static func resolvedStatuses(
