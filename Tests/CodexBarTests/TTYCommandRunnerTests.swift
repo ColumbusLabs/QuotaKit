@@ -229,7 +229,11 @@ struct TTYCommandRunnerEnvTests {
         let result = try runner.run(
             binary: "/bin/pwd",
             send: "",
-            options: .init(timeout: Self.harnessPTYTimeout, workingDirectory: dir))
+            options: .init(
+                timeout: Self.harnessPTYTimeout,
+                workingDirectory: dir,
+                stopOnSubstrings: [dir.path],
+                returnOnEmptyProcessExit: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
         #expect(clean.contains(dir.path))
     }

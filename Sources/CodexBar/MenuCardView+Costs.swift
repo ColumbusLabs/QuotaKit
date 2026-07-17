@@ -340,7 +340,7 @@ extension UsageMenuCardView.Model {
                 percentLine: nil)
         }
 
-        if provider == .zenmux {
+        if provider == .zenmux || provider == .neuralwatt {
             let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
             return ProviderCostSection(
                 title: L("metric_mistral_payg"),
