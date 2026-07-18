@@ -44,6 +44,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case abacus
     case mistral
     case deepseek
+    case deepinfra
     case codebuff
     case crof
     case venice
@@ -64,6 +65,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case sub2api
     case wayfinder
     case zenmux
+    case aiand
 }
 
 // swiftformat:enable sortDeclarations
@@ -108,6 +110,7 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case abacus
     case mistral
     case deepseek
+    case deepinfra
     case codebuff
     case crof
     case venice
@@ -128,6 +131,7 @@ public enum IconStyle: String, Sendable, CaseIterable {
     case sub2api
     case wayfinder
     case zenmux
+    case aiand
     case combined
 }
 

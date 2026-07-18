@@ -32,28 +32,6 @@ struct MenuBarPane: View {
                         Text(style.label)
                     })
 
-                SettingsMenuPicker(
-                    selection: self.$settings.menuBarDisplayMode,
-                    options: MenuBarSettingsMenuOptions.displayModes,
-                    label: {
-                        SettingsRowLabel(
-                            L("display_mode_title"),
-                            subtitle: self.settings.menuBarDisplayMode.description)
-                    },
-                    optionLabel: { mode in
-                        Text(mode.label)
-                    })
-                    .disabled(self.settings.menuBarIconStyle != .iconAndPercent)
-
-                Toggle(isOn: self.$settings.menuBarShowsResetTimeWhenExhausted) {
-                    SettingsRowLabel(
-                        L("menu_bar_reset_when_exhausted_title"),
-                        subtitle: L("menu_bar_reset_when_exhausted_subtitle"))
-                }
-                .disabled(
-                    self.settings.menuBarIconStyle != .iconAndPercent
-                        || self.settings.menuBarDisplayMode == .resetTime)
-
                 Toggle(isOn: self.$settings.menuBarHighContrastOnInactiveDisplays) {
                     SettingsRowLabel(
                         L("menu_bar_inactive_display_contrast_title"),
@@ -63,6 +41,15 @@ struct MenuBarPane: View {
                 .disabled(!Self.inactiveDisplayContrastAvailable(for: self.settings.menuBarIconStyle))
             } header: {
                 Text(L("section_icon"))
+            }
+
+            Section {
+                MenuBarLayoutEditor(settings: self.settings, store: self.store)
+                    .disabled(self.settings.menuBarIconStyle != .iconAndPercent)
+            } header: {
+                Text(L("menu_bar_layout_title"))
+            } footer: {
+                SettingsSectionFooter(L("menu_bar_layout_footer"))
             }
 
             Section {

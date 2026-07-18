@@ -344,6 +344,7 @@ private struct ProviderSwitchChip: View {
         case .abacus: "Abacus"
         case .mistral: "Mistral"
         case .deepseek: "DeepSeek"
+        case .deepinfra: "DeepInfra"
         case .codebuff: "Codebuff"
         case .crof: "Crof"
         case .venice: "Venice"
@@ -362,6 +363,7 @@ private struct ProviderSwitchChip: View {
         case .zed: "Zed"
         case .neuralwatt: "Neuralwatt"
         case .zenmux: "ZenMux"
+        case .aiand: "ai&"
         }
     }
 }
@@ -1070,6 +1072,8 @@ enum WidgetColors {
             Color(red: 255 / 255, green: 80 / 255, blue: 15 / 255) // Mistral orange
         case .deepseek:
             Color(red: 82 / 255, green: 125 / 255, blue: 240 / 255)
+        case .deepinfra:
+            Color(red: 42 / 255, green: 50 / 255, blue: 117 / 255)
         case .codebuff:
             Color(red: 68 / 255, green: 255 / 255, blue: 0 / 255) // Codebuff lime
         case .crof:
@@ -1106,6 +1110,8 @@ enum WidgetColors {
             Color(red: 56 / 255, green: 217 / 255, blue: 140 / 255)
         case .zenmux:
             Color(red: 108 / 255, green: 92 / 255, blue: 231 / 255)
+        case .aiand:
+            Color(red: 226 / 255, green: 92 / 255, blue: 43 / 255)
         }
     }
 }

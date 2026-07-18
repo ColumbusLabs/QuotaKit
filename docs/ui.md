@@ -15,6 +15,26 @@ read_when:
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 3 provider rows.
 - Overview row order follows provider order; selecting a row jumps to that provider detail card.
 - The global open-menu keyboard shortcut toggles the currently tracked menu closed before opening a new one.
+- Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
+  palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
+  per provider. Manual edits select the Custom preset.
+- Small/Regular controls the token font scale. Tight/Regular controls status-item padding. Compact stacked uses two
+  tightly spaced lines sized to fit the menu bar.
+
+### Layout tokens
+
+| Group | Tokens | Behavior |
+| --- | --- | --- |
+| Identity | Icon, Provider name, Account | Provider-scoped branding and identity |
+| Usage | Session %, Weekly %, Auto %, Usage bar | Window percentage or a compact three-glyph usage bar |
+| Time | Resets in, Reset at, Runs out | Relative reset, absolute reset, or pace estimate |
+| Money | Cost today, Cost 30d | Local cost estimate for the selected period |
+| Structure | Separator dot, Space, Line break | Spacing and optional two-line composition |
+
+Auto % uses the same provider-aware automatic-window resolution as the legacy menu bar metric setting. If a snapshot
+does not provide a token's data, that token renders an en dash while its siblings remain visible. Existing installs
+derive their first layout from the prior style, display mode, metric, and reset settings; those legacy keys remain
+untouched for downgrade safety, while a saved token layout takes precedence.
 
 ## Icon rendering
 - 18×18 template image.
@@ -23,8 +43,8 @@ read_when:
 - Renderer/critter icons dim when last refresh failed and can render incident indicators; brand display mode uses provider branding plus title text.
 - Loading animation runs at a bounded frame rate and has a hard continuous-duration ceiling so provider hangs cannot keep
   the menu bar redrawing forever.
-- Display → Menu bar: menu bar can show provider branding icons with a percent label instead of critter bars.
-- Providers → Codex → Menu bar metric can combine the session-window and weekly percentages in one compact label.
+- The token renderer composes provider branding and text through the same attributed-title path used for high-contrast
+  status items. Critter and bar styles keep their existing renderers.
 
 ## Menu card
 - Provider-specific rows with resets (countdown by default; optional absolute clock display). Primary, secondary,

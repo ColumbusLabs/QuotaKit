@@ -1643,7 +1643,7 @@ public struct CursorStatusProbe: Sendable {
         } else if let autoUsed = autoPercent {
             max(0, min(100, autoUsed))
         } else if planLimitRaw > 0 {
-            (planUsedRaw / planLimitRaw) * 100
+            normalizeTotalPercent((planUsedRaw / planLimitRaw) * 100)
         } else if let used = overallUsedRaw, let limit = overallLimitRaw, limit > 0 {
             normalizeTotalPercent((used / limit) * 100)
         } else if let used = pooledUsedRaw, let limit = pooledLimitRaw, limit > 0 {

@@ -152,6 +152,39 @@ struct CursorStatusProbeTests {
     }
 
     @Test
+    func `plan ratio caps at 100 percent when usage exceeds the limit`() {
+        // Usage-based plan reporting only used/limit (no precomputed percent lanes), with the plan
+        // cap exceeded (on-demand billing engaged). The headline percent must stay within [0, 100]
+        // like every other planPercentUsed branch — overage is surfaced separately via on-demand USD.
+        let snapshot = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
+            .parseUsageSummary(
+                CursorUsageSummary(
+                    billingCycleStart: nil,
+                    billingCycleEnd: nil,
+                    membershipType: "pro",
+                    limitType: nil,
+                    isUnlimited: false,
+                    autoModelSelectedDisplayMessage: nil,
+                    namedModelSelectedDisplayMessage: nil,
+                    individualUsage: CursorIndividualUsage(
+                        plan: CursorPlanUsage(
+                            enabled: true,
+                            used: 15000,
+                            limit: 10000,
+                            remaining: nil,
+                            breakdown: nil,
+                            autoPercentUsed: nil,
+                            apiPercentUsed: nil,
+                            totalPercentUsed: nil),
+                        onDemand: nil),
+                    teamUsage: nil),
+                userInfo: nil,
+                rawJSON: nil)
+
+        #expect(snapshot.planPercentUsed == 100)
+    }
+
+    @Test
     func `uses percent field when limit missing`() {
         let snapshot = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
             .parseUsageSummary(

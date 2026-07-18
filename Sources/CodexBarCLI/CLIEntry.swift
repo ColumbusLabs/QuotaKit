@@ -39,18 +39,8 @@ enum CodexBarCLI {
             let invocation = try program.resolve(argv: argv)
             Self.bootstrapLogging(path: invocation.path, values: invocation.parsedValues)
             switch invocation.path {
-            case ["cards"]:
-                let signalMonitor = CLITerminationSignalMonitor { signalNumber in
-                    CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
-                }
-                defer { signalMonitor.cancel() }
-                await self.runCards(invocation.parsedValues)
-            case ["usage"]:
-                let signalMonitor = CLITerminationSignalMonitor { signalNumber in
-                    CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
-                }
-                defer { signalMonitor.cancel() }
-                await self.runUsage(invocation.parsedValues)
+            case ["cards"], ["usage"]:
+                await self.runUsageDisplay(path: invocation.path, values: invocation.parsedValues)
             case ["cost"]:
                 await self.runCost(invocation.parsedValues)
             case ["sessions", "list"]:
@@ -59,28 +49,22 @@ enum CodexBarCLI {
                 await self.runSessionsFocus(invocation.parsedValues)
             case ["serve"]:
                 await self.runServe(invocation.parsedValues)
-            case ["config", "validate"]:
-                self.runConfigValidate(invocation.parsedValues)
-            case ["config", "dump"]:
-                self.runConfigDump(invocation.parsedValues)
-            case ["config", "providers"]:
-                self.runConfigProviders(invocation.parsedValues)
-            case ["config", "enable"]:
-                self.runConfigSetProviderEnabled(invocation.parsedValues, enabled: true)
-            case ["config", "disable"]:
-                self.runConfigSetProviderEnabled(invocation.parsedValues, enabled: false)
-            case ["config", "set-api-key"]:
-                self.runConfigSetAPIKey(invocation.parsedValues)
+            case let path where path.first == "config":
+                self.runConfig(path: path, values: invocation.parsedValues)
             case let path where path.first == "hooks":
                 await self.runHooks(path: path, values: invocation.parsedValues)
             case ["cache", "clear"]:
                 self.runCacheClear(invocation.parsedValues)
+            case ["cookie", "refresh"]:
+                await self.runCookieRefreshWithTermination(invocation.parsedValues)
             case ["diagnose"]:
                 let signalMonitor = CLITerminationSignalMonitor { signalNumber in
                     CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
                 }
                 defer { signalMonitor.cancel() }
                 await self.runDiagnose(invocation.parsedValues)
+            case ["guard"]:
+                await self.runGuard(invocation.parsedValues)
             default:
                 Self.exit(
                     code: .failure,
@@ -89,10 +73,32 @@ enum CodexBarCLI {
                     kind: .args)
             }
         } catch let error as CommanderProgramError {
-            Self.exit(code: .failure, message: error.description, output: outputPreferences, kind: .args)
+            let exitCode: ExitCode = argv.first == "guard" ? .usage : .failure
+            Self.exit(code: exitCode, message: error.description, output: outputPreferences, kind: .args)
         } catch {
             Self.exit(code: .failure, message: error.localizedDescription, output: outputPreferences, kind: .runtime)
         }
+    }
+
+    private static func runUsageDisplay(path: [String], values: ParsedValues) async {
+        let signalMonitor = CLITerminationSignalMonitor { signalNumber in
+            CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
+        }
+        defer { signalMonitor.cancel() }
+        switch path {
+        case ["cards"]:
+            await self.runCards(values)
+        default:
+            await self.runUsage(values)
+        }
+    }
+
+    private static func runCookieRefreshWithTermination(_ values: ParsedValues) async {
+        let signalMonitor = CLITerminationSignalMonitor { signalNumber in
+            CLITerminationSignalMonitor.terminateActiveHelpersAndReraise(signalNumber)
+        }
+        defer { signalMonitor.cancel() }
+        await self.runCookieRefresh(values)
     }
 
     private static func commandDescriptors() -> [CommandDescriptor] {
@@ -109,6 +115,7 @@ enum CodexBarCLI {
         let diagnoseSignature = CommandSignature.describe(DiagnoseOptions())
         let hooksSignature = CommandSignature.describe(HooksOptions())
         let hooksTestSignature = CommandSignature.describe(HooksTestOptions())
+        let guardSignature = CommandSignature.describe(GuardOptions())
 
         return [
             CommandDescriptor(
@@ -121,6 +128,11 @@ enum CodexBarCLI {
                 abstract: "Print usage as text or JSON",
                 discussion: nil,
                 signature: usageSignature),
+            CommandDescriptor(
+                name: "guard",
+                abstract: "Exit non-zero when a provider lacks quota headroom (for gating scripts)",
+                discussion: nil,
+                signature: guardSignature),
             CommandDescriptor(
                 name: "cost",
                 abstract: "Print local cost usage as text or JSON",
@@ -228,12 +240,30 @@ enum CodexBarCLI {
                         signature: cacheSignature),
                 ],
                 defaultSubcommandName: "clear"),
+            Self.cookieCommandDescriptor(),
             CommandDescriptor(
                 name: "diagnose",
                 abstract: "Run provider diagnostic and emit safe JSON export",
                 discussion: nil,
                 signature: diagnoseSignature),
         ]
+    }
+
+    private static func cookieCommandDescriptor() -> CommandDescriptor {
+        CommandDescriptor(
+            name: "cookie",
+            abstract: "Cookie management",
+            discussion: nil,
+            signature: CommandSignature(),
+            subcommands: [
+                CommandDescriptor(
+                    name: "refresh",
+                    abstract: "Re-import browser cookie for a provider",
+                    discussion: "Clears the provider cookie cache and re-imports through its browser-backed " +
+                        "web strategy. Prompt-capable browsers require --allow-keychain-prompt.",
+                    signature: CommandSignature.describe(CookieOptions())),
+            ],
+            defaultSubcommandName: "refresh")
     }
 
     // MARK: - Helpers

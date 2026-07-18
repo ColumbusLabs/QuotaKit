@@ -117,6 +117,8 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Wayfinder](docs/wayfinder.md) — Local router gateway polling for health, per-route breakdown, savings, and decision latency.
 - [LiteLLM](docs/litellm.md) — Virtual key + proxy URL for personal and team budget/spend tracking.
 - [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
+- [DeepInfra](docs/deepinfra.md) — API key for prepaid balance, amount owed, and billing-cycle spend.
+- [ai&](docs/aiand.md) — API key for 30-day organization spend from request logs.
 - [Poe](docs/poe.md) — API key for current point balance and recent points history.
 - [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
 - [ClinePass](docs/providers.md) — API key usage for five-hour, weekly, and monthly plan limits.

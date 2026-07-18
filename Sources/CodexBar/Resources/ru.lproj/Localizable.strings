@@ -462,7 +462,7 @@
 "cost_history_window_title" = "Окно истории";
 "cost_history_window_help" = "Задаёт, за сколько дней показывать локальные журналы использования в меню.";
 "cost_history_days_title" = "Окно истории: %d дней";
-"cost_auto_refresh_info" = "Автоматическое обновление: каждый час · Тайм-аут: 10 минут";
+"cost_auto_refresh_info" = "Автоматическое обновление: общий интервал (минимум 5 минут) · Тайм-аут: 10 минут";
 "cost_comparison_periods_title" = "Показывать более короткие периоды сравнения";
 "cost_comparison_periods_subtitle" = "Добавляет итоги за 7, 30 и 90 дней, если они входят в выбранный период истории. Для этих итогов используется то же локальное сканирование.";
 "refresh_interval_title" = "Частота обновления";
@@ -600,6 +600,12 @@
 "agent_sessions_subtitle" = "Показывать в меню локальные и обнаруженные по SSH сеансы Codex и Claude Code.";
 "agent_sessions_hosts_title" = "Дополнительные SSH-хосты";
 "agent_sessions_footer" = "Компьютеры Mac в вашей сети tailnet обнаруживаются автоматически. Локальные сеансы обновляются каждые 30 секунд, удалённые хосты — каждые 60 секунд и при открытии меню.";
+"agent_session_labels_title" = "Названия сеансов";
+"agent_session_labels_subtitle" = "Выберите, как называть сеансы агентов.";
+"agent_session_label_project" = "Проект";
+"agent_session_label_descriptive" = "Описательное";
+"agent_session_label_descriptive_and_project" = "Описательное + проект";
+"agent_session_unknown_project" = "Неизвестный проект";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Сочетание клавиш";
@@ -731,6 +737,11 @@
 "refresh_15min" = "15 мин.";
 "refresh_30min" = "30 мин.";
 "refresh_adaptive" = "Адаптивно";
+"refresh_adaptive_agent_aware" = "Адаптивно (с учётом агентов)";
+"adaptive_activity_consent_title" = "Разрешить обновление с учётом активности?";
+"adaptive_activity_consent_message" = "Адаптивный режим с учётом агентов может проверять список запущенных локальных процессов, включая командные строки, чтобы распознавать Codex и Claude, а затем во время программирования каждые 30 секунд считывать метаданные известных сеансов. Когда Agent Sessions отключено, QuotaKit хранит в памяти только время последней активности и отбрасывает пути и идентификаторы сеансов. Эти данные никуда не отправляются, а удалённое обнаружение и SSH остаются отключёнными. При отказе QuotaKit вернётся к обычному адаптивному режиму без сканирования локальной активности.";
+"adaptive_activity_consent_allow" = "Разрешить локальную активность";
+"adaptive_activity_consent_decline" = "Использовать обычный адаптивный режим";
 
 /* Additional keys */
 "not_found" = "Не найден";
@@ -1261,3 +1272,76 @@
 "By subscription" = "По подпискам";
 "No model-level history" = "Нет истории по моделям";
 "Daily estimated spend" = "Предполагаемые ежедневные расходы";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d полных 5-часовых окон недельного лимита · %d окон до сброса";
+"Weekly cannot run out before reset at this pace" = "При таком темпе недельный лимит не может закончиться до сброса";
+"Weekly can run out ≈%d windows early" = "Недельный лимит может закончиться на ≈%d окон раньше";
+"Estimated: %@" = "Оценка: %@";
+"Coding Plan" = "План программирования";
+"Agent Plan" = "План агента";
+"Team" = "Команда";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Компоновка";
+"menu_bar_layout_footer" = "Перетаскивайте элементы, чтобы настроить строку меню. Нажмите элемент, чтобы добавить его; выберите размещённый элемент и нажмите Delete, чтобы удалить его.";
+"menu_bar_layout_group_identity" = "Идентификация";
+"menu_bar_layout_group_usage" = "Использование";
+"menu_bar_layout_group_time" = "Время";
+"menu_bar_layout_group_money" = "Стоимость";
+"menu_bar_layout_group_structure" = "Структура";
+"menu_bar_layout_scope_all" = "Все провайдеры";
+"menu_bar_layout_scope_help" = "Измените компоновку по умолчанию или переопределите её для одного провайдера.";
+"menu_bar_layout_use_all" = "Использовать компоновку всех провайдеров";
+"menu_bar_layout_preset" = "Шаблон компоновки";
+"menu_bar_layout_preset_icon_percent" = "Значок и процент";
+"menu_bar_layout_preset_icon_only" = "Только значок";
+"menu_bar_layout_preset_percent_reset" = "Процент и сброс";
+"menu_bar_layout_preset_compact_stacked" = "Компактно в две строки";
+"menu_bar_layout_preset_custom" = "Пользовательский";
+"menu_bar_layout_live_preview" = "Предпросмотр";
+"menu_bar_layout_strip" = "Строка меню";
+"menu_bar_layout_remove_line_break" = "Удалить разрыв строки";
+"menu_bar_layout_chip_hint" = "Выберите, перетащите для изменения порядка или используйте действие удаления.";
+"menu_bar_layout_palette_hint" = "Нажмите, чтобы добавить, или перетащите в компоновку.";
+"menu_bar_layout_empty_line" = "Перетащите элемент сюда";
+"menu_bar_layout_line" = "Строка %d";
+"menu_bar_layout_drag_remove" = "Перетащите сюда для удаления";
+"menu_bar_layout_size" = "Размер";
+"menu_bar_layout_size_small" = "Маленький";
+"menu_bar_layout_size_regular" = "Обычный";
+"menu_bar_layout_gap" = "Интервал";
+"menu_bar_layout_gap_tight" = "Узкий";
+"menu_bar_layout_gap_regular" = "Обычный";
+"menu_bar_layout_keyboard_hint" = "Delete удаляет выбранный элемент";
+"menu_bar_layout_sample_account" = "аккаунт";
+"menu_bar_layout_sample_runs_out" = "закончится пт.";
+"menu_bar_layout_token_icon" = "Значок";
+"menu_bar_layout_token_provider" = "Имя провайдера";
+"menu_bar_layout_token_account" = "Аккаунт";
+"menu_bar_layout_token_session" = "Сеанс %";
+"menu_bar_layout_token_weekly" = "Недельный %";
+"menu_bar_layout_token_auto" = "Авто %";
+"menu_bar_layout_token_bar" = "Индикатор использования";
+"menu_bar_layout_token_resets_in" = "Сброс через";
+"menu_bar_layout_token_reset_at" = "Сброс в";
+"menu_bar_layout_token_runs_out" = "Закончится";
+"menu_bar_layout_token_cost_today" = "Расход сегодня";
+"menu_bar_layout_token_cost_30d" = "Расход за 30 дней";
+"menu_bar_layout_token_space" = "Пробел";
+"menu_bar_layout_token_line_break" = "Разрыв строки";
+"menu_bar_layout_token_separator_accessibility" = "Точка-разделитель";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Значок: Недоступно";
+"%@ icon" = "%@: Значок";
+"Provider name unavailable" = "Имя провайдера: Недоступно";
+"Account unavailable" = "Аккаунт: Недоступно";
+"%@ unavailable" = "%@: Недоступно";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Индикатор использования: Недоступно";
+"Usage bar, %d of 3 filled" = "Индикатор использования: %d/3 заполнено";
+"Reset countdown unavailable" = "Сброс через: Недоступно";
+"Reset time unavailable" = "Сброс в: Недоступно";
+"Run-out estimate unavailable" = "Закончится: Недоступно";
+"Cost today unavailable" = "Расход сегодня: Недоступно";
+"30-day cost unavailable" = "Расход за 30 дней: Недоступно";
+"Resets" = "Сбросы";

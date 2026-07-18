@@ -243,9 +243,10 @@ extension UsageStore {
             }
             self.installCachedTokenSnapshot(result.snapshot, for: .codex)
             self.tokenErrors[.codex] = nil
-            if let lastRefreshAt = result.lastRefreshAt,
+            if let tokenFetchTTL = self.tokenFetchTTL,
+               let lastRefreshAt = result.lastRefreshAt,
                now.timeIntervalSince(lastRefreshAt) >= 0,
-               now.timeIntervalSince(lastRefreshAt) < self.tokenFetchTTL
+               now.timeIntervalSince(lastRefreshAt) < tokenFetchTTL
             {
                 self.lastTokenFetchAt[.codex] = lastRefreshAt
                 self.lastTokenFetchScope[.codex] = tokenSnapshotScopeSignature
@@ -341,7 +342,8 @@ extension UsageStore {
         else {
             return false
         }
-        return now.timeIntervalSince(last) < self.tokenFetchTTL
+        guard let tokenFetchTTL = self.tokenFetchTTL else { return false }
+        return now.timeIntervalSince(last) < tokenFetchTTL
     }
 
     func tokenRefreshPublicationIsCurrent(

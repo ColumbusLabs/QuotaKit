@@ -123,7 +123,7 @@ extension ClaudeOAuthCredentialsStore {
             let stderrLength: Int
             let durationMs: Double
             #if DEBUG
-            if let override = self.taskSecurityCLIReadOverride ?? self.securityCLIReadOverride {
+            if let override = self.taskSecurityCLIReadOverride {
                 switch override {
                 case let .data(data):
                     output = data ?? Data()

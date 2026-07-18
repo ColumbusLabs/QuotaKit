@@ -13,7 +13,9 @@ enum ProviderTokenAccountSelection {
         settings: SettingsStore,
         override: TokenAccountOverride?) -> ProviderTokenAccount?
     {
-        if let override, override.provider == provider { return override.account }
+        if let override, override.provider == provider {
+            return override.account
+        }
         return settings.effectiveSelectedTokenAccount(for: provider)
     }
 
@@ -23,11 +25,9 @@ enum ProviderTokenAccountSelection {
         settings: SettingsStore,
         override: TokenAccountOverride?) -> Bool
     {
-        guard settings.showOptionalCreditsAndExtraUsage else { return false }
-        guard provider == .deepseek,
-              let override,
-              override.provider == provider
-        else { return true }
+        guard provider == .deepseek else { return settings.showOptionalCreditsAndExtraUsage }
+        guard settings.costUsageEnabled, settings.showOptionalCreditsAndExtraUsage else { return false }
+        guard let override, override.provider == provider else { return true }
         return settings.selectedTokenAccount(for: provider)?.id == override.account.id
     }
 }

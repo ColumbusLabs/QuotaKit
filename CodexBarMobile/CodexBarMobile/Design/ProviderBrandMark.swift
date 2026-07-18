@@ -21,6 +21,7 @@ enum ProviderBrandAsset {
         "crof",
         "cursor",
         "deepgram",
+        "deepinfra",
         "deepseek",
         "devin",
         "doubao",
@@ -60,6 +61,7 @@ enum ProviderBrandAsset {
         "zai",
         "zed",
         "zenmux",
+        "aiand",
     ]
 
     private static let aliases: [String: String] = [

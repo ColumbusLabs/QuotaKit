@@ -76,6 +76,31 @@ public enum BinaryLocator {
             home: home)
     }
 
+    public static func resolveArkcliBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "arkcli",
+            overrideKey: "ARKCLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: [
+                "\(home)/.local/bin/arkcli",
+                "/opt/homebrew/bin/arkcli",
+                "/usr/local/bin/arkcli",
+            ],
+            fileManager: fileManager,
+            home: home)
+    }
+
     /// Well-known installation paths for the Claude CLI binary.
     /// Covers Anthropic's native installer (`~/.local/bin`), the `claude migrate-installer`
     /// self-updating location (`~/.claude/local`), the legacy per-user installer

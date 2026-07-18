@@ -230,7 +230,7 @@ struct UsageStoreCachedTokenHydrationTests {
             configStore: testConfigStore(suiteName: suite),
             zaiTokenStore: NoopZaiTokenStore(),
             syntheticTokenStore: NoopSyntheticTokenStore())
-        settings.refreshFrequency = .manual
+        settings.refreshFrequency = .fiveMinutes
         settings.statusChecksEnabled = false
         settings.costUsageEnabled = true
         settings.costUsageHistoryDays = historyDays

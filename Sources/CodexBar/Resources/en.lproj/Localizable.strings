@@ -448,7 +448,7 @@
 "cost_history_days_title" = "History window: %d days";
 "cost_comparison_periods_title" = "Show shorter comparison periods";
 "cost_comparison_periods_subtitle" = "Add 7, 30, and 90-day totals when they fit inside the selected history window. These totals reuse the same local scan.";
-"cost_auto_refresh_info" = "Auto-refresh: hourly · Timeout: 10m";
+"cost_auto_refresh_info" = "Auto-refresh: global interval (minimum 5m) · Timeout: 10m";
 "refresh_interval_title" = "Refresh interval";
 "manual_refresh_hint" = "Auto-refresh is off; use the menu's Refresh command.";
 "refresh_on_open_title" = "Refresh when the menu opens";
@@ -605,6 +605,12 @@
 "agent_sessions_subtitle" = "Show local and SSH-discovered Codex and Claude Code sessions in the menu.";
 "agent_sessions_hosts_title" = "Additional SSH hosts";
 "agent_sessions_footer" = "Macs on your tailnet are discovered automatically. Local sessions refresh every 30 seconds; remote hosts every 60 seconds and when the menu opens.";
+"agent_session_labels_title" = "Session labels";
+"agent_session_labels_subtitle" = "Choose how agent sessions are named.";
+"agent_session_label_project" = "Project";
+"agent_session_label_descriptive" = "Descriptive";
+"agent_session_label_descriptive_and_project" = "Descriptive + project";
+"agent_session_unknown_project" = "Unknown project";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Keyboard shortcut";
@@ -736,6 +742,11 @@
 "refresh_15min" = "15 min";
 "refresh_30min" = "30 min";
 "refresh_adaptive" = "Adaptive";
+"refresh_adaptive_agent_aware" = "Adaptive (agent-aware)";
+"adaptive_activity_consent_title" = "Allow agent-aware refresh?";
+"adaptive_activity_consent_message" = "Adaptive (agent-aware) can inspect the local running-process list, including command lines, to identify Codex and Claude, then read known session metadata every 30 seconds while you are coding. With Agent Sessions off, QuotaKit uses only the latest activity time in memory and discards session paths and identities. This activity data is not sent anywhere, and remote discovery and SSH stay off. If you decline, QuotaKit returns to plain Adaptive without local activity scans.";
+"adaptive_activity_consent_allow" = "Allow Local Activity";
+"adaptive_activity_consent_decline" = "Use Plain Adaptive";
 
 /* Additional keys */
 "not_found" = "Not found";
@@ -1264,3 +1275,76 @@
 "By subscription" = "By subscription";
 "No model-level history" = "No model-level history";
 "Daily estimated spend" = "Daily estimated spend";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d full 5h windows of weekly left · %d windows until reset";
+"Weekly cannot run out before reset at this pace" = "Weekly cannot run out before reset at this pace";
+"Weekly can run out ≈%d windows early" = "Weekly can run out ≈%d windows early";
+"Estimated: %@" = "Estimated: %@";
+"Coding Plan" = "Coding Plan";
+"Agent Plan" = "Agent Plan";
+"Team" = "Team";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Layout";
+"menu_bar_layout_footer" = "Drag tokens to arrange the menu bar. Click a token to append it; select a placed token and press Delete to remove it.";
+"menu_bar_layout_group_identity" = "Identity";
+"menu_bar_layout_group_usage" = "Usage";
+"menu_bar_layout_group_time" = "Time";
+"menu_bar_layout_group_money" = "Money";
+"menu_bar_layout_group_structure" = "Structure";
+"menu_bar_layout_scope_all" = "All providers";
+"menu_bar_layout_scope_help" = "Edit the default layout or override one provider.";
+"menu_bar_layout_use_all" = "Use all-providers layout";
+"menu_bar_layout_preset" = "Layout preset";
+"menu_bar_layout_preset_icon_percent" = "Icon & percent";
+"menu_bar_layout_preset_icon_only" = "Icon only";
+"menu_bar_layout_preset_percent_reset" = "Percent + reset";
+"menu_bar_layout_preset_compact_stacked" = "Compact stacked";
+"menu_bar_layout_preset_custom" = "Custom";
+"menu_bar_layout_live_preview" = "Live preview";
+"menu_bar_layout_strip" = "Menu bar strip";
+"menu_bar_layout_remove_line_break" = "Remove line break";
+"menu_bar_layout_chip_hint" = "Select, drag to reorder, or use the Remove action.";
+"menu_bar_layout_palette_hint" = "Click to append or drag into the layout.";
+"menu_bar_layout_empty_line" = "Drop a token here";
+"menu_bar_layout_line" = "Line %d";
+"menu_bar_layout_drag_remove" = "Drag here to remove";
+"menu_bar_layout_size" = "Size";
+"menu_bar_layout_size_small" = "Small";
+"menu_bar_layout_size_regular" = "Regular";
+"menu_bar_layout_gap" = "Gap";
+"menu_bar_layout_gap_tight" = "Tight";
+"menu_bar_layout_gap_regular" = "Regular";
+"menu_bar_layout_keyboard_hint" = "Delete removes the selected token";
+"menu_bar_layout_sample_account" = "account";
+"menu_bar_layout_sample_runs_out" = "runs out Fri";
+"menu_bar_layout_token_icon" = "Icon";
+"menu_bar_layout_token_provider" = "Provider name";
+"menu_bar_layout_token_account" = "Account";
+"menu_bar_layout_token_session" = "Session %";
+"menu_bar_layout_token_weekly" = "Weekly %";
+"menu_bar_layout_token_auto" = "Auto %";
+"menu_bar_layout_token_bar" = "Usage bar";
+"menu_bar_layout_token_resets_in" = "Resets in";
+"menu_bar_layout_token_reset_at" = "Reset at";
+"menu_bar_layout_token_runs_out" = "Runs out";
+"menu_bar_layout_token_cost_today" = "Cost today";
+"menu_bar_layout_token_cost_30d" = "Cost 30d";
+"menu_bar_layout_token_space" = "Space";
+"menu_bar_layout_token_line_break" = "Line break";
+"menu_bar_layout_token_separator_accessibility" = "Separator dot";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Icon unavailable";
+"%@ icon" = "%@ icon";
+"Provider name unavailable" = "Provider name unavailable";
+"Account unavailable" = "Account unavailable";
+"%@ unavailable" = "%@ unavailable";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Usage bar unavailable";
+"Usage bar, %d of 3 filled" = "Usage bar, %d of 3 filled";
+"Reset countdown unavailable" = "Reset countdown unavailable";
+"Reset time unavailable" = "Reset time unavailable";
+"Run-out estimate unavailable" = "Run-out estimate unavailable";
+"Cost today unavailable" = "Cost today unavailable";
+"30-day cost unavailable" = "30-day cost unavailable";
+"Resets" = "Resets";

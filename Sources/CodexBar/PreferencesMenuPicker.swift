@@ -75,6 +75,7 @@ enum MenuSettingsMenuOptions {
     static let usageBarsFill = UsageBarsFillOption.allCases
     static let resetTimes = ResetTimesOption.allCases
     static let costSummaries = CostSummaryOption.allCases
+    static let agentSessionLabelStyles = AgentSessionLabelStyle.allCases
 
     static func weeklyProgressWorkDaysLabel(_ workDays: Int?) -> String {
         switch workDays {
