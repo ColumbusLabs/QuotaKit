@@ -24,6 +24,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.
 - Copilot: hide quota bars explicitly marked unlimited while preserving finite Premium and Chat quotas. Thanks @Zihao-Qi!
 
+### Changed
+
+- Synced upstream CodexBar changes through `e6b2ea490`, including ClinePass,
+  LongCat, Neuralwatt, the unified usage and spend dashboard, private local
+  usage-sharing cards, Cursor token-cost reporting, and hardened shared-stat
+  aggregation while preserving QuotaKit release ownership and CloudKit setup.
+
 ## 0.32.4.11 / iOS 1.11.1 — 2026-07-11
 
 ### Added
@@ -59,10 +66,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced upstream CodexBar changes through `e6b2ea490`, including ClinePass,
-  LongCat, Neuralwatt, the unified usage and spend dashboard, private local
-  usage-sharing cards, Cursor token-cost reporting, and hardened shared-stat
-  aggregation while preserving QuotaKit release ownership and CloudKit setup.
 - Synced upstream CodexBar Mac changes through `7465c6a11`, including reliable
   overview-card click routing, Kimi Code CLI credential reuse, fresh cost
   snapshots, and Sub2API support while preserving QuotaKit release ownership,
