@@ -187,6 +187,27 @@ struct BrowserDetectionTests {
     }
 
     @Test
+    func `Vivaldi uses its Chromium profile and Safe Storage metadata`() throws {
+        let temp = FileManager.default.temporaryDirectory.appendingPathComponent(UUID().uuidString)
+        let profile = temp
+            .appendingPathComponent("Library")
+            .appendingPathComponent("Application Support")
+            .appendingPathComponent("Vivaldi")
+            .appendingPathComponent("Default")
+            .appendingPathComponent("Network")
+        try FileManager.default.createDirectory(at: profile, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: profile.appendingPathComponent("Cookies").path, contents: Data())
+        defer { try? FileManager.default.removeItem(at: temp) }
+
+        let detection = self.detection(homeDirectory: temp.path, installedBrowsers: [.vivaldi])
+
+        #expect(Browser.vivaldi.chromiumProfileRelativePath == "Vivaldi")
+        #expect(Self.labelIDs(for: .vivaldi).contains("Vivaldi Safe Storage|Vivaldi"))
+        #expect(Browser.defaultImportOrder.contains(.vivaldi))
+        #expect(detection.isCookieSourceAvailable(.vivaldi))
+    }
+
+    @Test
     func `process filters chromium candidates despite false global keychain override`() throws {
         guard ProcessInfo.processInfo.environment["CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS"] != "1" else { return }
         KeychainAccessGate.resetOverrideForTesting()
