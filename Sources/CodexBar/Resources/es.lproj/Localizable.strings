@@ -462,7 +462,7 @@
 "cost_history_window_title" = "Ventana de historial";
 "cost_history_window_help" = "Define cuántos días de registros de uso locales aparecen en el menú.";
 "cost_history_days_title" = "Ventana de historial: %d días";
-"cost_auto_refresh_info" = "Actualización automática: cada hora · Tiempo de espera: 10 m";
+"cost_auto_refresh_info" = "Actualización automática: intervalo global (mínimo 5 min) · Tiempo de espera: 10 min";
 "cost_comparison_periods_title" = "Mostrar períodos de comparación más cortos";
 "cost_comparison_periods_subtitle" = "Añade totales de 7, 30 y 90 días cuando quepan en el intervalo de historial seleccionado. Estos totales reutilizan el mismo análisis local.";
 "refresh_interval_title" = "Intervalo de actualización";
@@ -591,6 +591,12 @@
 "agent_sessions_subtitle" = "Muestra en el menú las sesiones de Codex y Claude Code locales y detectadas mediante SSH.";
 "agent_sessions_hosts_title" = "Hosts SSH adicionales";
 "agent_sessions_footer" = "Los Mac de tu tailnet se detectan automáticamente. Las sesiones locales se actualizan cada 30 segundos; los hosts remotos, cada 60 segundos y al abrir el menú.";
+"agent_session_labels_title" = "Etiquetas de sesión";
+"agent_session_labels_subtitle" = "Elige cómo se nombran las sesiones de agentes.";
+"agent_session_label_project" = "Proyecto";
+"agent_session_label_descriptive" = "Descriptiva";
+"agent_session_label_descriptive_and_project" = "Descriptiva + proyecto";
+"agent_session_unknown_project" = "Proyecto desconocido";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Atajo de teclado";
@@ -723,6 +729,11 @@
 "refresh_15min" = "15 min";
 "refresh_30min" = "30 min";
 "refresh_adaptive" = "Adaptativo";
+"refresh_adaptive_agent_aware" = "Adaptativo (actividad de agentes)";
+"adaptive_activity_consent_title" = "¿Permitir la actualización según la actividad?";
+"adaptive_activity_consent_message" = "El modo Adaptativo según la actividad de agentes puede inspeccionar la lista de procesos locales en ejecución, incluidas las líneas de comandos, para identificar Codex y Claude, y leer los metadatos de sesiones conocidas cada 30 segundos mientras programas. Con Agent Sessions desactivado, QuotaKit solo conserva en memoria la hora de la actividad más reciente y descarta las rutas e identidades de las sesiones. Estos datos no se envían a ningún sitio, y la detección remota y SSH permanecen desactivados. Si rechazas, QuotaKit volverá al modo Adaptativo normal sin análisis de actividad local.";
+"adaptive_activity_consent_allow" = "Permitir actividad local";
+"adaptive_activity_consent_decline" = "Usar Adaptativo normal";
 
 /* Additional keys */
 "not_found" = "No encontrado";
@@ -1258,3 +1269,76 @@
 "By subscription" = "Por suscripción";
 "No model-level history" = "No hay historial por modelo";
 "Daily estimated spend" = "Gasto diario estimado";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d ventanas completas de 5 h de cuota semanal · %d ventanas hasta el reinicio";
+"Weekly cannot run out before reset at this pace" = "La cuota semanal no puede agotarse antes del reinicio a este ritmo";
+"Weekly can run out ≈%d windows early" = "La cuota semanal puede agotarse ≈%d ventanas antes";
+"Estimated: %@" = "Estimación: %@";
+"Coding Plan" = "Plan de programación";
+"Agent Plan" = "Plan de agente";
+"Team" = "Equipo";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Disposición";
+"menu_bar_layout_footer" = "Arrastra fichas para ordenar la barra de menús. Haz clic en una ficha para añadirla; selecciona una ficha colocada y pulsa Suprimir para quitarla.";
+"menu_bar_layout_group_identity" = "Identidad";
+"menu_bar_layout_group_usage" = "Uso";
+"menu_bar_layout_group_time" = "Tiempo";
+"menu_bar_layout_group_money" = "Coste";
+"menu_bar_layout_group_structure" = "Estructura";
+"menu_bar_layout_scope_all" = "Todos los proveedores";
+"menu_bar_layout_scope_help" = "Edita la disposición predeterminada o reemplázala para un proveedor.";
+"menu_bar_layout_use_all" = "Usar la disposición de todos los proveedores";
+"menu_bar_layout_preset" = "Preajuste de disposición";
+"menu_bar_layout_preset_icon_percent" = "Icono y porcentaje";
+"menu_bar_layout_preset_icon_only" = "Solo icono";
+"menu_bar_layout_preset_percent_reset" = "Porcentaje y reinicio";
+"menu_bar_layout_preset_compact_stacked" = "Apilado compacto";
+"menu_bar_layout_preset_custom" = "Personalizado";
+"menu_bar_layout_live_preview" = "Vista previa en directo";
+"menu_bar_layout_strip" = "Franja de la barra de menús";
+"menu_bar_layout_remove_line_break" = "Quitar salto de línea";
+"menu_bar_layout_chip_hint" = "Selecciona, arrastra para reordenar o usa la acción Quitar.";
+"menu_bar_layout_palette_hint" = "Haz clic para añadir o arrastra a la disposición.";
+"menu_bar_layout_empty_line" = "Suelta una ficha aquí";
+"menu_bar_layout_line" = "Línea %d";
+"menu_bar_layout_drag_remove" = "Arrastra aquí para quitar";
+"menu_bar_layout_size" = "Tamaño";
+"menu_bar_layout_size_small" = "Pequeño";
+"menu_bar_layout_size_regular" = "Normal";
+"menu_bar_layout_gap" = "Separación";
+"menu_bar_layout_gap_tight" = "Estrecha";
+"menu_bar_layout_gap_regular" = "Normal";
+"menu_bar_layout_keyboard_hint" = "Suprimir quita la ficha seleccionada";
+"menu_bar_layout_sample_account" = "cuenta";
+"menu_bar_layout_sample_runs_out" = "se agota vie.";
+"menu_bar_layout_token_icon" = "Icono";
+"menu_bar_layout_token_provider" = "Nombre del proveedor";
+"menu_bar_layout_token_account" = "Cuenta";
+"menu_bar_layout_token_session" = "Sesión %";
+"menu_bar_layout_token_weekly" = "Semanal %";
+"menu_bar_layout_token_auto" = "% automático";
+"menu_bar_layout_token_bar" = "Barra de uso";
+"menu_bar_layout_token_resets_in" = "Se reinicia en";
+"menu_bar_layout_token_reset_at" = "Reinicio a las";
+"menu_bar_layout_token_runs_out" = "Se agota";
+"menu_bar_layout_token_cost_today" = "Coste de hoy";
+"menu_bar_layout_token_cost_30d" = "Coste de 30 días";
+"menu_bar_layout_token_space" = "Espacio";
+"menu_bar_layout_token_line_break" = "Salto de línea";
+"menu_bar_layout_token_separator_accessibility" = "Punto separador";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Icono: No disponible";
+"%@ icon" = "%@: Icono";
+"Provider name unavailable" = "Nombre del proveedor: No disponible";
+"Account unavailable" = "Cuenta: No disponible";
+"%@ unavailable" = "%@: No disponible";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Barra de uso: No disponible";
+"Usage bar, %d of 3 filled" = "Barra de uso: %d/3 llenos";
+"Reset countdown unavailable" = "Se reinicia en: No disponible";
+"Reset time unavailable" = "Reinicio a las: No disponible";
+"Run-out estimate unavailable" = "Se agota: No disponible";
+"Cost today unavailable" = "Coste de hoy: No disponible";
+"30-day cost unavailable" = "Coste de 30 días: No disponible";
+"Resets" = "Reinicios";

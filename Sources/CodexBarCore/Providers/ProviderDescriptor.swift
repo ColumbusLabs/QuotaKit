@@ -94,6 +94,7 @@ public enum ProviderDescriptorRegistry {
         .abacus: AbacusProviderDescriptor.descriptor,
         .mistral: MistralProviderDescriptor.descriptor,
         .deepseek: DeepSeekProviderDescriptor.descriptor,
+        .deepinfra: DeepInfraProviderDescriptor.descriptor,
         .codebuff: CodebuffProviderDescriptor.descriptor,
         .crof: CrofProviderDescriptor.descriptor,
         .venice: VeniceProviderDescriptor.descriptor,
@@ -114,6 +115,7 @@ public enum ProviderDescriptorRegistry {
         .sub2api: Sub2APIProviderDescriptor.descriptor,
         .wayfinder: WayfinderProviderDescriptor.descriptor,
         .zenmux: ZenMuxProviderDescriptor.descriptor,
+        .aiand: AiAndProviderDescriptor.descriptor,
     ]
     private static let bootstrap: Void = {
         for provider in UsageProvider.allCases {

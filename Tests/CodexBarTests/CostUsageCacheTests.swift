@@ -59,11 +59,11 @@ struct CostUsageCacheTests {
 
         let legacyURL = root
             .appendingPathComponent("cost-usage", isDirectory: true)
-            .appendingPathComponent("pi-sessions-v5.json", isDirectory: false)
+            .appendingPathComponent("pi-sessions-v6.json", isDirectory: false)
         try FileManager.default.createDirectory(
             at: legacyURL.deletingLastPathComponent(),
             withIntermediateDirectories: true)
-        var legacy = PiSessionCostCache(version: 5)
+        var legacy = PiSessionCostCache(version: 6)
         legacy.lastScanUnixMs = 999
         legacy.files = [
             "/tmp/session.jsonl": PiSessionFileUsage(
@@ -77,7 +77,7 @@ struct CostUsageCacheTests {
 
         let loaded = PiSessionCostCacheIO.load(cacheRoot: root)
 
-        #expect(loaded.version == 6)
+        #expect(loaded.version == 7)
         #expect(loaded.lastScanUnixMs == 0)
         #expect(loaded.files.isEmpty)
     }

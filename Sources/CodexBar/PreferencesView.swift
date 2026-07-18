@@ -117,6 +117,10 @@ struct PreferencesView: View {
         .onChange(of: self.settings.debugMenuEnabled) { _, _ in
             self.ensureValidSelection()
         }
+        .onChange(of: self.settings.shouldRequestAdaptiveActivityScanConsent) { _, shouldRequest in
+            guard shouldRequest else { return }
+            AdaptiveActivityConsentPresenter.presentIfNeeded(settings: self.settings)
+        }
     }
 
     @ViewBuilder

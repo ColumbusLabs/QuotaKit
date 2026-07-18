@@ -5,6 +5,7 @@ extension SettingsStore {
         _ = self.providerOrder
         _ = self.providerEnablement
         _ = self.refreshFrequency
+        _ = self.adaptiveActivityScanConsent
         _ = self.launchAtLogin
         _ = self.debugMenuEnabled
         _ = self.debugDisableKeychainAccess
@@ -35,6 +36,10 @@ extension SettingsStore {
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
         _ = self.menuBarMetricPreferencesRaw
+        _ = self.menuBarLayout
+        _ = self.menuBarLayoutOverrides
+        _ = self.menuBarLayoutSize
+        _ = self.menuBarLayoutGap
         _ = self.copilotIconSecondaryWindowIDRaw
         _ = self.costUsageEnabled
         _ = self.codexLocalSessionCostLedgerEnabled
@@ -56,6 +61,7 @@ extension SettingsStore {
         _ = self.openAIWebBatterySaverEnabled
         _ = self.providerStorageFootprintsEnabled
         _ = self.agentSessionsEnabled
+        _ = self.agentSessionLabelStyle
         _ = self.agentSessionsManualHosts
         _ = self.codexUsageDataSource
         _ = self.codexActiveSource

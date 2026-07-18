@@ -21,6 +21,7 @@ MOBILE_ENTRY_RE = re.compile(
 )
 MOBILE_ALIAS_TARGETS = {
     "11labs": "elevenlabs",
+    "ai&": "aiand",
     "abacusai": "abacus",
     "ampcode": "amp",
     "anthropic": "claude",

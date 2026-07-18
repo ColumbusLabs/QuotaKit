@@ -702,19 +702,12 @@ final class SyncCoordinator {
         let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
         let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
         let codexCreditLimit = Self.mapCodexCreditLimit(provider: provider, credits: codexCredits)
-        let syncedStatusMessage: String? = {
-            if let error { return error }
-            guard provider == .copilot,
-                  primaryWindow == nil,
-                  secondaryWindow == nil,
-                  rateWindows.isEmpty,
-                  let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
-                  !plan.isEmpty
-            else { return nil }
-            // Unlimited and token-billed Copilot plans intentionally have no metered windows. Keep a
-            // meaningful signal on the wire so QuotaKit's Mac/iOS ghost filters retain the provider.
-            return "Plan: \(plan)"
-        }()
+        let syncedStatusMessage = Self.syncedStatusMessage(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost,
+            error: error,
+            rateWindows: rateWindows)
 
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
@@ -760,6 +753,29 @@ final class SyncCoordinator {
             crossModelUsage: nil)
     }
 
+    private static func syncedStatusMessage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?,
+        error: String?,
+        rateWindows: [SyncRateWindow]) -> String?
+    {
+        if let error { return error }
+        if provider == .aiand, let providerCost {
+            let amount = String(format: "%.2f", providerCost.used)
+            let period = providerCost.period ?? "Last 30 days"
+            return "\(period) spend: \(providerCost.currencyCode) \(amount)"
+        }
+        guard provider == .copilot,
+              rateWindows.isEmpty,
+              let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !plan.isEmpty
+        else { return nil }
+        // Unlimited and token-billed Copilot plans intentionally have no metered windows. Keep a
+        // meaningful signal on the wire so QuotaKit's Mac/iOS ghost filters retain the provider.
+        return "Plan: \(plan)"
+    }
+
     static func syncBudgetSnapshot(
         provider: UsageProvider,
         providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
@@ -767,7 +783,7 @@ final class SyncCoordinator {
         // ZenMux and Neuralwatt report remaining balances through
         // ProviderCostSnapshot with a zero limit. Those are not used/limit
         // budgets and would render on iOS as the false statement "$balance / $0".
-        guard provider != .zenmux, provider != .neuralwatt else { return nil }
+        guard provider != .zenmux, provider != .neuralwatt, provider != .aiand else { return nil }
         return providerCost.map { pc in
             SyncBudgetSnapshot(
                 usedAmount: pc.used,
@@ -1490,7 +1506,7 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat, .neuralwatt:
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

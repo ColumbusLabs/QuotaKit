@@ -102,7 +102,7 @@ extension CodexBarCLI {
                        [--no-color] [--pretty] [--refresh] [--days <days>] [--group-by project]
 
         Description:
-          Print local token cost usage from Claude/Codex native logs plus supported pi sessions.
+          Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.
           This does not require web or CLI access and uses cached scan results unless --refresh is provided.
 
         Examples:
@@ -302,6 +302,69 @@ extension CodexBarCLI {
         """
     }
 
+    static func cookieHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit cookie refresh <--provider <name>|--all>
+                                 [--allow-keychain-prompt]
+                                 [--format text|json]
+                                 [--json]
+                                 [--json-only]
+                                 [--pretty]
+
+        Description:
+          Re-import browser cookies using each provider's configured browser order.
+          Providers that may decrypt Chromium cookies fail before clearing the cache
+          unless --allow-keychain-prompt explicitly acknowledges a possible macOS
+          Keychain prompt. A prior denial keeps its six-hour cooldown unless that
+          explicit interactive retry flag is supplied. Cookie values are never shown.
+
+        Examples:
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt
+          quotakit cookie refresh --all --allow-keychain-prompt
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt --format json --pretty
+        """
+    }
+
+    static func guardHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit guard --provider \(ProviderHelp.list)
+                        [--min-remaining <percent>] [--window session|weekly]
+                        [--timeout <seconds>] [--json] [--pretty] [--fail-open]
+                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
+
+        Description:
+          Exit non-zero when a provider lacks quota headroom, for use in gating scripts.
+          Stable guard exit codes: 0 = safe (relevant window has at least --min-remaining% remaining),
+                                   1 = insufficient quota, 64 = invalid arguments,
+                                   69 = quota unavailable or fetch timed out.
+          --min-remaining defaults to 10 (percent). --window defaults to session (the primary window);
+          weekly checks the secondary window. --timeout accepts 0...86400 and defaults to 60 seconds;
+          0 disables the guard-level deadline, but provider-specific timeouts still apply.
+          --fail-open exits 0 instead of 69 when quota is unavailable.
+          Human output is a single line to stdout; --json emits a machine-readable decision object.
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs (JSONL) to stderr
+
+        Examples:
+          quotakit guard --provider claude
+          quotakit guard --provider codex --min-remaining 20
+          quotakit guard --provider claude --window weekly --min-remaining 5
+          quotakit guard --provider claude --json
+          quotakit guard --provider codex --fail-open
+        """
+    }
+
     static func rootHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -342,7 +405,9 @@ extension CodexBarCLI {
           quotakit hooks <list|enable|disable> [--format text|json] [--pretty]
           quotakit hooks test <event> --provider <name>
           quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
+          quotakit cookie refresh <--provider <name>|--all> [--allow-keychain-prompt]
           quotakit diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
+          quotakit guard --provider <name> [--min-remaining <percent>] [--window session|weekly] [--json]
 
         Global flags:
           -h, --help      Show help
@@ -367,9 +432,11 @@ extension CodexBarCLI {
           quotakit config set-api-key --provider elevenlabs --stdin
           quotakit hooks test quota_reached --provider codex
           quotakit cache clear --cookies
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt
           quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
           quotakit diagnose --provider minimax --format json --pretty
           quotakit diagnose --provider all --format json
+          quotakit guard --provider claude --min-remaining 20
         """
     }
 }

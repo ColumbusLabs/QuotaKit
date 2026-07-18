@@ -2,32 +2,64 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-@Suite(.serialized)
-struct DisplayIntervalOverrideConcurrencyTests {
-    @Test(.enabled(if: ProcessInfo.processInfo.environment["CODEXBAR_TSAN_STRESS"] == "1"))
-    func `concurrent display-interval override writes and reads are race-free`() {
-        defer {
-            CookieHeaderCache.setDisplayStalenessIntervalOverrideForTesting(nil)
-            CookieHeaderCache.setDisplayUnavailableRetryIntervalOverrideForTesting(nil)
+private actor DisplayIntervalOverrideBarrier {
+    private var continuations: [CheckedContinuation<Void, Never>] = []
+
+    func wait() async {
+        await withCheckedContinuation { continuation in
+            self.continuations.append(continuation)
+            guard self.continuations.count == 2 else { return }
+
+            let continuations = self.continuations
+            self.continuations.removeAll()
+            continuations.forEach { $0.resume() }
         }
-        let iterations = 5000
-        let lanes = 4
-        let group = DispatchGroup()
-        let queue = DispatchQueue(label: "display-interval-override.concurrency", attributes: .concurrent)
-        for lane in 0..<lanes {
-            group.enter()
-            queue.async {
-                for i in 0..<iterations {
-                    if (lane + i) % 2 == 0 {
-                        CookieHeaderCache.setDisplayStalenessIntervalOverrideForTesting(TimeInterval(i))
-                        CookieHeaderCache.setDisplayUnavailableRetryIntervalOverrideForTesting(TimeInterval(i))
-                    } else {
-                        _ = CookieHeaderCache.displayIntervalsForTesting()
+    }
+}
+
+private struct ObservedDisplayIntervals: Hashable {
+    let staleness: TimeInterval
+    let unavailableRetry: TimeInterval
+}
+
+struct DisplayIntervalOverrideConcurrencyTests {
+    @Test
+    func `concurrent display interval override scopes remain isolated`() async {
+        let expected = [
+            ObservedDisplayIntervals(staleness: 0.1, unavailableRetry: 0.2),
+            ObservedDisplayIntervals(staleness: 0.3, unavailableRetry: 0.4),
+        ]
+        let barrier = DisplayIntervalOverrideBarrier()
+
+        let observed = await withTaskGroup(
+            of: ObservedDisplayIntervals.self,
+            returning: Set<ObservedDisplayIntervals>.self)
+        { group in
+            for intervals in expected {
+                group.addTask {
+                    await CookieHeaderCache.withDisplayStalenessIntervalOverrideForTesting(intervals.staleness) {
+                        await CookieHeaderCache.withDisplayUnavailableRetryIntervalOverrideForTesting(
+                            intervals.unavailableRetry)
+                        {
+                            await barrier.wait()
+                            return await Task {
+                                let current = CookieHeaderCache.displayIntervalsForTesting()
+                                return ObservedDisplayIntervals(
+                                    staleness: current.staleness,
+                                    unavailableRetry: current.unavailableRetry)
+                            }.value
+                        }
                     }
                 }
-                group.leave()
             }
+
+            var values: Set<ObservedDisplayIntervals> = []
+            for await value in group {
+                values.insert(value)
+            }
+            return values
         }
-        group.wait()
+
+        #expect(observed == Set(expected))
     }
 }

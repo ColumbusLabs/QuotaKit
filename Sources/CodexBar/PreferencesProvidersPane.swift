@@ -346,12 +346,10 @@ struct ProvidersPane: View {
     private func extraSettingsPickers(for provider: UsageProvider) -> [ProviderSettingsPickerDescriptor] {
         guard let impl = ProviderCatalog.implementation(for: provider) else { return [] }
         let context = self.makeSettingsContext(provider: provider)
-        let providerPickers = impl.settingsPickers(context: context)
+        // The token layout editor is the only text-style menu bar UI. Legacy metric keys remain persisted solely for
+        // migration and downgrade safety, so provider settings no longer append their former menu bar metric picker.
+        return impl.settingsPickers(context: context)
             .filter { $0.isVisible?() ?? true }
-        if let menuBarPicker = self.menuBarMetricPicker(for: provider) {
-            return [menuBarPicker] + providerPickers
-        }
-        return providerPickers
     }
 
     private func extraSettingsFields(for provider: UsageProvider) -> [ProviderSettingsFieldDescriptor] {
@@ -502,122 +500,6 @@ struct ProvidersPane: View {
             runLoginFlow: {
                 await self.runProviderLoginFlow(provider)
             })
-    }
-
-    func menuBarMetricPicker(for provider: UsageProvider) -> ProviderSettingsPickerDescriptor? {
-        let options: [ProviderSettingsPickerOption]
-        if provider == .openrouter {
-            options = [
-                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("automatic")),
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.primary.rawValue,
-                    title: L("primary_api_key_limit")),
-            ]
-        } else if provider == .mistral {
-            options = [
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.automatic.rawValue,
-                    title: L("metric_mistral_payg")),
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.monthlyPlan.rawValue,
-                    title: L("metric_mistral_monthly_plan")),
-            ]
-        } else if SettingsStore.isBalanceOnlyProvider(provider) {
-            options = [
-                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("Automatic")),
-            ]
-        } else if provider == .mimo {
-            let snapshot = self.store.snapshot(for: provider)
-            var metricOptions = [
-                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("automatic")),
-            ]
-            if snapshot?.primary != nil, snapshot?.mimoUsage != nil {
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.primary.rawValue,
-                    title: String(format: L("metric_primary"), L("Credits"))))
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.secondary.rawValue,
-                    title: String(format: L("metric_secondary"), L("Balance"))))
-            }
-            options = metricOptions
-        } else if provider == .abacus {
-            let metadata = self.store.metadata(for: provider)
-            options = [
-                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("automatic")),
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.primary.rawValue,
-                    title: String(format: L("metric_primary"), metadata.sessionLabel)),
-            ]
-        } else {
-            let metadata = self.store.metadata(for: provider)
-            let snapshot = self.store.snapshot(for: provider)
-            let supportsAverage = self.settings.menuBarMetricSupportsAverage(for: provider)
-            let supportsPrimaryAndSecondary = self.settings.menuBarMetricSupportsPrimaryAndSecondary(for: provider)
-            let supportsTertiary = self.settings.menuBarMetricSupportsTertiary(for: provider, snapshot: snapshot)
-            let supportsExtraUsage = self.settings.menuBarMetricSupportsExtraUsage(for: provider, snapshot: snapshot)
-            var metricOptions: [ProviderSettingsPickerOption] = [
-                ProviderSettingsPickerOption(id: MenuBarMetricPreference.automatic.rawValue, title: L("automatic")),
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.primary.rawValue,
-                    title: String(format: L("metric_primary"), metadata.sessionLabel)),
-                ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.secondary.rawValue,
-                    title: String(format: L("metric_secondary"), metadata.weeklyLabel)),
-            ]
-            if supportsPrimaryAndSecondary {
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.primaryAndSecondary.rawValue,
-                    title: "\(L(metadata.sessionLabel)) + \(L(metadata.weeklyLabel))"))
-            }
-            if supportsTertiary {
-                let tertiaryTitle = metadata.opusLabel ?? MenuBarMetricPreference.tertiary.label
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.tertiary.rawValue,
-                    title: String(format: L("metric_tertiary"), tertiaryTitle)))
-            }
-            if supportsExtraUsage {
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.extraUsage.rawValue,
-                    title: MenuBarMetricPreference.extraUsage.label))
-            }
-            if supportsAverage {
-                metricOptions.append(ProviderSettingsPickerOption(
-                    id: MenuBarMetricPreference.average.rawValue,
-                    title: String(format: L("metric_average"), metadata.sessionLabel, metadata.weeklyLabel)))
-            }
-            options = metricOptions
-        }
-        return ProviderSettingsPickerDescriptor(
-            id: "menuBarMetric",
-            title: L("menu_bar_metric_title"),
-            subtitle: Self.menuBarMetricPickerSubtitle(for: provider),
-            placement: .menuBar,
-            binding: Binding(
-                get: {
-                    self.settings
-                        .menuBarMetricPreference(for: provider, snapshot: self.store.snapshot(for: provider))
-                        .rawValue
-                },
-                set: { rawValue in
-                    guard let preference = MenuBarMetricPreference(rawValue: rawValue) else { return }
-                    self.settings.setMenuBarMetricPreference(preference, for: provider)
-                }),
-            options: options,
-            isVisible: { true },
-            onChange: nil)
-    }
-
-    private static func menuBarMetricPickerSubtitle(for provider: UsageProvider) -> String {
-        switch provider {
-        case .deepseek:
-            L("menu_bar_metric_subtitle_deepseek")
-        case .moonshot:
-            L("menu_bar_metric_subtitle_moonshot")
-        case .mistral:
-            L("menu_bar_metric_subtitle_mistral")
-        default:
-            L("menu_bar_metric_subtitle")
-        }
     }
 
     func menuCardModel(for provider: UsageProvider) -> UsageMenuCardView.Model {

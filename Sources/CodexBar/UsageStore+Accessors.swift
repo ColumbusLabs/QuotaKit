@@ -153,6 +153,8 @@ extension UsageStore {
             return ElevenLabsUsageError.missingCredentials.errorDescription
         case .deepseek:
             return DeepSeekUsageError.missingCredentials.errorDescription
+        case .deepinfra:
+            return DeepInfraUsageError.missingCredentials.errorDescription
         case .perplexity:
             return PerplexityAPIError.missingToken.errorDescription
         case .minimax:

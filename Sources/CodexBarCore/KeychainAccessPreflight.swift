@@ -100,14 +100,9 @@ public enum KeychainAccessPreflight {
     }
 
     @TaskLocal private static var taskCheckGenericPasswordOverrideStore: CheckGenericPasswordOverrideStore?
-    private nonisolated(unsafe) static var checkGenericPasswordOverride: ((String, String?) -> Outcome)?
-
-    static func setCheckGenericPasswordOverrideForTesting(_ override: ((String, String?) -> Outcome)?) {
-        self.checkGenericPasswordOverride = override
-    }
 
     static var hasCheckGenericPasswordOverrideForTesting: Bool {
-        self.taskCheckGenericPasswordOverrideStore != nil || self.checkGenericPasswordOverride != nil
+        self.taskCheckGenericPasswordOverrideStore != nil
     }
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
@@ -139,9 +134,6 @@ public enum KeychainAccessPreflight {
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
             return override.check(service, account)
-        }
-        if let override = self.checkGenericPasswordOverride {
-            return override(service, account)
         }
         #endif
         guard !KeychainAccessGate.isDisabled else { return .notFound }

@@ -18,7 +18,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
     @Test
-    func `Total count is 55 including Neuralwatt`() {
+    func `Total count is 56 including DeepInfra`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -28,15 +28,17 @@ struct QuotaProviderListTests {
         // alibabatokenplan, t3chat) →
         // 49 in iOS 1.10.0 (Sakana AI from upstream v0.36.x) →
         // 50 after Qoder, 51 after Sub2API, 52 after ZenMux, 54 after
-        // ClinePass and LongCat, and 55 after Neuralwatt.
+        // ClinePass and LongCat, 55 after Neuralwatt, and 56 after DeepInfra.
+        // ai& is spend-only and has no quota transitions, so it intentionally
+        // does not consume three CloudKit quota-zone subscriptions.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 55)
+        #expect(QuotaProviderList.providers.count == 56)
     }
 
     @Test
-    func `Subscription zone count is 165 (55 providers × 3 states)`() {
+    func `Subscription zone count is 168 (56 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -48,10 +50,11 @@ struct QuotaProviderListTests {
         // Qoder/Sub2API/ZenMux catch-up: 52 × 3 = 156 zones.
         // ClinePass/LongCat catch-up: 54 × 3 = 162 zones.
         // Neuralwatt catch-up: 55 × 3 = 165 zones.
+        // DeepInfra catch-up: 56 × 3 = 168 zones.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 165)
+        #expect(QuotaProviderList.providers.count * 3 == 168)
     }
 
     @Test
@@ -127,7 +130,7 @@ struct QuotaProviderListTests {
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
     @Test
-    func `Cause: new providers through Neuralwatt are appended at the tail`() {
+    func `Cause: new providers through DeepInfra are appended at the tail`() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
         // IDs stay stable across upgrades. Pin the recent tail so a careless
@@ -139,12 +142,13 @@ struct QuotaProviderListTests {
         //  - Qoder catch-up appended Qoder (position [49]).
         //  - Sub2API catch-up appended Sub2API (position [50]).
         //  - ZenMux, ClinePass, and LongCat occupy positions [51...53].
-        let tail = providers.suffix(15).map(\.id)
+        //  - DeepInfra occupies position [55].
+        let tail = providers.suffix(16).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api", "zenmux",
-            "clinepass", "longcat", "neuralwatt",
-        ], "provider catch-up additions through Neuralwatt must stay at the tail in this order")
+            "clinepass", "longcat", "neuralwatt", "deepinfra",
+        ], "provider catch-up additions through DeepInfra must stay at the tail in this order")
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -243,9 +247,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 55/165 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 55)
-        #expect(QuotaProviderList.providers.count * 3 == 165)
+    func `Cause: catalog 56/168 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 56)
+        #expect(QuotaProviderList.providers.count * 3 == 168)
     }
 
     @Test
@@ -273,6 +277,14 @@ struct QuotaProviderListTests {
         #expect(clinePass?.displayName == "ClinePass")
         #expect(longCat?.displayName == "LongCat")
         #expect(neuralwatt?.displayName == "Neuralwatt")
+    }
+
+    @Test
+    func `DeepInfra is present and spend-only ai& has no quota subscription`() {
+        let deepInfra = QuotaProviderList.providers.first(where: { $0.id == "deepinfra" })
+        let aiAnd = QuotaProviderList.providers.first(where: { $0.id == "aiand" })
+        #expect(deepInfra?.displayName == "DeepInfra")
+        #expect(aiAnd == nil)
     }
 
     /// Cause-oriented: iOS 1.7.0 specifically adds Moonshot + Bedrock.

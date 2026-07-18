@@ -75,6 +75,19 @@ struct MenuPane: View {
                         subtitle: L("agent_sessions_subtitle"))
                 }
 
+                SettingsMenuPicker(
+                    selection: self.$settings.agentSessionLabelStyle,
+                    options: MenuSettingsMenuOptions.agentSessionLabelStyles,
+                    label: {
+                        SettingsRowLabel(
+                            L("agent_session_labels_title"),
+                            subtitle: L("agent_session_labels_subtitle"))
+                    },
+                    optionLabel: { style in
+                        Text(style.label)
+                    })
+                    .disabled(!self.settings.agentSessionsEnabled)
+
                 TextField(L("agent_sessions_hosts_title"), text: self.$settings.agentSessionsManualHosts)
                     .disabled(!self.settings.agentSessionsEnabled)
             } header: {

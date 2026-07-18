@@ -307,6 +307,19 @@ cat > "$APP/Contents/Info.plist" <<PLIST
     <key>CodexBuildTimestamp</key><string>${BUILD_TIMESTAMP}</string>
     <key>CodexGitCommit</key><string>${GIT_COMMIT}</string>
     <key>CodexBarTeamID</key><string>${APP_TEAM_ID}</string>
+    <key>UTExportedTypeDeclarations</key>
+    <array>
+        <dict>
+            <key>UTTypeIdentifier</key><string>com.columbuslabs.quotakit.menu-layout-item</string>
+            <key>UTTypeDescription</key><string>QuotaKit menu bar layout token</string>
+            <key>UTTypeConformsTo</key>
+            <array>
+                <string>public.data</string>
+            </array>
+            <key>UTTypeTagSpecification</key>
+            <dict/>
+        </dict>
+    </array>
 </dict>
 </plist>
 PLIST

@@ -459,7 +459,7 @@
 "cost_history_window_title" = "Verlaufsfenster";
 "cost_history_window_help" = "Legt fest, wie viele Tage lokaler Nutzungsprotokolle im Menü erscheinen.";
 "cost_history_days_title" = "Verlaufsfenster: %d Tage";
-"cost_auto_refresh_info" = "Auto-Aktualisierung: stündlich · Timeout: 10 Min.";
+"cost_auto_refresh_info" = "Auto-Aktualisierung: globales Intervall (mindestens 5 Min.) · Timeout: 10 Min.";
 "cost_comparison_periods_title" = "Kürzere Vergleichszeiträume anzeigen";
 "cost_comparison_periods_subtitle" = "Fügt Summen für 7, 30 und 90 Tage hinzu, wenn sie in den ausgewählten Verlaufszeitraum passen. Diese Summen verwenden denselben lokalen Scan.";
 "refresh_interval_title" = "Aktualisierungsintervall";
@@ -597,6 +597,12 @@
 "agent_sessions_subtitle" = "Lokale und über SSH erkannte Codex- und Claude-Code-Sitzungen im Menü anzeigen.";
 "agent_sessions_hosts_title" = "Zusätzliche SSH-Hosts";
 "agent_sessions_footer" = "Macs in deinem Tailnet werden automatisch erkannt. Lokale Sitzungen werden alle 30 Sekunden aktualisiert; Remote-Hosts alle 60 Sekunden und beim Öffnen des Menüs.";
+"agent_session_labels_title" = "Sitzungsbezeichnungen";
+"agent_session_labels_subtitle" = "Wähle aus, wie Agenten-Sitzungen benannt werden.";
+"agent_session_label_project" = "Projekt";
+"agent_session_label_descriptive" = "Beschreibend";
+"agent_session_label_descriptive_and_project" = "Beschreibend + Projekt";
+"agent_session_unknown_project" = "Unbekanntes Projekt";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Tastenkombination";
@@ -728,6 +734,11 @@
 "refresh_15min" = "15 Min";
 "refresh_30min" = "30 Min";
 "refresh_adaptive" = "Adaptiv";
+"refresh_adaptive_agent_aware" = "Adaptiv (Agentenaktivität)";
+"adaptive_activity_consent_title" = "Aktivitätsabhängige Aktualisierung erlauben?";
+"adaptive_activity_consent_message" = "Der Modus „Adaptiv (Agentenaktivität)“ kann die Liste der lokal laufenden Prozesse einschließlich ihrer Befehlszeilen prüfen, um Codex und Claude zu erkennen, und anschließend beim Programmieren alle 30 Sekunden bekannte Sitzungsmetadaten lesen. Wenn Agent Sessions deaktiviert ist, verwendet QuotaKit nur den Zeitpunkt der letzten Aktivität im Arbeitsspeicher und verwirft Sitzungspfade und Identitäten. Diese Aktivitätsdaten werden nirgendwohin gesendet; Remote-Erkennung und SSH bleiben deaktiviert. Bei Ablehnung kehrt QuotaKit ohne lokale Aktivitätsscans zum normalen adaptiven Modus zurück.";
+"adaptive_activity_consent_allow" = "Lokale Aktivität erlauben";
+"adaptive_activity_consent_decline" = "Normales Adaptiv verwenden";
 
 /* Additional keys */
 "not_found" = "Nicht gefunden";
@@ -1260,3 +1271,76 @@
 "By subscription" = "Nach Abonnement";
 "No model-level history" = "Kein Verlauf auf Modellebene";
 "Daily estimated spend" = "Geschätzte tägliche Ausgaben";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d volle 5-Std.-Fenster des Wochenlimits übrig · %d Fenster bis zum Reset";
+"Weekly cannot run out before reset at this pace" = "Das Wochenlimit kann bei diesem Tempo nicht vor dem Reset aufgebraucht sein";
+"Weekly can run out ≈%d windows early" = "Das Wochenlimit kann ≈%d Fenster früher aufgebraucht sein";
+"Estimated: %@" = "Geschätzt: %@";
+"Coding Plan" = "Coding-Plan";
+"Agent Plan" = "Agentenplan";
+"Team" = "Team";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Layout";
+"menu_bar_layout_footer" = "Ziehe Bausteine, um die Menüleiste anzuordnen. Klicke einen Baustein zum Anhängen an; wähle einen platzierten Baustein und drücke die Löschtaste, um ihn zu entfernen.";
+"menu_bar_layout_group_identity" = "Identität";
+"menu_bar_layout_group_usage" = "Verwendung";
+"menu_bar_layout_group_time" = "Zeit";
+"menu_bar_layout_group_money" = "Kosten";
+"menu_bar_layout_group_structure" = "Struktur";
+"menu_bar_layout_scope_all" = "Alle Anbieter";
+"menu_bar_layout_scope_help" = "Bearbeite das Standardlayout oder überschreibe einen Anbieter.";
+"menu_bar_layout_use_all" = "Layout für alle Anbieter verwenden";
+"menu_bar_layout_preset" = "Layoutvorlage";
+"menu_bar_layout_preset_icon_percent" = "Symbol und Prozent";
+"menu_bar_layout_preset_icon_only" = "Nur Symbol";
+"menu_bar_layout_preset_percent_reset" = "Prozent und Zurücksetzung";
+"menu_bar_layout_preset_compact_stacked" = "Kompakt gestapelt";
+"menu_bar_layout_preset_custom" = "Benutzerdefiniert";
+"menu_bar_layout_live_preview" = "Live-Vorschau";
+"menu_bar_layout_strip" = "Menüleistenstreifen";
+"menu_bar_layout_remove_line_break" = "Zeilenumbruch entfernen";
+"menu_bar_layout_chip_hint" = "Auswählen, zum Sortieren ziehen oder die Entfernen-Aktion verwenden.";
+"menu_bar_layout_palette_hint" = "Zum Anhängen klicken oder in das Layout ziehen.";
+"menu_bar_layout_empty_line" = "Baustein hier ablegen";
+"menu_bar_layout_line" = "Zeile %d";
+"menu_bar_layout_drag_remove" = "Zum Entfernen hierher ziehen";
+"menu_bar_layout_size" = "Größe";
+"menu_bar_layout_size_small" = "Klein";
+"menu_bar_layout_size_regular" = "Normal";
+"menu_bar_layout_gap" = "Abstand";
+"menu_bar_layout_gap_tight" = "Eng";
+"menu_bar_layout_gap_regular" = "Normal";
+"menu_bar_layout_keyboard_hint" = "Die Löschtaste entfernt den ausgewählten Baustein";
+"menu_bar_layout_sample_account" = "Konto";
+"menu_bar_layout_sample_runs_out" = "reicht bis Fr.";
+"menu_bar_layout_token_icon" = "Symbol";
+"menu_bar_layout_token_provider" = "Anbietername";
+"menu_bar_layout_token_account" = "Konto";
+"menu_bar_layout_token_session" = "Sitzung %";
+"menu_bar_layout_token_weekly" = "Wöchentlich %";
+"menu_bar_layout_token_auto" = "Automatisch %";
+"menu_bar_layout_token_bar" = "Nutzungsleiste";
+"menu_bar_layout_token_resets_in" = "Zurücksetzung in";
+"menu_bar_layout_token_reset_at" = "Zurücksetzung um";
+"menu_bar_layout_token_runs_out" = "Reicht bis";
+"menu_bar_layout_token_cost_today" = "Kosten heute";
+"menu_bar_layout_token_cost_30d" = "Kosten 30 Tage";
+"menu_bar_layout_token_space" = "Leerraum";
+"menu_bar_layout_token_line_break" = "Zeilenumbruch";
+"menu_bar_layout_token_separator_accessibility" = "Trennpunkt";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Symbol: Nicht verfügbar";
+"%@ icon" = "%@: Symbol";
+"Provider name unavailable" = "Anbietername: Nicht verfügbar";
+"Account unavailable" = "Konto: Nicht verfügbar";
+"%@ unavailable" = "%@: Nicht verfügbar";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Nutzungsleiste: Nicht verfügbar";
+"Usage bar, %d of 3 filled" = "Nutzungsleiste: %d/3 gefüllt";
+"Reset countdown unavailable" = "Zurücksetzung in: Nicht verfügbar";
+"Reset time unavailable" = "Zurücksetzung um: Nicht verfügbar";
+"Run-out estimate unavailable" = "Reicht bis: Nicht verfügbar";
+"Cost today unavailable" = "Kosten heute: Nicht verfügbar";
+"30-day cost unavailable" = "Kosten 30 Tage: Nicht verfügbar";
+"Resets" = "Zurücksetzungen";

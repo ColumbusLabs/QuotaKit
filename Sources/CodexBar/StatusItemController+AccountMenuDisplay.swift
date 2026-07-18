@@ -83,7 +83,10 @@ extension StatusItemController {
             snapshotOverride: accountSnapshot.snapshot,
             errorOverride: accountSnapshot.error,
             forceOverrideCard: true,
-            accountOverride: AccountInfo(email: label.isEmpty ? nil : label, plan: nil))
+            accountOverride: AccountInfo(email: label.isEmpty ? nil : label, plan: nil),
+            historySelectionOverride: self.store.planUtilizationHistorySelection(
+                for: provider,
+                account: accountSnapshot.account))
     }
 
     func codexAccountMenuDisplay(for provider: UsageProvider) -> CodexAccountMenuDisplay? {

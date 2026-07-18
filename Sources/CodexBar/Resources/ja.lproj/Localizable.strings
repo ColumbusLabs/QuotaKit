@@ -458,7 +458,7 @@
 "cost_history_window_title" = "履歴期間";
 "cost_history_window_help" = "メニューに表示するローカル使用ログの日数を設定します。";
 "cost_history_days_title" = "履歴期間: %d 日";
-"cost_auto_refresh_info" = "自動更新: 1 時間ごと · タイムアウト: 10 分";
+"cost_auto_refresh_info" = "自動更新: グローバル間隔（最短 5 分）· タイムアウト: 10 分";
 "cost_comparison_periods_title" = "短い比較期間を表示";
 "cost_comparison_periods_subtitle" = "選択した履歴期間に収まる場合、7日、30日、90日の合計を追加します。これらの合計には同じローカルスキャンを再利用します。";
 "refresh_interval_title" = "更新間隔";
@@ -596,6 +596,12 @@
 "agent_sessions_subtitle" = "ローカルおよび SSH で検出された Codex と Claude Code のセッションをメニューに表示します。";
 "agent_sessions_hosts_title" = "追加の SSH ホスト";
 "agent_sessions_footer" = "tailnet 上の Mac は自動的に検出されます。ローカルセッションは 30 秒ごと、リモートホストは 60 秒ごと、およびメニューを開いたときに更新されます。";
+"agent_session_labels_title" = "セッションラベル";
+"agent_session_labels_subtitle" = "エージェントセッションの名前の付け方を選択します。";
+"agent_session_label_project" = "プロジェクト";
+"agent_session_label_descriptive" = "説明";
+"agent_session_label_descriptive_and_project" = "説明 + プロジェクト";
+"agent_session_unknown_project" = "不明なプロジェクト";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "キーボードショートカット";
@@ -727,6 +733,11 @@
 "refresh_15min" = "15分";
 "refresh_30min" = "30分";
 "refresh_adaptive" = "アダプティブ";
+"refresh_adaptive_agent_aware" = "アダプティブ（エージェント対応）";
+"adaptive_activity_consent_title" = "アクティビティ対応の更新を許可しますか？";
+"adaptive_activity_consent_message" = "エージェント対応のアダプティブ更新では、Codex と Claude を識別するために、コマンドラインを含むローカルの実行中プロセス一覧を調べ、コーディング中は既知のセッションメタデータを 30 秒ごとに読み取ることができます。Agent Sessions がオフの場合、QuotaKit は最新のアクティビティ時刻だけをメモリで使用し、セッションのパスと識別情報を破棄します。このデータが外部に送信されることはなく、リモート検出と SSH はオフのままです。許可しない場合は、ローカルスキャンを行わない通常のアダプティブに戻ります。";
+"adaptive_activity_consent_allow" = "ローカルアクティビティを許可";
+"adaptive_activity_consent_decline" = "通常のアダプティブを使用";
 
 /* Additional keys */
 "not_found" = "見つかりません";
@@ -1260,3 +1271,76 @@
 "By subscription" = "サブスクリプション別";
 "No model-level history" = "モデル別の履歴はありません";
 "Daily estimated spend" = "日別推定支出";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "週間枠は約%d回分の完全な5時間ウィンドウ · リセットまで%d回";
+"Weekly cannot run out before reset at this pace" = "このペースではリセット前に週間枠を使い切れません";
+"Weekly can run out ≈%d windows early" = "週間枠は約%dウィンドウ早く使い切る可能性があります";
+"Estimated: %@" = "推定：%@";
+"Coding Plan" = "コーディングプラン";
+"Agent Plan" = "エージェントプラン";
+"Team" = "チーム";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "レイアウト";
+"menu_bar_layout_footer" = "トークンをドラッグしてメニューバーを並べます。クリックすると追加でき、配置済みのトークンを選択して Delete キーを押すと削除できます。";
+"menu_bar_layout_group_identity" = "識別情報";
+"menu_bar_layout_group_usage" = "使用量";
+"menu_bar_layout_group_time" = "時間";
+"menu_bar_layout_group_money" = "コスト";
+"menu_bar_layout_group_structure" = "構造";
+"menu_bar_layout_scope_all" = "すべてのプロバイダー";
+"menu_bar_layout_scope_help" = "既定のレイアウトを編集するか、プロバイダーごとに上書きします。";
+"menu_bar_layout_use_all" = "全プロバイダーのレイアウトを使用";
+"menu_bar_layout_preset" = "レイアウトプリセット";
+"menu_bar_layout_preset_icon_percent" = "アイコンと割合";
+"menu_bar_layout_preset_icon_only" = "アイコンのみ";
+"menu_bar_layout_preset_percent_reset" = "割合とリセット";
+"menu_bar_layout_preset_compact_stacked" = "コンパクトな2段表示";
+"menu_bar_layout_preset_custom" = "カスタム";
+"menu_bar_layout_live_preview" = "ライブプレビュー";
+"menu_bar_layout_strip" = "メニューバー表示";
+"menu_bar_layout_remove_line_break" = "改行を削除";
+"menu_bar_layout_chip_hint" = "選択、ドラッグで並べ替え、または削除アクションを使用します。";
+"menu_bar_layout_palette_hint" = "クリックで追加するか、レイアウトへドラッグします。";
+"menu_bar_layout_empty_line" = "ここにトークンをドロップ";
+"menu_bar_layout_line" = "%d 行目";
+"menu_bar_layout_drag_remove" = "ここへドラッグして削除";
+"menu_bar_layout_size" = "サイズ";
+"menu_bar_layout_size_small" = "小";
+"menu_bar_layout_size_regular" = "標準";
+"menu_bar_layout_gap" = "間隔";
+"menu_bar_layout_gap_tight" = "狭い";
+"menu_bar_layout_gap_regular" = "標準";
+"menu_bar_layout_keyboard_hint" = "Delete キーで選択したトークンを削除";
+"menu_bar_layout_sample_account" = "アカウント";
+"menu_bar_layout_sample_runs_out" = "金曜に使い切る";
+"menu_bar_layout_token_icon" = "アイコン";
+"menu_bar_layout_token_provider" = "プロバイダー名";
+"menu_bar_layout_token_account" = "アカウント";
+"menu_bar_layout_token_session" = "セッション %";
+"menu_bar_layout_token_weekly" = "週間 %";
+"menu_bar_layout_token_auto" = "自動 %";
+"menu_bar_layout_token_bar" = "使用量バー";
+"menu_bar_layout_token_resets_in" = "リセットまで";
+"menu_bar_layout_token_reset_at" = "リセット時刻";
+"menu_bar_layout_token_runs_out" = "使い切り";
+"menu_bar_layout_token_cost_today" = "今日のコスト";
+"menu_bar_layout_token_cost_30d" = "30日間のコスト";
+"menu_bar_layout_token_space" = "空白";
+"menu_bar_layout_token_line_break" = "改行";
+"menu_bar_layout_token_separator_accessibility" = "区切り点";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "アイコン: 利用不可";
+"%@ icon" = "%@: アイコン";
+"Provider name unavailable" = "プロバイダー名: 利用不可";
+"Account unavailable" = "アカウント: 利用不可";
+"%@ unavailable" = "%@: 利用不可";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "使用量バー: 利用不可";
+"Usage bar, %d of 3 filled" = "使用量バー: %d/3 点灯";
+"Reset countdown unavailable" = "リセットまで: 利用不可";
+"Reset time unavailable" = "リセット時刻: 利用不可";
+"Run-out estimate unavailable" = "使い切り: 利用不可";
+"Cost today unavailable" = "今日のコスト: 利用不可";
+"30-day cost unavailable" = "30日間のコスト: 利用不可";
+"Resets" = "リセット";

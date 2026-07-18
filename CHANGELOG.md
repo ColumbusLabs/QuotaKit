@@ -7,6 +7,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.13 / iOS 1.11.3 — Unreleased
 
+### Added
+- Menu bar: add customizable drag-and-drop token layouts and weekly session-equivalent forecasting.
+- Providers: add DeepInfra usage and balance, ai& spend, OpenRouter token accounts, DeepSeek cost summaries, and broader Doubao arkcli support.
+- CLI: add safe cookie re-import and quota-aware guard commands under the QuotaKit command name.
+
+### Changed
+- Synced upstream CodexBar changes through `2ccb45256`, including adaptive-refresh consent and CPU budgets, hardened cookie-refresh transactions, Claude resilience, agent-session metadata, Linux process capture, and provider runtime fixes while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
+
 ## 0.32.4.12 / iOS 1.11.3 — 2026-07-17
 
 ### Added

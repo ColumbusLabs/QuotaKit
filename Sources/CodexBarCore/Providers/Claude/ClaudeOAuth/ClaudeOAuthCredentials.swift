@@ -126,7 +126,6 @@ public enum ClaudeOAuthCredentialsStore {
         }
     }
 
-    private nonisolated(unsafe) static var credentialsURLOverride: URL?
     #if DEBUG
     @TaskLocal private static var taskCredentialsURLOverride: URL?
     #endif
@@ -1560,7 +1559,7 @@ public enum ClaudeOAuthCredentialsStore {
                 data: overrideData,
                 persistentRefHash: overrideFingerprint?.persistentRefHash).map { .value($0) } ?? .unavailable
         }
-        if self.taskSecurityCLIReadOverride != nil || self.securityCLIReadOverride != nil {
+        if self.taskSecurityCLIReadOverride != nil {
             // A security(1) result cannot be bound to a persistent reference without an exact candidate read.
             return .unavailable
         }
@@ -2311,10 +2310,6 @@ public enum ClaudeOAuthCredentialsStore {
             rateLimitTier: nil)
     }
 
-    static func setCredentialsURLOverrideForTesting(_ url: URL?) {
-        self.credentialsURLOverride = url
-    }
-
     #if DEBUG
     public static func withCredentialsURLOverrideForTesting<T>(_ url: URL?, operation: () throws -> T) rethrows -> T {
         try self.$taskCredentialsURLOverride.withValue(url) {
@@ -2529,7 +2524,7 @@ public enum ClaudeOAuthCredentialsStore {
             return override
         }
         #endif
-        return self.credentialsURLOverride ?? self.defaultCredentialsURL()
+        return self.defaultCredentialsURL()
     }
 
     private static func loadFileFingerprint() -> CredentialsFileFingerprint? {

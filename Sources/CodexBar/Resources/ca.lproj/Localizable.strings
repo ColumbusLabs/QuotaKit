@@ -444,7 +444,7 @@
 "cost_history_window_title" = "Finestra d'historial";
 "cost_history_window_help" = "Defineix quants dies de registres d'ús locals apareixen al menú.";
 "cost_history_days_title" = "Finestra d'historial: %d dies";
-"cost_auto_refresh_info" = "Actualització automàtica: cada hora · Temps d'espera: 10 min";
+"cost_auto_refresh_info" = "Actualització automàtica: interval global (mínim 5 min) · Temps d'espera: 10 min";
 "cost_comparison_periods_title" = "Mostra períodes de comparació més curts";
 "cost_comparison_periods_subtitle" = "Afegeix totals de 7, 30 i 90 dies quan càpiguen dins l'interval d'historial seleccionat. Aquests totals reutilitzen la mateixa exploració local.";
 "refresh_interval_title" = "Interval d'actualització";
@@ -583,6 +583,12 @@
 "agent_sessions_subtitle" = "Mostreu al menú les sessions locals i descobertes per SSH de Codex i Claude Code.";
 "agent_sessions_hosts_title" = "Amfitrions SSH addicionals";
 "agent_sessions_footer" = "Els Mac de la vostra tailnet es descobreixen automàticament. Les sessions locals s'actualitzen cada 30 segons; els amfitrions remots, cada 60 segons i quan s'obre el menú.";
+"agent_session_labels_title" = "Etiquetes de sessió";
+"agent_session_labels_subtitle" = "Trieu com s'anomenen les sessions d'agents.";
+"agent_session_label_project" = "Projecte";
+"agent_session_label_descriptive" = "Descriptiva";
+"agent_session_label_descriptive_and_project" = "Descriptiva + projecte";
+"agent_session_unknown_project" = "Projecte desconegut";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Drecera de teclat";
@@ -714,6 +720,11 @@
 "refresh_15min" = "15 min";
 "refresh_30min" = "30 min";
 "refresh_adaptive" = "Adaptatiu";
+"refresh_adaptive_agent_aware" = "Adaptatiu (activitat dels agents)";
+"adaptive_activity_consent_title" = "Voleu permetre l’actualització segons l’activitat?";
+"adaptive_activity_consent_message" = "El mode Adaptatiu segons l’activitat dels agents pot inspeccionar la llista de processos locals en execució, incloses les línies d’ordres, per identificar Codex i Claude, i llegir les metadades de sessions conegudes cada 30 segons mentre programeu. Amb Agent Sessions desactivat, QuotaKit només conserva a la memòria l’hora de l’activitat més recent i descarta les rutes i identitats de les sessions. Aquestes dades no s’envien enlloc, i la detecció remota i SSH continuen desactivats. Si ho rebutgeu, QuotaKit tornarà al mode Adaptatiu normal sense exploracions d’activitat local.";
+"adaptive_activity_consent_allow" = "Permeteu l’activitat local";
+"adaptive_activity_consent_decline" = "Utilitzeu l’Adaptatiu normal";
 
 /* Additional keys */
 "not_found" = "No trobat";
@@ -1262,3 +1273,76 @@
 "By subscription" = "Per subscripció";
 "No model-level history" = "Sense historial per model";
 "Daily estimated spend" = "Despesa diària estimada";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d finestres completes de 5 h de quota setmanal · %d finestres fins al reinici";
+"Weekly cannot run out before reset at this pace" = "La quota setmanal no es pot esgotar abans del reinici a aquest ritme";
+"Weekly can run out ≈%d windows early" = "La quota setmanal es pot esgotar ≈%d finestres abans";
+"Estimated: %@" = "Estimació: %@";
+"Coding Plan" = "Pla de programació";
+"Agent Plan" = "Pla d'agent";
+"Team" = "Equip";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Disposició";
+"menu_bar_layout_footer" = "Arrossega les fitxes per ordenar la barra de menús. Fes clic en una fitxa per afegir-la; selecciona una fitxa col·locada i prem Suprimir per eliminar-la.";
+"menu_bar_layout_group_identity" = "Identitat";
+"menu_bar_layout_group_usage" = "Ús";
+"menu_bar_layout_group_time" = "Temps";
+"menu_bar_layout_group_money" = "Cost";
+"menu_bar_layout_group_structure" = "Estructura";
+"menu_bar_layout_scope_all" = "Tots els proveïdors";
+"menu_bar_layout_scope_help" = "Edita la disposició predeterminada o substitueix-la per a un proveïdor.";
+"menu_bar_layout_use_all" = "Usa la disposició de tots els proveïdors";
+"menu_bar_layout_preset" = "Predefinit de disposició";
+"menu_bar_layout_preset_icon_percent" = "Icona i percentatge";
+"menu_bar_layout_preset_icon_only" = "Només icona";
+"menu_bar_layout_preset_percent_reset" = "Percentatge i reinici";
+"menu_bar_layout_preset_compact_stacked" = "Apilat compacte";
+"menu_bar_layout_preset_custom" = "Personalitzat";
+"menu_bar_layout_live_preview" = "Previsualització en directe";
+"menu_bar_layout_strip" = "Franja de la barra de menús";
+"menu_bar_layout_remove_line_break" = "Elimina el salt de línia";
+"menu_bar_layout_chip_hint" = "Selecciona, arrossega per reordenar o usa l’acció Elimina.";
+"menu_bar_layout_palette_hint" = "Fes clic per afegir o arrossega a la disposició.";
+"menu_bar_layout_empty_line" = "Deixa una fitxa aquí";
+"menu_bar_layout_line" = "Línia %d";
+"menu_bar_layout_drag_remove" = "Arrossega aquí per eliminar";
+"menu_bar_layout_size" = "Mida";
+"menu_bar_layout_size_small" = "Petita";
+"menu_bar_layout_size_regular" = "Normal";
+"menu_bar_layout_gap" = "Espaiat";
+"menu_bar_layout_gap_tight" = "Estret";
+"menu_bar_layout_gap_regular" = "Normal";
+"menu_bar_layout_keyboard_hint" = "Suprimir elimina la fitxa seleccionada";
+"menu_bar_layout_sample_account" = "compte";
+"menu_bar_layout_sample_runs_out" = "s’esgota div.";
+"menu_bar_layout_token_icon" = "Icona";
+"menu_bar_layout_token_provider" = "Nom del proveïdor";
+"menu_bar_layout_token_account" = "Compte";
+"menu_bar_layout_token_session" = "Sessió %";
+"menu_bar_layout_token_weekly" = "Setmanal %";
+"menu_bar_layout_token_auto" = "% automàtic";
+"menu_bar_layout_token_bar" = "Barra d’ús";
+"menu_bar_layout_token_resets_in" = "Es reinicia d’aquí a";
+"menu_bar_layout_token_reset_at" = "Reinici a";
+"menu_bar_layout_token_runs_out" = "S’esgota";
+"menu_bar_layout_token_cost_today" = "Cost d’avui";
+"menu_bar_layout_token_cost_30d" = "Cost de 30 dies";
+"menu_bar_layout_token_space" = "Espai";
+"menu_bar_layout_token_line_break" = "Salt de línia";
+"menu_bar_layout_token_separator_accessibility" = "Punt separador";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Icona: No disponible";
+"%@ icon" = "%@: Icona";
+"Provider name unavailable" = "Nom del proveïdor: No disponible";
+"Account unavailable" = "Compte: No disponible";
+"%@ unavailable" = "%@: No disponible";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Barra d’ús: No disponible";
+"Usage bar, %d of 3 filled" = "Barra d’ús: %d/3 plens";
+"Reset countdown unavailable" = "Es reinicia d’aquí a: No disponible";
+"Reset time unavailable" = "Reinici a: No disponible";
+"Run-out estimate unavailable" = "S’esgota: No disponible";
+"Cost today unavailable" = "Cost d’avui: No disponible";
+"30-day cost unavailable" = "Cost de 30 dies: No disponible";
+"Resets" = "Reinicis";

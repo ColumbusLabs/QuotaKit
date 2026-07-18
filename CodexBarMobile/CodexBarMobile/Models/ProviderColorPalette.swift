@@ -123,6 +123,7 @@ enum ProviderColorPalette {
             (["abacus", "abacusai"], RawColor(red: 56 / 255, green: 189 / 255, blue: 248 / 255)),
             (["mistral"], RawColor(red: 255 / 255, green: 80 / 255, blue: 15 / 255)),
             (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
+            (["deepinfra"], RawColor(red: 42 / 255, green: 50 / 255, blue: 117 / 255)),
             (["codebuff"], RawColor(red: 68 / 255, green: 255 / 255, blue: 0)),
             (["crof"], RawColor(red: 0.18, green: 0.67, blue: 0.58)),
             (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
@@ -135,6 +136,7 @@ enum ProviderColorPalette {
             (["llmproxy"], RawColor(red: 36 / 255, green: 180 / 255, blue: 126 / 255)),
             (["litellm"], RawColor(red: 76 / 255, green: 137 / 255, blue: 192 / 255)),
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
+            (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
         ]
 

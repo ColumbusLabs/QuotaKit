@@ -101,6 +101,7 @@ public enum HookRunner {
         case .binaryNotFound: return "executable not found"
         case .launchFailed: return "launch failed"
         case .timedOut: return "timed out"
+        case .outputTooLarge: return "output too large"
         case let .nonZeroExit(code, _): return "exit \(code)"
         }
     }

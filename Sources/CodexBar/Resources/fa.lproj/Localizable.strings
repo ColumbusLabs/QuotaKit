@@ -448,7 +448,7 @@
 "cost_history_days_title" = "پنجره تاریخچه: %d روز";
 "cost_comparison_periods_title" = "نمایش دوره‌های مقایسه کوتاه‌تر";
 "cost_comparison_periods_subtitle" = "وقتی در پنجره تاریخچه انتخاب‌شده جا می‌گیرند، مجموع‌های ۷، ۳۰ و ۹۰ روزه را اضافه کنید. این مجموع‌ها از همان اسکن محلی استفاده می‌کنند.";
-"cost_auto_refresh_info" = "تازه سازی خودکار: ساعتی · زمان استراحت: 10m";
+"cost_auto_refresh_info" = "تازه‌سازی خودکار: بازه سراسری (حداقل ۵ دقیقه) · مهلت: ۱۰ دقیقه";
 "refresh_interval_title" = "فاصله تازه‌سازی";
 "manual_refresh_hint" = "تازه سازی خودکار خاموش است؛ از فرمان تازه سازی منو استفاده کنید.";
 "refresh_on_open_title" = "بازخوانی هنگام باز کردن منو";
@@ -605,6 +605,12 @@
 "agent_sessions_subtitle" = "جلسات محلی و جلسات Codex و Claude Code یافته‌شده از طریق SSH را در منو نمایش دهید.";
 "agent_sessions_hosts_title" = "میزبان‌های SSH اضافی";
 "agent_sessions_footer" = "مک‌های موجود در tailnet شما به‌طور خودکار شناسایی می‌شوند. جلسات محلی هر ۳۰ ثانیه و میزبان‌های راه دور هر ۶۰ ثانیه و هنگام باز شدن منو تازه‌سازی می‌شوند.";
+"agent_session_labels_title" = "برچسب‌های جلسه";
+"agent_session_labels_subtitle" = "نحوه نام‌گذاری جلسات عامل را انتخاب کنید.";
+"agent_session_label_project" = "پروژه";
+"agent_session_label_descriptive" = "توصیفی";
+"agent_session_label_descriptive_and_project" = "توصیفی + پروژه";
+"agent_session_unknown_project" = "پروژه ناشناخته";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "میانبر کیبورد";
@@ -736,6 +742,11 @@
 "refresh_15min" = "۱۵ دقیقه";
 "refresh_30min" = "۳۰ دقیقه";
 "refresh_adaptive" = "تطبیقی";
+"refresh_adaptive_agent_aware" = "تطبیقی (آگاه از عامل)";
+"adaptive_activity_consent_title" = "اجازه به تازه‌سازی آگاه از فعالیت؟";
+"adaptive_activity_consent_message" = "حالت تطبیقی آگاه از عامل می‌تواند برای شناسایی Codex و Claude فهرست فرایندهای محلی در حال اجرا، از جمله خط‌های فرمان، را بررسی کند و هنگام کدنویسی هر ۳۰ ثانیه فرادادهٔ نشست‌های شناخته‌شده را بخواند. وقتی Agent Sessions خاموش است، QuotaKit فقط زمان آخرین فعالیت را در حافظه نگه می‌دارد و مسیرها و هویت‌های نشست را دور می‌ریزد. این داده به هیچ‌جا ارسال نمی‌شود و شناسایی راه‌دور و SSH خاموش می‌مانند. اگر رد کنید، QuotaKit بدون پویش فعالیت محلی به حالت تطبیقی عادی بازمی‌گردد.";
+"adaptive_activity_consent_allow" = "اجازه به فعالیت محلی";
+"adaptive_activity_consent_decline" = "استفاده از حالت تطبیقی عادی";
 
 /* Additional keys */
 "not_found" = "پیدا نشد";
@@ -1263,3 +1274,76 @@
 "By subscription" = "بر اساس اشتراک";
 "No model-level history" = "تاریخچه‌ای در سطح مدل وجود ندارد";
 "Daily estimated spend" = "برآورد هزینه روزانه";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "حدود %d بازه کامل ۵ ساعته از سهم هفتگی مانده · %d بازه تا بازنشانی";
+"Weekly cannot run out before reset at this pace" = "با این روند، سهم هفتگی پیش از بازنشانی تمام نمی‌شود";
+"Weekly can run out ≈%d windows early" = "سهم هفتگی ممکن است حدود %d بازه زودتر تمام شود";
+"Estimated: %@" = "برآوردی: %@";
+"Coding Plan" = "طرح کدنویسی";
+"Agent Plan" = "طرح عامل";
+"Team" = "تیم";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "چیدمان";
+"menu_bar_layout_footer" = "نشانه‌ها را برای چیدمان نوار منو بکشید. برای افزودن روی نشانه کلیک کنید؛ نشانهٔ قرارگرفته را انتخاب کنید و برای حذف Delete را بزنید.";
+"menu_bar_layout_group_identity" = "هویت";
+"menu_bar_layout_group_usage" = "کاربرد";
+"menu_bar_layout_group_time" = "زمان";
+"menu_bar_layout_group_money" = "هزینه";
+"menu_bar_layout_group_structure" = "ساختار";
+"menu_bar_layout_scope_all" = "همهٔ ارائه‌دهندگان";
+"menu_bar_layout_scope_help" = "چیدمان پیش‌فرض را ویرایش کنید یا برای یک ارائه‌دهنده بازنویسی کنید.";
+"menu_bar_layout_use_all" = "استفاده از چیدمان همهٔ ارائه‌دهندگان";
+"menu_bar_layout_preset" = "پیش‌تنظیم چیدمان";
+"menu_bar_layout_preset_icon_percent" = "نماد و درصد";
+"menu_bar_layout_preset_icon_only" = "فقط نماد";
+"menu_bar_layout_preset_percent_reset" = "درصد و بازنشانی";
+"menu_bar_layout_preset_compact_stacked" = "پشتهٔ فشرده";
+"menu_bar_layout_preset_custom" = "عرف";
+"menu_bar_layout_live_preview" = "پیش‌نمایش زنده";
+"menu_bar_layout_strip" = "نوار منو";
+"menu_bar_layout_remove_line_break" = "حذف شکست خط";
+"menu_bar_layout_chip_hint" = "انتخاب کنید، برای مرتب‌سازی بکشید یا از عمل حذف استفاده کنید.";
+"menu_bar_layout_palette_hint" = "برای افزودن کلیک کنید یا به چیدمان بکشید.";
+"menu_bar_layout_empty_line" = "نشانه را اینجا رها کنید";
+"menu_bar_layout_line" = "خط %d";
+"menu_bar_layout_drag_remove" = "برای حذف به اینجا بکشید";
+"menu_bar_layout_size" = "اندازه";
+"menu_bar_layout_size_small" = "کوچک";
+"menu_bar_layout_size_regular" = "معمولی";
+"menu_bar_layout_gap" = "فاصله";
+"menu_bar_layout_gap_tight" = "فشرده";
+"menu_bar_layout_gap_regular" = "معمولی";
+"menu_bar_layout_keyboard_hint" = "Delete نشانهٔ انتخاب‌شده را حذف می‌کند";
+"menu_bar_layout_sample_account" = "حساب";
+"menu_bar_layout_sample_runs_out" = "جمعه تمام می‌شود";
+"menu_bar_layout_token_icon" = "آیکون";
+"menu_bar_layout_token_provider" = "نام ارائه‌دهنده";
+"menu_bar_layout_token_account" = "حساب";
+"menu_bar_layout_token_session" = "جلسه %";
+"menu_bar_layout_token_weekly" = "هفتگی %";
+"menu_bar_layout_token_auto" = "درصد خودکار";
+"menu_bar_layout_token_bar" = "نوار مصرف";
+"menu_bar_layout_token_resets_in" = "بازنشانی در";
+"menu_bar_layout_token_reset_at" = "بازنشانی در ساعت";
+"menu_bar_layout_token_runs_out" = "تمام می‌شود";
+"menu_bar_layout_token_cost_today" = "هزینهٔ امروز";
+"menu_bar_layout_token_cost_30d" = "هزینهٔ ۳۰ روز";
+"menu_bar_layout_token_space" = "فاصله";
+"menu_bar_layout_token_line_break" = "شکست خط";
+"menu_bar_layout_token_separator_accessibility" = "نقطهٔ جداکننده";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "آیکون: در دسترس نیست";
+"%@ icon" = "%@: آیکون";
+"Provider name unavailable" = "نام ارائه‌دهنده: در دسترس نیست";
+"Account unavailable" = "حساب: در دسترس نیست";
+"%@ unavailable" = "%@: در دسترس نیست";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "نوار مصرف: در دسترس نیست";
+"Usage bar, %d of 3 filled" = "نوار مصرف: %d/3 پر";
+"Reset countdown unavailable" = "بازنشانی در: در دسترس نیست";
+"Reset time unavailable" = "بازنشانی در ساعت: در دسترس نیست";
+"Run-out estimate unavailable" = "تمام می‌شود: در دسترس نیست";
+"Cost today unavailable" = "هزینهٔ امروز: در دسترس نیست";
+"30-day cost unavailable" = "هزینهٔ ۳۰ روز: در دسترس نیست";
+"Resets" = "بازنشانی‌ها";

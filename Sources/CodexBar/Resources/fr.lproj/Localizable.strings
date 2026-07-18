@@ -461,7 +461,7 @@
 "cost_history_window_title" = "Fenêtre d'historique";
 "cost_history_window_help" = "Définit le nombre de jours de journaux d'utilisation locaux affichés dans le menu.";
 "cost_history_days_title" = "Fenêtre d'historique : %d jours";
-"cost_auto_refresh_info" = "Actualisation automatique : toutes les heures · Délai d'expiration : 10 min";
+"cost_auto_refresh_info" = "Actualisation automatique : intervalle global (minimum 5 min) · Délai d'expiration : 10 min";
 "cost_comparison_periods_title" = "Afficher des périodes de comparaison plus courtes";
 "cost_comparison_periods_subtitle" = "Ajoute les totaux sur 7, 30 et 90 jours lorsqu'ils tiennent dans la période d'historique sélectionnée. Ces totaux réutilisent la même analyse locale.";
 "refresh_interval_title" = "Intervalle d’actualisation";
@@ -599,6 +599,12 @@
 "agent_sessions_subtitle" = "Afficher dans le menu les sessions Codex et Claude Code locales et découvertes via SSH.";
 "agent_sessions_hosts_title" = "Hôtes SSH supplémentaires";
 "agent_sessions_footer" = "Les Mac de votre tailnet sont découverts automatiquement. Les sessions locales s’actualisent toutes les 30 secondes ; les hôtes distants toutes les 60 secondes et à l’ouverture du menu.";
+"agent_session_labels_title" = "Libellés des sessions";
+"agent_session_labels_subtitle" = "Choisissez comment nommer les sessions d’agents.";
+"agent_session_label_project" = "Projet";
+"agent_session_label_descriptive" = "Descriptif";
+"agent_session_label_descriptive_and_project" = "Descriptif + projet";
+"agent_session_unknown_project" = "Projet inconnu";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "Raccourci clavier";
@@ -730,6 +736,11 @@
 "refresh_15min" = "15 minutes";
 "refresh_30min" = "30 minutes";
 "refresh_adaptive" = "Adaptatif";
+"refresh_adaptive_agent_aware" = "Adaptatif (activité des agents)";
+"adaptive_activity_consent_title" = "Autoriser l’actualisation selon l’activité ?";
+"adaptive_activity_consent_message" = "Le mode Adaptatif selon l’activité des agents peut examiner la liste des processus locaux en cours, y compris leurs lignes de commande, pour identifier Codex et Claude, puis lire toutes les 30 secondes les métadonnées des sessions connues pendant que vous codez. Lorsque Agent Sessions est désactivé, QuotaKit ne conserve en mémoire que l’heure de la dernière activité et ignore les chemins et identités des sessions. Ces données ne sont envoyées nulle part, et la détection à distance ainsi que SSH restent désactivés. Si vous refusez, QuotaKit revient au mode Adaptatif normal sans analyse de l’activité locale.";
+"adaptive_activity_consent_allow" = "Autoriser l’activité locale";
+"adaptive_activity_consent_decline" = "Utiliser le mode Adaptatif normal";
 
 /* Additional keys */
 "not_found" = "Pas trouvé";
@@ -1259,3 +1270,76 @@
 "By subscription" = "Par abonnement";
 "No model-level history" = "Aucun historique au niveau des modèles";
 "Daily estimated spend" = "Dépenses quotidiennes estimées";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "≈%d fenêtres complètes de 5 h de quota hebdomadaire · %d fenêtres avant réinitialisation";
+"Weekly cannot run out before reset at this pace" = "Le quota hebdomadaire ne peut pas être épuisé avant la réinitialisation à ce rythme";
+"Weekly can run out ≈%d windows early" = "Le quota hebdomadaire peut être épuisé ≈%d fenêtres plus tôt";
+"Estimated: %@" = "Estimation : %@";
+"Coding Plan" = "Plan de codage";
+"Agent Plan" = "Plan d'agent";
+"Team" = "Équipe";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "Disposition";
+"menu_bar_layout_footer" = "Faites glisser les jetons pour organiser la barre des menus. Cliquez sur un jeton pour l’ajouter ; sélectionnez un jeton placé et appuyez sur Supprimer pour le retirer.";
+"menu_bar_layout_group_identity" = "Identité";
+"menu_bar_layout_group_usage" = "Utilisation";
+"menu_bar_layout_group_time" = "Temps";
+"menu_bar_layout_group_money" = "Coût";
+"menu_bar_layout_group_structure" = "Structure";
+"menu_bar_layout_scope_all" = "Tous les fournisseurs";
+"menu_bar_layout_scope_help" = "Modifiez la disposition par défaut ou remplacez-la pour un fournisseur.";
+"menu_bar_layout_use_all" = "Utiliser la disposition de tous les fournisseurs";
+"menu_bar_layout_preset" = "Préréglage de disposition";
+"menu_bar_layout_preset_icon_percent" = "Icône et pourcentage";
+"menu_bar_layout_preset_icon_only" = "Icône uniquement";
+"menu_bar_layout_preset_percent_reset" = "Pourcentage et réinitialisation";
+"menu_bar_layout_preset_compact_stacked" = "Empilement compact";
+"menu_bar_layout_preset_custom" = "Personnalisé";
+"menu_bar_layout_live_preview" = "Aperçu en direct";
+"menu_bar_layout_strip" = "Bande de la barre des menus";
+"menu_bar_layout_remove_line_break" = "Supprimer le saut de ligne";
+"menu_bar_layout_chip_hint" = "Sélectionnez, faites glisser pour réorganiser ou utilisez l’action Supprimer.";
+"menu_bar_layout_palette_hint" = "Cliquez pour ajouter ou faites glisser dans la disposition.";
+"menu_bar_layout_empty_line" = "Déposez un jeton ici";
+"menu_bar_layout_line" = "Ligne %d";
+"menu_bar_layout_drag_remove" = "Faites glisser ici pour supprimer";
+"menu_bar_layout_size" = "Taille";
+"menu_bar_layout_size_small" = "Petite";
+"menu_bar_layout_size_regular" = "Normale";
+"menu_bar_layout_gap" = "Espacement";
+"menu_bar_layout_gap_tight" = "Serré";
+"menu_bar_layout_gap_regular" = "Normale";
+"menu_bar_layout_keyboard_hint" = "Supprimer retire le jeton sélectionné";
+"menu_bar_layout_sample_account" = "compte";
+"menu_bar_layout_sample_runs_out" = "épuisé ven.";
+"menu_bar_layout_token_icon" = "Icône";
+"menu_bar_layout_token_provider" = "Nom du fournisseur";
+"menu_bar_layout_token_account" = "Compte";
+"menu_bar_layout_token_session" = "Session %";
+"menu_bar_layout_token_weekly" = "Hebdomadaire %";
+"menu_bar_layout_token_auto" = "% auto";
+"menu_bar_layout_token_bar" = "Barre d’utilisation";
+"menu_bar_layout_token_resets_in" = "Réinitialisation dans";
+"menu_bar_layout_token_reset_at" = "Réinitialisation à";
+"menu_bar_layout_token_runs_out" = "Épuisé";
+"menu_bar_layout_token_cost_today" = "Coût aujourd’hui";
+"menu_bar_layout_token_cost_30d" = "Coût sur 30 j";
+"menu_bar_layout_token_space" = "Espace";
+"menu_bar_layout_token_line_break" = "Saut de ligne";
+"menu_bar_layout_token_separator_accessibility" = "Point séparateur";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "Icône: Indisponible";
+"%@ icon" = "%@: Icône";
+"Provider name unavailable" = "Nom du fournisseur: Indisponible";
+"Account unavailable" = "Compte: Indisponible";
+"%@ unavailable" = "%@: Indisponible";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "Barre d’utilisation: Indisponible";
+"Usage bar, %d of 3 filled" = "Barre d’utilisation: %d/3 remplis";
+"Reset countdown unavailable" = "Réinitialisation dans: Indisponible";
+"Reset time unavailable" = "Réinitialisation à: Indisponible";
+"Run-out estimate unavailable" = "Épuisé: Indisponible";
+"Cost today unavailable" = "Coût aujourd’hui: Indisponible";
+"30-day cost unavailable" = "Coût sur 30 j: Indisponible";
+"Resets" = "Réinitialisations";

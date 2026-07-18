@@ -161,6 +161,12 @@ public enum ProviderTokenResolver {
         self.veniceResolution(environment: environment)?.token
     }
 
+    public static func deepInfraToken(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
+    {
+        self.deepInfraResolution(environment: environment)?.token
+    }
+
     public static func stepfunToken(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
@@ -193,6 +199,12 @@ public enum ProviderTokenResolver {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
     {
         self.resolveEnv(DeepSeekSettingsReader.apiKey(environment: environment))
+    }
+
+    public static func deepInfraResolution(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> ProviderTokenResolution?
+    {
+        self.resolveEnv(DeepInfraSettingsReader.apiKey(environment: environment))
     }
 
     public static func poeResolution(

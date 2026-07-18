@@ -120,6 +120,9 @@ public enum QuotaProviderList {
         Provider(id: "clinepass", displayName: "ClinePass"),
         Provider(id: "longcat", displayName: "LongCat"),
         Provider(id: "neuralwatt", displayName: "Neuralwatt"),
+        // iOS 1.11.3 upstream-sync catch-up. Appended to preserve every
+        // existing per-provider CloudKit subscription identifier.
+        Provider(id: "deepinfra", displayName: "DeepInfra"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

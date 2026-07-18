@@ -109,6 +109,7 @@ enum ProviderChoice: String, AppEnum {
         case .abacus: return nil // Abacus AI not yet supported in widgets
         case .mistral: self = .mistral
         case .deepseek: return nil // DeepSeek not yet supported in widgets
+        case .deepinfra: return nil // DeepInfra not yet supported in widgets
         case .codebuff: return nil // Codebuff not yet supported in widgets
         case .crof: return nil // Crof not yet supported in widgets
         case .venice: return nil // Venice not yet supported in widgets
@@ -127,6 +128,7 @@ enum ProviderChoice: String, AppEnum {
         case .zed: return nil // Zed not yet supported in widgets
         case .neuralwatt: return nil // Neuralwatt not yet supported in widgets
         case .zenmux: return nil // ZenMux not yet supported in widgets
+        case .aiand: return nil // ai& not yet supported in widgets
         }
     }
 }

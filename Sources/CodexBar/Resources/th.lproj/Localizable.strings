@@ -448,7 +448,7 @@
 "cost_history_days_title" = "กรอบเวลาประวัติ: %d วัน";
 "cost_comparison_periods_title" = "แสดงช่วงเปรียบเทียบที่สั้นกว่า";
 "cost_comparison_periods_subtitle" = "เพิ่มยอดรวม 7, 30 และ 90 วันเมื่ออยู่ภายในกรอบเวลาประวัติที่เลือก โดยใช้การสแกนในเครื่องเดียวกัน";
-"cost_auto_refresh_info" = "รีเฟรชอัตโนมัติ: รายชั่วโมง · หมดเวลา: 10m";
+"cost_auto_refresh_info" = "รีเฟรชอัตโนมัติ: ช่วงเวลาส่วนกลาง (ขั้นต่ำ 5 นาที) · หมดเวลา: 10 นาที";
 "refresh_interval_title" = "ช่วงเวลาการรีเฟรช";
 "manual_refresh_hint" = "การรีเฟรชอัตโนมัติปิดอยู่ ใช้คําสั่งรีเฟรชของเมนู";
 "refresh_on_open_title" = "รีเฟรชเมื่อเปิดเมนู";
@@ -605,6 +605,12 @@
 "agent_sessions_subtitle" = "แสดงเซสชัน Codex และ Claude Code ที่ค้นพบในเครื่องและผ่าน SSH ในเมนู";
 "agent_sessions_hosts_title" = "โฮสต์ SSH เพิ่มเติม";
 "agent_sessions_footer" = "ระบบจะค้นหา Mac บน tailnet ของคุณโดยอัตโนมัติ เซสชันในเครื่องจะรีเฟรชทุก 30 วินาที ส่วนโฮสต์ระยะไกลจะรีเฟรชทุก 60 วินาทีและเมื่อเปิดเมนู";
+"agent_session_labels_title" = "ป้ายกำกับเซสชัน";
+"agent_session_labels_subtitle" = "เลือกวิธีตั้งชื่อเซสชันเอเจนต์";
+"agent_session_label_project" = "โปรเจ็กต์";
+"agent_session_label_descriptive" = "เชิงบรรยาย";
+"agent_session_label_descriptive_and_project" = "เชิงบรรยาย + โปรเจ็กต์";
+"agent_session_unknown_project" = "โปรเจ็กต์ที่ไม่รู้จัก";
 
 /* Advanced Pane */
 "section_keyboard_shortcut" = "แป้นพิมพ์ลัด";
@@ -736,6 +742,11 @@
 "refresh_15min" = "15 นาที";
 "refresh_30min" = "30 นาที";
 "refresh_adaptive" = "ปรับอัตโนมัติ";
+"refresh_adaptive_agent_aware" = "ปรับอัตโนมัติ (รับรู้กิจกรรมเอเจนต์)";
+"adaptive_activity_consent_title" = "อนุญาตการรีเฟรชตามกิจกรรมหรือไม่";
+"adaptive_activity_consent_message" = "โหมดปรับอัตโนมัติที่รับรู้กิจกรรมเอเจนต์สามารถตรวจสอบรายการโปรเซสที่กำลังทำงานในเครื่อง รวมถึงบรรทัดคำสั่ง เพื่อระบุ Codex และ Claude จากนั้นอ่านเมตาดาตาของเซสชันที่รู้จักทุก 30 วินาทีขณะคุณเขียนโค้ด เมื่อปิด Agent Sessions QuotaKit จะใช้เฉพาะเวลาของกิจกรรมล่าสุดในหน่วยความจำ และทิ้งพาธกับข้อมูลระบุตัวตนของเซสชัน ข้อมูลนี้จะไม่ถูกส่งไปที่ใด และการค้นหาระยะไกลกับ SSH จะยังคงปิดอยู่ หากคุณปฏิเสธ QuotaKit จะกลับสู่โหมดปรับอัตโนมัติปกติโดยไม่สแกนกิจกรรมในเครื่อง";
+"adaptive_activity_consent_allow" = "อนุญาตกิจกรรมในเครื่อง";
+"adaptive_activity_consent_decline" = "ใช้โหมดปรับอัตโนมัติปกติ";
 
 /* Additional keys */
 "not_found" = "ไม่พบ";
@@ -1263,3 +1274,76 @@
 "By subscription" = "แยกตามการสมัครสมาชิก";
 "No model-level history" = "ไม่มีประวัติระดับโมเดล";
 "Daily estimated spend" = "ค่าใช้จ่ายรายวันโดยประมาณ";
+"≈%d full 5h windows of weekly left · %d windows until reset" = "เหลือโควตารายสัปดาห์ ≈%d ช่วงเต็ม 5 ชม. · อีก %d ช่วงจนรีเซ็ต";
+"Weekly cannot run out before reset at this pace" = "ด้วยอัตรานี้ โควตารายสัปดาห์จะไม่หมดก่อนรีเซ็ต";
+"Weekly can run out ≈%d windows early" = "โควตารายสัปดาห์อาจหมดเร็วขึ้น ≈%d ช่วง";
+"Estimated: %@" = "โดยประมาณ: %@";
+"Coding Plan" = "แผนการเขียนโค้ด";
+"Agent Plan" = "แผนเอเจนต์";
+"Team" = "ทีม";
+
+/* Menu bar layout editor */
+"menu_bar_layout_title" = "เค้าโครง";
+"menu_bar_layout_footer" = "ลากโทเค็นเพื่อจัดเรียงแถบเมนู คลิกโทเค็นเพื่อเพิ่ม เลือกโทเค็นที่วางแล้วและกด Delete เพื่อลบ";
+"menu_bar_layout_group_identity" = "ข้อมูลระบุตัวตน";
+"menu_bar_layout_group_usage" = "การใช้";
+"menu_bar_layout_group_time" = "เวลา";
+"menu_bar_layout_group_money" = "ค่าใช้จ่าย";
+"menu_bar_layout_group_structure" = "โครงสร้าง";
+"menu_bar_layout_scope_all" = "ผู้ให้บริการทั้งหมด";
+"menu_bar_layout_scope_help" = "แก้ไขเค้าโครงเริ่มต้นหรือกำหนดแทนสำหรับผู้ให้บริการหนึ่งราย";
+"menu_bar_layout_use_all" = "ใช้เค้าโครงของผู้ให้บริการทั้งหมด";
+"menu_bar_layout_preset" = "เค้าโครงสำเร็จรูป";
+"menu_bar_layout_preset_icon_percent" = "ไอคอนและเปอร์เซ็นต์";
+"menu_bar_layout_preset_icon_only" = "ไอคอนเท่านั้น";
+"menu_bar_layout_preset_percent_reset" = "เปอร์เซ็นต์และรีเซ็ต";
+"menu_bar_layout_preset_compact_stacked" = "ซ้อนแบบกะทัดรัด";
+"menu_bar_layout_preset_custom" = "กําหนดเอง";
+"menu_bar_layout_live_preview" = "ตัวอย่างสด";
+"menu_bar_layout_strip" = "แถบเมนู";
+"menu_bar_layout_remove_line_break" = "ลบการขึ้นบรรทัดใหม่";
+"menu_bar_layout_chip_hint" = "เลือก ลากเพื่อจัดลำดับใหม่ หรือใช้การทำงานลบ";
+"menu_bar_layout_palette_hint" = "คลิกเพื่อเพิ่มหรือลากลงในเค้าโครง";
+"menu_bar_layout_empty_line" = "วางโทเค็นที่นี่";
+"menu_bar_layout_line" = "บรรทัด %d";
+"menu_bar_layout_drag_remove" = "ลากมาที่นี่เพื่อลบ";
+"menu_bar_layout_size" = "ขนาด";
+"menu_bar_layout_size_small" = "เล็ก";
+"menu_bar_layout_size_regular" = "ปกติ";
+"menu_bar_layout_gap" = "ระยะห่าง";
+"menu_bar_layout_gap_tight" = "ชิด";
+"menu_bar_layout_gap_regular" = "ปกติ";
+"menu_bar_layout_keyboard_hint" = "Delete ลบโทเค็นที่เลือก";
+"menu_bar_layout_sample_account" = "บัญชี";
+"menu_bar_layout_sample_runs_out" = "หมดวันศุกร์";
+"menu_bar_layout_token_icon" = "ไอคอน";
+"menu_bar_layout_token_provider" = "ชื่อผู้ให้บริการ";
+"menu_bar_layout_token_account" = "บัญชี";
+"menu_bar_layout_token_session" = "เซสชั่น %";
+"menu_bar_layout_token_weekly" = "รายสัปดาห์ %";
+"menu_bar_layout_token_auto" = "% อัตโนมัติ";
+"menu_bar_layout_token_bar" = "แถบการใช้งาน";
+"menu_bar_layout_token_resets_in" = "รีเซ็ตใน";
+"menu_bar_layout_token_reset_at" = "รีเซ็ตเวลา";
+"menu_bar_layout_token_runs_out" = "หมด";
+"menu_bar_layout_token_cost_today" = "ค่าใช้จ่ายวันนี้";
+"menu_bar_layout_token_cost_30d" = "ค่าใช้จ่าย 30 วัน";
+"menu_bar_layout_token_space" = "ช่องว่าง";
+"menu_bar_layout_token_line_break" = "ขึ้นบรรทัดใหม่";
+"menu_bar_layout_token_separator_accessibility" = "จุดคั่น";
+
+/* Menu bar layout accessibility */
+"Icon unavailable" = "ไอคอน: ไม่พร้อมใช้งาน";
+"%@ icon" = "%@: ไอคอน";
+"Provider name unavailable" = "ชื่อผู้ให้บริการ: ไม่พร้อมใช้งาน";
+"Account unavailable" = "บัญชี: ไม่พร้อมใช้งาน";
+"%@ unavailable" = "%@: ไม่พร้อมใช้งาน";
+"%@ %@" = "%@ %@";
+"Usage bar unavailable" = "แถบการใช้งาน: ไม่พร้อมใช้งาน";
+"Usage bar, %d of 3 filled" = "แถบการใช้งาน: %d/3 เต็ม";
+"Reset countdown unavailable" = "รีเซ็ตใน: ไม่พร้อมใช้งาน";
+"Reset time unavailable" = "รีเซ็ตเวลา: ไม่พร้อมใช้งาน";
+"Run-out estimate unavailable" = "หมด: ไม่พร้อมใช้งาน";
+"Cost today unavailable" = "ค่าใช้จ่ายวันนี้: ไม่พร้อมใช้งาน";
+"30-day cost unavailable" = "ค่าใช้จ่าย 30 วัน: ไม่พร้อมใช้งาน";
+"Resets" = "การรีเซ็ต";

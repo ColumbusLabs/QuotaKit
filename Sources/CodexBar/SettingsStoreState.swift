@@ -2,6 +2,7 @@ import Foundation
 
 struct SettingsDefaultsState {
     var refreshFrequency: RefreshFrequency
+    var adaptiveActivityScanConsent: AdaptiveActivityScanConsent
     var refreshAllProvidersOnMenuOpen: Bool
     var launchAtLogin: Bool
     var debugMenuEnabled: Bool
@@ -37,6 +38,10 @@ struct SettingsDefaultsState {
     var notificationPushToiOSEnabled: Bool
     var multiAccountMenuLayoutRaw: String
     var menuBarMetricPreferencesRaw: [String: String]
+    var storedMenuBarLayout: MenuBarLayout?
+    var menuBarLayoutOverridesRaw: [String: MenuBarLayout]
+    var menuBarLayoutSizeRaw: String
+    var menuBarLayoutGapRaw: String
     var copilotBudgetExtrasEnabled: Bool
     var copilotIconSecondaryWindowIDRaw: String
     var costUsageEnabled: Bool
@@ -68,5 +73,6 @@ struct SettingsDefaultsState {
     var appLanguageRaw: String?
     var terminalAppRaw: String?
     var agentSessionsEnabled: Bool
+    var agentSessionLabelStyleRaw: String
     var agentSessionsManualHosts: String
 }

@@ -45,7 +45,8 @@ extension UsageMenuCardView.Model {
                 paceOnTop: metric.paceOnTop,
                 warningMarkerPercents: metric.warningMarkerPercents,
                 workdayMarkerPercents: metric.workdayMarkerPercents,
-                cardStyle: metric.cardStyle)
+                cardStyle: metric.cardStyle,
+                sessionEquivalentDetail: metric.sessionEquivalentDetail)
         }
     }
 
@@ -678,9 +679,12 @@ extension UsageMenuCardView.Model {
             } else {
                 L("Unavailable")
             }
+            let title = input.provider == .doubao && namedWindow.id.contains("-team-")
+                ? "\(L(namedWindow.title)) (\(L("Team")))"
+                : L(namedWindow.title)
             return Metric(
                 id: namedWindow.id,
-                title: namedWindow.title,
+                title: title,
                 percent: Self.clamped(
                     input.usageBarsShowUsed
                         ? namedWindow.window.usedPercent
@@ -692,7 +696,13 @@ extension UsageMenuCardView.Model {
                 detailLeftText: usageKnown ? paceDetail?.leftLabel : nil,
                 detailRightText: usageKnown ? paceDetail?.rightLabel : nil,
                 pacePercent: usageKnown ? paceDetail?.pacePercent : nil,
-                paceOnTop: paceDetail?.paceOnTop ?? true)
+                paceOnTop: paceDetail?.paceOnTop ?? true,
+                sessionEquivalentDetail: usageKnown
+                    ? Self.sessionEquivalentDetail(
+                        input: input,
+                        weeklyWindow: namedWindow.window,
+                        weeklyWindowID: namedWindow.id)
+                    : nil)
         }
     }
 
