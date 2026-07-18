@@ -128,6 +128,10 @@ All provider fields are optional unless noted.
 - `workspaceID`: provider-specific workspace/deployment/project ID (e.g. Azure OpenAI deployment, OpenAI API project,
   `opencode`).
 - `tokenAccounts`: multi-account tokens for providers in `TokenAccountSupportCatalog`.
+- `claudeSwapEnabled`: allow the Claude provider to read account usage from claude-swap.
+- `claudeSwapExecutablePath`: path to the `cswap` executable.
+- `claudeSwapShowSingleAccount`: prefer a claude-swap card when exactly one account is available. Defaults to
+  `false`; multiple claude-swap accounts retain their existing precedence.
 
 ## Manual cookies
 Use manual cookies when automatic browser import is unavailable, disabled, or too noisy for your setup.

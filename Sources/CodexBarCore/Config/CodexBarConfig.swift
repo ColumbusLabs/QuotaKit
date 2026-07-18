@@ -162,6 +162,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
     public var enterpriseHost: String?
     public var tokenAccounts: ProviderTokenAccountData?
     public var claudeSwapEnabled: Bool?
+    public var claudeSwapShowSingleAccount: Bool?
     public var claudeSwapExecutablePath: String?
     public var codexActiveSource: CodexActiveSource?
     public var codexProfileHomePaths: [String]?
@@ -188,6 +189,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         enterpriseHost: String? = nil,
         tokenAccounts: ProviderTokenAccountData? = nil,
         claudeSwapEnabled: Bool? = nil,
+        claudeSwapShowSingleAccount: Bool? = nil,
         claudeSwapExecutablePath: String? = nil,
         codexActiveSource: CodexActiveSource? = nil,
         codexProfileHomePaths: [String]? = nil,
@@ -213,6 +215,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         self.enterpriseHost = enterpriseHost
         self.tokenAccounts = tokenAccounts
         self.claudeSwapEnabled = claudeSwapEnabled
+        self.claudeSwapShowSingleAccount = claudeSwapShowSingleAccount
         self.claudeSwapExecutablePath = claudeSwapExecutablePath
         self.codexActiveSource = codexActiveSource
         self.codexProfileHomePaths = codexProfileHomePaths

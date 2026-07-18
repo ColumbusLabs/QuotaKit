@@ -9,6 +9,10 @@ public enum ClaudeSwapAccountProjection {
     static let fiveHourWindowMinutes = 5 * 60
     static let sevenDayWindowMinutes = 7 * 24 * 60
 
+    public static func shouldPresentAccounts(accountCount: Int, showSingleAccount: Bool) -> Bool {
+        accountCount >= (showSingleAccount ? 1 : 2)
+    }
+
     public static func accountSnapshots(
         from list: ClaudeSwapAccountList,
         now: Date = Date()) -> [ProviderAccountUsageSnapshot]

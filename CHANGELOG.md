@@ -2,6 +2,10 @@
 
 ## 0.44.1 — Unreleased
 
+### Added
+- Claude: add an opt-in setting to show claude-swap cards when only one account is available, while preserving the
+  ambient Claude presentation by default.
+
 ### Fixed
 
 ## 0.44.0 — 2026-07-17

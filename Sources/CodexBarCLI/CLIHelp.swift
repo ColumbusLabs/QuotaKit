@@ -18,8 +18,8 @@ extension CodexBarCLI {
           Print a one-shot usage snapshot as a responsive card grid in the terminal.
           Honors enabled providers from config and reuses the same fetch flags as codexbar usage.
           Failed providers are summarized in a footer instead of error cards.
-          Enabled claude-swap lists with 2+ accounts replace Claude cards unless an account or
-          explicit non-auto `--source` CLI flag is selected.
+          Enabled claude-swap lists with 2+ accounts—or one account when `claudeSwapShowSingleAccount`
+          is enabled—replace Claude cards unless an account or explicit non-auto `--source` CLI flag is selected.
           Sentinel accounts remain visible without metrics; claude-swap adapter failures use a separate footer entry.
           Use --brief for a compact table layout (Provider / Usage / Reset).
           Stdout is always the rendered card/table text; --json-output only affects stderr logs.

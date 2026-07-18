@@ -126,8 +126,12 @@ The accepted multi-account design in
   shell, fixed arguments, bounded runtime and output), requires `schemaVersion == 1`, and parses only slot number,
   active state, usage status, email (display only), and the 5-hour/7-day windows.
 - Display: when claude-swap reports more than one account, the Claude menu and `codexbar cards` show one card per
-  account (active account first, then numeric slot) instead of ambient/token-account Claude cards; with zero or one
-  account those views are unchanged. Account identity is `claude-swap:<slot>`, never the display email.
+  account (active account first, then numeric slot) instead of ambient/token-account Claude cards. To use this
+  presentation with one account, enable “Show account card when only one account is available” or set
+  `claudeSwapShowSingleAccount: true` on the Claude provider in the resolved config file (normally
+  `~/.config/codexbar/config.json`; legacy installs may use `~/.codexbar/config.json`). The option defaults off,
+  zero accounts still use the ambient presentation, and account identity is `claude-swap:<slot>`, never the display
+  email.
 - Terminal scope: this automatic precedence is cards-only and works on every supported CLI platform. An explicit
   Claude provider or `--source auto` remains eligible, while `--account`, `--account-index`, `--all-accounts`, and
   explicit non-auto source flags bypass the adapter. `codexbar usage` and `codexbar serve` are unchanged.
@@ -145,7 +149,7 @@ The accepted multi-account design in
 - Expired, missing, unknown, or Keychain-inaccessible credentials stay non-actionable. A failed switch remains visible
   on that account without discarding its last successful usage. A running Claude Code process can take up to the
   claude-swap Keychain cache interval to observe the new account.
-- When multiple claude-swap accounts are available, they take explicit precedence over Claude
+- Multiple claude-swap accounts—and a single account when explicitly enabled—take precedence over Claude
   token-account presentation (stacked cards and the segmented switcher).
 
 Packaged synthetic proof (fake `cswap` executable, no real accounts or credentials):

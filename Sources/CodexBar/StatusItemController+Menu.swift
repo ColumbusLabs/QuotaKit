@@ -614,11 +614,12 @@ extension StatusItemController {
             return false
         }
 
-        // Multiple claude-swap rows take precedence over Claude token-account cards; otherwise
+        // Eligible claude-swap rows take precedence over Claude token-account cards; otherwise
         // the stacked token-account branch below would return before rendering the adapter rows.
         if ClaudeSwapMenuPrecedence.prefersClaudeSwap(
             provider: context.currentProvider,
-            accountCount: self.store.claudeSwapAccountSnapshots.count)
+            accountCount: self.store.claudeSwapAccountSnapshots.count,
+            showSingleAccount: self.settings.claudeSwapShowSingleAccount)
         {
             self.addClaudeSwapMenuCards(to: menu, captureMenu: captureMenu ?? menu, context: context)
             return false
