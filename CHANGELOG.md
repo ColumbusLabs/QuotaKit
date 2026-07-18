@@ -1,36 +1,5 @@
 # Changelog
 
-## Upstream sync tail — 2026-07-17
-
-- Integrated upstream through `e6b2ea490`, including Neuralwatt quota and prepaid-credit tracking, Cursor dashboard token-cost reporting, private local usage-sharing cards, and hardened shared-stat aggregation and rendering.
-- Preserved QuotaKit and Columbus Labs public identity, release and appcast ownership, CloudKit configuration, shipped upstream version tracking, and all Mac/iOS build numbers.
-
-## Upstream sync — 2026-07-17
-
-- Integrated upstream through `63215da42`, including ClinePass and LongCat providers, the unified usage and spend dashboard, external quota/provider hooks, safer background credential discovery, account-scoped quota and cost fixes, and hardened CLI/dashboard serving.
-- Retired the unverified Kimi K2 and CrossModel Mac relays while preserving historical mobile sync decoding, and added ClinePass/LongCat mobile notification and presentation parity.
-- Preserved QuotaKit and Columbus Labs public identity, release and appcast ownership, CloudKit configuration, shipped upstream version tracking, and all Mac/iOS build numbers.
-
-## Upstream sync — 2026-07-16
-
-- Integrated upstream through `6d71af30`, including hardened Cursor account switching, corrected Codex restarted-subagent and fork-baseline accounting, thread-safe browser/keychain helpers, isolated Claude OAuth rate-limit recovery, no-prompt Claude credential recovery, unlimited Copilot quota suppression, status-item reuse, and ZenMux Management API support.
-- Preserved QuotaKit's public identity, release metadata, CloudKit configuration, account-scoped sync behavior, and build numbers.
-
-## Upstream sync — 2026-07-15
-
-- Integrated upstream through `aea62e047`, including suppression of duplicate Claude all-model quota rows, clearer Ollama Cloud-quota guidance, and a more reliable shell cleanup timeout test.
-- Preserved QuotaKit's public identity, release metadata, CloudKit configuration, and build numbers.
-
-## Upstream sync — 2026-07-14
-
-- Integrated upstream through `c61e01e77`, including account-scoped quota warnings, reliable PTY deadline output draining, inherited signal-mask cleanup, process cleanup, provider-version probe caching, temporary-session lifetime fixes, and headless Tailscale session discovery hardening.
-- Preserved QuotaKit's account-scoped depletion/restoration state, iOS quota-transition writes, public identity, release metadata, CloudKit configuration, and build numbers.
-
-## Upstream sync — 2026-07-12
-
-- Integrated upstream through `fd1b6c780`, including safer provider refresh ownership, asynchronous plan-history loading, Factory API-key usage, Sub2API support, and Codex quota recovery hardening.
-- Preserved QuotaKit release metadata and added Sub2API parity for iOS colors and CloudKit quota notifications.
-
 Notable QuotaKit Mac and cross-platform release changes are documented here.
 
 Older upstream history is intentionally preserved in Git, but this file now focuses
