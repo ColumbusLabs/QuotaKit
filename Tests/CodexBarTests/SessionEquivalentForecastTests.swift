@@ -251,6 +251,7 @@ struct SessionEquivalentForecastTests {
         #expect(equal.verdictText == "Weekly cannot run out before reset at this pace")
         #expect(singular.numberText == "≈1 full 5h window of weekly left · 2 windows until reset")
         #expect(singular.verdictText == "Weekly can run out ≈1 window early")
+        #expect(close.numberText == "≈8 full 5h windows of weekly left · 9 windows until reset")
         #expect(close.verdictText == "Weekly can run out ≈1 window early")
     }
 

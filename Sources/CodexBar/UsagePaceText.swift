@@ -38,7 +38,7 @@ enum UsagePaceText {
     }
 
     static func sessionEquivalentDetail(forecast: SessionEquivalentForecast) -> SessionEquivalentDetail {
-        let displayedEstimate = max(1, Self.boundedWindowCount(forecast.estimatedWindowsToExhaustWeekly))
+        let displayedEstimate = max(1, Self.boundedFullWindowCount(forecast.estimatedWindowsToExhaustWeekly))
         let numberText = String.localizedStringWithFormat(
             L("≈%d full 5h windows of weekly left · %d windows until reset"),
             displayedEstimate,
@@ -63,6 +63,11 @@ enum UsagePaceText {
     private static func boundedWindowCount(_ value: Double) -> Int {
         guard value.isFinite, value > 0 else { return 0 }
         return Int(min(value, 1_000_000).rounded())
+    }
+
+    private static func boundedFullWindowCount(_ value: Double) -> Int {
+        guard value.isFinite, value > 0 else { return 0 }
+        return Int(floor(min(value, 1_000_000)))
     }
 
     private static func detailLeftLabel(for pace: UsagePace) -> String {
