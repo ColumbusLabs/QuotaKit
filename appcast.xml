@@ -5,6 +5,46 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.12</title>
+            <pubDate>Fri, 17 Jul 2026 21:10:55 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.12.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.12</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.12 Mobile 1.11.3</h2>
+<h3>Added</h3>
+<ul>
+<li>Codex: show the backend-authoritative count of banked limit resets, the next</li>
+</ul>
+  exact expiration in the menu, and every known exact expiration in provider
+  details without inventing timestamps when the backend returns a partial list.
+<ul>
+<li>ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Claude: preserve each account’s last-good OAuth usage during rate limits and isolate retry cooldowns per credential. Thanks @ruushu!</li>
+<li>Claude: recover a missing credentials file from a valid Claude Code Keychain item without showing Keychain UI when Never prompt is selected (#1975). Thanks @OfficialAbhinavSingh!</li>
+<li>Codex cost usage: invalidate cached fork totals when the parent session appears, changes, or resolves to a different file, preventing stale inherited baselines. Thanks @xx205!</li>
+<li>Cursor: bind interactive account login to one readable browser, preserve the active session on cancellation or failure, and prevent background refreshes from replacing the selected account. Thanks @chapati23!</li>
+<li>Menu bar: prevent duplicate provider items when usage updates re-enter initial status-item setup (#2162). Thanks @ss251!</li>
+<li>Codex cost usage: count restarted subagent token counters without subtracting the parent's unrelated cumulative baseline (#2193). Thanks @qiuruiyu and @harjothkhara!</li>
+<li>Ollama: clarify that Cloud quota limits require a signed-in browser session with cookies when API-key verification is used.</li>
+<li>Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.</li>
+<li>Copilot: hide quota bars explicitly marked unlimited while preserving finite Premium and Chat quotas. Thanks @Zihao-Qi!</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced upstream CodexBar changes through <code>e6b2ea490</code>, including ClinePass,</li>
+</ul>
+  LongCat, Neuralwatt, the unified usage and spend dashboard, private local
+  usage-sharing cards, Cursor token-cost reporting, and hardened shared-stat
+  aggregation while preserving QuotaKit release ownership and CloudKit setup.
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.12/QuotaKit-macos-universal-0.32.4.12.zip" length="55533069" type="application/octet-stream" sparkle:edSignature="BAjBJGo3mlk1wYKWp5qonADKOpSotUd8E6F3cOEGQrh9XNEaHQsQG91fpN41EtJI67AXQyWfYXuAxVeGOW1YBQ=="/>
+        </item>
+        <item>
             <title>0.32.4.11</title>
             <pubDate>Sat, 11 Jul 2026 11:16:40 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -199,63 +239,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.10/QuotaKit-macos-universal-0.32.4.10.zip" length="49320083" type="application/octet-stream" sparkle:edSignature="C7zTcwGS19TurmAbqd25BonitoGCawivMsCJg3HbIfIVTKHBzEKgcF2v5he/4zl7eDPGMuDE0Z3e0g0JJcNDCg=="/>
-        </item>
-        <item>
-            <title>0.32.4.9</title>
-            <pubDate>Sun, 28 Jun 2026 13:17:51 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.9.1.11.1</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.9</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.9 Mobile 1.11.1</h2>
-<h3>Changed</h3>
-<ul>
-<li>Synced upstream CodexBar Mac improvements through <code>e810f7e</code></li>
-</ul>
-  (<code>af13c528..e810f7e</code>), including Codex credit-limit display, Sakana AI,
-  live status submenus, Kiro PTY usage loading, browser cookie
-  discovery hardening, CLI <code>/usage</code> provider isolation, Codex usage-only refresh
-  enrichment fixes, privacy redaction, z.ai team usage, Mistral Vibe cookie
-  restoration, cost-cache correctness, and menu performance updates.
-<h3>Fixed</h3>
-<ul>
-<li>Usage pace: keep rounded on-track deficit and reserve labels visible instead</li>
-</ul>
-  of collapsing all on-track deltas to "On pace".
-<ul>
-<li>Usage display: keep positive values below one percent visible instead of</li>
-</ul>
-  rounding them to zero.
-<ul>
-<li>Kiro: run account, usage, and context commands through a PTY so current CLI</li>
-</ul>
-  versions return usage without timing out.
-<ul>
-<li>OpenAI web: ignore stale profiles from removed browsers, discover registered</li>
-</ul>
-  installs outside standard app folders, and surface browser-profile access and
-  cookie-load timeout diagnostics.
-<ul>
-<li>CLI server: collect <code>/usage</code> providers concurrently under finite per-provider</li>
-</ul>
-  deadlines so one hung provider degrades to its own error row without discarding
-  healthy results.
-<ul>
-<li>Privacy: hide account and team identity values without showing placeholder</li>
-</ul>
-  text or empty account rows.
-<ul>
-<li>Codex: avoid monthly-credit CLI enrichment during usage-only OAuth refreshes.</li>
-<li>Menu bar: show pace as <code>0%</code> instead of a signed <code>+0%</code> or <code>-0%</code> when the pace</li>
-</ul>
-  delta rounds to zero.
-<ul>
-<li>Menu: align the persistent Refresh row with native actions, keep Settings,</li>
-</ul>
-  About, and Quit keyboard-navigable, and use a narrower Usage Dashboard icon.
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.9/QuotaKit-macos-universal-0.32.4.9.zip" length="45460159" type="application/octet-stream" sparkle:edSignature="8PpwWQSfF+//cY7zffrNr9YGkfiSxz3IKAClXFUTWEJG2Ji/GA+DVSEE3vaUiopOmtebin2lumJb6XtrV2g8Aw=="/>
         </item>
     </channel>
 </rss>
