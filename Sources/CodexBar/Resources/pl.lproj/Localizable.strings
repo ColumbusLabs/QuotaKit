@@ -1199,6 +1199,7 @@
 "Limit Reset Credits" = "Kredyty resetowania limitu";
 "1 available" = "1 dostępny";
 "%d available" = "%d dostępne";
+"Expiry times: %d of %d" = "Terminy wygaśnięcia: %d z %d";
 "Next expires %@" = "Następny wygasa %@";
 "Expires %@" = "Wygasa %@";
 "No expiry" = "Brak terminu ważności";

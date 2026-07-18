@@ -57,6 +57,80 @@ struct CodexResetCreditOutcomeTests {
     }
 
     @Test
+    func `count-only app-server inventory receives best-effort expiry details`() async throws {
+        let now = Date(timeIntervalSince1970: 1_781_726_400)
+        let embedded = CodexRateLimitResetCreditsSnapshot(
+            credits: [],
+            availableCount: 4,
+            updatedAt: now)
+        let supplemental = Self.resetSnapshot(id: "supplemental", now: now.addingTimeInterval(1))
+        let recorder = ResetCreditFetchRecorder()
+
+        let outcome = await UsageStore.attachingCodexResetCreditsIfNeeded(
+            to: Self.outcome(resetCredits: embedded, now: now),
+            env: ["CODEX_HOME": "/tmp/account-a"],
+            fetcher: { env in
+                await recorder.record(env)
+                return supplemental
+            })
+
+        let enriched = try #require(Self.usage(from: outcome).codexResetCredits)
+        #expect(enriched.availableCount == 4)
+        #expect(enriched.credits == supplemental.credits)
+        #expect(enriched.updatedAt == supplemental.updatedAt)
+        #expect(await recorder.environments().count == 1)
+    }
+
+    @Test
+    func `capped app-server inventory merges only new supplemental details`() async throws {
+        let now = Date(timeIntervalSince1970: 1_781_726_400)
+        let embeddedCredit = Self.resetCredit(id: "shared", now: now, title: "App server")
+        let embedded = CodexRateLimitResetCreditsSnapshot(
+            credits: [embeddedCredit],
+            availableCount: 3,
+            updatedAt: now)
+        let supplemental = CodexRateLimitResetCreditsSnapshot(
+            credits: [
+                Self.resetCredit(id: "shared", now: now, title: "OAuth duplicate"),
+                Self.resetCredit(id: "new", now: now, title: "OAuth detail"),
+            ],
+            availableCount: 2,
+            updatedAt: now.addingTimeInterval(1))
+
+        let outcome = await UsageStore.attachingCodexResetCreditsIfNeeded(
+            to: Self.outcome(resetCredits: embedded, now: now),
+            env: [:],
+            fetcher: { _ in supplemental })
+
+        let enriched = try #require(Self.usage(from: outcome).codexResetCredits)
+        #expect(enriched.availableCount == 3)
+        #expect(enriched.credits.count == 2)
+        #expect(enriched.credits.first == embeddedCredit)
+        #expect(enriched.credits.last?.title == "OAuth detail")
+    }
+
+    @Test
+    func `failed detail enrichment preserves authoritative app-server inventory`() async throws {
+        let now = Date(timeIntervalSince1970: 1_781_726_400)
+        let embedded = CodexRateLimitResetCreditsSnapshot(
+            credits: Self.resetSnapshot(id: "embedded", now: now).credits,
+            availableCount: 3,
+            updatedAt: now)
+        let recorder = ResetCreditFetchRecorder()
+
+        let outcome = await UsageStore.attachingCodexResetCreditsIfNeeded(
+            to: Self.outcome(resetCredits: embedded, now: now),
+            env: ["CODEX_HOME": "/tmp/account-a"],
+            fetcher: { env in
+                await recorder.record(env)
+                throw ResetCreditFetchTestError.failed
+            })
+
+        #expect(try Self.usage(from: outcome).codexResetCredits == embedded)
+        #expect(await recorder.environments().count == 1)
+    }
+
+    @Test
     func `supplemental inventory uses each scoped account environment once`() async throws {
         let now = Date(timeIntervalSince1970: 1_781_726_400)
         let recorder = ResetCreditFetchRecorder()
@@ -139,6 +213,21 @@ struct CodexResetCreditOutcomeTests {
     }
 
     @Test
+    func `count-only GET rescues reset-credit-only O auth usage`() async throws {
+        let now = Date(timeIntervalSince1970: 1_781_726_400)
+        let resetCredits = CodexRateLimitResetCreditsSnapshot(
+            credits: [],
+            availableCount: 4,
+            updatedAt: now)
+        let outcome = await UsageStore.attachingCodexResetCreditsIfNeeded(
+            to: Self.outcome(resetCredits: nil, now: now, primary: nil, strategyID: "codex.oauth"),
+            env: ["CODEX_HOME": "/tmp/account-a"],
+            fetcher: { _ in resetCredits })
+
+        #expect(try Self.usage(from: outcome).codexResetCredits == resetCredits)
+    }
+
+    @Test
     func `supplemental GET cancellation remains a cancelled provider outcome`() async {
         let now = Date(timeIntervalSince1970: 1_781_726_400)
         let outcome = await UsageStore.attachingCodexResetCreditsIfNeeded(
@@ -197,18 +286,26 @@ struct CodexResetCreditOutcomeTests {
 
     private static func resetSnapshot(id: String, now: Date) -> CodexRateLimitResetCreditsSnapshot {
         CodexRateLimitResetCreditsSnapshot(
-            credits: [CodexRateLimitResetCredit(
-                id: id,
-                resetType: "codex_rate_limits",
-                status: .available,
-                grantedAt: now,
-                expiresAt: now.addingTimeInterval(86400),
-                redeemStartedAt: nil,
-                redeemedAt: nil,
-                title: nil,
-                description: nil)],
+            credits: [self.resetCredit(id: id, now: now)],
             availableCount: 1,
             updatedAt: now)
+    }
+
+    private static func resetCredit(
+        id: String,
+        now: Date,
+        title: String? = nil) -> CodexRateLimitResetCredit
+    {
+        CodexRateLimitResetCredit(
+            id: id,
+            resetType: "codex_rate_limits",
+            status: .available,
+            grantedAt: now,
+            expiresAt: now.addingTimeInterval(86400),
+            redeemStartedAt: nil,
+            redeemedAt: nil,
+            title: title,
+            description: nil)
     }
 
     private static func credentials(lastRefresh: Date?) -> CodexOAuthCredentials {

@@ -453,12 +453,12 @@ public enum CodexOAuthUsageFetcher {
                     let decoder = JSONDecoder()
                     decoder.dateDecodingStrategy = .custom(Self.decodeISO8601Date)
                     let payload = try decoder.decode(RateLimitResetCreditsResponse.self, from: data)
-                    guard payload.availableCount >= 0 else {
+                    guard let availableCount = payload.normalizedAvailableCount else {
                         throw CodexOAuthFetchError.invalidResponse
                     }
                     return CodexRateLimitResetCreditsSnapshot(
-                        credits: payload.credits.map(\.model),
-                        availableCount: payload.availableCount,
+                        credits: (payload.credits ?? []).map(\.model),
+                        availableCount: availableCount,
                         updatedAt: Date())
                 } catch {
                     throw CodexOAuthFetchError.invalidResponse
@@ -560,12 +560,17 @@ public enum CodexOAuthUsageFetcher {
     }
 
     private struct RateLimitResetCreditsResponse: Decodable {
-        let credits: [RateLimitResetCreditResponse]
-        let availableCount: Int
+        let credits: [RateLimitResetCreditResponse]?
+        let availableCount: Int64
 
         private enum CodingKeys: String, CodingKey {
             case credits
             case availableCount = "available_count"
+        }
+
+        var normalizedAvailableCount: Int? {
+            guard self.availableCount >= 0 else { return nil }
+            return Int(exactly: self.availableCount)
         }
     }
 
@@ -646,9 +651,12 @@ extension CodexOAuthUsageFetcher {
         let decoder = JSONDecoder()
         decoder.dateDecodingStrategy = .custom(Self.decodeISO8601Date)
         let payload = try decoder.decode(RateLimitResetCreditsResponse.self, from: data)
+        guard let availableCount = payload.normalizedAvailableCount else {
+            throw CodexOAuthFetchError.invalidResponse
+        }
         return CodexRateLimitResetCreditsSnapshot(
-            credits: payload.credits.map(\.model),
-            availableCount: payload.availableCount,
+            credits: (payload.credits ?? []).map(\.model),
+            availableCount: availableCount,
             updatedAt: now)
     }
 }

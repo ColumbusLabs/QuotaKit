@@ -32,19 +32,27 @@ extension UsageStore {
     {
         guard case let .success(result) = outcome.result else { return outcome }
         let requiresResetCreditRescue = Self.requiresResetCreditRescue(result)
-        if result.usage.codexResetCredits != nil {
+        let embeddedResetCredits = result.usage.codexResetCredits
+        if let embeddedResetCredits,
+           !Self.requiresSupplementalResetCreditDetails(
+               embeddedResetCredits,
+               at: result.usage.updatedAt)
+        {
             return outcome
         }
 
         do {
             try Task.checkCancellation()
-            let resetCredits = try await fetcher(env)
+            let supplementalResetCredits = try await fetcher(env)
             try Task.checkCancellation()
             if requiresResetCreditRescue,
-               (resetCredits?.availableInventory(at: result.usage.updatedAt).count ?? 0) == 0
+               (supplementalResetCredits?.availableCount ?? 0) <= 0
             {
                 return outcome.replacingResult(with: .failure(UsageError.noRateLimitsFound))
             }
+            let resetCredits = Self.mergingCodexResetCredits(
+                embedded: embeddedResetCredits,
+                supplemental: supplementalResetCredits)
             return outcome.replacingUsage(result.usage.withCodexResetCredits(resetCredits))
         } catch {
             if error is CancellationError || Task.isCancelled {
@@ -53,9 +61,36 @@ extension UsageStore {
             if requiresResetCreditRescue {
                 return outcome.replacingResult(with: .failure(UsageError.noRateLimitsFound))
             }
-            // A successful usage refresh must not retain reset-credit inventory from an older snapshot.
-            return outcome.replacingUsage(result.usage.withCodexResetCredits(nil))
+            // Preserve fresh app-server data when only the best-effort detail enrichment fails.
+            // Without embedded data, a successful usage refresh must not retain older inventory.
+            return embeddedResetCredits == nil
+                ? outcome.replacingUsage(result.usage.withCodexResetCredits(nil))
+                : outcome
         }
+    }
+
+    private nonisolated static func requiresSupplementalResetCreditDetails(
+        _ snapshot: CodexRateLimitResetCreditsSnapshot,
+        at date: Date) -> Bool
+    {
+        snapshot.availableInventory(at: date).count < snapshot.availableCount
+    }
+
+    private nonisolated static func mergingCodexResetCredits(
+        embedded: CodexRateLimitResetCreditsSnapshot?,
+        supplemental: CodexRateLimitResetCreditsSnapshot?) -> CodexRateLimitResetCreditsSnapshot?
+    {
+        guard let embedded else { return supplemental }
+        guard let supplemental else { return embedded }
+
+        var seenIDs = Set(embedded.credits.map(\.id))
+        let supplementalDetails = supplemental.credits.filter { credit in
+            seenIDs.insert(credit.id).inserted
+        }
+        return CodexRateLimitResetCreditsSnapshot(
+            credits: embedded.credits + supplementalDetails,
+            availableCount: embedded.availableCount,
+            updatedAt: max(embedded.updatedAt, supplemental.updatedAt))
     }
 
     private nonisolated static func requiresResetCreditRescue(_ result: ProviderFetchResult) -> Bool {

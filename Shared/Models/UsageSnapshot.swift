@@ -305,6 +305,41 @@ public struct SyncCodexResetCredits: Codable, Sendable, Equatable {
         self.availableCount = availableCount
         self.updatedAt = updatedAt
     }
+
+    /// Backend-authoritative inventory count at the time this snapshot was
+    /// captured. The credit-detail array can be partial, so display surfaces
+    /// must not replace this value with `availableCredits(at:).count`.
+    public var authoritativeAvailableCount: Int {
+        max(0, self.availableCount)
+    }
+
+    /// Available credit details that are still current at `date`, ordered by
+    /// earliest expiry. Credits without an expiry remain visible after all
+    /// dated credits, with stable ID ordering for deterministic rendering.
+    public func availableCredits(at date: Date) -> [SyncCodexResetCredit] {
+        self.credits
+            .filter { credit in
+                credit.status == "available" &&
+                    (credit.expiresAt.map { $0 > date } ?? true)
+            }
+            .sorted { lhs, rhs in
+                switch (lhs.expiresAt, rhs.expiresAt) {
+                case let (lhsDate?, rhsDate?):
+                    if lhsDate != rhsDate { return lhsDate < rhsDate }
+                case (_?, nil):
+                    return true
+                case (nil, _?):
+                    return false
+                case (nil, nil):
+                    break
+                }
+                return lhs.id < rhs.id
+            }
+    }
+
+    public var hasAvailableInventory: Bool {
+        self.authoritativeAvailableCount > 0
+    }
 }
 
 /// Codex monthly credit-limit summary synced for companion surfaces.

@@ -37,13 +37,26 @@ struct MenuCardHeightFingerprintTests {
     func `height fingerprint tracks reset-credit inventory shape`() {
         let one = Self.model(resetCredits: CodexResetCreditsPresentation(
             text: "1 available",
-            items: [.init(expiryText: "Expires in 1d", compactExpiryText: "1d")]))
+            items: [
+                .init(
+                    exactTimeText: "Jul 1, 2026 at 1:00:00 PM EDT",
+                    expiryText: "Expires Jul 1",
+                    relativeExpiryText: "in 1d"),
+            ],
+            availableCount: 1))
         let two = Self.model(resetCredits: CodexResetCreditsPresentation(
             text: "2 available",
             items: [
-                .init(expiryText: "Expires in 1d", compactExpiryText: "1d"),
-                .init(expiryText: "No expiry", compactExpiryText: "No expiry"),
-            ]))
+                .init(
+                    exactTimeText: "Jul 1, 2026 at 1:00:00 PM EDT",
+                    expiryText: "Expires Jul 1",
+                    relativeExpiryText: "in 1d"),
+                .init(
+                    exactTimeText: nil,
+                    expiryText: "No expiry",
+                    relativeExpiryText: nil),
+            ],
+            availableCount: 2))
 
         #expect(one.heightFingerprint(section: "card") != two.heightFingerprint(section: "card"))
     }

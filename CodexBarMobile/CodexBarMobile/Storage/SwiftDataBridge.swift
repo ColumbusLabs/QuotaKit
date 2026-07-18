@@ -161,6 +161,7 @@ enum SwiftDataBridge {
         let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
         let perplexityCreditsData = provider.perplexityCredits.flatMap { try? encoder.encode($0) }
+        let codexResetCreditsData = provider.codexResetCredits.flatMap { try? encoder.encode($0) }
         let crossModelUsageData = provider.crossModelUsage.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
@@ -174,6 +175,7 @@ enum SwiftDataBridge {
             existing.costSummaryData = costSummaryData
             existing.budgetData = budgetData
             existing.perplexityCreditsData = perplexityCreditsData
+            existing.codexResetCreditsData = codexResetCreditsData
             existing.crossModelUsageData = crossModelUsageData
             existing.device = device
             model = existing
@@ -191,6 +193,7 @@ enum SwiftDataBridge {
                 costSummaryData: costSummaryData,
                 budgetData: budgetData,
                 perplexityCreditsData: perplexityCreditsData,
+                codexResetCreditsData: codexResetCreditsData,
                 crossModelUsageData: crossModelUsageData,
                 device: device)
             context.insert(created)
@@ -309,6 +312,9 @@ enum SwiftDataBridge {
                 let perplexityCredits = row.perplexityCreditsData.flatMap {
                     try? decoder.decode(SyncPerplexityCreditSummary.self, from: $0)
                 }
+                let codexResetCredits = row.codexResetCreditsData.flatMap {
+                    try? decoder.decode(SyncCodexResetCredits.self, from: $0)
+                }
                 let crossModelUsage = row.crossModelUsageData.flatMap {
                     try? decoder.decode(SyncCrossModelUsage.self, from: $0)
                 }
@@ -351,6 +357,7 @@ enum SwiftDataBridge {
                     rateWindows: rateWindows,
                     utilizationHistory: seriesList.isEmpty ? nil : seriesList,
                     perplexityCredits: perplexityCredits,
+                    codexResetCredits: codexResetCredits,
                     crossModelUsage: crossModelUsage))
             }
 

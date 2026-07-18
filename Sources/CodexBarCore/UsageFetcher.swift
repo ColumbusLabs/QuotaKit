@@ -855,11 +855,24 @@ private enum RPCAccountDetails: Decodable {
 private struct RPCRateLimitsResponse: Decodable, Encodable {
     let rateLimits: RPCRateLimitSnapshot
     let rateLimitsByLimitId: [String: RPCRateLimitSnapshot]?
+    let rateLimitResetCredits: RPCRateLimitResetCreditsSummary?
+
+    private init(
+        rateLimits: RPCRateLimitSnapshot,
+        rateLimitsByLimitId: [String: RPCRateLimitSnapshot]?,
+        rateLimitResetCredits: RPCRateLimitResetCreditsSummary?)
+    {
+        self.rateLimits = rateLimits
+        self.rateLimitsByLimitId = rateLimitsByLimitId
+        self.rateLimitResetCredits = rateLimitResetCredits
+    }
 
     enum CodingKeys: String, CodingKey {
         case rateLimits
         case rateLimitsByLimitId
         case rateLimitsByLimitIdSnake = "rate_limits_by_limit_id"
+        case rateLimitResetCredits
+        case rateLimitResetCreditsSnake = "rate_limit_reset_credits"
     }
 
     init(from decoder: Decoder) throws {
@@ -871,13 +884,56 @@ private struct RPCRateLimitsResponse: Decodable, Encodable {
             ?? (try? container.decodeIfPresent(
                 [String: RPCRateLimitSnapshot].self,
                 forKey: .rateLimitsByLimitIdSnake))
+        self.rateLimitResetCredits = (try? container.decodeIfPresent(
+            RPCRateLimitResetCreditsSummary.self,
+            forKey: .rateLimitResetCredits))
+            ?? (try? container.decodeIfPresent(
+                RPCRateLimitResetCreditsSummary.self,
+                forKey: .rateLimitResetCreditsSnake))
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.rateLimits, forKey: .rateLimits)
         try container.encodeIfPresent(self.rateLimitsByLimitId, forKey: .rateLimitsByLimitId)
+        try container.encodeIfPresent(self.rateLimitResetCredits, forKey: .rateLimitResetCredits)
     }
+
+    func redactingResetCreditIdentifiers() -> RPCRateLimitsResponse {
+        let redactedResetCredits = self.rateLimitResetCredits.map { summary in
+            RPCRateLimitResetCreditsSummary(
+                availableCount: summary.availableCount,
+                credits: summary.credits?.map { credit in
+                    RPCRateLimitResetCredit(
+                        id: CodexRateLimitResetCredit.stableID(forProviderID: credit.id),
+                        resetType: credit.resetType,
+                        status: credit.status,
+                        grantedAt: credit.grantedAt,
+                        expiresAt: credit.expiresAt,
+                        title: credit.title,
+                        description: credit.description)
+                })
+        }
+        return RPCRateLimitsResponse(
+            rateLimits: self.rateLimits,
+            rateLimitsByLimitId: self.rateLimitsByLimitId,
+            rateLimitResetCredits: redactedResetCredits)
+    }
+}
+
+private struct RPCRateLimitResetCreditsSummary: Decodable, Encodable {
+    let availableCount: Int64
+    let credits: [RPCRateLimitResetCredit]?
+}
+
+private struct RPCRateLimitResetCredit: Decodable, Encodable {
+    let id: String
+    let resetType: String
+    let status: CodexRateLimitResetCreditStatus
+    let grantedAt: Int64
+    let expiresAt: Int64?
+    let title: String?
+    let description: String?
 }
 
 private struct RPCRateLimitSnapshot: Decodable, Encodable {
@@ -1383,13 +1439,26 @@ public struct UsageFetcher: Sendable {
                     }
                 } ?? rateLimitsPlan)
             let credits = Self.makeCredits(from: limits, rateLimitsByLimitId: limitsResponse.rateLimitsByLimitId)
+            let resetCredits = Self.makeResetCredits(from: limitsResponse.rateLimitResetCredits)
             let shouldReturnUnavailableUsage = credits == nil || rateLimitsPlan != nil
-            let usage = CodexReconciledState.fromCLI(
+            let baseUsage = CodexReconciledState.fromCLI(
                 primary: Self.makeWindow(from: limits.primary),
                 secondary: Self.makeWindow(from: limits.secondary),
                 identity: identity)?
                 .toUsageSnapshot()
                 ?? (shouldReturnUnavailableUsage ? Self.emptyCodexUsageSnapshotIfIdentified(identity: identity) : nil)
+            let usage: UsageSnapshot? = if let baseUsage {
+                baseUsage.withCodexResetCredits(resetCredits)
+            } else if let resetCredits, resetCredits.availableCount > 0 {
+                UsageSnapshot(
+                    primary: nil,
+                    secondary: nil,
+                    codexResetCredits: resetCredits,
+                    updatedAt: resetCredits.updatedAt,
+                    identity: identity)
+            } else {
+                nil
+            }
             guard usage != nil || credits != nil else {
                 throw UsageError.noRateLimitsFound
             }
@@ -1429,7 +1498,7 @@ public struct UsageFetcher: Sendable {
             defer { rpc.shutdown() }
             try await rpc.initialize(clientName: "codexbar", clientVersion: "0.5.4")
             let limits = try await rpc.fetchRateLimits()
-            let data = try JSONEncoder().encode(limits)
+            let data = try JSONEncoder().encode(limits.redactingResetCreditIdentifiers())
             return String(data: data, encoding: .utf8) ?? "<unprintable>"
         } catch {
             return "Codex RPC probe failed: \(error)"
@@ -1521,6 +1590,33 @@ public struct UsageFetcher: Sendable {
             events: [],
             updatedAt: updatedAt,
             codexCreditLimit: creditLimit)
+    }
+
+    private static func makeResetCredits(
+        from summary: RPCRateLimitResetCreditsSummary?) -> CodexRateLimitResetCreditsSnapshot?
+    {
+        guard let summary,
+              summary.availableCount >= 0,
+              let availableCount = Int(exactly: summary.availableCount)
+        else {
+            return nil
+        }
+        let credits = (summary.credits ?? []).map { credit in
+            CodexRateLimitResetCredit(
+                id: credit.id,
+                resetType: credit.resetType,
+                status: credit.status,
+                grantedAt: Date(timeIntervalSince1970: TimeInterval(credit.grantedAt)),
+                expiresAt: credit.expiresAt.map { Date(timeIntervalSince1970: TimeInterval($0)) },
+                redeemStartedAt: nil,
+                redeemedAt: nil,
+                title: credit.title,
+                description: credit.description)
+        }
+        return CodexRateLimitResetCreditsSnapshot(
+            credits: credits,
+            availableCount: availableCount,
+            updatedAt: Date())
     }
 
     private static func codexCreditLimit(
@@ -1686,6 +1782,15 @@ public struct UsageFetcher: Sendable {
 
 #if DEBUG
 extension UsageFetcher {
+    static func _redactCodexRPCRateLimitsForTesting(_ data: Data) throws -> String {
+        let limits = try JSONDecoder().decode(RPCRateLimitsResponse.self, from: data)
+        let redacted = try JSONEncoder().encode(limits.redactingResetCreditIdentifiers())
+        guard let output = String(bytes: redacted, encoding: .utf8) else {
+            throw CocoaError(.fileReadCorruptFile)
+        }
+        return output
+    }
+
     static func _mapCodexRPCLimitsForTesting(
         primary: (usedPercent: Double, windowMinutes: Int, resetsAt: Int?)?,
         secondary: (usedPercent: Double, windowMinutes: Int, resetsAt: Int?)?,

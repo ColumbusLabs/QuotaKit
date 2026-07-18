@@ -81,6 +81,9 @@ final class ProviderSnapshotModel {
     /// pushing structured credit data (Mac 0.20.3+); nil for every other
     /// provider and for legacy Mac payloads.
     var perplexityCreditsData: Data?
+    /// JSON-encoded `SyncCodexResetCredits` for account-scoped banked reset
+    /// inventory. Optional so existing stores lightweight-migrate cleanly.
+    var codexResetCreditsData: Data?
     /// JSON-encoded `SyncCrossModelUsage` — opaque blob, decoded on read.
     /// Populated only for `providerID == "crossmodel"`.
     var crossModelUsageData: Data?
@@ -103,6 +106,7 @@ final class ProviderSnapshotModel {
         costSummaryData: Data? = nil,
         budgetData: Data? = nil,
         perplexityCreditsData: Data? = nil,
+        codexResetCreditsData: Data? = nil,
         crossModelUsageData: Data? = nil,
         device: DeviceRecord? = nil)
     {
@@ -122,6 +126,7 @@ final class ProviderSnapshotModel {
         self.costSummaryData = costSummaryData
         self.budgetData = budgetData
         self.perplexityCreditsData = perplexityCreditsData
+        self.codexResetCreditsData = codexResetCreditsData
         self.crossModelUsageData = crossModelUsageData
         self.device = device
     }

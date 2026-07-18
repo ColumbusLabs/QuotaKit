@@ -27,10 +27,11 @@ struct CodexResetCreditExpiryNotifierTests {
         notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
         notifier.postExpiringCreditsIfNeeded(snapshot: snapshot, resetStyle: .countdown, now: now)
 
+        let exactExpiry = CodexResetCreditsPresentation.exactExpiryTimeText(now.addingTimeInterval(86400))
         #expect(posts.count == 1)
         #expect(posts[0].prefix == CodexResetCreditExpiryNotifier.notificationPrefix)
         #expect(posts[0].title == "Limit Reset Credits")
-        #expect(posts[0].body == "1. Expires in 1d")
+        #expect(posts[0].body == "1. Expires \(exactExpiry)")
         #expect(!posts[0].prefix.contains(rawID))
         #expect(!posts[0].body.contains(rawID))
         let fingerprints = try #require(defaults.stringArray(

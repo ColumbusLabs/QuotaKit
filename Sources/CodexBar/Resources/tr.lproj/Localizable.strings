@@ -1197,6 +1197,7 @@
 "Limit Reset Credits" = "Limit Sıfırlama Kredileri";
 "1 available" = "1 kullanılabilir";
 "%d available" = "%d kullanılabilir";
+"Expiry times: %d of %d" = "Son kullanma zamanları: %d/%d";
 "Next expires %@" = "Sonraki sona erme %@";
 "Expires %@" = "%@ sona eriyor";
 "No expiry" = "Son kullanma yok";

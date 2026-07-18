@@ -135,6 +135,68 @@ struct CodexUsageFetcherFallbackTests {
     }
 
     @Test
+    func `CLI rate limits attach authoritative capped reset credit inventory`() async throws {
+        let stubCLIPath = try self.makeResetCreditsStubCodexCLI(
+            rateLimitResetCreditsJSON: """
+            {
+              "availableCount": 3,
+              "credits": [{
+                "id": "RateLimitResetCredit_visible",
+                "resetType": "codexRateLimits",
+                "status": "available",
+                "grantedAt": 1781654400,
+                "expiresAt": 1784246400,
+                "title": "Full reset",
+                "description": "Ready to redeem"
+              }]
+            }
+            """)
+        defer { try? FileManager.default.removeItem(atPath: stubCLIPath) }
+
+        let snapshot = try await self.makeStubUsageFetcher(stubCLIPath).loadLatestCLIAccountSnapshot()
+        let resetCredits = try #require(snapshot.usage?.codexResetCredits)
+        let credit = try #require(resetCredits.credits.first)
+
+        #expect(resetCredits.availableCount == 3)
+        #expect(resetCredits.credits.count == 1)
+        #expect(credit.id == CodexRateLimitResetCredit.stableID(forProviderID: "RateLimitResetCredit_visible"))
+        #expect(credit.id != "RateLimitResetCredit_visible")
+        #expect(credit.resetType == "codexRateLimits")
+        #expect(credit.status == .available)
+        #expect(credit.grantedAt == Date(timeIntervalSince1970: 1_781_654_400))
+        #expect(credit.expiresAt == Date(timeIntervalSince1970: 1_784_246_400))
+        #expect(credit.redeemStartedAt == nil)
+        #expect(credit.redeemedAt == nil)
+        #expect(credit.title == "Full reset")
+        #expect(credit.description == "Ready to redeem")
+    }
+
+    @Test
+    func `CLI rate limits preserve count-only reset credit summary`() async throws {
+        let stubCLIPath = try self.makeResetCreditsStubCodexCLI(
+            rateLimitResetCreditsJSON: #"{"availableCount":4,"credits":null}"#)
+        defer { try? FileManager.default.removeItem(atPath: stubCLIPath) }
+
+        let snapshot = try await self.makeStubUsageFetcher(stubCLIPath).loadLatestCLIAccountSnapshot()
+        let resetCredits = try #require(snapshot.usage?.codexResetCredits)
+
+        #expect(resetCredits.availableCount == 4)
+        #expect(resetCredits.credits.isEmpty)
+    }
+
+    @Test
+    func `CLI rate limits leave reset credits nil for legacy or invalid summaries`() async throws {
+        for payload in [nil, "null", #"{"availableCount":-1,"credits":[]}"#] as [String?] {
+            let stubCLIPath = try self.makeResetCreditsStubCodexCLI(rateLimitResetCreditsJSON: payload)
+            defer { try? FileManager.default.removeItem(atPath: stubCLIPath) }
+
+            let snapshot = try await self.makeStubUsageFetcher(stubCLIPath).loadLatestCLIAccountSnapshot()
+            #expect(snapshot.usage?.primary?.usedPercent == 12)
+            #expect(snapshot.usage?.codexResetCredits == nil)
+        }
+    }
+
+    @Test
     func `CLI usage fails when RPC body recovery misses session lane`() async throws {
         let stubCLIPath = try self.makeDecodeMismatchStubCodexCLI(message: Self.partialDecodeBodyMessage)
         defer { try? FileManager.default.removeItem(atPath: stubCLIPath) }
@@ -470,6 +532,68 @@ struct CodexUsageFetcherFallbackTests {
         """
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("codex-credits-only-stub-\(UUID().uuidString)", isDirectory: false)
+        try Data(script.utf8).write(to: url)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
+        return url.path
+    }
+
+    private func makeResetCreditsStubCodexCLI(rateLimitResetCreditsJSON: String?) throws -> String {
+        let resetCreditsProperty = rateLimitResetCreditsJSON.map {
+            ", \"rateLimitResetCredits\": \($0)"
+        } ?? ""
+        let script = """
+        #!/usr/bin/python3 -S
+        import json
+        import sys
+
+        args = sys.argv[1:]
+        if "app-server" in args:
+            for line in sys.stdin:
+                if not line.strip():
+                    continue
+                message = json.loads(line)
+                method = message.get("method")
+                if method == "initialized":
+                    continue
+
+                identifier = message.get("id")
+                if method == "initialize":
+                    payload = {"id": identifier, "result": {}}
+                elif method == "account/rateLimits/read":
+                    result = json.loads(r'''{
+                      "rateLimits": {
+                        "planType": "pro",
+                        "primary": {
+                          "usedPercent": 12,
+                          "windowDurationMins": 300,
+                          "resetsAt": 1784246400
+                        }
+                      }
+                      \(resetCreditsProperty)
+                    }''')
+                    payload = {"id": identifier, "result": result}
+                elif method == "account/read":
+                    payload = {
+                        "id": identifier,
+                        "result": {
+                            "account": {
+                                "type": "chatgpt",
+                                "email": "stub@example.com",
+                                "planType": "pro"
+                            },
+                            "requiresOpenaiAuth": False
+                        }
+                    }
+                else:
+                    payload = {"id": identifier, "result": {}}
+
+                print(json.dumps(payload), flush=True)
+        else:
+            sys.stderr.write("unexpected non app-server Codex invocation\\n")
+            sys.exit(92)
+        """
+        let url = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-reset-credits-stub-\(UUID().uuidString)", isDirectory: false)
         try Data(script.utf8).write(to: url)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: url.path)
         return url.path

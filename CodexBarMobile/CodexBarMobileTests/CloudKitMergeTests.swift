@@ -13,7 +13,8 @@ struct CloudKitMergeTests {
         name: String,
         email: String? = nil,
         lastUpdated: Date,
-        usedPercent: Double = 50.0) -> ProviderUsageSnapshot
+        usedPercent: Double = 50.0,
+        codexResetCredits: SyncCodexResetCredits? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -28,7 +29,8 @@ struct CloudKitMergeTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: lastUpdated)
+            lastUpdated: lastUpdated,
+            codexResetCredits: codexResetCredits)
     }
 
     private func makeSnapshot(
@@ -75,6 +77,200 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         #expect(merged.providers.count == 1)
         #expect(merged.providers[0].primary?.usedPercent == 80.0) // Newer data wins
+    }
+
+    @Test
+    func `Reset credits fall back to the latest non-nil account snapshot`() throws {
+        let credits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-older",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.olderDate,
+                    expiresAt: self.newerDate),
+            ],
+            availableCount: 1,
+            updatedAt: self.olderDate)
+        let older = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.olderDate,
+            codexResetCredits: credits)
+        let newerWithoutCredits = self.makeProvider(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.newerDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [older]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [newerWithoutCredits]),
+        ]))
+
+        #expect(merged.providers[0].codexResetCredits == credits)
+    }
+
+    @Test
+    func `Reset credits use the newest complete value without summing devices`() throws {
+        let olderCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-older",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.olderDate),
+            ],
+            availableCount: 4,
+            updatedAt: self.olderDate)
+        let newerCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-newer",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.newerDate),
+            ],
+            availableCount: 2,
+            updatedAt: self.newerDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A",
+                deviceID: "uuid-a",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.olderDate,
+                    codexResetCredits: olderCredits)]),
+            self.makeSnapshot(
+                deviceName: "Mac B",
+                deviceID: "uuid-b",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.newerDate,
+                    codexResetCredits: newerCredits)]),
+        ]))
+
+        let actual = try #require(merged.providers[0].codexResetCredits)
+        #expect(actual.availableCount == 2)
+        #expect(actual.credits.map(\.id) == ["reset-newer"])
+    }
+
+    @Test
+    func `Reset credits use inventory freshness when provider timestamps are skewed`() throws {
+        let fresherInventory = SyncCodexResetCredits(
+            credits: [],
+            availableCount: 3,
+            updatedAt: self.newerDate)
+        let staleInventory = SyncCodexResetCredits(
+            credits: [],
+            availableCount: 1,
+            updatedAt: self.olderDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A",
+                deviceID: "uuid-a",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.olderDate,
+                    codexResetCredits: fresherInventory)]),
+            self.makeSnapshot(
+                deviceName: "Mac B",
+                deviceID: "uuid-b",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.newerDate,
+                    codexResetCredits: staleInventory)]),
+        ]))
+
+        #expect(merged.providers[0].codexResetCredits == fresherInventory)
+    }
+
+    @Test
+    func `Equal reset freshness uses the newer provider timestamp as tie break`() throws {
+        let inventoryDate = self.olderDate.addingTimeInterval(100)
+        let olderProviderInventory = SyncCodexResetCredits(
+            credits: [],
+            availableCount: 3,
+            updatedAt: inventoryDate)
+        let newerProviderInventory = SyncCodexResetCredits(
+            credits: [],
+            availableCount: 1,
+            updatedAt: inventoryDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A",
+                deviceID: "uuid-a",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.olderDate,
+                    codexResetCredits: olderProviderInventory)]),
+            self.makeSnapshot(
+                deviceName: "Mac B",
+                deviceID: "uuid-b",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.newerDate,
+                    codexResetCredits: newerProviderInventory)]),
+        ]))
+
+        #expect(merged.providers[0].codexResetCredits == newerProviderInventory)
+    }
+
+    @Test
+    func `Newer explicit empty reset inventory clears an older populated value`() throws {
+        let olderCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "stale-reset",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.olderDate),
+            ],
+            availableCount: 1,
+            updatedAt: self.olderDate)
+        let emptyCredits = SyncCodexResetCredits(
+            credits: [],
+            availableCount: 0,
+            updatedAt: self.newerDate)
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(
+                deviceName: "Mac A",
+                deviceID: "uuid-a",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.olderDate,
+                    codexResetCredits: olderCredits)]),
+            self.makeSnapshot(
+                deviceName: "Mac B",
+                deviceID: "uuid-b",
+                providers: [self.makeProvider(
+                    id: "codex",
+                    name: "Codex",
+                    email: "user@example.com",
+                    lastUpdated: self.newerDate,
+                    codexResetCredits: emptyCredits)]),
+        ]))
+
+        #expect(merged.providers[0].codexResetCredits == emptyCredits)
     }
 
     // MARK: - Same provider, different accounts → keep both

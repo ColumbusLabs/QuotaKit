@@ -125,7 +125,8 @@ extension CodexResetCreditsPresentation {
     fileprivate var heightFingerprint: String {
         MenuCardHeightFingerprint.join([
             MenuCardHeightFingerprint.field("text", self.text),
-            MenuCardHeightFingerprint.field("expirySummary", self.expirySummaryText),
+            "items=\(self.items.count)",
+            self.partialDetailText == nil ? "partial=0" : "partial=1",
         ])
     }
 }

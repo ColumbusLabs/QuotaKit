@@ -1199,6 +1199,7 @@
 "Limit Reset Credits" = "Crediti di reimpostazione limite";
 "1 available" = "1 disponibile";
 "%d available" = "%d disponibili";
+"Expiry times: %d of %d" = "Scadenze: %d di %d";
 "Next expires %@" = "La prossima scade %@";
 "Expires %@" = "Scade %@";
 "No expiry" = "Nessuna scadenza";

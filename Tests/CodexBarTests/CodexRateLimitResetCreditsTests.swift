@@ -7,6 +7,31 @@ import FoundationNetworking
 
 struct CodexRateLimitResetCreditsTests {
     @Test
+    func `RPC debug output redacts provider reset credit identifiers`() throws {
+        let providerID = "RateLimitResetCredit_private-provider-id"
+        let raw = Data("""
+        {
+          "rateLimits": {},
+          "rateLimitResetCredits": {
+            "availableCount": 1,
+            "credits": [{
+              "id": "\(providerID)",
+              "resetType": "codex_rate_limits",
+              "status": "available",
+              "grantedAt": 1788134400,
+              "expiresAt": 1790812800
+            }]
+          }
+        }
+        """.utf8)
+
+        let debugOutput = try UsageFetcher._redactCodexRPCRateLimitsForTesting(raw)
+
+        #expect(!debugOutput.contains(providerID))
+        #expect(debugOutput.contains(CodexRateLimitResetCredit.stableID(forProviderID: providerID)))
+    }
+
+    @Test
     func `resolves URL from chat GPT config`() {
         let config = "chatgpt_base_url = \"https://chatgpt.com/backend-api/\"\n"
         let url = CodexOAuthUsageFetcher._resolveRateLimitResetCreditsURLForTesting(configContents: config)
@@ -68,6 +93,18 @@ struct CodexRateLimitResetCreditsTests {
         } catch {
             Issue.record("Unexpected error: \(error)")
         }
+    }
+
+    @Test
+    func `decodes authoritative count when OAuth credit details are null`() throws {
+        let now = Date(timeIntervalSince1970: 1_788_134_400)
+        let snapshot = try CodexOAuthUsageFetcher._decodeRateLimitResetCreditsForTesting(
+            Data(#"{"credits":null,"available_count":4}"#.utf8),
+            now: now)
+
+        #expect(snapshot.availableCount == 4)
+        #expect(snapshot.credits.isEmpty)
+        #expect(snapshot.updatedAt == now)
     }
 
     @Test

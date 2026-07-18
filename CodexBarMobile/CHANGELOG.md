@@ -5,6 +5,15 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.3 (172)] — 2026-07-17 — Codex banked reset visibility
+
+### Added
+
+- Codex provider details now show the backend-authoritative count of banked
+  limit resets and each synced reset's exact expiration date, year, time, and
+  time zone. Partial backend detail lists are identified without understating
+  the available inventory.
+
 ## [1.11.3 (171)] — 2026-07-12 — Background sync reliability
 
 ### Fixed

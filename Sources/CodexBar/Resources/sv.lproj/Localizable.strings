@@ -1177,6 +1177,7 @@
 "Limit Reset Credits" = "Krediter för gränsåterställning";
 "1 available" = "1 tillgänglig";
 "%d available" = "%d tillgängliga";
+"Expiry times: %d of %d" = "Utgångstider: %d av %d";
 "Next expires %@" = "Nästa upphör %@";
 "Expires %@" = "Upphör %@";
 "No expiry" = "Inget utgångsdatum";

@@ -9,13 +9,17 @@ struct SwiftDataBridgeTests {
     // MARK: - Fixtures
 
     private func makeContainer() -> ModelContainer {
+        ModelContainerFactory.makeContainer(at: self.makeStoreURL())
+    }
+
+    private func makeStoreURL() -> URL {
         let url = FileManager.default.temporaryDirectory
             .appendingPathComponent("CodexBarBridgeTests-\(UUID().uuidString)", isDirectory: true)
             .appendingPathComponent("Store.sqlite")
         try? FileManager.default.createDirectory(
             at: url.deletingLastPathComponent(),
             withIntermediateDirectories: true)
-        return ModelContainerFactory.makeContainer(at: url)
+        return url
     }
 
     private let ts1 = Date(timeIntervalSince1970: 1_700_000_000)
@@ -26,7 +30,8 @@ struct SwiftDataBridgeTests {
         name: String = "Claude",
         email: String? = "user@example.com",
         lastUpdated: Date,
-        utilization: [SyncUtilizationSeries]? = nil) -> ProviderUsageSnapshot
+        utilization: [SyncUtilizationSeries]? = nil,
+        codexResetCredits: SyncCodexResetCredits? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -39,7 +44,8 @@ struct SwiftDataBridgeTests {
             isError: false,
             lastUpdated: lastUpdated,
             rateWindows: [],
-            utilizationHistory: utilization)
+            utilizationHistory: utilization,
+            codexResetCredits: codexResetCredits)
     }
 
     private func makeSnapshot(
@@ -151,6 +157,91 @@ struct SwiftDataBridgeTests {
         #expect(providers.count == 1)
         #expect(providers.first?.providerName == "Claude Code")
         #expect(providers.first?.lastUpdated == self.ts2)
+    }
+
+    @Test
+    func `Codex reset-credit blob round-trips and clears on update`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let resetCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-1",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.ts1,
+                    expiresAt: self.ts2),
+            ],
+            availableCount: 2,
+            updatedAt: self.ts1)
+        let populated = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                lastUpdated: self.ts1,
+                codexResetCredits: resetCredits)],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [populated], into: context)
+
+        let stored = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(stored.codexResetCreditsData != nil)
+        let hydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+        #expect(hydrated.providers.first?.codexResetCredits == resetCredits)
+
+        let cleared = self.makeSnapshot(
+            deviceID: "device-A",
+            providers: [self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                lastUpdated: self.ts2)],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [cleared], into: context)
+
+        let updated = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(updated.codexResetCreditsData == nil)
+        let rehydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+        #expect(rehydrated.providers.first?.codexResetCredits == nil)
+    }
+
+    @Test
+    func `Codex reset-credit blob survives store reopen`() throws {
+        let url = self.makeStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let resetCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-reopen",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: self.ts1,
+                    expiresAt: nil),
+            ],
+            availableCount: 1,
+            updatedAt: self.ts1)
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            try SwiftDataBridge.upsert(
+                deviceSnapshots: [self.makeSnapshot(
+                    deviceID: "device-reopen",
+                    providers: [self.makeProvider(
+                        id: "codex",
+                        name: "Codex",
+                        lastUpdated: self.ts1,
+                        codexResetCredits: resetCredits)],
+                    timestamp: self.ts1)],
+                into: context)
+        }
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            let snapshot = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+            #expect(snapshot.providers.first?.codexResetCredits == resetCredits)
+        }
     }
 
     @Test

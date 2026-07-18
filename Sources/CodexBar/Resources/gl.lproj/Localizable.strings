@@ -1030,6 +1030,7 @@
 "Limit Reset Credits" = "Créditos para restablecer límites";
 "1 available" = "1 dispoñible";
 "%d available" = "%d dispoñibles";
+"Expiry times: %d of %d" = "Datas de caducidade: %d de %d";
 "Next expires %@" = "O seguinte caduca %@";
 "Expires %@" = "Caduca %@";
 "No expiry" = "Sen caducidade";

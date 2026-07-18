@@ -394,6 +394,25 @@ final class CloudSyncReader: @unchecked Sendable {
             .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
     }
 
+    /// Reset-credit snapshots have their own fetch timestamp because detail
+    /// enrichment can complete after the enclosing usage refresh. Prefer that
+    /// field-specific freshness while retaining latest-non-nil compatibility
+    /// with Macs that do not know about reset credits.
+    private static func latestCodexResetCredits(
+        _ entries: [ProviderUsageSnapshot]) -> SyncCodexResetCredits?
+    {
+        entries.compactMap { entry in
+            entry.codexResetCredits.map { (credits: $0, providerUpdatedAt: entry.lastUpdated) }
+        }
+        .max { lhs, rhs in
+            if lhs.credits.updatedAt != rhs.credits.updatedAt {
+                return lhs.credits.updatedAt < rhs.credits.updatedAt
+            }
+            return lhs.providerUpdatedAt < rhs.providerUpdatedAt
+        }?
+        .credits
+    }
+
     /// Merges multiple entries of the same provider+account from different devices.
     ///
     /// Field-by-field semantics:
@@ -456,6 +475,7 @@ final class CloudSyncReader: @unchecked Sendable {
             rateWindows: base.rateWindows,
             utilizationHistory: mergedUtilization,
             perplexityCredits: Self.latestNonNil(entries, \.perplexityCredits),
+            codexResetCredits: Self.latestCodexResetCredits(entries),
             crossModelUsage: Self.latestNonNil(entries, \.crossModelUsage))
     }
 

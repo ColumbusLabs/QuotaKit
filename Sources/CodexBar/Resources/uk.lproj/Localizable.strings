@@ -1178,6 +1178,7 @@
 "Limit Reset Credits" = "Кредити скидання ліміту";
 "1 available" = "1 доступне";
 "%d available" = "%d доступно";
+"Expiry times: %d of %d" = "Часи завершення дії: %d із %d";
 "Next expires %@" = "Наступне спливає %@";
 "Expires %@" = "Спливає %@";
 "No expiry" = "Без терміну дії";

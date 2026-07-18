@@ -62,6 +62,7 @@ struct SnapshotCache: Sendable {
             && provider.rateWindows.isEmpty
             && provider.costSummary == nil
             && provider.budget == nil
+            && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.crossModelUsage == nil
             && !provider.isError
             && provider.statusMessage == nil

@@ -366,6 +366,44 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"] == nil)
     }
 
+    @Test
+    func `Reset-credit-only Codex snapshot is retained by ghost filtering`() throws {
+        var cache = SnapshotCache()
+        let resets = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-1",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: t1,
+                    expiresAt: t3),
+            ],
+            availableCount: 1,
+            updatedAt: t1)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: t1,
+            rateWindows: [],
+            codexResetCredits: resets)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: t1,
+            deviceName: "Mac A",
+            deviceID: "mac-A")
+
+        cache.replaceFromFullFetch(perProviderSnapshots: [snapshot], legacySnapshots: [])
+
+        let retained = try #require(cache.perProviderByDevice["mac-A"]?["codex|user@example.com"])
+        #expect(retained.codexResetCredits?.availableCount == 1)
+    }
+
     // MARK: - Codex review P1 — preserve on transient fetch error
 
     @Test

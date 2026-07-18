@@ -29,6 +29,7 @@ enum ProviderDetailSection: Identifiable {
     case openCodeGoZen(SyncOpenCodeGoZenBalance)
     case minimax(SyncMiniMaxBillingHistory)
     case codexWorkspace(SyncCodexWorkspaceContext, showsPace: Bool)
+    case codexResetCredits(SyncCodexResetCredits)
 
     var id: String {
         switch self {
@@ -74,6 +75,8 @@ enum ProviderDetailSection: Identifiable {
             "minimax"
         case .codexWorkspace:
             "codex-workspace"
+        case .codexResetCredits:
+            "codex-reset-credits"
         }
     }
 }
@@ -167,6 +170,12 @@ enum ProviderDetailSectionDispatcher {
         {
             sections.append(.codexWorkspace(value, showsPace: !hasRateWindowPace))
         }
+        if provider.providerID == "codex",
+           let value = provider.codexResetCredits,
+           value.authoritativeAvailableCount > 0
+        {
+            sections.append(.codexResetCredits(value))
+        }
 
         return sections
     }
@@ -255,6 +264,8 @@ struct ProviderDetailSectionView: View {
                 context: context,
                 tintColor: self.tintColor,
                 showsPace: showsPace)
+        case let .codexResetCredits(credits):
+            CodexResetCreditsCard(credits: credits, tintColor: self.tintColor)
         }
     }
 }

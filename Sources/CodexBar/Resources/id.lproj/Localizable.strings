@@ -1199,6 +1199,7 @@
 "Limit Reset Credits" = "Kredit pengaturan ulang batas";
 "1 available" = "1 tersedia";
 "%d available" = "%d tersedia";
+"Expiry times: %d of %d" = "Waktu kedaluwarsa: %d dari %d";
 "Next expires %@" = "Berikutnya kedaluwarsa %@";
 "Expires %@" = "Kedaluwarsa %@";
 "No expiry" = "Tidak ada kedaluwarsa";

@@ -544,7 +544,7 @@ private struct ProviderCodexResetCreditsInlineRow: View {
     let presentation: CodexResetCreditsPresentation
 
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        VStack(alignment: .leading, spacing: 6) {
             HStack(alignment: .firstTextBaseline, spacing: 8) {
                 Text(L("Limit Reset Credits"))
                     .font(.subheadline.weight(.semibold))
@@ -553,17 +553,33 @@ private struct ProviderCodexResetCreditsInlineRow: View {
                     .font(.footnote)
                     .foregroundStyle(.secondary)
             }
-            HStack(alignment: .firstTextBaseline, spacing: 4) {
-                Image(systemName: "clock")
-                    .font(.caption2)
-                Text(self.presentation.expirySummaryText)
+            ForEach(Array(self.presentation.items.enumerated()), id: \.offset) { index, item in
+                HStack(alignment: .firstTextBaseline, spacing: 6) {
+                    Image(systemName: "clock")
+                        .font(.caption2)
+                    VStack(alignment: .trailing, spacing: 1) {
+                        Text("\(index + 1). \(item.expiryText)")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                            .multilineTextAlignment(.trailing)
+                            .fixedSize(horizontal: false, vertical: true)
+                        if let relativeExpiryText = item.relativeExpiryText {
+                            Text(relativeExpiryText)
+                                .font(.caption2)
+                                .foregroundStyle(.quaternary)
+                        }
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .trailing)
+                .accessibilityHidden(true)
+            }
+            if let partialDetailText = self.presentation.partialDetailText {
+                Text(partialDetailText)
                     .font(.caption)
                     .foregroundStyle(.tertiary)
-                    .lineLimit(1)
-                    .minimumScaleFactor(0.8)
+                    .frame(maxWidth: .infinity, alignment: .trailing)
+                    .accessibilityHidden(true)
             }
-            .frame(maxWidth: .infinity, alignment: .trailing)
-            .accessibilityHidden(true)
         }
         .padding(.vertical, 2)
         .accessibilityElement(children: .combine)

@@ -1178,6 +1178,7 @@
 "Limit Reset Credits" = "Crédits de réinitialisation de limite";
 "1 available" = "1 disponible";
 "%d available" = "%d disponibles";
+"Expiry times: %d of %d" = "Dates d’expiration : %d sur %d";
 "Next expires %@" = "Prochaine expiration %@";
 "Expires %@" = "Expire %@";
 "No expiry" = "Sans expiration";

@@ -1200,6 +1200,7 @@
 "Limit Reset Credits" = "เครดิตรีเซ็ตขีดจำกัด";
 "1 available" = "1 รายการ";
 "%d available" = "%d รายการ";
+"Expiry times: %d of %d" = "เวลาหมดอายุ: %d จาก %d";
 "Next expires %@" = "รายการถัดไปหมดอายุ %@";
 "Expires %@" = "หมดอายุ %@";
 "No expiry" = "ไม่มีวันหมดอายุ";

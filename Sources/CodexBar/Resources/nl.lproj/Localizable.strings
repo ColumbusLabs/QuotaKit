@@ -1178,6 +1178,7 @@
 "Limit Reset Credits" = "Limietresetcredits";
 "1 available" = "1 beschikbaar";
 "%d available" = "%d beschikbaar";
+"Expiry times: %d of %d" = "Vervaltijden: %d van %d";
 "Next expires %@" = "Volgende verloopt %@";
 "Expires %@" = "Verloopt %@";
 "No expiry" = "Geen vervaldatum";

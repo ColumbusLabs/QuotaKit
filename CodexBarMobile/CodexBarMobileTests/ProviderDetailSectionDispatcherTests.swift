@@ -57,6 +57,35 @@ struct ProviderDetailSectionDispatcherTests {
     }
 
     @Test
+    func `Codex banked reset inventory renders outside the primary usage section`() {
+        let credits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "reset-1",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            ],
+            availableCount: 1,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let available = Self.snapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            codexResetCredits: credits)
+        let empty = Self.snapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            codexResetCredits: SyncCodexResetCredits(
+                credits: [],
+                availableCount: 0,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+
+        #expect(ProviderDetailSectionDispatcher.sections(for: available, hasRateWindowPace: false)
+            .map(\.id) == ["codex-reset-credits"])
+        #expect(ProviderDetailSectionDispatcher.sections(for: empty, hasRateWindowPace: false).isEmpty)
+    }
+
+    @Test
     func `Antigravity account section requires more than one account`() {
         let one = SyncMultiAccountList(
             accounts: [SyncMultiAccountEntry(email: "one@example.com", isActive: true, expiresAt: nil)],
@@ -108,6 +137,7 @@ struct ProviderDetailSectionDispatcherTests {
         providerID: String,
         providerName: String,
         perplexityCredits: SyncPerplexityCreditSummary? = nil,
+        codexResetCredits: SyncCodexResetCredits? = nil,
         kiroCredits: SyncKiroCredits? = nil,
         antigravityAccounts: SyncMultiAccountList? = nil,
         codexWorkspace: SyncCodexWorkspaceContext? = nil,
@@ -129,6 +159,7 @@ struct ProviderDetailSectionDispatcherTests {
             isError: false,
             lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
             perplexityCredits: perplexityCredits,
+            codexResetCredits: codexResetCredits,
             kiroCredits: kiroCredits,
             antigravityAccounts: antigravityAccounts,
             codexWorkspace: codexWorkspace,

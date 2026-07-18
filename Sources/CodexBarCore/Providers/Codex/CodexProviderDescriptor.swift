@@ -273,7 +273,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
         }
 
         guard credits != nil
-            || (resetCredits?.availableInventory(at: updatedAt).count ?? 0) > 0
+            || (resetCredits?.availableCount ?? 0) > 0
             || allowEmptyUsageForResetCreditEnrichment
         else {
             throw UsageError.noRateLimitsFound
@@ -388,7 +388,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
         guard let credits = result.credits else { return false }
         return credits.remaining == 0
             && credits.codexCreditLimit == nil
-            && (result.usage.codexResetCredits?.availableInventory(at: result.usage.updatedAt).count ?? 0) == 0
+            && (result.usage.codexResetCredits?.availableCount ?? 0) <= 0
     }
 }
 

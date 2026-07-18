@@ -109,6 +109,53 @@ struct SyncModelTests {
     }
 
     @Test
+    func `Codex reset details filter unavailable rows and sort known expirations first`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let resetCredits = SyncCodexResetCredits(
+            credits: [
+                SyncCodexResetCredit(
+                    id: "no-expiry",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: now),
+                SyncCodexResetCredit(
+                    id: "later",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: now,
+                    expiresAt: now.addingTimeInterval(200)),
+                SyncCodexResetCredit(
+                    id: "redeemed",
+                    resetType: "codex_rate_limits",
+                    status: "redeemed",
+                    grantedAt: now,
+                    expiresAt: now.addingTimeInterval(50)),
+                SyncCodexResetCredit(
+                    id: "expired",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: now,
+                    expiresAt: now.addingTimeInterval(-1)),
+                SyncCodexResetCredit(
+                    id: "earlier",
+                    resetType: "codex_rate_limits",
+                    status: "available",
+                    grantedAt: now,
+                    expiresAt: now.addingTimeInterval(100)),
+            ],
+            availableCount: 4,
+            updatedAt: now)
+
+        #expect(resetCredits.authoritativeAvailableCount == 4)
+        #expect(resetCredits.availableCredits(at: now).map(\.id) == [
+            "earlier",
+            "later",
+            "no-expiry",
+        ])
+        #expect(resetCredits.hasAvailableInventory)
+    }
+
+    @Test
     func `Codex credit limit becomes display fallback when no rate windows exist`() {
         let creditLimit = SyncCodexCreditLimit(
             title: "Monthly credit limit",

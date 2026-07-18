@@ -36,9 +36,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.12 / iOS 1.11.1 — Unreleased
+## 0.32.4.12 / iOS 1.11.3 — 2026-07-17
 
 ### Added
+- Codex: show the backend-authoritative count of banked limit resets, the next
+  exact expiration in the menu, and every known exact expiration in provider
+  details without inventing timestamps when the backend returns a partial list.
 - ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!
 
 ### Fixed
@@ -87,6 +90,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced upstream CodexBar changes through `e6b2ea490`, including ClinePass,
+  LongCat, Neuralwatt, the unified usage and spend dashboard, private local
+  usage-sharing cards, Cursor token-cost reporting, and hardened shared-stat
+  aggregation while preserving QuotaKit release ownership and CloudKit setup.
 - Synced upstream CodexBar Mac changes through `7465c6a11`, including reliable
   overview-card click routing, Kimi Code CLI credential reuse, fresh cost
   snapshots, and Sub2API support while preserving QuotaKit release ownership,

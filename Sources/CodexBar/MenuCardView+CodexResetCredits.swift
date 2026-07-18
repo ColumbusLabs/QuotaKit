@@ -2,25 +2,35 @@ import CodexBarCore
 import SwiftUI
 
 struct CodexResetCreditPresentationItem: Equatable {
+    let exactTimeText: String?
     let expiryText: String
-    let compactExpiryText: String
+    let relativeExpiryText: String?
 }
 
 struct CodexResetCreditsPresentation: Equatable {
     let text: String
     let items: [CodexResetCreditPresentationItem]
+    let availableCount: Int
 
-    var expirySummaryText: String {
-        let visibleItems = self.items.prefix(4).map(\.compactExpiryText)
-        let hiddenCount = self.items.count - visibleItems.count
-        let suffix = hiddenCount > 0 ? ["+\(hiddenCount)"] : []
-        return (visibleItems + suffix).joined(separator: " · ")
+    var nearestKnownExpiryText: String? {
+        guard let item = self.items.first else { return nil }
+        guard let exactTimeText = item.exactTimeText else { return item.expiryText }
+        return String(format: L("Next expires %@"), exactTimeText)
+    }
+
+    var partialDetailText: String? {
+        guard self.items.count < self.availableCount else { return nil }
+        return String(format: L("Expiry times: %d of %d"), self.items.count, self.availableCount)
     }
 
     var helpText: String {
-        self.items.enumerated().map { index, item in
+        var lines = self.items.enumerated().map { index, item in
             "\(index + 1). \(item.expiryText)"
-        }.joined(separator: "\n")
+        }
+        if let partialDetailText {
+            lines.append(partialDetailText)
+        }
+        return lines.joined(separator: "\n")
     }
 
     var accessibilityLabel: String {
@@ -34,14 +44,16 @@ struct CodexResetCreditsPresentation: Equatable {
         resetStyle: ResetTimeDisplayStyle,
         now: Date) -> CodexResetCreditsPresentation?
     {
+        let availableCount = max(0, snapshot.availableCount)
+        guard availableCount > 0 else { return nil }
         let inventory = snapshot.availableInventory(at: now)
-        guard !inventory.credits.isEmpty else { return nil }
-        let items = inventory.credits.map { credit in
+        let items = inventory.credits.prefix(availableCount).map { credit in
             Self.presentationItem(for: credit, resetStyle: resetStyle, now: now)
         }
         return CodexResetCreditsPresentation(
-            text: Self.availableText(count: inventory.count),
-            items: items)
+            text: Self.availableText(count: availableCount),
+            items: items,
+            availableCount: availableCount)
     }
 
     private static func availableText(count: Int) -> String {
@@ -54,29 +66,33 @@ struct CodexResetCreditsPresentation: Equatable {
         now: Date) -> CodexResetCreditPresentationItem
     {
         guard let expiresAt = credit.expiresAt else {
-            return CodexResetCreditPresentationItem(expiryText: L("No expiry"), compactExpiryText: L("No expiry"))
+            return CodexResetCreditPresentationItem(
+                exactTimeText: nil,
+                expiryText: L("No expiry"),
+                relativeExpiryText: nil)
         }
-        let formattedTime = Self.formattedTime(expiresAt, resetStyle: resetStyle, now: now)
-        let compactExpiryText = resetStyle == .countdown && formattedTime.hasPrefix("in ")
-            ? String(formattedTime.dropFirst(3))
-            : formattedTime
+        let exactTimeText = Self.exactExpiryTimeText(expiresAt)
+        let relativeExpiryText = resetStyle == .countdown
+            ? Self.relativeExpiryTimeText(expiresAt, now: now)
+            : nil
         return CodexResetCreditPresentationItem(
-            expiryText: String(format: L("Expires %@"), formattedTime),
-            compactExpiryText: compactExpiryText)
+            exactTimeText: exactTimeText,
+            expiryText: String(format: L("Expires %@"), exactTimeText),
+            relativeExpiryText: relativeExpiryText)
     }
 
-    private static func formattedTime(
-        _ expiresAt: Date,
-        resetStyle: ResetTimeDisplayStyle,
-        now: Date) -> String
-    {
-        switch resetStyle {
-        case .absolute:
-            return UsageFormatter.resetDescription(from: expiresAt, now: now)
-        case .countdown:
-            let countdown = UsageFormatter.resetCountdownDescription(from: expiresAt, now: now)
-            return countdown == "now" ? L("now") : countdown
-        }
+    static func exactExpiryTimeText(_ expiresAt: Date) -> String {
+        let formatter = DateFormatter()
+        formatter.locale = codexBarLocalizedLocale()
+        formatter.timeZone = .autoupdatingCurrent
+        formatter.dateStyle = .medium
+        formatter.timeStyle = .long
+        return formatter.string(from: expiresAt)
+    }
+
+    private static func relativeExpiryTimeText(_ expiresAt: Date, now: Date) -> String {
+        let countdown = UsageFormatter.resetCountdownDescription(from: expiresAt, now: now)
+        return countdown == "now" ? L("now") : countdown
     }
 }
 
@@ -97,17 +113,33 @@ struct CodexResetCreditsContent: View {
                     .lineLimit(1)
                     .layoutPriority(1)
                 Spacer(minLength: 8)
+                if let nearestKnownExpiryText = self.presentation.nearestKnownExpiryText {
+                    HStack(alignment: .firstTextBaseline, spacing: 4) {
+                        Image(systemName: "clock")
+                            .font(.caption2)
+                        Text(nearestKnownExpiryText)
+                            .font(.caption)
+                            .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                            .lineLimit(2)
+                            .minimumScaleFactor(0.8)
+                            .multilineTextAlignment(.trailing)
+                    }
+                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                    .accessibilityHidden(true)
+                }
+            }
+            if let partialDetailText = self.presentation.partialDetailText {
                 HStack(alignment: .firstTextBaseline, spacing: 4) {
                     Image(systemName: "clock")
                         .font(.caption2)
-                    Text(self.presentation.expirySummaryText)
+                    Text(partialDetailText)
                         .font(.caption)
                         .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                         .lineLimit(1)
-                        .minimumScaleFactor(0.8)
                 }
                 .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
                 .accessibilityHidden(true)
+                .frame(maxWidth: .infinity, alignment: .trailing)
             }
         }
         .frame(maxWidth: .infinity, alignment: .leading)

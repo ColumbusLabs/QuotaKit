@@ -91,6 +91,26 @@ struct CodexOAuthResetCreditFetchTests {
     }
 
     @Test
+    func `count-only reset credit O auth payload still returns usage result`() throws {
+        let json = #"{"rate_limit":{"primary_window":null,"secondary_window":null}}"#
+        let resetCredits = CodexRateLimitResetCreditsSnapshot(
+            credits: [],
+            availableCount: 4,
+            updatedAt: Date())
+
+        let result = try CodexOAuthFetchStrategy._mapResultForTesting(
+            Data(json.utf8),
+            credentials: Self.credentials(),
+            resetCredits: resetCredits)
+
+        #expect(result.usage.primary == nil)
+        #expect(result.usage.secondary == nil)
+        #expect(result.usage.codexResetCredits?.availableCount == 4)
+        #expect(result.usage.codexResetCredits?.credits.isEmpty == true)
+        #expect(result.credits == nil)
+    }
+
+    @Test
     func `empty reset credits do not mask missing O auth usage`() {
         let json = #"{"rate_limit":{"primary_window":null,"secondary_window":null}}"#
         let resetCredits = CodexRateLimitResetCreditsSnapshot(
