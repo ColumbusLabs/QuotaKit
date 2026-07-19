@@ -60,8 +60,7 @@ extension StatusItemController {
         let runsOut = paceWindow
             .flatMap { self.store.weeklyPace(provider: provider, window: $0, now: now) }
             .flatMap { UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now).rightLabel }
-        let costSnapshot = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
-        let costToday = MenuBarLayoutCostResolver.todayCostUSD(snapshot: costSnapshot, now: now)
+        let costStrings = self.menuBarLayoutCostStrings(provider: provider, now: now)
         let providerName = L(self.store.metadata(for: provider).displayName)
         let rawAccountLabel = snapshot?.accountEmail(for: provider)?
             .trimmingCharacters(in: .whitespacesAndNewlines)
@@ -77,12 +76,24 @@ extension StatusItemController {
             weekly: MenuBarLayoutRenderWindow(windows.weekly),
             automatic: MenuBarLayoutRenderWindow(windows.automatic),
             runsOut: runsOut,
-            costToday: costToday.map {
-                UsageFormatter.currencyString($0, currencyCode: costSnapshot?.currencyCode ?? "USD")
-            },
-            cost30d: costSnapshot?.last30DaysCostUSD.map {
-                UsageFormatter.currencyString($0, currencyCode: costSnapshot?.currencyCode ?? "USD")
-            })
+            costToday: costStrings.today,
+            cost30d: costStrings.last30Days)
+    }
+
+    func menuBarLayoutCostStrings(
+        provider: UsageProvider,
+        now: Date = .init())
+        -> (today: String?, last30Days: String?)
+    {
+        let snapshot = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
+        let currencyCode = snapshot?.currencyCode ?? "USD"
+        let today = MenuBarLayoutCostResolver.todayCostUSD(snapshot: snapshot, now: now).map {
+            UsageFormatter.currencyString($0, currencyCode: currencyCode)
+        }
+        let last30Days = snapshot?.last30DaysCostUSD.map {
+            UsageFormatter.currencyString($0, currencyCode: currencyCode)
+        }
+        return (today, last30Days)
     }
 
     func menuBarLayoutWindows(
@@ -133,7 +144,6 @@ extension StatusItemController {
         if button.accessibilityTitle() != rendered.accessibilityLabel {
             button.setAccessibilityTitle(rendered.accessibilityLabel)
         }
-        button.toolTip = rendered.accessibilityLabel
 
         // AppKit exposes no content-inset API on NSStatusBarButton. Explicit item length is the actual
         // status-item padding mechanism: tight removes most edge space; regular keeps the native breathing room.

@@ -14,6 +14,11 @@ current Columbus Labs product surface and recent release history.
   time zone. Partial backend detail lists are identified without understating
   the available inventory.
 
+### Fixed
+
+- Monthly utilization-history labels synced from the Mac now use the selected
+  iPhone app language.
+
 ## [1.11.3 (171)] — 2026-07-12 — Background sync reliability
 
 ### Fixed

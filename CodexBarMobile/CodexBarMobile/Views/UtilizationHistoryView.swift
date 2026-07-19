@@ -354,10 +354,11 @@ struct UtilizationHistoryView: View {
 
     // MARK: - Helpers
 
-    private static func seriesDisplayName(_ series: SyncUtilizationSeries) -> String {
+    static func seriesDisplayName(_ series: SyncUtilizationSeries) -> String {
         switch series.name {
         case "session": String(localized: "Session")
         case "weekly": String(localized: "Weekly")
+        case "monthly": String(localized: "Monthly")
         case "opus": String(localized: "Opus")
         default: series.name.capitalized
         }

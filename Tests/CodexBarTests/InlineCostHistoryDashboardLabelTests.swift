@@ -110,16 +110,19 @@ struct InlineCostHistoryDashboardLabelTests {
         }
 
         let oneDay = makeModel(historyDays: 1)
-        #expect(oneDay.inlineUsageDashboard?.kpis[1].title == "Today")
-        #expect(oneDay.inlineUsageDashboard?.kpis[2].title == "Today tokens")
+        #expect(oneDay.inlineUsageDashboard?.kpis.map(\.title) == [
+            "Today", "Today", "Latest tokens", "Today tokens",
+        ])
 
         let sevenDays = makeModel(historyDays: 7)
-        #expect(sevenDays.inlineUsageDashboard?.kpis[1].title == "Last 7 days Cost")
-        #expect(sevenDays.inlineUsageDashboard?.kpis[2].title == "Last 7 days tokens")
+        #expect(sevenDays.inlineUsageDashboard?.kpis.map(\.title) == [
+            "Today", "Last 7 days Cost", "Latest tokens", "Last 7 days tokens",
+        ])
 
         let thirtyDays = makeModel(historyDays: 30)
-        #expect(thirtyDays.inlineUsageDashboard?.kpis[1].title == "30d cost")
-        #expect(thirtyDays.inlineUsageDashboard?.kpis[2].title == "30d tokens")
+        #expect(thirtyDays.inlineUsageDashboard?.kpis.map(\.title) == [
+            "Today", "30d cost", "Latest tokens", "30d tokens",
+        ])
     }
 
     @Test
@@ -167,8 +170,9 @@ struct InlineCostHistoryDashboardLabelTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.inlineUsageDashboard?.kpis[1].title == "This month")
-        #expect(model.inlineUsageDashboard?.kpis[2].title == "This month tokens")
+        #expect(model.inlineUsageDashboard?.kpis.map(\.title) == [
+            "Today", "This month", "Latest tokens", "This month tokens",
+        ])
     }
 
     @Test
@@ -188,8 +192,13 @@ struct InlineCostHistoryDashboardLabelTests {
                     outputTokens: 75,
                     totalTokens: 275,
                     costUSD: 0.25,
-                    modelsUsed: nil,
-                    modelBreakdowns: nil),
+                    modelsUsed: ["test-model"],
+                    modelBreakdowns: [
+                        CostUsageDailyReport.ModelBreakdown(
+                            modelName: "test-model",
+                            costUSD: 0.25,
+                            totalTokens: 275),
+                    ]),
             ],
             updatedAt: now)
 
@@ -218,11 +227,49 @@ struct InlineCostHistoryDashboardLabelTests {
 
         let dashboard = try #require(model.inlineUsageDashboard)
         #expect(dashboard.currencyCode == "USD")
-        #expect(dashboard.kpis[0].title == "Today · API-equivalent estimate")
-        #expect(dashboard.kpis[1].title == "30d · API-equivalent estimate")
-        #expect(dashboard.detailLines.contains("not a subscription bill or plan value"))
-        #expect(dashboard.detailLines.contains(
-            "Local usage × public API prices · not a subscription bill or plan value"))
+        #expect(dashboard.accessibilityLabel == "Codex: 30d cost")
+        #expect(dashboard.kpis.map(\.title) == [
+            "Today",
+            "30d",
+            "Latest tokens",
+            "30d tokens",
+        ])
+        #expect(dashboard.detailLines == [
+            "Top model: test-model",
+            "Estimated from token usage · not a subscription bill",
+        ])
+
+        let japaneseAccessibilityLabels = CodexBarLocalizationOverride.$appLanguage.withValue("ja") {
+            [7, 30].map { historyDays in
+                UsageMenuCardView.Model.make(.init(
+                    provider: .codex,
+                    metadata: metadata,
+                    snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+                    credits: nil,
+                    creditsError: nil,
+                    dashboard: nil,
+                    dashboardError: nil,
+                    tokenSnapshot: CostUsageTokenSnapshot(
+                        sessionTokens: 275,
+                        sessionCostUSD: 0.25,
+                        last30DaysTokens: 425,
+                        last30DaysCostUSD: 0.37,
+                        historyDays: historyDays,
+                        daily: tokenSnapshot.daily,
+                        updatedAt: now),
+                    tokenError: nil,
+                    account: AccountInfo(email: nil, plan: nil),
+                    isRefreshing: false,
+                    lastError: nil,
+                    usageBarsShowUsed: false,
+                    resetTimeDisplayStyle: .countdown,
+                    tokenCostUsageEnabled: true,
+                    showOptionalCreditsAndExtraUsage: true,
+                    hidePersonalInfo: false,
+                    now: now)).inlineUsageDashboard?.accessibilityLabel
+            }
+        }
+        #expect(japaneseAccessibilityLabels == ["Codex: 過去7日間のコスト", "Codex: 過去30日間のコスト"])
     }
 
     @Test

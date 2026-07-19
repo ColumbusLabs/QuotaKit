@@ -11,9 +11,23 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Menu bar: add customizable drag-and-drop token layouts and weekly session-equivalent forecasting.
 - Providers: add DeepInfra usage and balance, ai& spend, OpenRouter token accounts, DeepSeek cost summaries, and broader Doubao arkcli support.
 - CLI: add safe cookie re-import and quota-aware guard commands under the QuotaKit command name.
+- Claude: show model-scoped weekly claude-swap windows and optionally show a card when only one account is available.
+- OpenCode Go: add daily local cost and plan-usage history.
+- Overview: raise the merged provider limit from three to six.
 
 ### Changed
-- Synced upstream CodexBar changes through `2ccb45256`, including adaptive-refresh consent and CPU budgets, hardened cookie-refresh transactions, Claude resilience, agent-session metadata, Linux process capture, and provider runtime fixes while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
+- Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
+- Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.
+- Synced upstream CodexBar changes through `1d307430a`, including OpenCode Go history, Claude scoped and single-account cards, compact-subagent cost accounting, session forecasting, Linux musl process support, and menu refresh fixes while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
+
+### Fixed
+- StepFun: keep password-login web ID headers aligned with the anonymous token.
+- Menu bar: refresh custom cost and reset tokens when their source data or displayed boundary changes.
+- Usage: normalize session-equivalent forecasts against aligned partial-session samples.
+- Usage: align current/latest and historical cost and token metrics by period.
+- Codex: exclude parent-copied prefixes from compact subagent usage when the fork boundary matches the parent snapshot.
+- Usage & Spend: render share-card PNG exports without black backgrounds and keep complete model rows visible beside incomplete sources.
+- ElevenLabs: clamp character and voice-slot usage percentages at 100% during overage.
 
 ## 0.32.4.12 / iOS 1.11.3 — 2026-07-17
 

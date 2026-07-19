@@ -37,6 +37,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac."),
                         String(
                             localized: "Codex banked resets now show the available count and exact expiration time for every reset detail synced from your Mac."),
+                        String(
+                            localized: "Monthly utilization history synced from your Mac now uses the app's selected language."),
                     ]),
             ]),
         ReleaseNotesVersion(

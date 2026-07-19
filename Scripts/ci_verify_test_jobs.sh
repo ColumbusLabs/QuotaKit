@@ -9,6 +9,8 @@ macos_test_result="${4:-}"
 macos_tests_deferred="${5:-}"
 ios_tests_required="${6:-}"
 ios_test_result="${7:-}"
+linux_musl_build_required="${8:-}"
+linux_musl_build_result="${9:-}"
 
 if [[ "$lint_result" != "success" ]]; then
   printf 'lint job finished with %s\n' "${lint_result:-<empty>}" >&2
@@ -49,6 +51,20 @@ case "${ios_tests_required}:${ios_test_result}" in
   *)
     printf 'iOS test gate/result mismatch: required=%s result=%s\n' \
       "${ios_tests_required:-<empty>}" "${ios_test_result:-<empty>}" >&2
+    exit 1
+    ;;
+esac
+
+case "${linux_musl_build_required}:${linux_musl_build_result}" in
+  true:success)
+    printf 'Linux musl CLI build passed.\n'
+    ;;
+  false:skipped)
+    printf 'Linux musl CLI build skipped by its path gate.\n'
+    ;;
+  *)
+    printf 'Linux musl build gate/result mismatch: required=%s result=%s\n' \
+      "${linux_musl_build_required:-<empty>}" "${linux_musl_build_result:-<empty>}" >&2
     exit 1
     ;;
 esac

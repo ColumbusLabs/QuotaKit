@@ -20,6 +20,46 @@ struct SessionEquivalentForecastTests {
     }
 
     @Test
+    func `normalizes aligned partial session observations to a full allowance`() throws {
+        let fixture = Self.alignedPartialHistoryFixture()
+
+        let estimate = try #require(SessionEquivalentBurnEstimator.estimate(
+            histories: fixture.histories,
+            currentSessionResetsAt: fixture.currentSessionReset,
+            now: fixture.currentSessionReset.addingTimeInterval(-3600)))
+
+        #expect(estimate.sampleCount == 3)
+        #expect(estimate.medianWeeklyPercentPerWindow == 10)
+    }
+
+    @Test
+    func `rejects partial sessions whose weekly burn cannot be aligned`() {
+        let fixture = Self.historyFixture(samples: [
+            (sessionUsedPercent: 20, weeklyBurnPercent: 2),
+            (sessionUsedPercent: 40, weeklyBurnPercent: 4),
+            (sessionUsedPercent: 60, weeklyBurnPercent: 6),
+        ])
+
+        #expect(SessionEquivalentBurnEstimator.estimate(
+            histories: fixture.histories,
+            currentSessionResetsAt: fixture.currentSessionReset,
+            now: fixture.currentSessionReset.addingTimeInterval(-3600)) == nil)
+    }
+
+    @Test
+    func `uses eligible boundary samples when a closer sample follows the boundary`() throws {
+        let fixture = Self.straddledBoundaryHistoryFixture()
+
+        let estimate = try #require(SessionEquivalentBurnEstimator.estimate(
+            histories: fixture.histories,
+            currentSessionResetsAt: fixture.currentSessionReset,
+            now: fixture.currentSessionReset.addingTimeInterval(-3600)))
+
+        #expect(estimate.sampleCount == 3)
+        #expect(estimate.medianWeeklyPercentPerWindow == 10)
+    }
+
+    @Test
     func `requires three completed windows with measurable burn`() {
         let fixture = Self.historyFixture(burns: [8, 12])
 
@@ -1354,6 +1394,15 @@ extension SessionEquivalentForecastTests {
     private static func historyFixture(burns: [Double])
         -> (histories: [PlanUtilizationSeriesHistory], currentSessionReset: Date)
     {
+        self.historyFixture(samples: burns.map {
+            (sessionUsedPercent: 100, weeklyBurnPercent: $0)
+        })
+    }
+
+    private static func historyFixture(
+        samples: [(sessionUsedPercent: Double, weeklyBurnPercent: Double)])
+        -> (histories: [PlanUtilizationSeriesHistory], currentSessionReset: Date)
+    {
         let start = Date(timeIntervalSince1970: 1_800_000_000)
         let duration: TimeInterval = 5 * 3600
         let weeklyReset = start.addingTimeInterval(7 * 24 * 3600)
@@ -1361,8 +1410,93 @@ extension SessionEquivalentForecastTests {
         var weeklyEntries: [PlanUtilizationHistoryEntry] = []
         var weeklyUsed = 0.0
 
-        for (index, burn) in burns.enumerated() {
+        for (index, sample) in samples.enumerated() {
             let windowStart = start.addingTimeInterval(Double(index) * duration)
+            let reset = windowStart.addingTimeInterval(duration)
+            sessionEntries.append(planEntry(
+                at: windowStart.addingTimeInterval(30 * 60),
+                usedPercent: min(20, sample.sessionUsedPercent),
+                resetsAt: reset))
+            sessionEntries.append(planEntry(
+                at: reset.addingTimeInterval(-30 * 60),
+                usedPercent: sample.sessionUsedPercent,
+                resetsAt: reset))
+            weeklyEntries.append(planEntry(at: windowStart, usedPercent: weeklyUsed, resetsAt: weeklyReset))
+            weeklyUsed += sample.weeklyBurnPercent
+            weeklyEntries.append(planEntry(at: reset, usedPercent: weeklyUsed, resetsAt: weeklyReset))
+        }
+
+        return (
+            histories: [
+                planSeries(name: .session, windowMinutes: 300, entries: sessionEntries),
+                planSeries(name: .weekly, windowMinutes: 10080, entries: weeklyEntries),
+            ],
+            currentSessionReset: start.addingTimeInterval(Double(samples.count + 1) * duration))
+    }
+
+    private static func alignedPartialHistoryFixture()
+        -> (histories: [PlanUtilizationSeriesHistory], currentSessionReset: Date)
+    {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let duration: TimeInterval = 5 * 3600
+        let weeklyReset = start.addingTimeInterval(7 * 24 * 3600)
+        let fullAllowanceBurn = 10.0
+        var sessionEntries: [PlanUtilizationHistoryEntry] = []
+        var weeklyEntries: [PlanUtilizationHistoryEntry] = []
+        var weeklyUsed = 0.0
+
+        for (index, sessionUsedPercent) in [20.0, 40.0, 100.0].enumerated() {
+            let windowStart = start.addingTimeInterval(Double(index) * duration)
+            let reset = windowStart.addingTimeInterval(duration)
+            let firstSessionUsedPercent = sessionUsedPercent / 4
+            let firstCapturedAt = windowStart.addingTimeInterval(30 * 60)
+            let lastCapturedAt = reset.addingTimeInterval(-30 * 60)
+            let firstWeeklyUsedPercent = weeklyUsed + fullAllowanceBurn * firstSessionUsedPercent / 100
+            let lastWeeklyUsedPercent = weeklyUsed + fullAllowanceBurn * sessionUsedPercent / 100
+
+            sessionEntries.append(planEntry(
+                at: firstCapturedAt,
+                usedPercent: firstSessionUsedPercent,
+                resetsAt: reset))
+            weeklyEntries.append(planEntry(
+                at: firstCapturedAt,
+                usedPercent: firstWeeklyUsedPercent,
+                resetsAt: weeklyReset))
+            sessionEntries.append(planEntry(
+                at: lastCapturedAt,
+                usedPercent: sessionUsedPercent,
+                resetsAt: reset))
+            weeklyEntries.append(planEntry(
+                at: lastCapturedAt,
+                usedPercent: lastWeeklyUsedPercent,
+                resetsAt: weeklyReset))
+            weeklyUsed = lastWeeklyUsedPercent
+        }
+
+        let histories = UsageStore._updatedPlanUtilizationHistoriesForTesting(
+            existingHistories: [],
+            samples: [
+                planSeries(name: .session, windowMinutes: 300, entries: sessionEntries),
+                planSeries(name: .weekly, windowMinutes: 10080, entries: weeklyEntries),
+            ]) ?? []
+        return (
+            histories: histories,
+            currentSessionReset: start.addingTimeInterval(4 * duration))
+    }
+
+    private static func straddledBoundaryHistoryFixture()
+        -> (histories: [PlanUtilizationSeriesHistory], currentSessionReset: Date)
+    {
+        let start = Date(timeIntervalSince1970: 1_800_000_000)
+        let duration: TimeInterval = 5 * 3600
+        let stride: TimeInterval = 6 * 3600
+        let weeklyReset = start.addingTimeInterval(7 * 24 * 3600)
+        var sessionEntries: [PlanUtilizationHistoryEntry] = []
+        var weeklyEntries: [PlanUtilizationHistoryEntry] = []
+        var weeklyUsed = 0.0
+
+        for index in 0..<3 {
+            let windowStart = start.addingTimeInterval(Double(index) * stride)
             let reset = windowStart.addingTimeInterval(duration)
             sessionEntries.append(planEntry(
                 at: windowStart.addingTimeInterval(30 * 60),
@@ -1372,9 +1506,23 @@ extension SessionEquivalentForecastTests {
                 at: reset.addingTimeInterval(-30 * 60),
                 usedPercent: 100,
                 resetsAt: reset))
-            weeklyEntries.append(planEntry(at: windowStart, usedPercent: weeklyUsed, resetsAt: weeklyReset))
-            weeklyUsed += burn
-            weeklyEntries.append(planEntry(at: reset, usedPercent: weeklyUsed, resetsAt: weeklyReset))
+            weeklyEntries.append(planEntry(
+                at: windowStart.addingTimeInterval(-90),
+                usedPercent: weeklyUsed,
+                resetsAt: weeklyReset))
+            weeklyEntries.append(planEntry(
+                at: windowStart.addingTimeInterval(30),
+                usedPercent: weeklyUsed,
+                resetsAt: weeklyReset))
+            weeklyUsed += 10
+            weeklyEntries.append(planEntry(
+                at: reset.addingTimeInterval(-90),
+                usedPercent: weeklyUsed,
+                resetsAt: weeklyReset))
+            weeklyEntries.append(planEntry(
+                at: reset.addingTimeInterval(30),
+                usedPercent: weeklyUsed,
+                resetsAt: weeklyReset))
         }
 
         return (
@@ -1382,6 +1530,6 @@ extension SessionEquivalentForecastTests {
                 planSeries(name: .session, windowMinutes: 300, entries: sessionEntries),
                 planSeries(name: .weekly, windowMinutes: 10080, entries: weeklyEntries),
             ],
-            currentSessionReset: start.addingTimeInterval(Double(burns.count + 1) * duration))
+            currentSessionReset: start.addingTimeInterval(3 * stride + duration))
     }
 }

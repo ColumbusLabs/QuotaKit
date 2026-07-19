@@ -209,6 +209,9 @@ struct StatusItemControllerSplitLifecycleTests {
         #expect(controller.statusItem.button?.accessibilityTitle() == "QuotaKit")
         #expect(codexButton.accessibilityTitle() == "QuotaKit")
         #expect(claudeButton.accessibilityTitle() == "QuotaKit")
+        #expect(controller.statusItem.button?.toolTip == nil)
+        #expect(codexButton.toolTip == nil)
+        #expect(claudeButton.toolTip == nil)
     }
 
     @Test

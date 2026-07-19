@@ -286,6 +286,26 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `claude single swap account toggle persists and follows integration visibility`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-swap-single")
+        let context = fixture.settingsContext(provider: .claude)
+        let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
+        let singleAccountToggle = try #require(toggles.first {
+            $0.id == "claude-swap-show-single-account"
+        })
+
+        #expect(singleAccountToggle.binding.wrappedValue == false)
+        #expect(singleAccountToggle.isVisible?() == false)
+
+        fixture.settings.claudeSwapEnabled = true
+        #expect(singleAccountToggle.isVisible?() == true)
+        singleAccountToggle.binding.wrappedValue = true
+
+        #expect(fixture.settings.claudeSwapShowSingleAccount)
+        #expect(fixture.settings.configSnapshot.providerConfig(for: .claude)?.claudeSwapShowSingleAccount == true)
+    }
+
+    @Test
     func `claude prompt policy picker remains visible for prompt free toggle`() throws {
         let fixture = try self.makeSettingsFixture(
             suite: "ProviderSettingsDescriptorTests-claude-prompt-visible-prompt-free")

@@ -102,7 +102,7 @@ Admin API key setup:
 - Domain: `claude.ai`.
 - Cookie name required:
   - `sessionKey` (value prefix `sk-ant-...`).
-- Cached cookies: Keychain cache `com.steipete.quotakit.cache` (account `cookie.claude`, source + timestamp).
+- Cached cookies: Keychain cache `com.steipete.codexbar.cache` (account `cookie.claude`, source + timestamp).
   Reused before re-importing from browsers.
 - API calls (all include `Cookie: sessionKey=<value>`):
   - `GET https://claude.ai/api/organizations` → org UUID.
@@ -124,10 +124,15 @@ The accepted multi-account design in
   [`cswap`](https://github.com/realiti4/claude-swap) executable (for example `~/.local/bin/cswap`).
 - Behavior: on each Claude refresh, QuotaKit runs `cswap --list --json` independently of the ambient Claude fetch (no
   shell, fixed arguments, bounded runtime and output), requires `schemaVersion == 1`, and parses only slot number,
-  active state, usage status, email (display only), and the 5-hour/7-day windows.
+  active state, usage status, email (display only), the 5-hour/7-day windows, and optional display-only model-scoped
+  weekly windows from `usage.scoped`.
 - Display: when claude-swap reports more than one account, the Claude menu and `quotakit cards` show one card per
-  account (active account first, then numeric slot) instead of ambient/token-account Claude cards; with zero or one
-  account those views are unchanged. Account identity is `claude-swap:<slot>`, never the display email.
+  account (active account first, then numeric slot) instead of ambient/token-account Claude cards. To use this
+  presentation with one account, enable “Show account card when only one account is available” or set
+  `claudeSwapShowSingleAccount: true` on the Claude provider in the resolved config file (normally
+  `~/.config/quotakit/config.json`; legacy installs may use `~/.quotakit/config.json`). The option defaults off,
+  zero accounts still use the ambient presentation, and account identity is `claude-swap:<slot>`, never the display
+  email.
 - Terminal scope: this automatic precedence is cards-only and works on every supported CLI platform. An explicit
   Claude provider or `--source auto` remains eligible, while `--account`, `--account-index`, `--all-accounts`, and
   explicit non-auto source flags bypass the adapter. `quotakit usage` and `quotakit serve` are unchanged.
@@ -145,17 +150,23 @@ The accepted multi-account design in
 - Expired, missing, unknown, or Keychain-inaccessible credentials stay non-actionable. A failed switch remains visible
   on that account without discarding its last successful usage. A running Claude Code process can take up to the
   claude-swap Keychain cache interval to observe the new account.
-- When multiple claude-swap accounts are available, they take explicit precedence over Claude
+- Multiple claude-swap accounts—and a single account when explicitly enabled—take precedence over Claude
   token-account presentation (stacked cards and the segmented switcher).
 
 Packaged synthetic proof (fake `cswap` executable, no real accounts or credentials):
 
 ![Stacked claude-swap account cards](screenshots/claude-swap-accounts-synthetic-proof.png)
 
+Model-scoped weekly-window proof (synthetic data, no real accounts or credentials):
+
+| Before | After |
+| --- | --- |
+| ![claude-swap card before scoped windows](screenshots/claude-swap-scoped-before.png) | ![claude-swap card with a Fable scoped weekly window](screenshots/claude-swap-scoped-after.png) |
+
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
-- Probe working directory: `~/Library/Application Support/QuotaKit/ClaudeProbe` with local Claude settings that disable
+- Probe working directory: `~/Library/Application Support/CodexBar/ClaudeProbe` with local Claude settings that disable
   deep-link URL handler registration during headless probes.
 - After transient probes exit, QuotaKit removes Claude Code `.jsonl` session artifacts for that dedicated
   `ClaudeProbe` project directory so background `/usage` polling does not clutter the user's Claude project history.
@@ -185,26 +196,28 @@ Packaged synthetic proof (fake `cswap` executable, no real accounts or credentia
         - `~/Library/Application Support/Claude/claude-code-sessions/**/.claude/projects`
     - Current Claude Desktop metadata under `claude-code-sessions` points to shared CLI session JSONL by
       `cliSessionId`; metadata-only directories are not treated as usage sources.
-  - Supported pi sessions:
+  - Supported pi-compatible sessions:
     - `~/.pi/agent/sessions/**/*.jsonl`
+    - `~/.omp/agent/sessions/**/*.jsonl`
 - Files: `**/*.jsonl` under the native project roots, discovered Claude Desktop project roots,
-  plus supported pi session files.
+  plus supported pi-compatible session files.
 - Parsing:
   - Native Claude logs parse lines with `type: "assistant"` and `message.usage`.
   - Uses per-model token counts (input, cache read/create, output).
   - Deduplicates streaming chunks by `message.id + requestId` (usage is cumulative per chunk).
-  - pi sessions attribute `anthropic` assistant usage to Claude and bucket it by assistant-turn timestamp, so a single pi
-    session can contribute to multiple models/days.
+  - pi and OMP sessions attribute `anthropic` assistant usage to Claude and bucket it by assistant-turn timestamp, so a
+    single pi-compatible session can contribute to multiple models/days.
+  - Matching assistant entry IDs within the same session are counted once across roots; distinct turns are retained.
 - Cache:
-  - Native + merged provider cache: `~/Library/Caches/QuotaKit/cost-usage/claude-v2.json`
-  - pi session cache: `~/Library/Caches/QuotaKit/cost-usage/pi-sessions-v1.json`
+  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v2.json`
+  - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 
 ## Key files
-- OAuth: `Sources/QuotaKitCore/Providers/Claude/ClaudeOAuth/*`
-- Web API: `Sources/QuotaKitCore/Providers/Claude/ClaudeWeb/ClaudeWebAPIFetcher.swift`
-- CLI PTY: `Sources/QuotaKitCore/Providers/Claude/ClaudeStatusProbe.swift`,
-  `Sources/QuotaKitCore/Providers/Claude/ClaudeCLISession.swift`
-- Cost usage: `Sources/QuotaKitCore/CostUsageFetcher.swift`,
-  `Sources/QuotaKitCore/PiSessionCostScanner.swift`,
-  `Sources/QuotaKitCore/PiSessionCostCache.swift`,
-  `Sources/QuotaKitCore/Vendored/CostUsage/*`
+- OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`
+- Web API: `Sources/CodexBarCore/Providers/Claude/ClaudeWeb/ClaudeWebAPIFetcher.swift`
+- CLI PTY: `Sources/CodexBarCore/Providers/Claude/ClaudeStatusProbe.swift`,
+  `Sources/CodexBarCore/Providers/Claude/ClaudeCLISession.swift`
+- Cost usage: `Sources/CodexBarCore/CostUsageFetcher.swift`,
+  `Sources/CodexBarCore/PiSessionCostScanner.swift`,
+  `Sources/CodexBarCore/PiSessionCostCache.swift`,
+  `Sources/CodexBarCore/Vendored/CostUsage/*`
