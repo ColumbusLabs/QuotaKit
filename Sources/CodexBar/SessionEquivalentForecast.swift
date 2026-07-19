@@ -151,12 +151,18 @@ struct SessionEquivalentForecast: Equatable, Sendable {
 enum SessionEquivalentBurnEstimator {
     static let defaultSampleLimit = 7
     static let minimumSampleCount = 3
-    private static let boundaryTolerance: TimeInterval = 75 * 60
+    private static let observationAlignmentTolerance: TimeInterval = 0
     private static let resetEquivalenceTolerance = SessionEquivalentForecast.resetTolerance
 
     private struct SessionGroup {
         let resetsAt: Date
+        var entries: [PlanUtilizationHistoryEntry]
         var maximumUsedPercent: Double
+    }
+
+    private struct BurnObservation {
+        let sessionUsedPercent: Double
+        let weeklyEntry: PlanUtilizationHistoryEntry
     }
 
     static func estimate(
@@ -208,11 +214,13 @@ enum SessionEquivalentBurnEstimator {
             if let lastIndex = groups.indices.last,
                abs(groups[lastIndex].resetsAt.timeIntervalSince(resetsAt)) <= Self.resetEquivalenceTolerance
             {
+                groups[lastIndex].entries.append(entry)
                 groups[lastIndex].maximumUsedPercent = max(groups[lastIndex].maximumUsedPercent, entry.usedPercent)
             } else {
                 guard groups.last.map({ $0.resetsAt <= resetsAt }) ?? true else { return nil }
                 groups.append(SessionGroup(
                     resetsAt: resetsAt,
+                    entries: [entry],
                     maximumUsedPercent: entry.usedPercent))
             }
         }
@@ -240,19 +248,12 @@ enum SessionEquivalentBurnEstimator {
         let candidateGroups = completedActiveGroups.prefix(sampleLimit)
         burns.reserveCapacity(candidateGroups.count)
         for group in candidateGroups {
-            let windowStart = group.resetsAt.addingTimeInterval(-sessionDuration)
-            guard let start = Self.nearestEntry(to: windowStart, entries: weeklyEntries),
-                  let end = Self.nearestEntry(to: group.resetsAt, entries: weeklyEntries),
-                  start.capturedAt < end.capturedAt,
-                  let startReset = start.resetsAt,
-                  let endReset = end.resetsAt,
-                  abs(startReset.timeIntervalSince(endReset)) <= Self.resetEquivalenceTolerance
-            else {
-                continue
-            }
-            let burn = end.usedPercent - start.usedPercent
-            guard burn.isFinite, burn > 0 else { continue }
-            burns.append(burn)
+            guard let fullAllowanceBurn = Self.normalizedBurn(
+                for: group,
+                weeklyEntries: weeklyEntries,
+                sessionDuration: sessionDuration)
+            else { continue }
+            burns.append(fullAllowanceBurn)
         }
 
         guard burns.count >= Self.minimumSampleCount else { return nil }
@@ -267,9 +268,90 @@ enum SessionEquivalentBurnEstimator {
             sampleCount: burns.count)
     }
 
+    private static func normalizedBurn(
+        for group: SessionGroup,
+        weeklyEntries: [PlanUtilizationHistoryEntry],
+        sessionDuration: TimeInterval) -> Double?
+    {
+        guard let firstSessionEntry = group.entries.first,
+              let lastSessionEntry = group.entries.last
+        else {
+            return nil
+        }
+
+        var observations: [BurnObservation] = []
+        let windowStart = group.resetsAt.addingTimeInterval(-sessionDuration)
+        if let weeklyStart = Self.nearestEntry(
+            to: windowStart,
+            entries: weeklyEntries,
+            tolerance: Self.resetEquivalenceTolerance,
+            requireNotAfterTarget: true),
+            weeklyStart.capturedAt <= windowStart,
+            weeklyStart.capturedAt < firstSessionEntry.capturedAt
+        {
+            observations.append(BurnObservation(sessionUsedPercent: 0, weeklyEntry: weeklyStart))
+        }
+
+        for sessionEntry in group.entries {
+            guard let weeklyEntry = Self.nearestEntry(
+                to: sessionEntry.capturedAt,
+                entries: weeklyEntries,
+                tolerance: Self.observationAlignmentTolerance)
+            else {
+                continue
+            }
+            observations.append(BurnObservation(
+                sessionUsedPercent: sessionEntry.usedPercent,
+                weeklyEntry: weeklyEntry))
+        }
+
+        if group.maximumUsedPercent >= 100,
+           let weeklyEnd = Self.nearestEntry(
+               to: group.resetsAt,
+               entries: weeklyEntries,
+               tolerance: Self.resetEquivalenceTolerance,
+               requireNotAfterTarget: true),
+           weeklyEnd.capturedAt <= group.resetsAt,
+           lastSessionEntry.capturedAt < weeklyEnd.capturedAt
+        {
+            observations.append(BurnObservation(sessionUsedPercent: 100, weeklyEntry: weeklyEnd))
+        }
+
+        observations.sort { lhs, rhs in
+            if lhs.weeklyEntry.capturedAt != rhs.weeklyEntry.capturedAt {
+                return lhs.weeklyEntry.capturedAt < rhs.weeklyEntry.capturedAt
+            }
+            return lhs.sessionUsedPercent < rhs.sessionUsedPercent
+        }
+        guard let start = observations.first,
+              let end = observations.last,
+              start.weeklyEntry.capturedAt < end.weeklyEntry.capturedAt,
+              let startReset = start.weeklyEntry.resetsAt,
+              let endReset = end.weeklyEntry.resetsAt,
+              abs(startReset.timeIntervalSince(endReset)) <= Self.resetEquivalenceTolerance
+        else {
+            return nil
+        }
+
+        let sessionConsumption = end.sessionUsedPercent - start.sessionUsedPercent
+        let weeklyBurn = end.weeklyEntry.usedPercent - start.weeklyEntry.usedPercent
+        guard sessionConsumption.isFinite,
+              sessionConsumption > 0,
+              weeklyBurn.isFinite,
+              weeklyBurn > 0
+        else {
+            return nil
+        }
+        let fullAllowanceBurn = 100 * weeklyBurn / sessionConsumption
+        guard fullAllowanceBurn.isFinite, fullAllowanceBurn > 0 else { return nil }
+        return fullAllowanceBurn
+    }
+
     private static func nearestEntry(
         to target: Date,
-        entries: [PlanUtilizationHistoryEntry]) -> PlanUtilizationHistoryEntry?
+        entries: [PlanUtilizationHistoryEntry],
+        tolerance: TimeInterval,
+        requireNotAfterTarget: Bool = false) -> PlanUtilizationHistoryEntry?
     {
         var lower = 0
         var upper = entries.count
@@ -290,7 +372,8 @@ enum SessionEquivalentBurnEstimator {
             candidates.append(entries[lower - 1])
         }
         return candidates
-            .filter { abs($0.capturedAt.timeIntervalSince(target)) <= Self.boundaryTolerance }
+            .filter { !requireNotAfterTarget || $0.capturedAt <= target }
+            .filter { abs($0.capturedAt.timeIntervalSince(target)) <= tolerance }
             .min { lhs, rhs in
                 abs(lhs.capturedAt.timeIntervalSince(target)) < abs(rhs.capturedAt.timeIntervalSince(target))
             }

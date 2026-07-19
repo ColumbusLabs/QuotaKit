@@ -73,6 +73,18 @@ struct CLICardsClaudeSwapTests {
     }
 
     @Test
+    func `single account config is backward compatible and round trips opt in`() throws {
+        let legacyData = Data(#"{"id":"claude"}"#.utf8)
+        let legacy = try JSONDecoder().decode(ProviderConfig.self, from: legacyData)
+        #expect(legacy.claudeSwapShowSingleAccount != true)
+
+        let enabled = ProviderConfig(id: .claude, claudeSwapShowSingleAccount: true)
+        let encoded = try JSONEncoder().encode(enabled)
+        let decoded = try JSONDecoder().decode(ProviderConfig.self, from: encoded)
+        #expect(decoded.claudeSwapShowSingleAccount == true)
+    }
+
+    @Test
     func `eligibility preserves explicit account and source intent`() {
         let eligibleSourceModes: [ProviderSourceMode?] = [nil, .auto]
         for sourceMode in eligibleSourceModes {
@@ -109,12 +121,13 @@ struct CLICardsClaudeSwapTests {
     }
 
     @Test
-    func `bypass does not invoke the adapter`() async {
+    func `bypass does not invoke the adapter when single account cards are enabled`() async {
         let counter = InvocationCounter()
         let ambient = self.ambientOutput()
         let output = await CLIClaudeSwapCards.fetch(
             eligible: false,
             executablePath: "/unused/cswap",
+            showSingleAccount: true,
             renderOptions: self.renderOptions(),
             ambientFetch: { ambient },
             accountListReader: { _ in
@@ -146,6 +159,38 @@ struct CLICardsClaudeSwapTests {
             #expect(output.cardFailures.isEmpty)
         }
         #expect(await ambientCounter.value == 2)
+    }
+
+    @Test
+    func `single account option renders sentinel account instead of ambient output`() async {
+        let ambientCounter = InvocationCounter()
+        let output = await CLIClaudeSwapCards.fetch(
+            eligible: true,
+            executablePath: "/fake/cswap",
+            showSingleAccount: true,
+            renderOptions: self.renderOptions(),
+            ambientFetch: {
+                await ambientCounter.increment()
+                return self.ambientOutput(failed: true)
+            },
+            accountListReader: { _ in
+                ClaudeSwapAccountList(activeAccountNumber: 1, accounts: [
+                    self.row(
+                        number: 1,
+                        active: true,
+                        status: .tokenExpired,
+                        email: "single@example.com",
+                        hasUsage: false),
+                ])
+            })
+
+        #expect(await ambientCounter.value == 0)
+        #expect(output.exitCode == .success)
+        #expect(output.cards.count == 1)
+        #expect(output.cards.first?.accountLine == "single@example.com")
+        #expect(output.cards.first?.isActive == true)
+        #expect(output.cards.first?.accountProblem ==
+            "Token expired. Switch to this account in claude-swap to refresh it.")
     }
 
     @Test

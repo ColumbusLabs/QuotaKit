@@ -103,12 +103,14 @@ enum CLIClaudeSwapCards {
     static func fetch(
         eligible: Bool,
         executablePath: String,
+        showSingleAccount: Bool = false,
         renderOptions: CLIClaudeSwapCardsRenderOptions,
         ambientFetch: @escaping AmbientFetch) async -> UsageCommandOutput
     {
         await self.fetch(
             eligible: eligible,
             executablePath: executablePath,
+            showSingleAccount: showSingleAccount,
             renderOptions: renderOptions,
             ambientFetch: ambientFetch,
             accountListReader: { path in
@@ -119,6 +121,7 @@ enum CLIClaudeSwapCards {
     static func fetch(
         eligible: Bool,
         executablePath: String,
+        showSingleAccount: Bool = false,
         renderOptions: CLIClaudeSwapCardsRenderOptions,
         ambientFetch: @escaping AmbientFetch,
         accountListReader: @escaping AccountListReader) async -> UsageCommandOutput
@@ -128,7 +131,10 @@ enum CLIClaudeSwapCards {
         do {
             let list = try await accountListReader(executablePath)
             let accounts = ClaudeSwapAccountProjection.accountSnapshots(from: list, now: renderOptions.now)
-            guard accounts.count > 1 else { return await ambientFetch() }
+            guard ClaudeSwapAccountProjection.shouldPresentAccounts(
+                accountCount: accounts.count,
+                showSingleAccount: showSingleAccount)
+            else { return await ambientFetch() }
 
             var output = UsageCommandOutput()
             output.cards = accounts.map { account in

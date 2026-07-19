@@ -55,11 +55,13 @@ See `docs/configuration.md` for the schema.
   - `--brief` renders a compact table (Provider / Usage / Reset) instead of the card grid.
   - Stdout is always rendered text; `--json-output` only affects stderr logs (no JSON card payload).
   - Failed providers are summarized in a footer (not rendered as error cards).
-  - When the opt-in Claude claude-swap integration returns two or more accounts, cards renders every account in
-    active-first/slot order instead of the ambient or token-account Claude cards. This applies on macOS and Linux,
-    including an explicit `--provider claude`; `--source auto` remains eligible.
+  - When the opt-in Claude claude-swap integration returns two or more accounts—or one account with
+    `claudeSwapShowSingleAccount` enabled—cards renders every account in active-first/slot order instead of the
+    ambient or token-account Claude cards. This applies on macOS and Linux, including an explicit
+    `--provider claude`; `--source auto` remains eligible.
   - `--account`, `--account-index`, `--all-accounts`, and explicit non-auto source flags preserve their requested
-    ambient behavior and do not invoke claude-swap. Zero/one-account lists likewise retain ambient Claude output.
+    ambient behavior and do not invoke claude-swap. Zero-account lists always retain ambient Claude output;
+    one-account lists do so unless `claudeSwapShowSingleAccount` is enabled.
   - claude-swap sentinel accounts remain successful cards with their problem text and no fabricated usage metrics.
     A list adapter, parser, or timeout failure retains useful ambient Claude output, adds a distinct
     `Claude (claude-swap)` failure footer entry, and makes the command exit non-zero.

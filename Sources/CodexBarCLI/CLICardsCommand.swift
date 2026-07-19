@@ -180,6 +180,7 @@ extension CodexBarCLI {
             let result = await CLIClaudeSwapCards.fetch(
                 eligible: claudeSwapEligible,
                 executablePath: CLIClaudeSwapCards.executablePath(from: claudeConfig),
+                showSingleAccount: claudeConfig?.claudeSwapShowSingleAccount == true,
                 renderOptions: CLIClaudeSwapCardsRenderOptions(
                     status: status,
                     useColor: useColor,
@@ -195,9 +196,7 @@ extension CodexBarCLI {
                             command: command)
                     }
                 })
-            if result.exitCode != .success {
-                exitCode = result.exitCode
-            }
+            if result.exitCode != .success { exitCode = result.exitCode }
             cards.append(contentsOf: result.cards)
             failures.append(contentsOf: result.cardFailures)
         }

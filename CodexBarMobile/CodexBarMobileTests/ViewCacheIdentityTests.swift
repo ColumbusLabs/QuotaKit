@@ -128,6 +128,11 @@ struct ViewCacheIdentityTests {
     }
 
     @Test
+    func `UtilizationHistoryView localizes monthly series name`() {
+        #expect(UtilizationHistoryView.seriesDisplayName(Self.makeSeries(name: "monthly")) == "Monthly")
+    }
+
+    @Test
     func `UtilizationHistoryView: new entry appended → different key`() {
         let base = [
             SyncUtilizationEntry(
