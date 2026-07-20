@@ -18,9 +18,16 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Changed
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
 - Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.
-- Synced upstream CodexBar changes through `1d307430a`, including OpenCode Go history, Claude scoped and single-account cards, compact-subagent cost accounting, session forecasting, Linux musl process support, and menu refresh fixes while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
+- Synced upstream CodexBar changes through `f8636cb37`, including OpenCode Go source scoping and sub-1% usage accuracy, macOS 14 TaskLocal launch stability, weekly progress selection, custom-layout icon tinting, widget cost-row compaction, and Command Code contrast while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
+- Refresh: prevent macOS 14 launch crashes caused by TaskLocal task-allocation corruption.
+- Menu bar: render custom-layout provider icons at native size with correct light/dark tinting.
+- Menu: prefer weekly quota windows for the switcher’s weekly progress, with provider-specific fallback.
+- Command Code: improve progress-bar contrast in dark mode.
+- Widgets: keep cost rows on one line with large token counts.
+- OpenCode/OpenCode Go: preserve computed sub-1% usage percentages instead of rescaling them as direct fractions.
+- OpenCode Go: prefer local usage for unscoped Auto refreshes while keeping account- and workspace-scoped requests web-first.
 - StepFun: keep password-login web ID headers aligned with the anonymous token.
 - Menu bar: refresh custom cost and reset tokens when their source data or displayed boundary changes.
 - Usage: normalize session-equivalent forecasts against aligned partial-session samples.

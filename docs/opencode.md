@@ -23,14 +23,15 @@ read_when:
 - Responses are `text/javascript` with serialized objects; parse via regex.
 - Missing workspace ID or rolling usage fields should raise parse errors; omitted weekly usage stays absent.
 - OpenCode web Auto imports Chrome first, then Dia when their cookie stores exist; Keychain preflight stays scoped
-  to each candidate browser. Other browsers stay on Manual Cookie import until CodexBar has an explicit browser
+  to each candidate browser. Other browsers stay on Manual Cookie import until QuotaKit has an explicit browser
   selector.
 - Set `CODEXBAR_OPENCODE_WORKSPACE_ID` to skip workspace lookup and force a specific workspace.
 - Workspace override accepts a raw `wrk_…` ID or a full `https://opencode.ai/workspace/...` URL.
 - Cached cookies: Keychain cache `com.steipete.codexbar.cache` (account `cookie.opencode`, source + timestamp). Browser
   import only runs when the cached cookie fails.
-- OpenCode Go auto mode tries web usage first. Authentication/setup failures fall back to quota windows and daily cost
-  history derived from local `opencode-go` assistant costs.
+- OpenCode Go unscoped Auto mode tries quota windows and daily cost history derived from local `opencode-go` assistant
+  costs first, then falls back to web usage when local history is unavailable. Auto stays web-first when a token account,
+  manual cookie, or workspace override scopes the request, because local history is device-wide.
 - OpenCode Go cost history chart: `opencode.ai` has no daily-granularity endpoint, so per-day cost/request buckets
   come from local `opencode-go` assistant costs in `opencode.db`, keyed by device-local calendar day. Successful web
   usage remains workspace-scoped and is never blended with device-wide local costs, so it does not show cost history.
