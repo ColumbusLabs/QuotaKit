@@ -4,6 +4,8 @@ import Foundation
 // swiftlint:disable file_length
 
 public struct RateWindow: Codable, Equatable, Sendable {
+    /// Provider usage value, intentionally not normalized globally. Pace and provider-specific diagnostics may
+    /// preserve raw over-quota values; display-only projections should use `UsagePercent.displayClamped`.
     public let usedPercent: Double
     public let windowMinutes: Int?
     public let resetsAt: Date?
