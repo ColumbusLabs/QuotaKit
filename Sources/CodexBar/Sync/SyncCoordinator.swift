@@ -976,30 +976,78 @@ final class SyncCoordinator {
         switch role {
         case .session:
             if provider == .abacus {
-                return self.store.weeklyPace(provider: provider, window: window, now: now)
-                    .map {
-                        Self.syncUsagePace(
-                            from: $0,
-                            detail: UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now))
-                    }
-            }
-            guard let pace = UsagePaceText.sessionPace(provider: provider, window: window, now: now) else {
-                return nil
-            }
-            guard let detail = UsagePaceText.sessionDetail(provider: provider, window: window, now: now) else {
-                return nil
-            }
-            return Self.syncUsagePace(from: pace, detail: detail)
-        case .weekly:
-            return self.store.weeklyPace(provider: provider, window: window, now: now)
-                .map {
-                    Self.syncUsagePace(
-                        from: $0,
-                        detail: UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now))
+                if let pace = self.store.weeklyPace(provider: provider, window: window, now: now) {
+                    return Self.syncUsagePace(
+                        from: pace,
+                        detail: UsagePaceText.weeklyDetail(provider: provider, pace: pace, now: now))
                 }
+                return self.syncResetWindowUsagePace(provider: provider, window: window, now: now)
+            }
+            if let pace = UsagePaceText.sessionPace(provider: provider, window: window, now: now),
+               let detail = UsagePaceText.sessionDetail(provider: provider, window: window, now: now)
+            {
+                return Self.syncUsagePace(from: pace, detail: detail)
+            }
+            return self.syncResetWindowUsagePace(provider: provider, window: window, now: now)
+        case .weekly:
+            if let pace = self.store.weeklyPace(provider: provider, window: window, now: now) {
+                return Self.syncUsagePace(
+                    from: pace,
+                    detail: UsagePaceText.weeklyDetail(provider: provider, pace: pace, now: now))
+            }
+            return self.syncResetWindowUsagePace(provider: provider, window: window, now: now)
         case .other:
-            return nil
+            return self.syncResetWindowUsagePace(provider: provider, window: window, now: now)
         }
+    }
+
+    private func syncResetWindowUsagePace(
+        provider: UsageProvider,
+        window: RateWindow,
+        now: Date) -> SyncUsagePace?
+    {
+        let capability = ProviderDescriptorRegistry.descriptor(for: provider).pace
+        guard capability.supportsResetWindowPace(window: window, now: now),
+              window.remainingPercent > 0
+        else { return nil }
+
+        let paceWindow = Self.resetWindowForPace(provider: provider, window: window)
+        guard let pace = UsagePace.weekly(
+            window: paceWindow,
+            now: now,
+            defaultWindowMinutes: 10080,
+            workDays: self.settings.weeklyProgressWorkDays),
+            pace.expectedUsedPercent >= 3 || pace.etaSeconds == 0
+        else { return nil }
+
+        return Self.syncUsagePace(
+            from: pace,
+            detail: UsagePaceText.weeklyDetail(provider: provider, pace: pace, now: now))
+    }
+
+    static func resetWindowForPace(provider: UsageProvider, window: RateWindow) -> RateWindow {
+        // Provider snapshots use 30 days as a monthly sentinel; use the reset date for the real calendar-cycle length.
+        let capability = ProviderDescriptorRegistry.descriptor(for: provider).pace
+        guard capability.usesInferredMonthlyDuration(window: window),
+              let resetsAt = window.resetsAt,
+              let minutes = self.inferredMonthlyWindowMinutes(endingAt: resetsAt)
+        else { return window }
+        return RateWindow(
+            usedPercent: window.usedPercent,
+            windowMinutes: minutes,
+            resetsAt: window.resetsAt,
+            resetDescription: window.resetDescription,
+            nextRegenPercent: window.nextRegenPercent,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder)
+    }
+
+    private static func inferredMonthlyWindowMinutes(endingAt resetsAt: Date) -> Int? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
+        guard let startsAt = calendar.date(byAdding: .month, value: -1, to: resetsAt) else { return nil }
+        let minutes = resetsAt.timeIntervalSince(startsAt) / 60
+        guard minutes.isFinite, minutes > 0 else { return nil }
+        return Int(minutes.rounded())
     }
 
     static func syncUsagePace(
