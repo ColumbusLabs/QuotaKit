@@ -487,9 +487,14 @@ struct SpendDashboardControllerTests {
 
         store._setTokenSnapshotForTesting(Self.input(provider: .mistral, cost: 3).snapshot, provider: .mistral)
         store._test_providerRefreshOverride = { _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controllerDefaultsName = "SpendDashboardControllerTests-token-account-owner-view"
+        let controllerDefaults = try #require(UserDefaults(suiteName: controllerDefaultsName))
+        controllerDefaults.removePersistentDomain(forName: controllerDefaultsName)
+        let controller = SpendDashboardController(
+            userDefaults: controllerDefaults,
+            requestBuilder: { mode in
+                await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
+            })
         controller.update(configuration: selectedBackupConfiguration)
         await Self.waitUntil { !controller.isRefreshing }
         #expect(controller.model.groups.first?.totalCost == 3)
