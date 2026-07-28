@@ -32,20 +32,21 @@ extension SyncCoordinatorTests {
             metadata: #require(ProviderDefaults.metadata[.kimi]),
             enabled: true)
 
+        let now = Date()
         let store = self.makeRateWindowIdentityUsageStore(settings: settings)
         store._setSnapshotForTesting(
             UsageSnapshot(
                 primary: RateWindow(
                     usedPercent: 24,
-                    windowMinutes: nil,
-                    resetsAt: Date(timeIntervalSince1970: 1_700_604_800),
+                    windowMinutes: 10080,
+                    resetsAt: now.addingTimeInterval(6 * 24 * 60 * 60),
                     resetDescription: "24/100 requests"),
                 secondary: RateWindow(
                     usedPercent: 75,
                     windowMinutes: 300,
-                    resetsAt: Date(timeIntervalSince1970: 1_700_018_000),
+                    resetsAt: now.addingTimeInterval(5 * 60 * 60),
                     resetDescription: "Rate: 15/20 per 5 hours"),
-                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+                updatedAt: now),
             provider: .kimi)
 
         let mock = MockSyncPusher()
@@ -60,6 +61,8 @@ extension SyncCoordinatorTests {
         let rateLimit = try #require(provider.rateWindows.first { $0.label == "Rate Limit" })
 
         #expect(weekly.identity == .weekly)
+        #expect(weekly.windowMinutes == 10080)
+        #expect(weekly.pace != nil)
         #expect(rateLimit.identity == .session)
     }
 

@@ -18,7 +18,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Changed
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
 - Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.
-- Synced upstream CodexBar changes through `f8636cb37`, including OpenCode Go source scoping and sub-1% usage accuracy, macOS 14 TaskLocal launch stability, weekly progress selection, custom-layout icon tinting, widget cost-row compaction, and Command Code contrast while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
+- Synced upstream CodexBar changes through `02b4ba278`, including Claude weekly-window ordering and fallback accuracy, Kimi weekly duration accuracy, Ollama session reuse, safer automatic Safari-cookie handling, LongCat Firefox imports, localized session equivalents, stacked menu-title alignment, WidgetKit refresh-loop prevention, and Linux Alibaba Token Plan support while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
 - Refresh: prevent macOS 14 launch crashes caused by TaskLocal task-allocation corruption.
@@ -35,6 +35,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Codex: exclude parent-copied prefixes from compact subagent usage when the fork boundary matches the parent snapshot.
 - Usage & Spend: render share-card PNG exports without black backgrounds and keep complete model rows visible beside incomplete sources.
 - ElevenLabs: clamp character and voice-slot usage percentages at 100% during overage.
+- Ollama: reuse validated browser sessions and skip inaccessible Safari cookies during automatic fallback while retaining explicit permission guidance.
 
 ## 0.32.4.12 / iOS 1.11.3 — 2026-07-17
 

@@ -4,6 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
+@Suite(.serialized)
 struct SpendDashboardControllerTests {
     @Test
     func `empty codex history loads as successful inactive source`() async {
@@ -288,9 +289,7 @@ struct SpendDashboardControllerTests {
         let snapshot = Self.input(id: "claude", provider: .claude, cost: 3).snapshot
         store._setTokenSnapshotForTesting(snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controller = Self.dashboardController(settings: settings, store: store)
 
         let baselineConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: baselineConfiguration)
@@ -408,9 +407,7 @@ struct SpendDashboardControllerTests {
             environmentBase: [:])
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 3).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controller = Self.dashboardController(settings: settings, store: store)
 
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: firstConfiguration)
@@ -431,9 +428,7 @@ struct SpendDashboardControllerTests {
         #expect(controller.failedSourceCount == 1)
         #expect(store.tokenSnapshot(for: .claude)?.last30DaysCostUSD == 3)
 
-        let reopenedController = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let reopenedController = Self.dashboardController(settings: settings, store: store)
         reopenedController.update(configuration: replacementConfiguration)
         await Self.waitUntil { !reopenedController.isRefreshing }
         #expect(reopenedController.model.groups.isEmpty)
@@ -487,14 +482,7 @@ struct SpendDashboardControllerTests {
 
         store._setTokenSnapshotForTesting(Self.input(provider: .mistral, cost: 3).snapshot, provider: .mistral)
         store._test_providerRefreshOverride = { _ in }
-        let controllerDefaultsName = "SpendDashboardControllerTests-token-account-owner-view"
-        let controllerDefaults = try #require(UserDefaults(suiteName: controllerDefaultsName))
-        controllerDefaults.removePersistentDomain(forName: controllerDefaultsName)
-        let controller = SpendDashboardController(
-            userDefaults: controllerDefaults,
-            requestBuilder: { mode in
-                await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-            })
+        let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: selectedBackupConfiguration)
         await Self.waitUntil { !controller.isRefreshing }
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -532,9 +520,7 @@ struct SpendDashboardControllerTests {
             environmentBase: [:])
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 4).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
         await Self.waitUntil { !controller.isRefreshing }
         #expect(controller.model.groups.first?.totalCost == 4)
@@ -562,9 +548,7 @@ struct SpendDashboardControllerTests {
             environmentBase: [:])
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 5).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controller = Self.dashboardController(settings: settings, store: store)
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: firstConfiguration)
         await Self.waitUntil { !controller.isRefreshing }
@@ -631,9 +615,7 @@ struct SpendDashboardControllerTests {
             environmentBase: [:])
         store._setTokenSnapshotForTesting(Self.input(provider: .claude, cost: 5).snapshot, provider: .claude)
         store._test_tokenUsageRefreshOverride = { _, _ in }
-        let controller = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
         await Self.waitUntil { !controller.isRefreshing }
         #expect(controller.model.groups.first?.totalCost == 5)
@@ -649,9 +631,7 @@ struct SpendDashboardControllerTests {
         #expect(controller.model.groups.isEmpty)
         #expect(controller.failedSourceCount == 1)
 
-        let reopenedController = SpendDashboardController(requestBuilder: { mode in
-            await SpendDashboardSource.makeRequest(settings: settings, store: store, mode: mode)
-        })
+        let reopenedController = Self.dashboardController(settings: settings, store: store)
         reopenedController.update(configuration: reenabledConfiguration)
         await Self.waitUntil { !reopenedController.isRefreshing }
         #expect(reopenedController.model.groups.isEmpty)
@@ -771,6 +751,23 @@ struct SpendDashboardControllerTests {
         #expect(defaults.integer(forKey: "settingsSpendDashboardDays") == 7)
         controller.selectDays(9)
         #expect(controller.selectedDays == 30)
+    }
+
+    private static let fixtureNow = Date(timeIntervalSince1970: 1_784_179_200)
+
+    private static func dashboardController(
+        settings: SettingsStore,
+        store: UsageStore) -> SpendDashboardController
+    {
+        SpendDashboardController(
+            userDefaults: settings.userDefaults,
+            requestBuilder: { mode in
+                await SpendDashboardSource.makeRequest(
+                    settings: settings,
+                    store: store,
+                    mode: mode,
+                    now: Self.fixtureNow)
+            })
     }
 
     private static func controller(gate: SpendDashboardLoaderGate) -> SpendDashboardController {
