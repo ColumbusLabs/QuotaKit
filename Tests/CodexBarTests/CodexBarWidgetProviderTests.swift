@@ -824,35 +824,6 @@ struct CodexBarWidgetProviderTests {
         #expect(axis.start == effectiveReset.addingTimeInterval(-5 * 60 * 60))
     }
 
-    @Test
-    func `burn down refreshes immediately after the earliest future reset`() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let snapshot = Self.burnSnapshot(
-            provider: .codex,
-            primaryUsed: 20,
-            secondaryUsed: 30,
-            primaryReset: now.addingTimeInterval(60),
-            secondaryReset: now.addingTimeInterval(120))
-
-        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .codex, now: now)
-            == now.addingTimeInterval(61))
-    }
-
-    @Test
-    func `burn down refresh ignores past resets and unrelated provider entries`() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let snapshot = Self.burnSnapshot(
-            provider: .claude,
-            primaryUsed: 20,
-            secondaryUsed: 30,
-            primaryReset: now.addingTimeInterval(-60),
-            secondaryReset: now.addingTimeInterval(-30))
-        let fallback = now.addingTimeInterval(30 * 60)
-
-        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .claude, now: now) == fallback)
-        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .codex, now: now) == fallback)
-    }
-
     private static func burnSnapshot(
         provider: UsageProvider,
         primaryUsed: Double?,
@@ -885,6 +856,51 @@ struct CodexBarWidgetProviderTests {
             tokenUsage: nil,
             dailyUsage: [])
         return WidgetSnapshot(entries: [entry], generatedAt: entry.updatedAt)
+    }
+}
+
+extension CodexBarWidgetProviderTests {
+    @Test
+    func `burn down refreshes immediately after the earliest future reset`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = Self.burnSnapshot(
+            provider: .codex,
+            primaryUsed: 20,
+            secondaryUsed: 30,
+            primaryReset: now.addingTimeInterval(360),
+            secondaryReset: now.addingTimeInterval(420))
+
+        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .codex, now: now)
+            == now.addingTimeInterval(361))
+    }
+
+    @Test
+    func `burn down refresh clamps to minimum interval`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = Self.burnSnapshot(
+            provider: .codex,
+            primaryUsed: 20,
+            secondaryUsed: 30,
+            primaryReset: now.addingTimeInterval(60),
+            secondaryReset: now.addingTimeInterval(120))
+
+        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .codex, now: now)
+            == now.addingTimeInterval(300))
+    }
+
+    @Test
+    func `burn down refresh ignores past resets and unrelated provider entries`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = Self.burnSnapshot(
+            provider: .claude,
+            primaryUsed: 20,
+            secondaryUsed: 30,
+            primaryReset: now.addingTimeInterval(-60),
+            secondaryReset: now.addingTimeInterval(-30))
+        let fallback = now.addingTimeInterval(30 * 60)
+
+        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .claude, now: now) == fallback)
+        #expect(BurnDownRefreshSchedule.nextRefresh(snapshot: snapshot, provider: .codex, now: now) == fallback)
     }
 }
 

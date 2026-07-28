@@ -203,6 +203,27 @@ struct ClaudeOAuthTests {
     }
 
     @Test
+    func `orders O auth scoped weekly windows before daily routines`() throws {
+        let json = """
+        {
+          "five_hour": { "utilization": 12.5, "resets_at": "2025-12-25T12:00:00.000Z" },
+          "seven_day": { "utilization": 30, "resets_at": "2025-12-31T00:00:00.000Z" },
+          "seven_day_routines": { "utilization": 18, "resets_at": "2026-01-01T00:00:00.000Z" },
+          "limits": [
+            {
+              "kind": "weekly_scoped", "group": "weekly", "percent": 29,
+              "resets_at": "2025-12-31T00:00:00.000Z",
+              "scope": { "model": { "id": null, "display_name": "Fable" }, "surface": null },
+              "is_active": false
+            }
+          ]
+        }
+        """
+        let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
+        #expect(snap.extraRateWindows.map(\.title) == ["Fable only", "Daily Routines"])
+    }
+
+    @Test
     func `ignores weekly scoped limit without a model display name`() throws {
         let json = """
         {
@@ -236,7 +257,7 @@ struct ClaudeOAuthTests {
     }
 
     @Test
-    func `maps O auth null cowork as zero routines window`() throws {
+    func `omits routines window when O auth cowork is null`() throws {
         let json = """
         {
           "five_hour": { "utilization": 12.5, "resets_at": "2025-12-25T12:00:00.000Z" },
@@ -245,7 +266,7 @@ struct ClaudeOAuthTests {
         }
         """
         let snap = try ClaudeUsageFetcher._mapOAuthUsageForTesting(Data(json.utf8))
-        #expect(snap.extraRateWindows.first(where: { $0.id == "claude-routines" })?.window.usedPercent == 0)
+        #expect(snap.extraRateWindows.contains { $0.id == "claude-routines" } == false)
         #expect(snap.extraRateWindows.contains { $0.id == "claude-design" } == false)
     }
 

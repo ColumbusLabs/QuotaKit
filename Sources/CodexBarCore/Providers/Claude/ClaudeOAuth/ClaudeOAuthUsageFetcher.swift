@@ -208,18 +208,14 @@ struct OAuthUsageResponse: Decodable {
         in container: KeyedDecodingContainer<DynamicCodingKey>,
         keys: [String]) -> (window: OAuthUsageWindow?, sourceKey: String?)
     {
-        var firstNullKey: String?
         for keyName in keys {
             guard let key = DynamicCodingKey(stringValue: keyName) else { continue }
             guard container.contains(key) else { continue }
             if let value = try? container.decodeIfPresent(OAuthUsageWindow.self, forKey: key) {
                 return (value, keyName)
             }
-            if firstNullKey == nil {
-                firstNullKey = keyName
-            }
         }
-        return (nil, firstNullKey)
+        return (nil, nil)
     }
 
     private static func decodeValue<T: Decodable>(
