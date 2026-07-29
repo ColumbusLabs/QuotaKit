@@ -2911,7 +2911,7 @@ public enum ClaudeOAuthCredentialsStore {
         return ClaudeConfigPaths.credentialsURL(environment: environment)
     }
 
-    static func credentialsProfileIdentifier(environment: [String: String]) -> String {
+    public static func credentialsProfileIdentifier(environment: [String: String]) -> String {
         #if DEBUG
         if let override = self.taskCredentialsProfileIdentifierOverride {
             return override
