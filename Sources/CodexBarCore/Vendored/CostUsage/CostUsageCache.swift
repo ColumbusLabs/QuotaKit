@@ -12,8 +12,7 @@ enum CostUsageCacheIO {
         switch provider {
         case .codex:
             11
-        case .claude: 6
-        case .vertexai: 6
+        case .claude, .vertexai: 6
         default:
             1
         }
