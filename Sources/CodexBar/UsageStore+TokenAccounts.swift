@@ -1580,6 +1580,7 @@ extension UsageStore {
                     accountDiscriminatorOverride: predictivePaceWarningAccountDiscriminatorOverride)
                 self.lastKnownResetSnapshots[provider] = backfilled
                 self.snapshots[provider] = backfilled
+                self.widgetUsagePreservationBlockedProviders.remove(provider)
                 if provider == .deepseek {
                     self.clearDeepSeekProfileTransition()
                 }
