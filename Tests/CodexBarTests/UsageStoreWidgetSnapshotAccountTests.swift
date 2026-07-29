@@ -102,14 +102,17 @@ struct UsageStoreWidgetSnapshotAccountTests {
         storeA._setSnapshotForTesting(
             UsageSnapshot(primary: quota, secondary: nil, updatedAt: quotaUpdatedAt),
             provider: .claude)
+        storeA.lastSourceLabels[.claude] = "oauth"
 
         var profileASnapshots: [WidgetSnapshot] = []
         storeA._test_widgetSnapshotSaveOverride = { profileASnapshots.append($0) }
         defer { storeA._test_widgetSnapshotSaveOverride = nil }
-        ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
-            storeA.persistWidgetSnapshot(reason: "claude-oauth-profile-a-primes-quota-test")
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-a") {
+            ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
+                storeA.persistWidgetSnapshot(reason: "claude-oauth-profile-a-primes-quota-test")
+            }
+            await storeA.widgetSnapshotPersistTask?.value
         }
-        await storeA.widgetSnapshotPersistTask?.value
         let profileAEntry = try #require(profileASnapshots.last?.entries.first { $0.provider == .claude })
         let profileAOwner = try #require(profileAEntry.quotaOwnerKey)
 
@@ -125,7 +128,9 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let environmentB = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-profile-b"]
         let profileBOwner = ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
-            ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environmentB)
+            let profileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environmentB)
+            let accountIdentity = UsageStore._activeClaudeAccountIdentityForTesting("account-a")
+            return "oauth-profile:\(profileIdentifier):account:\(accountIdentity)"
         }
         #expect(profileAOwner != profileBOwner)
 
@@ -151,16 +156,154 @@ struct UsageStoreWidgetSnapshotAccountTests {
         var profileBSnapshots: [WidgetSnapshot] = []
         storeB._test_widgetSnapshotSaveOverride = { profileBSnapshots.append($0) }
         defer { storeB._test_widgetSnapshotSaveOverride = nil }
-        ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
-            storeB.persistWidgetSnapshot(reason: "claude-oauth-profile-change-drops-quota-test")
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-a") {
+            ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
+                storeB.persistWidgetSnapshot(reason: "claude-oauth-profile-change-drops-quota-test")
+            }
+            await storeB.widgetSnapshotPersistTask?.value
         }
-        await storeB.widgetSnapshotPersistTask?.value
 
         let entry = try #require(profileBSnapshots.last?.entries.first { $0.provider == .claude })
         #expect(entry.primary == nil)
         #expect(entry.usageRows?.isEmpty == true)
         #expect(entry.quotaOwnerKey == nil)
         #expect(entry.tokenUsage?.sessionTokens == 4300)
+    }
+
+    @Test
+    func `widget snapshot does not preserve Claude quota across accounts in one OAuth profile`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-claude-same-profile-account-change"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-shared-profile"]
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: environment),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: environment)
+        let quotaUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenUpdatedAt = quotaUpdatedAt.addingTimeInterval(60)
+        let quota = RateWindow(
+            usedPercent: 28,
+            windowMinutes: 300,
+            resetsAt: quotaUpdatedAt.addingTimeInterval(3600),
+            resetDescription: nil)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: quota, secondary: nil, updatedAt: quotaUpdatedAt),
+            provider: .claude)
+        store.lastSourceLabels[.claude] = "oauth"
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-a") {
+            ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
+                store.persistWidgetSnapshot(reason: "claude-same-profile-account-a-prime-test")
+            }
+            await store.widgetSnapshotPersistTask?.value
+        }
+        let accountAEntry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(accountAEntry.primary == quota)
+        #expect(accountAEntry.quotaOwnerKey != nil)
+
+        store.snapshots.removeValue(forKey: .claude)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 4300,
+                sessionCostUSD: 1.50,
+                last30DaysTokens: 43000,
+                last30DaysCostUSD: 13.50,
+                daily: [],
+                updatedAt: tokenUpdatedAt),
+            provider: .claude)
+
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-b") {
+            ClaudeOAuthCredentialsStore.withEnvironmentCredentialsURLForTesting {
+                store.persistWidgetSnapshot(reason: "claude-same-profile-account-b-drops-quota-test")
+            }
+            await store.widgetSnapshotPersistTask?.value
+        }
+
+        let accountBEntry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(accountBEntry.primary == nil)
+        #expect(accountBEntry.usageRows?.isEmpty == true)
+        #expect(accountBEntry.quotaOwnerKey == nil)
+        #expect(accountBEntry.tokenUsage?.sessionTokens == 4300)
+    }
+
+    @Test(arguments: ["web", "cli", "admin-api"])
+    func `ambient non OAuth Claude quota is not preserved as OAuth owned`(sourceLabel: String) async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-claude-\(sourceLabel)-quota-not-preserved"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+
+        let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-\(sourceLabel)-profile"]
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: environment),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            environmentBase: environment)
+        let quotaUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let tokenUpdatedAt = quotaUpdatedAt.addingTimeInterval(60)
+        let quota = RateWindow(
+            usedPercent: 28,
+            windowMinutes: 300,
+            resetsAt: quotaUpdatedAt.addingTimeInterval(3600),
+            resetDescription: nil)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: quota, secondary: nil, updatedAt: quotaUpdatedAt),
+            provider: .claude)
+        store.lastSourceLabels[.claude] = sourceLabel
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-a") {
+            store.persistWidgetSnapshot(reason: "claude-\(sourceLabel)-quota-prime-test")
+            await store.widgetSnapshotPersistTask?.value
+        }
+
+        let liveEntry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(liveEntry.primary == quota)
+        #expect(liveEntry.quotaOwnerKey == nil)
+
+        store.snapshots.removeValue(forKey: .claude)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 4300,
+                sessionCostUSD: 1.50,
+                last30DaysTokens: 43000,
+                last30DaysCostUSD: 13.50,
+                daily: [],
+                updatedAt: tokenUpdatedAt),
+            provider: .claude)
+        await UsageStore.withActiveClaudeAccountUuidForTesting("account-a") {
+            store.persistWidgetSnapshot(reason: "claude-\(sourceLabel)-token-only-test")
+            await store.widgetSnapshotPersistTask?.value
+        }
+
+        let tokenOnlyEntry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(tokenOnlyEntry.primary == nil)
+        #expect(tokenOnlyEntry.usageRows?.isEmpty == true)
+        #expect(tokenOnlyEntry.quotaOwnerKey == nil)
+        #expect(tokenOnlyEntry.tokenUsage?.sessionTokens == 4300)
     }
 
     @Test

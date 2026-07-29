@@ -58,8 +58,8 @@ extension UsageStore {
     {
         let snapshot = self.snapshots[provider]
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
-        let claudeQuotaOwnerKey: String? = if provider == .claude {
-            self.claudeWidgetQuotaOwnerKey()
+        let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {
+            self.expectedClaudeWidgetQuotaOwnerKey()
         } else {
             nil
         }
@@ -72,7 +72,7 @@ extension UsageStore {
         {
             Self.preservedClaudeWidgetUsage(
                 from: previousEntry,
-                expectedQuotaOwnerKey: claudeQuotaOwnerKey)
+                expectedQuotaOwnerKey: expectedClaudeQuotaOwnerKey)
         } else {
             nil
         }
@@ -117,7 +117,7 @@ extension UsageStore {
             nil
         }
         let quotaOwnerKey: String? = if provider == .claude {
-            snapshot != nil ? claudeQuotaOwnerKey : preservedClaudeUsage?.quotaOwnerKey
+            snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
         } else {
             nil
         }
@@ -146,16 +146,30 @@ extension UsageStore {
         let quotaOwnerKey: String?
     }
 
-    private func claudeWidgetQuotaOwnerKey() -> String {
+    private func expectedClaudeWidgetQuotaOwnerKey() -> String? {
         if let account = self.settings.effectiveSelectedTokenAccount(for: .claude) {
             return self.tokenAccountSnapshotCacheKey(provider: .claude, account: account)
         }
+        return self.claudeOAuthWidgetQuotaOwnerKey()
+    }
+
+    private func liveClaudeWidgetQuotaOwnerKey() -> String? {
+        if let account = self.settings.effectiveSelectedTokenAccount(for: .claude) {
+            return self.tokenAccountSnapshotCacheKey(provider: .claude, account: account)
+        }
+        guard self.lastSourceLabels[.claude] == "oauth" else { return nil }
+        return self.claudeOAuthWidgetQuotaOwnerKey()
+    }
+
+    private func claudeOAuthWidgetQuotaOwnerKey() -> String? {
+        guard let accountIdentity = Self.activeClaudeAccountIdentity() else { return nil }
         let environment = ProviderRegistry.makeEnvironment(
             base: self.environmentBase,
             provider: .claude,
             settings: self.settings,
             tokenOverride: nil)
-        return ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environment)
+        let profileIdentifier = ClaudeOAuthCredentialsStore.credentialsProfileIdentifier(environment: environment)
+        return "oauth-profile:\(profileIdentifier):account:\(accountIdentity)"
     }
 
     private nonisolated static func preservedClaudeWidgetUsage(
