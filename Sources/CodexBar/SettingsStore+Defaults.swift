@@ -1016,6 +1016,14 @@ extension SettingsStore {
             self.userDefaults.set(newValue, forKey: "agentSessionsManualHosts")
         }
     }
+
+    var preferredCurrencyCode: String {
+        get { self.defaultsState.preferredCurrencyCode }
+        set {
+            self.defaultsState.preferredCurrencyCode = newValue
+            self.userDefaults.set(newValue, forKey: "preferredCurrencyCode")
+        }
+    }
 }
 
 extension SettingsStore {

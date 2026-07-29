@@ -976,7 +976,10 @@ extension StatusItemController {
            self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
            let balance = snapshot?.openRouterUsage?.balance
         {
-            return UsageFormatter.usdString(balance)
+            return UsageFormatter.convertedCostString(
+                balance,
+                preferredCurrency: self.settings.preferredCurrencyCode,
+                providerCurrency: "USD")
         }
         if provider == .opencodego,
            let balance = Self.openCodeGoZenBalanceDisplayText(snapshot: snapshot)
