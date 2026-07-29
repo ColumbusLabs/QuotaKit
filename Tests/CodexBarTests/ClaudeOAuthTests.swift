@@ -115,6 +115,42 @@ struct ClaudeOAuthTests {
     }
 
     @Test
+    func `O auth profile request decodes nested account identity`() async throws {
+        let transport = ProviderHTTPTransportStub { request in
+            let url = try #require(request.url)
+            let response = try #require(HTTPURLResponse(
+                url: url,
+                statusCode: 200,
+                httpVersion: "HTTP/1.1",
+                headerFields: ["Content-Type": "application/json"]))
+            let body = """
+            {
+              "account": {
+                "uuid": "account-123",
+                "email": "user@example.com"
+              },
+              "organization": {
+                "uuid": "org-123"
+              }
+            }
+            """
+            return (Data(body.utf8), response)
+        }
+
+        let profile = try await ClaudeOAuthUsageFetcher.fetchProfile(
+            accessToken: "oauth-token",
+            transport: transport)
+
+        #expect(profile.emailAddress == "user@example.com")
+        #expect(profile.organizationUuid == "org-123")
+        let request = try #require(await transport.requests().first)
+        #expect(request.url?.absoluteString == "https://api.anthropic.com/api/oauth/profile")
+        #expect(request.httpMethod == "GET")
+        #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer oauth-token")
+        #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
+    }
+
+    @Test
     func `maps O auth subscription type when rate limit tier is generic`() throws {
         let json = """
         {

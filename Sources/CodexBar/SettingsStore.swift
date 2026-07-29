@@ -386,6 +386,7 @@ extension SettingsStore {
 
     private struct OptionalCreditsDefaults {
         let showOptionalCreditsAndExtraUsage: Bool
+        let claudeDailyRoutinesUsageVisible: Bool
         let codexSparkUsageVisible: Bool
     }
 
@@ -572,6 +573,7 @@ extension SettingsStore {
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
+            claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
@@ -598,6 +600,13 @@ extension SettingsStore {
             userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
         }
 
+        let claudeDailyRoutinesUsageVisibleDefault = userDefaults.object(
+            forKey: "claudeDailyRoutinesUsageVisible") as? Bool
+        let claudeDailyRoutinesUsageVisible = claudeDailyRoutinesUsageVisibleDefault ?? true
+        if Self.isRunningTests, claudeDailyRoutinesUsageVisibleDefault == nil {
+            userDefaults.set(true, forKey: "claudeDailyRoutinesUsageVisible")
+        }
+
         let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
         let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
         if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
@@ -606,6 +615,7 @@ extension SettingsStore {
 
         return OptionalCreditsDefaults(
             showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
+            claudeDailyRoutinesUsageVisible: claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: codexSparkUsageVisible)
     }
 

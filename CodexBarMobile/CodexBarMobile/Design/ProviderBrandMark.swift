@@ -49,6 +49,7 @@ enum ProviderBrandAsset {
         "perplexity",
         "poe",
         "qoder",
+        "qwencloud",
         "sakana",
         "stepfun",
         "sub2api",
@@ -61,6 +62,7 @@ enum ProviderBrandAsset {
         "zai",
         "zed",
         "zenmux",
+        "zoommate",
         "aiand",
     ]
 

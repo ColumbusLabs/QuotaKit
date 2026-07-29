@@ -406,6 +406,9 @@ public struct SyncClaudeExtraUsage: Codable, Sendable, Equatable {
     /// Configured monthly cap in USD. Nil for uncapped Team plans —
     /// iOS hides the "/ $X" suffix in that case.
     public let monthlyLimitUSD: Double?
+    /// Remaining prepaid Extra usage balance. Optional for wire compatibility
+    /// with snapshots produced before Mac 0.48.0.
+    public let balanceUSD: Double?
     /// Whether the user has enabled extra-usage billing on the
     /// Anthropic console. When false, iOS shows a "Disabled" badge
     /// instead of a usage bar.
@@ -419,6 +422,7 @@ public struct SyncClaudeExtraUsage: Codable, Sendable, Equatable {
         utilization: Double?,
         monthlySpendUSD: Double?,
         monthlyLimitUSD: Double?,
+        balanceUSD: Double? = nil,
         isEnabled: Bool,
         planTier: String?,
         updatedAt: Date)
@@ -426,6 +430,7 @@ public struct SyncClaudeExtraUsage: Codable, Sendable, Equatable {
         self.utilization = utilization
         self.monthlySpendUSD = monthlySpendUSD
         self.monthlyLimitUSD = monthlyLimitUSD
+        self.balanceUSD = balanceUSD
         self.isEnabled = isEnabled
         self.planTier = planTier
         self.updatedAt = updatedAt

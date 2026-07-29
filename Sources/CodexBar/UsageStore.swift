@@ -878,7 +878,8 @@ final class UsageStore {
                 threshold: event.threshold,
                 accountDisplayName: event.accountDisplayName,
                 accountDiscriminator: event.accountDiscriminator,
-                windowID: event.windowID)
+                windowID: event.windowID,
+                windowDisplayLabel: event.windowDisplayLabel)
         }
     }
 
@@ -1123,6 +1124,7 @@ extension UsageStore {
                 .opencode: "OpenCode debug log not yet implemented",
                 .alibaba: "Alibaba Coding Plan debug log not yet implemented",
                 .alibabatokenplan: "Alibaba Token Plan debug log not yet implemented",
+                .qwencloud: "Qwen Cloud debug log not yet implemented",
                 .factory: "Droid debug log not yet implemented",
                 .copilot: "Copilot debug log not yet implemented",
                 .manus: "Manus debug log not yet implemented",
@@ -1143,6 +1145,7 @@ extension UsageStore {
                 .grok: "Grok debug log not yet implemented",
                 .groq: "Groq debug log not yet implemented",
                 .t3chat: "T3 Chat debug log not yet implemented",
+                .zoommate: "ZoomMate debug log not yet implemented",
                 .llmproxy: "LLM Proxy debug log not yet implemented",
                 .litellm: "LiteLLM debug log not yet implemented",
                 .deepgram: "Deepgram debug log not yet implemented",
@@ -1226,12 +1229,12 @@ extension UsageStore {
                         configToken: nil,
                         hasEnvToken: deepSeekHasEnvToken,
                         hasTokenAccount: deepSeekHasTokenAccount)
-                case .clinepass, .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .factory,
+                case .clinepass, .gemini, .antigravity, .opencode, .opencodego, .alibabatokenplan, .qwencloud, .factory,
                      .copilot, .devin, .vertexai, .kilo, .kiro, .kimi, .moonshot, .jetbrains, .perplexity,
                      .mimo, .doubao, .sakana, .abacus, .mistral, .deepinfra, .codebuff, .crof, .windsurf,
                      .venice, .manus, .commandcode, .qoder, .stepfun, .bedrock, .grok, .groq, .t3chat, .llmproxy,
                      .litellm, .zed, .deepgram, .poe, .chutes, .neuralwatt, .clawrouter, .longcat, .wayfinder,
-                     .sub2api, .zenmux, .aiand:
+                     .sub2api, .zenmux, .aiand, .zoommate:
                     return unimplementedDebugLogMessages[provider] ?? "Debug log not yet implemented"
                 }
             }

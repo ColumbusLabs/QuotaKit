@@ -838,6 +838,7 @@ struct SpendDashboardControllerTests {
             sessionCostUSD: nil,
             last30DaysTokens: 10,
             last30DaysCostUSD: cost,
+            currencyCode: "USD",
             daily: [entry],
             updatedAt: Date(timeIntervalSince1970: 1_784_179_200))
         return SpendDashboardModel.ProviderInput(

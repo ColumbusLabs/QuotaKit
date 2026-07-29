@@ -185,7 +185,8 @@ struct KeychainPromptSafetyAuditTests {
     @Test
     func `alibaba safe storage password read uses no UI query`() throws {
         let importer = try Self.readRepoFile(
-            "Sources/CodexBarCore/Providers/Alibaba/AlibabaCodingPlanCookieImporter.swift")
+            "Sources/CodexBarCore/Providers/Shared/AliyunOneConsole/" +
+                "AliyunOneConsoleChromiumCookieFallbackImporter.swift")
         let lines = importer.split(separator: "\n", omittingEmptySubsequences: false)
         guard let readIndex = lines.firstIndex(where: {
             $0.contains("SecItemCopyMatching") || $0.contains("KeychainSecurity.copyMatching")

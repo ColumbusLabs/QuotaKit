@@ -60,11 +60,20 @@ enum MenuBarMetricWindowResolver {
         }
     }
 
+    static func automaticSelectionPrioritizesExhaustedWindow(for provider: UsageProvider) -> Bool {
+        switch provider {
+        case .antigravity, .perplexity, .zai, .copilot, .cursor, .minimax, .claude, .codex:
+            false
+        default:
+            true
+        }
+    }
+
     private static func tertiaryOrder(for provider: UsageProvider) -> [Lane] {
         if provider == .zai {
             return [.tertiary, .primary, .secondary]
         }
-        if provider == .perplexity || provider == .antigravity {
+        if provider == .perplexity || provider == .cursor || provider == .antigravity {
             return [.tertiary, .secondary, .primary]
         }
         return [.primary, .secondary]
@@ -141,10 +150,14 @@ enum MenuBarMetricWindowResolver {
                 secondary: snapshot.tertiary,
                 tertiary: nil) ?? snapshot.secondary
         }
-        if provider == .factory || provider == .kimi {
-            return snapshot.secondary ?? snapshot.primary
-        }
-        if provider == .litellm {
+        if provider == .factory || provider == .kimi || provider == .litellm {
+            if let exhausted = exhaustedWindow(
+                primary: snapshot.primary,
+                secondary: snapshot.secondary,
+                tertiary: nil)
+            {
+                return exhausted
+            }
             return snapshot.secondary ?? snapshot.primary
         }
         if provider == .copilot,
@@ -154,15 +167,29 @@ enum MenuBarMetricWindowResolver {
             return primary.usedPercent >= secondary.usedPercent ? primary : secondary
         }
         if provider == .cursor {
-            if snapshot.tertiary != nil {
+            if let layout = snapshot.cursorRateWindowLayout {
+                return switch layout {
+                case .autoAPI:
+                    Self.mostConstrainedCursorWindow(
+                        total: nil,
+                        auto: snapshot.primary,
+                        api: snapshot.secondary)
+                case .requests, .autoOnly, .apiOnly, .plan:
+                    snapshot.primary
+                }
+            }
+            if snapshot.tertiary == nil {
+                // Backward compatibility for snapshots written before Cursor's explicit layout
+                // discriminator: the two stored lanes were Auto and API, not Total and Auto.
                 return Self.mostConstrainedCursorWindow(
-                    auto: snapshot.secondary,
-                    api: snapshot.tertiary)
-                    ?? snapshot.primary
+                    total: nil,
+                    auto: snapshot.primary,
+                    api: snapshot.secondary)
             }
             return Self.mostConstrainedCursorWindow(
-                auto: snapshot.primary,
-                api: snapshot.secondary)
+                total: snapshot.primary,
+                auto: snapshot.secondary,
+                api: snapshot.tertiary)
         }
         if provider == .minimax {
             return Self.mostConstrainedWindow(
@@ -172,6 +199,14 @@ enum MenuBarMetricWindowResolver {
         }
         if provider == .claude, let spendLimit = Self.claudeSpendLimitWindow(snapshot: snapshot) {
             return spendLimit
+        }
+        if Self.automaticSelectionPrioritizesExhaustedWindow(for: provider),
+           let exhausted = Self.exhaustedWindow(
+               primary: snapshot.primary,
+               secondary: snapshot.secondary,
+               tertiary: snapshot.tertiary)
+        {
+            return exhausted
         }
         return snapshot.primary ?? snapshot.secondary
     }
@@ -347,14 +382,35 @@ enum MenuBarMetricWindowResolver {
         return windows.max(by: { $0.usedPercent < $1.usedPercent })
     }
 
-    private static func mostConstrainedCursorWindow(auto: RateWindow?, api: RateWindow?) -> RateWindow? {
+    private static func exhaustedWindow(
+        primary: RateWindow?,
+        secondary: RateWindow?,
+        tertiary: RateWindow?)
+        -> RateWindow?
+    {
+        [primary, secondary, tertiary]
+            .compactMap(\.self)
+            .first { $0.usedPercent >= 100 }
+    }
+
+    private static func mostConstrainedCursorWindow(
+        total: RateWindow?,
+        auto: RateWindow?,
+        api: RateWindow?)
+        -> RateWindow?
+    {
+        if let total, total.usedPercent >= 100 {
+            return total
+        }
+
         let subquotaWindows = [auto, api].compactMap(\.self)
         let usableSubquotaWindows = subquotaWindows.filter { $0.usedPercent < 100 }
         if !subquotaWindows.isEmpty, usableSubquotaWindows.isEmpty {
             return subquotaWindows.max(by: { $0.usedPercent < $1.usedPercent })
         }
 
-        return usableSubquotaWindows.max(by: { $0.usedPercent < $1.usedPercent })
+        return ([total].compactMap(\.self) + usableSubquotaWindows)
+            .max(by: { $0.usedPercent < $1.usedPercent })
     }
 
     /// The Claude spend-limit window when the account only exposes an enterprise/extra-usage spend limit

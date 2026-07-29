@@ -354,17 +354,20 @@ extension SyncCoordinator {
         //     `period` like "Last month" / "This month".
         //
         // We heuristically synthesise an envelope from `providerCost`
-        // when both used + limit + USD currency are present. The
+        // when either used + limit or a prepaid balance is present in USD. The
         // brittle OAuth path is deferred to a follow-up that adds a
         // structured field on `UsageSnapshot` to avoid string sniffing.
         // Until then, OAuth-only Claude accounts continue to surface
         // the spend-limit metric via the existing primary RateWindow.
         guard let cost = providerCost,
-              cost.limit > 0,
-              cost.currencyCode == "USD"
+              cost.currencyCode.caseInsensitiveCompare("USD") == .orderedSame,
+              cost.limit > 0 || cost.balance != nil
         else { return nil }
 
-        let utilization = min(max((cost.used / cost.limit) * 100, 0), 100)
+        let hasSpendLimit = cost.limit > 0
+        let utilization = hasSpendLimit
+            ? min(max((cost.used / cost.limit) * 100, 0), 100)
+            : nil
         let planTier: String? = {
             let login = snapshot?.identity?.loginMethod ?? ""
             if login.localizedCaseInsensitiveContains("enterprise") { return "Enterprise" }
@@ -375,8 +378,9 @@ extension SyncCoordinator {
         }()
         return SyncClaudeExtraUsage(
             utilization: utilization,
-            monthlySpendUSD: cost.used,
-            monthlyLimitUSD: cost.limit,
+            monthlySpendUSD: hasSpendLimit ? cost.used : nil,
+            monthlyLimitUSD: hasSpendLimit ? cost.limit : nil,
+            balanceUSD: cost.balance,
             isEnabled: true,
             planTier: planTier,
             updatedAt: snapshot?.updatedAt ?? cost.updatedAt)

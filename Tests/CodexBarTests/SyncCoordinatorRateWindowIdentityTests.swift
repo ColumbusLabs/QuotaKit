@@ -23,6 +23,96 @@ extension SyncCoordinatorTests {
             settings: settings)
     }
 
+    private func syncedProvider(
+        _ provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        suite: String) async throws -> ProviderUsageSnapshot
+    {
+        let settings = self.makeRateWindowIdentitySettingsStore(suite: suite)
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: provider,
+            metadata: #require(ProviderDefaults.metadata[provider]),
+            enabled: true)
+
+        let store = self.makeRateWindowIdentityUsageStore(settings: settings)
+        store._setSnapshotForTesting(snapshot, provider: provider)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        return try #require(mock.lastPerProviderEnvelopes
+            .first { $0.provider.providerID == provider.rawValue }?
+            .provider)
+    }
+
+    @Test
+    func `amp subscription sync uses dynamic usage lane labels`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let provider = try await self.syncedProvider(
+            .amp,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
+                    resetsAt: now,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 30,
+                    windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
+                    resetsAt: now,
+                    resetDescription: nil),
+                ampUsage: AmpUsageDetails(
+                    individualCredits: nil,
+                    workspaceBalances: [],
+                    subscriptionPlan: "Power"),
+                updatedAt: now),
+            suite: "SyncCoord-amp-dynamic-window-labels")
+
+        #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage"])
+    }
+
+    @Test
+    func `alibaba token plan sync uses duration based lane labels`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let provider = try await self.syncedProvider(
+            .alibabatokenplan,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 5 * 60,
+                    resetsAt: now,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 30,
+                    windowMinutes: 7 * 24 * 60,
+                    resetsAt: now,
+                    resetDescription: nil),
+                updatedAt: now),
+            suite: "SyncCoord-alibaba-dynamic-window-labels")
+
+        #expect(provider.rateWindows.map(\.label) == ["5-hour", "7-day"])
+    }
+
+    @Test
+    func `qwen cloud legacy monthly window syncs as 30 day`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let provider = try await self.syncedProvider(
+            .qwencloud,
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 20,
+                    windowMinutes: 30 * 24 * 60,
+                    resetsAt: now,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now),
+            suite: "SyncCoord-qwen-legacy-window-label")
+
+        #expect(provider.rateWindows.map(\.label) == ["30-day"])
+    }
+
     @Test
     func `kimi per provider rate windows use semantic identities`() async throws {
         let settings = self.makeRateWindowIdentitySettingsStore(suite: "SyncCoord-kimi-rate-window-identities")

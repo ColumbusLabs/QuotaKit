@@ -116,4 +116,11 @@ struct MobileDisplayFormattingTests {
         #expect(MobileChartAxisFormatter.axisValues(for: [0.18, 1.42, 2.48]) == [0, 1, 2, 3])
         #expect(MobileChartAxisFormatter.axisLabel(for: 3) == "3")
     }
+
+    @Test
+    func `Claude prepaid balance has dedicated display copy`() {
+        let expected = "\(String(localized: "Balance")): \(CostFormatting.usd(27.5))"
+        #expect(ClaudeExtraUsageCard.balanceText(27.5) == expected)
+        #expect(ClaudeExtraUsageCard.balanceText(nil) == nil)
+    }
 }

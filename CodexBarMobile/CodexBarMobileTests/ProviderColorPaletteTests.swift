@@ -20,6 +20,7 @@ struct ProviderColorPaletteTests {
             ("opencodego", 52 / 255, 211 / 255, 153 / 255),
             ("alibaba", 1, 106 / 255, 0),
             ("alibabatokenplan", 1, 176 / 255, 32 / 255),
+            ("qwencloud", 147 / 255, 51 / 255, 234 / 255),
             ("factory", 255 / 255, 107 / 255, 53 / 255),
             ("gemini", 171 / 255, 135 / 255, 234 / 255),
             ("antigravity", 96 / 255, 186 / 255, 126 / 255),
@@ -69,6 +70,7 @@ struct ProviderColorPaletteTests {
             ("clinepass", 0.38, 0.64, 0.98),
             ("longcat", 1, 209 / 255, 0),
             ("neuralwatt", 0.12, 0.72, 0.38),
+            ("zoommate", 64 / 255, 176 / 255, 255 / 255),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -89,6 +91,8 @@ struct ProviderColorPaletteTests {
             ("GroqCloud", "groq"),
             ("Sakana AI", "sakana"),
             ("Qoder", "qoder"),
+            ("Qwen Cloud", "qwencloud"),
+            ("ZoomMate", "zoommate"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -137,14 +141,14 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
 
 private let knownDistinctProviders = [
     "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
-    "alibaba", "alibabatokenplan", "factory", "gemini", "antigravity", "copilot",
+    "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "antigravity", "copilot",
     "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment",
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
-    "zenmux",
+    "zenmux", "zoommate",
 ]
 
 private func expectDistinctColors(

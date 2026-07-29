@@ -92,6 +92,52 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Claude prepaid balance syncs without a false zero-limit budget`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let balanceOnly = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "usd",
+            period: "Extra usage",
+            balance: 27.50,
+            updatedAt: now)
+
+        let extra = try #require(SyncCoordinator.mapClaudeExtraUsage(
+            provider: .claude,
+            snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+            providerCost: balanceOnly))
+
+        #expect(extra.utilization == nil)
+        #expect(extra.monthlySpendUSD == nil)
+        #expect(extra.monthlyLimitUSD == nil)
+        #expect(extra.balanceUSD == 27.50)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .claude, providerCost: balanceOnly) == nil)
+    }
+
+    @Test
+    func `Claude spend limit keeps its prepaid balance on the sync envelope`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let spendLimit = ProviderCostSnapshot(
+            used: 30,
+            limit: 100,
+            currencyCode: "USD",
+            period: "This month",
+            balance: 18.25,
+            updatedAt: now)
+
+        let extra = try #require(SyncCoordinator.mapClaudeExtraUsage(
+            provider: .claude,
+            snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+            providerCost: spendLimit))
+
+        #expect(extra.utilization == 30)
+        #expect(extra.monthlySpendUSD == 30)
+        #expect(extra.monthlyLimitUSD == 100)
+        #expect(extra.balanceUSD == 18.25)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .claude, providerCost: spendLimit) != nil)
+    }
+
+    @Test
     func `push skipped when sync disabled`() async {
         let settings = self.makeSettingsStore(suite: "SyncCoord-disabled")
         settings.iCloudSyncEnabled = false

@@ -82,6 +82,7 @@ enum ProviderColorPalette {
             (
                 ["alibabatokenplan", "alibabatoken", "bailiantokenplan"],
                 RawColor(red: 1, green: 176 / 255, blue: 32 / 255)),
+            (["qwencloud"], RawColor(red: 147 / 255, green: 51 / 255, blue: 234 / 255)),
             (["factory", "droid"], RawColor(red: 255 / 255, green: 107 / 255, blue: 53 / 255)),
             (["gemini"], RawColor(red: 171 / 255, green: 135 / 255, blue: 234 / 255)),
             (["antigravity"], RawColor(red: 96 / 255, green: 186 / 255, blue: 126 / 255)),
@@ -137,6 +138,7 @@ enum ProviderColorPalette {
             (["litellm"], RawColor(red: 76 / 255, green: 137 / 255, blue: 192 / 255)),
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
+            (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
         ]
 

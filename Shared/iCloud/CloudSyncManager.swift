@@ -810,9 +810,10 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
 
     /// Writes a quota **warning** transition record (iOS 1.6.0 / Mac 0.25.2).
     ///
-    /// Reuses the existing `QuotaTransition` CKRecord type with **no new
-    /// fields** — the threshold and window are packed into `recordName` so
-    /// no CloudKit Production Dashboard schema deploy is required. `state`
+    /// Reuses the existing `QuotaTransition` CKRecord type. The threshold and
+    /// lane are packed into `recordName`; an optional `windowDisplayLabel`
+    /// String preserves named windows such as "Fable only". Older records omit
+    /// that field, and iOS falls back to the localized lane name. `state`
     /// is set to the literal string `"warning"` so the same NSE that
     /// handles `depleted`/`restored` zone notifications can dispatch by
     /// state and read the recordName to construct a richer body
@@ -841,7 +842,8 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         threshold: Int,
         transitionAt: Date,
         accountEmail: String? = nil,
-        deduplicationScope: String? = nil) async -> SyncPushResult
+        deduplicationScope: String? = nil,
+        windowDisplayLabel: String? = nil) async -> SyncPushResult
     {
         guard self.cloudKitAvailable, self._privateDatabase != nil else {
             return .failure("CloudKit not available")
@@ -885,6 +887,13 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
         if let accountEmail, !accountEmail.isEmpty {
             record["accountEmail"] = accountEmail as CKRecordValue
         }
+        let normalizedWindowDisplayLabel = windowDisplayLabel?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        if let normalizedWindowDisplayLabel, !normalizedWindowDisplayLabel.isEmpty {
+            // Optional for backward compatibility: records written by older
+            // Mac builds omit this field and iOS falls back to the lane label.
+            record["windowDisplayLabel"] = normalizedWindowDisplayLabel as CKRecordValue
+        }
 
         do {
             try await self._privateDatabase!.save(record)
@@ -895,6 +904,7 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
                 "zone": zone.zoneID.zoneName,
                 "recordName": recordName,
                 "accountEmail": EmailRedaction.redact(accountEmail),
+                "windowDisplayLabel": normalizedWindowDisplayLabel ?? "",
             ])
             return .success
         } catch let error as CKError where error.code == .serverRecordChanged {

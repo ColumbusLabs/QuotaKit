@@ -156,7 +156,8 @@ final class NotificationService: UNNotificationServiceExtension {
                         providerName: info.providerName,
                         window: info.window,
                         threshold: info.threshold,
-                        accountEmail: info.accountEmail)
+                        accountEmail: info.accountEmail,
+                        windowDisplayLabel: info.windowDisplayLabel)
                     NSEInvocationLog.shared.recordEntry(
                         timestamp: startedAt,
                         event: .ok,
@@ -206,7 +207,12 @@ final class NotificationService: UNNotificationServiceExtension {
     /// returning version, but for now we want the NSE log to record the
     /// exact CloudKit error message when fetch fails.
     enum WarningFetchResult {
-        case success(providerName: String, window: String, threshold: Int, accountEmail: String?)
+        case success(
+            providerName: String,
+            window: String,
+            threshold: Int,
+            accountEmail: String?,
+            windowDisplayLabel: String?)
         case empty(reason: String)
         case error(message: String)
     }
@@ -234,16 +240,14 @@ final class NotificationService: UNNotificationServiceExtension {
         // bucketing on the writer side, zones rarely accumulate beyond a few
         // dozen records, so the over-fetch is cheap.
         //
-        // v0.27.0 build 65.2 adds `accountEmail` to `desiredKeys` — Mac
-        // writes it when the triggering provider has a resolvable account
-        // (Codex managed, Claude multi-account, etc.). Pre-65.2 Macs leave
-        // it absent so we treat nil as "no account scope" and fall back to
-        // the existing non-scoped body template.
+        // Optional fields remain backward compatible. Pre-65.2 Macs omit
+        // `accountEmail`; older Macs also omit `windowDisplayLabel`. Missing
+        // values fall back to the bare provider title and localized lane name.
         do {
             let (matchResults, _) = try await container.privateCloudDatabase.records(
                 matching: query,
                 inZoneWith: zoneID,
-                desiredKeys: ["providerName", "accountEmail"],
+                desiredKeys: ["providerName", "accountEmail", "windowDisplayLabel"],
                 resultsLimit: 100)
             var newest: CKRecord?
             for (_, result) in matchResults {
@@ -266,6 +270,11 @@ final class NotificationService: UNNotificationServiceExtension {
             }
             let accountEmail = (record["accountEmail"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
             let normalizedAccount = (accountEmail?.isEmpty ?? true) ? nil : accountEmail
+            let windowDisplayLabel = (record["windowDisplayLabel"] as? String)?
+                .trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalizedWindowDisplayLabel = (windowDisplayLabel?.isEmpty ?? true)
+                ? nil
+                : windowDisplayLabel
             guard let parsed = QuotaZoneNotificationParser.parseWarningRecordName(
                 record.recordID.recordName)
             else {
@@ -273,13 +282,15 @@ final class NotificationService: UNNotificationServiceExtension {
                     providerName: providerName,
                     window: "",
                     threshold: 0,
-                    accountEmail: normalizedAccount)
+                    accountEmail: normalizedAccount,
+                    windowDisplayLabel: normalizedWindowDisplayLabel)
             }
             return .success(
                 providerName: providerName,
                 window: parsed.window,
                 threshold: parsed.threshold,
-                accountEmail: normalizedAccount)
+                accountEmail: normalizedAccount,
+                windowDisplayLabel: normalizedWindowDisplayLabel)
         } catch {
             let ckErr = error as? CKError
             let ckCode = ckErr.map { "code=\($0.code.rawValue)" } ?? "type=\(type(of: error))"
@@ -413,9 +424,16 @@ final class NotificationService: UNNotificationServiceExtension {
         providerName: String,
         window: String,
         threshold: Int,
-        accountEmail _: String? = nil) -> String
+        accountEmail _: String? = nil,
+        windowDisplayLabel: String? = nil) -> String
     {
-        let windowLabel = self.localizedWindowLabel(window)
+        let normalizedWindowDisplayLabel = windowDisplayLabel?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let windowLabel = if let normalizedWindowDisplayLabel, !normalizedWindowDisplayLabel.isEmpty {
+            normalizedWindowDisplayLabel
+        } else {
+            self.localizedWindowLabel(window)
+        }
         let template = String(localized: "Push.QuotaWarning.detailBody")
         // %1$@ providerName · %2$@ windowLabel · %3$lld threshold
         return String(format: template, providerName, windowLabel, threshold)

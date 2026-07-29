@@ -123,6 +123,11 @@ public enum QuotaProviderList {
         // iOS 1.11.3 upstream-sync catch-up. Appended to preserve every
         // existing per-provider CloudKit subscription identifier.
         Provider(id: "deepinfra", displayName: "DeepInfra"),
+        // iOS 1.11.3 upstream-sync catch-up. Appended for upstream providers
+        // added after DeepInfra so existing CloudKit subscription identifiers
+        // remain stable.
+        Provider(id: "qwencloud", displayName: "Qwen Cloud"),
+        Provider(id: "zoommate", displayName: "ZoomMate"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

@@ -1606,6 +1606,18 @@ extension StatusItemController {
         return self.makeHostedSubviewPlaceholderMenu(chartID: Self.storageBreakdownID, provider: provider)
     }
 
+    /// Filters `components` down to a provider's descriptor-owned named allowlist, if configured;
+    /// returns `components` unchanged when the provider has no allowlist. Matching is by exact
+    /// `name` equality at the top level only (groups and leaves alike).
+    static func filterStatusComponents(
+        _ components: [ProviderStatusComponent],
+        for provider: UsageProvider) -> [ProviderStatusComponent]
+    {
+        let metadata = ProviderDescriptorRegistry.descriptor(for: provider).metadata
+        guard let allowlist = metadata.statusComponentAllowlist else { return components }
+        return components.filter { allowlist.contains($0.name) }
+    }
+
     @objc func menuCardNoOp(_ sender: NSMenuItem) {
         _ = sender
     }

@@ -4,6 +4,33 @@ import Testing
 
 struct CostUsageCacheTests {
     @Test
+    func `legacy codex token cache decodes without reasoning while current rows round trip it`() throws {
+        let legacyTotals = try JSONDecoder().decode(
+            CostUsageCodexTotals.self,
+            from: Data(#"{"input":10,"cached":2,"output":4}"#.utf8))
+        #expect(legacyTotals.reasoning == nil)
+
+        let legacyRow = try JSONDecoder().decode(
+            CostUsageScanner.CodexUsageRow.self,
+            from: Data(#"{"day":"2026-07-17","model":"gpt-5.5","input":10,"cached":2,"output":4}"#.utf8))
+        #expect(legacyRow.reasoning == nil)
+
+        let currentRow = CostUsageScanner.CodexUsageRow(
+            day: "2026-07-17",
+            model: "gpt-5.5",
+            turnID: "turn",
+            eventIndex: 1,
+            input: 10,
+            cached: 2,
+            output: 4,
+            reasoning: 3)
+        let roundTripped = try JSONDecoder().decode(
+            CostUsageScanner.CodexUsageRow.self,
+            from: JSONEncoder().encode(currentRow))
+        #expect(roundTripped.reasoning == 3)
+    }
+
+    @Test
     func `cache file URL uses provider artifact versions`() {
         let root = URL(fileURLWithPath: "/tmp/codexbar-cost-cache", isDirectory: true)
 
@@ -11,7 +38,7 @@ struct CostUsageCacheTests {
         let claudeURL = CostUsageCacheIO.cacheFileURL(provider: .claude, cacheRoot: root)
         let vertexURL = CostUsageCacheIO.cacheFileURL(provider: .vertexai, cacheRoot: root)
 
-        #expect(codexURL.lastPathComponent == "codex-v10.json")
+        #expect(codexURL.lastPathComponent == "codex-v11.json")
         #expect(claudeURL.lastPathComponent == "claude-v5.json")
         #expect(vertexURL.lastPathComponent == "vertexai-v5.json")
     }

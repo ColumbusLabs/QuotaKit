@@ -34,7 +34,7 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
                         String(
-                            localized: "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac."),
+                            localized: "Provider presentation and quota alerts now recognize ClinePass, LongCat, Qwen Cloud, and ZoomMate synced from your Mac."),
                         String(
                             localized: "Codex banked resets now show the available count and exact expiration time for every reset detail synced from your Mac."),
                         String(
