@@ -455,6 +455,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             selector: #selector(self.handleQuotaWarningPosted(_:)),
             name: .codexbarQuotaWarningDidPost,
             object: nil)
+        NotificationCenter.default.addObserver(
+            self,
+            selector: #selector(self.handleCurrencyExchangeRatesDidChange),
+            name: .codexbarCurrencyExchangeRatesDidChange,
+            object: nil)
         if observeProviderConfigNotifications {
             NotificationCenter.default.addObserver(
                 self,
@@ -600,6 +605,11 @@ final class StatusItemController: NSObject, NSMenuDelegate, StatusItemControllin
             }
         }
         self.handleProviderConfigChange(reason: "notification:\(reason)")
+    }
+
+    @objc private func handleCurrencyExchangeRatesDidChange() {
+        self.invalidateMenus(refreshOpenMenus: true)
+        self.updateIcons()
     }
 
     @objc private func handleQuotaWarningPosted(_ notification: Notification) {

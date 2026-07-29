@@ -225,6 +225,8 @@ public enum CodexBarConfigValidator {
 
         self.validateZaiTeamContext(entry, issues: &issues)
 
+        self.validateXAIManagementContext(entry, issues: &issues)
+
         if let workspaceID = entry.workspaceID,
            !workspaceID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
            !self.providerSupportsWorkspaceID(provider)
@@ -316,6 +318,24 @@ public enum CodexBarConfigValidator {
             field: field,
             code: "zai_team_context_missing",
             message: "z.ai Team mode requires both organizationID and workspaceID.")
+    }
+
+    private static func validateXAIManagementContext(
+        _ entry: ProviderConfig,
+        issues: inout [CodexBarConfigIssue])
+    {
+        guard entry.id == .xai else { return }
+
+        let hasAPIKey = entry.sanitizedAPIKey != nil
+        let hasTeamID = entry.sanitizedWorkspaceID != nil
+        guard hasAPIKey != hasTeamID else { return }
+
+        issues.append(CodexBarConfigIssue(
+            severity: .warning,
+            provider: .xai,
+            field: hasAPIKey ? "workspaceID" : "apiKey",
+            code: "xai_management_context_missing",
+            message: "xAI Management API access requires both apiKey and workspaceID (team ID)."))
     }
 
     private static func providerSupportsWorkspaceID(_ provider: UsageProvider) -> Bool {

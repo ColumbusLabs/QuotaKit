@@ -48,6 +48,18 @@ struct CrofUsageFetcherTests {
     }
 
     @Test
+    func `usage response rejects half populated request quota fields`() {
+        for json in [
+            #"{"credits":10.0,"requests_plan":1000,"usable_requests":null}"#,
+            #"{"credits":10.0,"requests_plan":null,"usable_requests":998}"#,
+        ] {
+            #expect(throws: CrofUsageError.self) {
+                _ = try CrofUsageFetcher._parseSnapshotForTesting(Data(json.utf8))
+            }
+        }
+    }
+
+    @Test
     func `usage snapshot maps credit balance as primary window`() {
         let snapshot = CrofUsageSnapshot(
             credits: 10,

@@ -859,7 +859,7 @@ struct SettingsStoreCoverageTests {
         let configStore = testConfigStore(suiteName: suite)
 
         let fresh = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
-        #expect(fresh.preferredCurrencyCode == "USD")
+        #expect(fresh.preferredCurrencyCode == "auto")
 
         fresh.preferredCurrencyCode = "GBP"
         let reloaded = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)

@@ -1,5 +1,6 @@
 import CodexBarCore
 import Foundation
+import SwiftUI
 import Testing
 @testable import CodexBar
 @testable import CodexBarCLI
@@ -231,6 +232,38 @@ struct XAIProviderTests {
         #expect(usage.daily.isEmpty)
     }
 
+    @Test
+    func `usage point without a finite USD value degrades to balance only`() async throws {
+        for body in [
+            """
+            {
+              "timeSeries":[{
+                "dataPoints":[{
+                  "timestamp":"2027-01-15T00:00:00Z",
+                  "values":[]
+                }]
+              }],
+              "limitReached":false
+            }
+            """,
+            """
+            {
+              "timeSeries":[{
+                "dataPoints":[{
+                  "timestamp":"2027-01-15T00:00:00Z",
+                  "values":[1e400]
+                }]
+              }],
+              "limitReached":false
+            }
+            """,
+        ] {
+            let usage = try await Self.fetch(usageBody: body)
+            #expect(usage.balanceUSD == 10.0)
+            #expect(usage.daily.isEmpty)
+        }
+    }
+
     // MARK: - Fetch: errors
 
     @Test
@@ -396,6 +429,49 @@ struct XAIProviderTests {
         #expect(implementation is XAIProviderImplementation)
     }
 
+    @Test @MainActor
+    func `management API field names the QuotaKit config path`() throws {
+        let suite = "XAIProviderTests-config-path"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let context = ProviderSettingsContext(
+            provider: .xai,
+            settings: settings,
+            store: store,
+            boolBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            stringBinding: { keyPath in
+                Binding(
+                    get: { settings[keyPath: keyPath] },
+                    set: { settings[keyPath: keyPath] = $0 })
+            },
+            statusText: { _ in nil },
+            setStatusText: { _, _ in },
+            lastAppActiveRunAt: { _ in nil },
+            setLastAppActiveRunAt: { _, _ in },
+            requestConfirmation: { _ in })
+
+        let field = try #require(
+            XAIProviderImplementation().settingsFields(context: context).first(where: {
+                $0.id == "xai-management-api-key"
+            }))
+        #expect(field.subtitle.contains("~/.quotakit/config.json"))
+        #expect(!field.subtitle.contains("~/.codexbar/config.json"))
+    }
+
     @Test
     func `config API key and team ID project into the fetch environment`() {
         let env = ProviderConfigEnvironment.applyAPIKeyOverride(
@@ -441,9 +517,9 @@ struct XAIProviderTests {
         #expect(model.metrics.isEmpty)
         #expect(model.creditsText == nil)
         #expect(model.providerCost?.title == "Credits")
-        #expect(model.providerCost?.spendLine == "Balance: $7.36")
+        #expect(model.providerCost?.spendLine == "Posted balance: $7.36")
         #expect(model.providerCost?.percentUsed == nil)
-        #expect(model.providerCost?.percentLine == nil)
+        #expect(model.providerCost?.percentLine == "Ledger may lag current-cycle spend")
     }
 
     @Test
@@ -465,7 +541,8 @@ struct XAIProviderTests {
                 useColor: false,
                 resetStyle: .countdown))
 
-        #expect(text.contains("Balance: $7.36"))
+        #expect(text.contains("Posted balance: $7.36"))
+        #expect(text.contains("Ledger: May lag current-cycle spend"))
         #expect(text.contains("Last 30 days: $1.75"))
         // The generic no-window fallback would print "Cost: 7.4 / 0.0", which
         // presents the balance as a spend against a zero budget.

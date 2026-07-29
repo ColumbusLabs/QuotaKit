@@ -434,8 +434,11 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             guard CurrencyExchange.requiresLiveRates(
                 preferredCurrencyCode: settings.preferredCurrencyCode)
             else { return }
-            await CurrencyExchange.shared.fetchLatestRatesIfNeeded(
+            let ratesChanged = await CurrencyExchange.shared.fetchLatestRatesIfNeeded(
                 preferredCurrencyCode: settings.preferredCurrencyCode)
+            if ratesChanged {
+                NotificationCenter.default.post(name: .codexbarCurrencyExchangeRatesDidChange, object: nil)
+            }
         }
         KeyboardShortcuts.onKeyUp(for: .openMenu) { [weak self] in
             // KeyboardShortcuts dispatches both normal and menu-tracking hotkeys on the main event loop.

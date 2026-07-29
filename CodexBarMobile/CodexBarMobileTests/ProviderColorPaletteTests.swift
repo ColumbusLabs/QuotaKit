@@ -71,6 +71,7 @@ struct ProviderColorPaletteTests {
             ("longcat", 1, 209 / 255, 0),
             ("neuralwatt", 0.12, 0.72, 0.38),
             ("zoommate", 64 / 255, 176 / 255, 255 / 255),
+            ("xai", 142 / 255, 142 / 255, 160 / 255),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -93,6 +94,7 @@ struct ProviderColorPaletteTests {
             ("Qoder", "qoder"),
             ("Qwen Cloud", "qwencloud"),
             ("ZoomMate", "zoommate"),
+            ("xAI", "xai"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -148,7 +150,7 @@ private let knownDistinctProviders = [
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
-    "zenmux", "zoommate",
+    "zenmux", "zoommate", "xai",
 ]
 
 private func expectDistinctColors(

@@ -88,7 +88,69 @@ struct SyncCoordinatorTests {
 
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .zenmux, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .neuralwatt, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .xai, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+    }
+
+    @Test
+    func `xAI cost history maps to existing sync summary with partial confidence`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let usage = XAIUsageSnapshot(
+            balanceUSD: 25,
+            daily: [
+                .init(day: "2027-01-14", costUSD: 1.25),
+                .init(day: "2027-01-15", costUSD: 2.75),
+            ],
+            historyDays: 30,
+            limitReached: true,
+            updatedAt: now)
+
+        let summary = try #require(SyncCoordinator.mapXAICostSummary(
+            provider: .xai,
+            snapshot: usage.toUsageSnapshot()))
+
+        #expect(summary.sessionCostUSD == 2.75)
+        #expect(summary.last30DaysCostUSD == 4)
+        #expect(summary.historyDays == 30)
+        #expect(summary.currencyCode == "USD")
+        #expect(summary.isEstimated == true)
+        #expect(summary.daily.map(\.dayKey) == ["2027-01-14", "2027-01-15"])
+        #expect(summary.daily.map(\.costUSD) == [1.25, 2.75])
+        #expect(summary.daily.allSatisfy { $0.isEstimated == true })
+    }
+
+    @Test
+    func `xAI sync preserves balance and cost history without a false budget`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-xai")
+        settings.iCloudSyncEnabled = true
+        settings.xaiManagementAPIKey = "fixture-management-key"
+        settings.xaiTeamID = "fixture-team"
+        try settings.setProviderEnabled(
+            provider: .xai,
+            metadata: #require(ProviderDefaults.metadata[.xai]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let usage = XAIUsageSnapshot(
+            balanceUSD: 25,
+            daily: [
+                .init(day: "2027-01-14", costUSD: 1.25),
+                .init(day: "2027-01-15", costUSD: 2.75),
+            ],
+            limitReached: true,
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        store._setSnapshotForTesting(usage.toUsageSnapshot(), provider: .xai)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let provider = try #require(mock.lastSnapshot?.providers
+            .first(where: { $0.providerID == UsageProvider.xai.rawValue }))
+        #expect(provider.statusMessage == "Prepaid credits: USD 25.00")
+        #expect(provider.budget == nil)
+        #expect(provider.costSummary?.last30DaysCostUSD == 4)
+        #expect(provider.costSummary?.isEstimated == true)
     }
 
     @Test

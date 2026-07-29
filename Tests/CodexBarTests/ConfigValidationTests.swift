@@ -321,6 +321,35 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `xai management API requires key and team ID together`() {
+        let incompleteConfigs = [
+            ProviderConfig(id: .xai, source: .api, apiKey: "xai-fixture"),
+            ProviderConfig(id: .xai, source: .api, workspaceID: "team-fixture"),
+        ]
+
+        for providerConfig in incompleteConfigs {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(providerConfig)
+            let issue = CodexBarConfigValidator.validate(config).first(where: {
+                $0.provider == .xai && $0.code == "xai_management_context_missing"
+            })
+
+            #expect(issue != nil)
+        }
+
+        var completeConfig = CodexBarConfig.makeDefault()
+        completeConfig.setProviderConfig(ProviderConfig(
+            id: .xai,
+            source: .api,
+            apiKey: "xai-fixture",
+            workspaceID: "team-fixture"))
+        let completeIssues = CodexBarConfigValidator.validate(completeConfig)
+        #expect(!completeIssues.contains(where: {
+            $0.provider == .xai && $0.code == "xai_management_context_missing"
+        }))
+    }
+
+    @Test
     func `allows doubao coding plan credential fields`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(

@@ -17,10 +17,13 @@ struct XAIProviderImplementation: ProviderImplementation {
 
     @MainActor
     func isAvailable(context: ProviderAvailabilityContext) -> Bool {
-        if XAISettingsReader.apiKey(environment: context.environment) != nil {
+        if XAISettingsReader.apiKey(environment: context.environment) != nil,
+           XAISettingsReader.teamID(environment: context.environment) != nil
+        {
             return true
         }
-        return !context.settings.xaiManagementAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        return !context.settings.xaiManagementAPIKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty &&
+            !context.settings.xaiTeamID.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
     }
 
     @MainActor
@@ -29,7 +32,7 @@ struct XAIProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "xai-management-api-key",
                 title: "Management API key",
-                subtitle: "Stored in ~/.codexbar/config.json. Create one at console.x.ai under "
+                subtitle: "Stored in ~/.quotakit/config.json. Create one at console.x.ai under "
                     + "Settings > Management Keys; inference API keys are not accepted.",
                 kind: .secure,
                 placeholder: "xai-...",

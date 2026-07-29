@@ -632,9 +632,9 @@ struct SpendDashboardModel: Equatable, Sendable {
     }
 
     private static func bucketCalendar(for provider: UsageProvider, displayCalendar: Calendar) -> Calendar {
-        guard provider == .mistral else { return displayCalendar }
-        // Mistral labels both daily buckets and snapshot coverage by UTC day. Map each UTC boundary into the
-        // containing local dashboard day instead of reinterpreting the label as a local date.
+        guard provider == .mistral || provider == .xai else { return displayCalendar }
+        // Mistral and xAI label both daily buckets and snapshot coverage by UTC day. Map each UTC boundary into
+        // the containing local dashboard day instead of reinterpreting the label as a local date.
         return self.gregorianCalendar(timeZone: TimeZone(secondsFromGMT: 0) ?? .gmt)
     }
 

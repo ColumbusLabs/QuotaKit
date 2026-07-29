@@ -414,10 +414,19 @@ struct MenuDescriptor {
             entries.append(.text("\(L("Balance")): \(mimoUsage.balanceDetail)", .primary))
         }
         if let xaiUsage = snapshot.xaiUsage {
-            entries.append(.text("\(L("Balance")): \(UsageFormatter.usdString(xaiUsage.balanceUSD))", .primary))
+            let balance = UsageFormatter.convertedCostString(
+                xaiUsage.balanceUSD,
+                preferredCurrency: preferredCurrencyCode,
+                providerCurrency: "USD")
+            entries.append(.text("\(L("Posted balance")): \(balance)", .primary))
+            entries.append(.text(L("Ledger may lag current-cycle spend"), .secondary))
             if !xaiUsage.daily.isEmpty {
+                let spend = UsageFormatter.convertedCostString(
+                    xaiUsage.windowCostUSD,
+                    preferredCurrency: preferredCurrencyCode,
+                    providerCurrency: "USD")
                 entries.append(.text(
-                    "\(xaiUsage.historyWindowPeriodLabel): \(UsageFormatter.usdString(xaiUsage.windowCostUSD))",
+                    "\(xaiUsage.historyWindowPeriodLabel): \(spend)",
                     .secondary))
             }
         }

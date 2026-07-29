@@ -36,8 +36,8 @@ public final class CurrencyExchange: @unchecked Sendable {
     ]
     private var lastFetchTime: Date?
 
-    private static let userDefaultsKey = "CodexBar.CurrencyExchangeRates"
-    private static let lastFetchKey = "CodexBar.CurrencyExchangeLastFetch"
+    private static let userDefaultsKey = "QuotaKit.CurrencyExchangeRates"
+    private static let lastFetchKey = "QuotaKit.CurrencyExchangeLastFetch"
 
     public init() {
         self.loadCachedRates()
@@ -48,14 +48,16 @@ public final class CurrencyExchange: @unchecked Sendable {
     /// accidentally relabel the unchanged amount as the target currency.
     public func convert(usdAmount: Double, to currencyCode: String) -> Double? {
         let code = currencyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !code.isEmpty, code != "USD" else { return usdAmount }
+        guard usdAmount.isFinite, Self.supportedCurrencies.contains(code) else { return nil }
+        guard code != "USD" else { return usdAmount }
 
         self.lock.lock()
         let rate = self.rates[code]
         self.lock.unlock()
 
-        guard let rate else { return nil }
-        return usdAmount * rate
+        guard let rate, rate.isFinite, rate > 0 else { return nil }
+        let converted = usdAmount * rate
+        return converted.isFinite ? converted : nil
     }
 
     /// Converts an amount from one currency to another via USD as the pivot.
@@ -64,25 +66,41 @@ public final class CurrencyExchange: @unchecked Sendable {
     public func convert(amount: Double, from sourceCurrency: String, to targetCurrency: String) -> Double? {
         let source = sourceCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
         let target = targetCurrency.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !source.isEmpty, !target.isEmpty, source != target else { return amount }
+        guard amount.isFinite,
+              Self.supportedCurrencies.contains(source),
+              Self.supportedCurrencies.contains(target)
+        else {
+            return nil
+        }
+        guard source != target else { return amount }
 
         self.lock.lock()
         let sourceRate = source == "USD" ? 1.0 : self.rates[source]
         let targetRate = target == "USD" ? 1.0 : self.rates[target]
         self.lock.unlock()
 
-        guard let sourceRate, let targetRate, sourceRate > 0 else { return nil }
+        guard let sourceRate,
+              sourceRate.isFinite,
+              sourceRate > 0,
+              let targetRate,
+              targetRate.isFinite,
+              targetRate > 0
+        else {
+            return nil
+        }
         let usdAmount = amount / sourceRate
-        return usdAmount * targetRate
+        let converted = usdAmount * targetRate
+        return converted.isFinite ? converted : nil
     }
 
     /// Returns the exchange rate for a given currency code relative to USD.
     public func rate(for currencyCode: String) -> Double? {
         let code = currencyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        guard !code.isEmpty else { return 1.0 }
+        guard Self.supportedCurrencies.contains(code) else { return nil }
         self.lock.lock()
         defer { self.lock.unlock() }
-        return self.rates[code]
+        guard let rate = self.rates[code], rate.isFinite, rate > 0 else { return nil }
+        return rate
     }
 
     private func getLastFetchTime() -> Date? {
@@ -91,20 +109,26 @@ public final class CurrencyExchange: @unchecked Sendable {
         return self.lastFetchTime
     }
 
-    private func updateRates(_ newRates: [String: Double]) {
+    private func updateRates(_ newRates: [String: Double]) -> (accepted: [String: Double], changed: Bool) {
+        let accepted = Self.validatedRates(newRates)
+        guard accepted.count == Self.supportedCurrencies.count else { return ([:], false) }
         self.lock.lock()
-        for (code, rate) in newRates {
+        var changed = false
+        for (code, rate) in accepted {
+            changed = changed || self.rates[code] != rate
             self.rates[code] = rate
         }
         self.lastFetchTime = Date()
         self.lock.unlock()
+        return (accepted, changed)
     }
 
     /// Loads cached rates from `UserDefaults`.
     private func loadCachedRates() {
         if let data = UserDefaults.standard.dictionary(forKey: Self.userDefaultsKey) as? [String: Double] {
+            let accepted = Self.validatedRates(data)
             self.lock.lock()
-            for (key, val) in data {
+            for (key, val) in accepted {
                 self.rates[key] = val
             }
             self.lock.unlock()
@@ -116,26 +140,27 @@ public final class CurrencyExchange: @unchecked Sendable {
 
     public static func requiresLiveRates(preferredCurrencyCode: String) -> Bool {
         let code = preferredCurrencyCode.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
-        return code != "AUTO" && code != "USD" && Self.supportedCurrencies.contains(code)
+        return code != "AUTO" && Self.supportedCurrencies.contains(code)
     }
 
-    /// Asynchronously fetches latest rates from open.er-api.com if the user selected a
-    /// non-USD currency and the cache is older than 24 hours.
+    /// Asynchronously fetches latest rates from open.er-api.com if the user selected an
+    /// explicit currency and the cache is older than 24 hours.
     ///
     /// The ExchangeRate-API free tier provides daily-updated rates sourced from central banks
     /// and financial data providers. This is sufficient for cost estimation purposes.
     /// On failure, the previously cached (or hardcoded fallback) rates remain in use.
-    public func fetchLatestRatesIfNeeded(preferredCurrencyCode: String) async {
-        guard Self.requiresLiveRates(preferredCurrencyCode: preferredCurrencyCode) else { return }
+    @discardableResult
+    public func fetchLatestRatesIfNeeded(preferredCurrencyCode: String) async -> Bool {
+        guard Self.requiresLiveRates(preferredCurrencyCode: preferredCurrencyCode) else { return false }
         if let lastFetch = self.getLastFetchTime(), Date().timeIntervalSince(lastFetch) < 86400 {
-            return
+            return false
         }
 
-        guard let url = URL(string: "https://open.er-api.com/v6/latest/USD") else { return }
+        guard let url = URL(string: "https://open.er-api.com/v6/latest/USD") else { return false }
 
         do {
             let (data, response) = try await URLSession.shared.data(from: url)
-            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return }
+            guard (response as? HTTPURLResponse)?.statusCode == 200 else { return false }
 
             struct ExchangeResponse: Decodable {
                 let result: String
@@ -144,13 +169,26 @@ public final class CurrencyExchange: @unchecked Sendable {
 
             let decoded = try JSONDecoder().decode(ExchangeResponse.self, from: data)
             if decoded.result == "success", let newRates = decoded.rates {
-                self.updateRates(newRates)
+                let update = self.updateRates(newRates)
+                guard !update.accepted.isEmpty else { return false }
 
-                UserDefaults.standard.set(newRates, forKey: Self.userDefaultsKey)
+                UserDefaults.standard.set(update.accepted, forKey: Self.userDefaultsKey)
                 UserDefaults.standard.set(Date(), forKey: Self.lastFetchKey)
+                return update.changed
             }
         } catch {
             // Ignore fetch errors, keep using fallback / cached rates.
+        }
+        return false
+    }
+
+    static func validatedRates(_ candidateRates: [String: Double]) -> [String: Double] {
+        let supported = Set(Self.supportedCurrencies)
+        return candidateRates.reduce(into: [:]) { result, entry in
+            let code = entry.key.trimmingCharacters(in: .whitespacesAndNewlines).uppercased()
+            guard supported.contains(code), entry.value.isFinite, entry.value > 0 else { return }
+            guard code != "USD" || entry.value == 1 else { return }
+            result[code] = entry.value
         }
     }
 }

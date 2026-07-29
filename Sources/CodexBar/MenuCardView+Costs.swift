@@ -454,12 +454,12 @@ extension UsageMenuCardView.Model {
         }
 
         if provider == .xai, cost.period == "Prepaid credits" {
-            let balance = UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
+            let balance = formatCost(cost.used)
             return ProviderCostSection(
                 title: L("Credits"),
                 percentUsed: nil,
-                spendLine: "\(L("Balance")): \(balance)",
-                percentLine: nil)
+                spendLine: "\(L("Posted balance")): \(balance)",
+                percentLine: L("Ledger may lag current-cycle spend"))
         }
 
         if provider == .zenmux || provider == .neuralwatt {

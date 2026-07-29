@@ -178,6 +178,8 @@ extension CodexBarCLI {
         }
         let hasConfigAPIAuth = if provider == .bedrock {
             config?.sanitizedAPIKey != nil && config?.sanitizedSecretKey != nil
+        } else if provider == .xai {
+            config?.sanitizedAPIKey != nil && config?.sanitizedWorkspaceID != nil
         } else {
             config?.sanitizedAPIKey != nil || config?.sanitizedSecretKey != nil
         }
@@ -284,7 +286,8 @@ extension CodexBarCLI {
         case .warp:
             WarpSettingsReader.apiKey(environment: environment) != nil
         case .xai:
-            XAISettingsReader.apiKey(environment: environment) != nil
+            XAISettingsReader.apiKey(environment: environment) != nil &&
+                XAISettingsReader.teamID(environment: environment) != nil
         case .zai:
             ZaiSettingsReader.apiToken(environment: environment) != nil
         default:

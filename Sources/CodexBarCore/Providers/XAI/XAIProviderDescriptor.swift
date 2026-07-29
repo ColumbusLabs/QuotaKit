@@ -24,7 +24,7 @@ public enum XAIProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .xai,
                 iconResourceName: "ProviderIcon-xai",
-                color: ProviderColor(red: 142 / 255, green: 142 / 255, blue: 147 / 255),
+                color: ProviderColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255),
                 confettiPalette: [
                     ProviderColor(hex: 0x1A1A1A),
                     ProviderColor(hex: 0x8E8E93),

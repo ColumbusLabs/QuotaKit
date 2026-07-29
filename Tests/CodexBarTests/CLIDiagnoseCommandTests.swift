@@ -137,6 +137,51 @@ struct CLIDiagnoseCommandTests {
     }
 
     @Test
+    func `generic diagnose auth summary requires complete xai management context`() {
+        let keyOnlyEnvironment = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: nil,
+            environment: [XAISettingsReader.apiKeyEnvironmentKey: "xai-fixture"],
+            settings: nil)
+        #expect(!keyOnlyEnvironment.configured)
+        #expect(keyOnlyEnvironment.modes.isEmpty)
+
+        let completeEnvironment = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: nil,
+            environment: [
+                XAISettingsReader.apiKeyEnvironmentKey: "xai-fixture",
+                XAISettingsReader.teamIDEnvironmentKey: "team-fixture",
+            ],
+            settings: nil)
+        #expect(completeEnvironment.configured)
+        #expect(completeEnvironment.modes == ["api"])
+
+        let keyOnlyConfig = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: ProviderConfig(id: .xai, apiKey: "xai-fixture"),
+            environment: [:],
+            settings: nil)
+        #expect(!keyOnlyConfig.configured)
+        #expect(keyOnlyConfig.modes.isEmpty)
+
+        let completeConfig = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: ProviderConfig(
+                id: .xai,
+                apiKey: "xai-fixture",
+                workspaceID: "team-fixture"),
+            environment: [:],
+            settings: nil)
+        #expect(completeConfig.configured)
+        #expect(completeConfig.modes == ["api"])
+    }
+
+    @Test
     func `generic diagnose auth summary does not assume ambient credentials`() {
         let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
             provider: .codex,

@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @Suite(.serialized)
 struct UsageFormatterTests {
@@ -515,13 +515,31 @@ struct UsageFormatterTests {
     }
 
     @Test
-    func `live exchange rates require an explicit non USD currency`() {
-        #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "USD"))
-        #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " usd "))
+    func `live exchange rates require any explicit supported currency`() {
+        #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "USD"))
+        #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " usd "))
         #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "auto"))
         #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "CHF"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "GBP"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " eur "))
+    }
+
+    @Test
+    func `currency exchange rejects invalid and unsupported rates`() {
+        let valid = CurrencyExchange.validatedRates([
+            " usd ": 1,
+            "GBP": 0.8,
+            "EUR": .infinity,
+            "JPY": .nan,
+            "CAD": 0,
+            "AUD": -1,
+            "CHF": 0.9,
+            " usd": 2,
+        ])
+
+        #expect(valid == ["USD": 1, "GBP": 0.8])
+        #expect(CurrencyExchange.shared.convert(usdAmount: 10, to: "CHF") == nil)
+        #expect(CurrencyExchange.shared.convert(amount: 10, from: "CHF", to: "CHF") == nil)
     }
 
     @Test

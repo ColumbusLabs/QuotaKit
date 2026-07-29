@@ -971,30 +971,19 @@ struct CrofQuotaNotificationTests {
             settings: settings,
             sessionQuotaNotifier: notifier)
 
-        // Quota-backed Crof shape: request-quota primary + credits secondary.
-        let credits = RateWindow(
-            usedPercent: 0,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: "$10.00")
-        let baseline = UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 20,
-                windowMinutes: 5 * 60,
-                resetsAt: nil,
-                resetDescription: "800 requests left"),
-            secondary: credits,
-            updatedAt: Date())
+        let baseline = CrofUsageSnapshot(
+            credits: 10,
+            requestsPlan: 1000,
+            usableRequests: 800,
+            updatedAt: Date()).toUsageSnapshot()
+        #expect(baseline.primary?.windowMinutes == 24 * 60)
         store.handleSessionQuotaTransition(provider: .crof, snapshot: baseline)
 
-        let depleted = UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 100,
-                windowMinutes: 5 * 60,
-                resetsAt: nil,
-                resetDescription: "0 requests left"),
-            secondary: credits,
-            updatedAt: Date())
+        let depleted = CrofUsageSnapshot(
+            credits: 10,
+            requestsPlan: 1000,
+            usableRequests: 0,
+            updatedAt: Date()).toUsageSnapshot()
         store.handleSessionQuotaTransition(provider: .crof, snapshot: depleted)
 
         #expect(notifier.posts.map(\.provider) == [.crof])

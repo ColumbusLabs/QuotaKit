@@ -140,8 +140,13 @@ struct GeneralPane: View {
                     .onChange(of: self.settings.preferredCurrencyCode) { _, newValue in
                         guard CurrencyExchange.requiresLiveRates(preferredCurrencyCode: newValue) else { return }
                         Task {
-                            await CurrencyExchange.shared.fetchLatestRatesIfNeeded(
+                            let ratesChanged = await CurrencyExchange.shared.fetchLatestRatesIfNeeded(
                                 preferredCurrencyCode: newValue)
+                            if ratesChanged {
+                                NotificationCenter.default.post(
+                                    name: .codexbarCurrencyExchangeRatesDidChange,
+                                    object: nil)
+                            }
                         }
                     }
 

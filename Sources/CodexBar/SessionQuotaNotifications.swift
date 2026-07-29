@@ -427,13 +427,14 @@ extension UsageStore {
         if provider == .zai, let tertiary = snapshot.tertiary {
             return (tertiary, .zaiTertiary)
         }
+        // Crof's real request quota is a daily (1440-minute) window, so it does not pass the
+        // generic <=6-hour session heuristic. Its credits-only shape has no secondary window;
+        // only the quota-backed request-primary + credits-secondary shape participates here.
+        if provider == .crof {
+            guard snapshot.secondary != nil, let primary = snapshot.primary else { return nil }
+            return (primary, .primary)
+        }
         if let primary = snapshot.primary, Self.isSessionWindow(primary) {
-            // Crof credits-only balances publish a duration-less primary with no secondary quota
-            // window. Keep that PAYG shape out of session-quota transitions so a $0 balance cannot
-            // fire session-limit alerts/hooks. Quota-backed Crof (secondary credits) still qualifies.
-            if provider == .crof, snapshot.secondary == nil {
-                return nil
-            }
             return (primary, .primary)
         }
         if provider == .copilot, let secondary = snapshot.secondary {

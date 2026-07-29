@@ -165,7 +165,11 @@ public enum XAIBillingFetcher {
         for series in envelope.timeSeries {
             for point in series.dataPoints {
                 let day = try self.utcDay(fromTimestamp: point.timestamp)
-                totalsByDay[day, default: 0] += point.values.first ?? 0
+                guard let value = point.values.first, value.isFinite else {
+                    throw XAIBillingError.parseFailed(
+                        "usage point for \(point.timestamp) has no finite USD value")
+                }
+                totalsByDay[day, default: 0] += value
             }
         }
         let daily = totalsByDay

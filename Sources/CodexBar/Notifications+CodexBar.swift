@@ -11,6 +11,8 @@ extension Notification.Name {
     static let codexbarSessionLimitReset = Notification.Name("codexbarSessionLimitReset")
     static let codexbarWeeklyLimitReset = Notification.Name("codexbarWeeklyLimitReset")
     static let codexbarProviderConfigDidChange = Notification.Name("codexbarProviderConfigDidChange")
+    static let codexbarCurrencyExchangeRatesDidChange =
+        Notification.Name("codexbarCurrencyExchangeRatesDidChange")
     static let codexbarQuotaWarningDidPost = Notification.Name("codexbarQuotaWarningDidPost")
 }
 

@@ -691,7 +691,8 @@ enum CLIRenderer {
     {
         guard let usage = snapshot.xaiUsage else { return }
         let balance = UsageFormatter.currencyString(usage.balanceUSD, currencyCode: "USD")
-        lines.append(self.labelValueLine("Balance", value: balance, useColor: useColor))
+        lines.append(self.labelValueLine("Posted balance", value: balance, useColor: useColor))
+        lines.append(self.labelValueLine("Ledger", value: "May lag current-cycle spend", useColor: useColor))
         guard !usage.daily.isEmpty else { return }
         let spend = UsageFormatter.currencyString(usage.windowCostUSD, currencyCode: "USD")
         lines.append(self.labelValueLine(usage.historyWindowPeriodLabel, value: spend, useColor: useColor))

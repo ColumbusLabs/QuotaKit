@@ -80,6 +80,11 @@ public enum CrofUsageFetcher {
             throw CrofUsageError.parseFailed(error.localizedDescription)
         }
 
+        guard (decoded.requestsPlan == nil) == (decoded.usableRequests == nil) else {
+            throw CrofUsageError.parseFailed(
+                "requests_plan and usable_requests must both be present or both be null")
+        }
+
         return CrofUsageSnapshot(
             credits: decoded.credits,
             requestsPlan: decoded.requestsPlan,

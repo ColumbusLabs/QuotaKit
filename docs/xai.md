@@ -64,10 +64,11 @@ posted balance ≈ live remaining + current-cycle spend.
 
 ## Display
 
-The menu card shows the prepaid balance in US dollars. The inline dashboard shows the last 30 days of daily platform
-spend with today/30-day totals. When xAI reports its analytics cardinality cap (`limitReached`), the history is labeled
-"Last 30 days (partial)" and the snapshot is marked estimated instead of exact. Prepaid money is not a quota, so no
-session or weekly meters are synthesized.
+The menu card shows the posted prepaid balance in the currency selected in QuotaKit, with a reminder that ledger
+deductions can lag current-cycle spend. The inline dashboard shows the last 30 days of daily platform spend with
+today/30-day totals. When xAI reports its analytics cardinality cap (`limitReached`), the history is labeled "Last 30
+days (partial)" and the snapshot is marked estimated instead of exact. Prepaid money is not a quota, so no session or
+weekly meters are synthesized.
 
 ## CLI Usage
 
