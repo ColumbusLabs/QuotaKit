@@ -22,6 +22,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - CLI: redact stored credentials from `quotakit config dump` by default; use `--show-secrets` to reveal raw values.
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
 - Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.
+- Synced upstream CodexBar changes through `b036579b4`, including safer provider endpoint overrides, Doubao Agent Plan usage, OpenCode Go authoritative web-window overlays, Ollama session recovery, MiniMax Linux API-key support, calendar-correct cost history, and CLI version-path fixes while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and iOS build numbers.
 - Synced upstream CodexBar changes through `02b4ba278`, including Claude weekly-window ordering and fallback accuracy, Kimi weekly duration accuracy, Ollama session reuse, safer automatic Safari-cookie handling, LongCat Firefox imports, localized session equivalents, stacked menu-title alignment, WidgetKit refresh-loop prevention, and Linux Alibaba Token Plan support while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed

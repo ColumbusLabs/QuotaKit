@@ -322,6 +322,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         if self.shouldOpenTerminalForOAuthError(store: context.store) {
             return ("Open Terminal", .openTerminal(command: "claude"))
         }
+        guard !context.hasAccount else { return nil }
         return (L("Sign in with Claude Code..."), .switchAccount(.claude))
     }
 

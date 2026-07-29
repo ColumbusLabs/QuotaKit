@@ -552,12 +552,14 @@ struct MenuDescriptor {
         let targetProvider = provider ?? store.enabledProviders().first
         let metadata = targetProvider.map { store.metadata(for: $0) }
         let fallbackAccount = targetProvider.map { store.accountInfo(for: $0) } ?? account
+        let hasAccount = self.hasAccount(for: targetProvider, store: store, account: fallbackAccount)
         let loginContext = targetProvider.map {
             ProviderMenuLoginContext(
                 provider: $0,
                 store: store,
                 settings: store.settings,
-                account: fallbackAccount)
+                account: fallbackAccount,
+                hasAccount: hasAccount)
         }
 
         // Show "Add Account" if no account, "Switch Account" if logged in
@@ -571,7 +573,6 @@ struct MenuDescriptor {
                 entries.append(.action(override.label, override.action))
             } else {
                 let loginAction = self.switchAccountTarget(for: provider, store: store)
-                let hasAccount = self.hasAccount(for: provider, store: store, account: fallbackAccount)
                 let accountLabel = hasAccount ? L("Switch Account...") : L("Add Account...")
                 entries.append(.action(accountLabel, loginAction))
             }
@@ -647,8 +648,15 @@ struct MenuDescriptor {
 
     private static func hasAccount(for provider: UsageProvider?, store: UsageStore, account: AccountInfo) -> Bool {
         let target = provider ?? store.enabledProviders().first ?? .codex
-        if let email = store.snapshot(for: target)?.accountEmail(for: target),
+        let snapshot = store.snapshot(for: target)
+        if let email = snapshot?.accountEmail(for: target),
            !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        {
+            return true
+        }
+        if target == .claude,
+           snapshot?.identity(for: .claude) != nil,
+           snapshot?.hasRateLimitWindows == true
         {
             return true
         }

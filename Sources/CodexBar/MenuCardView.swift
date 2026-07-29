@@ -605,6 +605,7 @@ struct UsageMenuCardHeaderSectionView: View {
 private struct UsageMenuCardUsageContentView: View {
     let model: UsageMenuCardView.Model
     let showBottomDivider: Bool
+    var showsSectionDividers = true
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     /// Doubao ships Coding Plan and Agent Plan subscriptions, each with personal
@@ -644,7 +645,7 @@ private struct UsageMenuCardUsageContentView: View {
                     self.groupHeader("Coding Plan")
                     self.metricRows(split.coding)
                 }
-                if !split.coding.isEmpty {
+                if !split.coding.isEmpty, self.showsSectionDividers {
                     Divider()
                 }
                 self.groupHeader("Agent Plan")
@@ -653,7 +654,7 @@ private struct UsageMenuCardUsageContentView: View {
                 self.metricRows(self.model.metrics)
             }
             if let resetCredits = self.model.codexResetCredits {
-                if !self.model.metrics.isEmpty {
+                if !self.model.metrics.isEmpty, self.showsSectionDividers {
                     Divider()
                 }
                 CodexResetCreditsContent(presentation: resetCredits)
@@ -681,11 +682,15 @@ struct UsageMenuCardUsageSectionView: View {
     let showBottomDivider: Bool
     let bottomPadding: CGFloat
     let width: CGFloat
+    var showsSectionDividers = true
     @Environment(\.menuCardRefreshMonitor) private var refreshMonitor
 
     var body: some View {
         let liveModel = self.liveModel
-        UsageMenuCardUsageContentView(model: liveModel, showBottomDivider: self.showBottomDivider)
+        UsageMenuCardUsageContentView(
+            model: liveModel,
+            showBottomDivider: self.showBottomDivider,
+            showsSectionDividers: self.showsSectionDividers)
             .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
             .padding(.top, UsageMenuCardLayout.usageSectionTopPadding)
             .padding(.bottom, self.bottomPadding)
