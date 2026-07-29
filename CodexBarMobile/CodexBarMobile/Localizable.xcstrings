@@ -1044,6 +1044,34 @@
         }
       }
     },
+    "Balance": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Balance"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "残高"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "余额"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "餘額"
+          }
+        }
+      }
+    },
     "Bar Chart": {
       "localizations": {
         "en": {
@@ -19457,30 +19485,30 @@
         }
       }
     },
-    "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac.": {
+    "Provider presentation and quota alerts now recognize ClinePass, LongCat, Qwen Cloud, and ZoomMate synced from your Mac.": {
       "localizations": {
         "en": {
           "stringUnit": {
             "state": "translated",
-            "value": "Provider presentation and quota alerts now recognize ClinePass and LongCat synced from your Mac."
+            "value": "Provider presentation and quota alerts now recognize ClinePass, LongCat, Qwen Cloud, and ZoomMate synced from your Mac."
           }
         },
         "ja": {
           "stringUnit": {
             "state": "translated",
-            "value": "Macから同期されたClinePassとLongCatが、プロバイダ表示とクォータ通知で認識されるようになりました。"
+            "value": "Macから同期されたClinePass、LongCat、Qwen Cloud、ZoomMateが、プロバイダ表示とクォータ通知で認識されるようになりました。"
           }
         },
         "zh-Hans": {
           "stringUnit": {
             "state": "translated",
-            "value": "提供商显示和配额提醒现在可识别从 Mac 同步的 ClinePass 和 LongCat。"
+            "value": "提供商显示和配额提醒现在可识别从 Mac 同步的 ClinePass、LongCat、Qwen Cloud 和 ZoomMate。"
           }
         },
         "zh-Hant": {
           "stringUnit": {
             "state": "translated",
-            "value": "供應商顯示和配額提醒現在可識別從 Mac 同步的 ClinePass 與 LongCat。"
+            "value": "供應商顯示和配額提醒現在可識別從 Mac 同步的 ClinePass、LongCat、Qwen Cloud 與 ZoomMate。"
           }
         }
       }

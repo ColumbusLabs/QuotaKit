@@ -457,6 +457,47 @@ final class CLIEntryTests: XCTestCase {
             environment: ["MIMO_LOCAL_USAGE_PATH": directory.appendingPathComponent("missing.json").path]))
     }
 
+    func test_sourceModeRequiresWebSupportAllowsZoomMateManualCapture() {
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .zoommate,
+            settings: ProviderSettingsSnapshot.make(
+                zoommate: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "curl 'https://zoommate.zoom.us/' -H 'authorization: Bearer fake'"))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .zoommate,
+            settings: ProviderSettingsSnapshot.make(
+                zoommate: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: nil))))
+    }
+
+    func test_sourceModeRequiresWebSupportAllowsQwenCookiesOnLinuxGate() {
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .qwencloud,
+            environment: ["QWEN_CLOUD_COOKIE": "login_qwencloud_ticket=test"]))
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .qwencloud,
+            settings: ProviderSettingsSnapshot.make(
+                qwenCloud: .init(
+                    cookieSource: .manual,
+                    manualCookieHeader: "login_qwencloud_ticket=test"))))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .qwencloud,
+            environment: [:]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .qwencloud,
+            environment: ["QWEN_CLOUD_COOKIE": "login_qwencloud_ticket=test"],
+            settings: ProviderSettingsSnapshot.make(
+                qwenCloud: .init(cookieSource: .off, manualCookieHeader: nil))))
+    }
+
     private func assertKimiCodeCredentialSourceMode(in directory: URL) throws {
         let home = directory.appendingPathComponent("kimi-code", isDirectory: true)
         let credentials = home.appendingPathComponent("credentials", isDirectory: true)

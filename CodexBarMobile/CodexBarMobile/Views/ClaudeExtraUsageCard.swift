@@ -72,26 +72,46 @@ struct ClaudeExtraUsageCard: View {
     }
 
     private var detailRow: some View {
-        HStack {
-            if let spend = extraUsage.monthlySpendUSD {
-                if let limit = extraUsage.monthlyLimitUSD {
-                    Text(String(
-                        format: String(localized: "claude_extra_usage_spend_limit_format", defaultValue: "%@ / %@"),
-                        Self.formatUSD(spend),
-                        Self.formatUSD(limit)))
-                        .font(.subheadline.bold().monospacedDigit())
-                        .foregroundStyle(self.tintColor)
-                } else {
-                    Text(Self.formatUSD(spend))
+        VStack(alignment: .leading, spacing: 4) {
+            HStack {
+                if let spend = extraUsage.monthlySpendUSD {
+                    if let limit = extraUsage.monthlyLimitUSD {
+                        Text(String(
+                            format: String(localized: "claude_extra_usage_spend_limit_format", defaultValue: "%@ / %@"),
+                            Self.formatUSD(spend),
+                            Self.formatUSD(limit)))
+                            .font(.subheadline.bold().monospacedDigit())
+                            .foregroundStyle(self.tintColor)
+                    } else {
+                        Text(Self.formatUSD(spend))
+                            .font(.subheadline.bold().monospacedDigit())
+                            .foregroundStyle(self.tintColor)
+                    }
+                } else if let balanceText = Self.balanceText(extraUsage.balanceUSD) {
+                    Text(balanceText)
                         .font(.subheadline.bold().monospacedDigit())
                         .foregroundStyle(self.tintColor)
                 }
+                Spacer()
+                if self.extraUsage.monthlySpendUSD != nil {
+                    Text(String(localized: "claude_extra_usage_period", defaultValue: "This month"))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
             }
-            Spacer()
-            Text(String(localized: "claude_extra_usage_period", defaultValue: "This month"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
+            if self.extraUsage.monthlySpendUSD != nil,
+               let balanceText = Self.balanceText(extraUsage.balanceUSD)
+            {
+                Text(balanceText)
+                    .font(.caption.monospacedDigit())
+                    .foregroundStyle(.secondary)
+            }
         }
+    }
+
+    static func balanceText(_ balanceUSD: Double?) -> String? {
+        guard let balanceUSD else { return nil }
+        return "\(String(localized: "Balance")): \(Self.formatUSD(balanceUSD))"
     }
 
     private static func formatUSD(_ value: Double) -> String {

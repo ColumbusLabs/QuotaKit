@@ -9,18 +9,30 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 - Menu bar: add customizable drag-and-drop token layouts and weekly session-equivalent forecasting.
-- Providers: add DeepInfra usage and balance, ai& spend, OpenRouter token accounts, DeepSeek cost summaries, and broader Doubao arkcli support.
+- Providers: add DeepInfra usage and balance, ai& spend, OpenRouter token accounts, DeepSeek cost summaries, broader Doubao arkcli support, Qwen Cloud individual Token Plans, and ZoomMate credits, history, and pacing.
+- Alibaba: add Personal/Solo Token Plan variants for mainland Bailian and international Model Studio accounts.
 - CLI: add safe cookie re-import and quota-aware guard commands under the QuotaKit command name.
+- Claude: show prepaid credit balance from cached or manually configured web sessions and add an option to hide Daily Routines.
 - Claude: show model-scoped weekly claude-swap windows and optionally show a card when only one account is available.
+- Codex: add local workspace indexing as the foundation for per-workspace usage attribution.
 - OpenCode Go: add daily local cost and plan-usage history.
 - Overview: raise the merged provider limit from three to six.
 
 ### Changed
+- CLI: redact stored credentials from `quotakit config dump` by default; use `--show-secrets` to reveal raw values.
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
 - Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.
 - Synced upstream CodexBar changes through `02b4ba278`, including Claude weekly-window ordering and fallback accuracy, Kimi weekly duration accuracy, Ollama session reuse, safer automatic Safari-cookie handling, LongCat Firefox imports, localized session equivalents, stacked menu-title alignment, WidgetKit refresh-loop prevention, and Linux Alibaba Token Plan support while preserving QuotaKit release ownership, CloudKit setup, config paths, and iOS build numbers.
 
 ### Fixed
+- Keychain: keep Cursor and Claude refresh available when Keychain access is disabled by using memory-only cookie caches and preventing background Claude prompts.
+- Claude: isolate cached credentials by profile, preserve enterprise spend-cap extra usage, and keep the account Weekly quota ahead of exhausted model carve-outs.
+- Codex: bound and resume cost scans across very large session corpora so they do not pin a CPU core or lose history.
+- Amp: map subscription-plan usage to percentage windows instead of reporting a misleading cookie error.
+- Grok: let explicit cookie refresh import and validate a browser session for safe background reuse.
+- Hooks: preserve configured hooks across config saves and ignore stale hook launches from other installations.
+- Menu: prioritize exhausted automatic-display windows while preserving provider-specific preferences.
+- Widgets: prevent quota-reset reload loops and remove the unintended dark background overlay.
 - Refresh: prevent macOS 14 launch crashes caused by TaskLocal task-allocation corruption.
 - Menu bar: render custom-layout provider icons at native size with correct light/dark tinting.
 - Menu: prefer weekly quota windows for the switcher’s weekly progress, with provider-specific fallback.

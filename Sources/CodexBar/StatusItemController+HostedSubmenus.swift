@@ -89,7 +89,7 @@ extension StatusItemController {
     /// Providers that surface the live component list as a native submenu. Every other provider
     /// keeps the plain "Status Page" link that opens the website. Kept deliberately small: these
     /// are the statuspage.io/incident.io feeds we actively curate and trust to render well.
-    static let statusComponentsSubmenuProviders: Set<UsageProvider> = [.claude, .codex, .augment]
+    static let statusComponentsSubmenuProviders: Set<UsageProvider> = [.claude, .codex, .augment, .zoommate]
 
     /// Builds the status submenu (component rows + a website link) for the curated providers in
     /// `statusComponentsSubmenuProviders`. Gated on the provider being in that allowlist (and
@@ -600,7 +600,7 @@ extension StatusItemController {
         // Before the first fetch lands the submenu still renders (just the website link below), so
         // every provider with a status feed gets the native submenu rather than a bare link; it
         // re-hydrates with the live component list once data arrives (see makeStatusComponentsSubmenu).
-        let components = self.store.statusComponents(for: provider)
+        let components = Self.filterStatusComponents(self.store.statusComponents(for: provider), for: provider)
         if !components.isEmpty {
             if self.menuCardRenderingEnabledForController {
                 final class HostingRelay {

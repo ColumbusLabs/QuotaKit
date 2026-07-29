@@ -720,8 +720,21 @@ extension CodexBarCLI {
         {
             return false
         }
+        if provider == .qwencloud,
+           self.qwenCloudCanFetchWithoutWeb(
+               sourceMode: sourceMode,
+               environment: environment,
+               settings: settings)
+        {
+            return false
+        }
         if provider == .qoder,
            settings?.qoder?.cookieSource == .manual
+        {
+            return false
+        }
+        if provider == .zoommate,
+           self.hasZoomMateManualCapture(settings: settings)
         {
             return false
         }
@@ -766,5 +779,27 @@ extension CodexBarCLI {
         case .cli, .oauth, .api:
             false
         }
+    }
+
+    private static func hasZoomMateManualCapture(settings: ProviderSettingsSnapshot?) -> Bool {
+        settings?.zoommate?.cookieSource == .manual &&
+            CookieHeaderNormalizer.normalize(settings?.zoommate?.manualCookieHeader) != nil
+    }
+
+    private static func qwenCloudCanFetchWithoutWeb(
+        sourceMode: ProviderSourceMode,
+        environment: [String: String]?,
+        settings: ProviderSettingsSnapshot?) -> Bool
+    {
+        guard sourceMode == .auto || sourceMode == .web,
+              settings?.qwenCloud?.cookieSource != .off
+        else { return false }
+
+        let hasEnvironmentCookie = environment.map {
+            QwenCloudSettingsReader.cookieHeader(environment: $0) != nil
+        } == true
+        let hasManualCookie = settings?.qwenCloud?.cookieSource == .manual &&
+            CookieHeaderNormalizer.normalize(settings?.qwenCloud?.manualCookieHeader) != nil
+        return hasEnvironmentCookie || hasManualCookie
     }
 }

@@ -19,6 +19,11 @@ current Columbus Labs product surface and recent release history.
 - Monthly utilization-history labels synced from the Mac now use the selected
   iPhone app language.
 
+### Changed
+
+- Provider presentation, colors, icons, and quota-alert subscriptions now
+  recognize Qwen Cloud and ZoomMate synced from the Mac app.
+
 ## [1.11.3 (171)] — 2026-07-12 — Background sync reliability
 
 ### Fixed

@@ -75,6 +75,7 @@ struct V027SnapshotsCodableTests {
             utilization: 42.5,
             monthlySpendUSD: 42.50,
             monthlyLimitUSD: 100.00,
+            balanceUSD: 17.25,
             isEnabled: true,
             planTier: "Enterprise",
             updatedAt: now)
@@ -83,6 +84,7 @@ struct V027SnapshotsCodableTests {
             from: Self.encoder.encode(enabled))
         #expect(decoded.utilization == 42.5)
         #expect(decoded.monthlyLimitUSD == 100.00)
+        #expect(decoded.balanceUSD == 17.25)
         #expect(decoded.isEnabled)
 
         // Disabled + uncapped (Team without extra usage)
@@ -98,6 +100,17 @@ struct V027SnapshotsCodableTests {
             from: Self.encoder.encode(disabled))
         #expect(!dDecoded.isEnabled)
         #expect(dDecoded.monthlyLimitUSD == nil)
+        #expect(dDecoded.balanceUSD == nil)
+
+        let legacyJSON = Data(
+            #"""
+            {"isEnabled":true,"monthlyLimitUSD":100,"monthlySpendUSD":25,"planTier":"Team",
+             "updatedAt":"2023-11-14T22:13:20Z","utilization":25}
+            """#
+                .utf8)
+        let legacyDecoded = try Self.decoder.decode(SyncClaudeExtraUsage.self, from: legacyJSON)
+        #expect(legacyDecoded.monthlySpendUSD == 25)
+        #expect(legacyDecoded.balanceUSD == nil)
     }
 
     @Test

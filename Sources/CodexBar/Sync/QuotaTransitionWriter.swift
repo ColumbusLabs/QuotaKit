@@ -28,7 +28,8 @@ protocol QuotaTransitionWriting: AnyObject {
         threshold: Int,
         accountDisplayName: String?,
         accountDiscriminator: String?,
-        windowID: String?)
+        windowID: String?,
+        windowDisplayLabel: String?)
     // swiftlint:enable function_parameter_count
 }
 
@@ -153,7 +154,8 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
         threshold: Int,
         accountDisplayName: String?,
         accountDiscriminator: String?,
-        windowID: String?)
+        windowID: String?,
+        windowDisplayLabel: String?)
     {
         let providerName = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         let windowString = window.rawValue
@@ -172,7 +174,7 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
             return
         }
 
-        Task { [providerName, windowString, accountDisplayName, deduplicationScope] in
+        Task { [providerName, windowString, accountDisplayName, deduplicationScope, windowDisplayLabel] in
             let result = await CloudSyncManager.shared.writeQuotaWarningTransition(
                 providerName: providerName,
                 providerID: provider.rawValue,
@@ -180,7 +182,8 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
                 threshold: threshold,
                 transitionAt: now,
                 accountEmail: accountDisplayName,
-                deduplicationScope: deduplicationScope)
+                deduplicationScope: deduplicationScope,
+                windowDisplayLabel: windowDisplayLabel)
             if result.succeeded {
                 self.lastWarningWriteByKey[key] = now
                 self.logger.info(

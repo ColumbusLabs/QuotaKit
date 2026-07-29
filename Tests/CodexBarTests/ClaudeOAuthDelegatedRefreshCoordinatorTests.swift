@@ -670,14 +670,17 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                     },
                     operation: {
                         await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
-                            .dynamic { _ in dataBox.load() })
-                        {
-                            await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                                await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
-                                    now: Date(timeIntervalSince1970: 61000),
-                                    timeout: 0.1)
+                            .dynamic { _ in
+                                #expect(
+                                    ClaudeOAuthKeychainPromptPreference.currentTaskOverrideForTesting == .always)
+                                return dataBox.load()
+                            }) {
+                                await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                    await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                                        now: Date(timeIntervalSince1970: 61000),
+                                        timeout: 0.1)
+                                }
                             }
-                        }
                     })
 
                 #expect(outcome == .attemptedSucceeded)

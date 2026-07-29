@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (56 after DeepInfra catch-up)`() {
+    func `Provider list has expected count (58 after Qwen Cloud and ZoomMate catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -25,10 +25,10 @@ struct QuotaProviderListTests {
         // (Sakana AI from upstream v0.36.x) → 50 after Qoder from the
         // same upstream line → 51 after Sub2API → 52 after ZenMux →
         // 54 after ClinePass and LongCat → 55 after Neuralwatt → 56 after
-        // DeepInfra. Must stay synced with the iOS-side test in
+        // DeepInfra, then 58 after Qwen Cloud and ZoomMate. Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 56)
+        #expect(QuotaProviderList.providers.count == 58)
     }
 
     @Test
@@ -110,7 +110,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 56 × 3 = 168 (depleted + restored + warning)`() {
+    func `iOS subscription count is 58 × 3 = 174 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -121,14 +121,14 @@ struct QuotaProviderListTests {
         // 147 in iOS 1.10.0 (49 × 3 after adding Sakana AI) →
         // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux →
         // 162 after adding ClinePass and LongCat, 165 after Neuralwatt,
-        // then 168 after DeepInfra.
+        // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate.
         // If this fails, someone either dropped
         // a provider or changed the state
         // matrix without updating the iOS subscription setup in
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 168)
+        #expect(subscriptionCount == 174)
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

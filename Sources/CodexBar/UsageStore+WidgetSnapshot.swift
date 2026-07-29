@@ -147,6 +147,19 @@ extension UsageStore {
                     window: window)
             }
         }
+        if provider == .claude,
+           let spendLimit = MenuBarMetricWindowResolver.claudeSpendLimitWindow(snapshot: snapshot)
+        {
+            let period = snapshot.providerCost?.period?.trimmingCharacters(in: .whitespacesAndNewlines)
+            let title = period.flatMap { $0.isEmpty ? nil : $0 } ?? "Extra usage"
+            return [
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "extraUsage",
+                    title: title,
+                    percentLeft: spendLimit.remainingPercent,
+                    window: spendLimit),
+            ]
+        }
         if provider == .antigravity,
            let rows = Self.antigravityQuotaSummaryWidgetRows(snapshot: snapshot),
            !rows.isEmpty
@@ -169,6 +182,14 @@ extension UsageStore {
             provider: provider,
             metadata: metadata,
             snapshot: snapshot)
+        let secondaryTitle = if provider == .amp {
+            AmpProviderDescriptor.secondaryLabel(details: snapshot.ampUsage) ?? metadata?.weeklyLabel ?? "Weekly"
+        } else if provider == .alibabatokenplan {
+            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ??
+                metadata?.weeklyLabel ?? "Weekly"
+        } else {
+            metadata?.weeklyLabel ?? "Weekly"
+        }
 
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = [
             WidgetSnapshot.WidgetUsageRowSnapshot(
@@ -177,7 +198,7 @@ extension UsageStore {
                 percentLeft: snapshot.primary?.remainingPercent),
             WidgetSnapshot.WidgetUsageRowSnapshot(
                 id: "secondary",
-                title: metadata?.weeklyLabel ?? "Weekly",
+                title: secondaryTitle,
                 percentLeft: snapshot.secondary?.remainingPercent),
         ]
         if metadata?.supportsOpus == true {
@@ -292,6 +313,16 @@ extension UsageStore {
         }
         if provider == .doubao,
            let dyn = DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        if provider == .amp,
+           let dyn = AmpProviderDescriptor.primaryLabel(details: snapshot.ampUsage)
+        {
+            return dyn
+        }
+        if provider == .alibabatokenplan,
+           let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
         {
             return dyn
         }

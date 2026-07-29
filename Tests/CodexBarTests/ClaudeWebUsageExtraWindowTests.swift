@@ -31,6 +31,125 @@ struct ClaudeWebUsageExtraWindowTests {
     }
 
     @Test
+    func `parses Claude prepaid credits in minor units`() throws {
+        let data = Data(#"{"amount":10000,"currency":"usd"}"#.utf8)
+        let cost = try #require(ClaudeWebAPIFetcher._parsePrepaidCreditsForTesting(data))
+
+        #expect(cost.balance == 100)
+        #expect(cost.currencyCode == "USD")
+        #expect(cost.used == 0)
+        #expect(cost.limit == 0)
+    }
+
+    @Test
+    func `rejects invalid Claude prepaid credit balances`() {
+        let negative = Data(#"{"amount":-1,"currency":"USD"}"#.utf8)
+        let missingCurrency = Data(#"{"amount":10000}"#.utf8)
+        let booleanAmount = Data(#"{"amount":true,"currency":"USD"}"#.utf8)
+
+        #expect(ClaudeWebAPIFetcher._parsePrepaidCreditsForTesting(negative) == nil)
+        #expect(ClaudeWebAPIFetcher._parsePrepaidCreditsForTesting(missingCurrency) == nil)
+        #expect(ClaudeWebAPIFetcher._parsePrepaidCreditsForTesting(booleanAmount) == nil)
+    }
+
+    @Test
+    func `merges Claude prepaid balance into primary O auth cost`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let primary = ProviderCostSnapshot(
+            used: 5,
+            limit: 20,
+            currencyCode: "USD",
+            period: "Monthly cap",
+            updatedAt: now)
+        let web = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "usd",
+            period: "Extra usage",
+            balance: 100,
+            updatedAt: now.addingTimeInterval(1))
+
+        let merged = try #require(ClaudeUsageFetcher._mergeProviderCostForTesting(
+            primary: primary,
+            web: web))
+
+        #expect(merged.used == 5)
+        #expect(merged.limit == 20)
+        #expect(merged.period == "Monthly cap")
+        #expect(merged.balance == 100)
+        #expect(merged.updatedAt == now)
+    }
+
+    @Test
+    func `does not merge Claude prepaid balance with a different currency`() throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let primary = ProviderCostSnapshot(
+            used: 5,
+            limit: 20,
+            currencyCode: "USD",
+            period: "Monthly cap",
+            updatedAt: now)
+        let web = ProviderCostSnapshot(
+            used: 0,
+            limit: 0,
+            currencyCode: "EUR",
+            period: "Extra usage",
+            balance: 100,
+            updatedAt: now)
+
+        let merged = try #require(ClaudeUsageFetcher._mergeProviderCostForTesting(
+            primary: primary,
+            web: web))
+
+        #expect(merged == primary)
+    }
+
+    @Test
+    func `web extras require the same Claude account and organization`() {
+        let snapshot = ClaudeUsageSnapshot(
+            primary: RateWindow(usedPercent: 7, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            opus: nil,
+            providerCost: nil,
+            updatedAt: Date(),
+            accountEmail: nil,
+            accountOrganization: nil,
+            loginMethod: "Pro",
+            rawText: nil)
+        let webData = ClaudeWebAPIFetcher.WebUsageData(
+            sessionPercentUsed: 7,
+            sessionResetsAt: nil,
+            weeklyPercentUsed: nil,
+            weeklyResetsAt: nil,
+            opusPercentUsed: nil,
+            extraRateWindows: [],
+            extraUsageCost: nil,
+            accountOrganization: "Test Org",
+            accountOrganizationID: "org-123",
+            accountEmail: "user@example.com",
+            loginMethod: "Pro")
+
+        #expect(ClaudeUsageFetcher.webExtrasAccountMatches(
+            snapshot: snapshot,
+            webData: webData,
+            oauthProfile: OAuthProfileResponse(
+                emailAddress: "user@example.com",
+                organizationUuid: "org-123")))
+        #expect(!ClaudeUsageFetcher.webExtrasAccountMatches(
+            snapshot: snapshot,
+            webData: webData,
+            oauthProfile: OAuthProfileResponse(
+                emailAddress: "other@example.com",
+                organizationUuid: "org-123")))
+        #expect(!ClaudeUsageFetcher.webExtrasAccountMatches(
+            snapshot: snapshot,
+            webData: webData,
+            oauthProfile: OAuthProfileResponse(
+                emailAddress: "user@example.com",
+                organizationUuid: "org-other")))
+    }
+
+    @Test
     func `ignores merged claude web API omelette usage window`() throws {
         let json = """
         {

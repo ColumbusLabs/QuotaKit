@@ -11,15 +11,19 @@ import Testing
 struct QuotaWarningPushFireTests {
     @MainActor
     final class QuotaTransitionWriterSpy: QuotaTransitionWriting {
+        struct WarningWrite {
+            let provider: UsageProvider
+            let window: QuotaWarningWindow
+            let threshold: Int
+            let accountDisplayName: String?
+            let windowDisplayLabel: String?
+        }
+
         private(set) var transitionWrites: [(
             transition: SessionQuotaTransition,
             provider: UsageProvider,
             accountDisplayName: String?)] = []
-        private(set) var warningWrites: [(
-            provider: UsageProvider,
-            window: QuotaWarningWindow,
-            threshold: Int,
-            accountDisplayName: String?)] = []
+        private(set) var warningWrites: [WarningWrite] = []
 
         func write(
             transition: SessionQuotaTransition,
@@ -37,9 +41,15 @@ struct QuotaWarningPushFireTests {
             threshold: Int,
             accountDisplayName: String?,
             accountDiscriminator _: String?,
-            windowID _: String?)
+            windowID _: String?,
+            windowDisplayLabel: String?)
         {
-            self.warningWrites.append((provider, window, threshold, accountDisplayName))
+            self.warningWrites.append(WarningWrite(
+                provider: provider,
+                window: window,
+                threshold: threshold,
+                accountDisplayName: accountDisplayName,
+                windowDisplayLabel: windowDisplayLabel))
         }
     }
 
@@ -118,6 +128,37 @@ struct QuotaWarningPushFireTests {
         #expect(writer.warningWrites.first?.provider == .claude)
         #expect(writer.warningWrites.first?.window == .session)
         #expect(writer.warningWrites.first?.threshold == 50)
+        #expect(writer.warningWrites.first?.windowDisplayLabel == nil)
+    }
+
+    @Test
+    func `custom window label propagates to the CKRecord writer`() {
+        let settings = self.makeSettings(suiteName: "QuotaWarningPushFireTests-window-label")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        settings.notificationPushToiOSEnabled = true
+
+        let notifier = SessionQuotaNotifierSpy()
+        let writer = QuotaTransitionWriterSpy()
+        let store = UsageStore(
+            fetcher: UsageFetcher(),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            sessionQuotaNotifier: notifier,
+            quotaTransitionWriter: writer)
+
+        store.postQuotaWarning(
+            QuotaWarningEvent(
+                window: .weekly,
+                threshold: 50,
+                currentRemaining: 49,
+                windowID: "claude-weekly-scoped-fable",
+                windowDisplayLabel: "Fable only"),
+            provider: .claude)
+
+        #expect(writer.warningWrites.count == 1)
+        #expect(writer.warningWrites.first?.window == .weekly)
+        #expect(writer.warningWrites.first?.windowDisplayLabel == "Fable only")
     }
 
     @Test

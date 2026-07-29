@@ -784,6 +784,13 @@ final class SyncCoordinator {
         // ProviderCostSnapshot with a zero limit. Those are not used/limit
         // budgets and would render on iOS as the false statement "$balance / $0".
         guard provider != .zenmux, provider != .neuralwatt, provider != .aiand else { return nil }
+        if provider == .claude,
+           let providerCost,
+           providerCost.limit <= 0,
+           providerCost.balance != nil
+        {
+            return nil
+        }
         return providerCost.map { pc in
             SyncBudgetSnapshot(
                 usedAmount: pc.used,
@@ -863,6 +870,27 @@ final class SyncCoordinator {
         metadata: ProviderMetadata?,
         snapshot: UsageSnapshot?) -> (primary: String?, secondary: String?, tertiary: String)
     {
+        if provider == .amp {
+            return (
+                AmpProviderDescriptor.primaryLabel(details: snapshot?.ampUsage) ?? metadata?.sessionLabel,
+                AmpProviderDescriptor.secondaryLabel(details: snapshot?.ampUsage) ?? metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .alibabatokenplan {
+            return (
+                AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot?.primary) ?? metadata?.sessionLabel,
+                AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot?.secondary) ??
+                    metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .qwencloud,
+           snapshot?.primary?.windowMinutes == 30 * 24 * 60
+        {
+            return ("30-day", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
+        }
+
         if provider == .cursor {
             // Cursor's legacy projection stored Auto/API in primary/secondary,
             // while the current projection uses Total/Auto/API across all
@@ -1554,7 +1582,7 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand:
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
