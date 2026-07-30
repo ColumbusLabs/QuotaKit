@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 65 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 66 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -92,6 +92,7 @@ scan fails, while provider/account configuration changes replace obsolete result
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
 | Neuralwatt | API key from config/env → `/v1/quota` subscription kWh usage and prepaid balance (`api`). |
 | ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
+| xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 
 ## Codex
@@ -456,9 +457,9 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 
 ## Crof
 - API key from `~/.quotakit/config.json`, `CROF_API_KEY`, or `CROFAI_API_KEY`.
-- Reads `credits`, `requests_plan`, and `usable_requests` from `GET https://crof.ai/usage_api/`.
-- Shows request quota as the primary usage window and dollar credits as the secondary row.
-- Infers the daily request reset from midnight America/Chicago until the usage API exposes reset metadata.
+- Reads `credits` and optional `requests_plan` / `usable_requests` from `GET https://crof.ai/usage_api/`.
+- Prefers request quota plus a secondary dollar-balance row when quota fields are present; otherwise shows dollar
+  credits as the primary window without synthesizing quota alerts.
 - Status: none yet.
 - Details: `docs/crof.md`.
 
@@ -578,5 +579,13 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Shows subscription plan name when the Step Plan status API returns one.
 - Status: none yet.
 - Details: `docs/stepfun.md`.
+
+## xAI
+- Management API key + team ID from config or `XAI_MANAGEMENT_API_KEY` / `XAI_TEAM_ID`; inference API keys are not
+  accepted.
+- Reads prepaid balance and 30-day daily USD spend from the xAI Management API.
+- Distinct from Grok: xAI tracks developer-platform billing while Grok tracks consumer subscription quota.
+- Prepaid money is not synthesized into session or weekly quota.
+- Details: `docs/xai.md`.
 
 See also: `docs/provider.md` for architecture notes.

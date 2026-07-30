@@ -19,6 +19,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Overview: raise the merged provider limit from three to six.
 
 ### Changed
+- Synced upstream CodexBar changes through `8ef86077e`, including preferred-currency conversion, xAI billing history, Claude weekly pacing, optional Crof quota alerts, and StepFun support while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and all build numbers.
 - CLI: redact stored credentials from `quotakit config dump` by default; use `--show-secrets` to reveal raw values.
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.
 - Cost displays: use consistent labels while preserving reported-versus-estimated provenance in settings and per-value hints.

@@ -78,7 +78,7 @@ public enum AccountIdentityComputer {
              // user files a cross-Mac merging request for them.
              .azureopenai, .alibabatokenplan, .t3chat,
              // Upstream 0.33+ new providers. Same rationale as above.
-             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api, .xai,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy

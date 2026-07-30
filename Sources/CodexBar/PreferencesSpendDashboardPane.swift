@@ -87,6 +87,9 @@ struct SpendDashboardPane: View {
         .onReceive(NotificationCenter.default.publisher(for: NSApplication.didBecomeActiveNotification)) { _ in
             self.controller.refreshDateWindow()
         }
+        .onReceive(NotificationCenter.default.publisher(for: .codexbarCurrencyExchangeRatesDidChange)) { _ in
+            self.controller.refreshDateWindow()
+        }
     }
 
     private var configuration: SpendDashboardConfiguration {

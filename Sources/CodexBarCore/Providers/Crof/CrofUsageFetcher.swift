@@ -5,8 +5,8 @@ import FoundationNetworking
 
 public struct CrofUsageResponse: Decodable, Sendable {
     public let credits: Double
-    public let requestsPlan: Double
-    public let usableRequests: Double
+    public let requestsPlan: Double?
+    public let usableRequests: Double?
 
     enum CodingKeys: String, CodingKey {
         case credits
@@ -78,6 +78,11 @@ public enum CrofUsageFetcher {
             decoded = try JSONDecoder().decode(CrofUsageResponse.self, from: data)
         } catch {
             throw CrofUsageError.parseFailed(error.localizedDescription)
+        }
+
+        guard (decoded.requestsPlan == nil) == (decoded.usableRequests == nil) else {
+            throw CrofUsageError.parseFailed(
+                "requests_plan and usable_requests must both be present or both be null")
         }
 
         return CrofUsageSnapshot(

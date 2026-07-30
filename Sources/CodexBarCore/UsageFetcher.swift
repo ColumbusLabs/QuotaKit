@@ -143,47 +143,6 @@ public struct NamedRateWindow: Codable, Equatable, Sendable {
     }
 }
 
-public struct ProviderIdentitySnapshot: Codable, Sendable {
-    public let providerID: UsageProvider?
-    public let accountEmail: String?
-    public let accountOrganization: String?
-    public let loginMethod: String?
-    public let accountID: String?
-
-    public init(
-        providerID: UsageProvider?,
-        accountEmail: String?,
-        accountOrganization: String?,
-        loginMethod: String?,
-        accountID: String? = nil)
-    {
-        self.providerID = providerID
-        self.accountEmail = accountEmail
-        self.accountOrganization = accountOrganization
-        self.loginMethod = loginMethod
-        self.accountID = accountID
-    }
-
-    public func scoped(to provider: UsageProvider) -> ProviderIdentitySnapshot {
-        if self.providerID == provider {
-            return self
-        }
-        return ProviderIdentitySnapshot(
-            providerID: provider,
-            accountEmail: self.accountEmail,
-            accountOrganization: self.accountOrganization,
-            loginMethod: self.loginMethod,
-            accountID: self.accountID)
-    }
-}
-
-public enum UsageDataConfidence: String, Codable, Equatable, Sendable {
-    case exact
-    case estimated
-    case percentOnly
-    case unknown
-}
-
 public struct UsageSnapshot: Codable, Sendable {
     public let primary: RateWindow?
     public let secondary: RateWindow?
@@ -223,6 +182,7 @@ public struct UsageSnapshot: Codable, Sendable {
     public let groqUsage: GroqUsageSnapshot?
     public let llmProxyUsage: LLMProxyUsageSnapshot?
     public let poeUsage: PoeUsageHistorySnapshot?
+    public let xaiUsage: XAIUsageSnapshot?
     public let cursorRequests: CursorRequestUsage?
     public let cursorRateWindowLayout: CursorRateWindowLayout?
     /// iOS 1.9.0 / Mac 0.29.0 — gap E. Transient (fetched fresh, not persisted),
@@ -269,6 +229,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case llmProxyUsage
         case poeUsage
         case cursorRateWindowLayout
+        case xaiUsage
         case subscriptionExpiresAt
         case subscriptionRenewsAt
         case updatedAt
@@ -313,6 +274,7 @@ public struct UsageSnapshot: Codable, Sendable {
         groqUsage: GroqUsageSnapshot? = nil,
         llmProxyUsage: LLMProxyUsageSnapshot? = nil,
         poeUsage: PoeUsageHistorySnapshot? = nil,
+        xaiUsage: XAIUsageSnapshot? = nil,
         cursorRequests: CursorRequestUsage? = nil,
         cursorRateWindowLayout: CursorRateWindowLayout? = nil,
         azureOpenAIUsage: AzureOpenAIUsageSnapshot? = nil,
@@ -359,6 +321,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.groqUsage = groqUsage
         self.llmProxyUsage = llmProxyUsage
         self.poeUsage = poeUsage
+        self.xaiUsage = xaiUsage
         self.cursorRequests = cursorRequests
         self.cursorRateWindowLayout = cursorRateWindowLayout
         self.azureOpenAIUsage = azureOpenAIUsage
@@ -435,6 +398,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.groqUsage = try container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
         self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
         self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
+        self.xaiUsage = try container.decodeIfPresent(XAIUsageSnapshot.self, forKey: .xaiUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         if let rawCursorLayout = try container.decodeIfPresent(String.self, forKey: .cursorRateWindowLayout) {
             self.cursorRateWindowLayout = CursorRateWindowLayout(rawValue: rawCursorLayout)
@@ -501,6 +465,7 @@ public struct UsageSnapshot: Codable, Sendable {
         try container.encodeIfPresent(self.llmProxyUsage, forKey: .llmProxyUsage)
         try container.encodeIfPresent(self.poeUsage, forKey: .poeUsage)
         try container.encodeIfPresent(self.cursorRateWindowLayout?.rawValue, forKey: .cursorRateWindowLayout)
+        try container.encodeIfPresent(self.xaiUsage, forKey: .xaiUsage)
         try container.encodeIfPresent(self.subscriptionExpiresAt, forKey: .subscriptionExpiresAt)
         try container.encodeIfPresent(self.subscriptionRenewsAt, forKey: .subscriptionRenewsAt)
         try container.encode(self.updatedAt, forKey: .updatedAt)
@@ -685,6 +650,7 @@ public struct UsageSnapshot: Codable, Sendable {
             groqUsage: self.groqUsage,
             llmProxyUsage: self.llmProxyUsage,
             poeUsage: self.poeUsage,
+            xaiUsage: self.xaiUsage,
             cursorRequests: self.cursorRequests,
             cursorRateWindowLayout: self.cursorRateWindowLayout,
             azureOpenAIUsage: self.azureOpenAIUsage,

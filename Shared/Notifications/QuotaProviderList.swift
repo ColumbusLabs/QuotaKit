@@ -128,6 +128,9 @@ public enum QuotaProviderList {
         // remain stable.
         Provider(id: "qwencloud", displayName: "Qwen Cloud"),
         Provider(id: "zoommate", displayName: "ZoomMate"),
+        // xAI platform billing. Appended so all existing CloudKit subscription
+        // identifiers remain stable.
+        Provider(id: "xai", displayName: "xAI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

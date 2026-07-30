@@ -719,7 +719,9 @@ final class SyncCoordinator {
             statusMessage: syncedStatusMessage,
             isError: error != nil,
             lastUpdated: snapshot?.updatedAt ?? Date(),
-            costSummary: sharedCostSummary ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot),
+            costSummary: sharedCostSummary
+                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
+                ?? Self.mapXAICostSummary(provider: provider, snapshot: snapshot),
             budget: budgetSnap,
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
@@ -766,6 +768,10 @@ final class SyncCoordinator {
             let period = providerCost.period ?? "Last 30 days"
             return "\(period) spend: \(providerCost.currencyCode) \(amount)"
         }
+        if provider == .xai, let xaiUsage = snapshot?.xaiUsage {
+            let amount = String(format: "%.2f", xaiUsage.balanceUSD)
+            return "Prepaid credits: USD \(amount)"
+        }
         guard provider == .copilot,
               rateWindows.isEmpty,
               let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
@@ -780,10 +786,16 @@ final class SyncCoordinator {
         provider: UsageProvider,
         providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
     {
-        // ZenMux and Neuralwatt report remaining balances through
+        // ZenMux, Neuralwatt, and xAI report remaining balances through
         // ProviderCostSnapshot with a zero limit. Those are not used/limit
         // budgets and would render on iOS as the false statement "$balance / $0".
-        guard provider != .zenmux, provider != .neuralwatt, provider != .aiand else { return nil }
+        guard provider != .zenmux,
+              provider != .neuralwatt,
+              provider != .aiand,
+              provider != .xai
+        else {
+            return nil
+        }
         if provider == .claude,
            let providerCost,
            providerCost.limit <= 0,
@@ -1513,6 +1525,34 @@ final class SyncCoordinator {
             currencyCode: tokenSnapshot?.currencyCode)
     }
 
+    static func mapXAICostSummary(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCostSummary?
+    {
+        guard provider == .xai,
+              let usage = snapshot?.xaiUsage,
+              let projected = usage.costHistorySnapshot()
+        else {
+            return nil
+        }
+        let isEstimated = usage.limitReached ? true : nil
+        return SyncCostSummary(
+            sessionCostUSD: projected.sessionCostUSD,
+            sessionTokens: nil,
+            last30DaysCostUSD: projected.last30DaysCostUSD,
+            last30DaysTokens: nil,
+            daily: projected.daily.map { entry in
+                SyncDailyPoint(
+                    dayKey: entry.date,
+                    costUSD: entry.costUSD ?? 0,
+                    totalTokens: 0,
+                    isEstimated: isEstimated)
+            },
+            isEstimated: isEstimated,
+            historyDays: projected.historyDays,
+            currencyCode: projected.currencyCode)
+    }
+
     private func modelBreakdowns(
         from entry: CostUsageDailyReport.Entry?,
         provider: UsageProvider) -> [SyncCostBreakdown]
@@ -1582,7 +1622,7 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate:
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

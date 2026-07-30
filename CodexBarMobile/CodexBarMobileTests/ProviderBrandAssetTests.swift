@@ -17,6 +17,7 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "neuralwatt") == "ProviderIcon-neuralwatt")
         #expect(ProviderBrandAsset.assetName(for: "qwencloud") == "ProviderIcon-qwencloud")
         #expect(ProviderBrandAsset.assetName(for: "zoommate") == "ProviderIcon-zoommate")
+        #expect(ProviderBrandAsset.assetName(for: "xai") == "ProviderIcon-xai")
     }
 
     @Test

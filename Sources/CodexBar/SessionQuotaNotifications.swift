@@ -410,6 +410,8 @@ extension UsageStore {
         provider: UsageProvider,
         snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
     {
+        // MiMo/Qoder balances are never session quotas. Crof is handled below so quota-backed
+        // Crof snapshots can still participate when a real request-quota window is present.
         guard provider != .mimo, provider != .qoder else { return nil }
         if provider == .antigravity {
             guard let window = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60) else {
@@ -424,6 +426,13 @@ extension UsageStore {
         // contains its weekly token limit and MCP time limit. Prefer that semantic session lane.
         if provider == .zai, let tertiary = snapshot.tertiary {
             return (tertiary, .zaiTertiary)
+        }
+        // Crof's real request quota is a daily (1440-minute) window, so it does not pass the
+        // generic <=6-hour session heuristic. Its credits-only shape has no secondary window;
+        // only the quota-backed request-primary + credits-secondary shape participates here.
+        if provider == .crof {
+            guard snapshot.secondary != nil, let primary = snapshot.primary else { return nil }
+            return (primary, .primary)
         }
         if let primary = snapshot.primary, Self.isSessionWindow(primary) {
             return (primary, .primary)

@@ -139,6 +139,7 @@ enum ProviderColorPalette {
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
+            (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),
             (["devin"], RawColor(red: 70 / 255, green: 180 / 255, blue: 130 / 255)),
         ]
 

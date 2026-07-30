@@ -59,6 +59,7 @@ enum ProviderBrandAsset {
         "vertexai",
         "warp",
         "windsurf",
+        "xai",
         "zai",
         "zed",
         "zenmux",

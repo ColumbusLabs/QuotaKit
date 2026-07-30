@@ -3,6 +3,7 @@ import Foundation
 import Testing
 @testable import CodexBar
 
+// swiftlint:disable:next type_body_length
 struct SpendDashboardDateTruthTests {
     private struct MalformedMetricCase {
         let name: String
@@ -36,6 +37,33 @@ struct SpendDashboardDateTruthTests {
 
         #expect(group.totalCost == 3)
         #expect(group.totalTokens == 30)
+        #expect(group.coveredDayCount == 2)
+        #expect(group.dailyPoints.map(\.day) == [june30, july1])
+        #expect(group.dailyPoints.map(\.cost) == [1, 2])
+    }
+
+    @Test
+    func `xAI UTC buckets map into Pacific dashboard days at midnight UTC`() throws {
+        var pacific = Calendar(identifier: .gregorian)
+        pacific.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let now = try #require(ISO8601DateFormatter().date(from: "2026-07-02T00:01:00Z"))
+        let june30 = try #require(pacific.date(from: DateComponents(year: 2026, month: 6, day: 30)))
+        let july1 = try #require(pacific.date(from: DateComponents(year: 2026, month: 7, day: 1)))
+        let snapshot = Self.snapshot(
+            currency: "USD",
+            entries: [
+                Self.entry(day: "2026-07-01", cost: 1),
+                Self.entry(day: "2026-07-02", cost: 2),
+            ],
+            historyDays: 2,
+            updatedAt: now)
+        let group = try #require(SpendDashboardModel.build(
+            inputs: [.init(provider: .xai, displayName: "xAI", snapshot: snapshot)],
+            requestedDays: 7,
+            now: now,
+            calendar: pacific).groups.first)
+
+        #expect(group.totalCost == 3)
         #expect(group.coveredDayCount == 2)
         #expect(group.dailyPoints.map(\.day) == [june30, july1])
         #expect(group.dailyPoints.map(\.cost) == [1, 2])
@@ -201,6 +229,29 @@ struct SpendDashboardDateTruthTests {
         #expect(eur.totalCost == 3)
         #expect(usd.providers.map(\.id) == ["usd"])
         #expect(usd.totalCost == 2)
+    }
+
+    @Test
+    func `preferred currency combines convertible dashboard groups and preserves unavailable sources`() throws {
+        let eurRate = try #require(CurrencyExchange.shared.rate(for: "EUR"))
+        let model = SpendDashboardModel.build(
+            inputs: [
+                Self.input(id: "usd", provider: .claude, currency: "USD", cost: 2),
+                Self.input(id: "eur", provider: .codex, currency: "EUR", cost: 3),
+                Self.input(id: "chf", provider: .mistral, currency: "CHF", cost: 5),
+            ],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar,
+            preferredCurrencyCode: "USD")
+
+        #expect(model.groups.map(\.currencyCode) == ["CHF", "USD"])
+        let chf = try #require(model.groups.first(where: { $0.currencyCode == "CHF" }))
+        let usd = try #require(model.groups.first(where: { $0.currencyCode == "USD" }))
+        #expect(chf.totalCost == 5)
+        #expect(usd.providers.map(\.id).sorted() == ["eur", "usd"])
+        #expect(abs((usd.totalCost ?? 0) - (2 + 3 / eurRate)) < 1e-9)
+        #expect(abs((usd.dailyPoints.map(\.cost).reduce(0, +)) - (2 + 3 / eurRate)) < 1e-9)
     }
 
     @Test
