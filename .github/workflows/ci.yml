@@ -292,12 +292,19 @@ jobs:
       - name: Install XcodeGen
         run: |
           set -euo pipefail
-          if command -v xcodegen >/dev/null 2>&1; then
-            xcodegen --version
-            exit 0
-          fi
-          brew install xcodegen
-          xcodegen --version
+          xcodegen_version="2.45.4"
+          xcodegen_sha256="090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef"
+          xcodegen_archive="$RUNNER_TEMP/xcodegen-$xcodegen_version.zip"
+          xcodegen_root="$RUNNER_TEMP/xcodegen-$xcodegen_version"
+
+          curl -fsSL \
+            "https://github.com/yonaskolb/XcodeGen/releases/download/$xcodegen_version/xcodegen.zip" \
+            -o "$xcodegen_archive"
+          echo "$xcodegen_sha256  $xcodegen_archive" | shasum -a 256 -c -
+          mkdir -p "$xcodegen_root"
+          unzip -q "$xcodegen_archive" -d "$xcodegen_root"
+          echo "$xcodegen_root/xcodegen/bin" >> "$GITHUB_PATH"
+          "$xcodegen_root/xcodegen/bin/xcodegen" --version
 
       - name: Generate iOS Xcode project
         run: |
