@@ -1097,6 +1097,60 @@ struct CostUsageScannerTests {
         #expect(report.data[0].outputTokens == 15)
         #expect(report.data[0].totalTokens == 45)
     }
+
+    @Test
+    func `codex session files sort newest first then by size then by path`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let root = env.root.appendingPathComponent("sort-order", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        func write(_ name: String, bytes: Int, modifiedAt: Date) throws -> URL {
+            let url = root.appendingPathComponent(name)
+            try Data(repeating: 0x41, count: bytes).write(to: url)
+            try FileManager.default.setAttributes([.modificationDate: modifiedAt], ofItemAtPath: url.path)
+            return url
+        }
+
+        let newest = Date(timeIntervalSince1970: 1_800_000_300)
+        let older = Date(timeIntervalSince1970: 1_800_000_100)
+
+        // Same mtime as `tieLarge`, smaller payload -> sorts ahead of it.
+        let tieSmall = try write("b-tie-small.jsonl", bytes: 8, modifiedAt: newest)
+        let tieLarge = try write("a-tie-large.jsonl", bytes: 64, modifiedAt: newest)
+        let stale = try write("c-stale.jsonl", bytes: 8, modifiedAt: older)
+
+        let sorted = CostUsageScanner.sortedCodexSessionFilesNewestFirst([stale, tieLarge, tieSmall])
+
+        #expect(sorted.map(\.lastPathComponent) == [
+            tieSmall.lastPathComponent,
+            tieLarge.lastPathComponent,
+            stale.lastPathComponent,
+        ])
+    }
+
+    @Test
+    func `codex session files with identical metadata sort by path`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let root = env.root.appendingPathComponent("sort-path-tiebreak", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+
+        let modifiedAt = Date(timeIntervalSince1970: 1_800_000_500)
+        var urls: [URL] = []
+        for name in ["z-session.jsonl", "m-session.jsonl", "a-session.jsonl"] {
+            let url = root.appendingPathComponent(name)
+            try Data(repeating: 0x41, count: 16).write(to: url)
+            try FileManager.default.setAttributes([.modificationDate: modifiedAt], ofItemAtPath: url.path)
+            urls.append(url)
+        }
+
+        let sorted = CostUsageScanner.sortedCodexSessionFilesNewestFirst(urls)
+
+        #expect(sorted.map(\.lastPathComponent) == ["a-session.jsonl", "m-session.jsonl", "z-session.jsonl"])
+    }
 }
 
 struct CostUsageTestEnvironment {

@@ -3602,17 +3602,22 @@ enum CostUsageScanner {
     }
 
     static func sortedCodexSessionFilesNewestFirst(_ files: [URL]) -> [URL] {
-        files.sorted { lhs, rhs in
-            let left = Self.codexFileMetadata(fileURL: lhs)
-            let right = Self.codexFileMetadata(fileURL: rhs)
-            if left.mtimeUnixMs != right.mtimeUnixMs {
-                return left.mtimeUnixMs > right.mtimeUnixMs
-            }
-            if left.size != right.size {
-                return left.size < right.size
-            }
-            return lhs.path < rhs.path
+        // `codexFileMetadata` issues an `fstatat` syscall. Calling it from inside the comparator cost
+        // 2 syscalls per comparison — O(n log n) stats instead of O(n) — and let an actively-written
+        // session file report different mtimes across comparisons, which breaks the strict weak
+        // ordering `sorted(by:)` requires. Stat once up front, then sort on the snapshotted keys.
+        let decorated = files.map { url -> (metadata: CodexFileMetadata, url: URL) in
+            (Self.codexFileMetadata(fileURL: url), url)
         }
+        return decorated.sorted { lhs, rhs in
+            if lhs.metadata.mtimeUnixMs != rhs.metadata.mtimeUnixMs {
+                return lhs.metadata.mtimeUnixMs > rhs.metadata.mtimeUnixMs
+            }
+            if lhs.metadata.size != rhs.metadata.size {
+                return lhs.metadata.size < rhs.metadata.size
+            }
+            return lhs.url.path < rhs.url.path
+        }.map(\.url)
     }
 }
 

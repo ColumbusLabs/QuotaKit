@@ -118,6 +118,8 @@ public enum ProviderDescriptorRegistry {
     private final class Store: @unchecked Sendable {
         var ordered: [ProviderDescriptor] = []
         var byID: [UsageProvider: ProviderDescriptor] = [:]
+        /// Memoized `metadata` projection. Invalidated by `register`.
+        var metadataByID: [UsageProvider: ProviderMetadata]?
     }
 
     private static let lock = NSLock()
@@ -211,6 +213,7 @@ public enum ProviderDescriptorRegistry {
             self.store.ordered.append(descriptor)
         }
         self.store.byID[descriptor.id] = descriptor
+        self.store.metadataByID = nil
         return descriptor
     }
 
@@ -221,8 +224,18 @@ public enum ProviderDescriptorRegistry {
         return self.store.ordered
     }
 
+    /// Memoized so callers that only need one provider's metadata don't rebuild a dictionary over
+    /// every registered descriptor. Several of these calls sit on menu/chart render paths.
     public static var metadata: [UsageProvider: ProviderMetadata] {
-        Dictionary(uniqueKeysWithValues: self.all.map { ($0.id, $0.metadata) })
+        self.ensureBootstrapped()
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        if let cached = self.store.metadataByID {
+            return cached
+        }
+        let built = Dictionary(uniqueKeysWithValues: self.store.ordered.map { ($0.id, $0.metadata) })
+        self.store.metadataByID = built
+        return built
     }
 
     public static func descriptor(for id: UsageProvider) -> ProviderDescriptor {

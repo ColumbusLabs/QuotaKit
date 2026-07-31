@@ -1063,11 +1063,35 @@ enum CostUsageBucketInterval {
     }
 }
 
+/// Caches the gregorian calendars handed out by `CostUsageLocalDay`.
+///
+/// `Calendar(identifier:)` bridges into ICU on every construction, which is far too expensive for
+/// the per-record scanner hot path (`dayKeyFromTimestamp` runs once per JSONL line). Time zones
+/// change rarely, so a single-entry cache keyed on the requested zone hits essentially always.
+private final class CostUsageGregorianCalendarCache: @unchecked Sendable {
+    static let shared = CostUsageGregorianCalendarCache()
+
+    private let lock = NSLock()
+    private var cachedTimeZone: TimeZone?
+    private var cachedCalendar: Calendar?
+
+    func calendar(timeZone: TimeZone) -> Calendar {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        if let cached = self.cachedCalendar, self.cachedTimeZone == timeZone {
+            return cached
+        }
+        var gregorian = Calendar(identifier: .gregorian)
+        gregorian.timeZone = timeZone
+        self.cachedTimeZone = timeZone
+        self.cachedCalendar = gregorian
+        return gregorian
+    }
+}
+
 enum CostUsageLocalDay {
     static func gregorianCalendar(matching calendar: Calendar = .current) -> Calendar {
-        var gregorian = Calendar(identifier: .gregorian)
-        gregorian.timeZone = calendar.timeZone
-        return gregorian
+        CostUsageGregorianCalendarCache.shared.calendar(timeZone: calendar.timeZone)
     }
 
     static func key(from date: Date, calendar: Calendar = .current) -> String {

@@ -15,6 +15,27 @@ private final class CostUsageISO8601FormatterBox: @unchecked Sendable {
     }()
 }
 
+/// Single-entry cache for the fixed-offset zones `dayKeyFromTimestamp` builds per record.
+private final class CostUsageFixedOffsetTimeZoneCache: @unchecked Sendable {
+    static let shared = CostUsageFixedOffsetTimeZoneCache()
+
+    private let lock = NSLock()
+    private var cachedOffset: Int?
+    private var cachedTimeZone: TimeZone?
+
+    func timeZone(secondsFromGMT offset: Int) -> TimeZone? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        if self.cachedOffset == offset {
+            return self.cachedTimeZone
+        }
+        let resolved = TimeZone(secondsFromGMT: offset)
+        self.cachedOffset = offset
+        self.cachedTimeZone = resolved
+        return resolved
+    }
+}
+
 private enum CostUsageTimestampParser {
     static let box = CostUsageISO8601FormatterBox()
 
@@ -92,8 +113,11 @@ extension CostUsageScanner {
         }
 
         var comps = DateComponents()
-        comps.calendar = Calendar(identifier: .gregorian)
-        comps.timeZone = TimeZone(secondsFromGMT: offsetSeconds)
+        // Both of these were constructed fresh on every parsed record before; each one bridges into
+        // ICU/CFTimeZone, which dominated this loop. Timestamps in one corpus overwhelmingly share a
+        // single UTC offset, so single-entry caches hit almost always.
+        comps.calendar = CostUsageDayRange.localGregorianCalendar()
+        comps.timeZone = CostUsageFixedOffsetTimeZoneCache.shared.timeZone(secondsFromGMT: offsetSeconds)
         comps.year = year
         comps.month = month
         comps.day = day
