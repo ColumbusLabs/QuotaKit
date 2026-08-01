@@ -23,6 +23,11 @@ private final class MergedSwitcherWarmupRunLoopOperation {
 
 @MainActor
 enum MergedSwitcherWarmupRunLoopScheduler {
+    static let modes: [CFRunLoopMode] = [
+        CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString),
+        .defaultMode,
+    ]
+
     static func schedule(
         after delay: TimeInterval,
         _ operation: @escaping @MainActor () -> Void) -> Task<Void, Never>
@@ -33,14 +38,22 @@ enum MergedSwitcherWarmupRunLoopScheduler {
         let cancellationToken = Task { @MainActor in }
         pending.cancellationToken = cancellationToken
 
-        let timer = Timer(timeInterval: delay, repeats: false) { _ in
+        let timer = CFRunLoopTimerCreateWithHandler(
+            kCFAllocatorDefault,
+            CFAbsoluteTimeGetCurrent() + max(delay, 0),
+            0,
+            0,
+            0)
+        { _ in
             MainActor.assumeIsolated {
                 pending.run()
             }
         }
-        RunLoop.main.add(timer, forMode: .eventTracking)
-        RunLoop.main.add(timer, forMode: .default)
-        CFRunLoopWakeUp(CFRunLoopGetMain())
+        let mainRunLoop = CFRunLoopGetMain()
+        for mode in Self.modes {
+            CFRunLoopAddTimer(mainRunLoop, timer, mode)
+        }
+        CFRunLoopWakeUp(mainRunLoop)
         return cancellationToken
     }
 }

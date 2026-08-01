@@ -83,27 +83,24 @@ final class StatusMenuSwitcherWarmupTests: XCTestCase {
 
     func test_warmupSchedulerRunsDuringMenuTrackingAndHonorsCancellation() {
         var runCount = 0
+        let ran = self.expectation(description: "scheduled warmup runs")
         let scheduled = MergedSwitcherWarmupRunLoopScheduler.schedule(after: 0) {
             runCount += 1
+            ran.fulfill()
         }
-
-        CFRunLoopRunInMode(
-            CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString),
-            0.1,
-            true)
+        self.wait(for: [ran], timeout: 1)
         XCTAssertEqual(runCount, 1)
+        XCTAssertTrue(MergedSwitcherWarmupRunLoopScheduler.modes.contains(
+            CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString)))
 
-        CFRunLoopRunInMode(.defaultMode, 0.1, true)
-        XCTAssertEqual(runCount, 1)
-
+        let didRunCancelled = self.expectation(description: "cancelled warmup does not run")
+        didRunCancelled.isInverted = true
         let cancelled = MergedSwitcherWarmupRunLoopScheduler.schedule(after: 0) {
             runCount += 1
+            didRunCancelled.fulfill()
         }
         cancelled.cancel()
-        CFRunLoopRunInMode(
-            CFRunLoopMode(RunLoop.Mode.eventTracking.rawValue as CFString),
-            0.1,
-            true)
+        self.wait(for: [didRunCancelled], timeout: 0.1)
         XCTAssertEqual(runCount, 1)
         _ = scheduled
     }
