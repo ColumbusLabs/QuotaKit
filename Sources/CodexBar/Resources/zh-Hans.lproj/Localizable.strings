@@ -1326,3 +1326,7 @@
 "Cost today unavailable" = "今日费用: 不可用";
 "30-day cost unavailable" = "30 天费用: 不可用";
 "Resets" = "重置";
+"Most usable account" = "可用额度最多的账户";
+"%d more accounts ready" = "另有 %d 个账户可用";
+"Shows the hidden accounts" = "显示隐藏的账户";
+"%@ remaining" = "剩余 %@";

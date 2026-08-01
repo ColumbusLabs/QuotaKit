@@ -1352,3 +1352,7 @@
 "Cost today unavailable" = "Расход сегодня: Недоступно";
 "30-day cost unavailable" = "Расход за 30 дней: Недоступно";
 "Resets" = "Сбросы";
+"Most usable account" = "Самая доступная учётная запись";
+"%d more accounts ready" = "Ещё %d учётных записей готовы";
+"Shows the hidden accounts" = "Показывает скрытые учётные записи";
+"%@ remaining" = "Осталось %@";

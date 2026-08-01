@@ -1352,3 +1352,7 @@
 "Cost today unavailable" = "Bugünkü maliyet: Kullanılamıyor";
 "30-day cost unavailable" = "30 günlük maliyet: Kullanılamıyor";
 "Resets" = "Sıfırlamalar";
+"Most usable account" = "En kullanılabilir hesap";
+"%d more accounts ready" = "%d hesap daha hazır";
+"Shows the hidden accounts" = "Gizli hesapları gösterir";
+"%@ remaining" = "%@ kaldı";

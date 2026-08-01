@@ -1318,3 +1318,7 @@
 "Cost today unavailable" = "오늘 비용: 사용할 수 없음";
 "30-day cost unavailable" = "30일 비용: 사용할 수 없음";
 "Resets" = "재설정";
+"Most usable account" = "가장 사용하기 좋은 계정";
+"%d more accounts ready" = "계정 %d개 더 준비됨";
+"Shows the hidden accounts" = "숨겨진 계정을 표시합니다";
+"%@ remaining" = "%@ 남음";

@@ -1353,3 +1353,7 @@
 "Cost today unavailable" = "Cost d’avui: No disponible";
 "30-day cost unavailable" = "Cost de 30 dies: No disponible";
 "Resets" = "Reinicis";
+"Most usable account" = "Compte amb més disponibilitat";
+"%d more accounts ready" = "%d comptes més a punt";
+"Shows the hidden accounts" = "Mostra els comptes ocults";
+"%@ remaining" = "Queda %@";

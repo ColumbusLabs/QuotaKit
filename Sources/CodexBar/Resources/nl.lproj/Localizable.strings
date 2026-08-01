@@ -1350,3 +1350,7 @@
 "Cost today unavailable" = "Kosten vandaag: Niet beschikbaar";
 "30-day cost unavailable" = "Kosten 30 dagen: Niet beschikbaar";
 "Resets" = "Resets";
+"Most usable account" = "Account met de meeste beschikbaarheid";
+"%d more accounts ready" = "%d extra accounts gereed";
+"Shows the hidden accounts" = "Toont de verborgen accounts";
+"%@ remaining" = "%@ resterend";

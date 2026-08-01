@@ -1355,3 +1355,7 @@
 "Cost today unavailable" = "Cost today unavailable";
 "30-day cost unavailable" = "30-day cost unavailable";
 "Resets" = "Resets";
+"Most usable account" = "Most usable account";
+"%d more accounts ready" = "%d more accounts ready";
+"Shows the hidden accounts" = "Shows the hidden accounts";
+"%@ remaining" = "%@ remaining";

@@ -1354,3 +1354,7 @@
 "Cost today unavailable" = "تكلفة اليوم: غير متوفر";
 "30-day cost unavailable" = "تكلفة 30 يوماً: غير متوفر";
 "Resets" = "إعادات الضبط";
+"Most usable account" = "الحساب الأكثر قابلية للاستخدام";
+"%d more accounts ready" = "%d حسابات إضافية جاهزة";
+"Shows the hidden accounts" = "يعرض الحسابات المخفية";
+"%@ remaining" = "متبقٍ %@";

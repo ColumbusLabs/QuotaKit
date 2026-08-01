@@ -1349,3 +1349,7 @@
 "Cost today unavailable" = "Kostnad idag: Inte tillgänglig";
 "30-day cost unavailable" = "Kostnad 30 dagar: Inte tillgänglig";
 "Resets" = "Återställningar";
+"Most usable account" = "Kontot med mest tillgängligt utrymme";
+"%d more accounts ready" = "%d konton till är redo";
+"Shows the hidden accounts" = "Visar de dolda kontona";
+"%@ remaining" = "%@ kvar";
