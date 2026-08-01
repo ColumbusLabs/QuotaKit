@@ -143,10 +143,6 @@ codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
   --entitlements "$APP_ENTITLEMENTS" \
   "$APP_BUNDLE"
 
-# Catch profile/certificate and entitlement mismatches before spending time on
-# two notarization submissions. This is also repeated after stapling below.
-verify_distribution_policy "$APP_BUNDLE"
-
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$NOTARIZATION_ZIP"
 
