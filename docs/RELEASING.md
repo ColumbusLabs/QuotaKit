@@ -71,6 +71,31 @@ QuotaKit's first public Mac release path is GitHub Releases plus Sparkle.
 There is no Homebrew release or public CLI artifact lane in this repository
 unless Columbus Labs intentionally adds one later.
 
+## iOS / TestFlight
+
+Run the canonical direct-Xcode lane:
+
+```bash
+./Scripts/ios_testflight_xcode.sh
+```
+
+The script loads the App Store Connect API key through
+`Scripts/load-release-secrets.sh`, verifies that the login Keychain is unlocked,
+generates the Xcode project, archives with the QuotaKit-specific App Store
+profiles, and uploads to App Store Connect. The app, push extension, and widget
+profiles are pinned in `CodexBarMobile/project.yml` so Release builds use the
+current Columbus Labs Distribution certificate while Debug builds remain
+unchanged.
+
+The profiles named `QuotaKit iOS App Store 2026-07-31`,
+`QuotaKit Push App Store 2026-07-31`, and
+`QuotaKit Widgets App Store 2026-07-31` expire on July 29, 2027. Before that
+date, generate replacements against the then-current Distribution certificate,
+update the three names in `CodexBarMobile/project.yml` and
+`Scripts/ios_testflight_xcode.sh`, regenerate with XcodeGen, and prove the lane
+with an archive/upload. Do not revoke a working certificate merely to renew a
+profile.
+
 ## Checklist (quick)
 - [ ] Confirm `.mac-release.env` points to `ColumbusLabs/QuotaKit`, `QuotaKit`, and `https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml`.
 - [ ] Update versions (`version.env`, CHANGELOG, About text) — changelog top section must be finalized; release script pulls notes from it automatically.

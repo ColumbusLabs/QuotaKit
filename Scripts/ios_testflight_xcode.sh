@@ -4,8 +4,8 @@
 # direct Xcode lane.
 #
 # This is the canonical iOS upload lane. It generates the project, archives for
-# generic iOS with automatic provisioning, verifies the widget extension is
-# embedded, then exports with destination=upload.
+# generic iOS with App Store distribution profiles, verifies the widget
+# extension is embedded, then exports with destination=upload.
 
 set -euo pipefail
 
@@ -34,6 +34,8 @@ Environment:
   IOS_TEAM_ID, QUOTAKIT_TEAM_ID, APP_TEAM_ID, or DEVELOPMENT_TEAM may provide
   the team ID. If omitted, the script tries to infer it from an installed
   "Apple Distribution: Columbus Labs LLC (...)" signing identity.
+  APP_STORE_CONNECT_API_KEY_FILE, APP_STORE_CONNECT_KEY_ID, and
+  APP_STORE_CONNECT_ISSUER_ID enable non-interactive provisioning and upload.
 USAGE
 }
 
@@ -76,6 +78,30 @@ if [[ -f "$ROOT/Scripts/load-release-secrets.sh" ]]; then
   source "$ROOT/Scripts/load-release-secrets.sh"
 fi
 
+ASC_AUTH_ARGS=()
+asc_auth_values=0
+[[ -n "${APP_STORE_CONNECT_API_KEY_FILE:-}" ]] && ((asc_auth_values += 1))
+[[ -n "${APP_STORE_CONNECT_KEY_ID:-}" ]] && ((asc_auth_values += 1))
+[[ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ]] && ((asc_auth_values += 1))
+
+if [[ "$asc_auth_values" -ne 0 && "$asc_auth_values" -ne 3 ]]; then
+  echo "ERROR: App Store Connect authentication requires all three release-secret values." >&2
+  echo "       Set APP_STORE_CONNECT_API_KEY_FILE, APP_STORE_CONNECT_KEY_ID, and APP_STORE_CONNECT_ISSUER_ID." >&2
+  exit 2
+fi
+
+if [[ "$asc_auth_values" -eq 3 ]]; then
+  if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
+    echo "ERROR: App Store Connect API key file was not found." >&2
+    exit 2
+  fi
+  ASC_AUTH_ARGS=(
+    -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_FILE"
+    -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"
+    -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+  )
+fi
+
 TEAM_ID="${TEAM_ID:-${IOS_TEAM_ID:-${QUOTAKIT_TEAM_ID:-${APP_TEAM_ID:-${DEVELOPMENT_TEAM:-}}}}}"
 
 if [[ -z "$TEAM_ID" ]]; then
@@ -88,6 +114,22 @@ if [[ -z "$TEAM_ID" ]]; then
   echo "ERROR: Unable to determine Apple Developer team ID." >&2
   echo "       Pass --team-id TEAM or set IOS_TEAM_ID/QUOTAKIT_TEAM_ID." >&2
   exit 2
+fi
+
+if [[ "$DO_ARCHIVE" -eq 1 ]]; then
+  LOGIN_KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
+  if [[ -f "$LOGIN_KEYCHAIN" ]] && ! security show-keychain-info "$LOGIN_KEYCHAIN" >/dev/null 2>&1; then
+    echo "ERROR: The login Keychain is locked; Xcode cannot use the signing private key." >&2
+    echo "       Run: security unlock-keychain '$LOGIN_KEYCHAIN'" >&2
+    exit 2
+  fi
+
+  signing_identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
+  if [[ "$signing_identities" != *"Apple Distribution: Columbus Labs LLC ($TEAM_ID)"* ]]; then
+    echo "ERROR: The Columbus Labs Apple Distribution signing identity is unavailable." >&2
+    echo "       Open Xcode > Settings > Accounts > Manage Certificates and verify it is installed." >&2
+    exit 2
+  fi
 fi
 
 if [[ "$DO_ARCHIVE" -eq 0 && -z "$ARCHIVE_PATH" ]]; then
@@ -122,9 +164,20 @@ cat > "$OPTIONS_PLIST" <<PLIST
   <key>destination</key>
   <string>upload</string>
   <key>signingStyle</key>
-  <string>automatic</string>
+  <string>manual</string>
+  <key>signingCertificate</key>
+  <string>Apple Distribution</string>
   <key>teamID</key>
   <string>${TEAM_ID}</string>
+  <key>provisioningProfiles</key>
+  <dict>
+    <key>com.columbuslabs.quotakit.ios</key>
+    <string>QuotaKit iOS App Store 2026-07-31</string>
+    <key>com.columbuslabs.quotakit.ios.pushextension</key>
+    <string>QuotaKit Push App Store 2026-07-31</string>
+    <key>com.columbuslabs.quotakit.ios.widgets</key>
+    <string>QuotaKit Widgets App Store 2026-07-31</string>
+  </dict>
   <key>uploadSymbols</key>
   <true/>
   <key>stripSwiftSymbols</key>
@@ -165,6 +218,7 @@ MARKETING=$(awk '/MARKETING_VERSION:/ {gsub(/"/, "", $2); print $2; exit}' Codex
 echo "==> QuotaKit iOS TestFlight lane"
 echo "    Version: ${MARKETING:-unknown} (${BUILD:-unknown})"
 echo "    Team ID: $TEAM_ID"
+echo "    App Store Connect auth: $([[ ${#ASC_AUTH_ARGS[@]} -gt 0 ]] && echo 'API key' || echo 'Xcode account')"
 echo "    Archive: $ARCHIVE_PATH"
 echo "    Run logs: $RUN_DIR"
 
@@ -189,8 +243,8 @@ if [[ "$DO_ARCHIVE" -eq 1 ]]; then
     -destination "generic/platform=iOS" \
     -archivePath "$ARCHIVE_PATH" \
     -allowProvisioningUpdates \
+    "${ASC_AUTH_ARGS[@]}" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    CODE_SIGN_STYLE=Automatic \
     2>&1 | tee "$ARCHIVE_LOG"
   status=${PIPESTATUS[0]}
   set -e
@@ -233,6 +287,7 @@ xcodebuild -exportArchive \
   -exportPath "$EXPORT_PATH" \
   -exportOptionsPlist "$OPTIONS_PLIST" \
   -allowProvisioningUpdates \
+  "${ASC_AUTH_ARGS[@]}" \
   2>&1 | tee "$EXPORT_LOG"
 status=${PIPESTATUS[0]}
 set -e
