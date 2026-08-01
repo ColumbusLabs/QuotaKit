@@ -55,7 +55,12 @@ struct CWLEquivalenceTests {
                 dayKey: self.dayKey(daysAgo: entry.daysAgo),
                 costUSD: entry.cost,
                 totalTokens: entry.tokens,
-                modelBreakdowns: [SyncCostBreakdown(label: modelLabel, costUSD: entry.cost)],
+                modelBreakdowns: [
+                    SyncCostBreakdown(
+                        label: modelLabel,
+                        costUSD: entry.cost,
+                        totalTokens: entry.tokens),
+                ],
                 serviceBreakdowns: [],
                 isEstimated: false)
         }
@@ -149,6 +154,12 @@ struct CWLEquivalenceTests {
         for (label, amount) in blobModels {
             #expect(abs(amount - (ledgerModels[label] ?? -1)) < Self.tolerance, "model \(label) mismatch")
         }
+
+        let blobModelTokens = Dictionary(
+            uniqueKeysWithValues: blob.modelRows.map { ($0.label, $0.totalTokens) })
+        let ledgerModelTokens = Dictionary(
+            uniqueKeysWithValues: ledger.modelRows.map { ($0.label, $0.totalTokens) })
+        #expect(blobModelTokens == ledgerModelTokens)
     }
 
     @Test

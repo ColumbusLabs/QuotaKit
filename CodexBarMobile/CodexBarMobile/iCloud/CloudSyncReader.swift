@@ -493,16 +493,34 @@ final class CloudSyncReader: @unchecked Sendable {
                 if var existing = dailyByKey[point.dayKey] {
                     existing.costUSD += point.costUSD
                     existing.totalTokens += point.totalTokens
-                    // Combine model breakdowns (merge by label, sum costs)
-                    var breakdownByLabel: [String: Double] = [:]
+                    // Combine model breakdowns (merge by label, sum costs and
+                    // the optional model-level token totals).
+                    var breakdownByLabel: [String: (cost: Double, tokens: Int, hasTokens: Bool)] = [:]
                     for b in existing.modelBreakdowns {
-                        breakdownByLabel[b.label, default: 0] += b.costUSD
+                        var aggregate = breakdownByLabel[b.label] ?? (0, 0, false)
+                        aggregate.cost += b.costUSD
+                        if let tokens = b.modelTokens {
+                            aggregate.tokens += tokens
+                            aggregate.hasTokens = true
+                        }
+                        breakdownByLabel[b.label] = aggregate
                     }
                     for b in point.modelBreakdowns {
-                        breakdownByLabel[b.label, default: 0] += b.costUSD
+                        var aggregate = breakdownByLabel[b.label] ?? (0, 0, false)
+                        aggregate.cost += b.costUSD
+                        if let tokens = b.modelTokens {
+                            aggregate.tokens += tokens
+                            aggregate.hasTokens = true
+                        }
+                        breakdownByLabel[b.label] = aggregate
                     }
                     existing.modelBreakdowns = breakdownByLabel
-                        .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }
+                        .map {
+                            SyncCostBreakdown(
+                                label: $0.key,
+                                costUSD: $0.value.cost,
+                                totalTokens: $0.value.hasTokens ? $0.value.tokens : nil)
+                        }
                         .sorted { $0.costUSD > $1.costUSD }
                     dailyByKey[point.dayKey] = existing
                 } else {

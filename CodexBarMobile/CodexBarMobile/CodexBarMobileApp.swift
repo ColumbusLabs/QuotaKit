@@ -21,6 +21,7 @@ struct CodexBarMobileApp: App {
             let defaults = UserDefaults.standard
             defaults.removeObject(forKey: MobileSettingsKeys.usageCostChartStyle)
             defaults.removeObject(forKey: MobileSettingsKeys.dashboardCostChartStyle)
+            defaults.removeObject(forKey: MobileSettingsKeys.dashboardModelMixMetric)
             defaults.removeObject(forKey: MobileSettingsKeys.hidePersonalInfo)
             defaults.removeObject(forKey: MobileSettingsKeys.openCostByDefault)
             defaults.removeObject(forKey: MobileSettingsKeys.usagePercentDisplayMode)

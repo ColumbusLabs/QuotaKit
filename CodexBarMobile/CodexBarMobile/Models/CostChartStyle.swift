@@ -17,3 +17,21 @@ enum CostChartStyle: String, CaseIterable, Identifiable {
         }
     }
 }
+
+enum CostDashboardModelMetric: String, CaseIterable, Identifiable {
+    case cost
+    case tokens
+
+    var id: String {
+        self.rawValue
+    }
+
+    var title: String {
+        switch self {
+        case .cost:
+            String(localized: "Cost")
+        case .tokens:
+            String(localized: "Tokens")
+        }
+    }
+}

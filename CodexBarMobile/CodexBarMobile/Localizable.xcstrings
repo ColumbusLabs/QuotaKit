@@ -4308,6 +4308,34 @@
         }
       }
     },
+    "Model Mix in the Cost dashboard can now switch between per-model cost and token usage.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Model Mix in the Cost dashboard can now switch between per-model cost and token usage."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コストダッシュボードのモデル構成で、モデル別のコスト表示とトークン使用量表示を切り替えられるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "费用仪表板的模型构成现可在按模型显示费用和 Token 使用量之间切换。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "費用儀表板的模型構成現在可在按模型顯示費用和 Token 使用量之間切換。"
+          }
+        }
+      }
+    },
     "Monitor your AI coding tool usage on iPhone.\nRequires the QuotaKit Mac app.": {
       "extractionState": "manual",
       "localizations": {

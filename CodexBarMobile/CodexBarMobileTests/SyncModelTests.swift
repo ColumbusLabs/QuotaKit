@@ -577,6 +577,48 @@ struct SyncModelTests {
         #expect(insights.hasDisplayData == true)
     }
 
+    @Test
+    func `Cost dashboard model mix retains and derives model token totals`() {
+        let daily = SyncDailyPoint(
+            dayKey: "2026-07-31",
+            costUSD: 6.0,
+            totalTokens: 1200,
+            modelBreakdowns: [
+                SyncCostBreakdown(label: "Sol", costUSD: 1.0, totalTokens: 600),
+                SyncCostBreakdown(
+                    label: "Terra",
+                    costUSD: 2.0,
+                    standardTokens: 200,
+                    priorityTokens: 100),
+                SyncCostBreakdown(label: "Luna", costUSD: 3.0),
+            ])
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "Pro",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(),
+            costSummary: SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: nil,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: nil,
+                daily: [daily]))
+
+        let insights = CostDashboardInsights(snapshot: SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: Date(), deviceName: "Test Mac"))
+        let modelTokens = Dictionary(
+            uniqueKeysWithValues: insights.modelRows.map { ($0.label, $0.totalTokens) })
+
+        #expect(modelTokens["Sol"] == 600)
+        #expect(modelTokens["Terra"] == 300)
+        #expect(insights.modelRows.first(where: { $0.label == "Luna" })?.totalTokens == nil)
+    }
+
     // MARK: - Future-field resilience (Build 78 · Fix C)
 
     //

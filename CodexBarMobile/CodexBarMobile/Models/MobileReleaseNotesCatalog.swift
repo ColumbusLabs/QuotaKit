@@ -39,6 +39,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Codex banked resets now show the available count and exact expiration time for every reset detail synced from your Mac."),
                         String(
                             localized: "Monthly utilization history synced from your Mac now uses the app's selected language."),
+                        String(
+                            localized: "Model Mix in the Cost dashboard can now switch between per-model cost and token usage."),
                     ]),
             ]),
         ReleaseNotesVersion(

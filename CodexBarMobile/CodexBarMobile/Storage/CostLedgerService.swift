@@ -261,10 +261,16 @@ enum CostLedgerService {
         // Per-day + per-model aggregate ACROSS all providers/accounts (these
         // intentionally collapse account distinction — they're cross-cutting).
         var perDay: [String: DayAccumulator] = [:]
-        // Per-model cost + Codex standard/fast split (upstream #1070), summed
-        // across the window so the rebuilt modelMix carries the split through
-        // to the dashboard's Model Mix rows — at parity with the blob path.
-        var perModel: [String: (cost: Double, std: Double, fast: Double, hasSplit: Bool)] = [:]
+        // Per-model cost, token total, and Codex standard/fast split, summed
+        // across the window so the rebuilt Model Mix is at parity with the
+        // blob path for both Cost and Tokens modes.
+        var perModel: [String: (
+            cost: Double,
+            tokens: Int,
+            hasTokens: Bool,
+            std: Double,
+            fast: Double,
+            hasSplit: Bool)] = [:]
         var perService: [String: Double] = [:]
 
         for survivor in survivors.values {
@@ -280,8 +286,12 @@ enum CostLedgerService {
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
             {
                 for breakdown in decoded where breakdown.costUSD > 0 {
-                    var entry = perModel[breakdown.label] ?? (0, 0, 0, false)
+                    var entry = perModel[breakdown.label] ?? (0, 0, false, 0, 0, false)
                     entry.cost += breakdown.costUSD
+                    if let tokens = breakdown.modelTokens {
+                        entry.tokens += tokens
+                        entry.hasTokens = true
+                    }
                     if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
                         entry.hasSplit = true
                         entry.std += breakdown.standardCostUSD ?? 0
@@ -321,6 +331,7 @@ enum CostLedgerService {
                 SyncCostBreakdown(
                     label: label,
                     costUSD: entry.cost,
+                    totalTokens: entry.hasTokens ? entry.tokens : nil,
                     standardCostUSD: entry.hasSplit ? entry.std : nil,
                     priorityCostUSD: entry.hasSplit ? entry.fast : nil)
             }

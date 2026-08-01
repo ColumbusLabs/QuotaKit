@@ -4,6 +4,9 @@ import Foundation
 enum MobileSettingsKeys {
     static let usageCostChartStyle = "usageCostChartStyle"
     static let dashboardCostChartStyle = "dashboardCostChartStyle"
+    /// Cost dashboard Model Mix metric. Defaults to cost to preserve the
+    /// existing dashboard until a user explicitly switches to token usage.
+    static let dashboardModelMixMetric = "dashboardModelMixMetric"
     static let hidePersonalInfo = "hidePersonalInfo"
     static let openCostByDefault = "openCostByDefault"
     static let usagePercentDisplayMode = "usagePercentDisplayMode"

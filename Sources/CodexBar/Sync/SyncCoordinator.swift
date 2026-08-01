@@ -1565,6 +1565,7 @@ final class SyncCoordinator {
                 return SyncCostBreakdown(
                     label: breakdown.modelName,
                     costUSD: cost,
+                    totalTokens: breakdown.totalTokens,
                     isEstimated: estimated ? true : nil,
                     // Carry the Codex standard/fast (priority) split through to
                     // iOS (#1070). nil for providers/builds without the split.

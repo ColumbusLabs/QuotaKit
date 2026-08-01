@@ -93,6 +93,11 @@ public struct SyncRateWindow: Codable, Sendable, Equatable {
 public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     public let label: String
     public let costUSD: Double
+    /// Total tokens attributed to this model for the day. Optional so iPhone
+    /// builds remain compatible with payloads from older Mac releases that
+    /// only synced per-model cost. When unavailable, `modelTokens` can still
+    /// derive a total from the Codex standard/priority fields below.
+    public let totalTokens: Int?
     /// `true` when the cost was computed from a fallback pricing row
     /// (model name not in the local pricing table). `nil` for payloads
     /// from Mac builds before 0.23 — iOS treats nil as `false` (not
@@ -116,6 +121,7 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     public init(
         label: String,
         costUSD: Double,
+        totalTokens: Int? = nil,
         isEstimated: Bool? = nil,
         standardCostUSD: Double? = nil,
         priorityCostUSD: Double? = nil,
@@ -124,11 +130,21 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     {
         self.label = label
         self.costUSD = costUSD
+        self.totalTokens = totalTokens
         self.isEstimated = isEstimated
         self.standardCostUSD = standardCostUSD
         self.priorityCostUSD = priorityCostUSD
         self.standardTokens = standardTokens
         self.priorityTokens = priorityTokens
+    }
+
+    /// The model-level token total available to companion surfaces. New Mac
+    /// payloads send `totalTokens`; Mac 0.29+ Codex payloads are recovered
+    /// from their already-synced standard/priority counts.
+    public var modelTokens: Int? {
+        if let totalTokens { return totalTokens }
+        guard self.standardTokens != nil || self.priorityTokens != nil else { return nil }
+        return (self.standardTokens ?? 0) + (self.priorityTokens ?? 0)
     }
 }
 

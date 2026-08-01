@@ -5,6 +5,14 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.3 (174)] — 2026-07-31 — Model token usage
+
+### Added
+
+- The Cost dashboard's Model Mix now has a Cost / Tokens switch. It ranks
+  models by the selected metric and uses the model-level token totals synced
+  from QuotaKit Mac; models without attributable token totals are not guessed.
+
 ## [1.11.3 (172)] — 2026-07-17 — Codex banked reset visibility
 
 ### Added

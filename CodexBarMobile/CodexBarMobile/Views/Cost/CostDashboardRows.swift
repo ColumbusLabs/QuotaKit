@@ -39,6 +39,7 @@ struct CostBreakdownRowView: View {
     @Environment(\.quotaKitTheme) private var theme
     let row: CostBreakdownRow
     let total: Double
+    var metric: CostDashboardModelMetric = .cost
     var rank: Int?
 
     var body: some View {
@@ -77,12 +78,12 @@ struct CostBreakdownRowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     CostBreakdownMetricColumn(
-                        amountText: CostFormatting.usd(self.row.amountUSD),
-                        shareText: Self.shareText(self.row.amountUSD, total: self.total))
+                        amountText: self.amountText,
+                        shareText: Self.shareText(self.metricValue, total: self.total))
                 }
 
                 UsageProgressBarView(
-                    progressFraction: Self.ratio(self.row.amountUSD, total: self.total),
+                    progressFraction: Self.ratio(self.metricValue, total: self.total),
                     tintColor: self.row.color,
                     trackColor: self.theme.border,
                     markerPercents: [],
@@ -90,6 +91,20 @@ struct CostBreakdownRowView: View {
                     paceColor: .clear)
             }
             .padding(14)
+        }
+    }
+
+    private var metricValue: Double {
+        switch self.metric {
+        case .cost: self.row.amountUSD
+        case .tokens: Double(self.row.totalTokens ?? 0)
+        }
+    }
+
+    private var amountText: String {
+        switch self.metric {
+        case .cost: CostFormatting.usd(self.row.amountUSD)
+        case .tokens: CostFormatting.tokens(self.row.totalTokens)
         }
     }
 
@@ -113,6 +128,7 @@ struct OthersBreakdownRowView: View {
     let count: Int
     let amountUSD: Double
     let total: Double
+    var metric: CostDashboardModelMetric = .cost
 
     var body: some View {
         QKSurfaceCard(elevation: .surface, cornerRadius: 16, dashedBorder: true) {
@@ -134,7 +150,7 @@ struct OthersBreakdownRowView: View {
                     .frame(maxWidth: .infinity, alignment: .leading)
 
                     CostBreakdownMetricColumn(
-                        amountText: CostFormatting.usd(self.amountUSD),
+                        amountText: self.amountText,
                         shareText: CostBreakdownRowView.shareText(self.amountUSD, total: self.total))
 
                     Image(systemName: "chevron.right")
@@ -153,6 +169,13 @@ struct OthersBreakdownRowView: View {
             .padding(14)
         }
     }
+
+    private var amountText: String {
+        switch self.metric {
+        case .cost: CostFormatting.usd(self.amountUSD)
+        case .tokens: CostFormatting.tokens(Int(self.amountUSD))
+        }
+    }
 }
 
 /// Drill-down view shown when the user taps an Others row on the Cost
@@ -163,12 +186,13 @@ struct FullBreakdownListView: View {
     let title: LocalizedStringResource
     let rows: [CostBreakdownRow]
     let total: Double
+    var metric: CostDashboardModelMetric = .cost
 
     var body: some View {
         ScrollView {
             VStack(spacing: 12) {
                 ForEach(self.rows) { row in
-                    CostBreakdownRowView(row: row, total: self.total)
+                    CostBreakdownRowView(row: row, total: self.total, metric: self.metric)
                 }
             }
             .padding()

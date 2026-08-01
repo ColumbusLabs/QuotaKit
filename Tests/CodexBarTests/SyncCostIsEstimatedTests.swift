@@ -126,6 +126,7 @@ struct SyncCostIsEstimatedTests {
         let decoded = try JSONDecoder().decode(SyncCostBreakdown.self, from: json)
         #expect(decoded.standardCostUSD == nil)
         #expect(decoded.priorityCostUSD == nil)
+        #expect(decoded.totalTokens == nil)
         #expect(decoded.standardTokens == nil)
         #expect(decoded.priorityTokens == nil)
     }
@@ -135,6 +136,7 @@ struct SyncCostIsEstimatedTests {
         let original = SyncCostBreakdown(
             label: "gpt-5.5",
             costUSD: 1.0,
+            totalTokens: 1000,
             isEstimated: nil,
             standardCostUSD: 0.8,
             priorityCostUSD: 0.2,
@@ -145,6 +147,8 @@ struct SyncCostIsEstimatedTests {
         #expect(decoded == original)
         #expect(decoded.standardCostUSD == 0.8)
         #expect(decoded.priorityCostUSD == 0.2)
+        #expect(decoded.totalTokens == 1000)
+        #expect(decoded.modelTokens == 1000)
         #expect(decoded.standardTokens == 800)
         #expect(decoded.priorityTokens == 200)
     }
@@ -186,6 +190,7 @@ struct SyncCostIsEstimatedTests {
                             .init(
                                 modelName: "gpt-5.5",
                                 costUSD: 5.0,
+                                totalTokens: 1000,
                                 standardCostUSD: 4.0,
                                 priorityCostUSD: 1.0,
                                 standardTokens: 800,
@@ -206,6 +211,7 @@ struct SyncCostIsEstimatedTests {
         let breakdown = try #require(day.modelBreakdowns.first(where: { $0.label == "gpt-5.5" }))
         #expect(breakdown.standardCostUSD == 4.0)
         #expect(breakdown.priorityCostUSD == 1.0)
+        #expect(breakdown.totalTokens == 1000)
         #expect(breakdown.standardTokens == 800)
         #expect(breakdown.priorityTokens == 200)
     }

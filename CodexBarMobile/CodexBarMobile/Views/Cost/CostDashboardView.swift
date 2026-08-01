@@ -10,10 +10,16 @@ struct CostDashboardView: View {
     let isDemoMode: Bool
     @AppStorage(MobileSettingsKeys.dashboardCostChartStyle) private var chartStyleRawValue = CostChartStyle.line
         .rawValue
+    @AppStorage(MobileSettingsKeys.dashboardModelMixMetric) private var modelMetricRawValue =
+        CostDashboardModelMetric.cost.rawValue
     @State private var selectedDay: Date?
 
     private var chartStyle: CostChartStyle {
         CostChartStyle(rawValue: self.chartStyleRawValue) ?? .line
+    }
+
+    private var modelMetric: CostDashboardModelMetric {
+        CostDashboardModelMetric(rawValue: self.modelMetricRawValue) ?? .cost
     }
 
     var body: some View {
@@ -58,14 +64,7 @@ struct CostDashboardView: View {
                         .padding(.top, 4)
                 }
 
-                if !self.insights.modelRows.isEmpty {
-                    self.contributionSection(
-                        title: "Model Mix",
-                        subtitle: "Top cost drivers across providers that expose model-level billing.",
-                        accessibilityIdentifier: "cost-dashboard-section-model-mix",
-                        rows: self.insights.modelRows,
-                        total: self.insights.modelRows.reduce(0) { $0 + $1.amountUSD })
-                }
+                if !self.insights.modelRows.isEmpty { self.modelMixSection }
 
                 if !self.insights.serviceRows.isEmpty {
                     self.contributionSection(
@@ -329,12 +328,73 @@ struct CostDashboardView: View {
         }
     }
 
+    @ViewBuilder
+    private var modelMixSection: some View {
+        let metric = self.modelMetric
+        let rows: [CostBreakdownRow] = switch metric {
+        case .cost:
+            self.insights.modelRows
+        case .tokens:
+            self.insights.modelRows
+                .filter { $0.totalTokens != nil }
+                .sorted {
+                    let lhs = $0.totalTokens ?? 0
+                    let rhs = $1.totalTokens ?? 0
+                    if lhs == rhs {
+                        return $0.label.localizedCaseInsensitiveCompare($1.label) == .orderedAscending
+                    }
+                    return lhs > rhs
+                }
+        }
+
+        if rows.isEmpty {
+            VStack(alignment: .leading, spacing: 10) {
+                HStack(alignment: .top, spacing: 12) {
+                    QKSectionHeader(title: "Model Mix")
+                    self.modelMetricPicker
+                }
+                Text("No token data")
+                    .font(.caption)
+                    .foregroundStyle(self.theme.textMuted)
+            }
+            .accessibilityIdentifier("cost-dashboard-section-model-mix")
+        } else {
+            self.contributionSection(
+                title: "Model Mix",
+                subtitle: metric == .cost
+                    ? "Top cost drivers across providers that expose model-level billing."
+                    : nil,
+                accessibilityIdentifier: "cost-dashboard-section-model-mix",
+                rows: rows,
+                total: metric == .cost
+                    ? rows.reduce(0) { $0 + $1.amountUSD }
+                    : rows.reduce(0) { $0 + Double($1.totalTokens ?? 0) },
+                metric: metric,
+                showsModelMetricToggle: true)
+        }
+    }
+
+    private var modelMetricPicker: some View {
+        Picker(String(localized: "Model Mix"), selection: self.$modelMetricRawValue) {
+            ForEach(CostDashboardModelMetric.allCases) { metric in
+                Text(metric.title).tag(metric.rawValue)
+            }
+        }
+        .labelsHidden()
+        .pickerStyle(.segmented)
+        .frame(width: 142)
+        .accessibilityLabel(Text("Model Mix"))
+        .accessibilityIdentifier("cost-dashboard-model-metric-toggle")
+    }
+
     private func contributionSection(
         title: LocalizedStringResource,
-        subtitle: LocalizedStringResource,
+        subtitle: LocalizedStringResource? = nil,
         accessibilityIdentifier: String,
         rows: [CostBreakdownRow],
-        total: Double) -> some View
+        total: Double,
+        metric: CostDashboardModelMetric = .cost,
+        showsModelMetricToggle: Bool = false) -> some View
     {
         // iOS 1.9.0+: cap to top 5 + an "Others" row whenever there are 6 or
         // more entries; otherwise show all (a section with 3 real rows just
@@ -350,27 +410,34 @@ struct CostDashboardView: View {
         let usesOthers = rows.count >= cap + 1
         let visible: [CostBreakdownRow] = usesOthers ? Array(rows.prefix(cap)) : rows
         let tail: [CostBreakdownRow] = usesOthers ? Array(rows.dropFirst(cap)) : []
-        let tailAmount = tail.reduce(0) { $0 + $1.amountUSD }
+        let tailAmount = tail.reduce(0) { partial, row in
+            partial + (metric == .cost ? row.amountUSD : Double(row.totalTokens ?? 0))
+        }
 
         return VStack(alignment: .leading, spacing: 10) {
-            QKSectionHeader(title: title, subtitle: subtitle)
-                .padding(.top, 4)
+            HStack(alignment: .top, spacing: 12) {
+                QKSectionHeader(title: title, subtitle: subtitle)
+                if showsModelMetricToggle { self.modelMetricPicker }
+            }
+            .padding(.top, 4)
 
             VStack(spacing: 12) {
                 ForEach(Array(visible.enumerated()), id: \.element.id) { index, row in
-                    CostBreakdownRowView(row: row, total: total, rank: index + 1)
+                    CostBreakdownRowView(row: row, total: total, metric: metric, rank: index + 1)
                 }
                 if usesOthers {
                     NavigationLink {
                         FullBreakdownListView(
                             title: title,
                             rows: rows,
-                            total: total)
+                            total: total,
+                            metric: metric)
                     } label: {
                         OthersBreakdownRowView(
                             count: tail.count,
                             amountUSD: tailAmount,
-                            total: total)
+                            total: total,
+                            metric: metric)
                     }
                     .buttonStyle(.plain)
                 }
