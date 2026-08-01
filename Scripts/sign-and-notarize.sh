@@ -69,6 +69,35 @@ API_KEY_PATH="$NOTARIZATION_TEMP_DIR/quotakit-api-key.p8"
 NOTARIZATION_ZIP="$NOTARIZATION_TEMP_DIR/${APP_NAME}Notarize.zip"
 trap 'rm -rf "$NOTARIZATION_TEMP_DIR" "$RELEASE_STAGE_DIR"' EXIT
 
+PROVISION_PROFILE="$ROOT/Provisioning/QuotaKit_Dev.provisionprofile"
+if [[ ! -f "$PROVISION_PROFILE" && -f "$ROOT/Provisioning/CodexBar_Dev.provisionprofile" ]]; then
+  PROVISION_PROFILE="$ROOT/Provisioning/CodexBar_Dev.provisionprofile"
+fi
+if [[ ! -f "$PROVISION_PROFILE" ]]; then
+  echo "Missing Mac provisioning profile: $PROVISION_PROFILE" >&2
+  echo "Run ./Scripts/refresh-mac-direct-profile.sh before releasing." >&2
+  exit 1
+fi
+
+PROFILE_PLIST="$NOTARIZATION_TEMP_DIR/profile.plist"
+PROFILE_CERT="$NOTARIZATION_TEMP_DIR/profile-certificate.der"
+security cms -D -i "$PROVISION_PROFILE" -o "$PROFILE_PLIST"
+plutil -extract DeveloperCertificates.0 raw -o - "$PROFILE_PLIST" | base64 -D > "$PROFILE_CERT"
+PROFILE_FINGERPRINT=$(openssl x509 -inform DER -in "$PROFILE_CERT" -noout -fingerprint -sha1 \
+  | sed 's/^.*=//; s/://g')
+IDENTITY_FINGERPRINT=$(security find-identity -v -p codesigning \
+  | awk -v identity="$APP_IDENTITY" 'index($0, "\"" identity "\"") { print $2 }')
+if [[ -z "$IDENTITY_FINGERPRINT" || "$IDENTITY_FINGERPRINT" == *$'\n'* ]]; then
+  echo "Unable to resolve exactly one valid identity named: $APP_IDENTITY" >&2
+  exit 1
+fi
+if [[ "$PROFILE_FINGERPRINT" != "$IDENTITY_FINGERPRINT" ]]; then
+  echo "Mac provisioning profile does not authorize the configured signing identity." >&2
+  echo "Run ./Scripts/refresh-mac-direct-profile.sh before releasing." >&2
+  exit 1
+fi
+echo "Provisioning profile authorizes signing identity: $IDENTITY_FINGERPRINT"
+
 if [[ -n "${APP_STORE_CONNECT_API_KEY_FILE:-}" ]]; then
   if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
     echo "App Store Connect API key file not found: $APP_STORE_CONNECT_API_KEY_FILE" >&2
@@ -113,6 +142,10 @@ fi
 codesign --force --timestamp --options runtime --sign "$APP_IDENTITY" \
   --entitlements "$APP_ENTITLEMENTS" \
   "$APP_BUNDLE"
+
+# Catch profile/certificate and entitlement mismatches before spending time on
+# two notarization submissions. This is also repeated after stapling below.
+verify_distribution_policy "$APP_BUNDLE"
 
 DITTO_BIN=${DITTO_BIN:-/usr/bin/ditto}
 "$DITTO_BIN" --norsrc -c -k --keepParent "$APP_BUNDLE" "$NOTARIZATION_ZIP"
