@@ -5,9 +5,10 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.13 / iOS 1.11.3 — Unreleased
+## 0.32.4.13 / iOS 1.11.3 — 2026-07-31
 
 ### Added
+- Spend dashboard: switch the model breakdown between API-equivalent cost and total token usage, with clear partial-history handling.
 - Menu bar: add customizable drag-and-drop token layouts and weekly session-equivalent forecasting.
 - Providers: add DeepInfra usage and balance, ai& spend, OpenRouter token accounts, DeepSeek cost summaries, broader Doubao arkcli support, Qwen Cloud individual Token Plans, and ZoomMate credits, history, and pacing.
 - Alibaba: add Personal/Solo Token Plan variants for mainland Bailian and international Model Studio accounts.

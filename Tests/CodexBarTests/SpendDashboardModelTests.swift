@@ -869,3 +869,72 @@ struct SpendDashboardModelTests {
         return calendar
     }
 }
+
+extension SpendDashboardModelTests {
+    @Test
+    func `model metric changes value ordering ranks and formatting`() {
+        let rows = [
+            SpendDashboardModel.ModelRow(
+                rank: 1,
+                provider: .codex,
+                providerName: "Codex",
+                modelName: "gpt-5.6-sol",
+                totalTokens: 1000,
+                totalCost: 4),
+            SpendDashboardModel.ModelRow(
+                rank: 2,
+                provider: .codex,
+                providerName: "Codex",
+                modelName: "gpt-5.6-terra",
+                totalTokens: 9000,
+                totalCost: 2),
+            SpendDashboardModel.ModelRow(
+                rank: 3,
+                provider: .codex,
+                providerName: "Codex",
+                modelName: "gpt-5.6-luna",
+                totalTokens: nil,
+                totalCost: nil),
+        ]
+
+        let costRows = spendDashboardModelRows(rows, metric: .cost)
+        #expect(costRows.map(\.modelName) == ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"])
+        #expect(costRows.map(\.rank) == [1, 2, 3])
+
+        let tokenRows = spendDashboardModelRows(rows, metric: .tokens)
+        #expect(tokenRows.map(\.modelName) == ["gpt-5.6-terra", "gpt-5.6-sol", "gpt-5.6-luna"])
+        #expect(tokenRows.map(\.rank) == [1, 2, 3])
+        #expect(spendDashboardModelValueText(tokenRows[0], metric: .tokens, currencyCode: "USD") == "9K")
+        #expect(spendDashboardModelValueText(tokenRows[2], metric: .tokens, currencyCode: "USD") == "—")
+        #expect(
+            spendDashboardModelValueText(costRows[0], metric: .cost, currencyCode: "USD")
+                == UsageFormatter.currencyString(4, currencyCode: "USD"))
+    }
+
+    @Test
+    func `token metric reports partial and unavailable model coverage`() throws {
+        let complete = Self.input(id: "complete", provider: .codex, currency: "USD", cost: 4)
+        let missing = SpendDashboardModel.ProviderInput(
+            id: "missing",
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: Self.snapshot(
+                currency: "USD",
+                entries: [Self.entry(day: "2026-07-16", cost: 2, tokens: nil, model: "claude-model")]))
+        let partial = try #require(SpendDashboardModel.build(
+            inputs: [complete, missing],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar).groups.first)
+
+        #expect(spendDashboardModelHistoryPresentation(partial, metric: .cost) == .complete)
+        #expect(spendDashboardModelHistoryPresentation(partial, metric: .tokens) == .partial)
+
+        let unavailable = try #require(SpendDashboardModel.build(
+            inputs: [missing],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar).groups.first)
+        #expect(spendDashboardModelHistoryPresentation(unavailable, metric: .tokens) == .unavailable)
+    }
+}

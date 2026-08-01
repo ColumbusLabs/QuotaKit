@@ -34,6 +34,75 @@ enum SpendDashboardModelHistoryPresentation: Equatable {
     case complete
 }
 
+enum SpendDashboardModelMetric: String, CaseIterable {
+    case cost
+    case tokens
+
+    var title: String {
+        switch self {
+        case .cost: L("Cost")
+        case .tokens: L("Tokens")
+        }
+    }
+}
+
+private func spendDashboardDescending<Value: Comparable>(_ left: Value?, _ right: Value?) -> Bool? {
+    switch (left, right) {
+    case let (left?, right?) where left != right: left > right
+    case (_?, nil): true
+    case (nil, _?): false
+    default: nil
+    }
+}
+
+func spendDashboardModelRows(
+    _ rows: [SpendDashboardModel.ModelRow],
+    metric: SpendDashboardModelMetric) -> [SpendDashboardModel.ModelRow]
+{
+    rows.enumerated()
+        .sorted { lhs, rhs in
+            let preferredOrder = switch metric {
+            case .cost:
+                spendDashboardDescending(lhs.element.totalCost, rhs.element.totalCost)
+            case .tokens:
+                spendDashboardDescending(lhs.element.totalTokens, rhs.element.totalTokens)
+            }
+            if let preferredOrder { return preferredOrder }
+            if lhs.element.providerName != rhs.element.providerName {
+                return lhs.element.providerName < rhs.element.providerName
+            }
+            if lhs.element.modelName != rhs.element.modelName {
+                return lhs.element.modelName < rhs.element.modelName
+            }
+            return lhs.offset < rhs.offset
+        }
+        .enumerated()
+        .map { rank, entry in
+            SpendDashboardModel.ModelRow(
+                rank: rank + 1,
+                provider: entry.element.provider,
+                providerName: entry.element.providerName,
+                modelName: entry.element.modelName,
+                totalTokens: entry.element.totalTokens,
+                totalCost: entry.element.totalCost)
+        }
+}
+
+func spendDashboardModelValueText(
+    _ row: SpendDashboardModel.ModelRow,
+    metric: SpendDashboardModelMetric,
+    currencyCode: String) -> String
+{
+    switch metric {
+    case .cost:
+        row.totalCost.map {
+            UsageFormatter.currencyString($0, currencyCode: currencyCode)
+        } ?? "—"
+    case .tokens:
+        row.totalTokens.map(UsageFormatter.tokenCountString) ?? "—"
+    }
+}
+
 func spendDashboardModelHistoryPresentation(
     _ group: SpendDashboardModel.CurrencyGroup) -> SpendDashboardModelHistoryPresentation
 {
@@ -43,11 +112,28 @@ func spendDashboardModelHistoryPresentation(
     return group.modelHistoryCompleteness == .incomplete ? .partial : .complete
 }
 
+func spendDashboardModelHistoryPresentation(
+    _ group: SpendDashboardModel.CurrencyGroup,
+    metric: SpendDashboardModelMetric) -> SpendDashboardModelHistoryPresentation
+{
+    guard metric == .tokens else {
+        return spendDashboardModelHistoryPresentation(group)
+    }
+    guard !group.models.isEmpty else {
+        return spendDashboardModelHistoryPresentation(group)
+    }
+    let tokenValues = group.models.map(\.totalTokens)
+    if tokenValues.allSatisfy({ $0 == nil }) { return .unavailable }
+    if tokenValues.contains(where: { $0 == nil }) { return .partial }
+    return .complete
+}
+
 @MainActor
 struct SpendDashboardPane: View {
     @Bindable var settings: SettingsStore
     @Bindable var store: UsageStore
     @State private var controller: SpendDashboardController
+    @State private var modelMetric: SpendDashboardModelMetric = .cost
 
     init(settings: SettingsStore, store: UsageStore) {
         self.settings = settings
@@ -149,7 +235,10 @@ struct SpendDashboardPane: View {
             }
         } else {
             ForEach(self.controller.model.groups) { group in
-                SpendCurrencySection(group: group, requestedDays: self.controller.model.requestedDays)
+                SpendCurrencySection(
+                    group: group,
+                    requestedDays: self.controller.model.requestedDays,
+                    modelMetric: self.$modelMetric)
             }
         }
 
@@ -232,6 +321,7 @@ struct SpendDashboardPane: View {
 private struct SpendCurrencySection: View {
     let group: SpendDashboardModel.CurrencyGroup
     let requestedDays: Int
+    @Binding var modelMetric: SpendDashboardModelMetric
 
     var body: some View {
         VStack(alignment: .leading, spacing: 12) {
@@ -272,7 +362,7 @@ private struct SpendCurrencySection: View {
             }
 
             SpendProviderPanel(group: self.group)
-            SpendModelPanel(group: self.group)
+            SpendModelPanel(group: self.group, metric: self.$modelMetric)
             SpendDailyChart(group: self.group)
         }
     }
@@ -328,12 +418,26 @@ private struct SpendProviderPanel: View {
 
 private struct SpendModelPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
+    @Binding var metric: SpendDashboardModelMetric
 
     var body: some View {
         SpendDashboardPanel {
             VStack(alignment: .leading, spacing: 0) {
-                Text(L("Models")).font(.headline).padding(.bottom, 8)
-                let presentation = spendDashboardModelHistoryPresentation(self.group)
+                HStack {
+                    Text(L("Models")).font(.headline)
+                    Spacer()
+                    Picker(L("Models"), selection: self.$metric) {
+                        ForEach(SpendDashboardModelMetric.allCases, id: \.self) { metric in
+                            Text(metric.title).tag(metric)
+                        }
+                    }
+                    .labelsHidden()
+                    .pickerStyle(.segmented)
+                    .frame(width: 140)
+                    .accessibilityLabel(Text(L("Models")))
+                }
+                .padding(.bottom, 8)
+                let presentation = spendDashboardModelHistoryPresentation(self.group, metric: self.metric)
                 switch presentation {
                 case .unavailable:
                     Text(L("Model breakdown unavailable"))
@@ -350,7 +454,7 @@ private struct SpendModelPanel: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 6)
                     }
-                    ForEach(self.group.models.prefix(8)) { row in
+                    ForEach(spendDashboardModelRows(self.group.models, metric: self.metric).prefix(8)) { row in
                         if row.rank > 1 {
                             Divider()
                         }
@@ -372,9 +476,10 @@ private struct SpendModelPanel: View {
                                 Text(row.providerName).font(.caption).foregroundStyle(.secondary)
                             }
                             Spacer()
-                            Text(row.totalCost.map {
-                                UsageFormatter.currencyString($0, currencyCode: self.group.currencyCode)
-                            } ?? "—")
+                            Text(spendDashboardModelValueText(
+                                row,
+                                metric: self.metric,
+                                currencyCode: self.group.currencyCode))
                                 .monospacedDigit()
                         }
                         .padding(.vertical, 9)
