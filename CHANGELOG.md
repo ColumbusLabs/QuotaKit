@@ -5,6 +5,11 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.14 / iOS 1.11.3 — 2026-08-01
+
+### Fixed
+- iPhone Spend dashboard: sync each model's actual token total from Mac so the Model Mix Tokens view shows Sol, Terra, Luna, and other model usage instead of an empty state.
+
 ## 0.32.4.13 / iOS 1.11.3 — 2026-07-31
 
 ### Added

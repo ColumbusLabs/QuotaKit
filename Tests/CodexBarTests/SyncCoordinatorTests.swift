@@ -378,8 +378,8 @@ struct SyncCoordinatorTests {
                         costUSD: 2.40,
                         modelsUsed: ["gpt-5.4", "gpt-5.3-codex"],
                         modelBreakdowns: [
-                            .init(modelName: "gpt-5.4", costUSD: 1.80),
-                            .init(modelName: "gpt-5.3-codex", costUSD: 0.60),
+                            .init(modelName: "gpt-5.4", costUSD: 1.80, totalTokens: 1100),
+                            .init(modelName: "gpt-5.3-codex", costUSD: 0.60, totalTokens: 400),
                         ]),
                 ],
                 updatedAt: Date()),
@@ -412,8 +412,8 @@ struct SyncCoordinatorTests {
         let daily = try #require(costSummary.daily.first)
 
         #expect(daily.modelBreakdowns == [
-            SyncCostBreakdown(label: "gpt-5.4", costUSD: 1.80),
-            SyncCostBreakdown(label: "gpt-5.3-codex", costUSD: 0.60),
+            SyncCostBreakdown(label: "gpt-5.4", costUSD: 1.80, totalTokens: 1100),
+            SyncCostBreakdown(label: "gpt-5.3-codex", costUSD: 0.60, totalTokens: 400),
         ])
         #expect(daily.serviceBreakdowns == [
             SyncCostBreakdown(label: "Codex Run", costUSD: 1.90),
