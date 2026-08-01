@@ -24,7 +24,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - OpenCode Go: add daily local cost and plan-usage history.
 - Overview: raise the merged provider limit from three to six.
 
+- Claude: compact multi-account menu for claude-swap — with four or more accounts the active account keeps its full card while the others become one-line rows sorted by remaining headroom, constrained accounts surface in red/amber, the healthiest switch target gets a star, and the healthy tail folds behind a summary row. Click a row to expand its full card.
+- Menu: the compact multi-account layout now covers every stacked multi-account list — token accounts on any provider and Codex accounts (flat lists; workspace-grouped Codex lists keep their sections).
+
 ### Changed
+- Synced upstream CodexBar changes through `9bb9c42fb`, adding compact multi-account menu layouts and event-tracking-safe switcher warmup while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and all build numbers.
 - Synced upstream CodexBar changes through `8ef86077e`, including preferred-currency conversion, xAI billing history, Claude weekly pacing, optional Crof quota alerts, and StepFun support while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and all build numbers.
 - CLI: redact stored credentials from `quotakit config dump` by default; use `--show-secrets` to reveal raw values.
 - Menu bar: remove status-item hover tooltips while retaining VoiceOver titles.

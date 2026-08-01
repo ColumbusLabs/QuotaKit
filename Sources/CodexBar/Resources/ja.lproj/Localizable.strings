@@ -1351,3 +1351,7 @@
 "Cost today unavailable" = "今日のコスト: 利用不可";
 "30-day cost unavailable" = "30日間のコスト: 利用不可";
 "Resets" = "リセット";
+"Most usable account" = "最も利用可能なアカウント";
+"%d more accounts ready" = "ほかに%d個のアカウントが利用可能";
+"Shows the hidden accounts" = "非表示のアカウントを表示";
+"%@ remaining" = "残り%@";

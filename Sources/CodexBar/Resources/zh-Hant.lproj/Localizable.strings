@@ -1381,3 +1381,7 @@
 "Cost today unavailable" = "今日費用: 無法使用";
 "30-day cost unavailable" = "30 天費用: 無法使用";
 "Resets" = "重設";
+"Most usable account" = "可用額度最多的帳號";
+"%d more accounts ready" = "另有 %d 個帳號可用";
+"Shows the hidden accounts" = "顯示隱藏的帳號";
+"%@ remaining" = "剩餘 %@";

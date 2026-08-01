@@ -159,6 +159,10 @@ extension StatusItemController {
         if wasHostedSubviewMenu {
             self.refreshOpenMenusAfterHostedSubviewClose()
         }
+        if self.openMenus.isEmpty {
+            self.cancelMergedSwitcherSiblingWarmup()
+        }
+        self.resetCompactAccountMenuExpansionStateIfIdle()
     }
 
     func forgetClosedMenu(_ menu: NSMenu) {
@@ -229,6 +233,9 @@ extension StatusItemController {
             breadcrumb: "populateMenu:\(provider?.rawValue ?? "merged")")
         defer { self.endMenuOperationTrace(trace, menu: menu, provider: provider) }
         defer { self.refreshMenuCardHeights(in: menu) }
+        // Re-warm sibling tab caches after every populate of the open merged menu so a
+        // tab switch attaches pre-rendered rows; no-ops for closed or non-merged menus.
+        defer { self.scheduleMergedSwitcherSiblingWarmup(for: menu) }
 
         let enabledProviders = self.store.enabledProvidersForDisplay()
         let includesOverview = self.includesOverviewTab(enabledProviders: enabledProviders)
@@ -405,6 +412,7 @@ extension StatusItemController {
         context: MenuRebuildContext)
     {
         self.performMenuMutationWithoutAnimation {
+            defer { self.flushHostedMenuRowRendering(in: menu) }
             let displacedSelection = self.lastMergedMenuContentSelection
             self.lastMergedMenuContentSelection = nil
             self.harvestRecyclableMenuCardViews(in: menu, fromIndex: 0, displacedSelection: displacedSelection)
@@ -466,7 +474,7 @@ extension StatusItemController {
         }
     }
 
-    private func openAIWebContext(
+    func openAIWebContext(
         currentProvider: UsageProvider,
         showAllAccounts: Bool) -> OpenAIWebContext
     {
@@ -610,7 +618,14 @@ extension StatusItemController {
 
     private func addMenuCards(to menu: NSMenu, context: MenuCardContext, captureMenu: NSMenu? = nil) -> Bool {
         if let codexAccountDisplay = context.codexAccountDisplay, codexAccountDisplay.showAll {
-            self.addStackedCodexMenuCards(codexAccountDisplay, to: menu, context: context)
+            if !self.addCompactCodexAccountMenuIfPlanned(
+                display: codexAccountDisplay,
+                to: menu,
+                captureMenu: captureMenu ?? menu,
+                context: context)
+            {
+                self.addStackedCodexMenuCards(codexAccountDisplay, to: menu, context: context)
+            }
             return false
         }
 
@@ -626,6 +641,14 @@ extension StatusItemController {
         }
 
         if let tokenAccountDisplay = context.tokenAccountDisplay, tokenAccountDisplay.showAll {
+            if self.addCompactTokenAccountMenuIfPlanned(
+                display: tokenAccountDisplay,
+                to: menu,
+                captureMenu: captureMenu ?? menu,
+                context: context)
+            {
+                return false
+            }
             let accountSnapshots = tokenAccountDisplay.snapshots
             let cards = accountSnapshots.isEmpty
                 ? []
@@ -684,47 +707,6 @@ extension StatusItemController {
         }
         menu.addItem(.separator())
         return false
-    }
-
-    func addStackedMenuCards(
-        _ cards: [UsageMenuCardView.Model],
-        to menu: NSMenu,
-        context: MenuCardContext,
-        planAction: ((Int) -> (() -> Void)?)? = nil)
-    {
-        if cards.isEmpty, let model = self.menuCardModel(for: context.selectedProvider) {
-            let renderedModel = self.menuCardRefreshMonitor.model(for: model.provider, fallback: model)
-            menu.addItem(self.makeMenuCardItem(
-                UsageMenuCardView(model: model, layoutModel: renderedModel, width: context.menuWidth),
-                id: "menuCard",
-                width: context.menuWidth,
-                heightCacheScope: context.currentProvider.rawValue,
-                heightCacheFingerprint: renderedModel.heightFingerprint(section: "card"),
-                containsInteractiveControls: true))
-            menu.addItem(.separator())
-        } else {
-            for (index, model) in cards.enumerated() {
-                menu.addItem(self.makeMenuCardItem(
-                    UsageMenuCardView(
-                        model: model,
-                        width: context.menuWidth,
-                        planAction: planAction?(index)),
-                    id: "menuCard-\(index)",
-                    width: context.menuWidth,
-                    heightCacheScope: "\(context.currentProvider.rawValue)-\(index)",
-                    heightCacheFingerprint: model.heightFingerprint(section: "card"),
-                    containsInteractiveControls: true))
-                if index < cards.count - 1 {
-                    menu.addItem(.separator())
-                }
-            }
-            if !cards.isEmpty {
-                menu.addItem(.separator())
-            }
-        }
-        if self.addStorageMenuCardSection(to: menu, provider: context.currentProvider, width: context.menuWidth) {
-            menu.addItem(.separator())
-        }
     }
 
     private func addOpenAIWebItemsIfNeeded(
@@ -1099,13 +1081,13 @@ extension StatusItemController {
         return enabled.first(where: { self.store.isProviderAvailable($0) }) ?? enabled.first
     }
 
-    private func includesOverviewTab(enabledProviders: [UsageProvider]) -> Bool {
+    func includesOverviewTab(enabledProviders: [UsageProvider]) -> Bool {
         !self.settings.resolvedMergedOverviewProviders(
             activeProviders: enabledProviders,
             maxVisibleProviders: Self.maxOverviewProviders).isEmpty
     }
 
-    private func resolvedSwitcherSelection(
+    func resolvedSwitcherSelection(
         enabledProviders: [UsageProvider],
         includesOverview: Bool) -> ProviderSwitcherSelection
     {

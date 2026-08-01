@@ -1354,3 +1354,7 @@
 "Cost today unavailable" = "هزینهٔ امروز: در دسترس نیست";
 "30-day cost unavailable" = "هزینهٔ ۳۰ روز: در دسترس نیست";
 "Resets" = "بازنشانی‌ها";
+"Most usable account" = "قابل‌استفاده‌ترین حساب";
+"%d more accounts ready" = "%d حساب دیگر آماده است";
+"Shows the hidden accounts" = "حساب‌های پنهان را نشان می‌دهد";
+"%@ remaining" = "%@ باقی‌مانده";

@@ -1354,3 +1354,7 @@
 "Cost today unavailable" = "Biaya hari ini: Tidak tersedia";
 "30-day cost unavailable" = "Biaya 30 hari: Tidak tersedia";
 "Resets" = "Reset";
+"Most usable account" = "Akun paling siap digunakan";
+"%d more accounts ready" = "%d akun lainnya siap";
+"Shows the hidden accounts" = "Menampilkan akun yang disembunyikan";
+"%@ remaining" = "%@ tersisa";

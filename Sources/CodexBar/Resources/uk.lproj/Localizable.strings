@@ -1350,3 +1350,7 @@
 "Cost today unavailable" = "Вартість сьогодні: Недоступний";
 "30-day cost unavailable" = "Вартість за 30 днів: Недоступний";
 "Resets" = "Скидання";
+"Most usable account" = "Найдоступніший обліковий запис";
+"%d more accounts ready" = "Ще %d облікових записів готові";
+"Shows the hidden accounts" = "Показує приховані облікові записи";
+"%@ remaining" = "Залишилося %@";

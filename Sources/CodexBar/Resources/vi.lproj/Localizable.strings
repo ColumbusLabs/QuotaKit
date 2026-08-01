@@ -1351,3 +1351,7 @@
 "Cost today unavailable" = "Chi phí hôm nay: Không có sẵn";
 "30-day cost unavailable" = "Chi phí 30 ngày: Không có sẵn";
 "Resets" = "Lần đặt lại";
+"Most usable account" = "Tài khoản khả dụng nhất";
+"%d more accounts ready" = "Thêm %d tài khoản đã sẵn sàng";
+"Shows the hidden accounts" = "Hiển thị các tài khoản bị ẩn";
+"%@ remaining" = "Còn lại %@";
