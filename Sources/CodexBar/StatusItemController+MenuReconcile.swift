@@ -234,9 +234,87 @@ extension StatusItemController {
     }
 
     private func swapMenuItemContents(_ liveItem: NSMenuItem, _ cachedItem: NSMenuItem) {
+        // Flash-free path: when both rows are erased hosting views, exchange
+        // their SwiftUI payloads and keep both `item.view`s in place. Detaching
+        // the live view makes Tahoe's NSMenu paint the row's fallback title
+        // ("NSMenuItem") for a few frames — the tab-switch content flash.
+        if let liveHosting = liveItem.view as? ErasedMenuCardHostingView,
+           let cachedHosting = cachedItem.view as? ErasedMenuCardHostingView,
+           let livePayload = liveHosting.rowPayload,
+           let cachedPayload = cachedHosting.rowPayload
+        {
+            self.replantMenuCardRowPayload(cachedPayload, into: liveHosting)
+            self.replantMenuCardRowPayload(livePayload, into: cachedHosting)
+            let liveFrame = liveHosting.frame
+            liveHosting.frame = cachedHosting.frame
+            cachedHosting.frame = liveFrame
+            self.swapMenuItemMetadataKeepingViews(liveItem, cachedItem)
+            return
+        }
         let holder = NSMenuItem()
         self.updateMenuItemInPlace(holder, from: liveItem)
         self.updateMenuItemInPlace(liveItem, from: cachedItem)
         self.updateMenuItemInPlace(cachedItem, from: holder)
+    }
+
+    /// Rebuilds the hosting view's container around its own highlight state and
+    /// interactive-region store with the given payload's content and behavior.
+    func replantMenuCardRowPayload(
+        _ payload: MenuCardRowPayload,
+        into hosting: ErasedMenuCardHostingView)
+    {
+        let wrapped = MenuCardSectionContainerView(
+            highlightState: hosting.highlightState,
+            showsSubmenuIndicator: payload.showsSubmenuIndicator,
+            submenuIndicatorAlignment: payload.submenuIndicatorAlignment,
+            submenuIndicatorTopPadding: payload.submenuIndicatorTopPadding,
+            refreshMonitor: self.menuCardRefreshMonitor,
+            interactiveRegionStore: hosting.interactiveRegionStore)
+        {
+            payload.content
+        }
+        hosting.prepareForReuse(
+            rootView: wrapped,
+            allowsMenuHighlight: payload.allowsMenuHighlight,
+            containsInteractiveControls: payload.containsInteractiveControls,
+            onClick: payload.onClick)
+        hosting.rowPayload = payload
+    }
+
+    /// The metadata half of a content swap: everything `updateMenuItemInPlace`
+    /// moves except `view` (which stays attached on both sides).
+    private func swapMenuItemMetadataKeepingViews(_ liveItem: NSMenuItem, _ cachedItem: NSMenuItem) {
+        let liveRemainsHighlighted = liveItem.menu.map {
+            self.highlightedMenuItems[ObjectIdentifier($0)] === liveItem
+        } ?? false
+        swap(&liveItem.title, &cachedItem.title)
+        let liveAttributedTitle = liveItem.attributedTitle
+        liveItem.attributedTitle = cachedItem.attributedTitle
+        cachedItem.attributedTitle = liveAttributedTitle
+        let liveSubmenu = liveItem.submenu
+        let cachedSubmenu = cachedItem.submenu
+        liveItem.submenu = nil
+        cachedItem.submenu = nil
+        liveItem.submenu = cachedSubmenu
+        cachedItem.submenu = liveSubmenu
+        let liveAction = (liveItem.action, liveItem.target)
+        liveItem.action = cachedItem.action
+        liveItem.target = cachedItem.target
+        cachedItem.action = liveAction.0
+        cachedItem.target = liveAction.1
+        let liveRepresented = liveItem.representedObject
+        liveItem.representedObject = cachedItem.representedObject
+        cachedItem.representedObject = liveRepresented
+        swap(&liveItem.state, &cachedItem.state)
+        let liveEnabled = liveItem.isEnabled
+        liveItem.isEnabled = cachedItem.isEnabled
+        cachedItem.isEnabled = liveEnabled
+        let liveHosting = liveItem.view as? MenuCardHighlighting
+        let allowsHighlight = liveHosting?.allowsMenuHighlight != false
+        liveHosting?.setHighlighted(liveItem.isEnabled && allowsHighlight && liveRemainsHighlighted)
+        (cachedItem.view as? MenuCardHighlighting)?.setHighlighted(false)
+        if self.isPersistentRefreshItem(liveItem) {
+            self.persistentRefreshItems.add(liveItem)
+        }
     }
 }
