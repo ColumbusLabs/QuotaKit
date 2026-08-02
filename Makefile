@@ -10,13 +10,13 @@ start-debug:
 
 start-release:
 	./Scripts/package_app.sh release
-	pkill -x CodexBar || pkill -f CodexBar.app || true
-	cd /Users/steipete/Projects/codexbar && open -n /Users/steipete/Projects/codexbar/CodexBar.app
+	pkill -x QuotaKit || pkill -f QuotaKit.app || true
+	open -n "$(CURDIR)/QuotaKit.app"
 
 restart: start
 
 stop:
-	pkill -x CodexBar || pkill -f CodexBar.app || true
+	pkill -x QuotaKit || pkill -f QuotaKit.app || true
 
 check lint:
 	./Scripts/lint.sh lint
@@ -34,10 +34,10 @@ test:
 	./Scripts/test.sh
 
 test-tty:
-	swift test --filter TTYIntegrationTests
+	CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --filter TTYIntegrationTests
 
 test-live:
-	LIVE_TEST=1 swift test --filter LiveAccountTests
+	LIVE_TEST=1 CODEXBAR_ALLOW_TEST_KEYCHAIN_ACCESS=1 swift test --filter LiveAccountTests
 
 release:
 	./Scripts/package_app.sh release
