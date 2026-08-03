@@ -461,9 +461,14 @@ extension UsageMenuCardView.Model {
         if input.provider == .factory, snapshot.tertiary != nil {
             return ("5-hour", L("Weekly"), L("Monthly"), true)
         }
-        // Legacy request-based Cursor plans track a request quota, not the token-based "Total" pool.
-        let primaryLabel = if input.provider == .cursor, snapshot.cursorRequests != nil {
-            "Requests"
+        let cursorLabels = input.provider == .cursor
+            ? Self.cursorRateWindowLabels(
+                snapshot: snapshot,
+                fallbackPrimary: input.metadata.sessionLabel,
+                fallbackSecondary: input.metadata.weeklyLabel)
+            : nil
+        let primaryLabel = if let cursorLabels {
+            cursorLabels.primary
         } else if input.provider == .crof {
             CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
         } else if input.provider == .grok {
@@ -479,7 +484,9 @@ extension UsageMenuCardView.Model {
         } else {
             input.metadata.sessionLabel
         }
-        let secondaryLabel = if input.provider == .amp {
+        let secondaryLabel = if let cursorLabels {
+            cursorLabels.secondary
+        } else if input.provider == .amp {
             AmpProviderDescriptor.secondaryLabel(details: snapshot.ampUsage) ?? input.metadata.weeklyLabel
         } else if input.provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ?? input.metadata.weeklyLabel
@@ -491,6 +498,27 @@ extension UsageMenuCardView.Model {
             L(secondaryLabel),
             input.metadata.opusLabel.map(L) ?? L("Sonnet"),
             input.metadata.supportsOpus)
+    }
+
+    private static func cursorRateWindowLabels(
+        snapshot: UsageSnapshot,
+        fallbackPrimary: String,
+        fallbackSecondary: String) -> (primary: String, secondary: String)
+    {
+        switch snapshot.cursorRateWindowLayout {
+        case .requests:
+            ("Requests", fallbackSecondary)
+        case .plan:
+            ("Plan", fallbackSecondary)
+        case .apiOnly:
+            ("API", fallbackSecondary)
+        case .autoOnly:
+            ("Auto", fallbackSecondary)
+        case .autoAPI:
+            ("Auto", "API")
+        case .none:
+            (snapshot.cursorRequests == nil ? fallbackPrimary : "Requests", fallbackSecondary)
+        }
     }
 
     static func sub2APIUsageNotes(_ usage: Sub2APIUsageDetails?) -> [String] {

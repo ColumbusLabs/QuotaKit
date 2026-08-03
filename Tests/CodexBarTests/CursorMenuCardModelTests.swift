@@ -5,6 +5,41 @@ import Testing
 
 struct CursorMenuCardModelTests {
     @Test
+    func `modern auto api layout labels the two quota lanes`() throws {
+        let now = Date(timeIntervalSince1970: 0)
+        let metadata = try #require(ProviderDefaults.metadata[.cursor])
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 40, windowMinutes: 30 * 24 * 60, resetsAt: nil, resetDescription: nil),
+            tertiary: nil,
+            cursorRateWindowLayout: .autoAPI,
+            updatedAt: now,
+            identity: nil)
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .cursor,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.metrics.map(\.title) == ["Auto", "API"])
+    }
+
+    @Test
     func `team pool shows personal spend and changes height fingerprint`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let metadata = try #require(ProviderDefaults.metadata[.cursor])
