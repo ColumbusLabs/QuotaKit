@@ -18,7 +18,9 @@ extension UsageStore {
             self.clearQuotaLowHookUsage(provider: provider)
         }
         guard notificationsEnabled || hooksActive else { return }
-        if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable { return }
+        if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
+            return
+        }
 
         let account = QuotaWarningAccountContext(
             displayName: self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot),
@@ -291,5 +293,167 @@ extension UsageStore {
             .lowercased()
         guard let normalized, !normalized.isEmpty else { return nil }
         return normalized
+    }
+
+    func postQuotaWarning(_ event: QuotaWarningEvent, provider: UsageProvider) {
+        self.sessionQuotaNotifier.postQuotaWarning(
+            event: event,
+            provider: provider,
+            soundEnabled: self.settings.quotaWarningSoundEnabled,
+            onScreenAlertEnabled: self.settings.quotaWarningOnScreenAlertEnabled)
+        if self.settings.notificationPushToiOSEnabled {
+            self.quotaTransitionWriter.writeQuotaWarning(
+                provider: provider,
+                window: event.window,
+                threshold: event.threshold,
+                accountDisplayName: event.accountDisplayName,
+                accountDiscriminator: event.accountDiscriminator,
+                windowID: event.windowID,
+                windowDisplayLabel: event.windowDisplayLabel)
+        }
+    }
+
+    func postPredictivePaceWarning(_ event: PredictivePaceWarningEvent, provider: UsageProvider, now: Date) {
+        self.sessionQuotaNotifier.postPredictivePaceWarning(
+            event: event,
+            provider: provider,
+            soundEnabled: self.settings.quotaWarningSoundEnabled,
+            onScreenAlertEnabled: self.settings.quotaWarningOnScreenAlertEnabled,
+            now: now)
+    }
+
+    // swiftlint:disable:next cyclomatic_complexity
+    func handleSessionQuotaTransition(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        codexOwnerKey: CodexSessionQuotaOwnerKey? = nil,
+        accountDiscriminatorOverride: String? = nil,
+        now: Date = Date())
+    {
+        let accountDisplayName = self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot)
+        let accountDiscriminator = accountDiscriminatorOverride.flatMap {
+            self.quotaWarningAccountDiscriminator(
+                provider: provider,
+                snapshot: snapshot,
+                accountDiscriminatorOverride: $0)
+        }
+        let stateKey = SessionQuotaStateKey(provider: provider, accountDiscriminator: accountDiscriminator)
+        if provider == .commandcode,
+           snapshot.commandCodeSubscriptionEnrichmentUnavailable,
+           SessionQuotaNotificationLogic.isDepleted(snapshot.primary?.remainingPercent)
+        {
+            return
+        }
+        let quotaReachedHookActive = self.hasQuotaHookRule(event: .quotaReached, provider: provider)
+        if provider == .codex,
+           !self.settings.sessionQuotaNotificationsEnabled,
+           !self.settings.notificationPushToiOSEnabled,
+           !quotaReachedHookActive
+        {
+            self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
+            self.sessionQuotaLogger.debug("Codex session notifications disabled; cleared notification baseline")
+            return
+        }
+        if provider == .codex, codexOwnerKey == nil {
+            self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
+            self.sessionQuotaLogger.debug("missing Codex session owner; cleared notification baseline")
+            return
+        }
+        guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
+            if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
+                return
+            }
+            if provider == .codex {
+                if let previous = self.sessionQuotaTransitionStates[stateKey] {
+                    if previous.codexOwnerKey != codexOwnerKey {
+                        self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
+                    } else {
+                        self.sessionQuotaTransitionStates[stateKey] = previous.advancingObservationWatermark(
+                            to: snapshot.updatedAt)
+                    }
+                } else if self.codexSessionQuotaBaselineRequirement != nil {
+                    self.requireFreshCodexSessionQuotaBaseline(observedAt: snapshot.updatedAt)
+                }
+                self.sessionQuotaLogger.debug("missing Codex session window; retained notification baseline")
+            } else {
+                self.clearSessionQuotaTransitionState(provider: provider)
+            }
+            return
+        }
+        guard !sessionWindow.window.isSyntheticPlaceholder else { return }
+        let currentRemaining = sessionWindow.window.remainingPercent
+        let currentSource = sessionWindow.source
+        let currentResetBoundary = sessionWindow.window.resetsAt
+        if provider == .codex,
+           let requirement = self.codexSessionQuotaBaselineRequirement,
+           !requirement.admits(observedAt: snapshot.updatedAt)
+        {
+            self.sessionQuotaLogger.debug("ignored stale session observation while awaiting a fresh Codex baseline")
+            return
+        }
+        let previousState = self.sessionQuotaTransitionStates[stateKey]
+        let forceBaseline = provider == .codex && self.codexSessionQuotaBaselineRequirement != nil
+        let evaluation = SessionQuotaTransitionReducer.evaluate(
+            previous: previousState,
+            observation: SessionQuotaTransitionObservation(
+                provider: provider,
+                remaining: currentRemaining,
+                source: currentSource,
+                resetBoundary: currentResetBoundary,
+                observedAt: snapshot.updatedAt,
+                evaluationTime: now,
+                codexOwnerKey: codexOwnerKey),
+            notificationsEnabled: self.settings.sessionQuotaNotificationsEnabled ||
+                self.settings.notificationPushToiOSEnabled || quotaReachedHookActive,
+            forceBaseline: forceBaseline)
+        self.sessionQuotaTransitionStates[stateKey] = evaluation.state
+        if provider == .codex {
+            self.codexSessionQuotaBaselineRequirement = nil
+        }
+
+        let providerText = provider.rawValue
+        let previousRemaining = previousState?.remaining
+        switch evaluation.outcome {
+        case .none:
+            if SessionQuotaNotificationLogic.isDepleted(currentRemaining) ||
+                SessionQuotaNotificationLogic.isDepleted(previousRemaining)
+            {
+                let reason = self.settings.sessionQuotaNotificationsEnabled ? "no transition" : "notifications disabled"
+                self.sessionQuotaLogger.debug(
+                    "\(reason): provider=\(providerText) prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
+            }
+        case .baselineChanged:
+            self.sessionQuotaLogger.debug(
+                "session notification baseline changed: provider=\(providerText) curr=\(currentRemaining)")
+        case .staleCodexObservation:
+            self.sessionQuotaLogger.debug(
+                "ignored stale session observation: provider=\(providerText) curr=\(currentRemaining)")
+        case .suppressedCodexRestore:
+            self.sessionQuotaLogger.info(
+                "suppressed transient restore: provider=\(providerText) " +
+                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
+        case .awaitingCodexRestoreConfirmation:
+            self.sessionQuotaLogger.info(
+                "awaiting restore confirmation: provider=\(providerText) " +
+                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
+        case .depleted, .restored:
+            let transition = evaluation.outcome.transition
+            self.sessionQuotaLogger.info(
+                "transition \(String(describing: transition)): provider=\(providerText) " +
+                    "prev=\(previousRemaining ?? -1) curr=\(currentRemaining)")
+            if self.settings.sessionQuotaNotificationsEnabled {
+                self.sessionQuotaNotifier.post(transition: transition, provider: provider, badge: nil)
+            }
+            if self.settings.notificationPushToiOSEnabled {
+                self.quotaTransitionWriter.write(
+                    transition: transition,
+                    provider: provider,
+                    accountDisplayName: accountDisplayName,
+                    accountDiscriminator: accountDiscriminator)
+            }
+            if transition == .depleted, quotaReachedHookActive {
+                self.emitQuotaReachedHook(provider: provider, sessionWindow: sessionWindow, snapshot: snapshot)
+            }
+        }
     }
 }

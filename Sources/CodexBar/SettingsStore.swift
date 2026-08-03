@@ -213,6 +213,7 @@ final class SettingsStore {
     @ObservationIgnored let antigravityOAuthCredentialsStore: AntigravityOAuthCredentialsStore
     @ObservationIgnored var config: CodexBarConfig
     @ObservationIgnored var configPersistTask: Task<Void, Never>?
+    @ObservationIgnored var configFileWatcher: ConfigFileWatcher?
     @ObservationIgnored var configLoading = false
     @ObservationIgnored var tokenAccountsLoaded = false
     @ObservationIgnored var cachedCodexAccountReconciliationSnapshot:
@@ -374,6 +375,11 @@ final class SettingsStore {
             self.defaultsState.openAIWebAccessEnabled = resolvedOpenAIWebAccessEnabled
         }
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
+        self.startConfigFileWatcher()
+    }
+
+    deinit {
+        self.configFileWatcher?.stop()
     }
 }
 
@@ -494,6 +500,8 @@ extension SettingsStore {
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let optionalCreditsDefaults = Self.loadOptionalCreditsDefaults(userDefaults: userDefaults)
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
+        let backgroundWorkLowPowerModeEnabled =
+            userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
         let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
         let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
         if Self.isRunningTests, providerStorageFootprintsDefault == nil {
@@ -516,6 +524,18 @@ extension SettingsStore {
             ?? AgentSessionLabelStyle.project.rawValue
         let agentSessionsManualHosts = userDefaults.string(forKey: "agentSessionsManualHosts") ?? ""
         let preferredCurrencyCode = userDefaults.string(forKey: "preferredCurrencyCode") ?? "auto"
+        let macFleetSyncEnabled = userDefaults.object(forKey: "macFleetSyncEnabled") as? Bool ?? false
+        let macFleetSyncIncludeSecrets =
+            userDefaults.object(forKey: "macFleetSyncIncludeSecrets") as? Bool ?? false
+        let macFleetSyncSnapshotsEnabled =
+            userDefaults.object(forKey: "macFleetSyncSnapshotsEnabled") as? Bool ?? true
+        let macFleetSyncShowFleetAccounts =
+            userDefaults.object(forKey: "macFleetSyncShowFleetAccounts") as? Bool ?? true
+        let macFleetSyncDeviceID =
+            userDefaults.string(forKey: "macFleetSyncDeviceID") ?? UUID().uuidString.lowercased()
+        if userDefaults.string(forKey: "macFleetSyncDeviceID") == nil {
+            userDefaults.set(macFleetSyncDeviceID, forKey: "macFleetSyncDeviceID")
+        }
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
             adaptiveActivityScanConsent: adaptiveActivityScanConsent,
@@ -578,6 +598,7 @@ extension SettingsStore {
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
+            backgroundWorkLowPowerModeEnabled: backgroundWorkLowPowerModeEnabled,
             providerStorageFootprintsEnabled: providerStorageFootprintsEnabled,
             jetbrainsIDEBasePath: jetbrainsIDEBasePath,
             mergeIcons: mergeIcons,
@@ -592,7 +613,12 @@ extension SettingsStore {
             agentSessionsEnabled: agentSessionsEnabled,
             agentSessionLabelStyleRaw: agentSessionLabelStyleRaw,
             agentSessionsManualHosts: agentSessionsManualHosts,
-            preferredCurrencyCode: preferredCurrencyCode)
+            preferredCurrencyCode: preferredCurrencyCode,
+            macFleetSyncEnabled: macFleetSyncEnabled,
+            macFleetSyncIncludeSecrets: macFleetSyncIncludeSecrets,
+            macFleetSyncSnapshotsEnabled: macFleetSyncSnapshotsEnabled,
+            macFleetSyncShowFleetAccounts: macFleetSyncShowFleetAccounts,
+            macFleetSyncDeviceID: macFleetSyncDeviceID)
     }
 
     private static func loadOptionalCreditsDefaults(userDefaults: UserDefaults) -> OptionalCreditsDefaults {

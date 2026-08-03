@@ -39,7 +39,7 @@ struct CostUsageCacheTests {
         let vertexURL = CostUsageCacheIO.cacheFileURL(provider: .vertexai, cacheRoot: root)
 
         #expect(codexURL.lastPathComponent == "codex-v11.json")
-        #expect(claudeURL.lastPathComponent == "claude-v6.json")
+        #expect(claudeURL.lastPathComponent == "claude-v7.json")
         #expect(vertexURL.lastPathComponent == "vertexai-v6.json")
     }
 
@@ -139,6 +139,13 @@ struct CostUsageCacheTests {
         #expect(stale.lastScanUnixMs == 0)
         #expect(stale.files.isEmpty)
         #expect(stale.days.isEmpty)
+
+        let migration = CostUsageCacheIO.loadCodexForMigration(
+            cacheRoot: root,
+            producerKey: "codex:cu:p2222222222222222")
+        #expect(migration.cache.days.isEmpty)
+        #expect(migration.incompatibleCache?.producerKey == "codex:cu:p1111111111111111")
+        #expect(migration.incompatibleCache?.days["2026-05-18"]?["gpt-5.5"] == [1, 2, 3])
     }
 
     @Test

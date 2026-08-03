@@ -176,6 +176,24 @@ struct SyncCoordinatorV026MapperTests {
     }
 
     @Test
+    func `z.ai mapper parses the hourly timestamp format returned by the API`() throws {
+        let modelUsage = ZaiModelUsageData(
+            xTime: ["2026-05-14 08:00", "2026-05-14 09:00"],
+            modelDataList: [
+                ZaiModelDataItem(modelName: "glm-4.6", tokensUsage: [100, 250]),
+            ])
+        let snapshot = Self.makeZaiSnapshot(modelUsage: modelUsage)
+
+        let result = try #require(SyncCoordinator.mapZaiHourlyUsage(
+            provider: .zai,
+            snapshot: snapshot))
+
+        #expect(result.xTime.count == 2)
+        #expect(result.xTime[1].timeIntervalSince(result.xTime[0]) == 60 * 60)
+        #expect(result.modelSeries.first?.tokens == [100, 250])
+    }
+
+    @Test
     func `z.ai mapper: drops rows where the upstream model name is nil`() {
         let modelUsage = ZaiModelUsageData(
             xTime: ["2026-05-15T00:00:00Z"],

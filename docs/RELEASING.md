@@ -55,6 +55,25 @@ Gotchas fixed:
 - Avoid `unzip` — it can add AppleDouble `._*` files that break the sealed signature and trigger “app is damaged”. Use Finder or `ditto -x -k QuotaKit-macos-universal-<ver>.zip /Applications`. If Gatekeeper complains, delete the app bundle, re-extract with `ditto`, then `spctl -a -t exec` to verify.
 - Manual sanity check before uploading: `find QuotaKit.app -name '._*'` should return nothing; then `spctl --assess --type execute --verbose QuotaKit.app` and `codesign --verify --deep --strict --verbose QuotaKit.app` should both pass on the packaged bundle.
 
+## iCloud sync (CloudKit)
+Identity-signed release builds embed the local Columbus Labs provisioning
+profile from `Provisioning/QuotaKit_Dev.provisionprofile` at
+`Contents/embedded.provisionprofile` and claim QuotaKit's iCloud entitlements.
+`Scripts/package_app.sh` performs both steps and fails hard if the required
+profile is unavailable. The profile is local-only and must authorize the
+QuotaKit app identifier, app group, KVS identifier, and
+`iCloud.com.columbuslabs.quotakit` container.
+
+Schema changes: any new record type or field in `Sources/CodexBar*/Sync/` or
+`Shared/iCloud/` must be reflected additively in
+`Scripts/cloudkit/schema.ckdb` without removing the Mac-to-iPhone record types,
+and deployed **before** shipping the build:
+```
+CLOUDKIT_MANAGEMENT_TOKEN=… Scripts/cloudkit/deploy_schema.sh development   # validate
+CLOUDKIT_MANAGEMENT_TOKEN=… Scripts/cloudkit/deploy_schema.sh production
+```
+Tokens come from the CloudKit Console (icloud.developer.apple.com → account → Tokens). Developer ID builds can only reach the Production environment — an undeployed schema means every sync save fails with "unknown record type".
+
 ## Appcast (Sparkle)
 After notarization, or let `Scripts/release.sh` do this:
 ```

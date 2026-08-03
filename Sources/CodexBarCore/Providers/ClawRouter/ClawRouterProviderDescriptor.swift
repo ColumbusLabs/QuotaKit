@@ -18,10 +18,11 @@ public enum ClawRouterProviderDescriptor {
                 toggleTitle: "Show ClawRouter usage",
                 cliName: "clawrouter",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 dashboardURL: "https://clawrouter.openclaw.ai/dashboard/access",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .clawrouter,
+                iconStyle: .init(provider: .clawrouter),
                 iconResourceName: "ProviderIcon-clawrouter",
                 color: ProviderColor(red: 42 / 255, green: 130 / 255, blue: 245 / 255),
                 confettiPalette: [

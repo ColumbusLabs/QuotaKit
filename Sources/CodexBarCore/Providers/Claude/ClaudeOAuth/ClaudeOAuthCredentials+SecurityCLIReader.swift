@@ -94,6 +94,9 @@ extension ClaudeOAuthCredentialsStore {
         -> Data?
     {
         guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
+        // `/usr/bin/security` is not constrained by Security.framework's no-UI flags. Keep the ownership gate at
+        // the process-launch boundary so no caller can bypass it by selecting the experimental reader.
+        guard self.keychainAccessAllowed else { return nil }
         let interactionMetadata = interaction == .userInitiated ? "user" : "background"
         guard ClaudeOAuthKeychainPromptPreference.storedMode() != .never else {
             self.log.debug(
@@ -403,5 +406,21 @@ extension ClaudeOAuthCredentialsStore {
         }
         guard let payload else { return false }
         return ClaudeOAuthCredentials.isMcpOAuthOnlyPayload(data: payload)
+    }
+
+    static func shouldBlockSelectedProfileForMcpOnlyClaudeKeychain(
+        interaction: ProviderInteraction,
+        readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current(),
+        keychainAccessDisabled: Bool = KeychainAccessGate.isDisabled,
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool
+    {
+        // The global Keychain item has no profile identity. It can diagnose a missing selected profile,
+        // but cannot veto an OAuth credentials file attributable to that profile.
+        guard !self.hasSelectedProfileOAuthCredentialsFile(environment: environment) else { return false }
+        return self.isMcpOAuthOnlyClaudeKeychainPayloadPresent(
+            interaction: interaction,
+            readStrategy: readStrategy,
+            keychainAccessDisabled: keychainAccessDisabled,
+            environment: environment)
     }
 }

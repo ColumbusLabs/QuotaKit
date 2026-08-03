@@ -7,6 +7,16 @@ import SwiftUI
 // MARK: - NSMenu construction
 
 extension StatusItemController {
+    @objc func handleCurrencyExchangeRatesDidChange() {
+        self.invalidateMenus(refreshOpenMenus: true)
+        self.updateIcons()
+    }
+
+    @objc func handleQuotaWarningPosted(_ notification: Notification) {
+        guard let event = notification.object as? QuotaWarningPostedEvent else { return }
+        self.startQuotaWarningFlash(provider: event.provider, postedAt: event.postedAt)
+    }
+
     static let menuCardBaseWidth: CGFloat = 310
     private static let maxOverviewProviders = SettingsStore.mergedOverviewProviderLimit
     static let overviewRowIdentifierPrefix = "overviewRow-"
@@ -163,7 +173,6 @@ extension StatusItemController {
             self.cancelMergedSwitcherSiblingWarmup()
         }
         self.resetCompactAccountMenuExpansionStateIfIdle()
-        self.resetStableMenuHeightSessionFloor()
     }
 
     func forgetClosedMenu(_ menu: NSMenu) {
@@ -233,9 +242,6 @@ extension StatusItemController {
             "populateMenu",
             breadcrumb: "populateMenu:\(provider?.rawValue ?? "merged")")
         defer { self.endMenuOperationTrace(trace, menu: menu, provider: provider) }
-        // LIFO defers: warmup fills sibling caches, card heights finalize, then the
-        // stable-height pass equalizes provider tabs against the tallest cached tab.
-        defer { self.applyStableMenuHeightPadding(in: menu) }
         defer { self.refreshMenuCardHeights(in: menu) }
         // Re-warm sibling tab caches after every populate of the open merged menu so a
         // tab switch attaches pre-rendered rows; no-ops for closed or non-merged menus.
@@ -622,6 +628,9 @@ extension StatusItemController {
     }
 
     private func addMenuCards(to menu: NSMenu, context: MenuCardContext, captureMenu: NSMenu? = nil) -> Bool {
+        let fleetProjection = self.fleetAccountProjection(for: context.currentProvider)
+        if self.addFleetFallback(fleetProjection, to: menu, context: context) { return false }
+
         if let codexAccountDisplay = context.codexAccountDisplay, codexAccountDisplay.showAll {
             if !self.addCompactCodexAccountMenuIfPlanned(
                 display: codexAccountDisplay,
@@ -631,6 +640,7 @@ extension StatusItemController {
             {
                 self.addStackedCodexMenuCards(codexAccountDisplay, to: menu, context: context)
             }
+            self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
             return false
         }
 
@@ -642,6 +652,7 @@ extension StatusItemController {
             showSingleAccount: self.settings.claudeSwapShowSingleAccount)
         {
             self.addClaudeSwapMenuCards(to: menu, captureMenu: captureMenu ?? menu, context: context)
+            self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
             return false
         }
 
@@ -652,6 +663,7 @@ extension StatusItemController {
                 captureMenu: captureMenu ?? menu,
                 context: context)
             {
+                self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
                 return false
             }
             let accountSnapshots = tokenAccountDisplay.snapshots
@@ -663,6 +675,7 @@ extension StatusItemController {
                         accountSnapshot: accountSnapshot)
                 }
             self.addStackedMenuCards(cards, to: menu, context: context)
+            self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
             return false
         }
 
@@ -675,6 +688,7 @@ extension StatusItemController {
                     forceOverrideCard: scope.snapshot == nil)
             }
             self.addStackedMenuCards(cards, to: menu, context: context)
+            self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
             return false
         }
 
@@ -694,6 +708,7 @@ extension StatusItemController {
                 layoutModel: renderedModel,
                 width: context.menuWidth,
                 webItems: webItems)
+            self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
             return true
         }
 
@@ -704,6 +719,7 @@ extension StatusItemController {
             heightCacheScope: context.currentProvider.rawValue,
             heightCacheFingerprint: renderedModel.heightFingerprint(section: "card"),
             containsInteractiveControls: true))
+        self.addFleetAccountMenuCards(fleetProjection.additionalAccounts, to: menu, context: context)
         if self.addStorageMenuCardSection(to: menu, provider: context.currentProvider, width: context.menuWidth) {
             menu.addItem(.separator())
         }
@@ -771,10 +787,6 @@ extension StatusItemController {
                 width: context.menuWidth)
             {
                 menu.addItem(.separator())
-            }
-            if self.shouldMergeIcons, self.store.enabledProvidersForDisplay().count > 1 {
-                // Sized by `applyStableMenuHeightPadding` so provider tabs share one height.
-                menu.addItem(self.makeStableMenuHeightSpacerItem())
             }
         }
     }
@@ -1305,9 +1317,7 @@ extension StatusItemController {
         }
 
         if hasCredits {
-            if hasExtraUsage || hasCost {
-                addSectionSeparator()
-            }
+            addSectionSeparator()
             let creditsView = UsageMenuCardCreditsSectionView(
                 model: model,
                 showBottomDivider: false,
@@ -1328,9 +1338,7 @@ extension StatusItemController {
             }
         }
         if hasExtraUsage {
-            if hasCredits {
-                addSectionSeparator()
-            }
+            addSectionSeparator()
             let extraUsageSubmenu = self.makeOpenAIAPIUsageSubmenu(provider: provider, width: width)
             let extraUsageView = UsageMenuCardExtraUsageSectionView(
                 model: model,
@@ -1346,9 +1354,7 @@ extension StatusItemController {
                 submenu: extraUsageSubmenu))
         }
         if hasCost {
-            if hasCredits || hasExtraUsage {
-                addSectionSeparator()
-            }
+            addSectionSeparator()
             let costSubmenu = webItems.hasCostHistory ? self
                 .makeCostHistorySubmenu(provider: provider, width: width) : nil
             menu.addItem(self.makeCostMenuCardItem(

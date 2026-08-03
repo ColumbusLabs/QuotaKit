@@ -42,13 +42,14 @@ public enum AugmentProviderDescriptor {
                 toggleTitle: "Show Augment usage",
                 cliName: "augment",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: browserOrder,
                 dashboardURL: "https://app.augmentcode.com/account/subscription",
                 statusPageURL: "https://status.augmentcode.com"),
             branding: ProviderBranding(
-                iconStyle: .augment,
+                iconStyle: .init(provider: .augment),
                 iconResourceName: "ProviderIcon-augment",
                 color: ProviderColor(red: 139 / 255, green: 92 / 255, blue: 246 / 255),
                 confettiPalette: [

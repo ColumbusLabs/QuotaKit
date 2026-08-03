@@ -168,6 +168,44 @@ require_field "QuotaTransition" "transitionAt"
 require_field "QuotaTransition" "deviceID"
 require_field "QuotaTransition" "accountEmail"
 
+# Opt-in Mac fleet sync uses a separate record zone in the same QuotaKit
+# container. CKSyncEngine addresses these records by ID, so they do not need
+# queryable indexes, but every declared field must exist in Production before
+# a signed release enables the feature.
+require_record_type "AccountSnapshot"
+require_field "AccountSnapshot" "accountKey"
+require_field "AccountSnapshot" "deviceID"
+require_field "AccountSnapshot" "fetchedAt"
+require_field "AccountSnapshot" "provider"
+require_field "AccountSnapshot" "schemaVersion"
+require_field "AccountSnapshot" "displayLabel"
+require_field "AccountSnapshot" "usagePayload"
+
+require_record_type "Device"
+require_field "Device" "appVersion"
+require_field "Device" "deviceID"
+require_field "Device" "hostName"
+require_field "Device" "lastSeen"
+require_field "Device" "model"
+require_field "Device" "schemaVersion"
+
+require_record_type "Preferences"
+require_field "Preferences" "editCount"
+require_field "Preferences" "modifiedAt"
+require_field "Preferences" "payload"
+require_field "Preferences" "schemaVersion"
+
+require_record_type "ProviderIntent"
+require_field "ProviderIntent" "editCount"
+require_field "ProviderIntent" "modifiedAt"
+require_field "ProviderIntent" "payload"
+require_field "ProviderIntent" "provider"
+require_field "ProviderIntent" "schemaVersion"
+require_field "ProviderIntent" "apiKey"
+require_field "ProviderIntent" "cookieHeader"
+require_field "ProviderIntent" "secretKey"
+require_field "ProviderIntent" "tokenAccounts"
+
 if ((${#failures[@]} > 0)); then
   echo
   echo "ERROR: CloudKit ${ENVIRONMENT} schema is not release-ready:" >&2

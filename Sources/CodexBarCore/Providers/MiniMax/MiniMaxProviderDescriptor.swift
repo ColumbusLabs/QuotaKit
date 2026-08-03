@@ -24,7 +24,7 @@ public enum MiniMaxProviderDescriptor {
                 dashboardURL: "https://platform.minimax.io/user-center/payment/coding-plan?cycle_type=3",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .minimax,
+                iconStyle: .init(provider: .minimax),
                 iconResourceName: "ProviderIcon-minimax",
                 color: ProviderColor(red: 239 / 255, green: 68 / 255, blue: 68 / 255),
                 confettiPalette: [

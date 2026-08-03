@@ -18,6 +18,7 @@ public enum T3ChatProviderDescriptor {
                 toggleTitle: "Show T3 Chat usage",
                 cliName: "t3chat",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
@@ -25,7 +26,7 @@ public enum T3ChatProviderDescriptor {
                 subscriptionDashboardURL: "https://t3.chat/settings/subscription",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .t3chat,
+                iconStyle: .init(provider: .t3chat),
                 iconResourceName: "ProviderIcon-t3chat",
                 color: ProviderColor(red: 219 / 255, green: 39 / 255, blue: 119 / 255),
                 confettiPalette: [

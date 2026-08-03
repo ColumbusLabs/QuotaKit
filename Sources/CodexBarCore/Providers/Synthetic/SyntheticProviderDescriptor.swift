@@ -18,12 +18,13 @@ public enum SyntheticProviderDescriptor {
                 toggleTitle: "Show Synthetic usage",
                 cliName: "synthetic",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 dashboardURL: nil,
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .synthetic,
+                iconStyle: .init(provider: .synthetic),
                 iconResourceName: "ProviderIcon-synthetic",
                 color: ProviderColor(red: 42 / 255, green: 42 / 255, blue: 42 / 255),
                 confettiPalette: [

@@ -18,10 +18,11 @@ public enum WayfinderProviderDescriptor {
                 toggleTitle: "Show Wayfinder usage",
                 cliName: "wayfinder",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 dashboardURL: WayfinderSettingsReader.dashboardURL(environment: [:]).absoluteString,
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .wayfinder,
+                iconStyle: .init(provider: .wayfinder),
                 iconResourceName: "ProviderIcon-wayfinder",
                 color: ProviderColor(red: 9 / 255, green: 131 / 255, blue: 172 / 255),
                 confettiPalette: [
