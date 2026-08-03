@@ -21,10 +21,10 @@ public enum OpenCodeGoProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
-                dashboardURL: "https://opencode.ai",
+                dashboardURL: "https://opencode.ai/auth",
                 statusPageURL: nil),
             branding: ProviderBranding(
-                iconStyle: .opencodego,
+                iconStyle: .init(provider: .opencodego),
                 iconResourceName: "ProviderIcon-opencodego",
                 color: ProviderColor(red: 52 / 255, green: 211 / 255, blue: 153 / 255),
                 confettiPalette: [

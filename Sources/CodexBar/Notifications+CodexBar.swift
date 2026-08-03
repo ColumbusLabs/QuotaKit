@@ -13,7 +13,16 @@ extension Notification.Name {
     static let codexbarProviderConfigDidChange = Notification.Name("codexbarProviderConfigDidChange")
     static let codexbarCurrencyExchangeRatesDidChange =
         Notification.Name("codexbarCurrencyExchangeRatesDidChange")
+    static let codexbarUsageSnapshotsDidChange = Notification.Name("codexbarUsageSnapshotsDidChange")
     static let codexbarQuotaWarningDidPost = Notification.Name("codexbarQuotaWarningDidPost")
+}
+
+final class UsageSnapshotsDidChangeEvent: NSObject, @unchecked Sendable {
+    let snapshots: [AccountSnapshotSyncPayload]
+
+    init(snapshots: [AccountSnapshotSyncPayload]) {
+        self.snapshots = snapshots
+    }
 }
 
 @MainActor

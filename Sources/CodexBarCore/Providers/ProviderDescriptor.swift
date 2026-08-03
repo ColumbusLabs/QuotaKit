@@ -75,6 +75,29 @@ public struct ProviderPaceCapability: Sendable {
     public func usesInferredMonthlyDuration(window: RateWindow) -> Bool {
         self.inferredMonthlyDuration.matches(window: window)
     }
+
+    public func resolvedResetWindowForPace(_ window: RateWindow) -> RateWindow {
+        guard self.usesInferredMonthlyDuration(window: window),
+              let resetsAt = window.resetsAt,
+              let minutes = Self.inferredMonthlyWindowMinutes(endingAt: resetsAt)
+        else { return window }
+        return RateWindow(
+            usedPercent: window.usedPercent,
+            windowMinutes: minutes,
+            resetsAt: window.resetsAt,
+            resetDescription: window.resetDescription,
+            nextRegenPercent: window.nextRegenPercent,
+            isSyntheticPlaceholder: window.isSyntheticPlaceholder)
+    }
+
+    private static func inferredMonthlyWindowMinutes(endingAt resetsAt: Date) -> Int? {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0) ?? calendar.timeZone
+        guard let startsAt = calendar.date(byAdding: .month, value: -1, to: resetsAt) else { return nil }
+        let minutes = resetsAt.timeIntervalSince(startsAt) / 60
+        guard minutes.isFinite, minutes > 0 else { return nil }
+        return Int(minutes.rounded())
+    }
 }
 
 public struct ProviderDescriptor: Sendable {
@@ -122,79 +145,8 @@ public enum ProviderDescriptorRegistry {
 
     private static let lock = NSLock()
     private static let store = Store()
-    private static let descriptorsByID: [UsageProvider: ProviderDescriptor] = [
-        .codex: CodexProviderDescriptor.descriptor,
-        .openai: OpenAIAPIProviderDescriptor.descriptor,
-        .azureopenai: AzureOpenAIProviderDescriptor.descriptor,
-        .claude: ClaudeProviderDescriptor.descriptor,
-        .clinepass: ClinePassProviderDescriptor.descriptor,
-        .cursor: CursorProviderDescriptor.descriptor,
-        .opencode: OpenCodeProviderDescriptor.descriptor,
-        .opencodego: OpenCodeGoProviderDescriptor.descriptor,
-        .alibaba: AlibabaCodingPlanProviderDescriptor.descriptor,
-        .alibabatokenplan: AlibabaTokenPlanProviderDescriptor.descriptor,
-        .qwencloud: QwenCloudProviderDescriptor.descriptor,
-        .factory: FactoryProviderDescriptor.descriptor,
-        .gemini: GeminiProviderDescriptor.descriptor,
-        .antigravity: AntigravityProviderDescriptor.descriptor,
-        .copilot: CopilotProviderDescriptor.descriptor,
-        .devin: DevinProviderDescriptor.descriptor,
-        .zai: ZaiProviderDescriptor.descriptor,
-        .minimax: MiniMaxProviderDescriptor.descriptor,
-        .manus: ManusProviderDescriptor.descriptor,
-        .kimi: KimiProviderDescriptor.descriptor,
-        .kilo: KiloProviderDescriptor.descriptor,
-        .kiro: KiroProviderDescriptor.descriptor,
-        .vertexai: VertexAIProviderDescriptor.descriptor,
-        .augment: AugmentProviderDescriptor.descriptor,
-        .jetbrains: JetBrainsProviderDescriptor.descriptor,
-        .moonshot: MoonshotProviderDescriptor.descriptor,
-        .amp: AmpProviderDescriptor.descriptor,
-        .t3chat: T3ChatProviderDescriptor.descriptor,
-        .ollama: OllamaProviderDescriptor.descriptor,
-        .synthetic: SyntheticProviderDescriptor.descriptor,
-        .openrouter: OpenRouterProviderDescriptor.descriptor,
-        .elevenlabs: ElevenLabsProviderDescriptor.descriptor,
-        .warp: WarpProviderDescriptor.descriptor,
-        .windsurf: WindsurfProviderDescriptor.descriptor,
-        .zed: ZedProviderDescriptor.descriptor,
-        .perplexity: PerplexityProviderDescriptor.descriptor,
-        .mimo: MiMoProviderDescriptor.descriptor,
-        .doubao: DoubaoProviderDescriptor.descriptor,
-        .sakana: SakanaProviderDescriptor.descriptor,
-        .abacus: AbacusProviderDescriptor.descriptor,
-        .mistral: MistralProviderDescriptor.descriptor,
-        .deepseek: DeepSeekProviderDescriptor.descriptor,
-        .deepinfra: DeepInfraProviderDescriptor.descriptor,
-        .codebuff: CodebuffProviderDescriptor.descriptor,
-        .crof: CrofProviderDescriptor.descriptor,
-        .venice: VeniceProviderDescriptor.descriptor,
-        .commandcode: CommandCodeProviderDescriptor.descriptor,
-        .qoder: QoderProviderDescriptor.descriptor,
-        .stepfun: StepFunProviderDescriptor.descriptor,
-        .bedrock: BedrockProviderDescriptor.descriptor,
-        .grok: GrokProviderDescriptor.descriptor,
-        .groq: GroqProviderDescriptor.descriptor,
-        .llmproxy: LLMProxyProviderDescriptor.descriptor,
-        .litellm: LiteLLMProviderDescriptor.descriptor,
-        .deepgram: DeepgramProviderDescriptor.descriptor,
-        .poe: PoeProviderDescriptor.descriptor,
-        .chutes: ChutesProviderDescriptor.descriptor,
-        .neuralwatt: NeuralWattProviderDescriptor.descriptor,
-        .clawrouter: ClawRouterProviderDescriptor.descriptor,
-        .longcat: LongCatProviderDescriptor.descriptor,
-        .sub2api: Sub2APIProviderDescriptor.descriptor,
-        .wayfinder: WayfinderProviderDescriptor.descriptor,
-        .zenmux: ZenMuxProviderDescriptor.descriptor,
-        .aiand: AiAndProviderDescriptor.descriptor,
-        .zoommate: ZoomMateProviderDescriptor.descriptor,
-        .xai: XAIProviderDescriptor.descriptor,
-    ]
     private static let bootstrap: Void = {
-        for provider in UsageProvider.allCases {
-            guard let descriptor = descriptorsByID[provider] else {
-                preconditionFailure("Missing ProviderDescriptor for \(provider.rawValue)")
-            }
+        for descriptor in ProviderManifest.allDescriptors {
             _ = ProviderDescriptorRegistry.register(descriptor)
         }
     }()
@@ -227,8 +179,12 @@ public enum ProviderDescriptorRegistry {
 
     public static func descriptor(for id: UsageProvider) -> ProviderDescriptor {
         self.ensureBootstrapped()
-        if let found = self.store.byID[id] { return found }
-        if let found = self.all.first(where: { $0.id == id }) { return found }
+        if let found = self.store.byID[id] {
+            return found
+        }
+        if let found = self.all.first(where: { $0.id == id }) {
+            return found
+        }
         fatalError("Missing ProviderDescriptor for \(id.rawValue)")
     }
 

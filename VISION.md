@@ -34,3 +34,11 @@ collection, iCloud sync to iPhone, and provider coverage that earns its complexi
   privacy.
 - Provider additions that need new host APIs, bespoke UI, broad filesystem access,
   or unclear auth/privacy behavior.
+- Changes that add meaningful maintenance complexity.
+
+## Platform Scope
+
+- macOS is the home of the UI: the menu bar app, widgets, and any future native surfaces.
+- The CLI (`quotakit`) is cross-platform: macOS and Linux are supported today, with feature parity for usage, cost, serve, and hooks wherever platform APIs allow.
+- Windows is an aspiration, not a commitment: if Swift's Windows support matures enough to stop fighting us, shipping the CLI (and eventually more) there would be welcome. Contributions keeping the core portable are valued now.
+- Desktop-environment integrations beyond macOS (KDE widgets, GNOME extensions, etc.) belong in separate, community-maintained projects consuming `quotakit serve` or `quotakit usage --json`; we link good ones from the README rather than absorbing them.

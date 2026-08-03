@@ -31,6 +31,19 @@ Mac-to-iOS sync depends on these Production record types in
 - `ProviderAccountLinkage`: `providerID`, `linkedIdentifiers`, `confirmedAt`, `confirmedFromDeviceID`, `unmerge`
 - `QuotaTransition`: `providerName`, `providerID`, `state`, `transitionAt`, `deviceID`, `accountEmail`
 
+Opt-in Mac fleet sync uses a separate record zone in that same QuotaKit
+container and depends on these additional Production record types:
+
+- `AccountSnapshot`: `accountKey`, `deviceID`, `fetchedAt`, `provider`, `schemaVersion`, encrypted `displayLabel`, encrypted `usagePayload`
+- `Device`: `appVersion`, `deviceID`, `hostName`, `lastSeen`, `model`, `schemaVersion`
+- `Preferences`: `editCount`, `modifiedAt`, `payload`, `schemaVersion`
+- `ProviderIntent`: `editCount`, `modifiedAt`, `payload`, `provider`, `schemaVersion`, encrypted `apiKey`, encrypted `cookieHeader`, encrypted `secretKey`, encrypted `tokenAccounts`
+
+The fleet-sync engine addresses records by ID through `CKSyncEngine`; these
+four record types do not currently require queryable indexes. Their record
+types and fields still must be present in Production before enabling fleet
+sync in a signed build.
+
 `DeviceProviderSnapshot.deviceID` must be queryable because the Mac startup
 reconcile queries provider records for the current device.
 
@@ -42,8 +55,8 @@ queryable` when the built-in record-name index is missing. CloudKit Dashboard
 labels the field `recordName`; schema exports may represent the same index as
 `___recordID`.
 
-If a release build shows `Cannot create new type DeviceSnapshot in production
-schema`, Production schema has not been deployed. Open CloudKit Dashboard,
+If a release build reports that it cannot create a record type in the
+Production schema, Production schema has not been deployed. Open CloudKit Dashboard,
 select `iCloud.com.columbuslabs.quotakit`, and use **Schema -> Deploy Schema
 Changes to Production** before publishing another Mac release.
 

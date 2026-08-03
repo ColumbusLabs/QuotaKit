@@ -18,6 +18,7 @@ public enum GrokProviderDescriptor {
                 toggleTitle: "Show Grok usage",
                 cliName: "grok",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 browserCookieOrder: ProviderBrowserCookieDefaults.grokCookieImportOrder,
@@ -26,7 +27,7 @@ public enum GrokProviderDescriptor {
                 statusPageURL: nil,
                 statusLinkURL: "https://status.x.ai"),
             branding: ProviderBranding(
-                iconStyle: .grok,
+                iconStyle: .init(provider: .grok),
                 iconResourceName: "ProviderIcon-grok",
                 color: ProviderColor(red: 26 / 255, green: 26 / 255, blue: 26 / 255),
                 confettiPalette: [

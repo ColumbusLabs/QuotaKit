@@ -35,6 +35,7 @@ public enum AlibabaTokenPlanProviderDescriptor {
             metadata: ProviderMetadata(
                 id: .alibabatokenplan,
                 displayName: "Alibaba Token Plan",
+                shortDisplayName: "Token Plan",
                 sessionLabel: "Credits",
                 weeklyLabel: "Usage",
                 opusLabel: nil,
@@ -51,7 +52,7 @@ public enum AlibabaTokenPlanProviderDescriptor {
                 statusPageURL: nil,
                 statusLinkURL: "https://status.aliyun.com"),
             branding: ProviderBranding(
-                iconStyle: .alibaba,
+                iconStyle: .init(provider: .alibaba),
                 iconResourceName: "ProviderIcon-alibaba",
                 color: ProviderColor(red: 1.0, green: 176 / 255, blue: 32 / 255),
                 confettiPalette: [

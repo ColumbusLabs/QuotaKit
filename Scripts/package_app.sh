@@ -221,7 +221,12 @@ if [[ "$ALLOW_LLDB" == "1" && "$LOWER_CONF" != "debug" ]]; then
   echo "ERROR: CODEXBAR_ALLOW_LLDB requires debug configuration" >&2
   exit 1
 fi
-# Determine if we need get-task-allow (Apple Development certs require it to launch)
+# The upstream Mac fleet sync and QuotaKit's Mac-to-iPhone sync both require
+# CloudKit's restricted entitlements. QuotaKit's identity-signed release lane
+# embeds its local Columbus Labs provisioning profile below; adhoc builds omit
+# shared entitlements so local packaging remains prompt-free and launchable.
+#
+# Apple Development identities also require get-task-allow to launch locally.
 NEEDS_GET_TASK_ALLOW=0
 if [[ "$ALLOW_LLDB" == "1" ]]; then
   NEEDS_GET_TASK_ALLOW=1
@@ -699,17 +704,17 @@ if [[ -d "${APP}/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex" ]]; then
 fi
 
 # Embed provisioning profile.
-# REQUIRED for release + real-signed builds: app entitlements include
-# com.apple.application-identifier, which AMFI checks at launch against
-# the embedded profile. A bundle without this file passes codesign /
-# spctl / notarization / stapler but fails to launch with "Launchd job
-# spawn failed" (POSIX 163). Fail loud here instead of shipping a
-# broken bundle that only breaks on the user's Mac.
+# REQUIRED for release + real-signed builds: the QuotaKit profile authorizes
+# the app identifier, application group, KVS, and CloudKit container used by
+# both fleet and mobile sync. AMFI checks those entitlements against the
+# embedded profile at launch. A bundle without this file passes codesign,
+# spctl, notarization, and stapling but fails to launch with "Launchd job
+# spawn failed" (POSIX 163), so fail before creating a broken release.
 PROVISION_PROFILE="$ROOT/Provisioning/QuotaKit_Dev.provisionprofile"
 if [[ ! -f "$PROVISION_PROFILE" && -f "$ROOT/Provisioning/CodexBar_Dev.provisionprofile" ]]; then
   PROVISION_PROFILE="$ROOT/Provisioning/CodexBar_Dev.provisionprofile"
 fi
-if [[ "${CONF}" == "release" && "${SIGNING_MODE:-}" != "adhoc" ]]; then
+if [[ "$LOWER_CONF" == "release" && "$SIGNING_MODE" == "identity" ]]; then
   if [[ ! -f "$PROVISION_PROFILE" ]]; then
     echo "FATAL: provisioning profile not found at $PROVISION_PROFILE" >&2
     echo "" >&2

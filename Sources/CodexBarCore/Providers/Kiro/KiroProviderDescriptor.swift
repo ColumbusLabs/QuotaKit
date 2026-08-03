@@ -18,13 +18,14 @@ public enum KiroProviderDescriptor {
                 toggleTitle: "Show Kiro usage",
                 cliName: "kiro",
                 defaultEnabled: false,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 dashboardURL: "https://app.kiro.dev/account/usage",
                 statusPageURL: nil,
                 statusLinkURL: "https://health.aws.amazon.com/health/status"),
             branding: ProviderBranding(
-                iconStyle: .kiro,
+                iconStyle: .init(provider: .kiro),
                 iconResourceName: "ProviderIcon-kiro",
                 color: ProviderColor(red: 217 / 255, green: 119 / 255, blue: 6 / 255),
                 confettiPalette: [

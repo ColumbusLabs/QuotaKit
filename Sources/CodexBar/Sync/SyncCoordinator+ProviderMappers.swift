@@ -63,8 +63,14 @@ extension SyncCoordinator {
         formatter.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
         let fallback = ISO8601DateFormatter()
         fallback.formatOptions = [.withInternetDateTime]
-        let xTime: [Date] = model.xTime.compactMap { iso in
-            formatter.date(from: iso) ?? fallback.date(from: iso)
+        let upstreamHourly = DateFormatter()
+        upstreamHourly.calendar = Calendar(identifier: .gregorian)
+        upstreamHourly.locale = Locale(identifier: "en_US_POSIX")
+        upstreamHourly.dateFormat = "yyyy-MM-dd HH:mm"
+        let xTime: [Date] = model.xTime.compactMap { timestamp in
+            formatter.date(from: timestamp)
+                ?? fallback.date(from: timestamp)
+                ?? upstreamHourly.date(from: timestamp)
         }
         // Skip if the time series didn't parse — iOS can't render
         // anything useful with mismatched x-axis.
