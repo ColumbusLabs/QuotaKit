@@ -39,7 +39,7 @@ struct CostUsageCacheTests {
         let vertexURL = CostUsageCacheIO.cacheFileURL(provider: .vertexai, cacheRoot: root)
 
         #expect(codexURL.lastPathComponent == "codex-v11.json")
-        #expect(claudeURL.lastPathComponent == "claude-v6.json")
+        #expect(claudeURL.lastPathComponent == "claude-v7.json")
         #expect(vertexURL.lastPathComponent == "vertexai-v6.json")
     }
 
