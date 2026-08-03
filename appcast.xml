@@ -5,6 +5,31 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.15</title>
+            <pubDate>Sun, 02 Aug 2026 21:35:39 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.15.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.15</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.15 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Cursor: label modern Auto and API quota lanes correctly in the Mac menu, matching the iPhone app.</li>
+<li>Menu: provider tab switches no longer blank out card rows mid-switch. Cached tab content is replanted into the attached hosting views (SwiftUI payload swap) instead of detaching <code>item.view</code>, which made Tahoe's NSMenu paint fallback "NSMenuItem" placeholder rows for a few frames; residual structural churn now renders blank instead of placeholder text. Verified frame-by-frame via 120fps screen recordings driven by the self-probe.</li>
+<li>OpenCode Go: read idle WAL-mode local history without creating SQLite sidecars (#2544). Thanks @Astro-Han for the report!</li>
+<li>Keychain: stop "QuotaKit Cache" login-keychain password prompts from dev and test tooling. Unbundled processes (<code>swift build</code> binaries, dev CLI runs) now use a process-local cache instead of the shared keychain item, never freeze a broken trusted-app ACL onto it, and test-blocked processes disable legacy keychain interaction process-wide and export the suppression flag to spawned child binaries.</li>
+<li>MiMo/StepFun: feed monthly token-plan windows into usage history, pace, and forecasts (#2526, part of #2431). Thanks @LeoLin990405!</li>
+<li>Menu: switching provider tabs no longer flashes. The sibling-tab warmup now runs off a tracking-safe timer (the previous Task-based warmup never fired while the menu was open, which is the only time it matters), and provider tabs share one stable menu height via an invisible spacer, so a switch is a single-frame content swap with no window resize. Verified frame-by-frame with a new env-gated self-probe (<code>CODEXBAR_FLICKER_PROBE_DIR</code>).</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced upstream CodexBar changes through <code>41bc0141e</code>, adding stable provider-tab swaps and height, non-interactive development caches, monthly MiMo/StepFun pacing, idle OpenCode WAL fallback, and cross-platform process fixes while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and all build numbers.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.15/QuotaKit-macos-universal-0.32.4.15.zip" length="60901735" type="application/octet-stream" sparkle:edSignature="an9CcvzEWAil/rvJ5Pud/Aghf1b5etoP6S003kIcknsmHFpjw1oeoA6TfUdkDSAUv2FlLSE3QVN+wM1DKzXyAw=="/>
+        </item>
+        <item>
             <title>0.32.4.14</title>
             <pubDate>Sat, 01 Aug 2026 01:11:40 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -80,46 +105,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.13/QuotaKit-macos-universal-0.32.4.13.zip" length="60674698" type="application/octet-stream" sparkle:edSignature="HJO+A+cv3Odits28M0guF3BkB/BacovcFMT5oGq/uxDQe+ZWre49VAiYD0OS0VZop0Ztv+Rx0vHE7CUdaSQCBg=="/>
-        </item>
-        <item>
-            <title>0.32.4.12</title>
-            <pubDate>Fri, 17 Jul 2026 21:10:55 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.12.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.12</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.12 Mobile 1.11.3</h2>
-<h3>Added</h3>
-<ul>
-<li>Codex: show the backend-authoritative count of banked limit resets, the next</li>
-</ul>
-  exact expiration in the menu, and every known exact expiration in provider
-  details without inventing timestamps when the backend returns a partial list.
-<ul>
-<li>ZenMux: add Management API usage with five-hour and weekly quotas, subscription expiry, and USD PAYG balance. Thanks @kays0x!</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Claude: preserve each account’s last-good OAuth usage during rate limits and isolate retry cooldowns per credential. Thanks @ruushu!</li>
-<li>Claude: recover a missing credentials file from a valid Claude Code Keychain item without showing Keychain UI when Never prompt is selected (#1975). Thanks @OfficialAbhinavSingh!</li>
-<li>Codex cost usage: invalidate cached fork totals when the parent session appears, changes, or resolves to a different file, preventing stale inherited baselines. Thanks @xx205!</li>
-<li>Cursor: bind interactive account login to one readable browser, preserve the active session on cancellation or failure, and prevent background refreshes from replacing the selected account. Thanks @chapati23!</li>
-<li>Menu bar: prevent duplicate provider items when usage updates re-enter initial status-item setup (#2162). Thanks @ss251!</li>
-<li>Codex cost usage: count restarted subagent token counters without subtracting the parent's unrelated cumulative baseline (#2193). Thanks @qiuruiyu and @harjothkhara!</li>
-<li>Ollama: clarify that Cloud quota limits require a signed-in browser session with cookies when API-key verification is used.</li>
-<li>Claude: suppress duplicate all-model scoped quota rows beside the primary Weekly row.</li>
-<li>Copilot: hide quota bars explicitly marked unlimited while preserving finite Premium and Chat quotas. Thanks @Zihao-Qi!</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Synced upstream CodexBar changes through <code>e6b2ea490</code>, including ClinePass,</li>
-</ul>
-  LongCat, Neuralwatt, the unified usage and spend dashboard, private local
-  usage-sharing cards, Cursor token-cost reporting, and hardened shared-stat
-  aggregation while preserving QuotaKit release ownership and CloudKit setup.
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.12/QuotaKit-macos-universal-0.32.4.12.zip" length="55533069" type="application/octet-stream" sparkle:edSignature="BAjBJGo3mlk1wYKWp5qonADKOpSotUd8E6F3cOEGQrh9XNEaHQsQG91fpN41EtJI67AXQyWfYXuAxVeGOW1YBQ=="/>
         </item>
     </channel>
 </rss>
