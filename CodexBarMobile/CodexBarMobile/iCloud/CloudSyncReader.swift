@@ -413,6 +413,117 @@ final class CloudSyncReader: @unchecked Sendable {
         .credits
     }
 
+    /// Accumulates one model's cost breakdown across local-cost snapshots.
+    ///
+    /// The optional fields retain whether each source had split cost/token
+    /// metadata. A missing inactive tier is zero within a split-capable
+    /// payload, while an entirely absent category means the source Mac did
+    /// not know how to produce that metadata (for example, a pre-0.29
+    /// payload). `modelTokens` supplies the compatible fallback for payloads
+    /// that only carry standard/priority token counts.
+    private struct ModelBreakdownAccumulator {
+        var breakdownCount = 0
+        var costUSD = 0.0
+        var totalTokens = 0
+        var hasTokens = false
+        var standardCostUSD = 0.0
+        var hasStandardCostUSD = false
+        var priorityCostUSD = 0.0
+        var hasPriorityCostUSD = false
+        var splitCostCapabilityCount = 0
+        var standardTokens = 0
+        var hasStandardTokens = false
+        var priorityTokens = 0
+        var hasPriorityTokens = false
+        var splitTokenCapabilityCount = 0
+        var isEstimated = false
+        var hasEstimated = false
+
+        mutating func add(_ breakdown: SyncCostBreakdown) {
+            self.breakdownCount += 1
+            self.costUSD += breakdown.costUSD
+
+            // `modelTokens` is `totalTokens` when present and otherwise the
+            // standard + priority fallback. This lets an older Mac's split
+            // fields contribute to the merged total without double-counting a
+            // newer payload that carries both forms.
+            if let modelTokens = breakdown.modelTokens {
+                self.totalTokens += modelTokens
+                self.hasTokens = true
+            }
+
+            if let standardCostUSD = breakdown.standardCostUSD {
+                self.standardCostUSD += standardCostUSD
+                self.hasStandardCostUSD = true
+            }
+            if let priorityCostUSD = breakdown.priorityCostUSD {
+                self.priorityCostUSD += priorityCostUSD
+                self.hasPriorityCostUSD = true
+            }
+            if let standardTokens = breakdown.standardTokens {
+                self.standardTokens += standardTokens
+                self.hasStandardTokens = true
+            }
+            if let priorityTokens = breakdown.priorityTokens {
+                self.priorityTokens += priorityTokens
+                self.hasPriorityTokens = true
+            }
+
+            // A split-capable Mac may legitimately omit the inactive Std or
+            // Fast tier. Treat that missing tier as zero when the cost/token
+            // category is present. An entirely legacy/no-split contribution
+            // makes that category incomplete and unsafe to merge.
+            if breakdown.standardCostUSD != nil || breakdown.priorityCostUSD != nil {
+                self.splitCostCapabilityCount += 1
+            }
+            if breakdown.standardTokens != nil || breakdown.priorityTokens != nil {
+                self.splitTokenCapabilityCount += 1
+            }
+
+            if let isEstimated = breakdown.isEstimated {
+                self.hasEstimated = true
+                self.isEstimated = self.isEstimated || isEstimated
+            }
+        }
+
+        func makeBreakdown(label: String) -> SyncCostBreakdown {
+            SyncCostBreakdown(
+                label: label,
+                costUSD: self.costUSD,
+                totalTokens: self.hasTokens ? self.totalTokens : nil,
+                isEstimated: self.hasEstimated ? self.isEstimated : nil,
+                // A split is authoritative when every contributing payload
+                // was split-capable for that category. Missing inactive tiers
+                // are zero; mixed legacy/new contributions remain nil rather
+                // than displaying an incomplete Std/Fast total.
+                standardCostUSD: self.hasStandardCostUSD && self.splitCostCapabilityCount == self.breakdownCount
+                    ? self.standardCostUSD
+                    : nil,
+                priorityCostUSD: self.hasPriorityCostUSD && self.splitCostCapabilityCount == self.breakdownCount
+                    ? self.priorityCostUSD
+                    : nil,
+                standardTokens: self.hasStandardTokens && self.splitTokenCapabilityCount == self.breakdownCount
+                    ? self.standardTokens
+                    : nil,
+                priorityTokens: self.hasPriorityTokens && self.splitTokenCapabilityCount == self.breakdownCount
+                    ? self.priorityTokens
+                    : nil)
+        }
+    }
+
+    /// Merges optional estimated flags without treating missing legacy fields
+    /// as an explicit `false`: any `true` wins, otherwise an explicit `false`
+    /// is retained, and all-missing input stays nil.
+    private static func mergeEstimatedFlags(_ lhs: Bool?, _ rhs: Bool?) -> Bool? {
+        if lhs == true || rhs == true {
+            return true
+        }
+        if lhs != nil || rhs != nil {
+            return false
+        }
+        return nil
+    }
+
     /// Merges multiple entries of the same provider+account from different devices.
     ///
     /// Field-by-field semantics:
@@ -486,45 +597,42 @@ final class CloudSyncReader: @unchecked Sendable {
         if summaries.count == 1 { return summaries[0] }
 
         // Merge daily points by dayKey, summing costs and tokens
-        var dailyByKey: [String: (costUSD: Double, totalTokens: Int, modelBreakdowns: [SyncCostBreakdown])] = [:]
+        var dailyByKey: [String: (
+            costUSD: Double,
+            totalTokens: Int,
+            modelBreakdowns: [SyncCostBreakdown],
+            isEstimated: Bool?)] = [:]
 
         for summary in summaries {
             for point in summary.daily {
                 if var existing = dailyByKey[point.dayKey] {
                     existing.costUSD += point.costUSD
                     existing.totalTokens += point.totalTokens
-                    // Combine model breakdowns (merge by label, sum costs and
-                    // the optional model-level token totals).
-                    var breakdownByLabel: [String: (cost: Double, tokens: Int, hasTokens: Bool)] = [:]
+                    existing.isEstimated = self.mergeEstimatedFlags(existing.isEstimated, point.isEstimated)
+
+                    // Combine model breakdowns by label while preserving each
+                    // optional metadata field. Legacy payloads may omit any of
+                    // these fields, so each accumulator tracks presence rather
+                    // than converting nil to zero.
+                    var breakdownByLabel: [String: ModelBreakdownAccumulator] = [:]
                     for b in existing.modelBreakdowns {
-                        var aggregate = breakdownByLabel[b.label] ?? (0, 0, false)
-                        aggregate.cost += b.costUSD
-                        if let tokens = b.modelTokens {
-                            aggregate.tokens += tokens
-                            aggregate.hasTokens = true
-                        }
-                        breakdownByLabel[b.label] = aggregate
+                        breakdownByLabel[b.label, default: ModelBreakdownAccumulator()].add(b)
                     }
                     for b in point.modelBreakdowns {
-                        var aggregate = breakdownByLabel[b.label] ?? (0, 0, false)
-                        aggregate.cost += b.costUSD
-                        if let tokens = b.modelTokens {
-                            aggregate.tokens += tokens
-                            aggregate.hasTokens = true
-                        }
-                        breakdownByLabel[b.label] = aggregate
+                        breakdownByLabel[b.label, default: ModelBreakdownAccumulator()].add(b)
                     }
                     existing.modelBreakdowns = breakdownByLabel
                         .map {
-                            SyncCostBreakdown(
-                                label: $0.key,
-                                costUSD: $0.value.cost,
-                                totalTokens: $0.value.hasTokens ? $0.value.tokens : nil)
+                            $0.value.makeBreakdown(label: $0.key)
                         }
                         .sorted { $0.costUSD > $1.costUSD }
                     dailyByKey[point.dayKey] = existing
                 } else {
-                    dailyByKey[point.dayKey] = (point.costUSD, point.totalTokens, point.modelBreakdowns)
+                    dailyByKey[point.dayKey] = (
+                        point.costUSD,
+                        point.totalTokens,
+                        point.modelBreakdowns,
+                        point.isEstimated)
                 }
             }
         }
@@ -535,7 +643,8 @@ final class CloudSyncReader: @unchecked Sendable {
                 dayKey: dayKey,
                 costUSD: entry.costUSD,
                 totalTokens: entry.totalTokens,
-                modelBreakdowns: entry.modelBreakdowns)
+                modelBreakdowns: entry.modelBreakdowns,
+                isEstimated: entry.isEstimated)
         }
 
         // Recalculate totals from merged daily data
@@ -545,13 +654,24 @@ final class CloudSyncReader: @unchecked Sendable {
         // Sum session costs across devices (each device has its own session)
         let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
         let sessionTokens = summaries.compactMap(\.sessionTokens).reduce(0, +)
+        // Preserve the summary-level estimated marker as well as the merged
+        // day markers. Newer Macs populate both; the day fallback keeps the
+        // signal intact when a mixed-version payload only carries daily flags.
+        var mergedIsEstimated: Bool?
+        for summary in summaries {
+            mergedIsEstimated = self.mergeEstimatedFlags(mergedIsEstimated, summary.isEstimated)
+        }
+        for point in mergedDaily {
+            mergedIsEstimated = self.mergeEstimatedFlags(mergedIsEstimated, point.isEstimated)
+        }
 
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
             sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
             last30DaysCostUSD: mergedDaily.isEmpty ? nil : totalCost,
             last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
-            daily: mergedDaily)
+            daily: mergedDaily,
+            isEstimated: mergedIsEstimated)
     }
 
     // MARK: - Utilization History Merge + Hourly Dedup

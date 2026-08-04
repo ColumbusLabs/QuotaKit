@@ -41,6 +41,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Monthly utilization history synced from your Mac now uses the app's selected language."),
                         String(
                             localized: "Model Mix in the Cost dashboard can now switch between per-model cost and token usage."),
+                        String(
+                            localized: "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail."),
                     ]),
             ]),
         ReleaseNotesVersion(

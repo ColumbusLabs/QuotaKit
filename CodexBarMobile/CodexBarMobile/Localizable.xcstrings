@@ -2705,6 +2705,34 @@
         }
       }
     },
+    "No cost history data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "No cost history data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "コスト履歴データはありません"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "没有成本历史数据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "沒有成本歷史資料"
+          }
+        }
+      }
+    },
     "Estimated cost for newly-released models — when Mac sees a model name that isn't in its pricing table yet, it uses the closest known model's rate as a temporary estimate and marks the value with * on the Provider Detail cost card. Stops Daily Spend from quietly dropping to $0 the day a fresh model name appears.": {
       "extractionState": "manual",
       "localizations": {
@@ -4332,6 +4360,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "費用儀表板的模型構成現在可在按模型顯示費用和 Token 使用量之間切換。"
+          }
+        }
+      }
+    },
+    "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "プロバイダーの日別支出バーをタップまたはスクラブすると、Mac のコスト履歴と同じように、選択した日のモデル別コストとトークン使用量を表示できます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在可以轻点或滑动提供商的每日支出柱状图，查看选中日期的模型成本和令牌用量，与 Mac 成本历史记录一致。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在可以點選或滑動提供者的每日支出長條，查看所選日期的模型成本與權杖用量，與 Mac 成本歷史記錄一致。"
           }
         }
       }
@@ -13389,6 +13445,118 @@
           "stringUnit": {
             "state": "translated",
             "value": "將 Mac 端 QuotaKit 更新到 0.29.0（fork build 68.1 或更新）才能看到這三個新 provider。iPhone 1.9.0 與舊版 Mac 保持向前相容 —— 在 Mac 升級到 0.29.0 之前，新卡片只是保持隱藏。"
+          }
+        }
+      }
+    },
+    "Std %1$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Std %1$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准 %1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@"
+          }
+        }
+      }
+    },
+    "Std %1$@ · %2$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Std %1$@ · %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标准 %1$@ · %2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@ · %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標準 %1$@ · %2$@"
+          }
+        }
+      }
+    },
+    "Fast %1$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fast %1$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速 %1$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速 %1$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高速 %1$@"
+          }
+        }
+      }
+    },
+    "Fast %1$@ · %2$@": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Fast %1$@ · %2$@"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速 %1$@ · %2$@"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "快速 %1$@ · %2$@"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "高速 %1$@ · %2$@"
           }
         }
       }

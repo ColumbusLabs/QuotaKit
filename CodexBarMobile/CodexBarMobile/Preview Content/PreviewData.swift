@@ -30,7 +30,10 @@ enum PreviewData {
                 costUSD: cost,
                 totalTokens: tokens,
                 modelBreakdowns: modelMix.map { label, share in
-                    SyncCostBreakdown(label: label, costUSD: cost * share)
+                    SyncCostBreakdown(
+                        label: label,
+                        costUSD: cost * share,
+                        totalTokens: Int(Double(tokens) * share))
                 },
                 serviceBreakdowns: serviceMix.map { label, share in
                     SyncCostBreakdown(label: label, costUSD: cost * share)

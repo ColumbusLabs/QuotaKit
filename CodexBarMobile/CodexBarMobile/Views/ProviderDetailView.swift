@@ -226,7 +226,14 @@ struct ProviderDetailView: View {
                 get: { self.selectedAccountIndex },
                 set: { newIndex in
                     self.selectedAccountIndex = newIndex
-                    self.selectedDate = nil
+                    // A tab switch changes the daily series. Keep the detail
+                    // card useful immediately by selecting that account's
+                    // latest day instead of carrying a stale day key across
+                    // accounts.
+                    let daily = self.group.accounts.indices.contains(newIndex)
+                        ? self.group.accounts[newIndex].costSummary?.daily ?? []
+                        : []
+                    self.selectedDate = ProviderDailySpendPresentation.latestDayKey(in: daily)
                 }),
             label: Text(""))
         {
@@ -378,6 +385,11 @@ struct ProviderDetailView: View {
         // `selectedDate` hover changes, so pulling this out of the `.chartYAxis`
         // closure eliminates redundant axis recomputation on every chart re-render.
         let yAxisValues = MobileChartAxisFormatter.axisValues(for: daily.map(\.costUSD))
+        // Resolve a latest-day fallback for the first render. The state is
+        // initialized on appearance below, while this fallback keeps the
+        // selected mark and detail card visible during that first pass.
+        let selectedDayKey = self.selectedDate
+            ?? ProviderDailySpendPresentation.latestDayKey(in: daily)
         return VStack(alignment: .leading, spacing: 8) {
             HStack(spacing: 4) {
                 Text("Daily Spend")
@@ -413,7 +425,7 @@ struct ProviderDetailView: View {
                         .interpolationMethod(.catmullRom)
                 }
 
-                if self.selectedDate == point.dayKey {
+                if selectedDayKey == point.dayKey {
                     RuleMark(x: .value(String(localized: "Selected Date"), point.dayKey))
                         .foregroundStyle(self.providerColor.opacity(0.3))
                         .lineStyle(.init(lineWidth: 1, dash: [4, 4]))
@@ -426,6 +438,17 @@ struct ProviderDetailView: View {
                 }
             }
             .chartXSelection(value: self.$selectedDate)
+            .accessibilityIdentifier("provider-daily-spend-chart-\(self.provider.providerID)")
+            .accessibilityLabel(Text("Daily Spend"))
+            .accessibilityValue(
+                Text(
+                    ProviderDailySpendPresentation.accessibilityValue(
+                        for: daily,
+                        selectedDayKey: selectedDayKey,
+                        currencyCode: currencyCode)))
+            .accessibilityAdjustableAction { direction in
+                self.adjustDailySelection(direction, in: daily)
+            }
             .chartScrollableAxes(.horizontal)
             .chartXVisibleDomain(length: min(daily.count, Self.chartVisibleDays))
             .chartScrollPosition(initialX: Self.chartScrollInitialDayKey(daily: daily))
@@ -458,32 +481,52 @@ struct ProviderDetailView: View {
             .padding(16)
             .qkCardBackground(cornerRadius: 14)
 
-            if let selectedDate, let point = daily.first(where: { $0.dayKey == selectedDate }) {
-                VStack(alignment: .leading, spacing: 2) {
-                    HStack {
-                        Text(point.dayKey)
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text(CostFormatting.cost(point.costUSD, currencyCode: currencyCode))
-                            .font(.caption.monospacedDigit())
-                            .fontWeight(.medium)
-                        Text("· \(Self.formatTokens(point.totalTokens))")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                    // Codex standard/fast spend split for the selected day — the
-                    // iOS mirror of the Mac cost-history "Std / Fast" hover detail
-                    // (upstream #1070). Nil for non-Codex / pre-0.29 days.
-                    if let split = CodexCostSplit.subtitle(summing: point.modelBreakdowns) {
-                        Text(split)
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .padding(.horizontal, 4)
+            if let selectedDayKey,
+               let point = daily.first(where: { $0.dayKey == selectedDayKey })
+            {
+                ProviderDailySpendDetailCard(
+                    detail: ProviderDailySpendPresentation.detail(for: point),
+                    currencyCode: currencyCode,
+                    tintColor: self.providerColor,
+                    viewportRowCount: ProviderDailySpendPresentation.detailViewportRowCount(in: daily),
+                    onAdjustSelection: { direction in
+                        self.adjustDailySelection(direction, in: daily)
+                    })
             }
         }
+        .onAppear {
+            self.selectLatestDayIfNeeded(in: daily)
+        }
+        .onChange(of: daily.map(\.dayKey)) { _, _ in
+            self.selectLatestDayIfNeeded(in: daily)
+        }
+    }
+
+    private func selectLatestDayIfNeeded(in daily: [SyncDailyPoint]) {
+        guard let latest = ProviderDailySpendPresentation.latestDayKey(in: daily) else {
+            self.selectedDate = nil
+            return
+        }
+        guard self.selectedDate == nil || !daily.contains(where: { $0.dayKey == self.selectedDate }) else {
+            return
+        }
+        self.selectedDate = latest
+    }
+
+    private func adjustDailySelection(
+        _ direction: AccessibilityAdjustmentDirection,
+        in daily: [SyncDailyPoint])
+    {
+        let keys = ProviderDailySpendPresentation.orderedDayKeys(in: daily)
+        guard !keys.isEmpty else { return }
+        let currentKey = self.selectedDate ?? keys.last!
+        guard let currentIndex = keys.firstIndex(of: currentKey) else {
+            self.selectedDate = keys.last
+            return
+        }
+        let offset = direction == .increment ? 1 : -1
+        let nextIndex = min(max(currentIndex + offset, 0), keys.count - 1)
+        self.selectedDate = keys[nextIndex]
     }
 
     // MARK: - Chart Constants
@@ -530,6 +573,338 @@ struct ProviderDetailView: View {
             parts.append(String(format: String(localized: "cost_requests_inline", defaultValue: "%@ req"), n))
         }
         return parts.isEmpty ? nil : parts.joined(separator: " · ")
+    }
+}
+
+// MARK: - Daily Spend presentation model
+
+/// A testable, provider-detail-only projection of one synced daily point.
+/// Keeping this separate from `SyncCostBreakdown` lets the view aggregate
+/// duplicate model labels defensively while preserving optional wire fields
+/// from older Mac payloads.
+struct ProviderDailySpendModelRow: Identifiable, Equatable {
+    let label: String
+    let costUSD: Double
+    let totalTokens: Int?
+    let isEstimated: Bool
+    let standardCostUSD: Double?
+    let priorityCostUSD: Double?
+    let standardTokens: Int?
+    let priorityTokens: Int?
+
+    var id: String {
+        self.label
+    }
+
+    /// Older payloads may omit `totalTokens`; Codex standard/priority token
+    /// fields are a compatible fallback when either field is available.
+    var modelTokens: Int? {
+        if let totalTokens {
+            return totalTokens
+        }
+        guard self.standardTokens != nil || self.priorityTokens != nil else { return nil }
+        return (self.standardTokens ?? 0) + (self.priorityTokens ?? 0)
+    }
+
+    static func modeSubtitle(for row: Self, currencyCode: String?) -> String? {
+        var parts: [String] = []
+        if let standardCost = row.standardCostUSD {
+            let cost = CostFormatting.cost(standardCost, currencyCode: currencyCode)
+            if let tokens = row.standardTokens {
+                parts.append(String(format: String(localized: "Std %1$@ · %2$@"), cost, CostFormatting.tokens(tokens)))
+            } else {
+                parts.append(String(format: String(localized: "Std %1$@"), cost))
+            }
+        }
+        if let priorityCost = row.priorityCostUSD {
+            let cost = CostFormatting.cost(priorityCost, currencyCode: currencyCode)
+            if let tokens = row.priorityTokens {
+                parts.append(String(format: String(localized: "Fast %1$@ · %2$@"), cost, CostFormatting.tokens(tokens)))
+            } else {
+                parts.append(String(format: String(localized: "Fast %1$@"), cost))
+            }
+        }
+        return parts.isEmpty ? nil : parts.joined(separator: " / ")
+    }
+}
+
+struct ProviderDailySpendDetail: Equatable {
+    let dayKey: String
+    let costUSD: Double
+    let totalTokens: Int
+    let isEstimated: Bool
+    let models: [ProviderDailySpendModelRow]
+    let splitSubtitle: String?
+}
+
+enum ProviderDailySpendPresentation {
+    static let maxVisibleModelRows = 4
+
+    static func orderedDayKeys(in daily: [SyncDailyPoint]) -> [String] {
+        Array(Set(daily.map(\.dayKey))).sorted()
+    }
+
+    static func latestDayKey(in daily: [SyncDailyPoint]) -> String? {
+        self.orderedDayKeys(in: daily).last
+    }
+
+    static func detail(for point: SyncDailyPoint) -> ProviderDailySpendDetail {
+        var byLabel: [String: Aggregate] = [:]
+        for breakdown in point.modelBreakdowns {
+            let label = breakdown.label.trimmingCharacters(in: .whitespacesAndNewlines)
+            guard !label.isEmpty, breakdown.costUSD >= 0 else { continue }
+            byLabel[label, default: Aggregate()].add(breakdown)
+        }
+
+        let models = byLabel.map { label, aggregate in
+            ProviderDailySpendModelRow(
+                label: label,
+                costUSD: aggregate.costUSD,
+                totalTokens: aggregate.totalTokens,
+                isEstimated: aggregate.isEstimated,
+                standardCostUSD: aggregate.standardCostUSD,
+                priorityCostUSD: aggregate.priorityCostUSD,
+                standardTokens: aggregate.standardTokens,
+                priorityTokens: aggregate.priorityTokens)
+        }
+        .sorted { lhs, rhs in
+            if lhs.costUSD != rhs.costUSD {
+                return lhs.costUSD > rhs.costUSD
+            }
+            let lhsTokens = lhs.modelTokens ?? -1
+            let rhsTokens = rhs.modelTokens ?? -1
+            if lhsTokens != rhsTokens {
+                return lhsTokens > rhsTokens
+            }
+            return lhs.label > rhs.label
+        }
+
+        return ProviderDailySpendDetail(
+            dayKey: point.dayKey,
+            costUSD: point.costUSD,
+            totalTokens: point.totalTokens,
+            isEstimated: point.isEstimated == true || models.contains(where: \.isEstimated),
+            models: models,
+            splitSubtitle: CodexCostSplit.subtitle(summing: point.modelBreakdowns))
+    }
+
+    static func detailViewportRowCount(for itemCount: Int) -> Int {
+        min(max(itemCount, 0), self.maxVisibleModelRows)
+    }
+
+    /// Matches the Mac chart's stable detail viewport: reserve rows for the
+    /// largest model mix in the loaded range so scrubbing between days does
+    /// not make the card jump in height.
+    static func detailViewportRowCount(in daily: [SyncDailyPoint]) -> Int {
+        let largestModelMix = daily.map { self.detail(for: $0).models.count }.max() ?? 0
+        return self.detailViewportRowCount(for: largestModelMix)
+    }
+
+    static func rowsNeedScrolling(itemCount: Int) -> Bool {
+        itemCount > self.maxVisibleModelRows
+    }
+
+    static func accessibilityValue(
+        for daily: [SyncDailyPoint],
+        selectedDayKey: String?,
+        currencyCode: String?) -> String
+    {
+        guard let selectedDayKey,
+              let point = daily.first(where: { $0.dayKey == selectedDayKey })
+        else {
+            return String(localized: "No cost history data")
+        }
+        return self.accessibilityValue(for: self.detail(for: point), currencyCode: currencyCode)
+    }
+
+    static func accessibilityValue(
+        for detail: ProviderDailySpendDetail,
+        currencyCode: String?) -> String
+    {
+        var parts = [
+            detail.dayKey,
+            CostFormatting.cost(detail.costUSD, currencyCode: currencyCode),
+            CostFormatting.tokens(detail.totalTokens),
+        ]
+        if detail.isEstimated {
+            parts.append(String(localized: "Estimated"))
+        }
+        return parts.joined(separator: " · ")
+    }
+
+    private struct Aggregate {
+        var costUSD = 0.0
+        var totalTokens: Int?
+        var isEstimated = false
+        var standardCostUSD: Double?
+        var priorityCostUSD: Double?
+        var standardTokens: Int?
+        var priorityTokens: Int?
+
+        mutating func add(_ breakdown: SyncCostBreakdown) {
+            self.costUSD += breakdown.costUSD
+            if let tokens = breakdown.modelTokens {
+                self.totalTokens = (self.totalTokens ?? 0) + tokens
+            }
+            self.isEstimated = self.isEstimated || breakdown.isEstimated == true
+            self.standardCostUSD = Self.sumOptional(self.standardCostUSD, breakdown.standardCostUSD)
+            self.priorityCostUSD = Self.sumOptional(self.priorityCostUSD, breakdown.priorityCostUSD)
+            self.standardTokens = Self.sumOptional(self.standardTokens, breakdown.standardTokens)
+            self.priorityTokens = Self.sumOptional(self.priorityTokens, breakdown.priorityTokens)
+        }
+
+        private static func sumOptional(_ lhs: Double?, _ rhs: Double?) -> Double? {
+            guard lhs != nil || rhs != nil else { return nil }
+            return (lhs ?? 0) + (rhs ?? 0)
+        }
+
+        private static func sumOptional(_ lhs: Int?, _ rhs: Int?) -> Int? {
+            guard lhs != nil || rhs != nil else { return nil }
+            return (lhs ?? 0) + (rhs ?? 0)
+        }
+    }
+}
+
+private struct ProviderDailySpendDetailCard: View {
+    let detail: ProviderDailySpendDetail
+    let currencyCode: String?
+    let tintColor: Color
+    let viewportRowCount: Int
+    let onAdjustSelection: (AccessibilityAdjustmentDirection) -> Void
+
+    private static let rowHeight: CGFloat = 50
+
+    var body: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                VStack(alignment: .leading, spacing: 3) {
+                    Text(self.detail.dayKey)
+                        .font(.subheadline.weight(.semibold))
+                    if self.detail.isEstimated {
+                        Text("* \(String(localized: "Estimated"))")
+                            .font(.caption2)
+                            .foregroundStyle(.orange)
+                    }
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+
+                VStack(alignment: .trailing, spacing: 2) {
+                    Text(CostFormatting.cost(self.detail.costUSD, currencyCode: self.currencyCode))
+                        .font(.headline.monospacedDigit())
+                        .fontWeight(.semibold)
+                    Text(CostFormatting.tokens(self.detail.totalTokens))
+                        .font(.caption)
+                        .foregroundStyle(.secondary)
+                }
+            }
+
+            if let split = self.detail.splitSubtitle {
+                Text(split)
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+            }
+
+            if self.viewportRowCount > 0 {
+                Divider()
+                Text("Model Mix")
+                    .font(.subheadline.weight(.semibold))
+                if self.detail.models.isEmpty {
+                    Text("No data")
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .frame(
+                            maxWidth: .infinity,
+                            minHeight: Self.rowHeight * CGFloat(self.viewportRowCount),
+                            alignment: .topLeading)
+                        .accessibilityIdentifier("provider-daily-spend-model-list")
+                } else {
+                    ScrollView(.vertical) {
+                        LazyVStack(alignment: .leading, spacing: 0) {
+                            ForEach(self.detail.models) { row in
+                                self.modelRow(row)
+                            }
+                        }
+                    }
+                    // Keep the detail viewport stable as the selected day changes;
+                    // users can scroll to any models beyond the four-row window.
+                    .frame(height: Self.rowHeight * CGFloat(self.viewportRowCount))
+                    .scrollIndicators(
+                        ProviderDailySpendPresentation.rowsNeedScrolling(itemCount: self.detail.models.count)
+                            ? .visible
+                            : .hidden)
+                    .accessibilityIdentifier("provider-daily-spend-model-list")
+                }
+            }
+        }
+        .padding(14)
+        .qkCardBackground(cornerRadius: 14)
+        .accessibilityElement(children: .contain)
+        .accessibilityIdentifier("provider-daily-spend-selection-detail")
+        .accessibilityLabel(Text("Daily Spend"))
+        .accessibilityValue(
+            Text(
+                ProviderDailySpendPresentation.accessibilityValue(
+                    for: self.detail,
+                    currencyCode: self.currencyCode)))
+        .accessibilityAdjustableAction { direction in
+            self.onAdjustSelection(direction)
+        }
+    }
+
+    private func modelRow(_ row: ProviderDailySpendModelRow) -> some View {
+        HStack(alignment: .top, spacing: 8) {
+            Circle()
+                .fill(self.tintColor.opacity(0.75))
+                .frame(width: 7, height: 7)
+                .padding(.top, 5)
+
+            VStack(alignment: .leading, spacing: 2) {
+                Text(row.label)
+                    .font(.caption.weight(.semibold))
+                    .lineLimit(1)
+                if let mode = ProviderDailySpendModelRow.modeSubtitle(for: row, currencyCode: self.currencyCode) {
+                    Text(mode)
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+            }
+            .frame(maxWidth: .infinity, alignment: .leading)
+
+            VStack(alignment: .trailing, spacing: 2) {
+                Text(
+                    CostFormatting.cost(row.costUSD, currencyCode: self.currencyCode)
+                        + (row.isEstimated ? " *" : ""))
+                    .font(.caption.monospacedDigit())
+                    .fontWeight(.medium)
+                if let tokens = row.modelTokens {
+                    Text(CostFormatting.tokens(tokens))
+                        .font(.caption2)
+                        .foregroundStyle(.secondary)
+                }
+            }
+        }
+        .frame(height: Self.rowHeight, alignment: .center)
+        .accessibilityElement(children: .combine)
+        .accessibilityIdentifier("provider-daily-spend-model-row-\(row.id)")
+        .accessibilityValue(
+            Text(
+                ProviderDailySpendModelRow.accessibilityValue(
+                    row,
+                    currencyCode: self.currencyCode)))
+    }
+}
+
+extension ProviderDailySpendModelRow {
+    static func accessibilityValue(_ row: Self, currencyCode: String?) -> String {
+        var parts = [CostFormatting.cost(row.costUSD, currencyCode: currencyCode)]
+        if let tokens = row.modelTokens {
+            parts.append(CostFormatting.tokens(tokens))
+        }
+        if row.isEstimated {
+            parts.append(String(localized: "Estimated"))
+        }
+        return parts.joined(separator: " · ")
     }
 }
 

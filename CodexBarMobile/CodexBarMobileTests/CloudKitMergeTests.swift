@@ -545,6 +545,203 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Same-day model breakdown merge preserves metadata and token fallback`() throws {
+        let dailyA = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 1.25, totalTokens: 2000,
+            modelBreakdowns: [
+                SyncCostBreakdown(
+                    label: "claude-4-sonnet",
+                    costUSD: 1.25,
+                    totalTokens: 100,
+                    isEstimated: true,
+                    standardCostUSD: 0.75,
+                    priorityCostUSD: 0.50,
+                    standardTokens: 80,
+                    priorityTokens: 20),
+            ],
+            isEstimated: true)]
+        let dailyB = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 2.75, totalTokens: 3000,
+            modelBreakdowns: [
+                // Simulates a payload with the newer split fields but no
+                // explicit totalTokens; modelTokens must provide the fallback.
+                SyncCostBreakdown(
+                    label: "claude-4-sonnet",
+                    costUSD: 2.75,
+                    isEstimated: false,
+                    standardCostUSD: 1.25,
+                    priorityCostUSD: 1.50,
+                    priorityTokens: 120),
+            ],
+            isEstimated: false)]
+
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cost = try #require(merged.providers[0].costSummary)
+        let day = try #require(cost.daily.first)
+        let breakdown = try #require(day.modelBreakdowns.first)
+
+        #expect(breakdown.costUSD == 4.00)
+        // Mac A contributes its explicit total; Mac B contributes
+        // standardTokens + priorityTokens via modelTokens fallback.
+        #expect(breakdown.totalTokens == 220)
+        #expect(breakdown.modelTokens == 220)
+        #expect(breakdown.standardCostUSD == 2.00)
+        #expect(breakdown.priorityCostUSD == 2.00)
+        #expect(breakdown.standardTokens == 80)
+        #expect(breakdown.priorityTokens == 140)
+        // Any estimated source keeps the merged model/day marked estimated.
+        #expect(breakdown.isEstimated == true)
+        #expect(day.isEstimated == true)
+        #expect(cost.isEstimated == true)
+    }
+
+    @Test
+    func `Same-day split-only tiers preserve complementary standard and fast totals`() throws {
+        let dailyA = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 2.00, totalTokens: 100,
+            modelBreakdowns: [SyncCostBreakdown(
+                label: "claude-4-sonnet",
+                costUSD: 2.00,
+                standardCostUSD: 2.00,
+                standardTokens: 100)])]
+        let dailyB = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 3.00, totalTokens: 200,
+            modelBreakdowns: [SyncCostBreakdown(
+                label: "claude-4-sonnet",
+                costUSD: 3.00,
+                priorityCostUSD: 3.00,
+                priorityTokens: 200)])]
+
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let breakdown = try #require(merged.providers[0].costSummary?.daily.first?.modelBreakdowns.first)
+
+        #expect(breakdown.costUSD == 5.00)
+        #expect(breakdown.standardCostUSD == 2.00)
+        #expect(breakdown.priorityCostUSD == 3.00)
+        #expect(breakdown.standardTokens == 100)
+        #expect(breakdown.priorityTokens == 200)
+    }
+
+    @Test
+    func `Same-day legacy model breakdown merge keeps absent metadata nil`() throws {
+        let dailyA = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 1.00, totalTokens: 1000,
+            modelBreakdowns: [SyncCostBreakdown(label: "claude-4-sonnet", costUSD: 1.00)])]
+        let dailyB = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 2.00, totalTokens: 2000,
+            modelBreakdowns: [SyncCostBreakdown(label: "claude-4-sonnet", costUSD: 2.00)])]
+
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cost = try #require(merged.providers[0].costSummary)
+        let day = try #require(cost.daily.first)
+        let breakdown = try #require(day.modelBreakdowns.first)
+
+        #expect(breakdown.costUSD == 3.00)
+        #expect(breakdown.totalTokens == nil)
+        #expect(breakdown.modelTokens == nil)
+        #expect(breakdown.standardCostUSD == nil)
+        #expect(breakdown.priorityCostUSD == nil)
+        #expect(breakdown.standardTokens == nil)
+        #expect(breakdown.priorityTokens == nil)
+        #expect(breakdown.isEstimated == nil)
+        #expect(day.isEstimated == nil)
+        #expect(cost.isEstimated == nil)
+    }
+
+    @Test
+    func `Same-day mixed legacy and split breakdown suppresses partial split metadata`() throws {
+        let dailyA = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 5.00, totalTokens: 500,
+            modelBreakdowns: [SyncCostBreakdown(label: "claude-4-sonnet", costUSD: 5.00)])]
+        let dailyB = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 3.00, totalTokens: 300,
+            modelBreakdowns: [SyncCostBreakdown(
+                label: "claude-4-sonnet",
+                costUSD: 3.00,
+                standardCostUSD: 2.00,
+                priorityCostUSD: 1.00,
+                standardTokens: 200,
+                priorityTokens: 100)])]
+
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.olderDate,
+                sessionCost: 0,
+                daily: dailyA),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.newerDate,
+                sessionCost: 0,
+                daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let breakdown = try #require(merged.providers[0].costSummary?.daily.first?.modelBreakdowns.first)
+
+        #expect(breakdown.costUSD == 8.00)
+        #expect(breakdown.standardCostUSD == nil)
+        #expect(breakdown.priorityCostUSD == nil)
+        #expect(breakdown.standardTokens == nil)
+        #expect(breakdown.priorityTokens == nil)
+    }
+
+    @Test
     func `Provider without cost data is unaffected by merge`() throws {
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeProvider(
