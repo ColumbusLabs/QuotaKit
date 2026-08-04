@@ -1386,3 +1386,5 @@
 "%@ remaining" = "%@ rimanente";
 "Finish now" = "Completa ora";
 "Continue in background" = "Continua in background";
+"(%d%% risk)" = "(%d%% rischio di esaurimento)";
+"menu_bar_layout_token_scoped_weekly" = "Settimanale con ambito %";

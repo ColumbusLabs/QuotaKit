@@ -279,6 +279,7 @@ extension UsageMenuCardView.Model {
         self.subtitleStyle == .error &&
             self.metrics.isEmpty &&
             self.usageNotes.isEmpty &&
+            self.providerDetails.isEmpty &&
             self.openAIAPIUsage == nil &&
             self.inlineUsageDashboard == nil &&
             self.creditsRemaining == nil &&
@@ -290,6 +291,7 @@ extension UsageMenuCardView.Model {
     var hasUsageContent: Bool {
         !self.metrics.isEmpty ||
             !self.usageNotes.isEmpty ||
+            !self.providerDetails.isEmpty ||
             self.openAIAPIUsage != nil ||
             self.inlineUsageDashboard != nil ||
             self.codexResetCredits != nil ||
@@ -301,6 +303,7 @@ extension UsageMenuCardView.Model {
             self.inlineUsageDashboard != nil &&
             self.metrics.isEmpty &&
             self.usageNotes.isEmpty &&
+            self.providerDetails.isEmpty &&
             self.openAIAPIUsage == nil &&
             self.codexResetCredits == nil &&
             self.placeholder == nil
@@ -337,6 +340,7 @@ extension UsageMenuCardView.Model {
         guard self.provider == candidate.provider,
               !includeMetrics || self.metrics.count == candidate.metrics.count,
               self.usageNotes == candidate.usageNotes,
+              self.providerDetails == candidate.providerDetails,
               (self.openAIAPIUsage == nil) == (candidate.openAIAPIUsage == nil),
               Self.hasCompatibleCreditsLayout(
                   currentText: self.creditsText,
@@ -748,7 +752,11 @@ extension UsageMenuCardView.Model {
               window.remainingPercent > 0
         else { return nil }
         let paceWindow = Self.resetWindowForPace(provider: input.provider, window: window)
-        let resolved = pace ?? UsagePace.weekly(
+        // A caller-supplied pace was measured against the raw window, so reuse it only when resolution
+        // left the duration alone. Trusting it for a monthly sentinel would score the billing period as
+        // a flat 30 days and silently undo the calendar-cycle resolution one line above.
+        let reusablePace = paceWindow.windowMinutes == window.windowMinutes ? pace : nil
+        let resolved = reusablePace ?? UsagePace.weekly(
             window: paceWindow,
             now: input.now,
             defaultWindowMinutes: 10080,
@@ -845,9 +853,13 @@ extension UsageMenuCardView.Model {
             let resetText = input.provider == .sub2api && namedWindow.window.resetsAt == nil
                 ? nil
                 : resolvedResetText
-            let detailText = input.provider == .sub2api
-                ? namedWindow.window.resetDescription
-                : nil
+            let detailText: String? = if input.provider == .sub2api {
+                namedWindow.window.resetDescription
+            } else if input.provider == .zai, namedWindow.id == "zai-mcp" {
+                Self.zaiLimitDetailText(limit: input.snapshot?.zaiUsage?.timeLimit)
+            } else {
+                nil
+            }
             let statusText: String? = if usageKnown {
                 nil
             } else if let resetText {
@@ -945,7 +957,9 @@ extension UsageMenuCardView.Model {
         window: RateWindow,
         input: Input) -> PaceDetail?
     {
-        if provider == .claude, window.windowMinutes != 10080 { return nil }
+        if provider == .claude, window.windowMinutes != 10080 {
+            return nil
+        }
         guard provider == .codex || provider == .claude || provider == .antigravity else { return nil }
         switch window.windowMinutes {
         case 300:

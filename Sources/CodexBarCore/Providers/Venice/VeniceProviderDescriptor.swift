@@ -37,16 +37,34 @@ public enum VeniceProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Venice per-day cost history is not available via API." }),
-            fetchPlan: .apiToken(
-                strategyID: "venice.api",
-                resolveToken: { ProviderTokenResolver.veniceToken(environment: $0) },
-                missingCredentialsError: { VeniceUsageError.missingCredentials },
-                loadUsage: { apiKey, _ in
-                    try await VeniceUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-                }),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "venice",
                 aliases: ["ven"],
                 versionDetector: nil))
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        #if canImport(JavaScriptCore)
+        .scriptPrototypeAPI(
+            configuration: .init(
+                provider: .venice,
+                plugin: "venice",
+                secretKey: VeniceSettingsReader.apiKeyEnvironmentKey,
+                strategyID: "venice.api"),
+            resolveToken: { ProviderTokenResolver.veniceToken(environment: $0) },
+            missingCredentialsError: { VeniceUsageError.missingCredentials },
+            loadUsage: { apiKey, _ in
+                try await VeniceUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #else
+        .apiToken(
+            strategyID: "venice.api",
+            resolveToken: { ProviderTokenResolver.veniceToken(environment: $0) },
+            missingCredentialsError: { VeniceUsageError.missingCredentials },
+            loadUsage: { apiKey, _ in
+                try await VeniceUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #endif
     }
 }

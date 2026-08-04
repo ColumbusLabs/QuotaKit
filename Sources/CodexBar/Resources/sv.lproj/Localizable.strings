@@ -1381,3 +1381,5 @@
 "%@ remaining" = "%@ kvar";
 "Finish now" = "Slutför nu";
 "Continue in background" = "Fortsätt i bakgrunden";
+"(%d%% risk)" = "(%d %% risk att ta slut)";
+"menu_bar_layout_token_scoped_weekly" = "Avgränsad vecka %";

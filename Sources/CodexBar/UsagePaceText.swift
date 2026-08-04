@@ -109,12 +109,9 @@ enum UsagePaceText {
 
         guard let runOutProbability = pace.runOutProbability else { return etaLabel }
         let roundedRisk = self.roundedRiskPercent(runOutProbability)
-        let riskLabel = L("≈ %d%% run-out risk", roundedRisk)
-        if pace.willLastToReset, roundedRisk > 0 {
-            return riskLabel
-        }
+        let riskLabel = L("(%d%% risk)", roundedRisk)
         if let etaLabel {
-            return L("%@ · %@", etaLabel, riskLabel)
+            return L("%@ %@", etaLabel, riskLabel)
         }
         return riskLabel
     }
@@ -155,7 +152,7 @@ enum UsagePaceText {
 
     static func sessionPace(provider: UsageProvider, window: RateWindow, now: Date) -> UsagePace? {
         guard provider == .codex || provider == .claude || provider == .ollama || provider == .antigravity ||
-            provider == .kimi
+            provider == .kimi || provider == .notion
         else { return nil }
         if provider == .ollama, window.windowMinutes == nil {
             return nil
@@ -165,6 +162,14 @@ enum UsagePaceText {
         }
         if provider == .kimi, window.windowMinutes != KimiProviderDescriptor.sessionWindowMinutes {
             return nil
+        }
+        if provider == .notion {
+            // Notion parses its rolling length from an API token (`6h`), so the shape is not guaranteed.
+            // Only a real rolling allowance may be paced here; anything longer is a billing period and
+            // belongs on the descriptor's reset-window pace instead.
+            guard let minutes = window.windowMinutes,
+                  minutes <= NotionProviderDescriptor.rollingWindowMaxMinutes
+            else { return nil }
         }
         guard window.remainingPercent > 0 else { return nil }
         guard let pace = UsagePace.weekly(window: window, now: now, defaultWindowMinutes: 300) else { return nil }

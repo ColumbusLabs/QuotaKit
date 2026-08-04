@@ -202,6 +202,9 @@ struct ShareStatsSubscriptionName: Sendable, Equatable {
             "starter": "Starter", "pro": "Pro", "team": "Team", "enterprise": "Enterprise",
         ],
         UsageProvider.t3chat.rawValue: ["free": "Free", "pro": "Pro", "team": "Team"],
+        UsageProvider.notion.rawValue: [
+            "free": "Free", "plus": "Plus", "business": "Business", "enterprise": "Enterprise",
+        ],
         UsageProvider.sub2api.rawValue: [
             "free": "Free", "pro": "Pro", "team": "Team", "claude team": "Team",
             "enterprise": "Enterprise", "wallet plan": "Wallet",
@@ -210,7 +213,7 @@ struct ShareStatsSubscriptionName: Sendable, Equatable {
 
     /// Converts plan-bearing provider identity into a closed, non-identifying share-card value.
     static func from(snapshot: UsageSnapshot?, provider: UsageProvider) -> Self? {
-        guard let identity = snapshot?.identity(for: provider),
+        guard let identity = snapshot?.identity(for: provider.instanceID),
               let rawName = identity.loginMethod,
               !Self.matchesAccountIdentity(rawName, identity: identity)
         else { return nil }

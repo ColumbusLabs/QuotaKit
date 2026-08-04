@@ -35,16 +35,34 @@ public enum SyntheticProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Synthetic cost summary is not supported." }),
-            fetchPlan: .apiToken(
-                strategyID: "synthetic.api",
-                resolveToken: { ProviderTokenResolver.syntheticToken(environment: $0) },
-                missingCredentialsError: { SyntheticSettingsError.missingToken },
-                loadUsage: { apiKey, _ in
-                    try await SyntheticUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-                }),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "synthetic",
                 aliases: ["synthetic.new"],
                 versionDetector: nil))
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        #if canImport(JavaScriptCore)
+        .scriptPrototypeAPI(
+            configuration: .init(
+                provider: .synthetic,
+                plugin: "synthetic",
+                secretKey: SyntheticSettingsReader.apiKeyKey,
+                strategyID: "synthetic.api"),
+            resolveToken: { ProviderTokenResolver.syntheticToken(environment: $0) },
+            missingCredentialsError: { SyntheticSettingsError.missingToken },
+            loadUsage: { apiKey, _ in
+                try await SyntheticUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #else
+        .apiToken(
+            strategyID: "synthetic.api",
+            resolveToken: { ProviderTokenResolver.syntheticToken(environment: $0) },
+            missingCredentialsError: { SyntheticSettingsError.missingToken },
+            loadUsage: { apiKey, _ in
+                try await SyntheticUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #endif
     }
 }

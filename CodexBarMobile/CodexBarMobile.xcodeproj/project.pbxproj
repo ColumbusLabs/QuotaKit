@@ -1180,12 +1180,12 @@
 			projectDirPath = "";
 			projectRoot = "";
 			targets = (
-				5547EC44D00232824E4A565F /* CodexBarSync */,
-				59BBAD176F2AF8C44F838B73 /* CodexBarMobilePushExtension */,
 				BFE9125269D971C3EB23E583 /* CodexBarMobile */,
-				7916284950C20C9B23853D0B /* CodexBarMobileWidgets */,
+				59BBAD176F2AF8C44F838B73 /* CodexBarMobilePushExtension */,
 				62A1D41F26DB4CE375E6F965 /* CodexBarMobileTests */,
 				A02A488005F484BB2BC37276 /* CodexBarMobileUITests */,
+				7916284950C20C9B23853D0B /* CodexBarMobileWidgets */,
+				5547EC44D00232824E4A565F /* CodexBarSync */,
 			);
 		};
 /* End PBXProject section */

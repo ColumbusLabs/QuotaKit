@@ -16,7 +16,7 @@ struct UsagePaceTextTests {
         "Runs out now",
         "Runs out in %@",
         "1.5× headroom",
-        "≈ %d%% run-out risk",
+        "(%d%% risk)",
         "%@ left",
         "session quota",
         "session quotas",
@@ -199,11 +199,11 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "Runs out in 2d · ≈ 70% run-out risk")
+        #expect(detail.rightLabel == "Runs out in 2d (70% risk)")
     }
 
     @Test
-    func `weekly pace detail does not combine lasts until reset with run out risk`() {
+    func `weekly pace detail combines reserve outcome with risk`() {
         let now = Date(timeIntervalSince1970: 0)
         let pace = UsagePace(
             stage: .slightlyBehind,
@@ -217,7 +217,7 @@ struct UsagePaceTextTests {
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
         #expect(detail.leftLabel == "9% in reserve")
-        #expect(detail.rightLabel == "≈ 45% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset (45% risk)")
     }
 
     @Test
@@ -235,11 +235,11 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "Lasts until reset · 1.5× headroom · ≈ 0% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset · 1.5× headroom (0% risk)")
     }
 
     @Test
-    func `weekly pace detail prefers risk over lasts until reset when rounded risk is material`() {
+    func `weekly pace detail keeps outcome beside material risk`() {
         let now = Date(timeIntervalSince1970: 0)
         let pace = UsagePace(
             stage: .slightlyBehind,
@@ -252,7 +252,7 @@ struct UsagePaceTextTests {
 
         let detail = UsagePaceText.weeklyDetail(provider: .codex, pace: pace, now: now)
 
-        #expect(detail.rightLabel == "≈ 5% run-out risk")
+        #expect(detail.rightLabel == "Lasts until reset (5% risk)")
     }
 
     // MARK: - Session pace (5-hour window)

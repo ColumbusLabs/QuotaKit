@@ -6,6 +6,22 @@ import Testing
 
 struct CLIConfigCommandTests {
     @Test
+    func `Moonshot API key is bound to configured region`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .moonshot, region: MoonshotRegion.china.rawValue))
+
+        let updated = CodexBarCLI.configSettingAPIKey(
+            config,
+            provider: .moonshot,
+            apiKey: "china-token",
+            enableProvider: true)
+
+        let moonshot = updated.providerConfig(for: .moonshot)
+        #expect(moonshot?.apiKey == "china-token")
+        #expect(moonshot?.apiKeyRegion == MoonshotRegion.china.rawValue)
+    }
+
+    @Test
     func `config set api key parses provider stdin and no enable flags`() throws {
         let parser = CommandParser(signature: CodexBarCLI._configSetAPIKeySignatureForTesting())
         let parsed = try parser.parse(arguments: [
@@ -326,10 +342,11 @@ struct CLIConfigCommandTests {
         process.standardOutput = stdout
         process.standardError = stderr
         try process.run()
-        process.waitUntilExit()
-
+        // Drain stdout before waiting: a full default config can exceed the pipe buffer,
+        // which otherwise leaves the CLI blocked in exit-time stdio flushing.
         let output = stdout.fileHandleForReading.readDataToEndOfFile()
         let errorOutput = stderr.fileHandleForReading.readDataToEndOfFile()
+        process.waitUntilExit()
         guard process.terminationStatus == 0 else {
             let message = String(data: errorOutput, encoding: .utf8) ?? "CodexBarCLI exited without an error message"
             throw NSError(domain: "CLIConfigCommandTests", code: Int(process.terminationStatus), userInfo: [

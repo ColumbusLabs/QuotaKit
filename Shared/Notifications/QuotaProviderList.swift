@@ -131,6 +131,9 @@ public enum QuotaProviderList {
         // xAI platform billing. Appended so all existing CloudKit subscription
         // identifiers remain stable.
         Provider(id: "xai", displayName: "xAI"),
+        // iOS 1.11.3 upstream-sync catch-up. Append-only to preserve every
+        // existing per-provider CloudKit subscription identifier.
+        Provider(id: "notion", displayName: "Notion AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

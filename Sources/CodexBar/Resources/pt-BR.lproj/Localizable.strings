@@ -1383,3 +1383,5 @@
 "%@ remaining" = "%@ restante";
 "Finish now" = "Concluir agora";
 "Continue in background" = "Continuar em segundo plano";
+"(%d%% risk)" = "(%d%% de risco de esgotar)";
+"menu_bar_layout_token_scoped_weekly" = "Semanal por escopo %";

@@ -35,7 +35,7 @@ extension StatusItemController {
     }
 
     private func providerStoreIconObservationSignature(for provider: UsageProvider, showBrandPercent: Bool) -> String {
-        let snapshot = self.store.snapshot(for: provider)
+        let snapshot = self.store.snapshot(for: provider.instanceID)
         let style = self.store.style(for: provider)
         let resolved = self.resolvedMenuBarIconPercents(
             provider: provider,
@@ -44,6 +44,7 @@ extension StatusItemController {
             showUsed: self.settings.usageBarsShowUsed)
         let creditsRemaining = self.menuBarCreditsRemainingForIcon(provider: provider, snapshot: snapshot)
         let creditsRemainingPercent = self.menuBarCreditsRemainingPercentForIcon(provider: provider, snapshot: snapshot)
+        let scopedWeekly = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)
         let displayText = showBrandPercent ? self.menuBarDisplayText(for: provider, snapshot: snapshot) : nil
         let layoutCostSignature = showBrandPercent
             ? self.storedMenuBarLayoutCostSignature(for: provider)
@@ -60,12 +61,14 @@ extension StatusItemController {
             "style=\(style.rawValue)",
             "primary=\(Self.iconSignatureValue(resolved?.primary))",
             "weekly=\(Self.iconSignatureValue(resolved?.secondary))",
+            "scopedWeekly=\(Self.iconSignatureValue(scopedWeekly?.window.usedPercent))",
+            "scopedTitle=\(scopedWeekly?.title ?? "nil")",
             "credits=\(Self.iconSignatureValue(creditsRemaining))",
             "creditsPercent=\(Self.iconSignatureValue(creditsRemainingPercent))",
             "stale=\(self.store.isStale(provider: provider) ? "1" : "0")",
             "status=\(self.store.statusIndicator(for: provider).rawValue)",
             "anim=\(self.shouldAnimate(provider: provider) ? "1" : "0")",
-            "refreshing=\(self.store.refreshingProviders.contains(provider) ? "1" : "0")",
+            "refreshing=\(self.store.refreshingProviders.contains(provider.instanceID) ? "1" : "0")",
             "text=\(displayText ?? "nil")",
             "layoutCost=\(layoutCostSignature ?? "nil")",
             "layoutAccount=\(layoutAccountSignature ?? "nil")",
@@ -130,6 +133,7 @@ extension StatusItemController {
                 let window: RateWindow? = switch percentWindow {
                 case .session: windows.session
                 case .weekly: windows.weekly
+                case .scopedWeekly: nil
                 case .automatic: windows.automatic
                 }
                 let pace = self.store.menuBarLayoutPaceText(provider: provider, window: window)

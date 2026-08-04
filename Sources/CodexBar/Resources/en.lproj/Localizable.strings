@@ -1387,3 +1387,5 @@
 "%dm ago" = "%dm ago";
 "%dh ago" = "%dh ago";
 "%dd ago" = "%dd ago";
+"(%d%% risk)" = "(%d%% risk)";
+"menu_bar_layout_token_scoped_weekly" = "Scoped weekly %";

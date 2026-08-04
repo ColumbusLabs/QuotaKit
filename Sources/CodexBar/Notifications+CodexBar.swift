@@ -13,6 +13,7 @@ extension Notification.Name {
     static let codexbarProviderConfigDidChange = Notification.Name("codexbarProviderConfigDidChange")
     static let codexbarCurrencyExchangeRatesDidChange =
         Notification.Name("codexbarCurrencyExchangeRatesDidChange")
+    static let codexbarLocalConfigFileDidChange = Notification.Name("codexbarLocalConfigFileDidChange")
     static let codexbarUsageSnapshotsDidChange = Notification.Name("codexbarUsageSnapshotsDidChange")
     static let codexbarQuotaWarningDidPost = Notification.Name("codexbarQuotaWarningDidPost")
 }

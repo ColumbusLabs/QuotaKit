@@ -242,7 +242,7 @@ extension CodexBarCLI {
         config: CodexBarConfig) -> [HookQuotaLaneObservation]
     {
         let account = usage.accountEmail(for: provider)
-        let warnings = config.providerConfig(for: provider)?.quotaWarnings
+        let warnings = config.providerConfig(for: provider.instanceID)?.quotaWarnings
         let lanes: [(QuotaWarningWindow, RateWindow?)] = [
             (.session, usage.primary),
             (.weekly, usage.secondary),
@@ -411,7 +411,7 @@ extension CodexBarCLI {
         config: CodexBarConfig) -> Result<[UsageProvider], CLIArgumentError>
     {
         if let explicit { return .success(explicit) }
-        let enabled = config.enabledProviders()
+        let enabled = config.enabledProviders().compactMap(\.firstPartyProvider)
         guard !enabled.isEmpty else {
             return .failure(CLIArgumentError("No providers are enabled."))
         }

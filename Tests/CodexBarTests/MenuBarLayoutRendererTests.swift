@@ -19,6 +19,7 @@ struct MenuBarLayoutRendererTests {
             (.accountLabel, "user@example.com"),
             (.percent(window: .session), "5h 25%"),
             (.percent(window: .weekly), "W 60%"),
+            (.percent(window: .scopedWeekly), "F 80%"),
             (.percent(window: .automatic), "50%"),
             (.pace(window: .session), "-8%"),
             (.pace(window: .weekly), "+11%"),
@@ -90,6 +91,8 @@ struct MenuBarLayoutRendererTests {
             accountLabel: nil,
             session: nil,
             weekly: nil,
+            scopedWeekly: nil,
+            scopedWeeklyTitle: nil,
             automatic: nil,
             sessionPace: nil,
             weeklyPace: nil,
@@ -103,6 +106,7 @@ struct MenuBarLayoutRendererTests {
             .accountLabel,
             .percent(window: .session),
             .percent(window: .weekly),
+            .percent(window: .scopedWeekly),
             .percent(window: .automatic),
             .pace(window: .session),
             .pace(window: .weekly),
@@ -117,7 +121,7 @@ struct MenuBarLayoutRendererTests {
 
         let output = renderer.render(layout: layout, data: missingData, icon: nil, options: self.options())
 
-        #expect(output.attributedTitle.string.count(where: { $0 == "–" }) == 15)
+        #expect(output.attributedTitle.string.count(where: { $0 == "–" }) == 16)
         #expect(output.accessibilityLabel.contains("unavailable"))
     }
 
@@ -152,6 +156,8 @@ struct MenuBarLayoutRendererTests {
                 resetsAt: self.now.addingTimeInterval(60 * 60),
                 resetDescription: nil)),
             weekly: nil,
+            scopedWeekly: nil,
+            scopedWeeklyTitle: nil,
             automatic: nil,
             // Pace is suppressed below 3% of window elapsed; the percent token must survive that.
             sessionPace: nil,
@@ -168,6 +174,23 @@ struct MenuBarLayoutRendererTests {
             options: self.options())
 
         #expect(output.attributedTitle.string == "5h 25%\u{2009}·\u{2009}–")
+        #expect(output.accessibilityLabel.contains("unavailable"))
+    }
+
+    @Test
+    func `scoped weekly remains percentage only`() {
+        let renderer = MenuBarLayoutRenderer()
+        let output = renderer.render(
+            layout: MenuBarLayout(lines: [[
+                .percent(window: .scopedWeekly),
+                .separatorDot,
+                .pace(window: .scopedWeekly),
+            ]]),
+            data: self.data(),
+            icon: nil,
+            options: self.options())
+
+        #expect(output.attributedTitle.string == "F 80%\u{2009}·\u{2009}–")
         #expect(output.accessibilityLabel.contains("unavailable"))
     }
 
@@ -285,6 +308,8 @@ struct MenuBarLayoutRendererTests {
             accountLabel: nil,
             session: nil,
             weekly: nil,
+            scopedWeekly: nil,
+            scopedWeeklyTitle: nil,
             automatic: textOnlyWindow,
             sessionPace: nil,
             weeklyPace: nil,
@@ -341,6 +366,12 @@ struct MenuBarLayoutRendererTests {
                 windowMinutes: 10080,
                 resetsAt: self.now.addingTimeInterval(3 * 24 * 60 * 60),
                 resetDescription: nil)),
+            scopedWeekly: MenuBarLayoutRenderWindow(RateWindow(
+                usedPercent: 80,
+                windowMinutes: 10080,
+                resetsAt: self.now.addingTimeInterval(24 * 60 * 60),
+                resetDescription: nil)),
+            scopedWeeklyTitle: "Fable only",
             automatic: MenuBarLayoutRenderWindow(RateWindow(
                 usedPercent: automaticUsedPercent,
                 windowMinutes: 300,

@@ -131,7 +131,20 @@ public enum CodexBarConfigValidator {
     }
 
     private static func validateProvider(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
-        let provider = entry.id
+        guard let provider = entry.id.firstPartyProvider else {
+            #if canImport(JavaScriptCore)
+            if UserProviderPluginRegistry.plugin(for: entry.id) != nil {
+                return
+            }
+            #endif
+            issues.append(CodexBarConfigIssue(
+                severity: .warning,
+                provider: nil,
+                field: "id",
+                code: "unavailable_provider_plugin",
+                message: "Provider plugin \(entry.id.rawValue) is not currently installed."))
+            return
+        }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
         let supportedSources = descriptor.fetchPlan.sourceModes
         let supportsWeb = supportedSources.contains(.auto) || supportedSources.contains(.web)
@@ -266,15 +279,16 @@ public enum CodexBarConfigValidator {
     private static func validateSecretKey(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
         guard let secretKey = entry.secretKey,
               !secretKey.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
-              entry.id != .bedrock,
-              entry.id != .doubao
+              let provider = entry.id.firstPartyProvider,
+              provider != .bedrock,
+              provider != .doubao
         else {
             return
         }
 
         issues.append(CodexBarConfigIssue(
             severity: .warning,
-            provider: entry.id,
+            provider: provider,
             field: "secretKey",
             code: "secret_key_unused",
             message: "secretKey is set but only bedrock and doubao use secretKey."))
@@ -377,8 +391,9 @@ public enum CodexBarConfigValidator {
         }
         return entry.tokenAccounts?.accounts.contains(where: { account in
             let token = account.token.trimmingCharacters(in: .whitespacesAndNewlines)
-            return !token.isEmpty &&
-                TokenAccountSupportCatalog.envOverride(for: entry.id, token: token)?.isEmpty == false
+            guard let provider = entry.id.firstPartyProvider else { return false }
+            return !token.isEmpty && TokenAccountSupportCatalog.envOverride(for: provider, token: token)?
+                .isEmpty == false
         }) == true
     }
 
@@ -387,7 +402,7 @@ public enum CodexBarConfigValidator {
     }
 
     private static func validateRegion(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
-        let provider = entry.id
+        guard let provider = entry.id.firstPartyProvider else { return }
         guard let region = entry.region?.trimmingCharacters(in: .whitespacesAndNewlines),
               !region.isEmpty
         else {

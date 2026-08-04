@@ -109,6 +109,7 @@ enum ProviderColorPalette {
             (["jetbrains"], RawColor(red: 255 / 255, green: 51 / 255, blue: 153 / 255)),
             (["kimik2", "kimik2unofficial"], RawColor(red: 76 / 255, green: 0, blue: 255 / 255)),
             (["moonshot", "moonshotkimiapi", "kimiapi"], RawColor(red: 32 / 255, green: 93 / 255, blue: 235 / 255)),
+            (["notion"], RawColor(red: 51 / 255, green: 126 / 255, blue: 169 / 255)),
             (["amp", "ampcode"], RawColor(red: 220 / 255, green: 38 / 255, blue: 38 / 255)),
             (["t3chat", "t3"], RawColor(red: 219 / 255, green: 39 / 255, blue: 119 / 255)),
             (["ollama"], RawColor(red: 136 / 255, green: 136 / 255, blue: 136 / 255)),

@@ -134,8 +134,9 @@ struct TailscaleSessionTests {
     }
 
     @Test
-    func `remote session commands use QuotaKit cli and bundled helper fallback`() {
-        let fetch = RemoteSessionFetcher.fetchCommand()
+    func `remote session commands negotiate protocols with QuotaKit identity`() {
+        let fetch = RemoteSessionFetcher.remoteSessionsCommand()
+        #expect(fetch.contains("quotakit sessions --json-v2"))
         #expect(fetch.contains("quotakit sessions --json"))
         #expect(fetch.contains("/Applications/QuotaKit.app/Contents/Helpers/QuotaKitCLI"))
         #expect(!fetch.contains("codexbar"))

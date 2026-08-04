@@ -41,6 +41,12 @@ enum CLIRenderer {
             context: context,
             now: now,
             lines: &lines)
+        self.appendZaiExtraRateWindows(
+            provider: provider,
+            snapshot: snapshot,
+            context: context,
+            now: now,
+            lines: &lines)
         self.appendMiMoBalanceLine(snapshot: snapshot, useColor: context.useColor, lines: &lines)
         self.appendClawRouterUsageLines(snapshot: snapshot, useColor: context.useColor, lines: &lines)
         self.appendSub2APIUsageLines(snapshot: snapshot, useColor: context.useColor, lines: &lines)
@@ -113,6 +119,12 @@ enum CLIRenderer {
             provider: provider,
             snapshot: snapshot,
             labels: labels,
+            context: context,
+            now: now,
+            lines: &lines)
+        self.appendZaiExtraRateWindows(
+            provider: provider,
+            snapshot: snapshot,
             context: context,
             now: now,
             lines: &lines)
@@ -449,6 +461,16 @@ enum CLIRenderer {
                 window: tertiary,
                 resetStyle: resetStyle,
                 now: now))
+        }
+        if provider == .zai {
+            for extra in snapshot.extraRateWindows ?? [] where extra.id == "zai-mcp" {
+                metrics.append(self.makeCardMetric(
+                    provider: provider,
+                    label: extra.title,
+                    window: extra.window,
+                    resetStyle: resetStyle,
+                    now: now))
+            }
         }
         return metrics
     }
@@ -831,6 +853,22 @@ enum CLIRenderer {
         }
     }
 
+    private static func appendZaiExtraRateWindows(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot,
+        context: RenderContext,
+        now: Date,
+        lines: inout [String])
+    {
+        guard provider == .zai else { return }
+        for extra in snapshot.extraRateWindows ?? [] where extra.id == "zai-mcp" {
+            lines.append(self.rateLine(title: extra.title, window: extra.window, useColor: context.useColor))
+            if let reset = self.resetLine(for: extra.window, style: context.resetStyle, now: now) {
+                lines.append(self.subtleLine(reset, useColor: context.useColor))
+            }
+        }
+    }
+
     private static func appendDeepgramLines(
         snapshot: UsageSnapshot,
         useColor: Bool,
@@ -1171,7 +1209,8 @@ enum CLIRenderer {
         func supportsStandardPace(provider: UsageProvider) -> Bool {
             switch self {
             case .session:
-                provider == .codex || provider == .claude || provider == .ollama || provider == .kimi
+                provider == .codex || provider == .claude || provider == .ollama || provider == .kimi ||
+                    provider == .notion
             case .weekly:
                 provider == .codex || provider == .claude || provider == .opencode || provider == .ollama ||
                     provider == .kimi
@@ -1223,7 +1262,9 @@ enum CLIRenderer {
             guard supportsWindow else { return nil }
         }
         // Only pace a real session window here; Claude w/o 5-hour data falls a 7-day window into primary.
-        if case .session = resolvedKind, let minutes = paceWindow.windowMinutes, minutes > 300 {
+        // Notion's rolling allowance is a 6-hour window, so it needs the wider ceiling to match the card.
+        let sessionCeilingMinutes = provider == .notion ? NotionProviderDescriptor.rollingWindowMaxMinutes : 300
+        if case .session = resolvedKind, let minutes = paceWindow.windowMinutes, minutes > sessionCeilingMinutes {
             return nil
         }
         if provider == .ollama, paceWindow.windowMinutes == nil {

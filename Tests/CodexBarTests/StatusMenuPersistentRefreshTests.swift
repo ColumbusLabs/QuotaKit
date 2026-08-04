@@ -465,7 +465,7 @@ struct StatusMenuPersistentRefreshTests {
         let controller = self.makeController(settings: settings)
         let now = Date()
         for provider in [UsageProvider.claude, .codex] {
-            controller.store.snapshots[provider] = UsageSnapshot(
+            controller.store.snapshots[provider.instanceID] = UsageSnapshot(
                 primary: RateWindow(
                     usedPercent: 21,
                     windowMinutes: 300,
@@ -475,9 +475,9 @@ struct StatusMenuPersistentRefreshTests {
                 updatedAt: now)
             let frozen = try #require(controller.menuCardModel(for: provider))
             controller.menuCardRefreshMonitor.beginManualRefresh(frozenModels: [provider: frozen])
-            controller.store.refreshingProviders.insert(provider)
+            controller.store.refreshingProviders.insert(provider.instanceID)
 
-            controller.store.snapshots[provider] = UsageSnapshot(
+            controller.store.snapshots[provider.instanceID] = UsageSnapshot(
                 primary: RateWindow(
                     usedPercent: 18,
                     windowMinutes: 300,
@@ -493,7 +493,7 @@ struct StatusMenuPersistentRefreshTests {
             #expect(inFlight.metrics.first?.percentLabel == "79% left")
 
             controller.menuCardRefreshMonitor.endManualRefresh()
-            controller.store.refreshingProviders.remove(provider)
+            controller.store.refreshingProviders.remove(provider.instanceID)
             let completed = controller.menuCardRefreshMonitor.model(for: provider, fallback: frozen)
             #expect(completed.metrics.first?.percentLabel == "82% left")
         }

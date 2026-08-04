@@ -281,7 +281,12 @@ extension UsageStore {
         if let email = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.accountEmail(for: provider)) {
             return "email:\(email)"
         }
-        if let loginMethod = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.loginMethod(for: provider)) {
+        // Command Code's login method includes the live monthly-credit balance, so it is display
+        // metadata rather than a stable account identity. Keying warnings by it would split one
+        // threshold episode every time the balance changes.
+        if provider != .commandcode,
+           let loginMethod = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.loginMethod(for: provider))
+        {
             return "login:\(loginMethod)"
         }
         return nil

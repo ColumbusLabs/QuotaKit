@@ -68,7 +68,7 @@ struct SyncCoordinatorMultiAccountTests {
             secondary: nil,
             updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
-                providerID: provider,
+                providerID: provider.instanceID,
                 accountEmail: accountEmail,
                 accountOrganization: nil,
                 loginMethod: "oauth"))

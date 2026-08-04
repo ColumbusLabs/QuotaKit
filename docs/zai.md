@@ -5,13 +5,17 @@ read_when:
   - Updating z.ai API endpoints
 ---
 
-# z.ai provider
+# z.ai / GLM provider
 
-z.ai is API-token based. No browser cookies.
+z.ai and China-mainland GLM Coding Plan are API-token based. No browser cookies.
 
 ## Token sources (fallback order)
 1) Config token (`~/.quotakit/config.json` or `$XDG_CONFIG_HOME/quotakit/config.json` → `providers[].apiKey`).
-2) Environment variable `Z_AI_API_KEY`.
+2) `Z_AI_API_KEY` for the explicitly selected region.
+3) China region only: `BIGMODEL_API_KEY`, `ZHIPU_API_KEY`, `ZHIPUAI_API_KEY`, or `GLM_API_KEY`.
+4) China region only, the first readable one-line relay key from `~/.coding-relay/glm-api-key`, `~/.config/bigmodel/api_key`, or `~/.config/zhipu/api_key`.
+
+BigModel aliases and relay files are never considered for the Global `api.z.ai` route. Canonical cross-region endpoint overrides fail before bearer authentication.
 
 ### Config location
 - Default: `~/.quotakit/config.json`

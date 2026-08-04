@@ -25,7 +25,7 @@ struct SyncCoordinatorV026MapperTests {
         loginMethod: String? = nil) -> ProviderIdentitySnapshot
     {
         ProviderIdentitySnapshot(
-            providerID: provider,
+            providerID: provider.instanceID,
             accountEmail: nil,
             accountOrganization: nil,
             loginMethod: loginMethod)

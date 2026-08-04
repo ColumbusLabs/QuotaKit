@@ -202,7 +202,7 @@ final class SyncCoordinator {
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
-        let enabledProviders = self.store.enabledProviders()
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
         guard !enabledProviders.isEmpty else { return }
         guard !self.isSyncing else { return }
 
@@ -212,8 +212,8 @@ final class SyncCoordinator {
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
         for provider in enabledProviders {
-            let snapshot = self.store.snapshots[provider]
-            let error = self.store.errors[provider]
+            let snapshot = self.store.snapshots[provider.instanceID]
+            let error = self.store.errors[provider.instanceID]
             let meta = self.store.providerMetadata[provider]
 
             // Per-provider shared data (computed once, reused across all
@@ -1197,7 +1197,7 @@ final class SyncCoordinator {
                     livingAccountIDs: [])
                 continue
             }
-            guard let entries = self.store.accountSnapshots[tokenProvider],
+            guard let entries = self.store.accountSnapshots[tokenProvider.instanceID],
                   entries.count >= 2
             else { continue }
 
@@ -1476,7 +1476,7 @@ final class SyncCoordinator {
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
-        let tokenSnapshot = self.store.tokenSnapshots[provider]
+        let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
         let serviceBreakdownsByDay = self.dashboardServiceBreakdowns(for: provider)
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }
@@ -1623,7 +1623,7 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai:
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
@@ -1654,7 +1654,7 @@ final class SyncCoordinator {
     }
 
     private func makeUtilizationHistory(for provider: UsageProvider) -> [SyncUtilizationSeries]? {
-        let buckets = self.store.planUtilizationHistory[provider]
+        let buckets = self.store.planUtilizationHistory[provider.instanceID]
         guard let buckets, !buckets.isEmpty else { return nil }
 
         // Use preferred account or unscoped history

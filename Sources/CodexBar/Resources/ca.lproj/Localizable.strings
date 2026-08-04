@@ -1385,3 +1385,5 @@
 "%@ remaining" = "Queda %@";
 "Finish now" = "Finalitza ara";
 "Continue in background" = "Continua en segon pla";
+"(%d%% risk)" = "(%d%% risc d'esgotament)";
+"menu_bar_layout_token_scoped_weekly" = "Setmanal amb àmbit %";
