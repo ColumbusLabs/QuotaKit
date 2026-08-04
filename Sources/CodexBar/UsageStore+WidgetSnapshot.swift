@@ -6,6 +6,14 @@ import WidgetKit
 
 extension UsageStore {
     func persistWidgetSnapshot(reason: String) {
+        #if DEBUG
+        // Unsigned test processes must not cross into the real app-group container. Snapshot tests
+        // opt in with an in-memory save override or an injected file URL.
+        guard !SettingsStore.isRunningTests ||
+            self._test_widgetSnapshotSaveOverride != nil ||
+            self.widgetSnapshotURL != nil
+        else { return }
+        #endif
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
         let previousSnapshot = self.lastQueuedWidgetSnapshot ?? {
@@ -13,6 +21,9 @@ extension UsageStore {
             // Snapshot-save overrides must stay isolated from a developer's real app-group data.
             guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
             #endif
+            if let widgetSnapshotURL = self.widgetSnapshotURL {
+                return WidgetSnapshotStore.load(from: widgetSnapshotURL)
+            }
             return WidgetSnapshotStore.load()
         }()
         let snapshot = self.makeWidgetSnapshot(previousSnapshot: previousSnapshot)
@@ -29,8 +40,13 @@ extension UsageStore {
                 return
             }
 
+            let widgetSnapshotURL = self.widgetSnapshotURL
             await Task.detached(priority: .utility) {
-                WidgetSnapshotStore.save(snapshot)
+                if let widgetSnapshotURL {
+                    WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
+                } else {
+                    WidgetSnapshotStore.save(snapshot)
+                }
             }.value
             #if canImport(WidgetKit)
             WidgetCenter.shared.reloadAllTimelines()
@@ -42,13 +58,15 @@ extension UsageStore {
         let deviceID = self.settings.macFleetSyncDeviceID
         var payloads: [String: AccountSnapshotSyncPayload] = [:]
 
-        for (provider, usage) in self.snapshots {
+        for (instanceID, usage) in self.snapshots {
             let identity = usage.identity?.accountID ?? usage.identity?.accountEmail
             let label = usage.identity?.accountEmail
                 ?? usage.identity?.accountOrganization
-                ?? ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+                ?? instanceID.firstPartyProvider
+                .map { ProviderDescriptorRegistry.descriptor(for: $0).metadata.displayName }
+                ?? instanceID.rawValue
             let payload = AccountSnapshotSyncPayload(
-                provider: provider,
+                provider: instanceID,
                 deviceID: deviceID,
                 accountIdentity: identity,
                 displayLabel: label,
@@ -79,7 +97,7 @@ extension UsageStore {
                 ?? usage.identity?.accountEmail
                 ?? "\(accountSnapshot.id.source):\(accountSnapshot.id.opaqueID)"
             let payload = AccountSnapshotSyncPayload(
-                provider: accountSnapshot.provider,
+                provider: accountSnapshot.provider.instanceID,
                 deviceID: deviceID,
                 accountIdentity: identity,
                 displayLabel: accountSnapshot.displayLabel,
@@ -97,10 +115,10 @@ extension UsageStore {
             identities.insert(AccountSnapshotSyncPayload.accountKey(for: identity))
         }
 
-        if let usage = self.snapshots[provider] {
+        if let usage = self.snapshots[provider.instanceID] {
             insert(usage.identity?.accountID ?? usage.identity?.accountEmail)
         }
-        for accountSnapshot in self.accountSnapshots[provider] ?? [] {
+        for accountSnapshot in self.accountSnapshots[provider.instanceID] ?? [] {
             insert(accountSnapshot.snapshot?.identity?.accountID)
             insert(accountSnapshot.snapshot?.identity?.accountEmail)
             insert(accountSnapshot.account.externalIdentifier)
@@ -141,7 +159,7 @@ extension UsageStore {
             self.makeWidgetEntry(
                 for: provider,
                 now: now,
-                previousEntry: previousSnapshot?.entries.first { $0.provider == provider })
+                previousEntry: previousSnapshot?.entries.first { $0.provider == provider.instanceID })
         }
         return WidgetSnapshot(
             entries: entries,
@@ -155,7 +173,7 @@ extension UsageStore {
         now: Date,
         previousEntry: WidgetSnapshot.ProviderEntry?) -> WidgetSnapshot.ProviderEntry?
     {
-        let snapshot = self.snapshots[provider]
+        let snapshot = self.snapshots[provider.instanceID]
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {
             self.expectedClaudeWidgetQuotaOwnerKey()
@@ -165,8 +183,10 @@ extension UsageStore {
         let preservedClaudeUsage: PreservedClaudeWidgetUsage? = if provider == .claude,
                                                                    snapshot == nil,
                                                                    !self.widgetUsagePreservationBlockedProviders
-                                                                       .contains(provider),
-                                                                       self.knownLimitsAvailabilityByProvider[provider]?
+                                                                       .contains(provider.instanceID),
+                                                                       self
+                                                                           .knownLimitsAvailabilityByProvider[provider
+                                                                               .instanceID]?
                                                                            .isUnavailable != true
         {
             Self.preservedClaudeWidgetUsage(

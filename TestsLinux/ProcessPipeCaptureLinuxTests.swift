@@ -96,6 +96,8 @@ struct ProcessPipeCaptureLinuxTests {
     func `Linux descriptor setup failure closes the read end immediately`() throws {
         let pipe = Pipe()
         let readFileDescriptor = pipe.fileHandleForReading.fileDescriptor
+        var originalFileStatus = stat()
+        #expect(Glibc.fstat(readFileDescriptor, &originalFileStatus) == 0)
         let capture = ProcessPipeCapture(pipe: pipe)
         capture.start(linuxDescriptorSetup: { descriptor in
             errno = EMFILE
@@ -108,8 +110,15 @@ struct ProcessPipeCaptureLinuxTests {
 
         #expect(data.isEmpty)
         #expect(elapsed < .milliseconds(500))
-        #expect(Glibc.fcntl(readFileDescriptor, F_GETFD) == -1)
-        #expect(errno == EBADF)
+        var currentFileStatus = stat()
+        errno = 0
+        if Glibc.fstat(readFileDescriptor, &currentFileStatus) == 0 {
+            // Parallel suites can reuse the just-closed descriptor before this
+            // assertion runs. If so, it must refer to a different file.
+            #expect(currentFileStatus.st_ino != originalFileStatus.st_ino)
+        } else {
+            #expect(errno == EBADF)
+        }
         try pipe.fileHandleForWriting.close()
     }
 

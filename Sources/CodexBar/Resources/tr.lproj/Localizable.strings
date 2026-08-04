@@ -1384,3 +1384,5 @@
 "%@ remaining" = "%@ kaldı";
 "Finish now" = "Şimdi tamamla";
 "Continue in background" = "Arka planda devam et";
+"(%d%% risk)" = "(%d%% tükenme riski)";
+"menu_bar_layout_token_scoped_weekly" = "Kapsama göre haftalık %";

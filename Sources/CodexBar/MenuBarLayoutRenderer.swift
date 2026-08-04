@@ -27,6 +27,10 @@ struct MenuBarLayoutRenderData: Hashable {
     let accountLabel: String?
     let session: MenuBarLayoutRenderWindow?
     let weekly: MenuBarLayoutRenderWindow?
+    let scopedWeekly: MenuBarLayoutRenderWindow?
+    /// Title of the active scoped weekly window (e.g. "Fable only"), used to label the
+    /// `.scopedWeekly` token with the real model rather than assuming Fable.
+    let scopedWeeklyTitle: String?
     let automatic: MenuBarLayoutRenderWindow?
     /// Signed pace deltas per window, already formatted (`+11%`, `-8%`, `0%`). Pace needs the store's
     /// historical dataset and work-day setting, so it is resolved upstream like `runsOut` rather than
@@ -246,6 +250,9 @@ final class MenuBarLayoutRenderer {
             case .weekly:
                 prefix = "W"
                 accessibilityPrefix = L("Weekly")
+            case .scopedWeekly:
+                prefix = data.scopedWeeklyTitle.map { String($0.prefix(1)).uppercased() } ?? "F"
+                accessibilityPrefix = data.scopedWeeklyTitle ?? L("Scoped weekly")
             case .automatic:
                 prefix = ""
                 accessibilityPrefix = L("Usage")
@@ -369,6 +376,7 @@ final class MenuBarLayoutRenderer {
         switch percentWindow {
         case .session: data.session
         case .weekly: data.weekly
+        case .scopedWeekly: data.scopedWeekly
         case .automatic: data.automatic
         }
     }
@@ -381,6 +389,7 @@ final class MenuBarLayoutRenderer {
         switch percentWindow {
         case .session: data.sessionPace
         case .weekly: data.weeklyPace
+        case .scopedWeekly: nil
         case .automatic: data.automaticPace
         }
     }
@@ -389,6 +398,7 @@ final class MenuBarLayoutRenderer {
         switch percentWindow {
         case .session: L("menu_bar_layout_token_session_pace")
         case .weekly: L("menu_bar_layout_token_weekly_pace")
+        case .scopedWeekly: L("menu_bar_layout_token_weekly_pace")
         case .automatic: L("menu_bar_layout_token_auto_pace")
         }
     }

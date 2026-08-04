@@ -18,7 +18,7 @@ import Testing
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
     @Test
-    func `Total count is 59 including xAI`() {
+    func `Total count is 60 including Notion AI`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -29,17 +29,18 @@ struct QuotaProviderListTests {
         // 49 in iOS 1.10.0 (Sakana AI from upstream v0.36.x) →
         // 50 after Qoder, 51 after Sub2API, 52 after ZenMux, 54 after
         // ClinePass and LongCat, 55 after Neuralwatt, 56 after DeepInfra,
-        // then 58 after Qwen Cloud and ZoomMate, and 59 after xAI.
+        // then 58 after Qwen Cloud and ZoomMate, 59 after xAI, and 60
+        // after Notion AI.
         // ai& is spend-only and has no quota transitions, so it intentionally
         // does not consume three CloudKit quota-zone subscriptions.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 59)
+        #expect(QuotaProviderList.providers.count == 60)
     }
 
     @Test
-    func `Subscription zone count is 177 (59 providers × 3 states)`() {
+    func `Subscription zone count is 180 (60 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -53,11 +54,11 @@ struct QuotaProviderListTests {
         // Neuralwatt catch-up: 55 × 3 = 165 zones.
         // DeepInfra catch-up: 56 × 3 = 168 zones.
         // Qwen Cloud + ZoomMate catch-up: 58 × 3 = 174 zones.
-        // xAI platform billing: 59 × 3 = 177 zones.
+        // Notion AI catch-up: 60 × 3 = 180 zones.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 177)
+        #expect(QuotaProviderList.providers.count * 3 == 180)
     }
 
     @Test
@@ -133,7 +134,7 @@ struct QuotaProviderListTests {
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
     @Test
-    func `Cause: new providers through xAI are appended at the tail`() {
+    func `Cause: new providers through Notion AI are appended at the tail`() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
         // IDs stay stable across upgrades. Pin the recent tail so a careless
@@ -147,13 +148,13 @@ struct QuotaProviderListTests {
         //  - ZenMux, ClinePass, and LongCat occupy positions [51...53].
         //  - DeepInfra occupies position [55].
         //  - Qwen Cloud and ZoomMate occupy positions [56...57].
-        //  - xAI occupies position [58].
-        let tail = providers.suffix(19).map(\.id)
+        //  - xAI occupies position [58], followed by Notion AI at [59].
+        let tail = providers.suffix(20).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api", "zenmux",
-            "clinepass", "longcat", "neuralwatt", "deepinfra", "qwencloud", "zoommate", "xai",
-        ], "provider catch-up additions through xAI must stay at the tail in this order")
+            "clinepass", "longcat", "neuralwatt", "deepinfra", "qwencloud", "zoommate", "xai", "notion",
+        ], "provider catch-up additions through Notion AI must stay at the tail in this order")
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -252,9 +253,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 59/177 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 59)
-        #expect(QuotaProviderList.providers.count * 3 == 177)
+    func `Cause: catalog 60/180 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 60)
+        #expect(QuotaProviderList.providers.count * 3 == 180)
     }
 
     @Test

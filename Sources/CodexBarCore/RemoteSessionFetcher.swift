@@ -185,7 +185,7 @@ public struct RemoteSessionFetcher: Sendable {
         else {
             return RemoteSessionHostResult(host: host, sessions: [], error: "ssh not found")
         }
-        let command = Self.fetchCommand()
+        let command = Self.remoteSessionsCommand()
         do {
             let result = try await SubprocessRunner.run(
                 binary: ssh,
@@ -208,6 +208,18 @@ public struct RemoteSessionFetcher: Sendable {
         } catch {
             return RemoteSessionHostResult(host: host, sessions: [], error: error.localizedDescription)
         }
+    }
+
+    /// Tries the v2 session JSON protocol first, then the legacy v1 form, for both PATH and the
+    /// bundled app CLI. Each fallback is reached only when the preceding command exits non-zero.
+    package static func remoteSessionsCommand() -> String {
+        let bundledCLI = Self.shellQuote(Self.bundledCLIFallback)
+        return [
+            "quotakit sessions --json-v2",
+            "quotakit sessions --json",
+            "\(bundledCLI) sessions --json-v2",
+            "\(bundledCLI) sessions --json",
+        ].joined(separator: " || ")
     }
 
     /// Ordered candidate paths for the `tailscale` CLI, most-preferred first.
@@ -273,8 +285,7 @@ public struct RemoteSessionFetcher: Sendable {
     }
 
     public static func fetchCommand() -> String {
-        "quotakit sessions --json || " +
-            "\(self.shellQuote(self.bundledCLIFallback)) sessions --json"
+        self.remoteSessionsCommand()
     }
 
     public static func focusCommand(sessionID: String) -> String {

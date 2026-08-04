@@ -1386,3 +1386,5 @@
 "%@ remaining" = "เหลือ %@";
 "Finish now" = "เสร็จสิ้นตอนนี้";
 "Continue in background" = "ทำต่อในเบื้องหลัง";
+"(%d%% risk)" = "(%d%% ความเสี่ยงในการหมด)";
+"menu_bar_layout_token_scoped_weekly" = "รายสัปดาห์ตามขอบเขต %";

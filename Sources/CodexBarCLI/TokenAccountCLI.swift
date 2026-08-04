@@ -56,8 +56,10 @@ struct TokenAccountCLIContext {
         self.accountsByProvider = switch resolutionScope {
         case .configuredAccounts:
             Dictionary(uniqueKeysWithValues: config.providers.compactMap { provider in
-                guard let accounts = provider.tokenAccounts else { return nil }
-                return (provider.id, accounts)
+                guard let firstPartyProvider = provider.id.firstPartyProvider,
+                      let accounts = provider.tokenAccounts
+                else { return nil }
+                return (firstPartyProvider, accounts)
             })
         case .ambientAccount:
             [:]
@@ -238,6 +240,14 @@ struct TokenAccountCLIContext {
             return self.makeSnapshot(mistral: self.makeProviderCookieSettings(cookieSettings))
         case .zoommate:
             return self.makeSnapshot(zoommate: self.makeProviderCookieSettings(cookieSettings))
+        case .notion:
+            // Carries `workspaceID` like OpenCode does; the generic cookie-settings shape would drop it
+            // and leave the CLI auto-selecting a workspace the user had explicitly pinned.
+            return self.makeSnapshot(
+                notion: ProviderSettingsSnapshot.NotionProviderSettings(
+                    cookieSource: cookieSettings.cookieSource,
+                    manualCookieHeader: cookieSettings.manualCookieHeader,
+                    workspaceID: config?.workspaceID))
         case .stepfun:
             let stepfunSettings = self.cookieSettings(
                 provider: provider,
@@ -283,7 +293,8 @@ struct TokenAccountCLIContext {
         mistral: ProviderSettingsSnapshot.MistralProviderSettings? = nil,
         qoder: ProviderSettingsSnapshot.QoderProviderSettings? = nil,
         stepfun: ProviderSettingsSnapshot.StepFunProviderSettings? = nil,
-        zoommate: ProviderSettingsSnapshot.ZoomMateProviderSettings? = nil) -> ProviderSettingsSnapshot
+        zoommate: ProviderSettingsSnapshot.ZoomMateProviderSettings? = nil,
+        notion: ProviderSettingsSnapshot.NotionProviderSettings? = nil) -> ProviderSettingsSnapshot
     {
         ProviderSettingsSnapshot.make(
             codex: codex,
@@ -305,6 +316,7 @@ struct TokenAccountCLIContext {
             moonshot: moonshot,
             amp: amp,
             zoommate: zoommate,
+            notion: notion,
             commandcode: commandcode,
             ollama: ollama,
             jetbrains: jetbrains,
@@ -374,7 +386,7 @@ struct TokenAccountCLIContext {
 
         let store = CodexBarConfigStore()
         var config = try store.load() ?? .makeDefault()
-        var providerConfig = config.providerConfig(for: provider) ?? ProviderConfig(id: provider)
+        var providerConfig = config.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
         providerConfig.region = trimmed
         config.setProviderConfig(providerConfig)
         try store.save(config)
@@ -390,7 +402,7 @@ struct TokenAccountCLIContext {
 
         let store = CodexBarConfigStore()
         guard var config = try store.load() else { return }
-        guard var providerConfig = config.providerConfig(for: provider),
+        guard var providerConfig = config.providerConfig(for: provider.instanceID),
               let data = providerConfig.tokenAccounts,
               let index = data.accounts.firstIndex(where: { $0.id == accountID })
         else {
@@ -433,11 +445,11 @@ struct TokenAccountCLIContext {
     {
         let label = account.label.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !label.isEmpty else { return snapshot }
-        let existing = snapshot.identity(for: provider)
+        let existing = snapshot.identity(for: provider.instanceID)
         let email = existing?.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines)
         let resolvedEmail = (email?.isEmpty ?? true) ? label : email
         let identity = ProviderIdentitySnapshot(
-            providerID: provider,
+            providerID: provider.instanceID,
             accountEmail: resolvedEmail,
             accountOrganization: existing?.accountOrganization,
             loginMethod: existing?.loginMethod)
@@ -487,7 +499,7 @@ struct TokenAccountCLIContext {
     }
 
     private func providerConfig(for provider: UsageProvider) -> ProviderConfig? {
-        self.config.providerConfig(for: provider)
+        self.config.providerConfig(for: provider.instanceID)
     }
 
     private func codexAccountReconciler(activeSource: CodexActiveSource? = nil) -> DefaultCodexAccountReconciler {

@@ -1386,3 +1386,5 @@
 "%@ remaining" = "متبقٍ %@";
 "Finish now" = "إنهاء الآن";
 "Continue in background" = "المتابعة في الخلفية";
+"(%d%% risk)" = "(%d%% خطر الانتهاء)";
+"menu_bar_layout_token_scoped_weekly" = "أسبوعي محدد النطاق %";

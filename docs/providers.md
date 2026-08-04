@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 66 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 67 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -132,6 +132,7 @@ scan fails, while provider/account configuration changes replace obsolete result
 
 ## z.ai
 - API token from `~/.quotakit/config.json` (`providers[].apiKey`) or `Z_AI_API_KEY` env var.
+- China-region keys can also come from BigModel/GLM environment aliases or bounded one-line relay files; those sources are never considered for the global route.
 - Supports global and BigModel CN quota hosts; override with `Z_AI_API_HOST` or `Z_AI_QUOTA_URL`.
 - z.ai endpoint overrides must be HTTPS or bare hosts normalized to HTTPS. `Z_AI_QUOTA_URL` takes precedence for
   quota resolution; combined usage validates both configured endpoints before sending bearer auth.
@@ -437,9 +438,17 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - API key via `MOONSHOT_API_KEY` / `MOONSHOT_KEY` env var or provider config.
 - Reads `GET /v1/users/me/balance` from the selected Moonshot region.
 - Region: international (`api.moonshot.ai`) or China mainland (`api.moonshot.cn`), configurable in Settings or `MOONSHOT_REGION`.
+- Saved keys stay bound to their issuing region and are not sent across regions when the setting changes.
 - Shows available balance; negative cash balance is surfaced as a deficit.
 - Status: none yet.
 - Details: `docs/moonshot.md`.
+
+## Notion AI
+- Browser cookies (automatic import or a manual Cookie header/cURL capture) for `app.notion.com`; the `token_v2` session cookie is required.
+- Resolves eligible Business and Enterprise workspaces, then reads rolling 6-hour and monthly billing-period allowance windows from Notion's usage API.
+- Multi-workspace accounts default to the first eligible workspace and can pin one with `workspaceID`; Notion Custom Agent/Worker credits are a separate meter and are not read.
+- Status: `https://status.notion.so/` (link only).
+- Details: `docs/notion.md`.
 
 ## Venice
 - API key via `VENICE_API_KEY` / `VENICE_KEY` env var or Venice token accounts.

@@ -1382,3 +1382,5 @@
 "%@ remaining" = "%@ restant";
 "Finish now" = "Terminer maintenant";
 "Continue in background" = "Continuer en arrière-plan";
+"(%d%% risk)" = "(%d%% risque d'épuisement)";
+"menu_bar_layout_token_scoped_weekly" = "Hebdomadaire ciblé %";

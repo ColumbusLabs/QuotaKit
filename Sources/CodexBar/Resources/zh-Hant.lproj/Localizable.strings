@@ -1413,3 +1413,5 @@
 "%@ remaining" = "剩餘 %@";
 "Finish now" = "立即完成";
 "Continue in background" = "在背景繼續";
+"(%d%% risk)" = "(%d%% 機率會用完)";
+"menu_bar_layout_token_scoped_weekly" = "範圍每週 %";

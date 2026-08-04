@@ -1,6 +1,6 @@
-# Agent Sessions (prototype)
+# Agent Sessions design
 
-Track live Codex + Claude Code agent sessions — local Mac first, other Macs on the tailnet second — and surface them in the QuotaKit menu with click-to-focus of the owning terminal window.
+Track live Codex, Claude Code, pi, and OMP agent sessions — local Mac first, other hosts on the tailnet second — and surface them in the QuotaKit menu with click-to-focus of the owning terminal window.
 
 ## Why in QuotaKit
 
@@ -10,7 +10,7 @@ QuotaKit already parses `~/.claude/projects` JSONL (cost scanner) and ships a bu
 
 ```swift
 public struct AgentSession: Codable, Sendable, Identifiable {
-    public enum Provider: String, Codable, Sendable { case codex, claude }
+    public enum Provider: String, Codable, Sendable { case codex, claude, pi }
     public enum Source: String, Codable, Sendable { case cli, desktopApp, ide, unknown }
     public enum State: String, Codable, Sendable { case active, idle }
 
@@ -27,6 +27,8 @@ public struct AgentSession: Codable, Sendable, Identifiable {
     public var host: String          // local hostname, or remote host label
 }
 ```
+
+Pi-family rows additionally carry a `pi` or `omp` dialect. The legacy v1 JSON protocol remains restricted to Codex and Claude; v2 adds current providers and optional dialect fields so remote hosts can negotiate v2 first and fall back safely during mixed-version upgrades.
 
 `active` = last activity ≤ 120 s ago. `idle` = live process (or recent file) with older activity. Constants live in one `SessionScanConfig` struct (activeWindow 120 s, fileOnlyWindow 30 min) so thresholds are tunable/testable.
 
@@ -45,9 +47,11 @@ public struct AgentSession: Codable, Sendable, Identifiable {
 
 Scanner is `Sendable`, pure functions where possible; ps/lsof output parsing lives in dedicated parser types fed by strings so tests use fixtures.
 
+Pi-family discovery uses one bounded scanner. Plain pi reads version-3 session headers under its resolved session root; OMP supports default, named-profile, XDG, hashed, and legacy buckets. A record must match the live process cwd and cannot predate process start. The scanner does not read target-process environments or prompt/tool transcript bodies, and unresolved processes remain useful PID-only rows.
+
 ## CLI (CodexBarCLI)
 
-- `quotakit sessions` — table; `--json` — `[AgentSession]` (stable field names above; ISO-8601 dates).
+- `quotakit sessions` — table; `--json` — the legacy v1 array; `--json-v2` — the complete array including Pi-family dialects (stable field names; ISO-8601 dates).
 - `quotakit sessions focus <id>` — macOS only: focus the session's terminal window (see Focus). Exit 1 if id unknown, 2 if focus failed.
 - Follows existing `CLI*Command.swift` conventions. Works on Linux for listing (ps/proc paths guarded), focus is Darwin-only.
 

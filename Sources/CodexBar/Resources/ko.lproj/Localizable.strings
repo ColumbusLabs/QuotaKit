@@ -1350,3 +1350,5 @@
 "%@ remaining" = "%@ 남음";
 "Finish now" = "지금 완료";
 "Continue in background" = "백그라운드에서 계속";
+"(%d%% risk)" = "(%d%% 소진 위험)";
+"menu_bar_layout_token_scoped_weekly" = "범위별 주간 %";

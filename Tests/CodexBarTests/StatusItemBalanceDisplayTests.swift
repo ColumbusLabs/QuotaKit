@@ -746,7 +746,7 @@ struct StatusItemBalanceDisplayTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        settings.selectedMenuProvider = provider
+        settings.selectedMenuProvider = provider.instanceID
         settings.menuBarDisplayMode = .both
         settings.usageBarsShowUsed = true
 

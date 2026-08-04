@@ -1382,3 +1382,5 @@
 "%@ remaining" = "%@ resterend";
 "Finish now" = "Nu voltooien";
 "Continue in background" = "Doorgaan op de achtergrond";
+"(%d%% risk)" = "(%d%% uitlooprisico)";
+"menu_bar_layout_token_scoped_weekly" = "Wekelijks per bereik %";

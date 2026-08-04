@@ -1386,3 +1386,5 @@
 "%@ remaining" = "%@ باقی‌مانده";
 "Finish now" = "اکنون تمام شود";
 "Continue in background" = "ادامه در پس‌زمینه";
+"(%d%% risk)" = "(%d%% خطر تمام شدن)";
+"menu_bar_layout_token_scoped_weekly" = "هفتگی با دامنه %";

@@ -5,6 +5,22 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Added
+- Notion AI: track Business and Enterprise workspace allowances for rolling and billing-period windows, with calendar-aware pace estimates.
+- Provider plugins: support local JavaScript or TypeScript providers with manifest-driven settings, approval-bound network and cookie access, and generic detail rows and charts.
+- Sessions: discover live pi and OMP sessions alongside Codex and Claude Code, including mixed-version local and remote CLI support.
+
+### Fixed
+- Kimi and z.ai/GLM: keep regional credentials bound to their issuing hosts, add Kimi Desktop membership usage, and preserve safe cookie-source behavior.
+- Command Code: parse rolling 5-hour and weekly limits alongside monthly credits.
+- Usage & Spend: retain validated Codex totals while the local scanner refreshes.
+- ZoomMate: preserve browser-cookie scope across the provider's API hosts.
+
+### Changed
+- Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
+
 ## 0.32.4.15 / iOS 1.11.3 — 2026-08-02
 
 ### Added

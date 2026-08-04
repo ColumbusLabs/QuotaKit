@@ -2,6 +2,22 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func pluginsHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit plugins list
+          quotakit plugins fetch <id> [--json] [--pretty]
+
+        Description:
+          Discover local .js and .ts provider plugins. Fetch requires a recorded approval binding.
+          An interactive terminal can create the approval after showing exact origins, capabilities,
+          secret names, and cookie domains. Headless use fails closed. Browser-cookie plugins are
+          app-only and fail closed in the CLI.
+        """
+    }
+
     static func cardsHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -117,18 +133,51 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit sessions [--json] [--pretty]
+          quotakit sessions [--json|--json-v2] [--pretty]
           quotakit sessions focus <id>
 
         Description:
-          List live local Codex and Claude Code agent sessions.
+          List live local Codex, Claude Code, pi, and OMP agent sessions.
+          --json emits the legacy v1 array with only Codex and Claude providers.
+          --json-v2 emits the complete current array, including Pi-family sessions.
           JSON uses stable AgentSession field names and ISO-8601 dates.
           Focus activates the owning terminal or desktop app on macOS.
 
         Examples:
           quotakit sessions
           quotakit sessions --json
+          quotakit sessions --json-v2
           quotakit sessions focus 019f3497-73bf-7df3-a173-4f67d968914a
+        """
+    }
+
+    static func dashboardHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit dashboard [--pretty] [--timeout <seconds>]
+                             [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]
+                             [-v|--verbose]
+
+        Description:
+          Print one dashboard-v1 snapshot as JSON, then exit. Honors enabled providers
+          in stable order, always redacts account identity, and keeps provider
+          failures as row-level errors without dropping healthy rows.
+          Stdout contains only the JSON document; diagnostics are written to stderr.
+          --timeout accepts 0...86400 seconds and defaults to 30; 0 disables the deadline.
+
+        Global flags:
+          -h, --help      Show help
+          -V, --version   Show version
+          -v, --verbose   Enable verbose logging
+          --log-level <trace|verbose|debug|info|warning|error|critical>
+          --json-output   Emit machine-readable logs (JSONL) to stderr
+
+        Examples:
+          quotakit dashboard
+          quotakit dashboard --pretty
+          quotakit dashboard --timeout 60
         """
     }
 
@@ -149,7 +198,8 @@ extension CodexBarCLI {
           `localhost` is normalized to 127.0.0.1.
           GET /dashboard/v1/snapshot requires "Authorization: Bearer YOUR_TOKEN" and fails
           closed (401) when no token is configured. Set the token with --dashboard-token or,
-          preferably, the QUOTAKIT_DASHBOARD_TOKEN environment variable (argv leaks via ps).
+          preferably, the QUOTAKIT_DASHBOARD_TOKEN environment variable (legacy
+          CODEXBAR_DASHBOARD_TOKEN is also accepted; argv leaks via ps).
           Transport is plain HTTP: the token crosses the network in cleartext on every
           request. A non-loopback --host therefore requires both a dashboard token and
           --allow-plain-http, which records that you accept that trade-off. On a
@@ -397,8 +447,9 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--days <days>] [--group-by project]
-          quotakit sessions [--json] [--pretty]
+          quotakit sessions [--json|--json-v2] [--pretty]
           quotakit sessions focus <id>
+          quotakit dashboard [--pretty] [--timeout <seconds>]
           quotakit serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]
                        [--request-timeout <seconds>]
                        [--dashboard-token <token>] [--allow-plain-http]
@@ -416,6 +467,7 @@ extension CodexBarCLI {
                                    --organization-id <org> --workspace-id <project>
           quotakit hooks <list|enable|disable> [--format text|json] [--pretty]
           quotakit hooks test <event> --provider <name>
+          quotakit plugins <list|fetch <id>> [--json] [--pretty]
           quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
           quotakit cookie refresh <--provider <name>|--all> [--allow-keychain-prompt]
           quotakit diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
@@ -438,11 +490,13 @@ extension CodexBarCLI {
           quotakit cards --brief
           quotakit cost --provider claude --format json --pretty
           quotakit sessions --json
+          quotakit dashboard --pretty
           quotakit serve --port 8080
           quotakit config validate --format json --pretty
           quotakit config enable --provider grok
           quotakit config set-api-key --provider elevenlabs --stdin
           quotakit hooks test quota_reached --provider codex
+          quotakit plugins list
           quotakit cache clear --cookies
           quotakit cookie refresh --provider opencodego --allow-keychain-prompt
           quotakit diagnose --provider minimax --format json --redact --output diagnostic.json

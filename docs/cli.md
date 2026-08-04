@@ -70,6 +70,7 @@ See `docs/configuration.md` for the schema.
   - Kitty, Ghostty, WezTerm, and other truecolor terminals auto-enable enhanced gradients/outlines.
   - Force enhanced mode elsewhere with `CODEXBAR_CARDS_ENHANCED=1`.
   - Exit code is non-zero when any provider fetch fails.
+- `quotakit dashboard` prints one redacted dashboard-v1 JSON snapshot and exits. Provider failures remain row-level errors beside healthy rows; `--pretty` formats the document and `--timeout <seconds>` bounds collection (`0` disables the deadline). See `docs/dashboard-api.md` for the shared payload contract.
 - `quotakit serve` starts a foreground HTTP server for usage and cost JSON plus a token-gated dashboard snapshot.
   - `--host <host>` accepts `localhost` or an IPv4 address and defaults to `127.0.0.1`; `localhost` is normalized to `127.0.0.1`. Binding a non-loopback host requires a dashboard token **and** `--allow-plain-http` (see `docs/dashboard-api.md` for the threat model).
   - `--port <port>` defaults to `8080`.
@@ -90,6 +91,7 @@ See `docs/configuration.md` for the schema.
   - `--cookies --provider <id>` removes browser-cookie cache entries for that provider, including managed Codex account scopes.
   - `--cost` removes local cost-usage scan caches.
   - `--all` clears both cookies and cost caches. `--provider` is cookie-only and cannot be combined with `--cost` or `--all`.
+- `quotakit plugins` lists installed user-provider plugins and their approval/runtime state. Plugin manifests can describe settings, detail rows, and charts; see `docs/plugins.md` for install paths, permissions, and the JavaScript/TypeScript sandbox.
 - `--provider <id|both|all>` (default: enabled providers in config; falls back to defaults when missing).
   - Provider IDs live in the config file (see `docs/configuration.md`).
   - With three or more providers enabled, the default stays scoped to enabled providers; use `--provider all` to query

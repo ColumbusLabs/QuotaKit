@@ -1383,3 +1383,5 @@
 "%@ remaining" = "Còn lại %@";
 "Finish now" = "Hoàn tất ngay";
 "Continue in background" = "Tiếp tục trong nền";
+"(%d%% risk)" = "(%d %% rủi ro cạn kiệt)";
+"menu_bar_layout_token_scoped_weekly" = "Hàng tuần theo phạm vi %";

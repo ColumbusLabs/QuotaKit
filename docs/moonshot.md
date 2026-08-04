@@ -25,6 +25,7 @@ third-party Kimi relays.
 
 1. **API key** stored in `~/.quotakit/config.json` or supplied via `MOONSHOT_API_KEY` / `MOONSHOT_KEY`.
    QuotaKit stores the key in config after you paste it in Settings → Providers → Moonshot / Kimi API.
+   Saved keys are bound to the selected regional host. Switching regions does not send an existing key to the other host; switch back or replace it with a key issued for the new region.
 2. **Region**
    - International: `https://api.moonshot.ai/v1/users/me/balance`
    - China mainland: `https://api.moonshot.cn/v1/users/me/balance`

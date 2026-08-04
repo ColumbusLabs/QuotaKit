@@ -1,7 +1,11 @@
 public enum LogCategories {
-    public static func provider(_ provider: UsageProvider, scope: String? = nil) -> String {
-        let base = provider == .opencodego ? "opencode-go" : provider.rawValue
+    public static func providerInstance(_ instanceID: ProviderInstanceID, scope: String? = nil) -> String {
+        let base = instanceID.firstPartyProvider == .opencodego ? "opencode-go" : instanceID.rawValue
         return scope.map { "\(base)-\($0)" } ?? base
+    }
+
+    public static func provider(_ provider: UsageProvider, scope: String? = nil) -> String {
+        self.providerInstance(provider.instanceID, scope: scope)
     }
 
     public static let abacusCookie = Self.provider(.abacus, scope: "cookie")
@@ -66,6 +70,7 @@ public enum LogCategories {
     public static let moonshotUsage = Self.provider(.moonshot, scope: "usage")
     public static let neuralWattUsage = Self.provider(.neuralwatt, scope: "usage")
     public static let notifications = "notifications"
+    public static let notion = Self.provider(.notion)
     public static let openAIWeb = Self.provider(.openai, scope: "web")
     public static let openAIWebview = Self.provider(.openai, scope: "webview")
     public static let ollama = Self.provider(.ollama)

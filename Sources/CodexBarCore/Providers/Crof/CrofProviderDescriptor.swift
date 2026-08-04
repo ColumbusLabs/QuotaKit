@@ -37,17 +37,35 @@ public enum CrofProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Crof cost summary is not available via API." }),
-            fetchPlan: .apiToken(
-                strategyID: "crof.api",
-                resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },
-                missingCredentialsError: { CrofUsageError.missingCredentials },
-                loadUsage: { apiKey, _ in
-                    try await CrofUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-                }),
+            fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "crof",
                 aliases: ["crofai"],
                 versionDetector: nil))
+    }
+
+    private static func fetchPlan() -> ProviderFetchPlan {
+        #if canImport(JavaScriptCore)
+        .scriptPrototypeAPI(
+            configuration: .init(
+                provider: .crof,
+                plugin: "crof",
+                secretKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
+                strategyID: "crof.api"),
+            resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },
+            missingCredentialsError: { CrofUsageError.missingCredentials },
+            loadUsage: { apiKey, _ in
+                try await CrofUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #else
+        .apiToken(
+            strategyID: "crof.api",
+            resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },
+            missingCredentialsError: { CrofUsageError.missingCredentials },
+            loadUsage: { apiKey, _ in
+                try await CrofUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
+            })
+        #endif
     }
 
     public static func primaryLabel(snapshot: UsageSnapshot) -> String {
