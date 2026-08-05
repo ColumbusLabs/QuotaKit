@@ -82,9 +82,12 @@ struct Sub2APIPluginGoldenTests {
         #expect(request.url?.path == "/v1/usage")
         let queryItems = try URLComponents(url: #require(request.url), resolvingAgainstBaseURL: false)?.queryItems ?? []
         #expect(queryItems.contains(URLQueryItem(name: "days", value: "30")))
-        let timezoneID = try #require(queryItems.first(where: { $0.name == "timezone" })?.value)
-        let timezone = try #require(TimeZone(identifier: timezoneID))
-        #expect(timezone.secondsFromGMT(for: Date()) == TimeZone.current.secondsFromGMT(for: Date()))
+        // Foundation and JS Intl can report different aliases for the same zone, including GMT/UTC
+        // and historical IANA aliases. Compare the effective offset instead of the identifier.
+        let sentTimezone = try #require(queryItems.first { $0.name == "timezone" }?.value)
+        let timezone = try #require(TimeZone(identifier: sentTimezone))
+        let now = Date()
+        #expect(timezone.secondsFromGMT(for: now) == TimeZone.current.secondsFromGMT(for: now))
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer fixture-key")
         #expect(request.timeoutInterval == 15)
     }
