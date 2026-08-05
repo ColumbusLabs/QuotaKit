@@ -2,10 +2,34 @@ import Foundation
 
 public enum KiloProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        environmentProjections: [.apiKey(KiloSettingsReader.apiTokenKey)],
+        tokenResolver: { kind, environment, authFileURL in
+            guard kind == .primary else { return nil }
+            if let token = KiloSettingsReader.apiKey(environment: environment) {
+                return ProviderTokenResolution(token: token, source: .environment)
+            }
+            guard let token = KiloSettingsReader.authToken(authFileURL: authFileURL) else { return nil }
+            return ProviderTokenResolution(token: token, source: .authFile)
+        },
+        authDetector: { environment, _ in
+            KiloSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .kilo,
+            settingsSection: .init(KiloProviderSettingsKey.self, credentialSettings: { context in
+                let source: KiloUsageDataSource = switch context.config?.source {
+                case .api: .api
+                case .cli: .cli
+                case .auto, .web, .oauth, nil: .auto
+                }
+                let extrasEnabled = source == .auto ? context.config?.extrasEnabled ?? false : false
+                return KiloProviderSettings(usageDataSource: source, extrasEnabled: extrasEnabled)
+            }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .kilo,
                 displayName: "Kilo",

@@ -21,7 +21,8 @@ struct OpenRouterUsageStatsTests {
         #expect(usage.primary?.usedPercent == 25)
         #expect(usage.primary?.resetsAt == nil)
         #expect(usage.primary?.resetDescription == nil)
-        #expect(usage.openRouterUsage?.keyQuotaStatus == .available)
+        #expect(usage.detailRow(label: "API key budget")?.value == "$20.00")
+        #expect(usage.detailRow(label: "API key remaining")?.value == "$15.00")
     }
 
     @Test
@@ -39,7 +40,7 @@ struct OpenRouterUsageStatsTests {
         let usage = snapshot.toUsageSnapshot()
 
         #expect(usage.primary == nil)
-        #expect(usage.openRouterUsage?.keyQuotaStatus == .unavailable)
+        #expect(usage.detailRow(label: "API key budget")?.value == "Unavailable right now")
     }
 
     @Test
@@ -58,7 +59,7 @@ struct OpenRouterUsageStatsTests {
         let usage = snapshot.toUsageSnapshot()
 
         #expect(usage.primary == nil)
-        #expect(usage.openRouterUsage?.keyQuotaStatus == .noLimitConfigured)
+        #expect(usage.detailRow(label: "API key budget")?.value == "No limit configured")
     }
 
     @Test
@@ -171,6 +172,176 @@ struct OpenRouterUsageStatsTests {
     }
 
     @Test
+    func `fetch usage prefers server remaining for monthly key quota`() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            switch url.path {
+            case "/api/v1/credits":
+                let body = #"{"data":{"total_credits":100,"total_usage":40}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            case "/api/v1/key":
+                let body = #"""
+                {"data":{
+                  "limit":500,
+                  "limit_remaining":454.542594979,
+                  "limit_reset":"monthly",
+                  "usage":433.286754736,
+                  "usage_daily":3.404645509,
+                  "usage_weekly":3.404645509,
+                  "usage_monthly":45.457405021
+                }}
+                """#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            default:
+                return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+            }
+        }
+
+        let usage = try await OpenRouterUsageFetcher.fetchUsage(
+            apiKey: "sk-or-v1-test",
+            environment: ["OPENROUTER_API_URL": "https://openrouter.test/api/v1"])
+
+        #expect(usage.keyLimitRemaining == 454.542594979)
+        #expect(usage.keyLimitReset == "monthly")
+        #expect(usage.keyRemaining == 454.542594979)
+        #expect(abs((usage.keyUsedPercent ?? -1) - 9.0914810042) < 1e-9)
+        #expect(usage.keyQuotaStatus == .available)
+    }
+
+    @Test
+    func `fetch usage without remaining falls back to reset window usage`() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            switch url.path {
+            case "/api/v1/credits":
+                let body = #"{"data":{"total_credits":100,"total_usage":40}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            case "/api/v1/key":
+                let body = #"""
+                {"data":{
+                  "limit":500,
+                  "limit_reset":"monthly",
+                  "usage":433.286754736,
+                  "usage_monthly":45.457405021
+                }}
+                """#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            default:
+                return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+            }
+        }
+
+        let usage = try await OpenRouterUsageFetcher.fetchUsage(
+            apiKey: "sk-or-v1-test",
+            environment: ["OPENROUTER_API_URL": "https://openrouter.test/api/v1"])
+
+        #expect(usage.keyLimitRemaining == nil)
+        #expect(usage.keyLimitReset == "monthly")
+        #expect(abs((usage.keyRemaining ?? -1) - 454.542594979) < 1e-9)
+        #expect(abs((usage.keyUsedPercent ?? -1) - 9.0914810042) < 1e-9)
+        #expect(usage.keyQuotaStatus == .available)
+    }
+
+    @Test
+    func `fetch usage without cumulative usage falls back to reset window usage`() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            switch url.path {
+            case "/api/v1/credits":
+                let body = #"{"data":{"total_credits":100,"total_usage":40}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            case "/api/v1/key":
+                let body = #"""
+                {"data":{
+                  "limit":500,
+                  "limit_reset":"monthly",
+                  "usage_monthly":45.457405021
+                }}
+                """#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            default:
+                return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+            }
+        }
+
+        let usage = try await OpenRouterUsageFetcher.fetchUsage(
+            apiKey: "sk-or-v1-test",
+            environment: ["OPENROUTER_API_URL": "https://openrouter.test/api/v1"])
+
+        #expect(usage.keyLimitRemaining == nil)
+        #expect(usage.keyLimitReset == "monthly")
+        #expect(abs((usage.keyRemaining ?? -1) - 454.542594979) < 1e-9)
+        #expect(abs((usage.keyUsedPercent ?? -1) - 9.0914810042) < 1e-9)
+        #expect(usage.keyQuotaStatus == .available)
+    }
+
+    @Test
+    func `fetch usage treats negative server remaining as exhausted quota`() async throws {
+        let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
+        defer {
+            if registered {
+                URLProtocol.unregisterClass(OpenRouterStubURLProtocol.self)
+            }
+            OpenRouterStubURLProtocol.handler = nil
+        }
+
+        OpenRouterStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            switch url.path {
+            case "/api/v1/credits":
+                let body = #"{"data":{"total_credits":100,"total_usage":40}}"#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            case "/api/v1/key":
+                let body = #"""
+                {"data":{
+                  "limit":500,
+                  "limit_remaining":-5,
+                  "limit_reset":"monthly",
+                  "usage":433.286754736,
+                  "usage_monthly":45.457405021
+                }}
+                """#
+                return Self.makeResponse(url: url, body: body, statusCode: 200)
+            default:
+                return Self.makeResponse(url: url, body: "{}", statusCode: 404)
+            }
+        }
+
+        let usage = try await OpenRouterUsageFetcher.fetchUsage(
+            apiKey: "sk-or-v1-test",
+            environment: ["OPENROUTER_API_URL": "https://openrouter.test/api/v1"])
+
+        #expect(usage.keyLimitRemaining == -5)
+        #expect(usage.keyRemaining == 0)
+        #expect(usage.keyUsedPercent == 100)
+        #expect(usage.keyQuotaStatus == .available)
+    }
+
+    @Test
     func `fetch usage when key endpoint fails marks quota unavailable`() async throws {
         let registered = URLProtocol.registerClass(OpenRouterStubURLProtocol.self)
         defer {
@@ -231,6 +402,8 @@ struct OpenRouterUsageStatsTests {
             usedPercent: 90.779119265,
             keyDataFetched: true,
             keyLimit: nil,
+            keyLimitRemaining: 454.542594979,
+            keyLimitReset: "monthly",
             keyUsage: nil,
             keyUsageDaily: 0.12,
             keyUsageWeekly: 0.74,
@@ -243,11 +416,11 @@ struct OpenRouterUsageStatsTests {
         let data = try encoder.encode(snapshot)
         let decoded = try JSONDecoder().decode(UsageSnapshot.self, from: data)
 
-        #expect(decoded.openRouterUsage?.keyDataFetched == true)
-        #expect(decoded.openRouterUsage?.keyQuotaStatus == .noLimitConfigured)
-        #expect(decoded.openRouterUsage?.keyUsageDaily == 0.12)
-        #expect(decoded.openRouterUsage?.keyUsageWeekly == 0.74)
-        #expect(decoded.openRouterUsage?.keyUsageMonthly == 4.56)
+        #expect(decoded.detailRow(label: "API key budget")?.value == "No limit configured")
+        #expect(decoded.detailRow(label: "Reset window")?.value == "monthly")
+        #expect(decoded.detailRow(label: "Today")?.value == "$0.12")
+        #expect(decoded.detailRow(label: "This week")?.value == "$0.74")
+        #expect(decoded.detailRow(label: "This month")?.value == "$4.56")
     }
 
     private static func makeResponse(

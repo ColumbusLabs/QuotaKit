@@ -4258,17 +4258,16 @@ enum CostUsageScanner {
     }
 
     static func pendingCodexScanWorkBytes(metadata: CodexFileMetadata, cached: CostUsageFileUsage?) -> Int64 {
-        // Called only after keepCachedCodexFileIfFresh failed. Even when size/mtime still match
-        // (forced full rescan, priority invalidation, fork-dependency drift, etc.), the scanner
-        // will read the whole file — never report zero pending work in that case.
+        // Called only after keepCachedCodexFileIfFresh failed. Forced rescans, priority invalidation,
+        // and other paths that reread JSONL must still charge the file; the sole zero-work exception
+        // is a validated same-size buffered replay.
         guard let cached else { return max(0, metadata.size) }
-        if cached.forkedFromId != nil,
-           cached.forkBaselineDependencyKey == nil,
-           cached.hasBufferedCodexForkRetryLines,
-           cached.codexScanFileId == metadata.fileId,
-           cached.parsedBytes == metadata.size
-        {
+        if Self.isValidatedSameSizeBufferedCodexForkRetry(metadata: metadata, cached: cached) {
             return 0
+        }
+        if Self.isAppendSafeBufferedCodexForkResume(metadata: metadata, cached: cached) {
+            let startOffset = cached.parsedBytes ?? cached.size
+            return max(0, metadata.size - startOffset)
         }
         if cached.codexScanComplete == false {
             if cached.codexScanFileId != nil,
@@ -4456,8 +4455,8 @@ enum CostUsageScanner {
         guard cache.codexScanCatchUpPending == true,
               let previous = cache.codexPreviousReport,
               previous.matches(
-                  scanSinceKey: range.scanSinceKey,
-                  scanUntilKey: range.scanUntilKey,
+                  scanSinceKey: range.sinceKey,
+                  scanUntilKey: range.untilKey,
                   timeZoneIdentifier: range.calendar.timeZone.identifier,
                   roots: rootsFingerprint)
         else { return nil }
@@ -4469,7 +4468,9 @@ enum CostUsageScanner {
             provider: .codex,
             cache: cache,
             cacheRoot: options.cacheRoot,
-            calendar: range.calendar)
+            calendar: range.calendar,
+            requestedScanWindow: (sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey),
+            reportWindow: (sinceKey: range.sinceKey, untilKey: range.untilKey))
     }
 
     // swiftlint:disable:next function_body_length

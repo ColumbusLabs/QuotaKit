@@ -2,10 +2,22 @@ import Foundation
 
 public enum DeepInfraProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: DeepInfraSettingsReader.apiKeyEnvironmentKey,
+        resolve: DeepInfraSettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API tokens",
+            subtitle: "Store multiple DeepInfra API keys.",
+            placeholder: "Paste API key…",
+            injection: .environment(key: DeepInfraSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        missingCredentialMessage: { _ in DeepInfraUsageError.missingCredentials.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .deepinfra,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .deepinfra,
                 displayName: "DeepInfra",

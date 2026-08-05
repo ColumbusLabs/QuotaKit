@@ -64,11 +64,10 @@ struct Sub2APIUsageFetcherTests {
         #expect(snapshot.extraRateWindows?.count == 2)
         #expect(snapshot.extraRateWindows?.first?.window.windowMinutes == 300)
         #expect(snapshot.providerCost == nil)
-        #expect(snapshot.sub2APIUsage?.kind == .keyQuota)
-        #expect(snapshot.sub2APIUsage?.today?.requests == 4)
-        #expect(snapshot.sub2APIUsage?.today?.totalTokens == 1200)
-        #expect(snapshot.sub2APIUsage?.today?.actualCostUSD == 1.25)
-        #expect(snapshot.sub2APIUsage?.total?.requests == 40)
+        #expect(snapshot.detailRow(label: "Today requests")?.value == "4")
+        #expect(snapshot.detailRow(label: "Today tokens")?.value == "1,200")
+        #expect(snapshot.detailRow(label: "Today tokens")?.secondaryValue == "$1.25")
+        #expect(snapshot.detailRow(label: "All time requests")?.value == "40")
         #expect(snapshot.subscriptionExpiresAt != nil)
         #expect(snapshot.dataConfidence == .exact)
 
@@ -80,7 +79,7 @@ struct Sub2APIUsageFetcherTests {
             accountEmail: "Group A",
             accountOrganization: nil,
             loginMethod: nil))
-        #expect(relabeled.sub2APIUsage == snapshot.sub2APIUsage)
+        #expect(relabeled.details == snapshot.details)
     }
 
     @Test
@@ -114,7 +113,7 @@ struct Sub2APIUsageFetcherTests {
         #expect(snapshot.tertiary?.usedPercent == 30)
         #expect(snapshot.identity?.accountOrganization == "Claude Team")
         #expect(snapshot.identity?.loginMethod == "Claude Team")
-        #expect(snapshot.sub2APIUsage?.kind == .subscription)
+        #expect(Sub2APIProviderDescriptor.primaryLabel(snapshot: snapshot) == "Daily quota")
         #expect(snapshot.subscriptionExpiresAt != nil)
     }
 
@@ -202,8 +201,7 @@ struct Sub2APIUsageFetcherTests {
 
         #expect(snapshot.primary == nil)
         #expect(snapshot.identity?.loginMethod == "Wallet plan")
-        #expect(snapshot.sub2APIUsage?.kind == .wallet)
-        #expect(snapshot.sub2APIUsage?.balance == 42.5)
+        #expect(snapshot.detailRow(label: "Balance")?.value == "$42.50")
     }
 
     @Test

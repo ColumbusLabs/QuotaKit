@@ -50,13 +50,6 @@ public struct CodexBarConfig: Codable, Sendable {
         self.hooks = try container.decodeIfPresent(HooksConfig.self, forKey: .hooks)
     }
 
-    public func encode(to encoder: any Encoder) throws {
-        var container = encoder.container(keyedBy: CodingKeys.self)
-        try container.encode(self.version, forKey: .version)
-        try container.encode(self.providers, forKey: .providers)
-        try container.encodeIfPresent(self.hooks, forKey: .hooks)
-    }
-
     public static func makeDefault(
         metadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata) -> CodexBarConfig
     {
@@ -99,29 +92,13 @@ public struct CodexBarConfig: Codable, Sendable {
         var normalized: [ProviderConfig] = []
         normalized.reserveCapacity(max(self.providers.count, UsageProvider.allCases.count))
 
-        for provider in self.providers {
+        for var provider in self.providers {
             guard !seen.contains(provider.id) else { continue }
             seen.insert(provider.id)
-            var entry = provider
-            if entry.id.firstPartyProvider == .cursor {
-                switch entry.source {
-                case nil, .auto, .api:
-                    break
-                case .web, .cli, .oauth:
-                    entry.source = nil
-                }
+            if let firstPartyProvider = provider.id.firstPartyProvider {
+                ProviderDescriptorRegistry.descriptor(for: firstPartyProvider).normalizeConfig(&provider)
             }
-            if entry.id.firstPartyProvider == .deepseek {
-                entry.deepseekProfileID = entry.sanitizedDeepSeekProfileID
-                entry.deepseekProfileScope = entry.sanitizedDeepSeekProfileScope
-            }
-            if entry.id.firstPartyProvider == .moonshot,
-               entry.sanitizedAPIKey != nil,
-               entry.sanitizedAPIKeyRegion == nil
-            {
-                entry.apiKeyRegion = entry.sanitizedRegion ?? MoonshotRegion.international.rawValue
-            }
-            normalized.append(entry)
+            normalized.append(provider)
         }
 
         for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
@@ -195,24 +172,11 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
     public var workspaceID: String?
     public var enterpriseHost: String?
     public var tokenAccounts: ProviderTokenAccountData?
-    public var claudeSwapEnabled: Bool?
-    public var claudeSwapShowSingleAccount: Bool?
-    public var claudeSwapExecutablePath: String?
-    public var codexActiveSource: CodexActiveSource?
-    public var codexProfileHomePaths: [String]?
-    public var antigravityPrioritizeExhaustedQuotas: Bool?
     public var quotaWarnings: QuotaWarningConfig?
-    public var kiloKnownOrganizations: [KiloOrganization]?
-    public var kiloEnabledOrganizationIDs: [String]?
-    public var awsProfile: String?
-    public var awsAuthMode: String?
-    public var deepseekProfileID: String?
-    public var deepseekProfileScope: String?
-    /// Region that owns `apiKey`. Region-routed providers use this to keep credentials host-scoped.
-    public var apiKeyRegion: String?
     /// Arbitrary user-plugin values stay scoped to the provider instance. Secure values are redacted from config dumps.
     public var pluginSettings: [String: String]?
     public var pluginSecrets: [String: String]?
+    var extensionValues: [String: ProviderConfigExtensionValue]
 
     public init(
         id: ProviderInstanceID,
@@ -227,20 +191,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         workspaceID: String? = nil,
         enterpriseHost: String? = nil,
         tokenAccounts: ProviderTokenAccountData? = nil,
-        claudeSwapEnabled: Bool? = nil,
-        claudeSwapShowSingleAccount: Bool? = nil,
-        claudeSwapExecutablePath: String? = nil,
-        codexActiveSource: CodexActiveSource? = nil,
-        codexProfileHomePaths: [String]? = nil,
-        antigravityPrioritizeExhaustedQuotas: Bool? = nil,
         quotaWarnings: QuotaWarningConfig? = nil,
-        kiloKnownOrganizations: [KiloOrganization]? = nil,
-        kiloEnabledOrganizationIDs: [String]? = nil,
-        awsProfile: String? = nil,
-        awsAuthMode: String? = nil,
-        deepseekProfileID: String? = nil,
-        deepseekProfileScope: String? = nil,
-        apiKeyRegion: String? = nil,
         pluginSettings: [String: String]? = nil,
         pluginSecrets: [String: String]? = nil)
     {
@@ -256,22 +207,10 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         self.workspaceID = workspaceID
         self.enterpriseHost = enterpriseHost
         self.tokenAccounts = tokenAccounts
-        self.claudeSwapEnabled = claudeSwapEnabled
-        self.claudeSwapShowSingleAccount = claudeSwapShowSingleAccount
-        self.claudeSwapExecutablePath = claudeSwapExecutablePath
-        self.codexActiveSource = codexActiveSource
-        self.codexProfileHomePaths = codexProfileHomePaths
-        self.antigravityPrioritizeExhaustedQuotas = antigravityPrioritizeExhaustedQuotas
         self.quotaWarnings = quotaWarnings
-        self.kiloKnownOrganizations = kiloKnownOrganizations
-        self.kiloEnabledOrganizationIDs = kiloEnabledOrganizationIDs
-        self.awsProfile = awsProfile
-        self.awsAuthMode = awsAuthMode
-        self.deepseekProfileID = deepseekProfileID
-        self.deepseekProfileScope = deepseekProfileScope
-        self.apiKeyRegion = apiKeyRegion
         self.pluginSettings = pluginSettings
         self.pluginSecrets = pluginSecrets
+        self.extensionValues = [:]
     }
 
     public var sanitizedAPIKey: String? {
@@ -290,36 +229,12 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         Self.clean(self.region)
     }
 
-    public var sanitizedAPIKeyRegion: String? {
-        Self.clean(self.apiKeyRegion)
-    }
-
     public var sanitizedWorkspaceID: String? {
         Self.clean(self.workspaceID)
     }
 
     public var sanitizedEnterpriseHost: String? {
         Self.clean(self.enterpriseHost)
-    }
-
-    public var sanitizedClaudeSwapExecutablePath: String? {
-        Self.clean(self.claudeSwapExecutablePath)
-    }
-
-    public var sanitizedAWSProfile: String? {
-        Self.clean(self.awsProfile)
-    }
-
-    public var sanitizedAWSAuthMode: String? {
-        Self.clean(self.awsAuthMode)
-    }
-
-    public var sanitizedDeepSeekProfileID: String? {
-        Self.clean(self.deepseekProfileID).map(DeepSeekSettingsReader.canonicalProfileID)
-    }
-
-    public var sanitizedDeepSeekProfileScope: String? {
-        Self.clean(self.deepseekProfileScope)
     }
 
     public func sanitizedForDump() -> ProviderConfig {
@@ -342,7 +257,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         return copy
     }
 
-    private static func clean(_ raw: String?) -> String? {
+    static func clean(_ raw: String?) -> String? {
         guard var value = raw?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty else {
             return nil
         }

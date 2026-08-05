@@ -2,6 +2,33 @@ import Foundation
 
 public enum DeepSeekProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        environmentProjections: [
+            .cookieHeader(DeepSeekSettingsReader.platformTokenEnvironmentKey),
+            ProviderCredentialEnvironmentProjection(
+                key: DeepSeekSettingsReader.profileIDEnvironmentKey,
+                value: { $0.sanitizedDeepSeekProfileID }),
+            ProviderCredentialEnvironmentProjection(
+                key: DeepSeekSettingsReader.profileScopeEnvironmentKey,
+                value: { $0.sanitizedDeepSeekProfileScope }),
+        ],
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary, let token = DeepSeekSettingsReader.apiKey(environment: environment) else {
+                return nil
+            }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API tokens",
+            subtitle: "Store multiple DeepSeek API keys.",
+            placeholder: "Paste API key…",
+            injection: .environment(key: DeepSeekSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        authDetector: { environment, _ in
+            DeepSeekSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+        },
+        missingCredentialMessage: { _ in DeepSeekUsageError.missingCredentials.errorDescription })
 
     private static let optionalResolutionJoinGrace: Duration = .seconds(5)
     private static let platformResolutionJoinGrace: Duration = .seconds(20)
@@ -43,6 +70,7 @@ public enum DeepSeekProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .deepseek,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .deepseek,
                 displayName: "DeepSeek",
@@ -80,7 +108,11 @@ public enum DeepSeekProviderDescriptor {
             cli: ProviderCLIConfig(
                 name: "deepseek",
                 aliases: ["deep-seek", "ds"],
-                versionDetector: nil))
+                versionDetector: nil),
+            configNormalizer: { config in
+                config.deepseekProfileID = config.sanitizedDeepSeekProfileID
+                config.deepseekProfileScope = config.sanitizedDeepSeekProfileScope
+            })
     }
 
     private static func resolveStrategies(context: ProviderFetchContext) async -> [any ProviderFetchStrategy] {

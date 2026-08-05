@@ -764,25 +764,16 @@ extension ProviderSettingsDescriptorTests {
     func `deepseek profile transition survives selected api token cache invalidation`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepseek-token-transition")
         fixture.settings.addTokenAccount(provider: .deepseek, label: "cv", token: "test-token")
-        let snapshot = UsageSnapshot(
+        let snapshot = try UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 0,
                 windowMinutes: nil,
                 resetsAt: nil,
                 resetDescription: "$8.06 (Paid: $8.06 / Granted: $0.00)"),
             secondary: nil,
-            deepseekUsage: DeepSeekUsageSummary(
-                todayTokens: 100,
-                currentMonthTokens: 100,
-                todayCost: 0.1,
-                currentMonthCost: 0.1,
-                requestCount: 1,
-                currentMonthRequestCount: 1,
-                topModel: "deepseek-chat",
-                categoryBreakdown: [],
-                daily: [],
-                currency: "USD",
-                updatedAt: Date()),
+            details: [ProviderDetailSection(rows: [
+                ProviderDetailSection.Row(label: "Today", value: "$0.1000 · 100 tokens"),
+            ])],
             deepseekDetailedUsageState: .available,
             deepseekPlatformProfiles: [
                 DeepSeekPlatformProfile(id: "chrome:Default", name: "Chrome — Personal"),
@@ -815,7 +806,7 @@ extension ProviderSettingsDescriptorTests {
 
         fixture.store.refreshingProviders.remove(.deepseek)
         #expect(fixture.store.presentationSnapshot(for: .deepseek)?.primary != nil)
-        #expect(fixture.store.presentationSnapshot(for: .deepseek)?.deepseekUsage == nil)
+        #expect(fixture.store.presentationSnapshot(for: .deepseek)?.details.isEmpty == true)
 
         fixture.store.clearDeepSeekProfileTransition()
         #expect(fixture.store.presentationSnapshot(for: .deepseek) == nil)
@@ -916,25 +907,16 @@ extension ProviderSettingsDescriptorTests {
     @Test
     func `deepseek selected account failure preserves its balance only transition`() async throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepseek-transition-failure")
-        fixture.store.snapshots[.deepseek] = UsageSnapshot(
+        fixture.store.snapshots[.deepseek] = try UsageSnapshot(
             primary: RateWindow(
                 usedPercent: 0,
                 windowMinutes: nil,
                 resetsAt: nil,
                 resetDescription: "$8.06"),
             secondary: nil,
-            deepseekUsage: DeepSeekUsageSummary(
-                todayTokens: 100,
-                currentMonthTokens: 100,
-                todayCost: nil,
-                currentMonthCost: nil,
-                requestCount: 1,
-                currentMonthRequestCount: 1,
-                topModel: nil,
-                categoryBreakdown: [],
-                daily: [],
-                currency: "USD",
-                updatedAt: Date()),
+            details: [ProviderDetailSection(rows: [
+                ProviderDetailSection.Row(label: "Today", value: "100 tokens"),
+            ])],
             deepseekDetailedUsageState: .available,
             updatedAt: Date())
         fixture.store.beginDeepSeekProfileTransition()
@@ -949,7 +931,7 @@ extension ProviderSettingsDescriptorTests {
 
         #expect(fixture.store.deepseekProfileTransitionSnapshot != nil)
         #expect(fixture.store.presentationSnapshot(for: .deepseek)?.primary?.resetDescription == "$8.06")
-        #expect(fixture.store.presentationSnapshot(for: .deepseek)?.deepseekUsage == nil)
+        #expect(fixture.store.presentationSnapshot(for: .deepseek)?.details.isEmpty == true)
     }
 
     @Test

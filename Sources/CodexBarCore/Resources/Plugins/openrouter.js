@@ -42,14 +42,40 @@ defineProvider({
       }
     } catch (_) {}
 
+    function resetWindowUsage(reset) {
+      const windowKey =
+        reset === "daily" ? "usage_daily" :
+        reset === "weekly" ? "usage_weekly" :
+        reset === "monthly" ? "usage_monthly" : null;
+      if (!windowKey) return null;
+      return finite(keyData[windowKey], `key.${windowKey}`, true);
+    }
+
+    // Match the Swift quota path: prefer the server-reported remaining amount, then the
+    // usage field matching the declared reset window, and finally cumulative usage.
+    function keyUsedForQuota() {
+      const limitRemaining = finite(keyData.limit_remaining, "key.limit_remaining", true);
+      if (limitRemaining !== null) {
+        // Clamp to [0, keyLimit] like Swift so remaining above the configured
+        // limit renders 0% used instead of suppressing the meter.
+        return keyLimit - Math.min(keyLimit, Math.max(0, limitRemaining));
+      }
+      const windowUsage = resetWindowUsage(keyData.limit_reset);
+      if (windowUsage !== null) return windowUsage;
+      return keyUsage;
+    }
+
     let primary;
     let keyLimit = null;
     let keyUsage = null;
+    let keyRemaining = null;
     if (keyData) {
       keyLimit = finite(keyData.limit, "key.limit", true);
       keyUsage = finite(keyData.usage, "key.usage", true);
-      if (keyLimit !== null && keyLimit > 0 && keyUsage !== null && keyUsage >= 0) {
-        primary = { usedPercent: ctx.pct(keyUsage, keyLimit) };
+      const used = keyUsedForQuota();
+      if (keyLimit !== null && keyLimit > 0 && used !== null && Number.isFinite(used) && used >= 0) {
+        primary = { usedPercent: ctx.pct(used, keyLimit) };
+        keyRemaining = Math.max(0, keyLimit - used);
       }
     }
 
@@ -67,10 +93,13 @@ defineProvider({
       const rows = [];
       if (keyLimit !== null && keyLimit > 0) {
         rows.push({ label: "API key budget", value: currency(keyLimit) });
+        if (keyRemaining !== null) rows.push({ label: "API key remaining", value: currency(keyRemaining) });
         if (keyUsage !== null) rows.push({ label: "API key used", value: currency(keyUsage) });
       } else {
         rows.push({ label: "API key budget", value: "No limit configured" });
       }
+      const resetWindow = typeof keyData.limit_reset === "string" ? keyData.limit_reset.trim() : "";
+      if (resetWindow) rows.push({ label: "Reset window", value: resetWindow });
       const periods = [
         ["Today", "usage_daily"],
         ["This week", "usage_weekly"],
@@ -96,6 +125,11 @@ defineProvider({
         section.chart = { kind: "bars", title: "Key spend", unit: "USD", points };
       }
       details.push(section);
+    } else {
+      details.push({
+        title: "API key",
+        rows: [{ label: "API key budget", value: "Unavailable right now" }],
+      });
     }
 
     const result = {

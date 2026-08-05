@@ -884,8 +884,8 @@ final class SyncCoordinator {
     {
         if provider == .amp {
             return (
-                AmpProviderDescriptor.primaryLabel(details: snapshot?.ampUsage) ?? metadata?.sessionLabel,
-                AmpProviderDescriptor.secondaryLabel(details: snapshot?.ampUsage) ?? metadata?.weeklyLabel,
+                snapshot.flatMap { AmpProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
+                snapshot.flatMap { AmpProviderDescriptor.secondaryLabel(snapshot: $0) } ?? metadata?.weeklyLabel,
                 metadata?.opusLabel ?? "Sonnet")
         }
 

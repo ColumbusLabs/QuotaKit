@@ -2,10 +2,22 @@ import Foundation
 
 public enum OpenRouterProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: OpenRouterSettingsReader.envKey,
+        resolve: OpenRouterSettingsReader.apiToken,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple OpenRouter API keys.",
+            placeholder: "sk-or-v1-...",
+            injection: .environment(key: OpenRouterSettingsReader.envKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        missingCredentialMessage: { _ in OpenRouterSettingsError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .openrouter,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .openrouter,
                 displayName: "OpenRouter",

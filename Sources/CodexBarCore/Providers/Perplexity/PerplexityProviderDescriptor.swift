@@ -2,10 +2,25 @@ import Foundation
 
 public enum PerplexityProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary, let token = Self.resolveSessionToken(environment: environment) else {
+                return nil
+            }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        authDetector: { environment, _ in
+            PerplexitySettingsReader.sessionToken(environment: environment) == nil ? [] : ["web"]
+        },
+        missingCredentialMessage: { _ in PerplexityAPIError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .perplexity,
+            settingsSection: .init(
+                PerplexityProviderSettingsKey.self,
+                cookieSettings: PerplexityProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .perplexity,
                 displayName: "Perplexity",
@@ -43,6 +58,17 @@ public enum PerplexityProviderDescriptor {
                 name: "perplexity",
                 aliases: [],
                 versionDetector: nil))
+    }
+
+    private static func resolveSessionToken(environment: [String: String]) -> String? {
+        if let token = PerplexitySettingsReader.sessionToken(environment: environment) {
+            return token
+        }
+        #if os(macOS)
+        return try? PerplexityCookieImporter.importSession().sessionToken
+        #else
+        return nil
+        #endif
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {

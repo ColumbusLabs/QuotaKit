@@ -2,10 +2,14 @@ import Foundation
 
 public enum PoeProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: PoeSettingsReader.apiKeyEnvironmentKey,
+        resolve: PoeSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .poe,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .poe,
                 displayName: "Poe",

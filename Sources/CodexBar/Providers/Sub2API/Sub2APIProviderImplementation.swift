@@ -47,43 +47,4 @@ struct Sub2APIProviderImplementation: ProviderImplementation {
                 onActivate: nil),
         ]
     }
-
-    @MainActor
-    func appendUsageMenuEntries(context: ProviderMenuUsageContext, entries: inout [ProviderMenuEntry]) {
-        guard let usage = context.snapshot?.sub2APIUsage else { return }
-        if let balance = usage.balance {
-            let balanceText = UsageFormatter.convertedCostString(
-                balance,
-                preferredCurrency: context.settings.preferredCurrencyCode,
-                providerCurrency: usage.unit)
-            entries.append(.text("\(L("Balance")): \(balanceText)", .primary))
-        }
-        if let today = usage.today {
-            let totals = self.totalsText(
-                today,
-                unit: usage.unit,
-                preferredCurrencyCode: context.settings.preferredCurrencyCode)
-            entries.append(.text("\(L("Today")): \(totals)", .secondary))
-        }
-        if let total = usage.total {
-            let totals = self.totalsText(
-                total,
-                unit: usage.unit,
-                preferredCurrencyCode: context.settings.preferredCurrencyCode)
-            entries.append(.text("\(L("Total")): \(totals)", .secondary))
-        }
-    }
-
-    private func totalsText(
-        _ totals: Sub2APIUsageDetails.Totals,
-        unit: String,
-        preferredCurrencyCode: String) -> String
-    {
-        "\(UsageFormatter.tokenCountString(totals.requests)) \(L("requests")) · " +
-            "\(UsageFormatter.tokenCountString(totals.totalTokens)) \(L("tokens")) · " +
-            UsageFormatter.convertedCostString(
-                totals.actualCostUSD,
-                preferredCurrency: preferredCurrencyCode,
-                providerCurrency: unit)
-    }
 }

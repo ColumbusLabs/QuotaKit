@@ -43,6 +43,10 @@ public struct OpenRouterKeyData: Decodable, Sendable {
     public let rateLimit: OpenRouterRateLimit?
     /// Usage limits
     public let limit: Double?
+    /// Remaining usage for the current limit window, as reported by the server.
+    public let limitRemaining: Double?
+    /// Limit reset window (e.g., "monthly") reported by the server.
+    public let limitReset: String?
     /// Current usage
     public let usage: Double?
     /// API key usage for the current UTC day.
@@ -55,6 +59,8 @@ public struct OpenRouterKeyData: Decodable, Sendable {
     private enum CodingKeys: String, CodingKey {
         case rateLimit = "rate_limit"
         case limit
+        case limitRemaining = "limit_remaining"
+        case limitReset = "limit_reset"
         case usage
         case usageDaily = "usage_daily"
         case usageWeekly = "usage_weekly"
@@ -89,6 +95,8 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
     public let usedPercent: Double
     public let keyDataFetched: Bool
     public let keyLimit: Double?
+    public let keyLimitRemaining: Double?
+    public let keyLimitReset: String?
     public let keyUsage: Double?
     public let keyUsageDaily: Double?
     public let keyUsageWeekly: Double?
@@ -103,6 +111,8 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
         usedPercent: Double,
         keyDataFetched: Bool = false,
         keyLimit: Double? = nil,
+        keyLimitRemaining: Double? = nil,
+        keyLimitReset: String? = nil,
         keyUsage: Double? = nil,
         keyUsageDaily: Double? = nil,
         keyUsageWeekly: Double? = nil,
@@ -114,9 +124,11 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
         self.totalUsage = totalUsage
         self.balance = balance
         self.usedPercent = usedPercent
-        self.keyDataFetched = keyDataFetched || keyLimit != nil || keyUsage != nil ||
+        self.keyDataFetched = keyDataFetched || keyLimit != nil || keyLimitRemaining != nil || keyUsage != nil ||
             keyUsageDaily != nil || keyUsageWeekly != nil || keyUsageMonthly != nil
         self.keyLimit = keyLimit
+        self.keyLimitRemaining = keyLimitRemaining
+        self.keyLimitReset = keyLimitReset
         self.keyUsage = keyUsage
         self.keyUsageDaily = keyUsageDaily
         self.keyUsageWeekly = keyUsageWeekly
@@ -131,13 +143,19 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
     }
 
     public var hasValidKeyQuota: Bool {
-        guard self.keyDataFetched,
-              let keyLimit,
-              let keyUsage
-        else {
+        guard self.keyDataFetched, let keyLimit else {
             return false
         }
-        return keyLimit > 0 && keyUsage >= 0
+        guard keyLimit > 0 else { return false }
+        if let keyLimitRemaining {
+            // A finite negative value means the key is overspent: treat it as valid quota
+            // and clamp the rendered remaining amount to zero.
+            return keyLimitRemaining.isFinite
+        }
+        // Validate the selected fallback value (reset-window usage when declared,
+        // otherwise cumulative usage) so the meter renders whenever a quota source exists.
+        guard let fallbackUsage = self.quotaFallbackUsage else { return false }
+        return fallbackUsage >= 0
     }
 
     public var keyQuotaStatus: OpenRouterKeyQuotaStatus {
@@ -154,23 +172,49 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
     }
 
     public var keyRemaining: Double? {
-        guard self.hasValidKeyQuota,
-              let keyLimit,
-              let keyUsage
-        else {
+        guard self.hasValidKeyQuota, let keyLimit else {
             return nil
         }
-        return max(0, keyLimit - keyUsage)
+        if let keyLimitRemaining {
+            return min(keyLimit, max(0, keyLimitRemaining))
+        }
+        guard let used = self.quotaFallbackUsage else { return nil }
+        return max(0, keyLimit - used)
     }
 
     public var keyUsedPercent: Double? {
-        guard self.hasValidKeyQuota,
-              let keyLimit,
-              let keyUsage
-        else {
+        guard self.hasValidKeyQuota, let keyLimit else {
             return nil
         }
-        return min(100, max(0, (keyUsage / keyLimit) * 100))
+        let used: Double
+        if let keyLimitRemaining {
+            used = keyLimit - min(keyLimit, max(0, keyLimitRemaining))
+        } else if let fallbackUsage = self.quotaFallbackUsage {
+            used = fallbackUsage
+        } else {
+            return nil
+        }
+        return min(100, max(0, (used / keyLimit) * 100))
+    }
+
+    /// Usage value for quota math when the server does not report remaining: the field matching
+    /// the declared reset window when known, otherwise cumulative usage.
+    private var quotaFallbackUsage: Double? {
+        self.resetWindowUsage ?? self.keyUsage
+    }
+
+    /// Usage value matching the server-declared reset window, when one is identified.
+    private var resetWindowUsage: Double? {
+        switch self.keyLimitReset?.lowercased() {
+        case "daily":
+            self.keyUsageDaily
+        case "weekly":
+            self.keyUsageWeekly
+        case "monthly":
+            self.keyUsageMonthly
+        default:
+            nil
+        }
     }
 }
 
@@ -194,12 +238,63 @@ extension OpenRouterUsageSnapshot {
             accountOrganization: nil,
             loginMethod: "Balance: \(balanceStr)")
 
+        var details: [ProviderDetailSection] = [.makeSection(title: "Credits", rows: [
+            .makeRow(label: "Remaining", value: UsageFormatter.usdString(self.balance)),
+            .makeRow(label: "Used", value: UsageFormatter.usdString(self.totalUsage)),
+            .makeRow(label: "Total added", value: UsageFormatter.usdString(self.totalCredits)),
+        ])]
+        if self.keyDataFetched {
+            var rows: [ProviderDetailSection.Row] = []
+            if let keyLimit = self.keyLimit, keyLimit > 0 {
+                rows.append(.makeRow(label: "API key budget", value: UsageFormatter.usdString(keyLimit)))
+                if let keyRemaining = self.keyRemaining {
+                    rows.append(.makeRow(
+                        label: "API key remaining",
+                        value: UsageFormatter.usdString(keyRemaining)))
+                }
+                if let keyUsage = self.keyUsage {
+                    rows.append(.makeRow(label: "API key used", value: UsageFormatter.usdString(keyUsage)))
+                }
+            } else {
+                rows.append(.makeRow(label: "API key budget", value: "No limit configured"))
+            }
+            if let keyLimitReset = self.keyLimitReset?.trimmingCharacters(in: .whitespacesAndNewlines),
+               !keyLimitReset.isEmpty
+            {
+                rows.append(.makeRow(label: "Reset window", value: keyLimitReset))
+            }
+            let periods = [
+                ("Today", self.keyUsageDaily),
+                ("This week", self.keyUsageWeekly),
+                ("This month", self.keyUsageMonthly),
+            ]
+            for (label, value) in periods {
+                if let value {
+                    rows.append(.makeRow(label: label, value: UsageFormatter.usdString(value)))
+                }
+            }
+            if let rateLimit = self.rateLimit {
+                rows.append(.makeRow(
+                    label: "Rate limit",
+                    value: "\(rateLimit.requests) requests / \(rateLimit.interval)"))
+            }
+            let points = periods.compactMap { label, value in value.map { (label, $0) } }
+            details.append(.makeSection(
+                title: "API key",
+                rows: rows,
+                chart: points.isEmpty ? nil : .makeChart(title: "Key spend", unit: "USD", points: points)))
+        } else {
+            details.append(.makeSection(title: "API key", rows: [
+                .makeRow(label: "API key budget", value: "Unavailable right now"),
+            ]))
+        }
+
         return UsageSnapshot(
             primary: primary,
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
-            openRouterUsage: self,
+            details: details,
             updatedAt: self.updatedAt,
             identity: identity)
     }
@@ -274,6 +369,8 @@ public struct OpenRouterUsageFetcher: Sendable {
                 usedPercent: creditsResponse.data.usedPercent,
                 keyDataFetched: keyFetch.fetched,
                 keyLimit: keyFetch.data?.limit,
+                keyLimitRemaining: keyFetch.data?.limitRemaining,
+                keyLimitReset: keyFetch.data?.limitReset,
                 keyUsage: keyFetch.data?.usage,
                 keyUsageDaily: keyFetch.data?.usageDaily,
                 keyUsageWeekly: keyFetch.data?.usageWeekly,

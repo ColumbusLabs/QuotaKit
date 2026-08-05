@@ -2,10 +2,19 @@ import Foundation
 
 public enum MistralProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
+        title: "Session tokens",
+        subtitle: "Store multiple Mistral Cookie headers.",
+        placeholder: "Cookie: …",
+        injection: .cookieHeader,
+        requiresManualCookieSource: true,
+        cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .mistral,
+            settingsSection: .init(MistralProviderSettingsKey.self, cookieSettings: MistralProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .mistral,
                 displayName: "Mistral",

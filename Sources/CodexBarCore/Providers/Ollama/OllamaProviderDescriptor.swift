@@ -2,10 +2,25 @@ import Foundation
 
 public enum OllamaProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: OllamaAPISettingsReader.apiKeyEnvironmentKeys[0],
+        resolve: OllamaAPISettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple Ollama Cookie headers or session values.",
+            placeholder: "Cookie header or bare session value",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: ollamaDefaultSessionCookieName,
+            cookieHeaderNormalizer: {
+                normalizedOllamaTokenAccountHeader($0, defaultCookieName: ollamaDefaultSessionCookieName)
+            }))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .ollama,
+            settingsSection: .init(OllamaProviderSettingsKey.self, cookieSettings: OllamaProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .ollama,
                 displayName: "Ollama",

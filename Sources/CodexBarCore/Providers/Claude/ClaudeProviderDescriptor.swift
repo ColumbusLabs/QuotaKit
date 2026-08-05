@@ -2,10 +2,75 @@ import Foundation
 
 public enum ClaudeProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        environmentProjections: [.apiKey(ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey)],
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary,
+                  let token = ClaudeAdminAPISettingsReader.apiKey(environment: environment)
+            else { return nil }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Claude credentials",
+            subtitle: "Store Claude sessionKey cookies, OAuth tokens, or Anthropic Admin API keys.",
+            placeholder: "Paste sessionKey, OAuth token, or sk-ant-admin…",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: "sessionKey",
+            environmentOverride: { token in
+                switch ClaudeCredentialRouting.resolve(tokenAccountToken: token, manualCookieHeader: nil) {
+                case let .oauth(accessToken):
+                    [ClaudeOAuthCredentialsStore.environmentTokenKey: accessToken]
+                case let .adminAPIKey(apiKey):
+                    [ClaudeAdminAPISettingsReader.adminAPIKeyEnvironmentKey: apiKey]
+                case .none, .webCookie:
+                    nil
+                }
+            },
+            environmentScrubber: { environment, _ in
+                environment.removeValue(forKey: ClaudeOAuthCredentialsStore.environmentTokenKey)
+                for key in ClaudeAdminAPISettingsReader.apiKeyEnvironmentKeys {
+                    environment.removeValue(forKey: key)
+                }
+            }),
+        authDetector: { environment, _ in
+            ClaudeAdminAPISettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .claude,
+            settingsSection: .init(ClaudeProviderSettingsKey.self, credentialSettings: { context in
+                let manualCookieHeader = context.account == nil ? context.config?.sanitizedCookieHeader : nil
+                let routing = ClaudeCredentialRouting.resolve(
+                    tokenAccountToken: context.account?.token,
+                    manualCookieHeader: manualCookieHeader)
+                let source: ClaudeUsageDataSource = if context.account != nil {
+                    switch routing {
+                    case .adminAPIKey: .api
+                    case .oauth: .oauth
+                    case .webCookie: .web
+                    case .none: .auto
+                    }
+                } else if routing.adminAPIKey != nil {
+                    .api
+                } else if routing.isOAuth {
+                    .oauth
+                } else {
+                    .auto
+                }
+                let cookieSource: ProviderCookieSource = routing.isOAuth || routing.adminAPIKey != nil
+                    ? .off
+                    : context.cookieSettings(for: .claude).cookieSource
+                return ClaudeProviderSettings(
+                    usageDataSource: source,
+                    webExtrasEnabled: false,
+                    cookieSource: cookieSource,
+                    manualCookieHeader: routing.manualCookieHeader,
+                    organizationID: context.account?.sanitizedOrganizationID)
+            }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .claude,
                 displayName: "Claude",

@@ -2,10 +2,22 @@ import Foundation
 
 public enum LLMProxyProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: LLMProxySettingsReader.apiKeyEnvironmentKey,
+        additionalProjections: [.enterpriseHost(LLMProxySettingsReader.baseURLEnvironmentKey)],
+        resolve: LLMProxySettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple LLM Proxy API keys.",
+            placeholder: "Paste proxy API key…",
+            injection: .environment(key: LLMProxySettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .llmproxy,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .llmproxy,
                 displayName: "LLM Proxy",

@@ -33,6 +33,9 @@ defineProvider({
 
     const requestsPlan = optionalNumber(payload.requests_plan, "requests_plan");
     const usableRequests = optionalNumber(payload.usable_requests, "usable_requests");
+    if ((requestsPlan === null) !== (usableRequests === null)) {
+      throw new Error("Failed to parse Crof response: request quota fields must be provided together");
+    }
     const credits = Math.max(0, payload.credits);
     const creditsWindow = {
       usedPercent: credits > 0 ? 0 : 100,

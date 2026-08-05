@@ -752,6 +752,11 @@ public struct CursorStatusSnapshot: Sendable {
             secondary: secondary,
             tertiary: nil,
             providerCost: providerCost,
+            details: cursorRequests.map { requests in
+                [.makeSection(title: "Usage", rows: [
+                    .makeRow(label: "Request quota", value: "\(requests.used) / \(requests.limit)"),
+                ])]
+            } ?? [],
             cursorRequests: cursorRequests,
             cursorRateWindowLayout: cursorRateWindowLayout,
             updatedAt: Date(),

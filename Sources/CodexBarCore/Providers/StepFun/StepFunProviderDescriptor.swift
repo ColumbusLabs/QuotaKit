@@ -2,10 +2,44 @@ import Foundation
 
 public enum StepFunProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary, let token = StepFunSettingsReader.token(environment: environment) else {
+                return nil
+            }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple StepFun Oasis-Token values.",
+            placeholder: "Oasis-Token=…",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: nil),
+        authDetector: { environment, _ in
+            StepFunSettingsReader.token(environment: environment) == nil ? [] : ["api"]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .stepfun,
+            settingsSection: .init(
+                StepFunProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    CookieProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualToken)
+                },
+                credentialSettings: { context in
+                    let header = context.config?.sanitizedRegion ?? context.config?.sanitizedCookieHeader
+                    let settings = context.cookieSettings(for: .stepfun, configuredHeader: header)
+                    return StepFunProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualToken: settings.manualCookieHeader ?? "",
+                        username: context.config?.sanitizedAPIKey ?? "",
+                        password: "")
+                }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .stepfun,
                 displayName: "StepFun",

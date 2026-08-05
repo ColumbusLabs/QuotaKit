@@ -2,10 +2,14 @@ import Foundation
 
 public enum ClinePassProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: ClinePassSettingsReader.apiKeyEnvironmentKey,
+        resolve: ClinePassSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .clinepass,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .clinepass,
                 displayName: "ClinePass",

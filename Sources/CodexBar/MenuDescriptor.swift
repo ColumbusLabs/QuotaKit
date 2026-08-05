@@ -341,6 +341,7 @@ struct MenuDescriptor {
 
             Self.appendProviderUsageSummaries(
                 entries: &entries,
+                provider: provider,
                 snapshot: snap,
                 showOptionalUsage: settings.showOptionalCreditsAndExtraUsage,
                 preferredCurrencyCode: settings.preferredCurrencyCode)
@@ -369,6 +370,7 @@ struct MenuDescriptor {
 
     private static func appendProviderUsageSummaries(
         entries: inout [Entry],
+        provider: UsageProvider,
         snapshot: UsageSnapshot,
         showOptionalUsage: Bool,
         preferredCurrencyCode: String = "auto")
@@ -386,49 +388,14 @@ struct MenuDescriptor {
                 usage: openAIAPIUsage,
                 preferredCurrencyCode: preferredCurrencyCode)
         }
-        if let claudeAdminAPIUsage = snapshot.claudeAdminAPIUsage {
-            Self.appendClaudeAdminAPIUsageSummary(
-                entries: &entries,
-                usage: claudeAdminAPIUsage,
-                preferredCurrencyCode: preferredCurrencyCode)
-        }
-        if let openRouterUsage = snapshot.openRouterUsage {
-            Self.appendOpenRouterUsageSummary(
-                entries: &entries,
-                usage: openRouterUsage,
-                preferredCurrencyCode: preferredCurrencyCode)
-        }
-        if let clawRouterUsage = snapshot.clawRouterUsage {
-            entries.append(.text(
-                "\(UsageFormatter.tokenCountString(clawRouterUsage.requestCount)) \(L("requests")) · " +
-                    "\(UsageFormatter.tokenCountString(clawRouterUsage.totalTokens)) \(L("tokens"))",
-                .secondary))
-            if !clawRouterUsage.providers.isEmpty {
-                let mix = clawRouterUsage.providers.prefix(5)
-                    .map { "\($0.provider): \(UsageFormatter.tokenCountString($0.requestCount))" }
-                    .joined(separator: " · ")
-                entries.append(.text("Routed providers: \(mix)", .secondary))
-            }
-        }
-        if let wayfinderUsage = snapshot.wayfinderUsage {
-            Self.appendWayfinderUsageSummary(entries: &entries, usage: wayfinderUsage)
-        }
-        if let poeUsage = snapshot.poeUsage, !poeUsage.daily.isEmpty {
-            Self.appendPoeUsageSummary(
-                entries: &entries,
-                usage: poeUsage,
-                preferredCurrencyCode: preferredCurrencyCode)
-        }
         if let mistralUsage = snapshot.mistralUsage, !mistralUsage.daily.isEmpty {
             Self.appendMistralUsageSummary(
                 entries: &entries,
                 usage: mistralUsage,
                 preferredCurrencyCode: preferredCurrencyCode)
         }
-        if let mimoUsage = snapshot.mimoUsage {
-            entries.append(.text("\(L("Balance")): \(mimoUsage.balanceDetail)", .primary))
-        }
-        if let xaiUsage = snapshot.xaiUsage {
+        let hasQuotaKitXAIUsage = provider == .xai && snapshot.xaiUsage != nil
+        if provider == .xai, let xaiUsage = snapshot.xaiUsage {
             let balance = UsageFormatter.convertedCostString(
                 xaiUsage.balanceUSD,
                 preferredCurrency: preferredCurrencyCode,
@@ -445,20 +412,17 @@ struct MenuDescriptor {
                     .secondary))
             }
         }
-        // Sakana pay-as-you-go is optional data gated by "Show optional credits and extra usage".
-        // Gate the render on the setting too, not just the fetch: toggling the setting off only
-        // rebuilds the menu, it does not immediately refetch, so a previously-populated
-        // sakanaPayAsYouGo would otherwise linger in the cached snapshot until the next refresh.
-        if showOptionalUsage, let sakanaPayAsYouGo = snapshot.sakanaPayAsYouGo {
-            entries.append(.text("\(L("Balance")): \(sakanaPayAsYouGo.balanceDetail)", .primary))
-            if let periodUsageTotal = sakanaPayAsYouGo.periodUsageTotal {
-                let cost = UsageFormatter.convertedCostString(
-                    periodUsageTotal,
-                    preferredCurrency: preferredCurrencyCode,
-                    providerCurrency: "USD")
-                entries.append(.text(
-                    "\(L("Usage")): \(cost)",
-                    .secondary))
+        // xAI keeps QuotaKit's posted-balance and ledger-lag wording above; its declarative rows
+        // carry the same values. Other providers render through the upstream detail contract.
+        if !hasQuotaKitXAIUsage, provider != .sakana || showOptionalUsage {
+            let details = provider == .minimax && !showOptionalUsage
+                ? snapshot.details.filter { $0.title != "Billing history" }
+                : snapshot.details
+            for section in details {
+                for row in section.rows {
+                    let value = [row.value, row.secondaryValue].compactMap(\.self).joined(separator: " · ")
+                    entries.append(.text("\(row.label): \(value)", .secondary))
+                }
             }
         }
     }
@@ -499,7 +463,7 @@ struct MenuDescriptor {
             entries.append(.text("\(L("Account")): \(redactedEmail)", .secondary))
         }
         if provider == .kiro {
-            if let plan = snapshot?.kiroUsage?.displayPlanName,
+            if let plan = snapshot?.detailRow(label: "Plan")?.value,
                !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 entries.append(.text("\(L("Plan")): \(plan)", .secondary))
@@ -507,7 +471,7 @@ struct MenuDescriptor {
             if let loginMethodText, !loginMethodText.isEmpty {
                 entries.append(.text("\(L("Auth")): \(loginMethodText)", .secondary))
             }
-            if let overages = snapshot?.kiroUsage?.overagesStatus,
+            if let overages = snapshot?.detailRow(label: "Overages")?.value,
                !overages.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
             {
                 entries.append(.text("\(L("Overages")): \(overages)", .secondary))
@@ -740,6 +704,12 @@ struct MenuDescriptor {
             : nil
         let primaryLabel = if let cursorLabels {
             cursorLabels.primary
+        } else if provider == .codex {
+            CodexConsumerProjection.rateTitle(
+                lane: .session,
+                windowMinutes: snapshot.primary?.windowMinutes,
+                sessionLabel: metadata.sessionLabel,
+                weeklyLabel: metadata.weeklyLabel)
         } else if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .crof {
@@ -747,9 +717,9 @@ struct MenuDescriptor {
         } else if provider == .doubao {
             DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else if provider == .sub2api {
-            Sub2APIProviderDescriptor.primaryLabel(details: snapshot.sub2APIUsage) ?? metadata.sessionLabel
+            Sub2APIProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
         } else if provider == .amp {
-            AmpProviderDescriptor.primaryLabel(details: snapshot.ampUsage) ?? metadata.sessionLabel
+            AmpProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
         } else if provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else {
@@ -757,8 +727,14 @@ struct MenuDescriptor {
         }
         let secondaryLabel = if let cursorLabels {
             cursorLabels.secondary
+        } else if provider == .codex {
+            CodexConsumerProjection.rateTitle(
+                lane: .weekly,
+                windowMinutes: snapshot.secondary?.windowMinutes,
+                sessionLabel: metadata.sessionLabel,
+                weeklyLabel: metadata.weeklyLabel)
         } else if provider == .amp {
-            AmpProviderDescriptor.secondaryLabel(details: snapshot.ampUsage) ?? metadata.weeklyLabel
+            AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? metadata.weeklyLabel
         } else if provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ?? metadata.weeklyLabel
         } else {
@@ -788,7 +764,11 @@ struct MenuDescriptor {
         case .autoAPI:
             ("Auto", "API")
         case .none:
-            (snapshot.cursorRequests == nil ? fallbackPrimary : "Requests", fallbackSecondary)
+            (
+                snapshot.cursorRequests == nil && snapshot.detailRow(label: "Request quota") == nil
+                    ? fallbackPrimary
+                    : "Requests",
+                fallbackSecondary)
         }
     }
 

@@ -2,10 +2,22 @@ import Foundation
 
 public enum NeuralWattProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: NeuralWattSettingsReader.apiKeyEnvironmentKey,
+        resolve: NeuralWattSettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple Neuralwatt API keys.",
+            placeholder: "sk-...",
+            injection: .environment(key: NeuralWattSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil,
+            minimumDelayBetweenAccountRefreshes: .seconds(1)))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .neuralwatt,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .neuralwatt,
                 displayName: "Neuralwatt",

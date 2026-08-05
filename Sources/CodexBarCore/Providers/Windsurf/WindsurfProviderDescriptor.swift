@@ -6,6 +6,11 @@ public enum WindsurfProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .windsurf,
+            settingsSection: .init(WindsurfProviderSettingsKey.self, cookieSettings: { settings in
+                CookieProviderSettings(
+                    cookieSource: settings.cookieSource,
+                    manualCookieHeader: settings.manualCookieHeader)
+            }),
             metadata: ProviderMetadata(
                 id: .windsurf,
                 displayName: "Windsurf",

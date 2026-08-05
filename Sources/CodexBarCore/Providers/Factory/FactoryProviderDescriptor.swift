@@ -2,10 +2,22 @@ import Foundation
 
 public enum FactoryProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: FactorySettingsReader.apiTokenKey,
+        resolve: { FactorySettingsReader.apiKey(environment: $0) },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple Factory Cookie or Authorization headers.",
+            placeholder: "Cookie: … or Authorization: Bearer …",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .factory,
+            settingsSection: .init(FactoryProviderSettingsKey.self, cookieSettings: FactoryProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .factory,
                 displayName: "Droid",

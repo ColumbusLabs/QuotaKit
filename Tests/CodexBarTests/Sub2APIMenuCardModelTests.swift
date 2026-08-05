@@ -99,10 +99,9 @@ struct Sub2APIMenuCardModelTests {
             now: now))
 
         #expect(model.planText == "Enterprise")
-        #expect(model.usageNotes == [
-            "Balance: $42.50",
-            "Today: 4 requests · 1.2K tokens · $1.25",
-            "Total: 40 requests · 12K tokens · $25.00",
+        #expect(model.usageNotes.isEmpty)
+        #expect(model.providerDetails.first?.rows.map(\.label) == [
+            "Balance", "Today requests", "Today tokens", "All time requests", "All time tokens",
         ])
     }
 

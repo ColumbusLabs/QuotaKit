@@ -6,6 +6,13 @@ import SweetCookieKit
 
 public enum AlibabaCodingPlanProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: AlibabaCodingPlanSettingsReader.apiTokenKey,
+        resolve: AlibabaCodingPlanSettingsReader.apiToken,
+        usesRegion: true,
+        configValidator: ProviderCredentialAdapter.regionValidator(
+            displayName: "Alibaba Coding Plan",
+            isValid: { AlibabaCodingPlanAPIRegion(rawValue: $0) != nil }))
 
     static func makeDescriptor() -> ProviderDescriptor {
         #if os(macOS)
@@ -24,6 +31,23 @@ public enum AlibabaCodingPlanProviderDescriptor {
 
         return ProviderDescriptor(
             id: .alibaba,
+            settingsSection: .init(
+                AlibabaCodingPlanProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    CookieProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader)
+                },
+                credentialSettings: { context in
+                    let settings = context.cookieSettings(for: .alibaba)
+                    let region = context.config?.sanitizedRegion
+                        .flatMap(AlibabaCodingPlanAPIRegion.init(rawValue:)) ?? .international
+                    return AlibabaCodingPlanProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader,
+                        apiRegion: region)
+                }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .alibaba,
                 displayName: "Alibaba",

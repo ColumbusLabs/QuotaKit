@@ -2,10 +2,23 @@ import Foundation
 
 public enum OpenAIAPIProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey,
+        additionalProjections: [.workspaceID(OpenAIAPISettingsReader.projectIDEnvironmentKey)],
+        resolve: OpenAIAPISettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple OpenAI API keys.",
+            placeholder: "sk-admin-...",
+            injection: .environment(key: OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil,
+            environmentKeysToScrub: [OpenAIAPISettingsReader.projectIDEnvironmentKey]))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .openai,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .openai,
                 displayName: "OpenAI",

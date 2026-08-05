@@ -68,6 +68,7 @@ struct ProviderPluginDetailsParityTests {
             .fetchUsage(secrets: ["OPENROUTER_API_KEY": "fixture-key"], now: now)
 
         Self.expectCoreParity(swift, script)
+        #expect(swift.details == script.details)
         #expect(try script.details == [
             Self.section("Credits", rows: [
                 Self.row("Remaining", "$60.00"),
@@ -78,7 +79,9 @@ struct ProviderPluginDetailsParityTests {
                 "API key",
                 rows: [
                     Self.row("API key budget", "$20.00"),
+                    Self.row("API key remaining", "$15.00"),
                     Self.row("API key used", "$5.00"),
+                    Self.row("Reset window", "monthly"),
                     Self.row("Today", "$1.00"),
                     Self.row("This week", "$2.00"),
                     Self.row("This month", "$4.00"),
@@ -106,6 +109,7 @@ struct ProviderPluginDetailsParityTests {
             .fetchUsage(secrets: ["CLAWROUTER_API_KEY": "fixture-key"], now: now)
 
         Self.expectCoreParity(swift, script)
+        #expect(swift.details == script.details)
         #expect(try script.details == [
             Self.section("Usage", rows: [
                 Self.row("Requests", "6", "5 succeeded · 1 failed"),
@@ -141,14 +145,18 @@ struct ProviderPluginDetailsParityTests {
             .fetchUsage(secrets: ["POE_API_KEY": "fixture-key"], now: now)
 
         Self.expectCoreParity(swift, script)
+        #expect(swift.details == script.details)
         #expect(try script.details == [Self.section(
             "Points",
             rows: [
                 Self.row("Current balance", "2,500 points"),
-                Self.row("Last 7 days", "20.5 points", "2 requests"),
-                Self.row("Last 30 days", "20.5 points", "2 requests"),
+                Self.row("Today", "0 points", "0 requests"),
+                Self.row("Last 7 days", "20.5 points", "2 requests · $0.05"),
+                Self.row("Last 30 days", "20.5 points", "2 requests · $0.05"),
                 Self.row("Top model", "gpt-5", "12.5 points"),
-                Self.row("Top usage type", "API", "12.5 points"),
+                Self.row("Usage mix", "API: 12.5 points · Chat: 8 points"),
+                Self.row("Recent activity", "08-03 16:00 · claude-sonnet-4", "8 points"),
+                Self.row("08-02 16:00", "gpt-5", "12.5 points"),
             ],
             chart: Self.chart("Daily points", unit: "points", points: [
                 ("2026-08-02", 12.5), ("2026-08-03", 8),
@@ -181,6 +189,7 @@ struct ProviderPluginDetailsParityTests {
                 now: now)
 
         Self.expectCoreParity(swift, script)
+        #expect(swift.details == script.details)
         #expect(try script.details == [
             Self.section("Quota details", rows: [
                 Self.row("Token quota", "9% used"),
@@ -354,7 +363,8 @@ struct ProviderPluginDetailsParityTests {
 
     private static let openRouterCredits = #"{"data":{"total_credits":100,"total_usage":40}}"#
     private static let openRouterKey = #"""
-    {"data":{"limit":20,"usage":5,"usage_daily":1,"usage_weekly":2,"usage_monthly":4,
+    {"data":{"limit":20,"limit_remaining":15,"limit_reset":"monthly","usage":5,
+    "usage_daily":1,"usage_weekly":2,"usage_monthly":4,
     "rate_limit":{"requests":120,"interval":"10s"}}}
     """#
     private static let poeBalance = #"{"current_point_balance":2500}"#

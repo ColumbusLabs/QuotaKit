@@ -2,10 +2,22 @@ import Foundation
 
 public enum LiteLLMProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: LiteLLMSettingsReader.apiKeyEnvironmentKey,
+        additionalProjections: [.enterpriseHost(LiteLLMSettingsReader.baseURLEnvironmentKey)],
+        resolve: LiteLLMSettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple LiteLLM API keys.",
+            placeholder: "Paste LiteLLM API key…",
+            injection: .environment(key: LiteLLMSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .litellm,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .litellm,
                 displayName: "LiteLLM",

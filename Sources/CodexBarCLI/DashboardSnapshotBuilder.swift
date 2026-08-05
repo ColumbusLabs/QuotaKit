@@ -164,7 +164,7 @@ enum DashboardSnapshotBuilder {
         guard let usage else { return [] }
         let labels = self.rateWindowLabels(provider: provider, metadata: metadata, usage: usage)
         var windows: [DashboardWindowPayload] = []
-        let isAmpSubscription = provider == .amp && usage.ampUsage?.subscriptionPlan != nil
+        let isAmpSubscription = provider == .amp && usage.secondary != nil
 
         if let primary = usage.primary {
             let kind = isAmpSubscription ? "other" : "session"
@@ -200,14 +200,14 @@ enum DashboardSnapshotBuilder {
         }
 
         let primaryLabel = if provider == .amp {
-            AmpProviderDescriptor.primaryLabel(details: usage.ampUsage) ?? metadata?.sessionLabel ?? "Session"
+            AmpProviderDescriptor.primaryLabel(snapshot: usage) ?? metadata?.sessionLabel ?? "Session"
         } else if provider == .crof {
             CrofProviderDescriptor.primaryLabel(snapshot: usage)
         } else {
             metadata?.sessionLabel ?? "Session"
         }
         let secondaryLabel = if provider == .amp {
-            AmpProviderDescriptor.secondaryLabel(details: usage.ampUsage) ?? metadata?.weeklyLabel ?? "Weekly"
+            AmpProviderDescriptor.secondaryLabel(snapshot: usage) ?? metadata?.weeklyLabel ?? "Weekly"
         } else {
             metadata?.weeklyLabel ?? "Weekly"
         }

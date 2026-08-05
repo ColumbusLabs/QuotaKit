@@ -2,10 +2,23 @@ import Foundation
 
 public enum ManusProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple Manus session_id cookies.",
+            placeholder: "session_id=…",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: ManusCookieHeader.sessionCookieName),
+        authDetector: { environment, _ in
+            ManusSettingsReader.sessionToken(environment: environment) == nil ? [] : ["web"]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .manus,
+            settingsSection: .init(ManusProviderSettingsKey.self, cookieSettings: ManusProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .manus,
                 displayName: "Manus",

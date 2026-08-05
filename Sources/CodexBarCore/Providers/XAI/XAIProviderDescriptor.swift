@@ -2,10 +2,45 @@ import Foundation
 
 public enum XAIProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        environmentProjections: [
+            .apiKey(XAISettingsReader.apiKeyEnvironmentKey),
+            .workspaceID(XAISettingsReader.teamIDEnvironmentKey),
+        ],
+        tokenResolver: { kind, environment, _ in
+            guard kind == .primary,
+                  let token = XAISettingsReader.apiKey(environment: environment)
+            else { return nil }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        authDetector: { environment, _ in
+            XAISettingsReader.apiKey(environment: environment) != nil &&
+                XAISettingsReader.teamID(environment: environment) != nil ? ["api"] : []
+        },
+        diagnosticSummary: { _, config, environment, _ in
+            let configIsComplete = config?.sanitizedAPIKey != nil && config?.sanitizedWorkspaceID != nil
+            let environmentIsComplete = XAISettingsReader.apiKey(environment: environment) != nil &&
+                XAISettingsReader.teamID(environment: environment) != nil
+            let modes = configIsComplete || environmentIsComplete ? ["api"] : []
+            return ProviderDiagnosticAuthSummary(configured: !modes.isEmpty, modes: modes)
+        },
+        configValidator: { config in
+            let hasAPIKey = config.sanitizedAPIKey != nil
+            let hasTeamID = config.sanitizedWorkspaceID != nil
+            guard hasAPIKey != hasTeamID else { return [] }
+            return [CodexBarConfigIssue(
+                severity: .warning,
+                provider: .xai,
+                field: hasAPIKey ? "workspaceID" : "apiKey",
+                code: "xai_management_context_missing",
+                message: "xAI Management API access requires both apiKey and workspaceID (team ID).")]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .xai,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .xai,
                 displayName: "xAI",

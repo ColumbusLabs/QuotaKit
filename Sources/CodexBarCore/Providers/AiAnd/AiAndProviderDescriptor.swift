@@ -2,10 +2,14 @@ import Foundation
 
 public enum AiAndProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: AiAndSettingsReader.apiKeyEnvironmentKey,
+        resolve: AiAndSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .aiand,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .aiand,
                 displayName: "ai&",

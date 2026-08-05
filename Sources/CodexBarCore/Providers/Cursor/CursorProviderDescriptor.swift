@@ -2,10 +2,19 @@ import Foundation
 
 public enum CursorProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
+        title: "Session tokens",
+        subtitle: "Store multiple Cursor Cookie headers.",
+        placeholder: "Cookie: …",
+        injection: .cookieHeader,
+        requiresManualCookieSource: true,
+        cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .cursor,
+            settingsSection: .init(CursorProviderSettingsKey.self, cookieSettings: CursorProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .cursor,
                 displayName: "Cursor",

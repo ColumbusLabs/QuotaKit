@@ -2,10 +2,18 @@ import Foundation
 
 public enum AntigravityProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
+        title: "Google accounts",
+        subtitle: "Store multiple Antigravity Google OAuth accounts for quick switching.",
+        placeholder: "Antigravity OAuth credentials JSON",
+        injection: .environment(key: AntigravityOAuthCredentialsStore.environmentCredentialsKey),
+        requiresManualCookieSource: false,
+        cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .antigravity,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .antigravity,
                 displayName: "Antigravity",

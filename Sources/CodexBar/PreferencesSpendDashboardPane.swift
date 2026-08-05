@@ -402,6 +402,12 @@ struct SpendDashboardPane: View {
             }
         }
 
+        if self.settings.costUsageEnabled, !self.controller.model.tokenActivity.isEmpty {
+            SpendDashboardPanel {
+                SpendActivityHeatmapView(points: self.controller.model.tokenActivity)
+            }
+        }
+
         if self.controller.failedSourceCount > 0 {
             Label(
                 spendDashboardRefreshFailureText(self.controller.failedSourceCount),

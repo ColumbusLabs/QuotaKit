@@ -193,18 +193,19 @@ struct PlanUtilizationHistoryChartMenuView: View {
         for history in histories {
             guard !history.entries.isEmpty else { continue }
             guard history.windowMinutes > 0 else { continue }
-            guard allowedNames?.contains(history.name) ?? true else { continue }
+            let effectiveName = Self.effectiveSeriesName(provider: provider, history: history)
+            guard allowedNames?.contains(effectiveName) ?? true else { continue }
 
-            let canonicalWindowMinutes = history.name.canonicalWindowMinutes(history.windowMinutes)
-            let selection = SeriesSelection(name: history.name, windowMinutes: canonicalWindowMinutes)
+            let canonicalWindowMinutes = effectiveName.canonicalWindowMinutes(history.windowMinutes)
+            let selection = SeriesSelection(name: effectiveName, windowMinutes: canonicalWindowMinutes)
             if let existingHistory = historiesBySelection[selection] {
                 historiesBySelection[selection] = PlanUtilizationSeriesHistory(
-                    name: history.name,
+                    name: effectiveName,
                     windowMinutes: canonicalWindowMinutes,
                     entries: Self.mergedEntries(existingHistory.entries + history.entries))
             } else {
                 historiesBySelection[selection] = PlanUtilizationSeriesHistory(
-                    name: history.name,
+                    name: effectiveName,
                     windowMinutes: canonicalWindowMinutes,
                     entries: history.entries)
             }
@@ -230,6 +231,22 @@ struct PlanUtilizationHistoryChartMenuView: View {
             }
     }
 
+    /// Histories recorded before duration-based classification stored a 43,200-minute Codex window
+    /// under its payload slot (session for primary, weekly for secondary). Fold those into the
+    /// monthly series so the chart does not split or hide the window's history.
+    private nonisolated static func effectiveSeriesName(
+        provider: UsageProvider,
+        history: PlanUtilizationSeriesHistory) -> PlanUtilizationSeriesName
+    {
+        if provider == .codex,
+           history.windowMinutes == CodexConsumerProjection.monthlyWindowMinutes,
+           history.name == .session || history.name == .weekly
+        {
+            return .monthly
+        }
+        return history.name
+    }
+
     nonisolated static func mergedEntries(
         _ entries: [PlanUtilizationHistoryEntry]) -> [PlanUtilizationHistoryEntry]
     {
@@ -248,8 +265,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
         var names: Set<PlanUtilizationSeriesName> = []
         switch provider {
         case .codex:
-            if snapshot.primary != nil { names.insert(.session) }
-            if snapshot.secondary != nil { names.insert(.weekly) }
+            names = CodexConsumerProjection.planUtilizationSeriesNames(snapshot: snapshot)
         case .claude:
             if snapshot.primary != nil { names.insert(.session) }
             if snapshot.secondary != nil { names.insert(.weekly) }

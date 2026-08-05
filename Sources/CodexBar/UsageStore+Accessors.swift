@@ -167,42 +167,18 @@ extension UsageStore {
             return nil
         }
 
-        switch provider {
-        case .synthetic:
-            return SyntheticSettingsError.missingToken.errorDescription
-        case .zai:
-            return ZaiSettingsError.missingToken.errorDescription
-        case .openrouter:
-            return OpenRouterSettingsError.missingToken.errorDescription
-        case .clawrouter:
-            return ClawRouterUsageError.missingCredentials.errorDescription
-        case .sub2api:
+        if let adapter = ProviderDescriptorRegistry.descriptor(for: provider).credentials {
             let environment = ProviderRegistry.makeEnvironment(
                 base: self.environmentBase,
                 provider: provider,
                 settings: self.settings,
                 tokenOverride: nil)
-            if Sub2APISettingsReader.apiKey(environment: environment) == nil {
-                return Sub2APIUsageError.missingCredentials.errorDescription
+            if let message = adapter.unavailableMessage(environment: environment) {
+                return message
             }
-            return Sub2APIUsageError.missingBaseURL.errorDescription
-        case .azureopenai:
-            return AzureOpenAISettingsError.missingAPIKey.errorDescription
-        case .elevenlabs:
-            return ElevenLabsUsageError.missingCredentials.errorDescription
-        case .deepseek:
-            return DeepSeekUsageError.missingCredentials.errorDescription
-        case .deepinfra:
-            return DeepInfraUsageError.missingCredentials.errorDescription
-        case .perplexity:
-            return PerplexityAPIError.missingToken.errorDescription
-        case .minimax:
-            return MiniMaxAPISettingsError.missingToken.errorDescription
-        case .kimi:
-            return KimiAPIError.missingToken.errorDescription
-        default:
-            return "\(self.metadata(for: provider).displayName) is unavailable in the current environment."
         }
+
+        return "\(self.metadata(for: provider).displayName) is unavailable in the current environment."
     }
 
     func status(for provider: UsageProvider) -> ProviderStatus? {

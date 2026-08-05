@@ -10,6 +10,9 @@ public struct AmpWorkspaceBalance: Codable, Equatable, Sendable {
     }
 }
 
+/// Compatibility payload used by QuotaKit's iCloud sync envelope. Provider details
+/// are also emitted for the Mac UI, but this typed representation must remain stable
+/// for mobile clients that decode the richer Amp snapshot.
 public struct AmpUsageDetails: Codable, Equatable, Sendable {
     public let individualCredits: Double?
     public let workspaceBalances: [AmpWorkspaceBalance]
@@ -136,23 +139,26 @@ extension AmpUsageSnapshot {
             accountOrganization: self.accountOrganization,
             loginMethod: self.subscription?.plan ?? (primary == nil ? "Amp" : "Amp Free"))
 
-        let ampUsage: AmpUsageDetails? = if self.individualCredits != nil || !self.workspaceBalances.isEmpty ||
-            self.subscription != nil
-        {
-            AmpUsageDetails(
-                individualCredits: self.individualCredits,
-                workspaceBalances: self.workspaceBalances,
-                subscriptionPlan: self.subscription?.plan)
-        } else {
-            nil
+        var detailRows: [ProviderDetailSection.Row] = []
+        if let individualCredits = self.individualCredits {
+            detailRows.append(.makeRow(
+                label: "Individual credits",
+                value: UsageFormatter.usdString(individualCredits)))
         }
+        detailRows.append(contentsOf: self.workspaceBalances.map {
+            .makeRow(label: "Workspace \($0.name)", value: UsageFormatter.usdString($0.remaining))
+        })
 
         return UsageSnapshot(
             primary: primary,
             secondary: subscriptionSecondary,
             tertiary: nil,
-            ampUsage: ampUsage,
+            ampUsage: AmpUsageDetails(
+                individualCredits: self.individualCredits,
+                workspaceBalances: self.workspaceBalances,
+                subscriptionPlan: self.subscription?.plan),
             providerCost: nil,
+            details: detailRows.isEmpty ? [] : [.makeSection(title: "Credits", rows: detailRows)],
             updatedAt: self.updatedAt,
             identity: identity)
     }
