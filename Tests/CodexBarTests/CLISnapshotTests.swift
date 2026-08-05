@@ -681,7 +681,7 @@ struct CLISnapshotTests {
         let snapshot = UsageSnapshot(
             primary: .init(
                 usedPercent: 30,
-                windowMinutes: nil,
+                windowMinutes: 7 * 24 * 60,
                 resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
                 resetDescription: "weekly"),
             secondary: nil,

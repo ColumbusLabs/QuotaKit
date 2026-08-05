@@ -27,7 +27,10 @@ public struct GrokUsageSnapshot: Sendable {
         self.updatedAt = updatedAt
     }
 
-    public func toUsageSnapshot() -> UsageSnapshot {
+    /// `webBillingWindowMinutes` supplies the billing cadence the web payload omits. Callers on the
+    /// live fetch path pass the value learned by `GrokBillingCadenceStore`. Direct mappings leave
+    /// it unknown rather than guessing weekly for a monthly account late in its cycle.
+    public func toUsageSnapshot(webBillingWindowMinutes: Int? = nil) -> UsageSnapshot {
         // Primary window: credit usage (against included limit) from the CLI RPC,
         // falling back to the web billing RPC used by grok.com when the agent surface lacks billing.
         var primary: RateWindow?
@@ -42,11 +45,13 @@ public struct GrokUsageSnapshot: Sendable {
         } else if let webBilling,
                   let percent = webBilling.usedPercent
         {
-            // Do not infer the full quota cadence from the remaining time until reset; a
-            // monthly window near its reset would otherwise be misclassified as weekly.
+            // The web payload carries no period length, and the remaining time cannot supply one:
+            // a weekly window two days from reset looks exactly like a monthly one two days out.
+            // Leaving it `nil` used to strand the bar unlabeled — and therefore paceless — for the
+            // back half of every week, so the cadence now comes from the caller instead.
             primary = RateWindow(
                 usedPercent: percent,
-                windowMinutes: nil,
+                windowMinutes: webBillingWindowMinutes,
                 resetsAt: webBilling.resetsAt,
                 resetDescription: nil)
         }

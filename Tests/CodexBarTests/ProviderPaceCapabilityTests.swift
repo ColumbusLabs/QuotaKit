@@ -107,13 +107,12 @@ struct ProviderPaceCapabilityTests {
         case .cursor:
             return window.windowMinutes != nil
         case .grok:
-            guard GrokProviderDescriptor.primaryLabel(window: window, now: now) == "Weekly",
+            guard let windowMinutes = window.windowMinutes,
+                  windowMinutes > 0,
                   let resetsAt = window.resetsAt
             else { return false }
-            let windowMinutes = window.windowMinutes ?? self.weeklyWindowMinutes
             let timeUntilReset = resetsAt.timeIntervalSince(now)
-            return windowMinutes > 0
-                && timeUntilReset > 0
+            return timeUntilReset > 0
                 && timeUntilReset <= TimeInterval(windowMinutes) * 60
         case .kimi:
             return window.windowMinutes == self.weeklyWindowMinutes

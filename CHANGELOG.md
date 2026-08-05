@@ -13,6 +13,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Sessions: discover live pi and OMP sessions alongside Codex and Claude Code, including mixed-version local and remote CLI support.
 
 ### Fixed
+- Grok: keep the usage label and pace estimate through the whole billing cycle instead of dropping to a bare "Credits" bar once fewer than about 3.5 days remain.
 - Kimi and z.ai/GLM: keep regional credentials bound to their issuing hosts, add Kimi Desktop membership usage, and preserve safe cookie-source behavior.
 - Command Code: parse rolling 5-hour and weekly limits alongside monthly credits.
 - Usage & Spend: retain validated Codex totals while the local scanner refreshes.

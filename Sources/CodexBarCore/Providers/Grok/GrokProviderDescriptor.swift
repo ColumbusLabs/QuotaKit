@@ -38,14 +38,18 @@ public enum GrokProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Grok cost summary is not supported yet." }),
+            // Pace needs a real period length, not a guess. Both fetch paths now supply one — the
+            // CLI from `billingPeriodMinutes`, the web fallback from `GrokBillingCadenceStore` — so
+            // this no longer keys off the inferred "Weekly"/"Monthly" label. That label goes `nil`
+            // whenever fewer than ~3.5 days remain, which silently suppressed pace for the back
+            // half of every weekly cycle.
             pace: ProviderPaceCapability(resetWindowPace: .custom { window, now in
-                guard Self.primaryLabel(window: window, now: now) == "Weekly",
+                guard let windowMinutes = window.windowMinutes,
+                      windowMinutes > 0,
                       let resetsAt = window.resetsAt
                 else { return false }
-                let windowMinutes = window.windowMinutes ?? 7 * 24 * 60
                 let timeUntilReset = resetsAt.timeIntervalSince(now)
-                return windowMinutes > 0
-                    && timeUntilReset > 0
+                return timeUntilReset > 0
                     && timeUntilReset <= TimeInterval(windowMinutes) * 60
             }),
             fetchPlan: ProviderFetchPlan(
@@ -122,6 +126,9 @@ struct GrokCLIFetchStrategy: ProviderFetchStrategy {
 struct GrokWebFetchStrategy: ProviderFetchStrategy {
     let id: String = "grok.web"
     let kind: ProviderFetchKind = .web
+    /// Supplies the billing cadence the grok.com payload omits. Injectable so tests exercise the
+    /// mapping without touching the real Application Support file.
+    var cadenceStore: GrokBillingCadenceStore = .init()
     typealias WebBillingFetch = @Sendable () async throws -> (
         snapshot: GrokWebBillingSnapshot,
         sourceLabel: String,
@@ -196,7 +203,11 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
             cliVersion: GrokStatusProbe.detectVersion(env: context.env),
             updatedAt: Date())
         return self.makeResult(
-            usage: snapshot.toUsageSnapshot(),
+            usage: snapshot.toUsageSnapshot(
+                webBillingWindowMinutes: self.cadenceStore.resolveWindowMinutes(
+                    resetsAt: webBilling.resetsAt,
+                    accountScope: GrokBillingCadenceStore.accountScopeFingerprint(
+                        credentials?.userId ?? credentials?.email ?? credentials?.teamId ?? sourceLabel))),
             sourceLabel: sourceLabel)
     }
 

@@ -58,6 +58,29 @@ browser session when the CLI surface does not expose billing.
      returned by some successful requests. A current billing period with an
      omitted proto3 `credit_usage_percent` is treated as zero usage. This keeps
      billing visible when `grok agent stdio` returns `Method not found`.
+   - The payload carries no period length, and the remaining time cannot supply
+     one: a weekly window two days from reset looks exactly like a monthly one
+     two days out. `GrokBillingCadenceStore` seeds an unambiguous weekly or
+     monthly cadence from the first reset distance, then refines it from
+     recognized rollovers. Monthly-looking gaps are accepted only when the new
+     reset is also monthly-distance away, so missed weekly cycles are not
+     mistaken for a plan change. Ambiguous first-cycle windows stay unlabeled
+     instead of guessing the wrong plan. The estimate lives in
+     `~/Library/Application Support/QuotaKit/grok-billing-cadence.json` and is
+     isolated by a one-way account/session fingerprint when identity is known.
+
+## Usage labels and pace
+
+The primary bar is labeled from the billing window's duration — `Weekly` for a
+4–12 day period, `Monthly` for 20–45 days — and pace ("N% in deficit" / "in
+reserve", plus the run-out estimate) is shown whenever that duration is known
+and the reset falls inside it. Both fetch paths supply a duration: the CLI from
+`billingPeriodMinutes`, the web fallback from the learned cadence above.
+
+Before the cadence was learned, the label was inferred from *time until reset*,
+which produced no label at all once fewer than ~3.5 days remained. That dropped
+the bar to the static `Credits` title and hid pace for the back half of every
+weekly cycle.
 4) **Local session signals** (informational fallback)
    - Walks `~/.grok/sessions/<encoded-cwd>/<session-id>/signals.json` files (last 30 days).
    - Aggregates `totalTokensBeforeCompaction`, `contextTokensUsed`, `modelsUsed`,

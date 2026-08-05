@@ -24,32 +24,33 @@ struct GrokMenuCardModelTests {
     }
 
     @Test
-    func `weekly web quota infers projection from reset date`() throws {
+    func `weekly quota keeps its projection in the back half of the cycle`() throws {
+        // Regression: the label used to be inferred from time-until-reset, so anything under
+        // ~3.5 days remaining fell out of the "Weekly" bucket, dropped the bar to the static
+        // "Credits" title, and suppressed pace for the back half of every week.
         let now = Date(timeIntervalSince1970: 0)
         let model = try Self.model(
             now: now,
             window: RateWindow(
                 usedPercent: 50,
-                windowMinutes: nil,
-                resetsAt: now.addingTimeInterval(4 * 24 * 3600),
+                windowMinutes: 7 * 24 * 60,
+                resetsAt: now.addingTimeInterval(2 * 24 * 3600),
                 resetDescription: nil))
 
         let metric = try #require(model.metrics.first { $0.id == "primary" })
         #expect(metric.title == "Weekly")
-        #expect(metric.detailLeftText == "7% in deficit")
-        #expect(metric.detailRightText == "Runs out in 3d")
+        #expect(metric.detailLeftText == "21% in reserve")
         #expect(metric.pacePercent != nil)
-        #expect(metric.paceOnTop == false)
     }
 
     @Test
-    func `weekly web quota beyond default duration does not show projection`() throws {
+    func `weekly quota beyond its window duration does not show projection`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let model = try Self.model(
             now: now,
             window: RateWindow(
                 usedPercent: 50,
-                windowMinutes: nil,
+                windowMinutes: 7 * 24 * 60,
                 resetsAt: now.addingTimeInterval(8 * 24 * 3600),
                 resetDescription: nil))
 
@@ -61,21 +62,20 @@ struct GrokMenuCardModelTests {
     }
 
     @Test
-    func `monthly quota does not show weekly projection`() throws {
+    func `learned monthly cadence shows a monthly projection`() throws {
         let now = Date(timeIntervalSince1970: 0)
         let model = try Self.model(
             now: now,
             window: RateWindow(
                 usedPercent: 50,
-                windowMinutes: 30 * 24 * 60,
+                windowMinutes: 31 * 24 * 60,
                 resetsAt: now.addingTimeInterval(20 * 24 * 3600),
                 resetDescription: nil))
 
         let metric = try #require(model.metrics.first { $0.id == "primary" })
         #expect(metric.title == "Monthly")
-        #expect(metric.detailLeftText == nil)
-        #expect(metric.detailRightText == nil)
-        #expect(metric.pacePercent == nil)
+        #expect(metric.detailLeftText == "15% in deficit")
+        #expect(metric.pacePercent != nil)
     }
 
     @Test

@@ -921,8 +921,10 @@ extension GrokWebBillingFetcherTests {
     }
 
     @Test
-    func `usage snapshot does not classify a monthly reset near its end as weekly`() {
-        // A monthly quota with six days left must not be reported as a weekly window.
+    func `usage snapshot carries a learned monthly cadence instead of the weekly default`() {
+        // The web payload never states its period length, so a monthly plan is only distinguishable
+        // from a weekly one after a rollover has been observed. The learned value must reach the
+        // window rather than being re-guessed from the remaining time.
         let snapshot = GrokUsageSnapshot(
             billing: nil,
             webBilling: GrokWebBillingSnapshot(
@@ -933,9 +935,9 @@ extension GrokWebBillingFetcherTests {
             cliVersion: nil,
             updatedAt: Date(timeIntervalSince1970: 1_799_000_000))
 
-        let usage = snapshot.toUsageSnapshot()
+        let usage = snapshot.toUsageSnapshot(webBillingWindowMinutes: 31 * 24 * 60)
 
-        #expect(usage.primary?.windowMinutes == nil)
+        #expect(usage.primary?.windowMinutes == 31 * 24 * 60)
     }
 
     private static let credentials = GrokCredentials(
