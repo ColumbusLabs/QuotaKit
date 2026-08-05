@@ -1431,3 +1431,5 @@
 "Enter every endpoint setting to review the exact network origins." = "Ange alla slutpunktsinställningar för att granska de exakta ursprungsadresserna.";
 "Approve" = "Godkänn";
 "Install" = "Installera";
+"API URL" = "API-URL";
+"Optional. Defaults to the hosted OpenRouter API." = "Valfritt. Som standard används OpenRouters hostade API.";

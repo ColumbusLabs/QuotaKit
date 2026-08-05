@@ -298,6 +298,19 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `allows OpenRouter endpoint`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .openrouter,
+            apiKey: "fixture",
+            enterpriseHost: "https://router.example.com/api/v1"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .openrouter && $0.code == "enterprise_host_unused" }))
+        #expect(!issues.contains(where: { $0.provider == .openrouter && $0.code == "invalid_enterprise_host" }))
+    }
+
+    @Test
     func `unsupported enterprise host warning lists every supported provider`() throws {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .gemini, enterpriseHost: "https://example.com"))
@@ -306,8 +319,8 @@ struct ConfigValidationTests {
         }))
 
         #expect(issue.message ==
-            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, sub2api, and " +
-            "wayfinder " +
+            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, openrouter, " +
+            "sub2api, and wayfinder " +
             "support enterpriseHost.")
     }
 

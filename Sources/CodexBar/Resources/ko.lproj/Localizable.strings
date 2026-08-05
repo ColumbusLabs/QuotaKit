@@ -1400,3 +1400,5 @@
 "Enter every endpoint setting to review the exact network origins." = "정확한 네트워크 오리진을 검토하려면 모든 엔드포인트 설정을 입력하세요.";
 "Approve" = "승인";
 "Install" = "설치";
+"API URL" = "API URL";
+"Optional. Defaults to the hosted OpenRouter API." = "선택 사항입니다. 기본적으로 호스팅된 OpenRouter API를 사용합니다.";

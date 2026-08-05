@@ -3,6 +3,8 @@ import Foundation
 public struct DeepgramSettingsReader: Sendable {
     public static let apiKeyEnvironmentKey = "DEEPGRAM_API_KEY"
     public static let projectIDEnvironmentKey = "DEEPGRAM_PROJECT_ID"
+    public static let apiURLEnvironmentKey = "DEEPGRAM_API_URL"
+    public static let defaultAPIURL = URL(string: "https://api.deepgram.com/v1")!
 
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
@@ -14,6 +16,29 @@ public struct DeepgramSettingsReader: Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
     {
         self.cleaned(environment[self.projectIDEnvironmentKey])
+    }
+
+    public static func apiURL(
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> URL
+    {
+        guard let raw = self.cleaned(environment[self.apiURLEnvironmentKey]) else { return self.defaultAPIURL }
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else { return self.defaultAPIURL }
+        return url
+    }
+
+    public static func validateEndpointOverride(
+        environment: [String: String] = ProcessInfo.processInfo.environment) throws
+    {
+        guard let raw = self.cleaned(environment[self.apiURLEnvironmentKey]) else { return }
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else {
+            throw DeepgramSettingsError.invalidEndpointOverride(self.apiURLEnvironmentKey)
+        }
     }
 
     private static func cleaned(_ raw: String?) -> String? {

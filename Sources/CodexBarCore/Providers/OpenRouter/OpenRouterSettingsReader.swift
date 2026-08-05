@@ -4,6 +4,10 @@ import Foundation
 public enum OpenRouterSettingsReader {
     /// Environment variable key for OpenRouter API token
     public static let envKey = "OPENROUTER_API_KEY"
+    public static let apiURLEnvironmentKey = "OPENROUTER_API_URL"
+    public static let httpRefererEnvironmentKey = "OPENROUTER_HTTP_REFERER"
+    public static let clientTitleEnvironmentKey = "OPENROUTER_X_TITLE"
+    public static let defaultClientTitle = "QuotaKit"
 
     /// Returns the API token from environment if present and non-empty
     public static func apiToken(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
@@ -21,9 +25,21 @@ public enum OpenRouterSettingsReader {
     public static func validateEndpointOverrides(
         environment: [String: String] = ProcessInfo.processInfo.environment) throws
     {
-        guard let raw = self.cleaned(environment["OPENROUTER_API_URL"]) else { return }
-        guard ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw) == nil else { return }
-        throw OpenRouterSettingsError.invalidEndpointOverride("OPENROUTER_API_URL")
+        guard let raw = self.cleaned(environment[self.apiURLEnvironmentKey]) else { return }
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else {
+            throw OpenRouterSettingsError.invalidEndpointOverride(self.apiURLEnvironmentKey)
+        }
+    }
+
+    public static func httpReferer(environment: [String: String] = ProcessInfo.processInfo.environment) -> String? {
+        self.cleaned(environment[self.httpRefererEnvironmentKey])
+    }
+
+    public static func clientTitle(environment: [String: String] = ProcessInfo.processInfo.environment) -> String {
+        self.cleaned(environment[self.clientTitleEnvironmentKey]) ?? self.defaultClientTitle
     }
 
     static func cleaned(_ raw: String?) -> String? {
@@ -42,7 +58,11 @@ public enum OpenRouterSettingsReader {
     }
 
     private static func validAPIURL(environment: [String: String]) -> URL? {
-        guard let raw = self.cleaned(environment["OPENROUTER_API_URL"]) else { return nil }
-        return ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw)
+        guard let raw = self.cleaned(environment[self.apiURLEnvironmentKey]) else { return nil }
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else { return nil }
+        return url
     }
 }

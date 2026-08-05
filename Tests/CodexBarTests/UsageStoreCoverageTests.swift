@@ -565,10 +565,10 @@ extension UsageStoreCoverageTests {
         }
 
         let store = Self.makeUsageStore(settings: settings)
-        #expect(store.unavailableMessage(for: .sub2api) == Sub2APIUsageError.missingCredentials.errorDescription)
+        #expect(store.unavailableMessage(for: .sub2api) == Sub2APISettingsReader.missingCredentialsMessage)
 
         settings.sub2APIAPIKey = "group-key"
-        #expect(store.unavailableMessage(for: .sub2api) == Sub2APIUsageError.missingBaseURL.errorDescription)
+        #expect(store.unavailableMessage(for: .sub2api) == Sub2APISettingsReader.missingBaseURLMessage)
     }
 
     @Test

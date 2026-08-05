@@ -1436,3 +1436,5 @@
 "Enter every endpoint setting to review the exact network origins." = "Wprowadź wszystkie ustawienia punktów końcowych, aby sprawdzić dokładne źródła sieciowe.";
 "Approve" = "Zatwierdź";
 "Install" = "Zainstaluj";
+"API URL" = "Adres URL API";
+"Optional. Defaults to the hosted OpenRouter API." = "Opcjonalnie. Domyślnie używany jest hostowany interfejs API OpenRouter.";
