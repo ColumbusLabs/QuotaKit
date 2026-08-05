@@ -186,7 +186,7 @@ extension DeepgramUsageSnapshot {
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
-            deepgramUsage: self,
+            details: [.makeSection(title: "Usage summary", rows: self.detailRows)],
             updatedAt: self.updatedAt,
             identity: identity)
     }
@@ -225,6 +225,31 @@ extension DeepgramUsageSnapshot {
         }
 
         return lines
+    }
+
+    private var detailRows: [ProviderDetailSection.Row] {
+        var rows: [ProviderDetailSection.Row] = [
+            .makeRow(label: "Requests", value: Self.formatInteger(self.requests)),
+        ]
+        if self.hours > 0 || self.totalHours > 0 {
+            rows.append(.makeRow(
+                label: "Audio",
+                value: "\(Self.formatDecimal(self.hours)) hours",
+                secondaryValue: "\(Self.formatDecimal(self.totalHours)) billable hours"))
+        }
+        if self.agentHours > 0 {
+            rows.append(.makeRow(label: "Agent hours", value: Self.formatDecimal(self.agentHours)))
+        }
+        if self.tokensIn > 0 || self.tokensOut > 0 {
+            rows.append(.makeRow(label: "Tokens", value: Self.formatInteger(self.tokensIn + self.tokensOut)))
+        }
+        if self.ttsCharacters > 0 {
+            rows.append(.makeRow(label: "TTS characters", value: Self.formatInteger(self.ttsCharacters)))
+        }
+        if let start, let end {
+            rows.append(.makeRow(label: "Period", value: "\(start) to \(end)"))
+        }
+        return rows
     }
 
     private var identityLabel: String? {

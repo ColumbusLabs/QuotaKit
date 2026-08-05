@@ -6,6 +6,9 @@ public enum CommandCodeProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .commandcode,
+            settingsSection: .init(
+                CommandCodeProviderSettingsKey.self,
+                cookieSettings: CommandCodeProviderSettings.self),
             metadata: ProviderMetadata(
                 id: .commandcode,
                 displayName: "Command Code",

@@ -24,7 +24,7 @@ struct ClawRouterUsageFetcherTests {
         #expect(snapshot.secondary == nil)
         #expect(snapshot.providerCost?.used == 0.006)
         #expect(snapshot.providerCost?.limit == 25)
-        #expect(snapshot.clawRouterUsage?.providers.map(\.provider) == ["openai", "anthropic"])
+        #expect(snapshot.details.last?.rows.map(\.label) == ["openai", "anthropic"])
         #expect(snapshot.dataConfidence == .exact)
 
         let reset = try #require(snapshot.primary?.resetsAt)
@@ -132,7 +132,7 @@ struct ClawRouterUsageFetcherTests {
         let encoded = try JSONEncoder().encode(parsed.toUsageSnapshot())
         let decoded = try JSONDecoder().decode(UsageSnapshot.self, from: encoded)
 
-        #expect(decoded.clawRouterUsage == parsed)
+        #expect(decoded.details == parsed.toUsageSnapshot().details)
         #expect(decoded.identity?.providerID == .clawrouter)
     }
 
@@ -144,10 +144,11 @@ struct ClawRouterUsageFetcherTests {
 
         let output = Self.renderText(parsed.toUsageSnapshot())
 
-        #expect(output.contains("Spend: $0.01 / $25.00"))
-        #expect(output.contains("Usage: 6 requests · 54K tokens"))
-        #expect(output.contains("Results: 5 succeeded · 1 failed"))
-        #expect(output.contains("Routed providers: openai: 4 · anthropic: 2"))
+        #expect(output.contains("Requests: 6 · 5 succeeded · 1 failed"))
+        #expect(output.contains("Tokens: 54191 · 50000 input · 4191 output"))
+        #expect(output.contains("Monthly budget: $0.006000 / $25.00 · $24.994000 remaining"))
+        #expect(output.contains("openai: 4 requests · $0.004000 · 42000 tokens"))
+        #expect(output.contains("anthropic: 2 requests · $0.002000 · 12191 tokens"))
     }
 
     @Test
@@ -162,11 +163,11 @@ struct ClawRouterUsageFetcherTests {
         let unmeteredOutput = Self.renderText(unmetered.toUsageSnapshot())
         let zeroSpendOutput = Self.renderText(zeroSpend.toUsageSnapshot())
 
-        #expect(unmeteredOutput.contains("Spend: $1.25"))
-        #expect(unmeteredOutput.contains("Usage: 3 requests · 0 tokens"))
+        #expect(unmeteredOutput.contains("Actual cost: $1.250000"))
+        #expect(unmeteredOutput.contains("Requests: 3 · 3 succeeded · 0 failed"))
         #expect(!unmeteredOutput.contains(" / 0.0"))
-        #expect(zeroSpendOutput.contains("Spend: $0.00"))
-        #expect(zeroSpendOutput.contains("Usage: 3 requests · 0 tokens"))
+        #expect(zeroSpendOutput.contains("Actual cost: $0.000000"))
+        #expect(zeroSpendOutput.contains("Requests: 3 · 3 succeeded · 0 failed"))
         #expect(!zeroSpendOutput.contains(" / 0.0"))
     }
 

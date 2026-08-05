@@ -6,6 +6,13 @@ import SweetCookieKit
 
 public enum AugmentProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(tokenAccountSupport: TokenAccountSupport(
+        title: "Session tokens",
+        subtitle: "Store multiple Augment Cookie headers.",
+        placeholder: "Cookie: …",
+        injection: .cookieHeader,
+        requiresManualCookieSource: true,
+        cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         #if os(macOS)
@@ -30,6 +37,8 @@ public enum AugmentProviderDescriptor {
 
         return ProviderDescriptor(
             id: .augment,
+            settingsSection: .init(AugmentProviderSettingsKey.self, cookieSettings: AugmentProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .augment,
                 displayName: "Augment",

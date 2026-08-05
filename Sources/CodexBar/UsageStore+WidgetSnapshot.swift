@@ -5,15 +5,25 @@ import WidgetKit
 #endif
 
 extension UsageStore {
+    /// Tests must never touch the real app-group container: the widget-snapshot
+    /// `open()` can block forever behind macOS 26 app-data (TCC) gating, hanging
+    /// the whole suite. A test opts into persistence with an in-memory save
+    /// override (its container load is stubbed out) or an injected snapshot URL
+    /// that redirects all I/O to a test-owned file.
+    static func shouldPersistWidgetSnapshot(
+        isRunningTests: Bool,
+        hasSaveOverride: Bool,
+        hasInjectedSnapshotURL: Bool) -> Bool
+    {
+        !isRunningTests || hasSaveOverride || hasInjectedSnapshotURL
+    }
+
     func persistWidgetSnapshot(reason: String) {
-        #if DEBUG
-        // Unsigned test processes must not cross into the real app-group container. Snapshot tests
-        // opt in with an in-memory save override or an injected file URL.
-        guard !SettingsStore.isRunningTests ||
-            self._test_widgetSnapshotSaveOverride != nil ||
-            self.widgetSnapshotURL != nil
+        guard Self.shouldPersistWidgetSnapshot(
+            isRunningTests: SettingsStore.isRunningTests,
+            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
         else { return }
-        #endif
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
         let previousSnapshot = self.lastQueuedWidgetSnapshot ?? {
@@ -371,12 +381,11 @@ extension UsageStore {
                 now: now)
             return projection.visibleRateLanes.compactMap { lane in
                 guard let window = projection.sourceRateWindow(for: lane) else { return nil }
-                let title = switch lane {
-                case .session:
-                    metadata?.sessionLabel ?? "Session"
-                case .weekly:
-                    metadata?.weeklyLabel ?? "Weekly"
-                }
+                let title = CodexConsumerProjection.rateTitle(
+                    lane: lane,
+                    windowMinutes: window.windowMinutes,
+                    sessionLabel: metadata?.sessionLabel ?? "Session",
+                    weeklyLabel: metadata?.weeklyLabel ?? "Weekly")
                 return WidgetSnapshot.WidgetUsageRowSnapshot(
                     id: lane.rawValue,
                     title: title,
@@ -420,7 +429,7 @@ extension UsageStore {
             metadata: metadata,
             snapshot: snapshot)
         let secondaryTitle = if provider == .amp {
-            AmpProviderDescriptor.secondaryLabel(details: snapshot.ampUsage) ?? metadata?.weeklyLabel ?? "Weekly"
+            AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? metadata?.weeklyLabel ?? "Weekly"
         } else if provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ??
                 metadata?.weeklyLabel ?? "Weekly"
@@ -489,7 +498,7 @@ extension UsageStore {
         case .autoOnly:
             [row(id: "primary", title: "Auto", window: snapshot.primary)]
         case .none:
-            if snapshot.cursorRequests != nil {
+            if snapshot.cursorRequests != nil || snapshot.detailRow(label: "Request quota") != nil {
                 [row(id: "primary", title: "Requests", window: snapshot.primary)]
             } else if snapshot.tertiary != nil {
                 [
@@ -539,6 +548,8 @@ extension UsageStore {
                 return "Plan"
             case .apiOnly:
                 return "API"
+            case .none where snapshot.cursorRequests != nil || snapshot.detailRow(label: "Request quota") != nil:
+                return "Requests"
             case .autoAPI, .autoOnly, .none:
                 return metadata?.sessionLabel ?? "Session"
             }
@@ -554,7 +565,7 @@ extension UsageStore {
             return dyn
         }
         if provider == .amp,
-           let dyn = AmpProviderDescriptor.primaryLabel(details: snapshot.ampUsage)
+           let dyn = AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
         {
             return dyn
         }

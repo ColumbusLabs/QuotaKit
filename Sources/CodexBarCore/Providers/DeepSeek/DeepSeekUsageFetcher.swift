@@ -195,16 +195,55 @@ public struct DeepSeekUsageSnapshot: Sendable {
             nil
         }
 
+        let details = self.usageSummary.map(Self.detailSections) ?? []
         return UsageSnapshot(
             primary: balanceWindow,
             secondary: nil,
             tertiary: nil,
             providerCost: nil,
-            deepseekUsage: self.usageSummary,
+            details: details,
             deepseekDetailedUsageState: self.detailedUsageState,
             deepseekPlatformProfiles: self.platformProfiles,
             updatedAt: self.updatedAt,
             identity: identity)
+    }
+
+    private static func detailSections(_ usage: DeepSeekUsageSummary) -> [ProviderDetailSection] {
+        let symbol = usage.currency == "CNY" ? "¥" : "$"
+        let cost: (Double?) -> String = { value in
+            value.map { "\(symbol)\(String(format: "%.4f", max(0, $0)))" } ?? "—"
+        }
+        var rows: [ProviderDetailSection.Row] = [
+            .makeRow(
+                label: "Today",
+                value: "\(cost(usage.todayCost)) · \(usage.todayTokens.formatted()) tokens"),
+            .makeRow(
+                label: "This month",
+                value: "\(cost(usage.currentMonthCost)) · \(usage.currentMonthTokens.formatted()) tokens"),
+            .makeRow(label: "Requests", value: "\(usage.currentMonthRequestCount)"),
+        ]
+        if let topModel = usage.topModel {
+            rows.append(.makeRow(label: "Top model", value: topModel))
+        }
+        for category in usage.categoryBreakdown {
+            rows.append(.makeRow(label: Self.categoryLabel(category.category), value: category.tokens.formatted()))
+        }
+        return [.makeSection(
+            title: "Detailed usage",
+            rows: rows,
+            chart: usage.daily.isEmpty ? nil : .makeChart(
+                title: "Daily tokens",
+                unit: "tokens",
+                points: usage.daily.map { ($0.date, Double($0.totalTokens)) }))]
+    }
+
+    private static func categoryLabel(_ category: DeepSeekUsageCategory) -> String {
+        switch category {
+        case .promptCacheHitToken: "Cache-hit input"
+        case .promptCacheMissToken: "Cache-miss input"
+        case .responseToken: "Output"
+        case .request: "Requests"
+        }
     }
 }
 

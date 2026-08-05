@@ -26,6 +26,7 @@ public enum Sub2APIUsageError: LocalizedError, Equatable, Sendable {
     }
 }
 
+/// Compatibility payload used by QuotaKit's iCloud sync envelope.
 public struct Sub2APIUsageDetails: Codable, Sendable, Equatable {
     public enum Kind: String, Codable, Sendable {
         case keyQuota
@@ -148,29 +149,45 @@ public struct Sub2APIUsageSnapshot: Sendable, Equatable {
                     resetsAt: rateLimit.resetAt,
                     resetDescription: Self.amountDescription(used: rateLimit.used, limit: rateLimit.limit)))
         }
-        let usageDetails = Sub2APIUsageDetails(
-            kind: kind,
-            balance: self.balance,
-            unit: self.unit,
-            today: self.todayUsage.map {
-                Sub2APIUsageDetails.Totals(
-                    requests: $0.requests,
-                    totalTokens: $0.totalTokens,
-                    actualCostUSD: $0.actualCostUSD)
-            },
-            total: self.totalUsage.map {
-                Sub2APIUsageDetails.Totals(
-                    requests: $0.requests,
-                    totalTokens: $0.totalTokens,
-                    actualCostUSD: $0.actualCostUSD)
-            })
+        var detailRows: [ProviderDetailSection.Row] = []
+        if let balance = self.balance {
+            detailRows.append(.makeRow(
+                label: "Balance",
+                value: Self.currencyString(balance, unit: self.unit)))
+        }
+        for (title, totals) in [("Today", self.todayUsage), ("All time", self.totalUsage)] {
+            guard let totals else { continue }
+            detailRows.append(.makeRow(
+                label: "\(title) requests",
+                value: Self.countString(totals.requests)))
+            detailRows.append(.makeRow(
+                label: "\(title) tokens",
+                value: Self.countString(totals.totalTokens),
+                secondaryValue: Self.currencyString(totals.actualCostUSD, unit: self.unit)))
+        }
 
         return UsageSnapshot(
             primary: primary,
             secondary: secondary,
             tertiary: tertiary,
             extraRateWindows: namedWindows.isEmpty ? nil : namedWindows,
-            sub2APIUsage: usageDetails,
+            details: detailRows.isEmpty ? [] : [.makeSection(title: "Usage summary", rows: detailRows)],
+            sub2APIUsage: Sub2APIUsageDetails(
+                kind: kind,
+                balance: self.balance,
+                unit: self.unit,
+                today: self.todayUsage.map {
+                    .init(
+                        requests: $0.requests,
+                        totalTokens: $0.totalTokens,
+                        actualCostUSD: $0.actualCostUSD)
+                },
+                total: self.totalUsage.map {
+                    .init(
+                        requests: $0.requests,
+                        totalTokens: $0.totalTokens,
+                        actualCostUSD: $0.actualCostUSD)
+                }),
             subscriptionExpiresAt: subscription?.expiresAt ?? self.expiresAt,
             updatedAt: self.updatedAt,
             identity: ProviderIdentitySnapshot(
@@ -209,6 +226,10 @@ public struct Sub2APIUsageSnapshot: Sendable, Equatable {
 
     private static func currencyString(_ value: Double, unit: String) -> String {
         unit.uppercased() == "USD" ? UsageFormatter.usdString(value) : String(format: "%.2f %@", value, unit)
+    }
+
+    private static func countString(_ value: Int) -> String {
+        value.formatted(.number.grouping(.automatic).locale(Locale(identifier: "en_US")))
     }
 
     private static func windowMinutes(_ window: String) -> Int? {

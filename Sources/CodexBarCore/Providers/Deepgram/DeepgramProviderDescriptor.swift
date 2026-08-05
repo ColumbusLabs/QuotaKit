@@ -2,10 +2,29 @@ import Foundation
 
 public enum DeepgramProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        environmentProjections: [
+            .apiKey(DeepgramSettingsReader.apiKeyEnvironmentKey),
+            .workspaceID(DeepgramSettingsReader.projectIDEnvironmentKey),
+        ],
+        tokenResolver: { kind, environment, _ in
+            let value: String? = switch kind {
+            case .primary: DeepgramSettingsReader.apiKey(environment: environment)
+            case .projectID: DeepgramSettingsReader.projectID(environment: environment)
+            case .secondary: nil
+            }
+            guard let value else { return nil }
+            return ProviderTokenResolution(token: value, source: .environment)
+        },
+        authDetector: { environment, _ in
+            DeepgramSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+        })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .deepgram,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .deepgram,
                 displayName: "Deepgram",

@@ -376,8 +376,10 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
         self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
         try ProviderDetailSection.validateSections(self.details)
-        self.kiroUsage = try container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
-        self.ampUsage = try container.decodeIfPresent(AmpUsageDetails.self, forKey: .ampUsage)
+        // Rich provider payloads are additive. Ignore legacy or foreign shapes rather than
+        // rejecting the entire account snapshot when another provider owns the record.
+        self.kiroUsage = try? container.decodeIfPresent(KiroUsageDetails.self, forKey: .kiroUsage)
+        self.ampUsage = try? container.decodeIfPresent(AmpUsageDetails.self, forKey: .ampUsage)
         self.zaiUsage = nil // Not persisted, fetched fresh each time
         self.zoommateCreditsHistory = nil // Not persisted, fetched fresh each time
         self.minimaxUsage = nil // Not persisted, fetched fresh each time
@@ -385,39 +387,39 @@ public struct UsageSnapshot: Codable, Sendable {
         self.deepseekDetailedUsageState = .notRequested // Live-only fetch state
         self.deepseekPlatformProfiles = [] // Live-only browser profile catalog
         self.opencodegoUsage = nil // Not persisted, fetched fresh each time
-        self.mimoUsage = try container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
-        self.openRouterUsage = try container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
+        self.mimoUsage = try? container.decodeIfPresent(MiMoUsageSnapshot.self, forKey: .mimoUsage)
+        self.openRouterUsage = try? container.decodeIfPresent(OpenRouterUsageSnapshot.self, forKey: .openRouterUsage)
         self.perplexityUsage = nil // Not persisted, fetched fresh each time
-        self.sakanaPayAsYouGo = try container.decodeIfPresent(
+        self.sakanaPayAsYouGo = try? container.decodeIfPresent(
             SakanaPayAsYouGoSnapshot.self,
             forKey: .sakanaPayAsYouGo)
-        self.clawRouterUsage = try container.decodeIfPresent(ClawRouterUsageSnapshot.self, forKey: .clawRouterUsage)
-        self.sub2APIUsage = try container.decodeIfPresent(Sub2APIUsageDetails.self, forKey: .sub2APIUsage)
-        self.wayfinderUsage = try container.decodeIfPresent(WayfinderUsageSnapshot.self, forKey: .wayfinderUsage)
-        self.openAIAPIUsage = try container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
-        self.bedrockUsage = try container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
-        self.groqConsoleUsage = try container.decodeIfPresent(
+        self.clawRouterUsage = try? container.decodeIfPresent(ClawRouterUsageSnapshot.self, forKey: .clawRouterUsage)
+        self.sub2APIUsage = try? container.decodeIfPresent(Sub2APIUsageDetails.self, forKey: .sub2APIUsage)
+        self.wayfinderUsage = try? container.decodeIfPresent(WayfinderUsageSnapshot.self, forKey: .wayfinderUsage)
+        self.openAIAPIUsage = try? container.decodeIfPresent(OpenAIAPIUsageSnapshot.self, forKey: .openAIAPIUsage)
+        self.bedrockUsage = try? container.decodeIfPresent(BedrockUsageSnapshot.self, forKey: .bedrockUsage)
+        self.groqConsoleUsage = try? container.decodeIfPresent(
             GroqConsoleUsageSnapshot.self,
             forKey: .groqConsoleUsage)
-        self.codexResetCredits = try container.decodeIfPresent(
+        self.codexResetCredits = try? container.decodeIfPresent(
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
-        self.claudeAdminAPIUsage = try container.decodeIfPresent(
+        self.claudeAdminAPIUsage = try? container.decodeIfPresent(
             ClaudeAdminAPIUsageSnapshot.self,
             forKey: .claudeAdminAPIUsage)
-        self.mistralUsage = try container.decodeIfPresent(MistralUsageSnapshot.self, forKey: .mistralUsage)
-        self.deepgramUsage = try container.decodeIfPresent(DeepgramUsageSnapshot.self, forKey: .deepgramUsage)
+        self.mistralUsage = try? container.decodeIfPresent(MistralUsageSnapshot.self, forKey: .mistralUsage)
+        self.deepgramUsage = try? container.decodeIfPresent(DeepgramUsageSnapshot.self, forKey: .deepgramUsage)
         // iOS 1.8.0 / Mac 0.27.0 — v0.27.0 provider snapshots.
         // `GrokUsageSnapshot` is not Codable (carries auth credentials)
         // so it's not persisted — fetched fresh on every refresh cycle,
         // matching the `zaiUsage` / `minimaxUsage` / `perplexityUsage`
         // pattern. The other three are Codable and persist normally.
         self.grokUsage = nil
-        self.elevenLabsUsage = try container.decodeIfPresent(ElevenLabsUsageSnapshot.self, forKey: .elevenLabsUsage)
-        self.groqUsage = try container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
-        self.llmProxyUsage = try container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
-        self.poeUsage = try container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
-        self.xaiUsage = try container.decodeIfPresent(XAIUsageSnapshot.self, forKey: .xaiUsage)
+        self.elevenLabsUsage = try? container.decodeIfPresent(ElevenLabsUsageSnapshot.self, forKey: .elevenLabsUsage)
+        self.groqUsage = try? container.decodeIfPresent(GroqUsageSnapshot.self, forKey: .groqUsage)
+        self.llmProxyUsage = try? container.decodeIfPresent(LLMProxyUsageSnapshot.self, forKey: .llmProxyUsage)
+        self.poeUsage = try? container.decodeIfPresent(PoeUsageHistorySnapshot.self, forKey: .poeUsage)
+        self.xaiUsage = try? container.decodeIfPresent(XAIUsageSnapshot.self, forKey: .xaiUsage)
         self.cursorRequests = nil // Not persisted, fetched fresh each time
         if let rawCursorLayout = try container.decodeIfPresent(String.self, forKey: .cursorRateWindowLayout) {
             self.cursorRateWindowLayout = CursorRateWindowLayout(rawValue: rawCursorLayout)
@@ -544,6 +546,10 @@ public struct UsageSnapshot: Codable, Sendable {
             !(self.extraRateWindows?.isEmpty ?? true)
     }
 
+    public func detailRow(label: String) -> ProviderDetailSection.Row? {
+        self.details.lazy.flatMap(\.rows).first { $0.label == label }
+    }
+
     public func rateLimitsUnavailable(for provider: UsageProvider) -> Bool {
         UsageLimitsAvailability.resolve(provider: provider, snapshot: self).isUnavailable
     }
@@ -631,6 +637,7 @@ public struct UsageSnapshot: Codable, Sendable {
         secondary: Replacement<RateWindow?> = .unchanged,
         tertiary: Replacement<RateWindow?> = .unchanged,
         extraRateWindows: Replacement<[NamedRateWindow]?> = .unchanged,
+        details: Replacement<[ProviderDetailSection]> = .unchanged,
         deepseekUsage: Replacement<DeepSeekUsageSummary?> = .unchanged,
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
@@ -648,7 +655,7 @@ public struct UsageSnapshot: Codable, Sendable {
             kiroUsage: self.kiroUsage,
             ampUsage: self.ampUsage,
             providerCost: self.providerCost,
-            details: self.details,
+            details: details.resolving(self.details),
             zaiUsage: self.zaiUsage,
             zoommateCreditsHistory: self.zoommateCreditsHistory,
             minimaxUsage: self.minimaxUsage,

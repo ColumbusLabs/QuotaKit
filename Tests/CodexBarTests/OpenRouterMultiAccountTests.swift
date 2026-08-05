@@ -101,15 +101,15 @@ struct OpenRouterMultiAccountTests {
         let snapshots = try #require(store.accountSnapshots[.openrouter])
         #expect(snapshots.map(\.account.id) == accounts.map(\.id))
         #expect(snapshots.map { $0.snapshot?.accountEmail(for: .openrouter) } == ["Personal", "Work"])
-        #expect(snapshots.map(\.snapshot?.openRouterUsage?.balance) == [90, 60])
+        #expect(snapshots.map { $0.snapshot?.detailRow(label: "Remaining")?.value } == ["$90.00", "$60.00"])
         #expect(Set(snapshots.map(\.cacheKey)).count == 2)
 
         settings.setActiveTokenAccountIndex(0, for: .openrouter)
         store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: accounts[0].id)
-        #expect(store.snapshot(for: .openrouter)?.openRouterUsage?.balance == 90)
+        #expect(store.snapshot(for: .openrouter)?.detailRow(label: "Remaining")?.value == "$90.00")
         settings.setActiveTokenAccountIndex(1, for: .openrouter)
         store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: accounts[1].id)
-        #expect(store.snapshot(for: .openrouter)?.openRouterUsage?.balance == 60)
+        #expect(store.snapshot(for: .openrouter)?.detailRow(label: "Remaining")?.value == "$60.00")
     }
 
     @Test

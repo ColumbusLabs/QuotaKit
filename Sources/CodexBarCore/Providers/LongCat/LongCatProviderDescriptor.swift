@@ -2,10 +2,15 @@ import Foundation
 
 public enum LongCatProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(environmentProjections: [
+        .cookieHeader(LongCatSettingsReader.cookieHeaderKey, onlyWhenManual: true),
+    ])
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .longcat,
+            settingsSection: .init(LongCatProviderSettingsKey.self, cookieSettings: LongCatProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .longcat,
                 displayName: "LongCat",

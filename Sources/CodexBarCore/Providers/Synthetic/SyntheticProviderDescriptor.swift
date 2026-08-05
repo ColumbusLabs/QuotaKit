@@ -2,10 +2,15 @@ import Foundation
 
 public enum SyntheticProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: SyntheticSettingsReader.apiKeyKey,
+        resolve: SyntheticSettingsReader.apiKey,
+        missingCredentialMessage: { _ in SyntheticSettingsError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .synthetic,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .synthetic,
                 displayName: "Synthetic",

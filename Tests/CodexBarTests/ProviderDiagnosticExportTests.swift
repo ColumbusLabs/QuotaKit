@@ -49,6 +49,27 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
+    func `diagnostic export carries copilot credits detail`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            details: [.makeSection(title: "Credits", rows: [
+                .makeRow(label: "Credits used", value: "31", secondaryValue: "Resets in 1d"),
+            ])],
+            updatedAt: now)
+        let summary = ProviderDiagnosticUsageSummary(from: snapshot)
+
+        #expect(summary.detailSections == snapshot.details)
+        #expect(!summary.providerSpecificData.contains("copilotCredits"))
+
+        let json = try self.json(summary)
+        #expect(json.contains("\"detailSections\""))
+        #expect(json.contains("\"Credits used\""))
+        #expect(json.contains("31"))
+    }
+
+    @Test
     func `diagnostic export decodes legacy schema without platform metadata`() throws {
         let export = ProviderDiagnosticExport(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
@@ -537,16 +558,7 @@ struct ProviderDiagnosticExportTests {
             updatedAt: now)
 
         let result = ProviderFetchResult(
-            usage: UsageSnapshot(
-                primary: RateWindow(
-                    usedPercent: 25,
-                    windowMinutes: 300,
-                    resetsAt: now.addingTimeInterval(18000),
-                    resetDescription: nil),
-                secondary: nil,
-                tertiary: nil,
-                minimaxUsage: snapshot,
-                updatedAt: now),
+            usage: snapshot.toUsageSnapshot(),
             credits: nil,
             dashboard: nil,
             sourceLabel: "api",
@@ -577,11 +589,8 @@ struct ProviderDiagnosticExportTests {
         #expect(diag.usage != nil)
         #expect(diag.error == nil)
 
-        guard case let .minimax(details) = diag.details else {
-            Issue.record("Expected MiniMax diagnostic details")
-            return
-        }
-        #expect(details.planName == "Max")
+        #expect(diag.details == nil)
+        #expect(diag.usage?.detailSections == snapshot.toUsageSnapshot().details)
     }
 
     private func json(_ value: some Encodable) throws -> String {

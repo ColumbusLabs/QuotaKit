@@ -360,6 +360,8 @@ struct XAIProviderTests {
         #expect(snapshot.providerCost?.currencyCode == "USD")
         #expect(snapshot.providerCost?.period == "Prepaid credits")
         #expect(snapshot.xaiUsage == usage)
+        #expect(snapshot.detailRow(label: "Prepaid balance")?.value == "$7.36")
+        #expect(snapshot.details.first?.chart?.points.map(\.label) == ["2027-01-14", "2027-01-15"])
         #expect(snapshot.identity?.providerID == .xai)
         #expect(snapshot.identity?.loginMethod == "Management API")
         #expect(snapshot.dataConfidence == .exact)
@@ -409,6 +411,7 @@ struct XAIProviderTests {
         let encoded = try JSONEncoder().encode(usage.toUsageSnapshot())
         let decoded = try JSONDecoder().decode(UsageSnapshot.self, from: encoded)
         #expect(decoded.xaiUsage == usage)
+        #expect(decoded.details == usage.toUsageSnapshot().details)
         #expect(decoded.providerCost?.used == 7.36)
     }
 
@@ -520,6 +523,8 @@ struct XAIProviderTests {
         #expect(model.providerCost?.spendLine == "Posted balance: $7.36")
         #expect(model.providerCost?.percentUsed == nil)
         #expect(model.providerCost?.percentLine == "Ledger may lag current-cycle spend")
+        #expect(model.providerDetails.flatMap(\.rows).isEmpty)
+        #expect(model.providerDetails.first?.chart?.points.map(\.value) == [0.25])
     }
 
     @Test

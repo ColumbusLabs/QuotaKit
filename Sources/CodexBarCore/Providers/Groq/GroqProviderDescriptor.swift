@@ -2,10 +2,21 @@ import Foundation
 
 public enum GroqProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: GroqSettingsReader.apiKeyEnvironmentKey,
+        resolve: GroqSettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple Groq API keys.",
+            placeholder: "Paste Groq API key…",
+            injection: .environment(key: GroqSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil))
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .groq,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .groq,
                 displayName: "Groq",

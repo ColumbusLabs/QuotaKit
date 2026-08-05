@@ -4,10 +4,34 @@ public enum KimiProviderDescriptor {
     public static let sessionWindowMinutes = 5 * 60
     public static let weeklyWindowMinutes = 7 * 24 * 60
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        environmentProjections: [
+            .apiKey(KimiSettingsReader.apiKeyEnvironmentKeys[0]),
+            .enterpriseHost(KimiSettingsReader.codeAPIBaseURLEnvironmentKey),
+        ],
+        tokenResolver: { kind, environment, _ in
+            let token: String? = switch kind {
+            case .primary: KimiSettingsReader.authToken(environment: environment)
+            case .secondary: KimiSettingsReader.apiKey(environment: environment)
+            case .projectID: nil
+            }
+            guard let token else { return nil }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        authDetector: { environment, _ in
+            var modes: [String] = []
+            if KimiSettingsReader.apiKey(environment: environment) != nil { modes.append("api") }
+            if KimiSettingsReader.authToken(environment: environment) != nil { modes.append("web") }
+            return modes
+        },
+        missingCredentialMessage: { _ in KimiAPIError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .kimi,
+            settingsSection: .init(KimiProviderSettingsKey.self, cookieSettings: KimiProviderSettings.self),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .kimi,
                 displayName: "Kimi Code",

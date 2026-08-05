@@ -2,10 +2,16 @@ import Foundation
 
 public enum CrofProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
+        precedence: .environment,
+        environmentHasValue: { CrofSettingsReader.apiKey(environment: $0) != nil },
+        resolve: CrofSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .crof,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .crof,
                 displayName: "Crof",
@@ -46,18 +52,22 @@ public enum CrofProviderDescriptor {
 
     private static func fetchPlan() -> ProviderFetchPlan {
         #if canImport(JavaScriptCore)
-        .scriptPrototypeAPI(
-            configuration: .init(
-                provider: .crof,
-                plugin: "crof",
-                secretKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
-                strategyID: "crof.api"),
-            resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },
-            missingCredentialsError: { CrofUsageError.missingCredentials },
-            loadUsage: { apiKey, _ in
-                try await CrofUsageFetcher.fetchUsage(apiKey: apiKey).toUsageSnapshot()
-            })
+        ProviderFetchPlan(
+            sourceModes: [.auto, .api],
+            pipeline: ProviderFetchPipeline(resolveStrategies: { _ in
+                [ScriptFetchStrategy(
+                    id: "crof.js",
+                    provider: .crof,
+                    bundledPlugin: "crof",
+                    secretKey: CrofSettingsReader.apiKeyEnvironmentKeys[0],
+                    sourceLabel: "api",
+                    resolveSecret: { environment in
+                        self.credentials.resolveToken(environment: environment)?.token
+                    },
+                    isEnabled: { _ in true })]
+            }))
         #else
+        // Linux compatibility only. JavaScriptCore platforms use the bundled plugin above.
         .apiToken(
             strategyID: "crof.api",
             resolveToken: { ProviderTokenResolver.crofToken(environment: $0) },

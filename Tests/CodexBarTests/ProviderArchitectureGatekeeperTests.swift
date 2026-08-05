@@ -24,6 +24,60 @@ struct ProviderArchitectureGatekeeperTests {
     }
 
     @Test
+    func `every provider with credential behavior registers an adapter`() {
+        let expected: Set<UsageProvider> = [
+            .abacus, .aiand, .alibaba, .alibabatokenplan, .amp, .antigravity, .augment,
+            .azureopenai, .bedrock, .chutes, .claude, .clawrouter, .clinepass, .codebuff,
+            .copilot, .crof, .cursor, .deepgram, .deepinfra, .deepseek, .doubao, .elevenlabs,
+            .factory, .groq, .kilo, .kimi, .litellm, .llmproxy, .longcat, .manus, .minimax,
+            .mistral, .moonshot, .neuralwatt, .ollama, .openai, .opencode, .opencodego,
+            .openrouter, .perplexity, .poe, .qoder, .qwencloud, .sakana, .stepfun, .sub2api,
+            .synthetic, .venice, .warp, .wayfinder, .xai, .zai, .zenmux,
+        ]
+        let actual = Set(ProviderDescriptorRegistry.all.compactMap { descriptor in
+            descriptor.credentials == nil ? nil : descriptor.id
+        })
+
+        #expect(actual == expected)
+    }
+
+    @Test
+    func `every provider can produce and read its registered settings section`() {
+        let settings = testSettingsStore(suiteName: "ProviderArchitectureGatekeeperTests-settings-sections")
+        let context = ProviderSettingsSnapshotContext(settings: settings, tokenOverride: nil)
+        var builder = ProviderSettingsSnapshotBuilder()
+
+        for implementation in ProviderImplementationRegistry.all {
+            let providerName = implementation.id.rawValue
+            let registration = ProviderDescriptorRegistry.descriptor(for: implementation.id).settingsSection
+            guard let contribution = implementation.settingsSnapshot(context: context) else {
+                Issue.record("Missing settings-section contribution for provider '\(providerName)'.")
+                continue
+            }
+            #expect(
+                registration.accepts(contribution),
+                "Settings-section registration does not match provider '\(providerName)'.")
+            builder.apply(contribution)
+        }
+
+        let snapshot = builder.build()
+        for descriptor in ProviderDescriptorRegistry.all {
+            #expect(
+                descriptor.settingsSection.canRead(from: snapshot),
+                "Could not read settings section for provider '\(descriptor.id.rawValue)'.")
+        }
+    }
+
+    @Test
+    func `empty settings snapshot factory has no provider sections`() {
+        let snapshot = ProviderSettingsSnapshot.make()
+
+        #expect(snapshot.abacus == nil)
+        #expect(!snapshot.debugMenuEnabled)
+        #expect(!snapshot.debugKeepCLISessionsAlive)
+    }
+
+    @Test
     func `every provider descriptor has a loadable SVG resource`() throws {
         let resources = try Self.repoRoot()
             .appending(path: "Sources/CodexBar/Resources", directoryHint: .isDirectory)

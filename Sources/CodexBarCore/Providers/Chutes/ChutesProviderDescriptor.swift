@@ -2,10 +2,14 @@ import Foundation
 
 public enum ChutesProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: ChutesSettingsReader.apiKeyEnvironmentKey,
+        resolve: ChutesSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .chutes,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .chutes,
                 displayName: "Chutes",

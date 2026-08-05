@@ -154,6 +154,14 @@ enum UsagePaceText {
         guard provider == .codex || provider == .claude || provider == .ollama || provider == .antigravity ||
             provider == .kimi || provider == .notion
         else { return nil }
+        // Suppress session pace only for windows that classify into a longer lane (weekly/monthly).
+        // Unknown durations fall back to the session lane and keep their existing pace behavior.
+        if provider == .codex, let minutes = window.windowMinutes,
+           minutes == CodexConsumerProjection.weeklyWindowMinutes ||
+           minutes == CodexConsumerProjection.monthlyWindowMinutes
+        {
+            return nil
+        }
         if provider == .ollama, window.windowMinutes == nil {
             return nil
         }

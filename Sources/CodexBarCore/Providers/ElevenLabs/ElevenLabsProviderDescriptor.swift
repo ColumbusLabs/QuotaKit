@@ -2,10 +2,22 @@ import Foundation
 
 public enum ElevenLabsProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: ElevenLabsSettingsReader.apiKeyEnvironmentKey,
+        resolve: ElevenLabsSettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "API keys",
+            subtitle: "Store multiple ElevenLabs API keys.",
+            placeholder: "Paste API key…",
+            injection: .environment(key: ElevenLabsSettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        missingCredentialMessage: { _ in ElevenLabsUsageError.missingCredentials.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .elevenlabs,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .elevenlabs,
                 displayName: "ElevenLabs",

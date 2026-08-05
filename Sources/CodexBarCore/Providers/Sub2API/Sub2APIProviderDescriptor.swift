@@ -1,12 +1,43 @@
 import Foundation
 
 public enum Sub2APIProviderDescriptor {
-    public static func primaryLabel(details: Sub2APIUsageDetails?) -> String? {
-        details?.kind == .subscription ? "Daily quota" : nil
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: Sub2APISettingsReader.apiKeyEnvironmentKey,
+        additionalProjections: [.enterpriseHost(Sub2APISettingsReader.baseURLEnvironmentKey)],
+        resolve: Sub2APISettingsReader.apiKey,
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Group API keys",
+            subtitle: "Store one labeled sub2api API key for each group you want to monitor.",
+            placeholder: "Paste sub2api API key…",
+            injection: .environment(key: Sub2APISettingsReader.apiKeyEnvironmentKey),
+            requiresManualCookieSource: false,
+            cookieName: nil),
+        configValidator: { config in
+            guard let raw = config.sanitizedEnterpriseHost,
+                  Sub2APISettingsReader.baseURL(environment: [
+                      Sub2APISettingsReader.baseURLEnvironmentKey: raw,
+                  ]) == nil
+            else { return [] }
+            return [CodexBarConfigIssue(
+                severity: .error,
+                provider: .sub2api,
+                field: "enterpriseHost",
+                code: "invalid_enterprise_host",
+                message: Sub2APISettingsError.invalidBaseURL.errorDescription ?? "Invalid sub2api base URL.")]
+        },
+        missingCredentialMessage: { environment in
+            Sub2APISettingsReader.apiKey(environment: environment) == nil
+                ? Sub2APIUsageError.missingCredentials.errorDescription
+                : Sub2APIUsageError.missingBaseURL.errorDescription
+        })
+
+    public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
+        snapshot.secondary != nil ? "Daily quota" : nil
     }
 
     public static let descriptor = ProviderDescriptor(
         id: .sub2api,
+        credentials: Self.credentials,
         metadata: ProviderMetadata(
             id: .sub2api,
             displayName: "sub2api",

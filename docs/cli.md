@@ -44,11 +44,18 @@ See `docs/configuration.md` for the schema.
 ## Command
 - `quotakit` defaults to the `usage` command.
   - `--format text|json` (default: text).
+  - JSON uses the generic `usage.details` array for provider-specific information. Each section contains an optional
+    `title`, `rows` (`label`, `value`, and optional `secondaryValue`), and an optional `bars` or `line` chart. The same
+    shape is returned by `GET /usage` from `quotakit serve`.
+  - Legacy provider-specific keys such as `openRouterUsage`, `clawRouterUsage`, and `sub2APIUsage` are not compatibility
+    aliases; clients must read `usage.details`. Unknown legacy keys in cached or iCloud-synced snapshots are ignored
+    when decoding.
 - `quotakit cost` prints token cost usage for Claude, Codex, and Cursor.
   - Claude and Codex are scanned from local session logs without web/CLI access.
   - Cursor is fetched from the cookie-authenticated cursor.com dashboard API (macOS only; see `docs/cursor.md`) and honors the configured cookie source: a non-empty Manual header is required and forwarded, while Off fails explicitly instead of silently omitting Cursor.
   - `--format text|json` (default: text).
   - `--refresh` ignores cached scans.
+  - `--provider-native-only` is experimental and excludes pi and OMP session mirrors from Claude and Codex history.
 - `quotakit cards` prints a one-shot usage snapshot as a responsive terminal card grid.
   - Reuses the same provider, source, account, credits, and status flags as `quotakit usage`.
   - Account lines and plan badges are included in the card grid by default.
@@ -166,6 +173,7 @@ payloads include the visible account label in `account`.
 - `provider`, `source` (`local` for Claude/Codex log scans, `web` for Cursor dashboard data), `updatedAt`
 - `sessionTokens`, `sessionCostUSD`
 - `last30DaysTokens`, `last30DaysCostUSD`
+- `historyCoverageIsEstablished`: `false` while a bounded Codex scan still has catch-up work pending; `true` once the requested history is covered.
 - Cursor only: `meteredCostUSD` — what Cursor's plan actually deducts over the window, alongside the API-rate estimate in `last30DaysCostUSD`.
 - `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)
 - Codex only: `projects[]`: `name`, `path`, `totalTokens`, `totalCost`, `daily[]`, `modelBreakdowns[]`, `sources[]`

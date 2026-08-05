@@ -113,14 +113,14 @@ struct DeepgramProviderTests {
         #expect(snapshot.tokensIn == 1200)
         #expect(snapshot.tokensOut == 340)
         #expect(snapshot.ttsCharacters == 9_158_866)
-        #expect(usage.deepgramUsage?.requests == 373_400)
+        #expect(usage.detailRow(label: "Requests")?.value == "373,400")
         #expect(usage.loginMethod(for: .deepgram) == "Project: project-123")
-        #expect(usage.deepgramUsage?.displayLines == [
-            "Requests: 373,400",
-            "1,622.0 audio hours · 1,625.2 billable hours",
-            "41.3 agent hours · 1,540 tokens · 9,158,866 TTS chars",
-            "Period: 2025-01-16 to 2025-01-23",
-        ])
+        #expect(usage.detailRow(label: "Audio")?.value == "1,622.0 hours")
+        #expect(usage.detailRow(label: "Audio")?.secondaryValue == "1,625.2 billable hours")
+        #expect(usage.detailRow(label: "Agent hours")?.value == "41.3")
+        #expect(usage.detailRow(label: "Tokens")?.value == "1,540")
+        #expect(usage.detailRow(label: "TTS characters")?.value == "9,158,866")
+        #expect(usage.detailRow(label: "Period")?.value == "2025-01-16 to 2025-01-23")
     }
 
     @Test

@@ -11,6 +11,8 @@ struct CursorLegacyRequestProjectionTests {
         #expect(abs((usageSnapshot.primary?.usedPercent ?? 0) - 69.4) < 0.01)
         #expect(usageSnapshot.cursorRequests?.used == 347)
         #expect(usageSnapshot.cursorRequests?.limit == 500)
+        #expect(usageSnapshot.detailRow(label: "Request quota")?.value == "347 / 500")
+        #expect(usageSnapshot.cursorRateWindowLayout == .requests)
         #expect(usageSnapshot.secondary == nil)
         #expect(usageSnapshot.tertiary == nil)
     }
@@ -29,6 +31,8 @@ struct CursorLegacyRequestProjectionTests {
 
             #expect(usageSnapshot.primary?.usedPercent == 11.0)
             #expect(usageSnapshot.cursorRequests == nil)
+            #expect(usageSnapshot.detailRow(label: "Request quota") == nil)
+            #expect(usageSnapshot.cursorRateWindowLayout == .autoAPI)
             #expect(usageSnapshot.secondary?.usedPercent == 22.0)
             #expect(usageSnapshot.tertiary == nil)
         }

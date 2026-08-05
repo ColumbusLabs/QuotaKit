@@ -60,8 +60,10 @@ struct CLIOutputTests {
                 resetStyle: .countdown))
 
         #expect(text.contains("Requests: 42"))
-        #expect(text.contains("Usage: 12.5 audio hours · 14 billable hours"))
-        #expect(text.contains("Usage: 1.2 agent hours · 150 tokens · 1,200 TTS chars"))
+        #expect(text.contains("Audio: 12.5 hours · 14 billable hours"))
+        #expect(text.contains("Agent hours: 1.2"))
+        #expect(text.contains("Tokens: 150"))
+        #expect(text.contains("TTS characters: 1,200"))
         #expect(text.contains("Period: 2026-05-10 to 2026-05-17"))
     }
 

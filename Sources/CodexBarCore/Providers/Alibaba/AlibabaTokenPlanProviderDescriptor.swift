@@ -6,6 +6,14 @@ import SweetCookieKit
 
 public enum AlibabaTokenPlanProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        usesRegion: true,
+        authDetector: { environment, _ in
+            AlibabaTokenPlanSettingsReader.cookieHeader(environment: environment) == nil ? [] : ["web"]
+        },
+        configValidator: ProviderCredentialAdapter.regionValidator(
+            displayName: "Alibaba Token Plan",
+            isValid: { AlibabaTokenPlanAPIRegion(rawValue: $0) != nil }))
 
     public static func primaryLabel(window: RateWindow?) -> String? {
         window?.windowMinutes == 5 * 60 ? "5-hour" : nil
@@ -32,6 +40,23 @@ public enum AlibabaTokenPlanProviderDescriptor {
 
         return ProviderDescriptor(
             id: .alibabatokenplan,
+            settingsSection: .init(
+                AlibabaTokenPlanProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    CookieProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader)
+                },
+                credentialSettings: { context in
+                    let settings = context.cookieSettings(for: .alibabatokenplan)
+                    let region = context.config?.sanitizedRegion
+                        .flatMap(AlibabaTokenPlanAPIRegion.init(rawValue:)) ?? .chinaMainland
+                    return AlibabaTokenPlanProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader,
+                        apiRegion: region)
+                }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .alibabatokenplan,
                 displayName: "Alibaba Token Plan",

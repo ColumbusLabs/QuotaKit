@@ -6,6 +6,7 @@ public enum T3ChatProviderDescriptor {
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .t3chat,
+            settingsSection: .init(T3ChatProviderSettingsKey.self, cookieSettings: T3ChatProviderSettings.self),
             metadata: ProviderMetadata(
                 id: .t3chat,
                 displayName: "T3 Chat",

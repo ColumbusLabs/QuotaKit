@@ -2,10 +2,60 @@ import Foundation
 
 public enum MiniMaxProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter(
+        supportsAPIKeyOverride: true,
+        usesRegion: true,
+        environmentProjections: [.apiKey(MiniMaxAPISettingsReader.apiTokenKey)],
+        tokenResolver: { kind, environment, _ in
+            let token: String? = switch kind {
+            case .primary: MiniMaxAPISettingsReader.apiToken(environment: environment)
+            case .secondary: MiniMaxSettingsReader.cookieHeader(environment: environment)
+            case .projectID: nil
+            }
+            guard let token else { return nil }
+            return ProviderTokenResolution(token: token, source: .environment)
+        },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Session tokens",
+            subtitle: "Store multiple MiniMax Cookie headers.",
+            placeholder: "Cookie: …",
+            injection: .cookieHeader,
+            requiresManualCookieSource: true,
+            cookieName: nil),
+        diagnosticSummary: { _, _, environment, settings in
+            let apiToken = MiniMaxAPISettingsReader.apiToken(environment: environment)
+            let cookie = MiniMaxSettingsReader.cookieHeader(environment: environment)
+                ?? CookieHeaderNormalizer.normalize(settings?.minimax?.manualCookieHeader)
+            let mode = MiniMaxAuthMode.resolve(apiToken: apiToken, cookieHeader: cookie)
+            return ProviderDiagnosticAuthSummary(
+                configured: mode.usesAPIToken || mode.usesCookie,
+                modes: mode == .none ? [] : [mode.description])
+        },
+        configValidator: ProviderCredentialAdapter.regionValidator(
+            displayName: "MiniMax",
+            isValid: { MiniMaxAPIRegion(rawValue: $0) != nil }),
+        missingCredentialMessage: { _ in MiniMaxAPISettingsError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .minimax,
+            settingsSection: .init(
+                MiniMaxProviderSettingsKey.self,
+                cookieSettings: { settings in
+                    CookieProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader)
+                },
+                credentialSettings: { context in
+                    let settings = context.cookieSettings(for: .minimax)
+                    let region = context.config?.sanitizedRegion
+                        .flatMap(MiniMaxAPIRegion.init(rawValue:)) ?? .global
+                    return MiniMaxProviderSettings(
+                        cookieSource: settings.cookieSource,
+                        manualCookieHeader: settings.manualCookieHeader,
+                        apiRegion: region)
+                }),
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .minimax,
                 displayName: "MiniMax",

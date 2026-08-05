@@ -145,6 +145,7 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
     public let extraWindowCount: Int
     public let providerCostPresent: Bool
     public let providerSpecificData: [String]
+    public let detailSections: [ProviderDetailSection]
 
     private enum CodingKeys: String, CodingKey {
         case updatedAt
@@ -153,6 +154,7 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         case extraWindowCount
         case providerCostPresent
         case providerSpecificData
+        case detailSections
     }
 
     public init(from snapshot: UsageSnapshot) {
@@ -174,19 +176,8 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         }
 
         var providerSpecificData: [String] = []
-        if snapshot.kiroUsage != nil { providerSpecificData.append("kiroUsage") }
-        if snapshot.ampUsage != nil { providerSpecificData.append("ampUsage") }
-        if snapshot.zaiUsage != nil { providerSpecificData.append("zaiUsage") }
-        if snapshot.minimaxUsage != nil { providerSpecificData.append("minimaxUsage") }
-        if snapshot.deepseekUsage != nil { providerSpecificData.append("deepseekUsage") }
-        if snapshot.openRouterUsage != nil { providerSpecificData.append("openRouterUsage") }
-        if snapshot.sakanaPayAsYouGo != nil { providerSpecificData.append("sakanaPayAsYouGo") }
         if snapshot.openAIAPIUsage != nil { providerSpecificData.append("openAIAPIUsage") }
-        if snapshot.claudeAdminAPIUsage != nil { providerSpecificData.append("claudeAdminAPIUsage") }
         if snapshot.mistralUsage != nil { providerSpecificData.append("mistralUsage") }
-        if snapshot.deepgramUsage != nil { providerSpecificData.append("deepgramUsage") }
-        if snapshot.xaiUsage != nil { providerSpecificData.append("xaiUsage") }
-        if snapshot.cursorRequests != nil { providerSpecificData.append("cursorRequests") }
 
         self.updatedAt = snapshot.updatedAt
         self.dataConfidence = snapshot.dataConfidence.rawValue
@@ -194,6 +185,7 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         self.extraWindowCount = snapshot.extraRateWindows?.count ?? 0
         self.providerCostPresent = snapshot.providerCost != nil
         self.providerSpecificData = providerSpecificData.sorted()
+        self.detailSections = snapshot.details
     }
 
     public init(from decoder: Decoder) throws {
@@ -205,6 +197,9 @@ public struct ProviderDiagnosticUsageSummary: Codable, Sendable {
         self.extraWindowCount = try container.decode(Int.self, forKey: .extraWindowCount)
         self.providerCostPresent = try container.decode(Bool.self, forKey: .providerCostPresent)
         self.providerSpecificData = try container.decode([String].self, forKey: .providerSpecificData)
+        self.detailSections = try container.decodeIfPresent(
+            [ProviderDetailSection].self,
+            forKey: .detailSections) ?? []
     }
 }
 
@@ -544,21 +539,12 @@ public enum ProviderDiagnosticExportBuilder {
             fetchAttempts: input.outcome.attempts.map { ProviderDiagnosticFetchAttempt(from: $0) },
             error: error,
             settings: settingsSummary,
-            details: Self.details(provider: input.provider, outcome: input.outcome))
+            details: nil)
     }
 
     private static func safeAPIRegion(provider: UsageProvider, settings: ProviderSettingsSnapshot?) -> String? {
         guard provider == .minimax else { return nil }
         return settings?.minimax?.apiRegion.rawValue ?? "global"
-    }
-
-    private static func details(provider: UsageProvider, outcome: ProviderFetchOutcome) -> ProviderDiagnosticDetails? {
-        guard provider == .minimax,
-              let usage = outcome.usageSnapshot?.minimaxUsage
-        else {
-            return nil
-        }
-        return .minimax(MiniMaxDiagnosticDetails(from: usage))
     }
 }
 

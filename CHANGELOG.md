@@ -11,6 +11,27 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Notion AI: track Business and Enterprise workspace allowances for rolling and billing-period windows, with calendar-aware pace estimates.
 - Provider plugins: support local JavaScript or TypeScript providers with manifest-driven settings, approval-bound network and cookie access, and generic detail rows and charts.
 - Sessions: discover live pi and OMP sessions alongside Codex and Claude Code, including mixed-version local and remote CLI support.
+- CLI: expose Codex cost-history completeness in JSON and add an experimental provider-native-only scan mode (#2520). Thanks @NickGuAI!
+- Usage & Spend: add an accessible daily, weekly, and cumulative token-activity heatmap backed by the existing persistent cost scan cache (#2548). Thanks @Yuxin-Qiao!
+- Settings: the sidebar is now resizable — drag the divider between 200–380pt; the width persists across launches.
+- z.ai/GLM: route BigModel aliases and relay-file keys only to China endpoints, reject canonical cross-region overrides before bearer auth, and keep Kimi browser import disabled when Cookie Source is Off (#2351). Thanks @Leehow!
+- Kimi: enrich Code API and CLI usage with the monthly membership pool from a signed-in Kimi Desktop session, using WAL-safe read-only cookie access (#2351). Thanks @Leehow!
+- Sessions: discover live pi and OMP sessions through one Pi-family scanner, with dialect-aware metadata, PID-only startup rows, and mixed-version CLI/remote support (#2529). Thanks @wdmitchelluk!
+- Kimi/GLM: distinguish Kimi Code from the regional Open Platform, bind China and international keys to their issuing hosts, and show GLM Coding Plan's 5-hour window as primary with MCP separate (#2351). Thanks @Leehow!
+- Provider plugins: declarative detail rows/charts plus bundled JavaScript conversions for OpenAI, z.ai, OpenRouter, Poe, and ClawRouter behind `CODEXBAR_JS_PROVIDERS=1`.
+- Provider plugins: install local JavaScript or TypeScript providers with manifest-driven settings and generic menu cards, approval-bound network/cookie access, and sandboxed Sucrase transpilation.
+- OpenCode Go: per-model cost and request breakdowns by day in the shared cost history chart, resolved from the local session database (#2649). Thanks @kentoku24!
+- Copilot: decode the AI credits counter for token-billed seats and expose it in `quotakit diagnose`, so Business seats with zero-entitlement quotas are no longer blank at the data layer (#2613, refs #2593). Thanks @Yuxin-Qiao, and @KSEGIT for the discovery!
+
+### Changed
+- Provider plugins: use the bundled JavaScript implementation by default for Crof and Venice on macOS, with identical golden-tested output and the native fetchers retained only for the Linux CLI.
+- Settings: refresh the Plugins pane to match the other panes — labeled install and directory rows with a Show in Finder affordance, a tilde-abbreviated path, a properly sized empty state, and consistent section footers.
+- Settings: localize every Plugins pane control, status, approval prompt, and alert across all complete app locales.
+- **Breaking JSON change:** provider-specific usage payload keys are being removed from `quotakit usage --format json`, `serve /usage`, and synced snapshots in favor of the generic Codable `usage.details` sections. The app and text CLI now render those same declarative rows and charts.
+- Menu: move each usage window's used percentage and reset time into its title row, with all pace detail on one line (#2182). Thanks @jack24254029!
+- Codex: define Fast cost as estimated API Fast USD, resolve it models.dev-first with model-specific API ratios, and refresh GPT-5.6 Terra/Luna fallback rates (refs #2175). Thanks @iam-brain!
+- Synced upstream CodexBar changes through `a1fd8c5a9`, adding richer CLI JSON and native-only scans, token-activity heatmaps, resizable settings, plugin refinements, and provider correctness and reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
+- Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 
 ### Fixed
 - Grok: keep the usage label and pace estimate through the whole billing cycle instead of dropping to a bare "Credits" bar once fewer than about 3.5 days remain.
@@ -18,9 +39,20 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Command Code: parse rolling 5-hour and weekly limits alongside monthly credits.
 - Usage & Spend: retain validated Codex totals while the local scanner refreshes.
 - ZoomMate: preserve browser-cookie scope across the provider's API hosts.
-
-### Changed
-- Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
+- Overview: stop the infinite menu flicker when hovering between provider chart submenus with Agent Sessions enabled — no-op session rescans no longer invalidate menus, submenu hovers no longer trigger rescans, and session updates defer tracked-parent rebuilds like other data refreshes (#2652). Thanks @qazi0!
+- Widgets: bound widget-snapshot file I/O with a defensive timeout and skip further container access once it wedges, so a blocked macOS 26 app-group open() can no longer beachball the app or hang the widget (#2267 follow-up).
+- Command Code: parse and display 5-hour and weekly rolling limits alongside monthly credits and reset times (#2466). Thanks @derekszen!
+- OpenCode Go: include Zen balance in CLI usage reads without waiting beyond five seconds (#2583). Thanks @Yuxin-Qiao!
+- Usage & Spend: keep validated Codex totals visible while the local scanner catches up, with refresh indicators in the dashboard and menu cost rows (#2397). Thanks @hhh2210!
+- ZoomMate: preserve browser cookie scope so parent-domain sessions reach both API hosts without leaking host-only cookies (fixes #2507). Thanks @weddle!
+- Sync: propagate provider configuration edits made by the CLI or directly in `config.json` to the iCloud fleet without echoing remotely applied writes.
+- Codex: classify rate windows by duration, so a 30-day window renders as Monthly with its real reset countdown instead of masquerading as the Session card — consistently across the provider card, widgets, and submenu (#2600, fixes #2592). Thanks @Yuxin-Qiao!
+- Codex: bound the persisted cost-usage cache with entry/byte budgets, window-aware pruning, and a load-refusal cap, so the main process no longer grows without limit on large session corpora (#2646, refs #2637). Thanks @Yuxin-Qiao!
+- Codex: resume fork catch-up from a validated cached offset when a rollout is appended, charging only the appended suffix against scan budgets instead of restarting the bounded full scan (#2648). Thanks @xx205!
+- Claude: report a provably unreadable OAuth delegated refresh as terminal with a long cooldown, instead of looping "run claude login, then retry" and relaunching the CLI every poll cycle (#2650, refs #2634). Thanks @kes02!
+- Usage & Spend: keep priced Codex model rows visible when the history also contains unpriced Auto Review routing rows, labeled as a partial breakdown with ranking removed (#2643). Thanks @akshayprabhu200!
+- Perplexity: pin the promo expiry date to English formatting regardless of system locale, matching the rest of the string and the JS plugin (#2651). Thanks @kes02!
+- OpenRouter: use the server-reported current-period remaining for the key-limit meter and "left" text instead of deriving both from cumulative lifetime usage (#2612, fixes #2605). Thanks @Yuxin-Qiao!
 
 ## 0.32.4.15 / iOS 1.11.3 — 2026-08-02
 

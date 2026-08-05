@@ -2,10 +2,16 @@ import Foundation
 
 public enum ClawRouterProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
+    private static let credentials = ProviderCredentialAdapter.apiKey(
+        environmentKey: ClawRouterSettingsReader.apiKeyEnvironmentKey,
+        additionalProjections: [.enterpriseHost(ClawRouterSettingsReader.baseURLEnvironmentKey)],
+        resolve: ClawRouterSettingsReader.apiKey,
+        missingCredentialMessage: { _ in ClawRouterUsageError.missingCredentials.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
             id: .clawrouter,
+            credentials: self.credentials,
             metadata: ProviderMetadata(
                 id: .clawrouter,
                 displayName: "ClawRouter",
