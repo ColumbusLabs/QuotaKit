@@ -4,6 +4,7 @@ public enum OpenRouterProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
     private static let credentials = ProviderCredentialAdapter.apiKey(
         environmentKey: OpenRouterSettingsReader.envKey,
+        additionalProjections: [.enterpriseHost(OpenRouterSettingsReader.apiURLEnvironmentKey)],
         resolve: OpenRouterSettingsReader.apiToken,
         tokenAccountSupport: TokenAccountSupport(
             title: "API keys",
@@ -12,6 +13,23 @@ public enum OpenRouterProviderDescriptor {
             injection: .environment(key: OpenRouterSettingsReader.envKey),
             requiresManualCookieSource: false,
             cookieName: nil),
+        configValidator: { config in
+            guard let raw = config.sanitizedEnterpriseHost else { return [] }
+            guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+                  url.query == nil,
+                  url.fragment == nil
+            else {
+                return [CodexBarConfigIssue(
+                    severity: .error,
+                    provider: .openrouter,
+                    field: "enterpriseHost",
+                    code: "invalid_enterprise_host",
+                    message: OpenRouterSettingsError.invalidEndpointOverride(
+                        OpenRouterSettingsReader.apiURLEnvironmentKey)
+                        .errorDescription ?? "Invalid OpenRouter API URL.")]
+            }
+            return []
+        },
         missingCredentialMessage: { _ in OpenRouterSettingsError.missingToken.errorDescription })
 
     static func makeDescriptor() -> ProviderDescriptor {
@@ -57,6 +75,7 @@ public enum OpenRouterProviderDescriptor {
 
     private static func fetchPlan() -> ProviderFetchPlan {
         #if canImport(JavaScriptCore)
+        // QuotaKit keeps native fetching by default because its typed payload feeds iCloud/iOS.
         .scriptPrototypeAPI(
             configuration: .init(
                 provider: .openrouter,
@@ -64,6 +83,21 @@ public enum OpenRouterProviderDescriptor {
                 secretKey: OpenRouterSettingsReader.envKey,
                 strategyID: "openrouter.api"),
             resolveToken: { ProviderTokenResolver.openRouterToken(environment: $0) },
+            resolveSettings: { environment in
+                var settings = [
+                    OpenRouterSettingsReader.apiURLEnvironmentKey:
+                        OpenRouterSettingsReader.apiURL(environment: environment).absoluteString,
+                    OpenRouterSettingsReader.clientTitleEnvironmentKey:
+                        OpenRouterSettingsReader.clientTitle(environment: environment),
+                ]
+                if let referer = OpenRouterSettingsReader.httpReferer(environment: environment) {
+                    settings[OpenRouterSettingsReader.httpRefererEnvironmentKey] = referer
+                }
+                return settings
+            },
+            validateContext: { context in
+                try OpenRouterSettingsReader.validateEndpointOverrides(environment: context.env)
+            },
             missingCredentialsError: { OpenRouterSettingsError.missingToken },
             loadUsage: { apiKey, context in
                 try await OpenRouterUsageFetcher.fetchUsage(

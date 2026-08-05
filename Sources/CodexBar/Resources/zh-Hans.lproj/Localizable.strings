@@ -1411,3 +1411,5 @@
 "Enter every endpoint setting to review the exact network origins." = "请填写所有端点设置，以查看确切的网络来源。";
 "Approve" = "批准";
 "Install" = "安装";
+"API URL" = "API 网址";
+"Optional. Defaults to the hosted OpenRouter API." = "可选。默认使用托管的 OpenRouter API。";

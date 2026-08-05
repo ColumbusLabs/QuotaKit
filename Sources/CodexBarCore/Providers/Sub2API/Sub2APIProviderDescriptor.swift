@@ -27,8 +27,8 @@ public enum Sub2APIProviderDescriptor {
         },
         missingCredentialMessage: { environment in
             Sub2APISettingsReader.apiKey(environment: environment) == nil
-                ? Sub2APIUsageError.missingCredentials.errorDescription
-                : Sub2APIUsageError.missingBaseURL.errorDescription
+                ? Sub2APISettingsReader.missingCredentialsMessage
+                : Sub2APISettingsReader.missingBaseURLMessage
         })
 
     public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
@@ -78,22 +78,20 @@ public enum Sub2APIProviderDescriptor {
                 let swift = Sub2APIAPIFetchStrategy()
                 #if canImport(JavaScriptCore)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
-                return [
-                    ScriptFetchStrategy(
-                        id: "sub2api.js",
-                        provider: .sub2api,
-                        bundledPlugin: "sub2api",
-                        secretKey: Sub2APISettingsReader.apiKeyEnvironmentKey,
-                        resolveValues: { context in
-                            guard let key = Sub2APISettingsReader.apiKey(environment: context.env),
-                                  let baseURL = Sub2APISettingsReader.baseURL(environment: context.env)
-                            else { return nil }
-                            return ScriptFetchStrategy.Values(
-                                settings: [Sub2APISettingsReader.baseURLEnvironmentKey: baseURL.absoluteString],
-                                secrets: [Sub2APISettingsReader.apiKeyEnvironmentKey: key])
-                        }),
-                    swift,
-                ]
+                return [ScriptFetchStrategy(
+                    id: "sub2api.js",
+                    provider: .sub2api,
+                    bundledPlugin: "sub2api",
+                    secretKey: Sub2APISettingsReader.apiKeyEnvironmentKey,
+                    sourceLabel: "api",
+                    resolveValues: { context in
+                        guard let key = self.credentials.resolveToken(environment: context.env)?.token,
+                              let baseURL = Sub2APISettingsReader.baseURL(environment: context.env)
+                        else { return nil }
+                        return ScriptFetchStrategy.Values(
+                            settings: [Sub2APISettingsReader.baseURLEnvironmentKey: baseURL.absoluteString],
+                            secrets: [Sub2APISettingsReader.apiKeyEnvironmentKey: key])
+                    }), swift]
                 #else
                 return [swift]
                 #endif

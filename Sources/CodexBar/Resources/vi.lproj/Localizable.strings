@@ -1433,3 +1433,5 @@
 "Enter every endpoint setting to review the exact network origins." = "Nhập đầy đủ các cài đặt điểm cuối để xem chính xác các nguồn mạng.";
 "Approve" = "Phê duyệt";
 "Install" = "Cài đặt";
+"API URL" = "URL API";
+"Optional. Defaults to the hosted OpenRouter API." = "Không bắt buộc. Mặc định sử dụng API OpenRouter được lưu trữ.";

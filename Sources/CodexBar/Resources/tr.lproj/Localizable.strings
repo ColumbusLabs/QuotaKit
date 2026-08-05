@@ -1434,3 +1434,5 @@
 "Enter every endpoint setting to review the exact network origins." = "Kullanılacak ağ kaynaklarını tam olarak incelemek için tüm uç nokta ayarlarını girin.";
 "Approve" = "Onayla";
 "Install" = "Yükle";
+"API URL" = "API URL’si";
+"Optional. Defaults to the hosted OpenRouter API." = "İsteğe bağlı. Varsayılan olarak barındırılan OpenRouter API’si kullanılır.";

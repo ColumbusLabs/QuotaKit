@@ -15,6 +15,8 @@ public enum ClawRouterSettingsReader {
     public static let apiKeyEnvironmentKey = "CLAWROUTER_API_KEY"
     public static let baseURLEnvironmentKey = "CLAWROUTER_BASE_URL"
     public static let defaultBaseURL = URL(string: "https://clawrouter.openclaw.ai")!
+    public static let missingCredentialsMessage =
+        "Missing ClawRouter API key. Add one in Settings or set CLAWROUTER_API_KEY."
 
     public static func apiKey(
         environment: [String: String] = ProcessInfo.processInfo.environment) -> String?
@@ -28,14 +30,21 @@ public enum ClawRouterSettingsReader {
         guard let raw = self.cleaned(environment[self.baseURLEnvironmentKey]) else {
             return self.defaultBaseURL
         }
-        return ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw) ?? self.defaultBaseURL
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else { return self.defaultBaseURL }
+        return url
     }
 
     public static func validateEndpointOverride(
         environment: [String: String] = ProcessInfo.processInfo.environment) throws
     {
         guard let raw = self.cleaned(environment[self.baseURLEnvironmentKey]) else { return }
-        guard ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw) != nil else {
+        guard let url = ProviderEndpointOverrideValidator.normalizedHTTPSURL(from: raw),
+              url.query == nil,
+              url.fragment == nil
+        else {
             throw ClawRouterSettingsError.invalidEndpointOverride(self.baseURLEnvironmentKey)
         }
     }

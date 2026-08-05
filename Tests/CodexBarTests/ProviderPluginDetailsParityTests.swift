@@ -12,6 +12,8 @@ struct ProviderPluginDetailsParityTests {
             (.openrouter, ["openrouter.api"], ["openrouter.js", "openrouter.api"]),
             (.poe, ["poe.api"], ["poe.js", "poe.api"]),
             (.clawrouter, ["clawrouter.api"], ["clawrouter.js", "clawrouter.api"]),
+            (.deepgram, ["deepgram.api"], ["deepgram.js", "deepgram.api"]),
+            (.sub2api, ["sub2api.api"], ["sub2api.js", "sub2api.api"]),
         ]
 
         for (provider, defaultIDs, enabledIDs) in fixtures {
@@ -128,6 +130,90 @@ struct ProviderPluginDetailsParityTests {
                     ("openai", 0.004), ("anthropic", 0.002),
                 ])),
         ])
+    }
+
+    @Test(arguments: [false, true])
+    func `OpenRouter cut-over honors default and overridden requests`(overridden: Bool) async throws {
+        let environment: [String: String] = overridden ? [
+            OpenRouterSettingsReader.apiURLEnvironmentKey: "https://router.example.test/gateway/v1",
+            OpenRouterSettingsReader.httpRefererEnvironmentKey: " https://codexbar.example ",
+            OpenRouterSettingsReader.clientTitleEnvironmentKey: "CodexBar QA",
+        ] : [:]
+        let settings: [String: String] = [
+            OpenRouterSettingsReader.apiURLEnvironmentKey:
+                OpenRouterSettingsReader.apiURL(environment: environment).absoluteString,
+            OpenRouterSettingsReader.clientTitleEnvironmentKey:
+                OpenRouterSettingsReader.clientTitle(environment: environment),
+            OpenRouterSettingsReader.httpRefererEnvironmentKey:
+                OpenRouterSettingsReader.httpReferer(environment: environment) ?? "",
+        ]
+        let requests = PluginRequestRecorder()
+        let transport = Self.recordingTransport(requests) { request in
+            request.url?.path.hasSuffix("/key") == true ? Self.openRouterKey : Self.openRouterCredits
+        }
+
+        _ = try await ProviderPluginRuntime(bundledPlugin: "openrouter", transport: transport).fetchUsage(
+            settings: settings,
+            secrets: [OpenRouterSettingsReader.envKey: "fixture-key"])
+
+        let recorded = await requests.requests
+        #expect(recorded.count == 2)
+        #expect(recorded[0].url?.absoluteString == (overridden
+                ? "https://router.example.test/gateway/v1/credits"
+                : "https://openrouter.ai/api/v1/credits"))
+        #expect(recorded[1].url?.absoluteString == (overridden
+                ? "https://router.example.test/gateway/v1/key"
+                : "https://openrouter.ai/api/v1/key"))
+        #expect(recorded[0].value(forHTTPHeaderField: "X-Title") == (overridden ? "CodexBar QA" : "QuotaKit"))
+        #expect(recorded[0].value(forHTTPHeaderField: "HTTP-Referer") ==
+            (overridden ? "https://codexbar.example" : nil))
+        #expect(recorded[1].value(forHTTPHeaderField: "X-Title") == nil)
+    }
+
+    @Test
+    func `OpenRouter credential adapter projects and validates configured origin`() throws {
+        let endpointKey = OpenRouterSettingsReader.apiURLEnvironmentKey
+        let configured = ProviderConfigEnvironment.applyProviderConfigOverrides(
+            base: [endpointKey: "https://environment.example"],
+            provider: .openrouter,
+            config: ProviderConfig(
+                id: .openrouter,
+                apiKey: "config-key",
+                enterpriseHost: "https://config.example/v1"))
+
+        #expect(configured[OpenRouterSettingsReader.envKey] == "config-key")
+        #expect(configured[endpointKey] == "https://config.example/v1")
+        let credentials = try #require(ProviderDescriptorRegistry.descriptor(for: .openrouter).credentials)
+        #expect(credentials.validateConfig(ProviderConfig(
+            id: .openrouter,
+            enterpriseHost: "http://api.example")).contains { $0.code == "invalid_enterprise_host" })
+        for invalid in ["https://api.example/v1?tenant=a", "https://api.example/v1#fragment"] {
+            #expect(credentials.validateConfig(ProviderConfig(
+                id: .openrouter,
+                enterpriseHost: invalid)).contains { $0.code == "invalid_enterprise_host" })
+        }
+        #expect(credentials.validateConfig(ProviderConfig(
+            id: .openrouter,
+            enterpriseHost: "api.example/v1")).isEmpty)
+    }
+
+    @Test(arguments: [false, true])
+    func `ClawRouter cut-over honors default and overridden requests`(overridden: Bool) async throws {
+        let baseURL = try #require(URL(string: overridden
+                ? "https://router.example.test/gateway/v1"
+                : "https://clawrouter.openclaw.ai"))
+        let requests = PluginRequestRecorder()
+        let transport = Self.recordingTransport(requests) { _ in Self.clawRouter }
+
+        _ = try await ProviderPluginRuntime(bundledPlugin: "clawrouter", transport: transport).fetchUsage(
+            settings: [ClawRouterSettingsReader.baseURLEnvironmentKey: baseURL.absoluteString],
+            secrets: [ClawRouterSettingsReader.apiKeyEnvironmentKey: "fixture-key"])
+
+        let recorded = await requests.requests
+        #expect(recorded.count == 1)
+        #expect(recorded[0].url?.absoluteString == (overridden
+                ? "https://router.example.test/gateway/v1/usage"
+                : "https://clawrouter.openclaw.ai/v1/usage"))
     }
 
     @Test
@@ -282,6 +368,21 @@ struct ProviderPluginDetailsParityTests {
         }
     }
 
+    private static func recordingTransport(
+        _ recorder: PluginRequestRecorder,
+        body: @escaping @Sendable (URLRequest) throws -> String) -> ProviderHTTPTransportHandler
+    {
+        ProviderHTTPTransportHandler { request in
+            await recorder.append(request)
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]))
+            return try (Data(body(request).utf8), response)
+        }
+    }
+
     private static func row(_ label: String, _ value: String, _ secondary: String? = nil)
         throws -> ProviderDetailSection.Row
     {
@@ -330,12 +431,25 @@ struct ProviderPluginDetailsParityTests {
 
     private static func environment(for provider: UsageProvider) -> [String: String] {
         switch provider {
-        case .openai: [OpenAIAPISettingsReader.apiKeyEnvironmentKey: "fixture-key"]
-        case .zai: [ZaiSettingsReader.apiTokenKey: "fixture-key"]
-        case .openrouter: [OpenRouterSettingsReader.envKey: "fixture-key"]
-        case .poe: [PoeSettingsReader.apiKeyEnvironmentKey: "fixture-key"]
-        case .clawrouter: [ClawRouterSettingsReader.apiKeyEnvironmentKey: "fixture-key"]
-        default: [:]
+        case .openai:
+            [OpenAIAPISettingsReader.apiKeyEnvironmentKey: "fixture-key"]
+        case .zai:
+            [ZaiSettingsReader.apiTokenKey: "fixture-key"]
+        case .openrouter:
+            [OpenRouterSettingsReader.envKey: "fixture-key"]
+        case .poe:
+            [PoeSettingsReader.apiKeyEnvironmentKey: "fixture-key"]
+        case .clawrouter:
+            [ClawRouterSettingsReader.apiKeyEnvironmentKey: "fixture-key"]
+        case .deepgram:
+            [DeepgramSettingsReader.apiKeyEnvironmentKey: "fixture-key"]
+        case .sub2api:
+            [
+                Sub2APISettingsReader.apiKeyEnvironmentKey: "fixture-key",
+                Sub2APISettingsReader.baseURLEnvironmentKey: "https://api.example.com",
+            ]
+        default:
+            [:]
         }
     }
 
@@ -427,6 +541,14 @@ private struct FixtureClaudeFetcher: ClaudeUsageFetching {
 
     func detectVersion() -> String? {
         nil
+    }
+}
+
+private actor PluginRequestRecorder {
+    private(set) var requests: [URLRequest] = []
+
+    func append(_ request: URLRequest) {
+        self.requests.append(request)
     }
 }
 #endif

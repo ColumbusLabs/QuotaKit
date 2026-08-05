@@ -187,6 +187,7 @@ extension DeepgramUsageSnapshot {
             tertiary: nil,
             providerCost: nil,
             details: [.makeSection(title: "Usage summary", rows: self.detailRows)],
+            deepgramUsage: self,
             updatedAt: self.updatedAt,
             identity: identity)
     }

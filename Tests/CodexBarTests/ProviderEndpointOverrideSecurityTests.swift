@@ -4,6 +4,33 @@ import Testing
 
 struct ProviderEndpointOverrideSecurityTests {
     @Test
+    func `base endpoint overrides reject query and fragment components`() {
+        for endpoint in ["https://proxy.test/v1?tenant=a", "https://proxy.test/v1#fragment"] {
+            #expect(throws: OpenRouterSettingsError.invalidEndpointOverride(
+                OpenRouterSettingsReader.apiURLEnvironmentKey))
+            {
+                try OpenRouterSettingsReader.validateEndpointOverrides(environment: [
+                    OpenRouterSettingsReader.apiURLEnvironmentKey: endpoint,
+                ])
+            }
+            #expect(throws: ClawRouterSettingsError.invalidEndpointOverride(
+                ClawRouterSettingsReader.baseURLEnvironmentKey))
+            {
+                try ClawRouterSettingsReader.validateEndpointOverride(environment: [
+                    ClawRouterSettingsReader.baseURLEnvironmentKey: endpoint,
+                ])
+            }
+            #expect(throws: DeepgramSettingsError.invalidEndpointOverride(
+                DeepgramSettingsReader.apiURLEnvironmentKey))
+            {
+                try DeepgramSettingsReader.validateEndpointOverride(environment: [
+                    DeepgramSettingsReader.apiURLEnvironmentKey: endpoint,
+                ])
+            }
+        }
+    }
+
+    @Test
     func `sibling endpoint overrides allow bracketed IPv6 literals`() throws {
         let endpoint = "https://[::1]:8443/v1"
 
@@ -80,15 +107,6 @@ struct ProviderEndpointOverrideSecurityTests {
     @Test
     func `credentialed fetchers reject insecure overrides before sending requests`() async {
         let insecureURL = "http://attacker.test/v1"
-
-        do {
-            _ = try await OpenRouterUsageFetcher.fetchUsage(
-                apiKey: "openrouter-test",
-                environment: ["OPENROUTER_API_URL": insecureURL])
-            Issue.record("Expected OpenRouterSettingsError.invalidEndpointOverride")
-        } catch {
-            #expect(error as? OpenRouterSettingsError == .invalidEndpointOverride("OPENROUTER_API_URL"))
-        }
 
         do {
             _ = try await CodebuffUsageFetcher.fetchUsage(

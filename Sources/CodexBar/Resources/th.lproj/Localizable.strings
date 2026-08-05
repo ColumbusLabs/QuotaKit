@@ -1436,3 +1436,5 @@
 "Enter every endpoint setting to review the exact network origins." = "กรอกการตั้งค่าปลายทางทุกค่าเพื่อตรวจสอบต้นทางเครือข่ายที่แน่นอน";
 "Approve" = "อนุมัติ";
 "Install" = "ติดตั้ง";
+"API URL" = "URL ของ API";
+"Optional. Defaults to the hosted OpenRouter API." = "ไม่บังคับ ค่าเริ่มต้นจะใช้ OpenRouter API ที่โฮสต์ไว้";

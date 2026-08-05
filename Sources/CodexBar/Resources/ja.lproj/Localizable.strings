@@ -1433,3 +1433,5 @@
 "Enter every endpoint setting to review the exact network origins." = "正確なネットワークオリジンを確認するには、すべてのエンドポイント設定を入力してください。";
 "Approve" = "承認";
 "Install" = "インストール";
+"API URL" = "API URL";
+"Optional. Defaults to the hosted OpenRouter API." = "任意。デフォルトでは、ホストされている OpenRouter API を使用します。";

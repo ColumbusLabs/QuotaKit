@@ -75,33 +75,33 @@ public enum DeepgramProviderDescriptor {
                 let swift = DeepgramAPIFetchStrategy()
                 #if canImport(JavaScriptCore)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
-                return [
-                    ScriptFetchStrategy(
-                        id: "deepgram.js",
-                        provider: .deepgram,
-                        bundledPlugin: "deepgram",
-                        secretKey: DeepgramSettingsReader.apiKeyEnvironmentKey,
-                        resolveValues: { context in
-                            guard let key = ProviderTokenResolver.deepgramResolution(
-                                type: .apiKey,
-                                environment: context.env)
-                            else { return nil }
-                            var settings: [String: String] = [:]
-                            if let project = ProviderTokenResolver.deepgramResolution(
-                                type: .projectID,
-                                environment: context.env)
-                            {
-                                settings[DeepgramSettingsReader.projectIDEnvironmentKey] = project
-                            }
-                            if let apiURL = context.env[DeepgramUsageFetcher.apiURLKey] {
-                                settings[DeepgramUsageFetcher.apiURLKey] = apiURL
-                            }
-                            return ScriptFetchStrategy.Values(
-                                settings: settings,
-                                secrets: [DeepgramSettingsReader.apiKeyEnvironmentKey: key])
-                        }),
-                    swift,
-                ]
+                return [ScriptFetchStrategy(
+                    id: "deepgram.js",
+                    provider: .deepgram,
+                    bundledPlugin: "deepgram",
+                    secretKey: DeepgramSettingsReader.apiKeyEnvironmentKey,
+                    sourceLabel: "api",
+                    validateContext: { context in
+                        try DeepgramSettingsReader.validateEndpointOverride(environment: context.env)
+                    },
+                    resolveValues: { context in
+                        guard let key = self.credentials.resolveToken(
+                            environment: context.env)?.token
+                        else { return nil }
+                        var settings = [
+                            DeepgramSettingsReader.apiURLEnvironmentKey:
+                                DeepgramSettingsReader.apiURL(environment: context.env).absoluteString,
+                        ]
+                        if let project = self.credentials.resolveToken(
+                            kind: .projectID,
+                            environment: context.env)?.token
+                        {
+                            settings[DeepgramSettingsReader.projectIDEnvironmentKey] = project
+                        }
+                        return ScriptFetchStrategy.Values(
+                            settings: settings,
+                            secrets: [DeepgramSettingsReader.apiKeyEnvironmentKey: key])
+                    }), swift]
                 #else
                 return [swift]
                 #endif
@@ -150,13 +150,16 @@ struct DeepgramAPIFetchStrategy: ProviderFetchStrategy {
 }
 
 /// Errors related to Deepgram settings
-public enum DeepgramSettingsError: LocalizedError, Sendable {
+public enum DeepgramSettingsError: LocalizedError, Sendable, Equatable {
     case missingToken
+    case invalidEndpointOverride(String)
 
     public var errorDescription: String? {
         switch self {
         case .missingToken:
             "Deepgram API token not configured. Set DEEPGRAM_API_KEY environment variable or configure in Settings."
+        case let .invalidEndpointOverride(key):
+            "Deepgram endpoint override \(key) must use HTTPS or a bare host."
         }
     }
 }

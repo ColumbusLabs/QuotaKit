@@ -1463,3 +1463,5 @@
 "Enter every endpoint setting to review the exact network origins." = "請填寫所有端點設定，以檢視確切的網路來源。";
 "Approve" = "核准";
 "Install" = "安裝";
+"API URL" = "API 網址";
+"Optional. Defaults to the hosted OpenRouter API." = "選填。預設使用託管的 OpenRouter API。";

@@ -14,6 +14,7 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
         _ = settings.openRouterAPIToken
+        _ = settings.openRouterAPIURL
     }
 
     @MainActor
@@ -41,6 +42,16 @@ struct OpenRouterProviderImplementation: ProviderImplementation {
                 kind: .secure,
                 placeholder: "sk-or-v1-...",
                 binding: context.stringBinding(\.openRouterAPIToken),
+                actions: [],
+                isVisible: nil,
+                onActivate: nil),
+            ProviderSettingsFieldDescriptor(
+                id: "openrouter-api-url",
+                title: "API URL",
+                subtitle: "Optional. Defaults to the hosted OpenRouter API.",
+                kind: .plain,
+                placeholder: "https://openrouter.ai/api/v1",
+                binding: context.stringBinding(\.openRouterAPIURL),
                 actions: [],
                 isVisible: nil,
                 onActivate: nil),

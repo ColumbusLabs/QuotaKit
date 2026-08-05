@@ -1432,3 +1432,5 @@
 "Enter every endpoint setting to review the exact network origins." = "Введіть усі параметри кінцевих точок, щоб переглянути точні джерела мережевих запитів.";
 "Approve" = "Схвалити";
 "Install" = "Встановити";
+"API URL" = "URL-адреса API";
+"Optional. Defaults to the hosted OpenRouter API." = "Необов’язково. Типово використовується розміщений API OpenRouter.";

@@ -11,4 +11,13 @@ extension SettingsStore {
             self.logSecretUpdate(provider: .openrouter, field: "apiKey", value: newValue)
         }
     }
+
+    var openRouterAPIURL: String {
+        get { self.configSnapshot.providerConfig(for: .openrouter)?.sanitizedEnterpriseHost ?? "" }
+        set {
+            self.updateProviderConfig(provider: .openrouter) { entry in
+                entry.enterpriseHost = self.normalizedConfigValue(newValue)
+            }
+        }
+    }
 }

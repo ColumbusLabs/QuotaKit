@@ -35,6 +35,7 @@ public enum CodexBarConfigValidator {
         .kimi,
         .litellm,
         .llmproxy,
+        .openrouter,
         .sub2api,
         .wayfinder,
     ]
