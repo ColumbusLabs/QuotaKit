@@ -416,6 +416,7 @@ extension SettingsStore {
         config: CodexBarConfig,
         hadExistingConfig: Bool) -> Bool
     {
+        // Provider-specific by design: the legacy OpenAI web-access flag was inferred from Codex's cookie config.
         guard let codex = config.providerConfig(for: .codex) else { return false }
         if let cookieSource = codex.cookieSource {
             return cookieSource.isEnabled

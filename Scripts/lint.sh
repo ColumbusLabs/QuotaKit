@@ -129,6 +129,10 @@ audit_claude_parser_version() {
   return 1
 }
 
+check_provider_manifests() {
+  "${ROOT_DIR}/Scripts/regenerate-provider-manifests.sh" --check
+}
+
 check_package_product_paths() {
   "${ROOT_DIR}/Scripts/test_package_product_paths.sh"
 }
@@ -228,6 +232,7 @@ check_llms_index() {
 
 run_portable_checks() {
   check_codex_parser_hash
+  check_provider_manifests
   check_package_product_paths
   check_package_strip
   check_package_signing

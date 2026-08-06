@@ -123,7 +123,7 @@ struct ClawRouterPluginGoldenTests {
 
         #expect(environment[ClawRouterSettingsReader.apiKeyEnvironmentKey] == "router-token")
         #expect(environment[ClawRouterSettingsReader.baseURLEnvironmentKey] == "https://router.example.com")
-        #expect(ProviderTokenResolver.clawRouterToken(environment: environment) == "router-token")
+        #expect(ProviderTokenResolver.token(for: .clawrouter, environment: environment) == "router-token")
     }
 
     @Test

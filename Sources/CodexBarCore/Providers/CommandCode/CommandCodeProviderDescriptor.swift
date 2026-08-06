@@ -24,6 +24,7 @@ public enum CommandCodeProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                debugLogUnavailableMessage: "Command Code debug log not yet implemented",
                 browserCookieOrder: ProviderBrowserCookieDefaults.defaultImportOrder,
                 dashboardURL: "https://commandcode.ai/studio",
                 subscriptionDashboardURL: "https://commandcode.ai/settings/billing",
@@ -37,7 +38,9 @@ public enum CommandCodeProviderDescriptor {
                     ProviderColor(hex: 0x000000),
                     ProviderColor(hex: 0xFFFFFF),
                     ProviderColor(hex: 0x7B5BFF),
-                ]),
+                ],
+                widgetColor: ProviderColor(hex: 0x000000),
+                progressColorStyle: .label),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "Command Code cost summary is not yet supported." }),
@@ -48,7 +51,10 @@ public enum CommandCodeProviderDescriptor {
             cli: ProviderCLIConfig(
                 name: "commandcode",
                 aliases: ["command-code"],
-                versionDetector: nil))
+                versionDetector: nil,
+                browserSupportExemption: { _, _, settings in
+                    settings?.commandcode?.cookieSource == .manual
+                }))
     }
 }
 

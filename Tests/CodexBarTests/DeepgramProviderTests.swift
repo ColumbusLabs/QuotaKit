@@ -50,9 +50,9 @@ struct DeepgramProviderTests {
         #expect(apiField.kind == .secure)
         #expect(projectField.kind == .plain)
         apiField.binding.wrappedValue = "dg_test_token"
-        #expect(settings.deepgramAPIKey == "dg_test_token")
+        #expect(settings[providerConfig: .deepgram, field: .apiKey] == "dg_test_token")
         projectField.binding.wrappedValue = "proj-1234"
-        #expect(settings.deepgramProjectID == "proj-1234")
+        #expect(settings[providerConfig: .deepgram, field: .workspace] == "proj-1234")
     }
 
     @Test

@@ -302,7 +302,7 @@ public struct TTYCommandRunner {
         public var stopOnSubstrings: [String]
         public var settleAfterStop: TimeInterval
         public var forceCodexStatusMode: Bool
-        public var useClaudeProbeWorkingDirectory: Bool
+        public var useProviderProbeWorkingDirectory: Bool
         public var returnOnEmptyProcessExit: Bool
         public var cancellationCheck: @Sendable () -> Bool
 
@@ -321,7 +321,7 @@ public struct TTYCommandRunner {
             stopOnSubstrings: [String] = [],
             settleAfterStop: TimeInterval = 0.25,
             forceCodexStatusMode: Bool = false,
-            useClaudeProbeWorkingDirectory: Bool = false,
+            useProviderProbeWorkingDirectory: Bool = false,
             returnOnEmptyProcessExit: Bool = false,
             cancellationCheck: @escaping @Sendable () -> Bool = { Task<Never, Never>.isCancelled })
         {
@@ -339,7 +339,7 @@ public struct TTYCommandRunner {
             self.stopOnSubstrings = stopOnSubstrings
             self.settleAfterStop = settleAfterStop
             self.forceCodexStatusMode = forceCodexStatusMode
-            self.useClaudeProbeWorkingDirectory = useClaudeProbeWorkingDirectory
+            self.useProviderProbeWorkingDirectory = useProviderProbeWorkingDirectory
             self.returnOnEmptyProcessExit = returnOnEmptyProcessExit
             self.cancellationCheck = cancellationCheck
         }
@@ -558,19 +558,6 @@ public struct TTYCommandRunner {
         return nil
     }
 
-    static func claudeLaunchCommand(
-        isClaudeCLI: Bool,
-        resolved: String,
-        extraArgs: [String]) -> (executable: String, arguments: [String])
-    {
-        let bundledWatchdog = Self.locateBundledHelper("QuotaKitClaudeWatchdog")
-            ?? Self.locateBundledHelper("CodexBarClaudeWatchdog")
-        if isClaudeCLI, let watchdog = bundledWatchdog {
-            return (watchdog, ["--", resolved] + extraArgs)
-        }
-        return (resolved, extraArgs)
-    }
-
     // swiftlint:disable function_body_length
     // swiftlint:disable:next cyclomatic_complexity
     public func run(
@@ -651,18 +638,19 @@ public struct TTYCommandRunner {
         }
 
         let baseEnv = options.baseEnvironment ?? ProcessInfo.processInfo.environment
-        let isClaudeCLI = Self.isClaudeBinary(requested: binary, resolved: resolved, environment: baseEnv)
-        let launchCommand = Self.claudeLaunchCommand(
-            isClaudeCLI: isClaudeCLI,
+        let ttyLaunch = Self.providerTTYLaunch(requested: binary, resolved: resolved, environment: baseEnv)
+        let launchCommand = Self.ttyLaunchCommand(
+            requested: binary,
             resolved: resolved,
+            environment: baseEnv,
             extraArgs: options.extraArgs)
+        let executable = launchCommand.executable
+        let arguments = launchCommand.arguments
         // Use login-shell PATH when available, but keep the caller’s environment (HOME, LANG, etc.) so
         // the CLIs can find their auth/config files.
         var env = Self.enrichedEnvironment(baseEnv: baseEnv, home: baseEnv["HOME"] ?? NSHomeDirectory())
         let workingDirectory = options.workingDirectory
-            ?? (options.useClaudeProbeWorkingDirectory && isClaudeCLI
-                ? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
-                : nil)
+            ?? (options.useProviderProbeWorkingDirectory ? ttyLaunch?.probeWorkingDirectory?() : nil)
         if let workingDirectory {
             env["PWD"] = workingDirectory.path
         }
@@ -710,8 +698,8 @@ public struct TTYCommandRunner {
         do {
             try checkCancellation()
             process = try SpawnedProcessGroup.launchPTY(
-                binary: launchCommand.executable,
-                arguments: launchCommand.arguments,
+                binary: executable,
+                arguments: arguments,
                 environment: env,
                 workingDirectory: workingDirectory,
                 fileDescriptors: (primary: primaryFD, secondary: secondaryFD))
@@ -743,8 +731,10 @@ public struct TTYCommandRunner {
 
         let deadline = Date().addingTimeInterval(options.timeout)
         let trimmed = script.trimmingCharacters(in: .whitespacesAndNewlines)
-        let isCodex = (binaryName == "codex") || options.forceCodexStatusMode
-        let isCodexStatus = isCodex && trimmed == "/status"
+        let ttyStatusCommand = ProviderDescriptorRegistry.all
+            .first { $0.cli.name == binaryName }?.cli.ttyStatusCommand
+        let isCodex = ttyStatusCommand != nil || options.forceCodexStatusMode
+        let isCodexStatus = isCodex && trimmed == (ttyStatusCommand ?? "/status")
 
         var buffer = BoundedOutputBuffer()
         var didExceedOutputLimit = false
@@ -1184,26 +1174,53 @@ extension TTYCommandRunner {
     }
 
     public static func which(_ tool: String) -> String? {
-        if tool == "codex", let located = BinaryLocator.resolveCodexBinary() {
-            return located
-        }
-        if tool == "claude", let located = BinaryLocator.resolveClaudeBinary() {
+        if let cli = ProviderDescriptorRegistry.all.first(where: { $0.cli.name == tool })?.cli,
+           cli.prefersBinaryLocatorForWhich,
+           let located = cli.binaryLocator?()
+        {
             return located
         }
         return self.runWhich(tool)
     }
 
-    private static func isClaudeBinary(requested: String, resolved: String, environment: [String: String]) -> Bool {
+    static func ttyLaunchCommand(
+        requested: String,
+        resolved: String,
+        environment: [String: String],
+        extraArgs: [String]) -> (executable: String, arguments: [String])
+    {
+        let ttyLaunch = self.providerTTYLaunch(requested: requested, resolved: resolved, environment: environment)
+        if let watchdogName = ttyLaunch?.bundledWatchdogHelperName,
+           let watchdog = self.locateBundledHelper(watchdogName)
+        {
+            return (watchdog, ["--", resolved] + extraArgs)
+        }
+        return (resolved, extraArgs)
+    }
+
+    private static func providerTTYLaunch(
+        requested: String,
+        resolved: String,
+        environment: [String: String]) -> ProviderTTYLaunchConfig?
+    {
         let requestedName = URL(fileURLWithPath: requested).lastPathComponent
         let resolvedName = URL(fileURLWithPath: resolved).lastPathComponent
-        if requested == "claude" || requestedName == "claude" || resolvedName == "claude" {
-            return true
-        }
-
-        guard let override = environment["CLAUDE_CLI_PATH"], !override.isEmpty else { return false }
-        let normalizedOverride = self.normalizedExecutablePath(override)
-        return self.normalizedExecutablePath(resolved) == normalizedOverride
-            || self.normalizedExecutablePath(requested) == normalizedOverride
+        return ProviderDescriptorRegistry.all.lazy.compactMap { descriptor -> ProviderTTYLaunchConfig? in
+            let cli = descriptor.cli
+            guard let ttyLaunch = cli.ttyLaunch else { return nil }
+            if requested == cli.name || requestedName == cli.name || resolvedName == cli.name {
+                return ttyLaunch
+            }
+            guard let environmentKey = ttyLaunch.executableOverrideEnvironmentKey,
+                  let override = environment[environmentKey],
+                  !override.isEmpty
+            else { return nil }
+            let normalizedOverride = self.normalizedExecutablePath(override)
+            guard self.normalizedExecutablePath(resolved) == normalizedOverride
+                || self.normalizedExecutablePath(requested) == normalizedOverride
+            else { return nil }
+            return ttyLaunch
+        }.first
     }
 
     private static func normalizedExecutablePath(_ path: String) -> String {

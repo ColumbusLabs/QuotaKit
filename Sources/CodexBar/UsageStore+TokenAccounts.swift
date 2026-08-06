@@ -91,6 +91,9 @@ extension UsageStore {
         snapshot: UsageSnapshot,
         sourceLabel: String?)
     {
+        let support = TokenAccountSupportCatalog.support(for: provider)
+        let cookieSource = self.settings.providerConfig(for: provider)?.cookieSource ?? .auto
+        guard support?.selectedAccountRequiresManualCookieSource != true || cookieSource != .auto else { return }
         let cached = TokenAccountUsageSnapshot(
             account: account,
             snapshot: snapshot,
@@ -300,6 +303,7 @@ extension UsageStore {
             }
         }
 
+        // Provider-specific by design: Codex multi-account results reconcile against the post-fetch visible projection.
         let currentProjection = self.freshCodexVisibleAccountProjectionForAccountRefresh(
             requireLiveManagedAuthFor: managedAccountIDsWithReadableAuthAtStart)
         guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
@@ -503,6 +507,7 @@ extension UsageStore {
         _ snapshot: UsageSnapshot?,
         account: CodexVisibleAccount) -> UsageSnapshot?
     {
+        // Provider-specific by design: Codex managed profiles relabel fetched identity from reconciled workspace data.
         guard let snapshot else { return nil }
         let existing = snapshot.identity(for: .codex)
         return snapshot.withIdentity(ProviderIdentitySnapshot(
@@ -672,6 +677,7 @@ extension UsageStore {
         _ outcome: ProviderFetchOutcome,
         account: CodexVisibleAccount) -> Bool
     {
+        // Provider-specific by design: Codex account refresh rejects successful payloads for a different email owner.
         guard case let .success(result) = outcome.result else { return true }
         guard let resultEmail = CodexIdentityResolver.normalizeEmail(
             result.usage.scoped(to: .codex).accountEmail(for: .codex))
@@ -1266,6 +1272,7 @@ extension UsageStore {
                 // produces visually duplicate cards with no useful data.
                 return ResolvedAccountOutcome(snapshot: nil, usage: nil, freshUsage: nil)
             }
+            // Provider-specific by design: Claude OAuth rate limits preserve a matching prior OAuth account snapshot.
             if provider == .claude,
                ClaudeUsageError.isClaudeOAuthUsageRateLimit(error),
                let priorSnapshot,

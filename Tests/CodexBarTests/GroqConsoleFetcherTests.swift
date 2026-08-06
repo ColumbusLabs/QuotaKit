@@ -1,6 +1,6 @@
-import CodexBarCore
 import Foundation
 import Testing
+@testable import CodexBarCore
 
 struct GroqConsoleFetcherTests {
     /// A JWT whose payload carries the Groq organization claim. Signature is a
@@ -113,5 +113,40 @@ struct GroqConsoleFetcherTests {
         #expect(snapshot.identity?.loginMethod == "Console")
         #expect(snapshot.providerCost?.used == 0.5)
         #expect(snapshot.details.first?.chart?.points.count == 1)
+    }
+
+    @Test
+    func `background availability accepts an explicit environment session`() async {
+        let environment = [GroqConsoleSession.sessionEnvironmentKey: "header.payload.signature"]
+        let available = await ProviderInteractionContext.$current.withValue(.background) {
+            await GroqConsoleWebFetchStrategy().isAvailable(Self.context(environment: environment))
+        }
+
+        #expect(available)
+    }
+
+    @Test
+    func `background availability does not scan browser sessions`() async {
+        let available = await ProviderInteractionContext.$current.withValue(.background) {
+            await GroqConsoleWebFetchStrategy().isAvailable(Self.context(environment: [:]))
+        }
+
+        #expect(!available)
+    }
+
+    private static func context(environment: [String: String]) -> ProviderFetchContext {
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .auto,
+            includeCredits: false,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: environment,
+            settings: nil,
+            fetcher: UsageFetcher(environment: environment),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection, environment: environment),
+            browserDetection: browserDetection)
     }
 }

@@ -556,7 +556,7 @@ struct SettingsStoreCoverageTests {
         settings.ensureTokenAccountsLoaded()
 
         #expect(settings.zaiAPIToken.isEmpty)
-        #expect(settings.syntheticAPIToken.isEmpty)
+        #expect(settings[providerConfig: .synthetic, field: .apiKey].isEmpty)
     }
 
     @Test
