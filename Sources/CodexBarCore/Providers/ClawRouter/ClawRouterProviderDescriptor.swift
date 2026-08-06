@@ -12,6 +12,7 @@ public enum ClawRouterProviderDescriptor {
         ProviderDescriptor(
             id: .clawrouter,
             credentials: self.credentials,
+            config: ProviderConfigCapabilities(supportsEnterpriseHost: true),
             metadata: ProviderMetadata(
                 id: .clawrouter,
                 displayName: "ClawRouter",
@@ -25,6 +26,7 @@ public enum ClawRouterProviderDescriptor {
                 cliName: "clawrouter",
                 defaultEnabled: false,
                 widgetSelectable: false,
+                debugLogUnavailableMessage: "ClawRouter debug log not yet implemented",
                 dashboardURL: "https://clawrouter.openclaw.ai/dashboard/access",
                 statusPageURL: nil),
             branding: ProviderBranding(
@@ -39,6 +41,9 @@ public enum ClawRouterProviderDescriptor {
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: { "ClawRouter spend is reported by its usage API." }),
+            presentation: ProviderUsagePresentation(costPresenter: { _ in
+                ProviderCostPresentation(showsGenericFallback: false, menuCardStyle: .clawRouter)
+            }),
             fetchPlan: self.fetchPlan(),
             cli: ProviderCLIConfig(
                 name: "clawrouter",
@@ -85,11 +90,11 @@ struct ClawRouterAPIFetchStrategy: ProviderFetchStrategy {
     let kind: ProviderFetchKind = .apiToken
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        ProviderTokenResolver.clawRouterToken(environment: context.env) != nil
+        ProviderTokenResolver.token(for: .clawrouter, environment: context.env) != nil
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = ProviderTokenResolver.clawRouterToken(environment: context.env) else {
+        guard let apiKey = ProviderTokenResolver.token(for: .clawrouter, environment: context.env) else {
             throw ClawRouterUsageError.missingCredentials
         }
         try ClawRouterSettingsReader.validateEndpointOverride(environment: context.env)

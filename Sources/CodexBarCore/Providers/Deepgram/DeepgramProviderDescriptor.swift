@@ -25,6 +25,7 @@ public enum DeepgramProviderDescriptor {
         ProviderDescriptor(
             id: .deepgram,
             credentials: self.credentials,
+            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 5),
             metadata: ProviderMetadata(
                 id: .deepgram,
                 displayName: "Deepgram",
@@ -40,6 +41,7 @@ public enum DeepgramProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
+                debugLogUnavailableMessage: "Deepgram debug log not yet implemented",
                 browserCookieOrder: nil,
                 dashboardURL: "https://console.deepgram.com/project/",
                 statusPageURL: nil,
@@ -55,7 +57,8 @@ public enum DeepgramProviderDescriptor {
                     ProviderColor(hex: 0x13EF95),
                     ProviderColor(hex: 0x149AFB),
                     ProviderColor(hex: 0x1A1A1F),
-                ]),
+                ],
+                widgetColor: ProviderColor(red: 10 / 255, green: 18 / 255, blue: 27 / 255)),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
                 noDataMessage: {
@@ -137,15 +140,11 @@ struct DeepgramAPIFetchStrategy: ProviderFetchStrategy {
     }
 
     private static func resolveAPIKey(_ context: ProviderFetchContext) -> String? {
-        ProviderTokenResolver.deepgramResolution(
-            type: .apiKey,
-            environment: context.env)
+        ProviderTokenResolver.token(for: .deepgram, environment: context.env)
     }
 
     private static func resolveProjectID(_ context: ProviderFetchContext) -> String? {
-        ProviderTokenResolver.deepgramResolution(
-            type: .projectID,
-            environment: context.env)
+        ProviderTokenResolver.token(for: .deepgram, kind: .projectID, environment: context.env)
     }
 }
 

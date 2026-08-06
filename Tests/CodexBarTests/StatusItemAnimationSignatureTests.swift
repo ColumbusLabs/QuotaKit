@@ -50,7 +50,7 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -110,7 +110,7 @@ struct StatusItemAnimationSignatureTests {
         settings.selectedMenuProvider = .antigravity
         settings.menuBarShowsBrandIconWithPercent = false
         settings.usageBarsShowUsed = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let antigravityMeta = registry.metadata[.antigravity] {
@@ -187,7 +187,7 @@ struct StatusItemAnimationSignatureTests {
         settings.selectedMenuProvider = .mistral
         settings.menuBarShowsBrandIconWithPercent = false
         settings.usageBarsShowUsed = true
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
         settings.setMenuBarMetricPreference(.monthlyPlan, for: .mistral)
 
         let registry = ProviderRegistry.shared
@@ -283,7 +283,7 @@ struct StatusItemAnimationSignatureTests {
         settings.menuBarShowsBrandIconWithPercent = true
         settings.menuBarDisplayMode = .percent
         settings.usageBarsShowUsed = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
@@ -469,7 +469,7 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {
@@ -582,7 +582,7 @@ struct StatusItemAnimationSignatureTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.menuBarShowsBrandIconWithPercent = false
-        settings.syntheticAPIToken = "synthetic-test-token"
+        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
         settings.setProviderOrder([.synthetic, .codex])
 
         let registry = ProviderRegistry.shared

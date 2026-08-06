@@ -567,7 +567,7 @@ extension UsageStoreCoverageTests {
         let store = Self.makeUsageStore(settings: settings)
         #expect(store.unavailableMessage(for: .sub2api) == Sub2APISettingsReader.missingCredentialsMessage)
 
-        settings.sub2APIAPIKey = "group-key"
+        settings[providerConfig: .sub2api, field: .apiKey] = "group-key"
         #expect(store.unavailableMessage(for: .sub2api) == Sub2APISettingsReader.missingBaseURLMessage)
     }
 

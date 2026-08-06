@@ -148,9 +148,10 @@ struct TTYCommandRunnerEnvTests {
             unsetenv("CODEXBAR_HELPER_CODEXBARCLAUDEWATCHDOG")
         }
 
-        let launch = TTYCommandRunner.claudeLaunchCommand(
-            isClaudeCLI: true,
+        let launch = TTYCommandRunner.ttyLaunchCommand(
+            requested: "claude",
             resolved: "/usr/local/bin/claude",
+            environment: [:],
             extraArgs: ["--print"])
 
         #expect(launch.executable == quotaKitWatchdog.path)
@@ -302,7 +303,7 @@ struct TTYCommandRunnerEnvTests {
             options: .init(
                 timeout: Self.harnessPTYTimeout,
                 stopOnSubstrings: ["deep-link-disabled"],
-                useClaudeProbeWorkingDirectory: true))
+                useProviderProbeWorkingDirectory: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
 
         #expect(clean.contains("deep-link-disabled"))
@@ -322,7 +323,7 @@ struct TTYCommandRunnerEnvTests {
                 timeout: Self.harnessPTYTimeout,
                 baseEnvironment: env,
                 stopOnSubstrings: ["deep-link-disabled"],
-                useClaudeProbeWorkingDirectory: true))
+                useProviderProbeWorkingDirectory: true))
         let clean = result.text.replacingOccurrences(of: "\r", with: "")
 
         #expect(clean.contains("deep-link-disabled"))

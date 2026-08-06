@@ -123,8 +123,8 @@ struct SyncCoordinatorTests {
     func `xAI sync preserves balance and cost history without a false budget`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-xai")
         settings.iCloudSyncEnabled = true
-        settings.xaiManagementAPIKey = "fixture-management-key"
-        settings.xaiTeamID = "fixture-team"
+        settings[providerConfig: .xai, field: .apiKey] = "fixture-management-key"
+        settings[providerConfig: .xai, field: .workspace] = "fixture-team"
         try settings.setProviderEnabled(
             provider: .xai,
             metadata: #require(ProviderDefaults.metadata[.xai]),
