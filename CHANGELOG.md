@@ -5,7 +5,7 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## Unreleased
+## 0.32.4.16 / iOS 1.11.3 — 2026-08-05
 
 ### Added
 - Notion AI: track Business and Enterprise workspace allowances for rolling and billing-period windows, with calendar-aware pace estimates.
