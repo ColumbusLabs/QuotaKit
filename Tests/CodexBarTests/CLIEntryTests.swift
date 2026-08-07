@@ -15,15 +15,18 @@ final class CLIEntryTests: XCTestCase {
         let help = CodexBarCLI.rootHelp(version: "0.0.0")
 
         XCTAssertTrue(help.contains("quotakit dashboard [--pretty] [--timeout <seconds>]"))
+        XCTAssertTrue(help.contains("[--identity <redacted|full>] [--output <path>]"))
     }
 
     func test_dashboardCommandIsRegisteredAndParsesOptions() throws {
         let program = Program(descriptors: CodexBarCLI.commandDescriptors())
-        let invocation = try program.resolve(argv: ["dashboard", "--pretty", "--timeout", "45"])
+        let invocation = try program.resolve(
+            argv: ["dashboard", "--pretty", "--timeout", "45", "--output", "/tmp/snapshot.json"])
 
         XCTAssertEqual(invocation.path, ["dashboard"])
         XCTAssertTrue(invocation.parsedValues.flags.contains("pretty"))
         XCTAssertEqual(invocation.parsedValues.options["timeout"], ["45"])
+        XCTAssertEqual(invocation.parsedValues.options["output"], ["/tmp/snapshot.json"])
     }
 
     func test_dashboardTimeoutIsBoundedAndCanBeDisabled() {
@@ -55,7 +58,7 @@ final class CLIEntryTests: XCTestCase {
 
     func test_dashboardCommandPrintsOneSnapshotAndExits() throws {
         let root = FileManager.default.temporaryDirectory
-            .appendingPathComponent("codexbar-dashboard-command-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("quotakit-dashboard-command-\(UUID().uuidString)", isDirectory: true)
         defer { try? FileManager.default.removeItem(at: root) }
 
         var config = CodexBarConfig.makeDefault()
@@ -80,6 +83,83 @@ final class CLIEntryTests: XCTestCase {
         XCTAssertTrue(providers.isEmpty)
         let host = try XCTUnwrap(object["host"] as? [String: Any])
         XCTAssertEqual(host["refreshIntervalSeconds"] as? Int, 0)
+    }
+
+    func test_dashboardOutputWritesSnapshotFileAndKeepsStdoutSilent() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quotakit-dashboard-output-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        var config = CodexBarConfig.makeDefault()
+        config.providers = config.providers.map { provider in
+            var disabled = provider
+            disabled.enabled = false
+            return disabled
+        }
+        let configURL = root.appendingPathComponent("config.json")
+        try CodexBarConfigStore(fileURL: configURL).save(config)
+
+        let snapshotURL = root.appendingPathComponent("snapshot.json")
+        // Pre-existing content must be atomically replaced, not appended to.
+        try Data("stale".utf8).write(to: snapshotURL)
+
+        let result = try Self.runCLI(
+            arguments: ["dashboard", "--output", snapshotURL.path],
+            environment: [CodexBarConfigStore.pathEnvironmentKey: configURL.path])
+        XCTAssertEqual(result.status, 0)
+        XCTAssertTrue(result.stdout.isEmpty)
+
+        let written = try Data(contentsOf: snapshotURL)
+        XCTAssertEqual(written.last, 0x0A)
+        let object = try XCTUnwrap(JSONSerialization.jsonObject(with: written) as? [String: Any])
+        XCTAssertEqual(object["schemaVersion"] as? Int, 1)
+
+        let attributes = try FileManager.default.attributesOfItem(atPath: snapshotURL.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.uint16Value, 0o644)
+
+        // The staged temp file must not survive a successful publish.
+        let leftovers = try FileManager.default.contentsOfDirectory(atPath: root.path)
+            .filter { $0.contains("quotakit-dashboard-") }
+        XCTAssertEqual(leftovers, [])
+    }
+
+    func test_dashboardOutputRejectsEmptyPathAsArgsError() throws {
+        let result = try Self.runCLI(arguments: ["dashboard", "--output", ""])
+
+        XCTAssertNotEqual(result.status, 0)
+        XCTAssertTrue(result.stdout.isEmpty)
+        let stderrText = try XCTUnwrap(String(bytes: result.stderr, encoding: .utf8))
+        XCTAssertTrue(stderrText.contains("--output requires a non-empty file path."))
+    }
+
+    func test_dashboardAtomicWriteFailsWhenDirectoryIsMissing() {
+        let missing = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quotakit-missing-\(UUID().uuidString)", isDirectory: true)
+            .appendingPathComponent("snapshot.json")
+
+        XCTAssertThrowsError(
+            try CodexBarCLI.writeDashboardSnapshotAtomically(Data("{}".utf8), toPath: missing.path))
+        { error in
+            XCTAssertTrue(error.localizedDescription.contains("does not exist"))
+        }
+    }
+
+    func test_dashboardAtomicWriteReplacesExistingFile() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("quotakit-atomic-write-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let target = root.appendingPathComponent("snapshot.json")
+        try Data("old".utf8).write(to: target)
+
+        try CodexBarCLI.writeDashboardSnapshotAtomically(Data("new".utf8), toPath: target.path)
+
+        XCTAssertEqual(try Data(contentsOf: target), Data("new".utf8))
+        let attributes = try FileManager.default.attributesOfItem(atPath: target.path)
+        XCTAssertEqual((attributes[.posixPermissions] as? NSNumber)?.uint16Value, 0o644)
+        XCTAssertEqual(try FileManager.default.contentsOfDirectory(atPath: root.path), ["snapshot.json"])
     }
 
     func test_decodesFormatFromOptionsAndFlags() {

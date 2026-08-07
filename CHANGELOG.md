@@ -8,6 +8,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## 0.32.4.16 / iOS 1.11.3 — 2026-08-05
 
 ### Added
+- CLI: add a built-in auto-refreshing QuotaKit web dashboard at `/`, including provider brand icons, grouped multi-account cards, spend charts, and a status display that stays hidden when no provider status exists.
+- CLI: add `quotakit dashboard --output <path>` for atomic snapshot publication and `--identity full` for explicit real-email output on trusted private surfaces; the default remains redacted.
+- Dashboard v1: include claude-swap account windows, pace, active state, and identity under the Claude provider row when that integration is enabled.
+- Currency: add Korean won (KRW) to the preferred-currency picker with zero-decimal formatting.
+- Command Code: recognize the Individual GOAT plan and its monthly credits.
 - Notion AI: track Business and Enterprise workspace allowances for rolling and billing-period windows, with calendar-aware pace estimates.
 - Provider plugins: support local JavaScript or TypeScript providers with manifest-driven settings, approval-bound network and cookie access, and generic detail rows and charts.
 - Sessions: discover live pi and OMP sessions alongside Codex and Claude Code, including mixed-version local and remote CLI support.
@@ -30,10 +35,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - **Breaking JSON change:** provider-specific usage payload keys are being removed from `quotakit usage --format json`, `serve /usage`, and synced snapshots in favor of the generic Codable `usage.details` sections. The app and text CLI now render those same declarative rows and charts.
 - Menu: move each usage window's used percentage and reset time into its title row, with all pace detail on one line (#2182). Thanks @jack24254029!
 - Codex: define Fast cost as estimated API Fast USD, resolve it models.dev-first with model-specific API ratios, and refresh GPT-5.6 Terra/Luna fallback rates (refs #2175). Thanks @iam-brain!
+- Synced upstream CodexBar changes through `98c286dbe`, adding the built-in serve dashboard, atomic dashboard snapshots, optional full identity, claude-swap dashboard accounts, KRW, and quota/runtime reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all Mac/iOS build numbers.
 - Synced upstream CodexBar changes through `a1fd8c5a9`, adding richer CLI JSON and native-only scans, token-activity heatmaps, resizable settings, plugin refinements, and provider correctness and reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 - Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 
 ### Fixed
+- CLI serve: bound the full request head against slow-trickle holds, keep slow provider work running after a request deadline, and deliver completed late results to cache and already-waiting requests.
+- Codex: apply redeemed manual resets immediately without waiting for the previous weekly-boundary confirmation window.
+- Antigravity: wait for a cold-started signed-in `agy` server to become quota-ready before falling back.
+- Cost cache: keep save-time overshoot aligned with the documented load cap so an accepted cache cannot immediately rewrite itself above the read limit.
 - Grok: keep the usage label and pace estimate through the whole billing cycle instead of dropping to a bare "Credits" bar once fewer than about 3.5 days remain.
 - Kimi and z.ai/GLM: keep regional credentials bound to their issuing hosts, add Kimi Desktop membership usage, and preserve safe cookie-source behavior.
 - Command Code: parse rolling 5-hour and weekly limits alongside monthly credits.

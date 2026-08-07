@@ -149,7 +149,10 @@ The accepted multi-account design in
   email.
 - Terminal scope: this automatic precedence is cards-only and works on every supported CLI platform. An explicit
   Claude provider or `--source auto` remains eligible, while `--account`, `--account-index`, `--all-accounts`, and
-  explicit non-auto source flags bypass the adapter. `quotakit usage` and `quotakit serve` are unchanged.
+  explicit non-auto source flags bypass the adapter. `quotakit usage` and serve `/usage`/`/cost` remain unchanged,
+  while `quotakit dashboard` and `GET /dashboard/v1/snapshot` additionally nest one entry per swap account in the
+  Claude provider row. Identity is redacted by default and appears in full only after the explicit `--identity full`
+  opt-in.
 - Isolation: QuotaKit never reads claude-swap or Claude Code credential storage for this feature; the
   subprocess handles its own credential access. In the app, adapter failures keep the last successful accounts as
   stale data, surface the error in provider settings, and never affect the ambient Claude usage card. In terminal
