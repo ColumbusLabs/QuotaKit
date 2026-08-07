@@ -74,7 +74,7 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
 - [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.
 - [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
-- [Antigravity](docs/antigravity.md) — Local language server probe (experimental); no external auth.
+- [Antigravity](docs/antigravity.md) — Local language server probe, `agy` CLI HTTPS source, and Google OAuth fallback (experimental).
 - [Droid](docs/factory.md) — Browser cookies + WorkOS token flows for Factory usage + billing.
 - [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
 - [Devin](docs/devin.md) — Chrome localStorage session or manual Bearer token for daily and weekly quotas.
