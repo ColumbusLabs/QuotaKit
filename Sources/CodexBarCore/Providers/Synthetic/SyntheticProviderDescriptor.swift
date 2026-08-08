@@ -52,7 +52,7 @@ public enum SyntheticProviderDescriptor {
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {
-        #if canImport(JavaScriptCore)
+        #if canImport(JavaScriptCore) || canImport(CQuickJS)
         .scriptPrototypeAPI(
             configuration: .init(
                 provider: .synthetic,

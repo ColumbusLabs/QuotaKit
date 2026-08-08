@@ -69,7 +69,7 @@ public enum CrofProviderDescriptor {
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {
-        #if canImport(JavaScriptCore)
+        #if canImport(JavaScriptCore) || canImport(CQuickJS)
         ProviderFetchPlan(
             sourceModes: [.auto, .api],
             pipeline: ProviderFetchPipeline(resolveStrategies: { _ in

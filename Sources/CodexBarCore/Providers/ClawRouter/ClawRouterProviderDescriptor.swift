@@ -56,7 +56,7 @@ public enum ClawRouterProviderDescriptor {
             sourceModes: [.auto, .api],
             pipeline: ProviderFetchPipeline(resolveStrategies: { context in
                 let swift = ClawRouterAPIFetchStrategy()
-                #if canImport(JavaScriptCore)
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
                 return [ScriptFetchStrategy(
                     id: "clawrouter.js",

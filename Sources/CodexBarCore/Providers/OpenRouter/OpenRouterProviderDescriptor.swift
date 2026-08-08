@@ -83,7 +83,7 @@ public enum OpenRouterProviderDescriptor {
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {
-        #if canImport(JavaScriptCore)
+        #if canImport(JavaScriptCore) || canImport(CQuickJS)
         // QuotaKit keeps native fetching by default because its typed payload feeds iCloud/iOS.
         .scriptPrototypeAPI(
             configuration: .init(

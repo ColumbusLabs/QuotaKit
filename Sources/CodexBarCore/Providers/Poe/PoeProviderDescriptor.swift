@@ -53,7 +53,7 @@ public enum PoeProviderDescriptor {
     }
 
     private static func fetchPlan() -> ProviderFetchPlan {
-        #if canImport(JavaScriptCore)
+        #if canImport(JavaScriptCore) || canImport(CQuickJS)
         .scriptPrototypeAPI(
             configuration: .init(
                 provider: .poe,

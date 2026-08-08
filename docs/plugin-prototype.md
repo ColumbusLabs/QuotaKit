@@ -17,6 +17,11 @@ system: IDs remain compile-time `UsageProvider` cases and scripts ship inside Qu
 to the bundled script on JavaScriptCore platforms. QuotaKit keeps OpenRouter, ClawRouter, Deepgram, and sub2api native
 by default so their typed compatibility payloads continue reaching iCloud and iOS.
 
+The portable runtime selects JavaScriptCore by default on Apple platforms and QuickJS on Linux for local plugin
+execution. Set
+`CODEXBAR_PLUGIN_ENGINE=quickjs` on macOS to exercise QuickJS locally. QuickJS uses a 20-second in-engine interrupt
+watchdog, a 64 MiB heap limit, and a 2 MiB JavaScript stack limit; JavaScriptCore retains the existing worker behavior.
+
 Plugin manifests and their projected snapshots now carry a validated `ProviderInstanceID`. The prototype still maps
 that instance ID to an existing first-party `UsageProvider` before using browser-cookie brokerage or other bespoke
 provider paths, and the widget's `AppEnum` still lists only first-party cases. User-installed plugins without an enum
@@ -30,8 +35,8 @@ to their existing pipeline.
 A missing required secret or disabled cookie source leaves the script
 strategy unavailable and permits the Swift strategy to run; a loaded script that fails does not fall back, so parity
 defects stay visible. Without the variable, the resolver returns the original Swift strategy only and does not load
-JavaScriptCore or a plugin resource for those providers. Crof and Venice always resolve only their script strategy on
-JavaScriptCore platforms; `CODEXBAR_JS_PROVIDERS` does not affect them.
+an engine or plugin resource for those providers. Crof and Venice always resolve only their script strategy on
+JavaScriptCore platforms and keep their native Linux implementations; `CODEXBAR_JS_PROVIDERS` does not affect them.
 
 Run the focused proof with:
 
@@ -39,6 +44,7 @@ Run the focused proof with:
 swift test --filter ProviderPluginRuntimeTests
 swift test --filter ProviderPluginParityTests
 swift test --filter ProviderPluginDetailsParityTests
+./Scripts/test-plugin-engines.sh
 ```
 
 The parity suites send canned responses through an injected `ProviderHTTPTransport`. Flag-gated providers compare the
