@@ -1,3 +1,4 @@
+import Dispatch
 import Foundation
 
 #if canImport(SQLite3)
@@ -10,6 +11,30 @@ import CSQLite3
 /// connection; Phase 2 can keep its existing scan-queue serialization while independent
 /// app and CLI readers use WAL snapshots through separate read-only connections.
 actor CostUsageStore {
+    private final class StoreSerialExecutor: SerialExecutor, @unchecked Sendable {
+        private let queue: DispatchQueue
+
+        init(label: String) {
+            self.queue = DispatchQueue(label: label, qos: .utility)
+        }
+
+        func enqueue(_ job: consuming ExecutorJob) {
+            let unownedJob = UnownedJob(job)
+            let executor = self.asUnownedSerialExecutor()
+            self.queue.async {
+                unownedJob.runSynchronously(on: executor)
+            }
+        }
+
+        func checkIsolated() {
+            dispatchPrecondition(condition: .onQueue(self.queue))
+        }
+
+        func sync<T>(_ operation: () throws -> T) rethrows -> T {
+            try self.queue.sync(execute: operation)
+        }
+    }
+
     private final class SQLiteConnection: @unchecked Sendable {
         private(set) var handle: OpaquePointer?
 
@@ -28,13 +53,29 @@ actor CostUsageStore {
         }
     }
 
+    static let log = CodexBarLog.logger(LogCategories.tokenCost)
     static let databaseFilename = "cost-usage.sqlite"
-    static let baseSchemaVersion = 1
+    static let baseSchemaVersion = 2
     static let schemaVersion = CostUsageStore.combinedSchemaVersion(
         base: CostUsageStore.baseSchemaVersion,
         parserHash: CodexParserHash.value)
+    static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
 
-    let databaseURL: URL
+    nonisolated static func defaultCacheRoot() -> URL {
+        let root = FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        return root.appendingPathComponent("CodexBar", isDirectory: true)
+    }
+
+    /// Process-wide serialization keeps every writable store connection on the same queue.
+    /// This matches the scan pipeline's single-writer contract without multiplying executor
+    /// threads when tests or short-lived readers create several store actors.
+    private nonisolated static let sharedExecutor = StoreSerialExecutor(
+        label: "com.steipete.codexbar.cost-usage-store")
+    nonisolated var unownedExecutor: UnownedSerialExecutor {
+        Self.sharedExecutor.asUnownedSerialExecutor()
+    }
+
+    nonisolated let databaseURL: URL
     private let expectedSchemaVersion: Int32
     private let expectedParserHash: String
     private var connection: SQLiteConnection?
@@ -45,7 +86,7 @@ actor CostUsageStore {
         schemaVersion: Int32 = CostUsageStore.schemaVersion,
         parserHash: String = CodexParserHash.value)
     {
-        let root = cacheRoot ?? FileManager.default.urls(for: .cachesDirectory, in: .userDomainMask).first!
+        let root = cacheRoot ?? Self.defaultCacheRoot()
         self.databaseURL = root
             .appendingPathComponent("cost-usage", isDirectory: true)
             .appendingPathComponent(Self.databaseFilename, isDirectory: false)
@@ -64,6 +105,37 @@ actor CostUsageStore {
     }
 }
 
+extension CostUsageStore {
+    nonisolated func syncLoadCodexCache(calendar: Calendar) -> CostUsageCache {
+        Self.sharedExecutor.sync {
+            self.assumeIsolated { store in
+                store.loadCodexCache(calendar: calendar)
+            }
+        }
+    }
+
+    nonisolated func syncSaveCodexCache(
+        _ cache: CostUsageCache,
+        calendar: Calendar,
+        requestedScanWindow: (sinceKey: String, untilKey: String),
+        reportWindow: (sinceKey: String, untilKey: String)? = nil,
+        rowBudget: Int = CostUsageStore.defaultRowBudget,
+        fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes) -> CostUsageStoreBudgetResult
+    {
+        Self.sharedExecutor.sync {
+            self.assumeIsolated { store in
+                store.saveCodexCache(
+                    cache,
+                    calendar: calendar,
+                    requestedScanWindow: requestedScanWindow,
+                    reportWindow: reportWindow,
+                    rowBudget: rowBudget,
+                    fileBudgetBytes: fileBudgetBytes)
+            }
+        }
+    }
+}
+
 // MARK: - Connection lifecycle
 
 extension CostUsageStore {
@@ -78,14 +150,53 @@ extension CostUsageStore {
             let database = try self.ensureDatabase()
             return try operation(database)
         } catch {
-            self.rebuildDatabase()
+            guard Self.shouldRebuild(after: error) else {
+                self.recoverConnectionAfterFailure()
+                Self.log.warning("cost-usage store operation failed; keeping database: \(error)")
+                return fallback
+            }
+            self.rebuildDatabase(reason: "operation failed: \(error)")
             do {
                 let database = try self.ensureDatabase()
                 return try operation(database)
             } catch {
-                self.rebuildDatabase()
+                if Self.shouldRebuild(after: error) {
+                    self.rebuildDatabase(reason: "retry failed: \(error)")
+                } else {
+                    self.recoverConnectionAfterFailure()
+                    Self.log.warning("cost-usage store retry failed; keeping database: \(error)")
+                }
                 return fallback
             }
+        }
+    }
+
+    /// Destroying the database is only the right recovery for corruption or schema drift.
+    /// Transient and data-shape failures (lock contention from a second process, disk full,
+    /// out of memory, a constraint violation from bad input) must not delete user history:
+    /// the old JSON path kept the previous artifact on a failed write, and so do we.
+    static func shouldRebuild(after error: Error) -> Bool {
+        guard case let StoreError.sqlite(code) = error else { return true }
+        switch code & 0xFF {
+        case SQLITE_PERM, SQLITE_BUSY, SQLITE_LOCKED, SQLITE_NOMEM, SQLITE_READONLY,
+             SQLITE_INTERRUPT, SQLITE_IOERR, SQLITE_FULL, SQLITE_TOOBIG, SQLITE_CONSTRAINT,
+             SQLITE_MISUSE, SQLITE_AUTH, SQLITE_RANGE:
+            return false
+        default:
+            return true
+        }
+    }
+
+    /// After a preserved (non-rebuild) failure the connection may still hold an open
+    /// transaction if ROLLBACK itself failed. Roll back, or drop the connection so the
+    /// next access reopens the intact file.
+    private func recoverConnectionAfterFailure() {
+        guard let handle = self.connection?.handle else { return }
+        if sqlite3_get_autocommit(handle) == 0,
+           sqlite3_exec(handle, "ROLLBACK", nil, nil, nil) != SQLITE_OK
+        {
+            self.connection?.close()
+            self.connection = nil
         }
     }
 
@@ -98,7 +209,7 @@ extension CostUsageStore {
             self.connection = SQLiteConnection(handle: opened)
             return opened
         } catch {
-            self.rebuildDatabase()
+            self.rebuildDatabase(reason: "open failed: \(error)")
             guard let database = self.connection?.handle else { throw error }
             return database
         }
@@ -158,7 +269,7 @@ extension CostUsageStore {
         try Self.stepDone(statement, database: database)
     }
 
-    private func rebuildDatabase() {
+    private func rebuildDatabase(reason: String) {
         self.connection?.close()
         self.connection = nil
         for suffix in ["", "-wal", "-shm"] {
@@ -168,9 +279,35 @@ extension CostUsageStore {
             }
         }
         self.rebuildCount += 1
+        Self.log.warning("cost-usage store rebuilt (count \(self.rebuildCount)): \(reason)")
         if let database = try? self.openDatabase() {
             self.connection = SQLiteConnection(handle: database)
         }
+    }
+
+    /// The Codex JSON cache is derived data, so the SQLite cutover deliberately rebuilds
+    /// from session files instead of importing an old monolithic snapshot. Keep the legacy
+    /// filename knowledge confined to this one cleanup boundary.
+    func removeLegacyCodexArtifactIfPresent() -> Bool {
+        let directory = self.databaseURL.deletingLastPathComponent()
+        let legacyFilename = "codex-v11.json"
+        let legacyURL = directory.appendingPathComponent(legacyFilename)
+        guard FileManager.default.fileExists(atPath: legacyURL.path) else { return false }
+
+        let temporaryNames = (try? FileManager.default.contentsOfDirectory(
+            at: directory,
+            includingPropertiesForKeys: nil))?.filter { url in
+            let name = url.lastPathComponent
+            return name == legacyFilename
+                || name.hasPrefix(".\(legacyFilename).")
+                || name.hasPrefix("\(legacyFilename).")
+                || name.hasPrefix("\(legacyFilename)-")
+        } ?? [legacyURL]
+        for url in temporaryNames {
+            try? FileManager.default.removeItem(at: url)
+        }
+        self.rebuildDatabase(reason: "legacy Codex JSON artifact removed")
+        return true
     }
 }
 
@@ -222,11 +359,18 @@ extension CostUsageStore {
         total_cached INTEGER,
         total_output INTEGER,
         total_reasoning INTEGER,
-        end_offset INTEGER NOT NULL,
+        end_offset INTEGER,
         PRIMARY KEY(file_id, event_index)
     );
     CREATE INDEX token_snapshots_day_idx ON token_snapshots(day);
     CREATE INDEX token_snapshots_timestamp_idx ON token_snapshots(file_id, timestamp_ms, event_index);
+    CREATE TABLE usage_rows (
+        file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
+        row_index INTEGER NOT NULL,
+        payload BLOB NOT NULL,
+        PRIMARY KEY(file_id, row_index)
+    );
+    CREATE INDEX usage_rows_file_idx ON usage_rows(file_id, row_index);
     CREATE TABLE file_day_aggregates (
         file_id INTEGER NOT NULL REFERENCES files(id) ON DELETE CASCADE,
         day TEXT NOT NULL,
@@ -237,6 +381,7 @@ extension CostUsageStore {
         reasoning_tokens INTEGER NOT NULL,
         request_count INTEGER NOT NULL,
         known_cost_nanos INTEGER NOT NULL,
+        priority_surcharge_nanos INTEGER NOT NULL,
         unpriced_tokens INTEGER NOT NULL,
         standard_cost_nanos INTEGER NOT NULL,
         priority_cost_nanos INTEGER NOT NULL,
@@ -255,6 +400,7 @@ extension CostUsageStore {
         reasoning_tokens INTEGER NOT NULL,
         request_count INTEGER NOT NULL,
         known_cost_nanos INTEGER NOT NULL,
+        priority_surcharge_nanos INTEGER NOT NULL,
         unpriced_tokens INTEGER NOT NULL,
         standard_cost_nanos INTEGER NOT NULL,
         priority_cost_nanos INTEGER NOT NULL,
