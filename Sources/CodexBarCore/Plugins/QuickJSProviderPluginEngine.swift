@@ -413,6 +413,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             cqjs_free_value(self.context, ctx)
         }
         try self.installHostFunctions(on: host)
+        _ = JS_SetPropertyStr(
+            self.context,
+            ctx,
+            "__quotaKitNowMillis",
+            JS_NewFloat64(self.context, now.timeIntervalSince1970 * 1000))
         let env = JS_NewObject(self.context)
         _ = JS_SetPropertyStr(
             self.context,

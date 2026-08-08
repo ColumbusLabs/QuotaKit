@@ -19,32 +19,6 @@ public enum ZaiLimitUnit: Int, Sendable {
     case weeks = 6
 }
 
-public enum ZaiUsageScope: String, CaseIterable, Codable, Sendable {
-    case personal
-    case team
-}
-
-public struct ZaiBigModelTeamContext: Equatable, Sendable {
-    public let organizationID: String
-    public let projectID: String
-
-    public init?(organizationID: String?, projectID: String?) {
-        guard let organizationID = ZaiSettingsReader.cleaned(organizationID),
-              let projectID = ZaiSettingsReader.cleaned(projectID)
-        else {
-            return nil
-        }
-        self.organizationID = organizationID
-        self.projectID = projectID
-    }
-
-    public init?(environment: [String: String] = ProcessInfo.processInfo.environment) {
-        self.init(
-            organizationID: environment[ZaiSettingsReader.bigModelOrganizationKey],
-            projectID: environment[ZaiSettingsReader.bigModelProjectKey])
-    }
-}
-
 /// A single limit entry from the z.ai API
 public struct ZaiLimitEntry: Sendable {
     public let type: ZaiLimitType

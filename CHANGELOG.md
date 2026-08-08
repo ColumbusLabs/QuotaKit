@@ -29,6 +29,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Copilot: decode the AI credits counter for token-billed seats and expose it in `quotakit diagnose`, so Business seats with zero-entitlement quotas are no longer blank at the data layer (#2613, refs #2593). Thanks @Yuxin-Qiao, and @KSEGIT for the discovery!
 
 ### Changed
+- Cost history: add the upstream SQLite `CostUsageStore` foundation and fixture coverage without switching QuotaKit's production cache or iCloud/iPhone summary contract yet.
+- Provider plugins: import the latest Synthetic, Poe, xAI, and z.ai JavaScript parity and sandbox support while retaining QuotaKit's native-default fetchers and typed compatibility payloads for iCloud and iPhone.
 - Provider plugins: add a portable QuickJS engine for Linux and explicit local engine testing while keeping QuotaKit's native provider fetchers as the default where typed compatibility data feeds iCloud and iPhone.
 - CLI dashboard: paint a cached shell immediately and stream provider rows as they finish, while retaining redacted account identity by default and QuotaKit-owned browser storage keys.
 - Provider plugins: add golden-tested JavaScript implementations for OpenRouter, ClawRouter, Deepgram, and sub2api. QuotaKit keeps their native fetchers as the default so typed usage remains available to iCloud and iOS, while Crof and Venice continue using bundled JavaScript by default on macOS.
@@ -42,8 +44,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 - Synced upstream CodexBar changes through `cee0fd074`, adding portable QuickJS plugins, packaged-resource smoke coverage, progressive dashboards, active claude-swap menu-bar usage, and quota fixes while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
 - Synced upstream CodexBar changes through `b39714de3`, adding standalone CLI resource packaging, omitted-reset-credit handling, Kimi duplicate-lane suppression, and exact-clock menu countdowns while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
+- Synced upstream CodexBar changes through `56a763eaa`, adding the SQLite cost-store foundation, wrapped menu metric rows, provider-plugin parity updates, and opt-in Claude statusLine guidance while preserving QuotaKit identity, Columbus Labs release ownership, native-default typed sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
 
 ### Fixed
+- Menu: allow long metric reset and pace details to wrap to two lines and include their content in the cached-height fingerprint so translated text is not clipped.
 - CLI packaging: ship the CodexBarCore SwiftPM resource bundle beside `QuotaKitCLI`, include it in release archives, and smoke-test standalone resource loading without the build checkout.
 - Codex: confirm a redeemed manual reset when the provider omits the consumed credit from the next inventory only after both usage samples corroborate the reset.
 - Kimi: use the official usage-lane labels and hide the Code 7-day row only when its percentage and reset match the primary weekly quota.

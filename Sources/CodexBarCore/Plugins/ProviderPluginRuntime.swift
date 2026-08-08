@@ -461,6 +461,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let ctx = self.makeContext(
             settings: settings,
             secrets: secrets,
+            now: now,
             timeZone: timeZone,
             cookieResolver: cookieResolver,
             instanceCookieResolver: instanceCookieResolver,
@@ -519,6 +520,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     private func makeContext(
         settings: [String: String],
         secrets: [String: String],
+        now: Date,
         timeZone: TimeZone,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
@@ -526,6 +528,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     {
         let ctx = JSValue(newObjectIn: self.context)!
         let host = JSValue(newObjectIn: self.context)!
+        ctx.setObject(now.timeIntervalSince1970 * 1000, forKeyedSubscript: "__quotaKitNowMillis" as NSString)
 
         let settingGet: @convention(block) (String, Bool) -> JSValue = { [weak self] key, secure in
             guard let self else { return JSValue(undefinedIn: nil) }

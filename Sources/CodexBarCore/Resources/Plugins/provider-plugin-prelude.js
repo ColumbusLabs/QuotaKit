@@ -151,7 +151,10 @@
     return decodeURIComponent(escaped);
   }
 
+  const nowMillis = Number(ctx.__quotaKitNowMillis);
+  delete ctx.__quotaKitNowMillis;
   ctx.date = Object.freeze({
+    now() { return parseDate(nowMillis); },
     iso(value) { return parseDate(String(value)); },
     unixSeconds(value) { return parseDate(Number(value) * 1000); },
     unixMillis(value) { return parseDate(Number(value)); },
