@@ -24,7 +24,7 @@ extension CostUsageStore {
     {
         let previous = self.readSnapshot()
         let canReuseStoredRows = previous.metadata.timeZoneIdentifier == calendar.timeZone.identifier
-        _ = self.withSaveTransaction(default: false) {
+        let saved = self.withSaveTransaction(default: false) {
             self.deleteRemovedFiles(previous: previous, cache: cache)
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
                 let oldFile = previous.files.first { $0.path == path }
@@ -45,6 +45,12 @@ extension CostUsageStore {
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
             return true
+        }
+        guard saved else {
+            return CostUsageStoreBudgetResult(
+                deletedRows: 0,
+                rowCount: previous.files.count,
+                fileBytes: 0)
         }
         let result = self.enforceBudgets(
             maxRows: rowBudget,

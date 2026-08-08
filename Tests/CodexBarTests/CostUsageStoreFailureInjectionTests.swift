@@ -93,6 +93,37 @@ struct CostUsageStoreFailureInjectionTests {
         #expect(await store.rebuildCount == 0)
     }
 
+    @Test
+    func `failed save skips retention and preserves existing history`() async throws {
+        let fixture = try FailureFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let file = Self.file(path: "/rollouts/kept.jsonl")
+        let snapshot = Self.snapshot(path: file.path, eventIndex: 0)
+        #expect(await store.upsertFile(file))
+        #expect(await store.appendTokenSnapshots([snapshot]))
+
+        try Self.execute(at: store.databaseURL, sql: """
+        CREATE TRIGGER fail_save_metadata
+        BEFORE INSERT ON scan_metadata
+        BEGIN
+            SELECT RAISE(ABORT, 'injected save failure');
+        END
+        """)
+
+        let result = await store.saveCodexCache(
+            CostUsageCache(),
+            calendar: .current,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            rowBudget: 0)
+
+        #expect(result.deletedRows == 0)
+        #expect(result.rowCount == 1)
+        #expect(await store.fetchFile(path: file.path) == file)
+        #expect(await store.fetchTokenSnapshots(path: file.path) == [snapshot])
+        #expect(await store.rebuildCount == 0)
+    }
+
     // MARK: - On-disk damage
 
     @Test
