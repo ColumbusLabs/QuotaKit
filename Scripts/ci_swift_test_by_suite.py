@@ -66,6 +66,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--group-size", type=int, default=12)
     parser.add_argument("--timeout", type=int, default=180)
     parser.add_argument("--limit-groups", type=int)
+    parser.add_argument(
+        "--suite",
+        action="append",
+        default=[],
+        help="run an exact discovered suite/selection name; may be passed more than once",
+    )
     parser.add_argument("--shard-index", type=int)
     parser.add_argument("--shard-count", type=int)
     parser.add_argument(
@@ -202,6 +208,19 @@ def filtered_suites_for_environment(suites: list[TestSelection]) -> list[TestSel
     return filtered
 
 
+def filtered_suites_for_request(suites: list[TestSelection], requested: list[str]) -> list[TestSelection]:
+    if not requested:
+        return suites
+
+    requested_set = set(requested)
+    selected = [suite for suite in suites if suite.name in requested_set]
+    found = {suite.name for suite in selected}
+    missing = sorted(requested_set - found)
+    if missing:
+        raise ValueError(f"Unknown test suite/selection: {', '.join(missing)}")
+    return selected
+
+
 def filter_for(suites: list[TestSelection]) -> str:
     return rf"({'|'.join(suite.filter_pattern for suite in suites)})"
 
@@ -246,7 +265,12 @@ def main() -> int:
     try:
         discovery_started = time.monotonic()
         try:
-            suites = prioritized_suites(filtered_suites_for_environment(swift_test_list(swift_command)))
+            suites = prioritized_suites(
+                filtered_suites_for_request(
+                    filtered_suites_for_environment(swift_test_list(swift_command)),
+                    args.suite,
+                )
+            )
         finally:
             stats.discovery_seconds = time.monotonic() - discovery_started
         stats.discovered_selections = len(suites)

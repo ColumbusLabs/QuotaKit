@@ -1,6 +1,6 @@
 SHELL := /bin/bash
 
-.PHONY: build check docs-list format lint release restart start start-debug start-release stop test test-live test-tty
+.PHONY: build check docs-list format lint release restart start start-debug start-release stop test test-affected test-full test-live test-smoke test-tty
 
 start:
 	./Scripts/compile_and_run.sh
@@ -32,6 +32,16 @@ build:
 
 test:
 	./Scripts/test.sh
+
+# `test` remains the complete local safety gate. These faster tiers are explicit
+# opt-ins for the daily development and upstream-triage loop.
+test-full: test
+
+test-smoke:
+	./Scripts/test_tier.sh smoke
+
+test-affected:
+	./Scripts/test_tier.sh affected
 
 test-tty:
 	CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1 swift test --filter TTYIntegrationTests

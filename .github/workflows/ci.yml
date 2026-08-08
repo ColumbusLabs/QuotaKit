@@ -139,12 +139,30 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        with:
+          fetch-depth: 0
+
+      - name: Set parser lint base
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="origin/${{ github.base_ref }}"
+          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            base="origin/${{ github.event.repository.default_branch }}"
+          elif [[ "${{ github.event.before }}" =~ ^0+$ ]]; then
+            base="origin/${{ github.event.repository.default_branch }}"
+          else
+            base="${{ github.event.before }}"
+          fi
+          echo "PARSER_LINT_BASE=$base" >> "$GITHUB_ENV"
+          echo "Parser lint base: $base"
 
       - name: Install lint tools
-        run: ./Scripts/install_lint_tools.sh swiftlint
+        run: ./Scripts/install_lint_tools.sh
 
       - name: Lint
-        run: ./Scripts/lint.sh lint-linux
+        run: ./Scripts/lint.sh lint
 
   swift-test-macos:
     needs: changes
@@ -203,31 +221,6 @@ jobs:
           set -euo pipefail
           swift --version
           swift package --version
-
-      - name: Install lint tools
-        if: ${{ matrix.shard-index == 0 }}
-        run: ./Scripts/install_lint_tools.sh
-
-      - name: Set parser lint base
-        if: ${{ matrix.shard-index == 0 }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            base="origin/${{ github.base_ref }}"
-          elif [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            base="origin/${{ github.event.repository.default_branch }}"
-          elif [[ "${{ github.event.before }}" =~ ^0+$ ]]; then
-            base="origin/${{ github.event.repository.default_branch }}"
-          else
-            base="${{ github.event.before }}"
-          fi
-          echo "PARSER_LINT_BASE=$base" >> "$GITHUB_ENV"
-          echo "Parser lint base: $base"
-
-      - name: Lint
-        if: ${{ matrix.shard-index == 0 }}
-        run: ./Scripts/lint.sh lint
 
       - name: Swift Test
         # Keep small suite batches so a hung suite fails its shard while avoiding one SwiftPM process per suite.
