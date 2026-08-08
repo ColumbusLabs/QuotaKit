@@ -32,16 +32,53 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout) throws
     {
-        guard let url = CodexBarCoreResources.bundle.url(forResource: name, withExtension: "js") else {
+        try self.init(
+            bundledPlugin: name,
+            resourceBundle: CodexBarCoreResources.bundle,
+            transport: transport,
+            timeout: timeout)
+    }
+
+    convenience init(
+        bundledPlugin name: String,
+        resourceBundle: Bundle?,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout) throws
+    {
+        guard let resourceBundle else {
+            throw ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)
+        }
+        guard let url = resourceBundle.url(forResource: name, withExtension: "js") else {
             throw ProviderPluginError.load("bundled plugin '\(name).js' was not found")
         }
         let source = try String(contentsOf: url, encoding: .utf8)
         try ProviderPluginSourceLint.validateBundled(source, name: name)
-        try self.init(source: source, transport: transport, timeout: timeout)
+        try self.init(source: source, resourceBundle: resourceBundle, transport: transport, timeout: timeout)
     }
 
-    public init(
+    public convenience init(
         source: String,
+        transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
+        responseSizeLimit: Int = ProviderPluginRuntime.maximumResponseBytes,
+        rejectsNonSuccessResponses: Bool = false,
+        allowsDynamicID: Bool = false,
+        engine: ProviderPluginEngineKind = .automatic) throws
+    {
+        try self.init(
+            source: source,
+            resourceBundle: CodexBarCoreResources.bundle,
+            transport: transport,
+            timeout: timeout,
+            responseSizeLimit: responseSizeLimit,
+            rejectsNonSuccessResponses: rejectsNonSuccessResponses,
+            allowsDynamicID: allowsDynamicID,
+            engine: engine)
+    }
+
+    init(
+        source: String,
+        resourceBundle: Bundle?,
         transport: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
         responseSizeLimit: Int = ProviderPluginRuntime.maximumResponseBytes,
@@ -51,7 +88,10 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
     {
         guard timeout > 0 else { throw ProviderPluginError.load("timeout must be positive") }
         guard responseSizeLimit > 0 else { throw ProviderPluginError.load("response size limit must be positive") }
-        guard let preludeURL = CodexBarCoreResources.bundle.url(
+        guard let resourceBundle else {
+            throw ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)
+        }
+        guard let preludeURL = resourceBundle.url(
             forResource: "provider-plugin-prelude",
             withExtension: "js")
         else {

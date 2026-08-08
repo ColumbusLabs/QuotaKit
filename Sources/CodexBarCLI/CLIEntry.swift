@@ -18,6 +18,15 @@ import FoundationNetworking
 @main
 enum CodexBarCLI {
     static func main() async {
+        if CodexBarCoreResourceSmoke.isRequested() {
+            #if canImport(Darwin)
+            Darwin.exit(CodexBarCoreResourceSmoke.run())
+            #elseif canImport(Glibc)
+            Glibc.exit(CodexBarCoreResourceSmoke.run())
+            #elseif canImport(Musl)
+            Musl.exit(CodexBarCoreResourceSmoke.run())
+            #endif
+        }
         self.configureLinuxTimeZoneIfNeeded()
 
         let rawArgv = Array(CommandLine.arguments.dropFirst())

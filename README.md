@@ -131,6 +131,10 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [xAI](docs/xai.md) — Management API key + team ID for prepaid credit balance and daily platform spend.
 - Open to new providers: [provider authoring guide](docs/provider.md).
 
+## Linux desktop integration
+
+- [codexbar-cosmic-applet](https://github.com/andrew-verde/codexbar-cosmic-applet) — Native COSMIC (System76) desktop panel applet with provider tabs, pace projections, and cost/token stats, built on QuotaKit's bundled Linux CLI.
+
 ## Upstream And Credits
 
 QuotaKit is derived from:

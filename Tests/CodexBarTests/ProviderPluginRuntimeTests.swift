@@ -7,6 +7,13 @@ import Testing
 
 struct ProviderPluginRuntimeTests {
     @Test
+    func `missing resource bundle throws a provider load error`() {
+        #expect(throws: ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)) {
+            _ = try ProviderPluginRuntime(bundledPlugin: "openrouter", resourceBundle: nil)
+        }
+    }
+
+    @Test
     func `context exposes no browser or timer globals`() throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin())
 

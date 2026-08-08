@@ -1436,3 +1436,6 @@
 "Install" = "Yükle";
 "API URL" = "API URL’si";
 "Optional. Defaults to the hosted OpenRouter API." = "İsteğe bağlı. Varsayılan olarak barındırılan OpenRouter API’si kullanılır.";
+"5-hour usage" = "5 saatlik kullanım";
+"7-day usage" = "7 günlük kullanım";
+"Total usage" = "Toplam kullanım";

@@ -1413,3 +1413,6 @@
 "Install" = "安装";
 "API URL" = "API 网址";
 "Optional. Defaults to the hosted OpenRouter API." = "可选。默认使用托管的 OpenRouter API。";
+"5-hour usage" = "5 小时用量";
+"7-day usage" = "7 天用量";
+"Total usage" = "总用量";

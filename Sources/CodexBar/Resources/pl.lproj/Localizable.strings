@@ -1438,3 +1438,6 @@
 "Install" = "Zainstaluj";
 "API URL" = "Adres URL API";
 "Optional. Defaults to the hosted OpenRouter API." = "Opcjonalnie. Domyślnie używany jest hostowany interfejs API OpenRouter.";
+"5-hour usage" = "Użycie 5-godzinne";
+"7-day usage" = "Użycie 7-dniowe";
+"Total usage" = "Łączne użycie";

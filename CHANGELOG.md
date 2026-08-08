@@ -41,8 +41,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Synced upstream CodexBar changes through `a1fd8c5a9`, adding richer CLI JSON and native-only scans, token-activity heatmaps, resizable settings, plugin refinements, and provider correctness and reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 - Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 - Synced upstream CodexBar changes through `cee0fd074`, adding portable QuickJS plugins, packaged-resource smoke coverage, progressive dashboards, active claude-swap menu-bar usage, and quota fixes while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
+- Synced upstream CodexBar changes through `b39714de3`, adding standalone CLI resource packaging, omitted-reset-credit handling, Kimi duplicate-lane suppression, and exact-clock menu countdowns while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
 
 ### Fixed
+- CLI packaging: ship the CodexBarCore SwiftPM resource bundle beside `QuotaKitCLI`, include it in release archives, and smoke-test standalone resource loading without the build checkout.
+- Codex: confirm a redeemed manual reset when the provider omits the consumed credit from the next inventory only after both usage samples corroborate the reset.
+- Kimi: use the official usage-lane labels and hide the Code 7-day row only when its percentage and reset match the primary weekly quota.
+- Menu bar: keep custom reset countdown tokens aligned with the opened menu by using the exact display clock rather than a rounded wall minute.
 - Packaging: resolve the CodexBarCore SwiftPM resource bundle from `QuotaKit.app/Contents/Resources` and smoke-test the bundle's declared executable without relying on the build checkout.
 - Claude: render the menu-bar indicator from the active claude-swap account and treat that presentation snapshot as loaded without suppressing ambient refresh retries.
 - Codex and z.ai/GLM: decode monthly spend-control credit limits and credit-based Coding Plan windows, including the 5-hour primary reset, while retaining QuotaKit's MCP cadence semantics.

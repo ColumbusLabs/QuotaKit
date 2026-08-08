@@ -147,8 +147,8 @@ extension SyncCoordinatorTests {
         let provider = try #require(mock.lastPerProviderEnvelopes
             .first { $0.provider.providerID == UsageProvider.kimi.rawValue }?
             .provider)
-        let weekly = try #require(provider.rateWindows.first { $0.label == "Weekly" })
-        let rateLimit = try #require(provider.rateWindows.first { $0.label == "Rate Limit" })
+        let weekly = try #require(provider.rateWindows.first { $0.label == "7-day usage" })
+        let rateLimit = try #require(provider.rateWindows.first { $0.label == "5-hour usage" })
 
         #expect(weekly.identity == .weekly)
         #expect(weekly.windowMinutes == 10080)

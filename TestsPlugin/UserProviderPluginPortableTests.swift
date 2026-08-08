@@ -5,11 +5,12 @@ import Testing
 struct UserProviderPluginPortableTests {
     @Test
     func `bundled plugins are free of raw Intl references`() throws {
+        let bundle = try #require(CodexBarCoreResources.bundle)
         for name in [
             "crof", "venice", "openrouter", "clawrouter", "deepgram", "sub2api", "synthetic", "openai", "zai",
             "poe", "xai", "manus", "perplexity", "t3chat", "qoder",
         ] {
-            let url = try #require(CodexBarCoreResources.bundle.url(forResource: name, withExtension: "js"))
+            let url = try #require(bundle.url(forResource: name, withExtension: "js"))
             let source = try String(contentsOf: url, encoding: .utf8)
             try ProviderPluginSourceLint.validateBundled(source, name: name)
         }
@@ -21,7 +22,8 @@ struct UserProviderPluginPortableTests {
 
     @Test
     func `QuickJS executes the bundled Sucrase transform`() throws {
-        let resourceURL = try #require(CodexBarCoreResources.bundle.url(
+        let bundle = try #require(CodexBarCoreResources.bundle)
+        let resourceURL = try #require(bundle.url(
             forResource: "sucrase-3.35.1.min",
             withExtension: "js"))
         let sucraseSource = try String(contentsOf: resourceURL, encoding: .utf8)

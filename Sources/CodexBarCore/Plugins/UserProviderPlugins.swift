@@ -233,15 +233,30 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
     private let providersDirectory: URL
     private let cacheDirectory: URL
     private let transport: any ProviderHTTPTransport
+    private let resourceBundle: Bundle?
 
-    public init(
+    public convenience init(
         providersDirectory: URL = UserProviderPluginLoader.defaultProvidersDirectory,
         cacheDirectory: URL = UserProviderPluginLoader.defaultCacheDirectory,
         transport: (any ProviderHTTPTransport)? = nil)
     {
+        self.init(
+            providersDirectory: providersDirectory,
+            cacheDirectory: cacheDirectory,
+            transport: transport,
+            resourceBundle: CodexBarCoreResources.bundle)
+    }
+
+    init(
+        providersDirectory: URL,
+        cacheDirectory: URL,
+        transport: (any ProviderHTTPTransport)?,
+        resourceBundle: Bundle?)
+    {
         self.providersDirectory = providersDirectory
         self.cacheDirectory = cacheDirectory
         self.transport = transport ?? UserProviderPluginHTTPTransport.make()
+        self.resourceBundle = resourceBundle
     }
 
     public func discover() -> [UserProviderPluginLoadResult] {
@@ -302,6 +317,7 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         }
         let runtime = try ProviderPluginRuntime(
             source: output.source,
+            resourceBundle: self.resourceBundle,
             transport: self.transport,
             responseSizeLimit: UserProviderPlugin.maximumSourceBytes,
             rejectsNonSuccessResponses: true,
@@ -344,7 +360,10 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         if let cached = try? String(contentsOf: cacheURL, encoding: .utf8) {
             return (cached, cacheURL, true)
         }
-        guard let resourceURL = CodexBarCoreResources.bundle.url(
+        guard let resourceBundle = self.resourceBundle else {
+            throw ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)
+        }
+        guard let resourceURL = resourceBundle.url(
             forResource: "sucrase-\(Self.sucraseVersion).min",
             withExtension: "js")
         else {

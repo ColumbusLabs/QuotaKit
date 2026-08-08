@@ -1435,3 +1435,6 @@
 "Install" = "Cài đặt";
 "API URL" = "URL API";
 "Optional. Defaults to the hosted OpenRouter API." = "Không bắt buộc. Mặc định sử dụng API OpenRouter được lưu trữ.";
+"5-hour usage" = "Mức sử dụng 5 giờ";
+"7-day usage" = "Mức sử dụng 7 ngày";
+"Total usage" = "Tổng mức sử dụng";

@@ -1435,3 +1435,6 @@
 "Install" = "インストール";
 "API URL" = "API URL";
 "Optional. Defaults to the hosted OpenRouter API." = "任意。デフォルトでは、ホストされている OpenRouter API を使用します。";
+"5-hour usage" = "5時間の使用量";
+"7-day usage" = "7日間の使用量";
+"Total usage" = "合計使用量";

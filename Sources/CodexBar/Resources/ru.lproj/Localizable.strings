@@ -1436,3 +1436,6 @@
 "Install" = "Установить";
 "API URL" = "URL API";
 "Optional. Defaults to the hosted OpenRouter API." = "Необязательно. По умолчанию используется размещённый API OpenRouter.";
+"5-hour usage" = "Использование за 5 часов";
+"7-day usage" = "Использование за 7 дней";
+"Total usage" = "Общее использование";

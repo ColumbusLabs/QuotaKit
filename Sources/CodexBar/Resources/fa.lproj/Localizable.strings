@@ -1438,3 +1438,6 @@
 "Install" = "نصب";
 "API URL" = "نشانی API";
 "Optional. Defaults to the hosted OpenRouter API." = "اختیاری. به‌طور پیش‌فرض از API میزبانی‌شدهٔ OpenRouter استفاده می‌شود.";
+"5-hour usage" = "مصرف ۵ ساعته";
+"7-day usage" = "مصرف ۷ روزه";
+"Total usage" = "مصرف کل";

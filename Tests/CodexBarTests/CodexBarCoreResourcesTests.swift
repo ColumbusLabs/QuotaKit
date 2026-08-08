@@ -4,8 +4,8 @@ import Testing
 
 struct CodexBarCoreResourcesTests {
     @Test
-    func `resolver finds bundled plugin resources outside an app context`() {
-        let bundle = CodexBarCoreResources.bundle
+    func `resolver finds bundled plugin resources outside an app context`() throws {
+        let bundle = try #require(CodexBarCoreResources.bundle)
         #expect(bundle.url(forResource: "provider-plugin-prelude", withExtension: "js") != nil)
     }
 
@@ -24,14 +24,44 @@ struct CodexBarCoreResourcesTests {
         let target = resourcesURL.appendingPathComponent("CodexBar_CodexBarCore.bundle")
         // `Bundle.module` here is the *test* module's bundle; source the copy from
         // CodexBarCore's own resolved bundle (non-app context, proven by the test above).
-        try FileManager.default.copyItem(
-            at: URL(fileURLWithPath: CodexBarCoreResources.bundle.bundleURL.path).resolvingSymlinksInPath(),
-            to: target)
+        let sourceBundle = try #require(CodexBarCoreResources.bundle)
+        try FileManager.default.copyItem(at: sourceBundle.bundleURL.resolvingSymlinksInPath(), to: target)
 
         let fakeApp = try #require(Bundle(url: appURL))
-        let resolved = CodexBarCoreResources.resolve(mainBundle: fakeApp)
+        let resolved = try #require(CodexBarCoreResources.resolve(mainBundle: fakeApp))
         #expect(resolved.bundleURL.path.contains("Contents/Resources/CodexBar_CodexBarCore.bundle"))
         #expect(resolved.url(forResource: "provider-plugin-prelude", withExtension: "js") != nil)
+    }
+
+    @Test(arguments: ["bundle", "resources"])
+    func `resolver finds an executable adjacent resource bundle`(pathExtension: String) throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexBarCoreResourcesCLITests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        let sourceBundle = try #require(CodexBarCoreResources.bundle)
+        let target = root.appendingPathComponent("CodexBar_CodexBarCore.\(pathExtension)")
+        try FileManager.default.copyItem(at: sourceBundle.bundleURL.resolvingSymlinksInPath(), to: target)
+
+        let resolved = try #require(CodexBarCoreResources.resolve(
+            mainBundle: .main,
+            executableBundleURL: root,
+            swiftPMBuildDirectory: nil))
+        #expect(resolved.bundleURL.resolvingSymlinksInPath() == target.resolvingSymlinksInPath())
+    }
+
+    @Test
+    func `resolver returns nil when executable and build bundles are missing`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexBarCoreResourcesMissingTests-\(UUID().uuidString)")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+
+        #expect(CodexBarCoreResources.resolve(
+            mainBundle: .main,
+            executableBundleURL: root,
+            swiftPMBuildDirectory: nil) == nil)
     }
 
     @Test

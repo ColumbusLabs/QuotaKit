@@ -1437,3 +1437,6 @@
 "Install" = "Instal·la";
 "API URL" = "URL de l’API";
 "Optional. Defaults to the hosted OpenRouter API." = "Opcional. Per defecte, s’utilitza l’API allotjada d’OpenRouter.";
+"5-hour usage" = "Ús de 5 hores";
+"7-day usage" = "Ús de 7 dies";
+"Total usage" = "Ús total";
