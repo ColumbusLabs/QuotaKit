@@ -217,9 +217,8 @@ extension CodexBarCLI {
           non-loopback host the token also gates /usage and /cost (account data);
           / and /health are always open. Use a TLS-terminating reverse proxy for anything
           beyond a trusted network segment.
-          Snapshot identity defaults to redacted emails; --identity full exposes real
-          account emails to every authorized dashboard client. Reserve it for trusted,
-          private networks (e.g. a tailnet-only reverse proxy).
+          Snapshot identity is redacted by default. --identity full exposes real account
+          emails and should be used only on trusted, private networks.
 
         Endpoints:
           GET /                    Built-in web dashboard

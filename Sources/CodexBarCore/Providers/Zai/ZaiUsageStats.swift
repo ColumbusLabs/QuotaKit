@@ -7,6 +7,7 @@ import FoundationNetworking
 public enum ZaiLimitType: String, Sendable {
     case timeLimit = "TIME_LIMIT"
     case tokensLimit = "TOKENS_LIMIT"
+    case creditLimit = "CREDIT_LIMIT"
 }
 
 /// Z.ai usage limit unit types
@@ -224,10 +225,14 @@ extension ZaiUsageSnapshot {
             loginMethod: loginMethod)
         var quotaRows: [ProviderDetailSection.Row] = []
         if let tokenLimit = self.tokenLimit {
-            quotaRows.append(Self.detailRow(label: "Token quota", limit: tokenLimit))
+            quotaRows.append(Self.detailRow(
+                label: tokenLimit.type == .creditLimit ? "Credit quota" : "Token quota",
+                limit: tokenLimit))
         }
         if let sessionTokenLimit = self.sessionTokenLimit {
-            quotaRows.append(Self.detailRow(label: "Session token quota", limit: sessionTokenLimit))
+            quotaRows.append(Self.detailRow(
+                label: sessionTokenLimit.type == .creditLimit ? "Session credit quota" : "Session token quota",
+                limit: sessionTokenLimit))
         }
         if let timeLimit = self.timeLimit {
             quotaRows.append(Self.detailRow(label: "MCP quota", limit: timeLimit))
@@ -322,7 +327,7 @@ extension ZaiUsageSnapshot {
         if limit.type == .timeLimit {
             return "MCP"
         }
-        if limit.type == .tokensLimit, limit.windowMinutes == 5 * 60 {
+        if limit.type == .tokensLimit || limit.type == .creditLimit, limit.windowMinutes == 5 * 60 {
             return "5-hour"
         }
         if let label = limit.windowLabel {
@@ -578,7 +583,7 @@ public struct ZaiUsageFetcher: Sendable {
         for limit in responseData.limits {
             if let entry = limit.toLimitEntry() {
                 switch entry.type {
-                case .tokensLimit:
+                case .tokensLimit, .creditLimit:
                     tokenLimits.append(entry)
                 case .timeLimit:
                     timeLimit = entry

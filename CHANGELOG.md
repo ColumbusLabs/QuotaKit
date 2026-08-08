@@ -29,6 +29,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Copilot: decode the AI credits counter for token-billed seats and expose it in `quotakit diagnose`, so Business seats with zero-entitlement quotas are no longer blank at the data layer (#2613, refs #2593). Thanks @Yuxin-Qiao, and @KSEGIT for the discovery!
 
 ### Changed
+- Provider plugins: add a portable QuickJS engine for Linux and explicit local engine testing while keeping QuotaKit's native provider fetchers as the default where typed compatibility data feeds iCloud and iPhone.
+- CLI dashboard: paint a cached shell immediately and stream provider rows as they finish, while retaining redacted account identity by default and QuotaKit-owned browser storage keys.
 - Provider plugins: add golden-tested JavaScript implementations for OpenRouter, ClawRouter, Deepgram, and sub2api. QuotaKit keeps their native fetchers as the default so typed usage remains available to iCloud and iOS, while Crof and Venice continue using bundled JavaScript by default on macOS.
 - Settings: refresh the Plugins pane to match the other panes — labeled install and directory rows with a Show in Finder affordance, a tilde-abbreviated path, a properly sized empty state, and consistent section footers.
 - Settings: localize every Plugins pane control, status, approval prompt, and alert across all complete app locales.
@@ -38,8 +40,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Synced upstream CodexBar changes through `98c286dbe`, adding the built-in serve dashboard, atomic dashboard snapshots, optional full identity, claude-swap dashboard accounts, KRW, and quota/runtime reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all Mac/iOS build numbers.
 - Synced upstream CodexBar changes through `a1fd8c5a9`, adding richer CLI JSON and native-only scans, token-activity heatmaps, resizable settings, plugin refinements, and provider correctness and reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
 - Synced upstream CodexBar changes through `a82f509ea`, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.
+- Synced upstream CodexBar changes through `cee0fd074`, adding portable QuickJS plugins, packaged-resource smoke coverage, progressive dashboards, active claude-swap menu-bar usage, and quota fixes while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.
 
 ### Fixed
+- Packaging: resolve the CodexBarCore SwiftPM resource bundle from `QuotaKit.app/Contents/Resources` and smoke-test the bundle's declared executable without relying on the build checkout.
+- Claude: render the menu-bar indicator from the active claude-swap account and treat that presentation snapshot as loaded without suppressing ambient refresh retries.
+- Codex and z.ai/GLM: decode monthly spend-control credit limits and credit-based Coding Plan windows, including the 5-hour primary reset, while retaining QuotaKit's MCP cadence semantics.
+- Menu: make percentage labels follow the Usage bars fill setting.
 - CLI serve: bound the full request head against slow-trickle holds, keep slow provider work running after a request deadline, and deliver completed late results to cache and already-waiting requests.
 - Codex: apply redeemed manual resets immediately without waiting for the previous weekly-boundary confirmation window.
 - Antigravity: wait for a cold-started signed-in `agy` server to become quota-ready before falling back.

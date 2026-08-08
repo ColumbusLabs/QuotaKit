@@ -1,5 +1,7 @@
-#if canImport(JavaScriptCore)
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
 import Testing
 @testable import CodexBarCore
 
@@ -558,4 +560,3 @@ private actor RequestRecorder {
         self.requests.append(request)
     }
 }
-#endif

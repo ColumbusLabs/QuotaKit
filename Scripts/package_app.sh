@@ -759,4 +759,10 @@ copy_app_bundle "$APP" "$APP_FINAL"
 rm -rf "$(dirname "$APP")"
 APP="$APP_FINAL"
 verify_packaged_app_integrity "$APP"
+# Release gate for the 0.48.0 crash class (#2738): launch the packaged binary
+# with the build checkout unreadable so a `Bundle.module`-style compile-time
+# path dependency fails packaging here instead of on user machines.
+if [[ "$LOWER_CONF" == "release" ]]; then
+  "$ROOT/Scripts/verify_packaged_app_launch.sh" "$APP"
+fi
 echo "Created $APP"

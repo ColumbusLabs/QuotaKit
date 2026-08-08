@@ -1,10 +1,11 @@
-#if canImport(JavaScriptCore)
 import Crypto
 import Foundation
 #if canImport(FoundationNetworking)
 import FoundationNetworking
 #endif
+#if canImport(JavaScriptCore)
 @preconcurrency import JavaScriptCore
+#endif
 
 public struct ProviderPluginApprovalBinding: Codable, Equatable, Sendable {
     public let instanceID: ProviderInstanceID
@@ -343,16 +344,17 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         if let cached = try? String(contentsOf: cacheURL, encoding: .utf8) {
             return (cached, cacheURL, true)
         }
-        guard let resourceURL = Bundle.module.url(
+        guard let resourceURL = CodexBarCoreResources.bundle.url(
             forResource: "sucrase-\(Self.sucraseVersion).min",
             withExtension: "js")
         else {
             throw ProviderPluginError.load("bundled Sucrase \(Self.sucraseVersion) resource was not found")
         }
+        let sucraseSource = try String(contentsOf: resourceURL, encoding: .utf8)
+        #if canImport(JavaScriptCore)
         guard let context = JSContext() else {
             throw ProviderPluginError.load("JavaScriptCore could not create a TypeScript transpiler context")
         }
-        let sucraseSource = try String(contentsOf: resourceURL, encoding: .utf8)
         context.exception = nil
         _ = context.evaluateScript(sucraseSource)
         if let exception = context.exception {
@@ -369,6 +371,11 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         guard let output = result?.toString(), !output.isEmpty else {
             throw ProviderPluginError.load("TypeScript transpilation returned no output")
         }
+        #else
+        let output = try QuickJSProviderPluginEngine.transpileTypeScript(
+            source: source,
+            sucraseSource: sucraseSource)
+        #endif
         try Data(output.utf8).write(to: cacheURL, options: .atomic)
         return (output, cacheURL, false)
     }
@@ -542,11 +549,16 @@ private final class UserProviderPluginHTTPClient: NSObject, ProviderHTTPTranspor
         didReceive challenge: URLAuthenticationChallenge,
         completionHandler: @escaping @Sendable (URLSession.AuthChallengeDisposition, URLCredential?) -> Void)
     {
+        #if canImport(Darwin)
         if challenge.protectionSpace.authenticationMethod == NSURLAuthenticationMethodServerTrust {
             completionHandler(.performDefaultHandling, nil)
         } else {
             completionHandler(.cancelAuthenticationChallenge, nil)
         }
+        #else
+        _ = challenge
+        completionHandler(.performDefaultHandling, nil)
+        #endif
     }
 
     private func finish(taskIdentifier: Int, result: Result<(Data, URLResponse), Error>) {
@@ -554,4 +566,3 @@ private final class UserProviderPluginHTTPClient: NSObject, ProviderHTTPTranspor
         continuation?.resume(with: result)
     }
 }
-#endif

@@ -68,10 +68,8 @@ enum CodexBarCLI {
                 await self.runDiagnose(invocation.parsedValues)
             case ["guard"]:
                 await self.runGuard(invocation.parsedValues)
-            #if canImport(JavaScriptCore)
             case let path where path.first == "plugins":
                 await self.runPlugins(path: path, values: invocation.parsedValues)
-            #endif
             default:
                 Self.exit(
                     code: .failure,
@@ -271,13 +269,10 @@ enum CodexBarCLI {
                 discussion: nil,
                 signature: diagnoseSignature),
         ]
-        #if canImport(JavaScriptCore)
         descriptors.append(Self.pluginsCommandDescriptor())
-        #endif
         return descriptors
     }
 
-    #if canImport(JavaScriptCore)
     private static func pluginsCommandDescriptor() -> CommandDescriptor {
         CommandDescriptor(
             name: "plugins",
@@ -298,7 +293,6 @@ enum CodexBarCLI {
             ],
             defaultSubcommandName: "list")
     }
-    #endif
 
     private static func dashboardCommandDescriptor() -> CommandDescriptor {
         CommandDescriptor(
