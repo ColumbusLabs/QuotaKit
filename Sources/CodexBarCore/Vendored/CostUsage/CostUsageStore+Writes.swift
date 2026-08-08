@@ -472,6 +472,9 @@ extension CostUsageStore {
     }
 
     static func inTransaction<T>(_ database: OpaquePointer, _ operation: () throws -> T) throws -> T {
+        guard sqlite3_get_autocommit(database) != 0 else {
+            return try operation()
+        }
         try self.execute(database, "BEGIN IMMEDIATE")
         do {
             let value = try operation()

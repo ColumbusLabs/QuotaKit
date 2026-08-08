@@ -80,6 +80,8 @@ actor CostUsageStore {
     private let expectedParserHash: String
     private var connection: SQLiteConnection?
     private(set) var rebuildCount = 0
+    private var activeTransactionDatabase: OpaquePointer?
+    private var activeTransactionError: Error?
 
     init(
         cacheRoot: URL? = nil,
@@ -146,6 +148,15 @@ extension CostUsageStore {
     }
 
     func withDatabase<T>(default fallback: T, _ operation: (OpaquePointer) throws -> T) -> T {
+        if let database = self.activeTransactionDatabase {
+            guard self.activeTransactionError == nil else { return fallback }
+            do {
+                return try operation(database)
+            } catch {
+                self.activeTransactionError = error
+                return fallback
+            }
+        }
         do {
             let database = try self.ensureDatabase()
             return try operation(database)
@@ -200,6 +211,28 @@ extension CostUsageStore {
         }
     }
 
+    /// Runs a complete save cycle as one all-or-nothing SQLite transaction.
+    func withSaveTransaction<T>(default fallback: T, _ operation: () throws -> T) -> T {
+        self.withDatabase(default: fallback) { database in
+            do {
+                return try Self.inTransaction(database) {
+                    self.activeTransactionDatabase = database
+                    defer {
+                        self.activeTransactionDatabase = nil
+                        self.activeTransactionError = nil
+                    }
+                    let value = try operation()
+                    if let failure = self.activeTransactionError { throw failure }
+                    return value
+                }
+            } catch {
+                self.activeTransactionDatabase = nil
+                self.activeTransactionError = nil
+                throw error
+            }
+        }
+    }
+
     func ensureDatabase() throws -> OpaquePointer {
         if let database = self.connection?.handle {
             return database
@@ -209,6 +242,7 @@ extension CostUsageStore {
             self.connection = SQLiteConnection(handle: opened)
             return opened
         } catch {
+            guard Self.shouldRebuild(after: error) else { throw error }
             self.rebuildDatabase(reason: "open failed: \(error)")
             guard let database = self.connection?.handle else { throw error }
             return database
@@ -285,29 +319,15 @@ extension CostUsageStore {
         }
     }
 
-    /// The Codex JSON cache is derived data, so the SQLite cutover deliberately rebuilds
-    /// from session files instead of importing an old monolithic snapshot. Keep the legacy
-    /// filename knowledge confined to this one cleanup boundary.
+    /// Keep the legacy artifact during the SQLite cutover. It is not read by the new store,
+    /// but retaining it preserves a rollback path if the session corpus is incomplete.
     func removeLegacyCodexArtifactIfPresent() -> Bool {
         let directory = self.databaseURL.deletingLastPathComponent()
         let legacyFilename = "codex-v11.json"
         let legacyURL = directory.appendingPathComponent(legacyFilename)
         guard FileManager.default.fileExists(atPath: legacyURL.path) else { return false }
-
-        let temporaryNames = (try? FileManager.default.contentsOfDirectory(
-            at: directory,
-            includingPropertiesForKeys: nil))?.filter { url in
-            let name = url.lastPathComponent
-            return name == legacyFilename
-                || name.hasPrefix(".\(legacyFilename).")
-                || name.hasPrefix("\(legacyFilename).")
-                || name.hasPrefix("\(legacyFilename)-")
-        } ?? [legacyURL]
-        for url in temporaryNames {
-            try? FileManager.default.removeItem(at: url)
-        }
-        self.rebuildDatabase(reason: "legacy Codex JSON artifact removed")
-        return true
+        Self.log.info("legacy Codex JSON cache retained during SQLite cutover")
+        return false
     }
 }
 

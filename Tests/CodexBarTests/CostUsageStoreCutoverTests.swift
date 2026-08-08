@@ -5,7 +5,7 @@ import Testing
 @Suite(.serialized)
 struct CostUsageStoreCutoverTests {
     @Test
-    func `legacy artifact cleanup deletes JSON and rebuilds SQLite from source`() async throws {
+    func `legacy artifact is retained while SQLite rebuilds from source`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 8, day: 8)
@@ -36,8 +36,8 @@ struct CostUsageStoreCutoverTests {
             options: options)
 
         #expect(report.summary?.totalInputTokens == 7)
-        #expect(!FileManager.default.fileExists(atPath: legacy.path))
-        #expect(!FileManager.default.fileExists(atPath: temporary.path))
+        #expect(FileManager.default.fileExists(atPath: legacy.path))
+        #expect(FileManager.default.fileExists(atPath: temporary.path))
         #expect(FileManager.default.fileExists(atPath: store.databaseURL.path))
         let snapshot = await CostUsageStore(cacheRoot: env.cacheRoot).readSnapshot()
         #expect(snapshot.files.map(\.path).contains("/stale.jsonl") == false)

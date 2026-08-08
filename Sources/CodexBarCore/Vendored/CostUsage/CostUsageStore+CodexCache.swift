@@ -24,25 +24,28 @@ extension CostUsageStore {
     {
         let previous = self.readSnapshot()
         let canReuseStoredRows = previous.metadata.timeZoneIdentifier == calendar.timeZone.identifier
-        self.deleteRemovedFiles(previous: previous, cache: cache)
-        for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
-            let oldFile = previous.files.first { $0.path == path }
-            let oldSnapshotCount = previous.tokenSnapshots.count(where: { $0.path == path })
-            let oldRowCount = previous.usageRows.count(where: { $0.path == path })
-            self.persistFile(
-                path: path,
-                usage: usage,
-                baseline: PersistedFileBaseline(
-                    file: oldFile,
-                    snapshotCount: oldSnapshotCount,
-                    rowCount: oldRowCount,
-                    canReuseRows: canReuseStoredRows),
-                calendar: calendar)
+        _ = self.withSaveTransaction(default: false) {
+            self.deleteRemovedFiles(previous: previous, cache: cache)
+            for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
+                let oldFile = previous.files.first { $0.path == path }
+                let oldSnapshotCount = previous.tokenSnapshots.count(where: { $0.path == path })
+                let oldRowCount = previous.usageRows.count(where: { $0.path == path })
+                self.persistFile(
+                    path: path,
+                    usage: usage,
+                    baseline: PersistedFileBaseline(
+                        file: oldFile,
+                        snapshotCount: oldSnapshotCount,
+                        rowCount: oldRowCount,
+                        canReuseRows: canReuseStoredRows),
+                    calendar: calendar)
+            }
+            _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache))
+            _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
+            _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
+            _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
+            return true
         }
-        _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache))
-        _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
-        _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
-        _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
         let result = self.enforceBudgets(
             maxRows: rowBudget,
             maxFileBytes: fileBudgetBytes,
