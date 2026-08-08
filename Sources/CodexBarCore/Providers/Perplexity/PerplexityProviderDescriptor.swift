@@ -97,7 +97,7 @@ public enum PerplexityProviderDescriptor {
             sourceModes: [.auto, .web],
             pipeline: ProviderFetchPipeline(resolveStrategies: { context in
                 let swift = PerplexityWebFetchStrategy()
-                #if canImport(JavaScriptCore)
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
                 return [
                     ScriptFetchStrategy(

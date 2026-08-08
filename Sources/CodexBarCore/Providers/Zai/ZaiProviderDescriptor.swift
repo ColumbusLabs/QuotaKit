@@ -121,7 +121,7 @@ public enum ZaiProviderDescriptor {
                 teamContext: settings?.teamContext,
                 environment: context.env).toUsageSnapshot()
         }
-        #if canImport(JavaScriptCore)
+        #if canImport(JavaScriptCore) || canImport(CQuickJS)
         return ProviderFetchPlan(
             sourceModes: [.auto, .api],
             pipeline: ProviderFetchPipeline(resolveStrategies: { context in

@@ -76,7 +76,7 @@ public enum DeepgramProviderDescriptor {
             sourceModes: [.auto, .api],
             pipeline: ProviderFetchPipeline(resolveStrategies: { context in
                 let swift = DeepgramAPIFetchStrategy()
-                #if canImport(JavaScriptCore)
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
                 return [ScriptFetchStrategy(
                     id: "deepgram.js",

@@ -53,7 +53,7 @@ public enum T3ChatProviderDescriptor {
             sourceModes: [.auto, .web],
             pipeline: ProviderFetchPipeline(resolveStrategies: { context in
                 let swift = T3ChatWebFetchStrategy()
-                #if canImport(JavaScriptCore)
+                #if canImport(JavaScriptCore) || canImport(CQuickJS)
                 guard ProviderPluginPrototype.isEnabled(environment: context.env) else { return [swift] }
                 return [
                     ScriptFetchStrategy(
