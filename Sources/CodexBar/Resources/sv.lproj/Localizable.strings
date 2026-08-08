@@ -1433,3 +1433,6 @@
 "Install" = "Installera";
 "API URL" = "API-URL";
 "Optional. Defaults to the hosted OpenRouter API." = "Valfritt. Som standard används OpenRouters hostade API.";
+"5-hour usage" = "5-timmarsanvändning";
+"7-day usage" = "7-dagarsanvändning";
+"Total usage" = "Total användning";

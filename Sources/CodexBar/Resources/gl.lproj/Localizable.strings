@@ -1434,3 +1434,6 @@
 "Install" = "Instalar";
 "API URL" = "URL da API";
 "Optional. Defaults to the hosted OpenRouter API." = "Opcional. De maneira predeterminada, úsase a API aloxada de OpenRouter.";
+"5-hour usage" = "Uso de 5 horas";
+"7-day usage" = "Uso de 7 días";
+"Total usage" = "Uso total";

@@ -1465,3 +1465,6 @@
 "Install" = "安裝";
 "API URL" = "API 網址";
 "Optional. Defaults to the hosted OpenRouter API." = "選填。預設使用託管的 OpenRouter API。";
+"5-hour usage" = "5 小時用量";
+"7-day usage" = "7 天用量";
+"Total usage" = "總用量";

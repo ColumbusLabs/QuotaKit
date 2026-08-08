@@ -1438,3 +1438,6 @@
 "Install" = "Pasang";
 "API URL" = "URL API";
 "Optional. Defaults to the hosted OpenRouter API." = "Opsional. Secara default, menggunakan API OpenRouter yang dihosting.";
+"5-hour usage" = "Penggunaan 5 jam";
+"7-day usage" = "Penggunaan 7 hari";
+"Total usage" = "Total penggunaan";

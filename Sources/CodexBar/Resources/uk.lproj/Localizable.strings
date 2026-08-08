@@ -1434,3 +1434,6 @@
 "Install" = "Встановити";
 "API URL" = "URL-адреса API";
 "Optional. Defaults to the hosted OpenRouter API." = "Необов’язково. Типово використовується розміщений API OpenRouter.";
+"5-hour usage" = "Використання за 5 годин";
+"7-day usage" = "Використання за 7 днів";
+"Total usage" = "Загальне використання";

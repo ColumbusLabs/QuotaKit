@@ -1402,3 +1402,6 @@
 "Install" = "설치";
 "API URL" = "API URL";
 "Optional. Defaults to the hosted OpenRouter API." = "선택 사항입니다. 기본적으로 호스팅된 OpenRouter API를 사용합니다.";
+"5-hour usage" = "5시간 사용량";
+"7-day usage" = "7일 사용량";
+"Total usage" = "총 사용량";
