@@ -6,6 +6,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
+python3 - "${ROOT_DIR}/.github/workflows/ci.yml" <<'PY'
+import pathlib
+import re
+import sys
+
+workflow = pathlib.Path(sys.argv[1]).read_text()
+lint_job = re.search(r"(?ms)^  lint:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if lint_job is None or "runs-on: macos-26" not in lint_job.group("body"):
+    raise SystemExit("lint job must run on macos-26")
+if re.search(r"(?m)^  build-linux(?:-musl)?-cli:", workflow):
+    raise SystemExit("Linux build-only CI jobs must remain removed")
+aggregate = re.search(r"(?ms)^  lint-build-test:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if aggregate is None or "build-linux" in aggregate.group("body") or "linux-musl" in aggregate.group("body"):
+    raise SystemExit("aggregate CI gate must not depend on removed Linux jobs")
+PY
+
 assert_gate() {
   local expected="$1"
   local name="$2"
@@ -158,7 +174,6 @@ assert_gate_fails extra-modified-path $'M\tREADME.md\tdocs/configuration.md'
 assert_gate_fails missing-rename-score $'R\tREADME.md\tdocs/README.md'
 assert_gate_fails invalid-rename-score $'Rfoo\tREADME.md\tdocs/README.md'
 assert_gate_fails out-of-range-rename-score $'R101\tREADME.md\tdocs/README.md'
-
 
 if CI_PULL_REQUEST_DRAFT=maybe GITHUB_OUTPUT="${tmp_dir}/invalid-draft.output" \
   "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "${tmp_dir}/docs-only.paths" >/dev/null 2>&1

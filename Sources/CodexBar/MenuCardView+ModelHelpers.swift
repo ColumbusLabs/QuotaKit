@@ -182,6 +182,11 @@ extension UsageMenuCardView.Model {
     static func usageNotes(input: Input) -> [String] {
         let subscriptionNotes = self.subscriptionMetadataNotes(snapshot: input.snapshot, provider: input.provider)
 
+        if input.provider == .claude, input.snapshot?.dataConfidence == .percentOnly {
+            // CLI-scraped usage carries rendered percentages only; label the reduced fidelity honestly.
+            return [L("Usage via Claude CLI (limited detail)")] + subscriptionNotes
+        }
+
         if let notes = self.apiProviderUsageNotes(input: input) {
             return notes + subscriptionNotes
         }

@@ -236,6 +236,44 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `retired provider config rows never queue fleet sync intents`() async throws {
+        let retired = try #require(ProviderInstanceID(rawValue: "antigravity"))
+        var envelope = CloudSyncPersistence.Envelope(
+            stateSerialization: nil,
+            encodedSystemFields: [:],
+            dirtyProviders: [retired.rawValue, UsageProvider.claude.rawValue])
+
+        let recordNames = CloudSyncDirtyState.configurationRecordNamesToQueue(
+            envelope: envelope,
+            configuredProviders: [retired, .claude])
+        #expect(recordNames == [ProviderIntentPayload.recordName(for: .claude)])
+
+        envelope = CloudSyncPersistence.Envelope(stateSerialization: nil, encodedSystemFields: [:])
+        CloudSyncDirtyState.markBootstrapDirtyIfNeeded(
+            configuredProviders: [retired, .codex],
+            envelope: &envelope)
+        #expect(envelope.dirtyProviders == [UsageProvider.codex.rawValue])
+
+        let fixture = try self.makeFixture("retired-provider-dirty-state")
+        let persistence = self.makePersistence("retired-provider-dirty-state")
+        var initial = fixture.store.configSnapshot
+        initial.providers.append(ProviderConfig(id: retired, extrasEnabled: false))
+        let engine = CloudSyncEngine(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence,
+            initialConfiguration: initial,
+            initialPreferences: fixture.store.syncedPreferences,
+            initialIncludeSecrets: false)
+        var updated = initial
+        updated.setProviderConfig(ProviderConfig(id: retired, extrasEnabled: true))
+
+        await engine.localUserConfigurationDidChange(updated)
+
+        #expect(persistence.load().dirtyProviders.isEmpty)
+    }
+
+    @Test
     func `successful saves clear dirty while failed saves keep it`() {
         var envelope = CloudSyncPersistence.Envelope(
             stateSerialization: nil,

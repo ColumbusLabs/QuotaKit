@@ -408,6 +408,9 @@ extension SettingsStore {
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
         let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
         let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
+        // Explicit consent for reading Claude Code's Keychain item (#2634). Default OFF; never enabled silently.
+        let claudeOAuthDirectKeychainReadAllowed = userDefaults.object(
+            forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey) as? Bool ?? false
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let optionalCreditsDefaults = Self.loadOptionalCreditsDefaults(userDefaults: userDefaults)
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
@@ -497,6 +500,7 @@ extension SettingsStore {
             menuBarShowsHighestUsage: menuBarShowsHighestUsage,
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
+            claudeOAuthDirectKeychainReadAllowed: claudeOAuthDirectKeychainReadAllowed,
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
