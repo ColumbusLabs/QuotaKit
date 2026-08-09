@@ -2718,6 +2718,16 @@
         }
       }
     },
+    "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Open the QuotaKit Mac setup page to install the current Mac build for new providers and accurate Cost numbers: columbus-labs.com/quotakit/mac."
+          }
+        }
+      }
+    },
     "Open the QuotaKit Mac setup page to install the current Mac build for Perplexity credit breakdowns and other synced provider improvements: columbus-labs.com/quotakit/mac.": {
       "localizations": {
         "en": {
