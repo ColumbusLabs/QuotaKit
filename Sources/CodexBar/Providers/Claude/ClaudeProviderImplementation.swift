@@ -23,6 +23,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         _ = settings.claudeCookieSource
         _ = settings.claudeCookieHeader
         _ = settings.claudeOAuthKeychainPromptMode
+        _ = settings.claudeOAuthDirectKeychainReadAllowed
         _ = settings.claudeOAuthKeychainReadStrategy
         _ = settings.claudeWebExtrasEnabled
         _ = settings.claudeSwapEnabled
@@ -104,6 +105,24 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 actions: [],
                 isVisible: nil,
                 isEnabled: { context.settings.showOptionalCreditsAndExtraUsage },
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
+            ProviderSettingsToggleDescriptor(
+                id: "claude-oauth-direct-keychain-read",
+                title: "Allow reading Claude Code's credentials",
+                subtitle: [
+                    "Reads Claude Code's Keychain item for OAuth usage; macOS may ask for permission.",
+                    "Off: QuotaKit never touches Claude Code's credentials and can fall back to Claude CLI or web "
+                        + "when available.",
+                ].joined(separator: " "),
+                binding: Binding(
+                    get: { context.settings.claudeOAuthDirectKeychainReadAllowed },
+                    set: { context.settings.claudeOAuthDirectKeychainReadAllowed = $0 }),
+                statusText: nil,
+                actions: [],
+                isVisible: nil,
+                isEnabled: { !context.settings.debugDisableKeychainAccess },
                 onChange: nil,
                 onAppDidBecomeActive: nil,
                 onAppearWhenEnabled: nil),
@@ -322,6 +341,11 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     func loginMenuAction(context: ProviderMenuLoginContext)
         -> (label: String, action: MenuDescriptor.MenuAction)?
     {
+        if self.shouldOfferDirectKeychainReadConsent(context: context) {
+            // Terminal unreadable state (#2634/#2650): OAuth cannot recover until the user either opts in
+            // to reading Claude Code's Keychain item or usage arrives via the Claude CLI fallback.
+            return ("Allow reading Claude Code's credentials in Settings…", .settings)
+        }
         if self.shouldOpenBrowserForWebSessionError(context: context) {
             return ("Re-login at claude.ai", .loginToProvider(url: "https://claude.ai/"))
         }
@@ -330,6 +354,14 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         }
         guard !context.hasAccount else { return nil }
         return (L("Sign in with Claude Code..."), .switchAccount(.claude))
+    }
+
+    @MainActor
+    private func shouldOfferDirectKeychainReadConsent(context: ProviderMenuLoginContext) -> Bool {
+        guard !context.settings.claudeOAuthDirectKeychainReadAllowed,
+              !context.settings.debugDisableKeychainAccess
+        else { return false }
+        return ClaudeOAuthUnreadableCredentialsError.matches(description: context.store.error(for: .claude))
     }
 
     @MainActor

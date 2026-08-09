@@ -53,6 +53,7 @@ extension SettingsStore {
         _ = self.confettiOnSessionLimitResetsEnabled
         _ = self.confettiOnWeeklyLimitResetsEnabled
         _ = self.claudeOAuthKeychainPromptMode
+        _ = self.claudeOAuthDirectKeychainReadAllowed
         _ = self.claudeOAuthKeychainReadStrategy
         _ = self.claudeWebExtrasEnabled
         _ = self.copilotBudgetExtrasEnabled
