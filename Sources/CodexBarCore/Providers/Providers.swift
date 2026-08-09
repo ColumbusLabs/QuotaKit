@@ -150,6 +150,8 @@ public struct ProviderMetadata: Sendable {
     }
 }
 
+// SwiftFormat 0.61.1's Linux `enumNamespaces` rule times out on these explicit namespaces.
+// swiftformat:disable enumNamespaces
 public enum ProviderDefaults {
     public static var metadata: [UsageProvider: ProviderMetadata] {
         ProviderDescriptorRegistry.metadata
@@ -165,3 +167,5 @@ public enum ProviderBrowserCookieDefaults {
         #endif
     }
 }
+
+// swiftformat:enable enumNamespaces
