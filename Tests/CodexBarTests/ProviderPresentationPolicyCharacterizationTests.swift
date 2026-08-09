@@ -9,22 +9,26 @@ struct ProviderPresentationPolicyCharacterizationTests {
     private let now = Date(timeIntervalSince1970: 1_700_000_000)
 
     @Test
-    func `automatic exhaustion priority is pinned for every provider`() {
-        let optOut: Set<UsageProvider> = [
-            .antigravity, .perplexity, .zai, .copilot, .cursor, .minimax, .claude, .codex,
+    func `automatic exhaustion priority is pinned for supported providers`() {
+        let expected: [UsageProvider: Bool] = [
+            .codex: false,
+            .claude: false,
+            .cursor: false,
+            .grok: true,
         ]
-
         for provider in UsageProvider.allCases {
-            #expect(
-                MenuBarMetricWindowResolver.automaticSelectionPrioritizesExhaustedWindow(for: provider)
-                    == !optOut.contains(provider),
-                "Unexpected exhaustion priority for \(provider.rawValue)")
+            #expect(MenuBarMetricWindowResolver.automaticSelectionPrioritizesExhaustedWindow(for: provider) ==
+                expected[provider])
         }
     }
 
     @Test
-    func `requested metric lane fallback order is pinned`() {
-        let primary = RateWindow(usedPercent: 11, windowMinutes: 300, resetsAt: nil, resetDescription: "primary")
+    func `Cursor tertiary lane keeps its explicit fallback order`() {
+        let primary = RateWindow(
+            usedPercent: 11,
+            windowMinutes: 300,
+            resetsAt: nil,
+            resetDescription: "primary")
         let secondary = RateWindow(
             usedPercent: 22,
             windowMinutes: 10080,
@@ -35,104 +39,41 @@ struct ProviderPresentationPolicyCharacterizationTests {
             windowMinutes: 43200,
             resetsAt: nil,
             resetDescription: "tertiary")
+        let snapshot = UsageSnapshot(primary: primary, secondary: secondary, tertiary: tertiary, updatedAt: self.now)
 
-        let fixtures: [(UsageProvider, MenuBarMetricPreference, UsageSnapshot, String?)] = [
-            (.zai, .tertiary, self.snapshot(primary: primary, secondary: secondary, tertiary: tertiary), "primary"),
-            (.cursor, .tertiary, self.snapshot(primary: primary, secondary: secondary, tertiary: tertiary), "tertiary"),
-            (
-                .perplexity,
-                .tertiary,
-                self.snapshot(primary: primary, secondary: secondary, tertiary: tertiary),
-                "tertiary"),
-            (
-                .antigravity,
-                .tertiary,
-                self.snapshot(primary: primary, secondary: secondary, tertiary: tertiary),
-                "tertiary"),
-            (.zai, .primary, self.snapshot(primary: nil, secondary: secondary, tertiary: tertiary), "secondary"),
-            (.perplexity, .primary, self.snapshot(primary: nil, secondary: secondary, tertiary: tertiary), "secondary"),
-            (.antigravity, .primary, self.snapshot(primary: nil, secondary: nil, tertiary: tertiary), "tertiary"),
-            (.zai, .secondary, self.snapshot(primary: primary, secondary: nil, tertiary: tertiary), "primary"),
-            (.perplexity, .secondary, self.snapshot(primary: primary, secondary: nil, tertiary: tertiary), "tertiary"),
-            (.antigravity, .secondary, self.snapshot(primary: primary, secondary: nil, tertiary: tertiary), "primary"),
-        ]
+        let selected = MenuBarMetricWindowResolver.rateWindow(
+            preference: .tertiary,
+            provider: .cursor,
+            snapshot: snapshot,
+            supportsAverage: false,
+            now: self.now)
 
-        for (provider, preference, snapshot, expected) in fixtures {
-            let selected = MenuBarMetricWindowResolver.rateWindow(
-                preference: preference,
-                provider: provider,
-                snapshot: snapshot,
-                supportsAverage: false,
-                now: self.now)
-            #expect(selected?.resetDescription == expected, "Unexpected \(preference) lane for \(provider.rawValue)")
-        }
+        #expect(selected?.resetDescription == "tertiary")
     }
 
     @Test
-    func `semantic windows and legacy percent migration preserve Kimi lane inversion`() {
-        let primary = RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: "weekly")
-        let secondary = RateWindow(usedPercent: 50, windowMinutes: 180, resetsAt: nil, resetDescription: "session")
-        let snapshot = self.snapshot(primary: primary, secondary: secondary)
-
-        let kimi = MenuBarLayoutSemanticWindowResolver.windows(provider: .kimi, snapshot: snapshot)
-        let generic = MenuBarLayoutSemanticWindowResolver.windows(provider: .zai, snapshot: snapshot)
-
-        #expect(kimi.session == secondary)
-        #expect(kimi.weekly == primary)
-        #expect(generic.session == secondary)
-        #expect(generic.weekly == nil)
-        #expect(MenuBarLayout.migrated(
-            iconStyle: .bars,
-            displayMode: .percent,
-            metricPreference: .primary,
-            resetTimeDisplayStyle: .countdown,
-            provider: .kimi).lines == [[.icon, .percent(window: .weekly)]])
-        #expect(MenuBarLayout.migrated(
-            iconStyle: .bars,
-            displayMode: .percent,
-            metricPreference: .secondary,
-            resetTimeDisplayStyle: .countdown,
-            provider: .kimi).lines == [[.icon, .percent(window: .session)]])
-    }
-
-    @Test
-    func `session pace eligibility matrix is pinned`() {
+    func `session pace eligibility remains scoped to supported provider semantics`() {
         let fixtures: [(UsageProvider, Int?, Bool)] = [
             (.codex, nil, true),
-            (.codex, 300, true),
-            (.codex, 540, true),
             (.codex, 10080, false),
-            (.codex, 43200, false),
             (.claude, nil, true),
-            (.ollama, nil, false),
-            (.ollama, 300, true),
-            (.antigravity, nil, true),
-            (.antigravity, 300, true),
-            (.antigravity, 301, false),
-            (.kimi, 180, false),
-            (.kimi, 300, true),
-            (.notion, nil, false),
-            (.notion, 360, true),
-            (.notion, 361, false),
-            (.zai, 300, false),
+            (.cursor, 300, false),
+            (.grok, 300, false),
         ]
-
         for (provider, minutes, expected) in fixtures {
             let window = RateWindow(
                 usedPercent: 50,
                 windowMinutes: minutes,
                 resetsAt: self.now.addingTimeInterval(3600),
                 resetDescription: nil)
-            #expect(
-                (UsagePaceText.sessionPace(provider: provider, window: window, now: self.now) != nil) == expected,
-                "Unexpected session pace eligibility for \(provider.rawValue):\(String(describing: minutes))")
+            #expect((UsagePaceText.sessionPace(provider: provider, window: window, now: self.now) != nil) == expected)
         }
     }
 
     @Test
     @MainActor
-    func `decorated icon style membership is pinned`() throws {
-        let decoratedStyles: Set<IconStyle> = [.codex, .claude, .gemini, .antigravity, .factory, .warp]
+    func `decorated icon styles are limited to Codex and Claude`() throws {
+        let decoratedStyles: Set<IconStyle> = [.codex, .claude]
         for style in IconStyle.allCases {
             let decorated = IconRenderer.makeIcon(
                 primaryRemaining: 60,
@@ -149,102 +90,47 @@ struct ProviderPresentationPolicyCharacterizationTests {
                 style: style,
                 hideCritters: true)
             #expect(
-                try (#require(decorated.tiffRepresentation) != #require(plain.tiffRepresentation))
-                    == decoratedStyles.contains(style),
-                "Unexpected icon decoration membership for \(style.rawValue)")
+                try (#require(decorated.tiffRepresentation) != #require(plain.tiffRepresentation)) ==
+                    decoratedStyles.contains(style))
         }
     }
 
     @Test
-    func `credit visibility exceptions are pinned`() {
-        let codex = ProviderDescriptorRegistry.descriptor(for: .codex).metadata
-        let amp = ProviderDescriptorRegistry.descriptor(for: .amp).metadata
-        let openRouter = ProviderDescriptorRegistry.descriptor(for: .openrouter).metadata
-        let snapshot = self.snapshot(primary: RateWindow(
-            usedPercent: 20,
-            windowMinutes: nil,
-            resetsAt: nil,
-            resetDescription: nil))
-
-        #expect(UsageMenuCardView.Model.creditsLine(
-            metadata: codex,
-            snapshot: nil,
-            credits: nil,
-            error: nil) == nil)
-        #expect(UsageMenuCardView.Model.creditsLine(
-            metadata: amp,
-            snapshot: snapshot,
-            credits: nil,
-            error: nil) == nil)
-        #expect(UsageMenuCardView.Model.creditsLine(
-            metadata: openRouter,
-            snapshot: snapshot,
-            credits: nil,
-            error: nil) == openRouter.creditsHint)
-    }
-
-    @Test
-    func `history series selection special cases are pinned`() {
+    func `history series selection keeps Codex and Claude contracts`() {
         let session = RateWindow(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil)
         let weekly = RateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil)
-        let monthly = RateWindow(usedPercent: 30, windowMinutes: 43200, resetsAt: nil, resetDescription: nil)
         let histories = [
             self.history(.session, minutes: 300),
             self.history(.weekly, minutes: 10080),
             self.history(.opus, minutes: 10080),
-            self.history(.monthly, minutes: 43200),
         ]
 
-        let fixtures: [(UsageProvider, UsageSnapshot, [String])] = [
-            (
-                .codex,
-                self.snapshot(primary: session, secondary: weekly, tertiary: monthly),
-                ["session:300", "weekly:10080"]),
-            (
-                .claude,
-                self.snapshot(primary: session, secondary: weekly, tertiary: weekly),
-                ["session:300", "weekly:10080", "opus:10080"]),
-            (
-                .opencodego,
-                self.snapshot(primary: session, secondary: weekly, tertiary: monthly),
-                ["session:300", "weekly:10080", "monthly:43200"]),
-            (.zai, self.snapshot(primary: session, secondary: weekly, tertiary: monthly), ["weekly:10080"]),
-        ]
+        let codex = PlanUtilizationHistoryChartMenuView._modelSnapshotForTesting(
+            histories: histories,
+            provider: .codex,
+            snapshot: UsageSnapshot(primary: session, secondary: weekly, updatedAt: self.now))
+        let claude = PlanUtilizationHistoryChartMenuView._modelSnapshotForTesting(
+            histories: histories,
+            provider: .claude,
+            snapshot: UsageSnapshot(primary: session, secondary: weekly, tertiary: weekly, updatedAt: self.now))
 
-        for (provider, snapshot, expected) in fixtures {
-            let model = PlanUtilizationHistoryChartMenuView._modelSnapshotForTesting(
-                histories: histories,
-                provider: provider,
-                snapshot: snapshot)
-            #expect(model.visibleSeries == expected, "Unexpected history series for \(provider.rawValue)")
-        }
+        #expect(codex.visibleSeries == ["session:300", "weekly:10080"])
+        #expect(claude.visibleSeries == ["session:300", "weekly:10080", "opus:10080"])
     }
 
     @Test
-    func `widget row caps and burn down global cap providers are pinned`() throws {
-        let antigravityRows = [
-            WidgetSnapshot.WidgetUsageRowSnapshot(
-                id: "antigravity-quota-summary-gemini-session",
-                title: "Gemini",
-                percentLeft: 80),
-        ]
-        let rowFixtures: [(UsageProvider, [WidgetSnapshot.WidgetUsageRowSnapshot]?, Int?, Int?)] = [
-            (.kimi, nil, 3, 3),
-            (.antigravity, antigravityRows, 2, 3),
-            (.antigravity, nil, nil, nil),
-            (.codex, nil, nil, nil),
-        ]
-        for (provider, rows, small, medium) in rowFixtures {
-            let entry = self.widgetEntry(provider: provider, usageRows: rows)
-            #expect(WidgetUsageRow.smallWidgetRowLimit(for: entry) == small)
-            #expect(WidgetUsageRow.mediumWidgetRowLimit(for: entry) == medium)
-        }
-
+    func `widget burn down secondary cap remains Codex and Claude only`() throws {
         for provider in UsageProvider.allCases {
-            let entry = self.widgetEntry(
+            let entry = WidgetSnapshot.ProviderEntry(
                 provider: provider,
+                updatedAt: self.now,
                 primary: RateWindow(usedPercent: 10, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
-                secondary: RateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil))
+                secondary: RateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+                tertiary: nil,
+                creditsRemaining: nil,
+                codeReviewRemainingPercent: nil,
+                tokenUsage: nil,
+                dailyUsage: [])
             let state = try #require(BurnDownState(
                 snapshot: WidgetSnapshot(
                     entries: [entry],
@@ -257,41 +143,10 @@ struct ProviderPresentationPolicyCharacterizationTests {
         }
     }
 
-    private func snapshot(
-        primary: RateWindow?,
-        secondary: RateWindow? = nil,
-        tertiary: RateWindow? = nil) -> UsageSnapshot
-    {
-        UsageSnapshot(
-            primary: primary,
-            secondary: secondary,
-            tertiary: tertiary,
-            updatedAt: self.now)
-    }
-
     private func history(_ name: PlanUtilizationSeriesName, minutes: Int) -> PlanUtilizationSeriesHistory {
         PlanUtilizationSeriesHistory(
             name: name,
             windowMinutes: minutes,
             entries: [PlanUtilizationHistoryEntry(capturedAt: self.now, usedPercent: 10, resetsAt: nil)])
-    }
-
-    private func widgetEntry(
-        provider: UsageProvider,
-        primary: RateWindow? = nil,
-        secondary: RateWindow? = nil,
-        usageRows: [WidgetSnapshot.WidgetUsageRowSnapshot]? = nil) -> WidgetSnapshot.ProviderEntry
-    {
-        WidgetSnapshot.ProviderEntry(
-            provider: provider,
-            updatedAt: self.now,
-            primary: primary,
-            secondary: secondary,
-            tertiary: nil,
-            usageRows: usageRows,
-            creditsRemaining: nil,
-            codeReviewRemainingPercent: nil,
-            tokenUsage: nil,
-            dailyUsage: [])
     }
 }

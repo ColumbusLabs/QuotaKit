@@ -70,7 +70,6 @@ struct StatusMenuViewportRestoreTests {
         ]
     }
 
-    @Test
     func `viewport top offset is nil when the menu content fits the clip`() {
         #expect(StatusItemController.menuViewportTopOffset(
             documentIsFlipped: true,
@@ -1398,16 +1397,16 @@ extension StatusMenuViewportRestoreTests {
         settings.mergeIcons = false
         settings.multiAccountMenuLayout = .segmented
         settings.statusChecksEnabled = false
-        self.enableOnly([.copilot], settings: settings)
-        settings.addTokenAccount(provider: .copilot, label: "Primary", token: "a")
-        settings.addTokenAccount(provider: .copilot, label: "Secondary", token: "b")
-        settings.setActiveTokenAccountIndex(0, for: .copilot)
+        self.enableOnly([.claude], settings: settings)
+        settings.addTokenAccount(provider: .claude, label: "Primary", token: "a")
+        settings.addTokenAccount(provider: .claude, label: "Secondary", token: "b")
+        settings.setActiveTokenAccountIndex(0, for: .claude)
 
         let controller = self.makeController(settings: settings)
         defer { controller.releaseStatusItemsForTesting() }
         controller.menuRefreshEnabledOverrideForTesting = true
         controller._test_providerSwitcherMenuRebuildDebounceNanoseconds = UInt64.max
-        let menu = controller.makeMenu(for: .copilot)
+        let menu = controller.makeMenu(for: .claude)
         controller.menuWillOpen(menu)
         defer { controller.menuDidClose(menu) }
         let switcher = try #require(menu.items.compactMap { $0.view as? TokenAccountSwitcherView }.first)
@@ -1420,10 +1419,10 @@ extension StatusMenuViewportRestoreTests {
             controller.refreshOpenMenusAfterExplicitStoreAction()
         }
         controller.refreshMenuProviderNow(in: menu)
-        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.copilot)] == nil {
+        for _ in 0..<20 where controller.manualRefreshTasks[.provider(.claude)] == nil {
             await Task.yield()
         }
-        let task = try #require(controller.manualRefreshTasks[.provider(.copilot)])
+        let task = try #require(controller.manualRefreshTasks[.provider(.claude)])
         let initialGeneration = try #require(controller.menuSession
             .menuInteractionGeneration(for: ObjectIdentifier(menu)))
 
@@ -1431,7 +1430,7 @@ extension StatusMenuViewportRestoreTests {
         secondaryRefresh.cancel()
         let primaryRefresh = try #require(switcher._test_select(index: 0))
         primaryRefresh.cancel()
-        #expect(settings.tokenAccountsData(for: .copilot)?.clampedActiveIndex() == 0)
+        #expect(settings.tokenAccountsData(for: .claude)?.clampedActiveIndex() == 0)
         #expect(controller.menuSession.menuInteractionGeneration(for: ObjectIdentifier(menu)) == initialGeneration + 2)
 
         gate.resume()

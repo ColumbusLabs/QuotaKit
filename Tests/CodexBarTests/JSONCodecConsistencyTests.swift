@@ -38,7 +38,6 @@ struct JSONCodecConsistencyTests {
         #expect(ProductConfig.iOSBundleIdentifier == "com.columbuslabs.quotakit.ios")
         #expect(ProductConfig.iOSPushExtensionBundleIdentifier == "com.columbuslabs.quotakit.ios.pushextension")
         #expect(ProductConfig.syncFrameworkBundleIdentifier == "com.columbuslabs.quotakit.sync")
-        #expect(ProductConfig.storeKitLifetimeProductID == "com.columbuslabs.quotakit.pro.lifetime")
         #expect(CloudSyncConstants.deviceIDKey == "com.columbuslabs.quotakit.sync.deviceID")
         #expect(CloudSyncConstants.kvsSnapshotKey == "com.columbuslabs.quotakit.usage.snapshot")
     }

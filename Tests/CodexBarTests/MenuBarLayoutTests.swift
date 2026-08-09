@@ -61,32 +61,6 @@ struct MenuBarLayoutTests {
     }
 
     @Test
-    func `semantic windows map Kimi weekly and short cadence lanes`() {
-        let primary = RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil)
-        let secondary = RateWindow(usedPercent: 50, windowMinutes: 300, resetsAt: nil, resetDescription: nil)
-        let windows = MenuBarLayoutSemanticWindowResolver.windows(
-            provider: .kimi,
-            snapshot: UsageSnapshot(primary: primary, secondary: secondary, updatedAt: Date()))
-
-        #expect(windows.session == secondary)
-        #expect(windows.weekly == primary)
-    }
-
-    @Test
-    func `semantic windows leave unsupported lanes missing`() {
-        let snapshot = UsageSnapshot(
-            primary: RateWindow(usedPercent: 25, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            secondary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
-            updatedAt: Date())
-        let windows = MenuBarLayoutSemanticWindowResolver.windows(
-            provider: .zai,
-            snapshot: snapshot)
-
-        #expect(windows.session == nil)
-        #expect(windows.weekly == nil)
-    }
-
-    @Test
     func `scoped weekly window picks the most constrained active carve-out`() {
         let fable = NamedRateWindow(
             id: "claude-weekly-scoped-fable",
@@ -215,37 +189,6 @@ struct MenuBarLayoutTests {
     }
 
     @Test
-    func `migration preserves Kimi primary and secondary lane identity`() {
-        #expect(MenuBarLayout.migrated(
-            iconStyle: .iconAndPercent,
-            displayMode: .percent,
-            metricPreference: .primary,
-            resetTimeDisplayStyle: .countdown,
-            provider: .kimi) == MenuBarLayout(lines: [[.icon, .percent(window: .weekly)]]))
-        #expect(MenuBarLayout.migrated(
-            iconStyle: .iconAndPercent,
-            displayMode: .percent,
-            metricPreference: .secondary,
-            resetTimeDisplayStyle: .countdown,
-            provider: .kimi) == MenuBarLayout(lines: [[.icon, .percent(window: .session)]]))
-    }
-
-    @Test
-    @MainActor
-    func `global editing seeds the representative provider legacy layout`() throws {
-        let settings = testSettingsStore(suiteName: "MenuBarLayoutTests-global-editor-migration")
-        settings.setMenuBarMetricPreference(.primary, for: .kimi)
-        let expected = MenuBarLayout(lines: [[.icon, .percent(window: .weekly)]])
-
-        #expect(!settings.hasStoredMenuBarLayout)
-        #expect(settings.menuBarLayoutForGlobalEditing(representativeProvider: .kimi) == expected)
-
-        let stored = try #require(MenuBarLayoutPreset.iconOnly.layout)
-        settings.setMenuBarLayout(stored, for: nil)
-        #expect(settings.menuBarLayoutForGlobalEditing(representativeProvider: .kimi) == stored)
-    }
-
-    @Test
     @MainActor
     func `size and gap changes activate the edited layout`() throws {
         let globalSettings = testSettingsStore(suiteName: "MenuBarLayoutTests-size-activation")
@@ -265,11 +208,11 @@ struct MenuBarLayoutTests {
         MenuBarLayoutEditorPersistence.setGap(
             .tight,
             activating: providerLayout,
-            for: .kimi,
+            for: .claude,
             settings: providerSettings)
 
         #expect(providerSettings.menuBarLayoutGap == .tight)
-        #expect(providerSettings.menuBarLayoutOverrides[.kimi] == providerLayout)
+        #expect(providerSettings.menuBarLayoutOverrides[.claude] == providerLayout)
     }
 
     @Test
@@ -315,20 +258,6 @@ struct MenuBarLayoutTests {
     private static func reloadSettingsStore(_ settings: SettingsStore) -> SettingsStore {
         SettingsStore(
             userDefaults: settings.userDefaults,
-            configStore: settings.configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+            configStore: settings.configStore)
     }
 }

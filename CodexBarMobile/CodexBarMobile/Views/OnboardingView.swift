@@ -4,7 +4,6 @@ import UIKit
 
 struct OnboardingView: View {
     @Environment(\.quotaKitTheme) private var theme
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     var onDemo: (() -> Void)?
 
     private let steps: [(icon: String, title: LocalizedStringResource, detail: LocalizedStringResource)] = [
@@ -48,7 +47,7 @@ struct OnboardingView: View {
                         .font(.caption)
                         .foregroundStyle(self.theme.textMuted)
                         .multilineTextAlignment(.center)
-                    Text(self.remoteConfigStore.setupDisplayURL)
+                    Text(ProductConfig.macSetupDisplayURL)
                         .font(.caption.monospaced())
                         .foregroundStyle(self.theme.accent)
                         .textSelection(.enabled)
@@ -96,7 +95,6 @@ struct OnboardingView: View {
 
 #Preview {
     OnboardingView(onDemo: {})
-        .environment(RemoteConfigStore())
         .quotaKitThemed()
 }
 
@@ -139,12 +137,11 @@ private struct QuotaKitAppLogo: View {
 
 private struct OnboardingActionRow: View {
     @Environment(\.quotaKitTheme) private var theme
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     let onDemo: () -> Void
 
     var body: some View {
         HStack(spacing: 12) {
-            ShareLink(item: self.remoteConfigStore.setupURL) {
+            ShareLink(item: ProductConfig.macSetupURL) {
                 OnboardingActionLabel(title: "Share with Mac", systemImage: "square.and.arrow.up")
             }
             .buttonStyle(.borderedProminent)
@@ -185,12 +182,11 @@ private struct OnboardingActionLabel: View {
 struct MacSetupLinkActions: View {
     let prominentShare: Bool
     @State private var didCopySetupLink = false
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
 
     var body: some View {
         VStack(spacing: 12) {
             if self.prominentShare {
-                ShareLink(item: self.remoteConfigStore.setupURL) {
+                ShareLink(item: ProductConfig.macSetupURL) {
                     Label("Share Mac Setup Link", systemImage: "square.and.arrow.up")
                         .font(.headline)
                         .frame(maxWidth: .infinity)
@@ -200,7 +196,7 @@ struct MacSetupLinkActions: View {
                 .foregroundStyle(Color.black.opacity(0.88))
                 .controlSize(.large)
             } else {
-                ShareLink(item: self.remoteConfigStore.setupURL) {
+                ShareLink(item: ProductConfig.macSetupURL) {
                     Label("Share Mac Setup Link", systemImage: "square.and.arrow.up")
                 }
                 .buttonStyle(.bordered)
@@ -223,7 +219,7 @@ struct MacSetupLinkActions: View {
     }
 
     private func copySetupLink() {
-        UIPasteboard.general.string = self.remoteConfigStore.setupURL.absoluteString
+        UIPasteboard.general.string = ProductConfig.macSetupURL.absoluteString
         withAnimation {
             self.didCopySetupLink = true
         }

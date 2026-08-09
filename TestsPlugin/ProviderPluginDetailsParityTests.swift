@@ -1,1 +1,0 @@
-../Tests/CodexBarTests/ProviderPluginDetailsParityTests.swift

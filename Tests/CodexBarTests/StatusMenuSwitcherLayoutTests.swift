@@ -35,14 +35,14 @@ struct StatusMenuSwitcherLayoutTests {
     @Test
     func `quota bars do not offset inline switcher content`() throws {
         let view = ProviderSwitcherView(
-            providers: [.codex, .devin],
+            providers: [.codex, .grok],
             selected: .provider(.codex),
             includesOverview: true,
             width: 300,
             showsIcons: true,
             iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
             weeklyRemainingProvider: { provider in
-                provider == .devin ? 50 : nil
+                provider == .grok ? 50 : nil
             },
             onSelect: { _ in })
         view.updateConstraintsForSubtreeIfNeeded()
@@ -64,64 +64,62 @@ struct StatusMenuSwitcherLayoutTests {
             #expect(abs(contentFrame.midY - buttonFrame.height / 2) < 0.01)
         }
 
-        let devinButtonFrame = try #require(buttonFrames.last)
-        let devinTrackFrame = try #require(trackFrames.first)
-        #expect(devinButtonFrame.height == 30)
-        #expect(devinTrackFrame.minY >= devinButtonFrame.minY)
-        #expect(devinTrackFrame.maxY <= devinButtonFrame.maxY)
+        let grokButtonFrame = try #require(buttonFrames.last)
+        let grokTrackFrame = try #require(trackFrames.first)
+        #expect(grokButtonFrame.height == 30)
+        #expect(grokTrackFrame.minY >= grokButtonFrame.minY)
+        #expect(grokTrackFrame.maxY <= grokButtonFrame.maxY)
     }
 
     @Test
     func `integrated quota indicator selects its provider`() {
         let view = ProviderSwitcherView(
-            providers: [.codex, .devin],
+            providers: [.codex, .grok],
             selected: .provider(.codex),
             includesOverview: true,
             width: 300,
             showsIcons: true,
             iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
-            weeklyRemainingProvider: { $0 == .devin ? 50 : nil },
+            weeklyRemainingProvider: { $0 == .grok ? 50 : nil },
             onSelect: { _ in })
 
         #expect(view._test_simulateRuntimeClickOnQuotaIndicator(buttonTag: 2))
     }
 
     @Test
-    func `localized inline switcher titles fit without losing equal sizing`() throws {
-        try CodexBarLocalizationOverride.$appLanguage.withValue("tr") {
-            for width in stride(from: CGFloat(280), through: CGFloat(330), by: 1) {
-                let view = ProviderSwitcherView(
-                    providers: [.codex, .devin],
-                    selected: .overview,
-                    includesOverview: true,
-                    width: width,
-                    showsIcons: true,
-                    iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
-                    weeklyRemainingProvider: { _ in nil },
-                    onSelect: { _ in })
-                view.updateConstraintsForSubtreeIfNeeded()
-                view.layoutSubtreeIfNeeded()
+    func `English inline switcher titles fit without losing equal sizing`() throws {
+        for width in stride(from: CGFloat(280), through: CGFloat(330), by: 1) {
+            let view = ProviderSwitcherView(
+                providers: [.codex, .grok],
+                selected: .overview,
+                includesOverview: true,
+                width: width,
+                showsIcons: true,
+                iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
+                weeklyRemainingProvider: { _ in nil },
+                onSelect: { _ in })
+            view.updateConstraintsForSubtreeIfNeeded()
+            view.layoutSubtreeIfNeeded()
 
-                let frames = view._test_buttonFrames()
-                let desiredWidths = view._test_buttonDesiredWidths()
-                #expect(frames.count == 3)
-                #expect(desiredWidths.count == frames.count)
-                let firstWidth = try #require(frames.first?.width)
+            let frames = view._test_buttonFrames()
+            let desiredWidths = view._test_buttonDesiredWidths()
+            #expect(frames.count == 3)
+            #expect(desiredWidths.count == frames.count)
+            let firstWidth = try #require(frames.first?.width)
 
-                for (frame, desiredWidth) in zip(frames, desiredWidths) {
-                    #expect(frame.width == firstWidth)
-                    let minimalInsetAllowedWidth = floor((width - 12 - 2) / 3)
-                    let evenMinimalInsetAllowedWidth = minimalInsetAllowedWidth
-                        .truncatingRemainder(dividingBy: 2) == 0
-                        ? minimalInsetAllowedWidth
-                        : minimalInsetAllowedWidth - 1
-                    let roundedDesiredWidth = ceil(desiredWidth)
-                    let evenDesiredWidth = roundedDesiredWidth.truncatingRemainder(dividingBy: 2) == 0
-                        ? roundedDesiredWidth
-                        : roundedDesiredWidth + 1
-                    if evenMinimalInsetAllowedWidth >= evenDesiredWidth {
-                        #expect(frame.width >= desiredWidth)
-                    }
+            for (frame, desiredWidth) in zip(frames, desiredWidths) {
+                #expect(frame.width == firstWidth)
+                let minimalInsetAllowedWidth = floor((width - 12 - 2) / 3)
+                let evenMinimalInsetAllowedWidth = minimalInsetAllowedWidth
+                    .truncatingRemainder(dividingBy: 2) == 0
+                    ? minimalInsetAllowedWidth
+                    : minimalInsetAllowedWidth - 1
+                let roundedDesiredWidth = ceil(desiredWidth)
+                let evenDesiredWidth = roundedDesiredWidth.truncatingRemainder(dividingBy: 2) == 0
+                    ? roundedDesiredWidth
+                    : roundedDesiredWidth + 1
+                if evenMinimalInsetAllowedWidth >= evenDesiredWidth {
+                    #expect(frame.width >= desiredWidth)
                 }
             }
         }

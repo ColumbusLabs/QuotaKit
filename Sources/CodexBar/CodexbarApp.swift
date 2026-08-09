@@ -21,11 +21,6 @@ enum CodexBarLaunchMode: Equatable {
 enum CodexBarEntryPoint {
     @MainActor
     static func main() {
-        // Packaging launch smoke check (#2738): force the resource loads that
-        // trapped in 0.48.0 and exit before any AppKit/UI setup.
-        if CodexBarCoreResourceSmoke.isRequested() {
-            exit(CodexBarCoreResourceSmoke.run())
-        }
         guard CodexBarLaunchMode.resolve(arguments: CommandLine.arguments) == .application else {
             return
         }
@@ -153,7 +148,6 @@ struct CodexBarApp: App {
     }
 
     private static func applyLanguagePreference(from settings: SettingsStore) {
-        AppLanguagePreferenceMigration.clearLegacyOverrideIfOwned(storedAppLanguage: settings.appLanguage)
         resetCodexBarLocalizationCache()
     }
 }

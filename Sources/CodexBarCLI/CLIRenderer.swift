@@ -662,16 +662,7 @@ enum CLIRenderer {
                 let value = [row.value, row.secondaryValue]
                     .compactMap(\.self)
                     .joined(separator: " · ")
-                // Provider-specific by design: QuotaKit preserves xAI's posted-ledger terminology in CLI output.
-                if provider == .xai, row.label == "Prepaid balance" {
-                    lines.append(self.labelValueLine("Posted balance", value: value, useColor: useColor))
-                    lines.append(self.labelValueLine(
-                        "Ledger",
-                        value: "May lag current-cycle spend",
-                        useColor: useColor))
-                } else {
-                    lines.append(self.labelValueLine(row.label, value: value, useColor: useColor))
-                }
+                lines.append(self.labelValueLine(row.label, value: value, useColor: useColor))
             }
             if let chart = section.chart {
                 let unit = chart.unit.map { " \($0)" } ?? ""

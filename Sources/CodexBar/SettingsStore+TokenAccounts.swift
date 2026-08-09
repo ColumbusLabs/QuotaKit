@@ -71,14 +71,6 @@ extension SettingsStore {
         let normalisedOrganizationID = (trimmedOrganizationID?.isEmpty ?? true) ? nil : trimmedOrganizationID
         let trimmedWorkspaceID = workspaceID?.trimmingCharacters(in: .whitespacesAndNewlines)
         let normalisedWorkspaceID = (trimmedWorkspaceID?.isEmpty ?? true) ? nil : trimmedWorkspaceID
-        guard self.isValidZaiTokenAccountMetadata(
-            provider: provider,
-            usageScope: normalisedUsageScope,
-            organizationID: normalisedOrganizationID,
-            workspaceID: normalisedWorkspaceID)
-        else {
-            return
-        }
         let existing = self.tokenAccountsData(for: provider)
         let accounts = existing?.accounts ?? []
         let fallbackLabel = trimmedLabel.isEmpty ? "Account \(accounts.count + 1)" : trimmedLabel
@@ -159,14 +151,6 @@ extension SettingsStore {
         } else {
             resolvedWorkspaceID = existing.workspaceID
         }
-        guard self.isValidZaiTokenAccountMetadata(
-            provider: provider,
-            usageScope: resolvedUsageScope,
-            organizationID: resolvedOrganizationID,
-            workspaceID: resolvedWorkspaceID)
-        else {
-            return
-        }
         let updatedAccount = ProviderTokenAccount(
             id: existing.id,
             label: (trimmedLabel?.isEmpty == false) ? trimmedLabel! : existing.label,
@@ -203,7 +187,6 @@ extension SettingsStore {
         guard let data = self.tokenAccountsData(for: provider), !data.accounts.isEmpty else { return }
         let activeAccountID = data.accounts[data.clampedActiveIndex()].id
         guard let removedIndex = data.accounts.firstIndex(where: { $0.id == accountID }) else { return }
-        let removedAccount = data.accounts[removedIndex]
         let filtered = data.accounts.filter { $0.id != accountID }
         self.updateProviderConfig(provider: provider) { entry in
             if filtered.isEmpty {
@@ -225,10 +208,6 @@ extension SettingsStore {
                 entry.apiKey = nil
             }
         }
-        self.applyTokenAccountRemovalSideEffectsIfNeeded(
-            provider: provider,
-            removedAccount: removedAccount,
-            remainingAccounts: filtered)
         CodexBarLog.logger(LogCategories.tokenAccounts).info(
             "Token account removed",
             metadata: [
@@ -242,21 +221,6 @@ extension SettingsStore {
             return
         }
         self.tokenAccountsLoaded = true
-    }
-
-    private func isValidZaiTokenAccountMetadata(
-        provider: UsageProvider,
-        usageScope: String?,
-        organizationID: String?,
-        workspaceID: String?) -> Bool
-    {
-        guard provider == .zai,
-              usageScope?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == ZaiUsageScope.team.rawValue
-        else {
-            return true
-        }
-        return organizationID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false &&
-            workspaceID?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
     }
 
     func reloadTokenAccounts() {
@@ -295,113 +259,5 @@ extension SettingsStore {
               support.requiresManualCookieSource
         else { return }
         ProviderCatalog.implementation(for: provider)?.applyTokenAccountCookieSource(settings: self)
-    }
-
-    private func applyTokenAccountRemovalSideEffectsIfNeeded(
-        provider: UsageProvider,
-        removedAccount: ProviderTokenAccount,
-        remainingAccounts: [ProviderTokenAccount])
-    {
-        // Provider-specific by design: removing the final Antigravity account must delete its shared OAuth cache.
-        guard provider == .antigravity else { return }
-        guard let removedCredentials = AntigravityOAuthCredentialsStore.credentials(
-            fromTokenAccountValue: removedAccount.token)
-        else {
-            return
-        }
-        let hasMatchingRemainingAccount = remainingAccounts.contains { account in
-            guard let credentials = AntigravityOAuthCredentialsStore.credentials(fromTokenAccountValue: account.token)
-            else {
-                return false
-            }
-            return Self.antigravityCredentialsMatchAccount(credentials, removedCredentials)
-        }
-        guard !hasMatchingRemainingAccount else { return }
-
-        Self.clearMatchingAntigravitySharedCredentials(
-            store: self.antigravityOAuthCredentialsStore,
-            removedCredentials: removedCredentials)
-    }
-
-    private nonisolated static func clearMatchingAntigravitySharedCredentials(
-        store: AntigravityOAuthCredentialsStore,
-        removedCredentials: AntigravityOAuthCredentials)
-    {
-        do {
-            try store.deleteIfPresent { sharedCredentials in
-                self.antigravitySharedCredentialsMatchRemovedAccount(
-                    sharedCredentials,
-                    removedCredentials)
-            }
-        } catch {
-            CodexBarLog.logger(LogCategories.tokenAccounts).warning(
-                "Failed to clear Antigravity OAuth cache after account removal",
-                metadata: ["error": error.localizedDescription])
-        }
-    }
-
-    private nonisolated static func antigravitySharedCredentialsMatchRemovedAccount(
-        _ shared: AntigravityOAuthCredentials,
-        _ removed: AntigravityOAuthCredentials) -> Bool
-    {
-        if let sharedRefreshToken = self.normalizedAntigravityCredentialToken(shared.refreshToken),
-           let removedRefreshToken = self.normalizedAntigravityCredentialToken(removed.refreshToken)
-        {
-            return sharedRefreshToken == removedRefreshToken
-        }
-        if let sharedAccessToken = self.normalizedAntigravityCredentialToken(shared.accessToken),
-           let removedAccessToken = self.normalizedAntigravityCredentialToken(removed.accessToken)
-        {
-            return sharedAccessToken == removedAccessToken
-        }
-        guard self.normalizedAntigravityCredentialToken(shared.refreshToken) == nil,
-              self.normalizedAntigravityCredentialToken(removed.refreshToken) == nil,
-              self.normalizedAntigravityCredentialToken(shared.accessToken) == nil,
-              self.normalizedAntigravityCredentialToken(removed.accessToken) == nil
-        else {
-            return false
-        }
-        return self.normalizedAntigravityAccountEmail(shared.resolvedAccountEmail)
-            == self.normalizedAntigravityAccountEmail(removed.resolvedAccountEmail)
-    }
-
-    private nonisolated static func antigravityCredentialsMatchAccount(
-        _ lhs: AntigravityOAuthCredentials,
-        _ rhs: AntigravityOAuthCredentials) -> Bool
-    {
-        if let lhsEmail = self.normalizedAntigravityAccountEmail(lhs.resolvedAccountEmail),
-           let rhsEmail = self.normalizedAntigravityAccountEmail(rhs.resolvedAccountEmail)
-        {
-            return lhsEmail == rhsEmail
-        }
-        if let lhsRefreshToken = self.normalizedAntigravityCredentialToken(lhs.refreshToken),
-           let rhsRefreshToken = self.normalizedAntigravityCredentialToken(rhs.refreshToken)
-        {
-            return lhsRefreshToken == rhsRefreshToken
-        }
-        if let lhsAccessToken = self.normalizedAntigravityCredentialToken(lhs.accessToken),
-           let rhsAccessToken = self.normalizedAntigravityCredentialToken(rhs.accessToken)
-        {
-            return lhsAccessToken == rhsAccessToken
-        }
-        return false
-    }
-
-    private nonisolated static func normalizedAntigravityAccountEmail(_ email: String?) -> String? {
-        guard let value = email?.trimmingCharacters(in: .whitespacesAndNewlines).lowercased(),
-              !value.isEmpty
-        else {
-            return nil
-        }
-        return value
-    }
-
-    private nonisolated static func normalizedAntigravityCredentialToken(_ token: String?) -> String? {
-        guard let value = token?.trimmingCharacters(in: .whitespacesAndNewlines),
-              !value.isEmpty
-        else {
-            return nil
-        }
-        return value
     }
 }

@@ -20,19 +20,12 @@ struct SyncCoordinatorMultiAccountTests {
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        defaults.set(true, forKey: "providerDetectionCompleted")
         // Reset mock-provider state — see same comment in
         // SyncMultiAccountEdgeCasesTests.makeSettingsStore.
         UserDefaults.standard.removeObject(
             forKey: MockProviderInjector.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
-        let settings = SettingsStore(
-            userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
-        settings.providerDetectionCompleted = true
-        return settings
+        return SettingsStore(userDefaults: defaults, configStore: configStore)
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {
@@ -339,30 +332,28 @@ struct SyncCoordinatorMultiAccountTests {
 
     @Test
     func `non token provider unaffected by multi account changes`() async throws {
-        // .gemini is not in `tokenBasedMultiAccountProviders` — even if some
-        // bug populates accountSnapshots[.gemini], expansion must skip it.
-        let settings = self.makeSettingsStore(suite: "TokenMulti-Gemini")
+        // Grok has no token-account expansion source. Even if a stale caller
+        // populates accountSnapshots, sync must keep the active snapshot only.
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Grok")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
-            provider: .gemini,
-            metadata: #require(ProviderDefaults.metadata[.gemini]),
+            provider: .grok,
+            metadata: #require(ProviderDefaults.metadata[.grok]),
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
         let activeSnap = self.makeUsageSnapshot(
-            provider: .gemini, accountEmail: "primary@google.com")
-        store._setSnapshotForTesting(activeSnap, provider: .gemini)
-        // Hypothetically populate accountSnapshots[.gemini] — should be
-        // ignored because Gemini isn't in the multi-account allowlist.
+            provider: .grok, accountEmail: "primary@grok.test")
+        store._setSnapshotForTesting(activeSnap, provider: .grok)
         let phantom = self.makeTokenAccountUsageSnapshot(
-            provider: .gemini,
-            accountLabel: "phantom", accountEmail: "phantom@google.com")
-        store.accountSnapshots[.gemini] = [
+            provider: .grok,
+            accountLabel: "phantom", accountEmail: "phantom@grok.test")
+        store.accountSnapshots[.grok] = [
             phantom,
             self.makeTokenAccountUsageSnapshot(
-                provider: .gemini,
+                provider: .grok,
                 accountLabel: "phantom2",
-                accountEmail: "phantom2@google.com"),
+                accountEmail: "phantom2@grok.test"),
         ]
 
         let mock = MockSyncPusher()
@@ -371,10 +362,10 @@ struct SyncCoordinatorMultiAccountTests {
 
         await coordinator.pushCurrentSnapshot()
 
-        let geminis =
-            mock.lastSnapshot?.providers.filter { $0.providerID == "gemini" } ?? []
-        #expect(geminis.count == 1)
-        #expect(geminis.first?.accountEmail == "primary@google.com")
+        let grokSnapshots =
+            mock.lastSnapshot?.providers.filter { $0.providerID == "grok" } ?? []
+        #expect(grokSnapshots.count == 1)
+        #expect(grokSnapshots.first?.accountEmail == "primary@grok.test")
     }
 
     @Test

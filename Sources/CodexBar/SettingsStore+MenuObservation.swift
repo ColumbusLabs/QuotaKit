@@ -4,6 +4,7 @@ extension SettingsStore {
     var menuObservationToken: Int {
         _ = self.providerOrder
         _ = self.providerEnablement
+        _ = self.configRevision
         _ = self.refreshFrequency
         _ = self.adaptiveActivityScanConsent
         _ = self.launchAtLogin
@@ -32,7 +33,6 @@ extension SettingsStore {
         _ = self.menuBarShowsHighestUsage
         _ = self.menuBarDisplayMode
         _ = self.menuBarShowsResetTimeWhenExhausted
-        _ = self.kiroMenuBarDisplayMode
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
         _ = self.menuBarMetricPreferencesRaw
@@ -40,14 +40,12 @@ extension SettingsStore {
         _ = self.menuBarLayoutOverrides
         _ = self.menuBarLayoutSize
         _ = self.menuBarLayoutGap
-        _ = self.copilotIconSecondaryWindowIDRaw
         _ = self.costUsageEnabled
         _ = self.codexLocalSessionCostLedgerEnabled
         _ = self.costUsageHistoryDays
         _ = self.costComparisonPeriodsEnabled
         _ = self.costSummaryDisplayStyle
         _ = self.preferredCurrencyCode
-        _ = self.appLanguage
         _ = self.hidePersonalInfo
         _ = self.randomBlinkEnabled
         _ = self.confettiOnSessionLimitResetsEnabled
@@ -55,7 +53,6 @@ extension SettingsStore {
         _ = self.claudeOAuthKeychainPromptMode
         _ = self.claudeOAuthKeychainReadStrategy
         _ = self.claudeWebExtrasEnabled
-        _ = self.copilotBudgetExtrasEnabled
         _ = self.showOptionalCreditsAndExtraUsage
         _ = self.claudeDailyRoutinesUsageVisible
         _ = self.codexSparkUsageVisible
@@ -72,49 +69,18 @@ extension SettingsStore {
         _ = self.codexUsageDataSource
         _ = self.codexActiveSource
         _ = self.claudeUsageDataSource
-        _ = self.kiloUsageDataSource
-        _ = self.kiloExtrasEnabled
+        _ = self.cursorUsageDataSource
         _ = self.codexCookieSource
         _ = self.claudeCookieSource
         _ = self.cursorCookieSource
-        _ = self.opencodeCookieSource
-        _ = self.opencodegoCookieSource
-        _ = self.factoryCookieSource
-        _ = self.minimaxCookieSource
-        _ = self.minimaxAPIRegion
-        _ = self.kimiCookieSource
-        _ = self.augmentCookieSource
-        _ = self.ampCookieSource
-        _ = self.t3ChatCookieSource
-        _ = self.zoomMateCookieSource
-        _ = self.ollamaCookieSource
-        _ = self.mergeIcons
-        _ = self.switcherShowsIcons
-        _ = self.mergedOverviewSelectedProviders
-        _ = self.zaiAPIToken
-        _ = self[providerConfig: .synthetic, field: .apiKey]
         _ = self.codexCookieHeader
         _ = self.claudeCookieHeader
         _ = self.cursorCookieHeader
-        _ = self.opencodeCookieHeader
-        _ = self.opencodeWorkspaceID
-        _ = self.opencodegoCookieHeader
-        _ = self.opencodegoWorkspaceID
-        _ = self.factoryCookieHeader
-        _ = self.minimaxCookieHeader
-        _ = self.minimaxAPIToken
-        _ = self.kimiManualCookieHeader
-        _ = self.kiloAPIToken
-        _ = self.augmentCookieHeader
-        _ = self.ampCookieHeader
-        _ = self.t3ChatCookieHeader
-        _ = self.zoomMateCookieHeader
-        _ = self.ollamaCookieHeader
-        _ = self.copilotAPIToken
-        _ = self[providerConfig: .warp, field: .apiKey]
         _ = self.tokenAccountsByProvider
+        _ = self.mergeIcons
+        _ = self.switcherShowsIcons
+        _ = self.mergedOverviewSelectedProviders
         _ = self.debugLoadingPattern
-        _ = self.configRevision
         return 0
     }
 }

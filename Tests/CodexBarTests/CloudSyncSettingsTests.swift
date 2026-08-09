@@ -85,7 +85,7 @@ struct CloudSyncSettingsTests {
         defer { try? FileManager.default.removeItem(at: directory) }
         let fileURL = directory.appendingPathComponent("engine-state.json")
         let persistence = CloudSyncPersistence(fileURL: fileURL)
-        let config = ProviderConfig(id: .openai, apiKey: "SENTINEL-SECRET")
+        let config = ProviderConfig(id: .grok, apiKey: "SENTINEL-SECRET")
         let recordID = CKRecord.ID(
             recordName: ProviderIntentPayload.recordName(for: config.id),
             zoneID: CloudSyncEngine.zoneID)
@@ -325,8 +325,7 @@ struct CloudSyncSettingsTests {
         let configStore = CodexBarConfigStore(fileURL: directory.appendingPathComponent("config.json"))
         let store = SettingsStore(
             userDefaults: defaults,
-            configStore: configStore,
-            performInitialProviderDetection: false)
+            configStore: configStore)
         return (store, defaults)
     }
 

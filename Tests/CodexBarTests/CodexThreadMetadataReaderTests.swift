@@ -2,12 +2,10 @@ import CodexBarCore
 import Foundation
 #if canImport(SQLite3)
 import SQLite3
-#elseif canImport(CSQLite3)
-import CSQLite3
 #endif
 import Testing
 
-#if canImport(SQLite3) || canImport(CSQLite3)
+#if canImport(SQLite3)
 struct CodexThreadMetadataReaderTests {
     @Test
     func `reader loads titles and agent paths without writing to codex state`() throws {

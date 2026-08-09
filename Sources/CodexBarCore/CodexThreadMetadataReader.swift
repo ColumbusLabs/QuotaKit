@@ -1,7 +1,5 @@
 #if canImport(SQLite3)
 import SQLite3
-#elseif canImport(CSQLite3)
-import CSQLite3
 #endif
 import Foundation
 
@@ -57,7 +55,7 @@ public struct CodexThreadMetadataReader: Sendable {
         guard !sessionIDs.isEmpty else { return [:] }
         let scopedIndexedNames = indexedNames.filter { sessionIDs.contains($0.key) }
         var result = scopedIndexedNames.mapValues { CodexThreadMetadata(title: $0, agentPath: nil) }
-        #if canImport(SQLite3) || canImport(CSQLite3)
+        #if canImport(SQLite3)
         var database: OpaquePointer?
         guard sqlite3_open_v2(self.databaseURL.path, &database, SQLITE_OPEN_READONLY, nil) == SQLITE_OK,
               let database
@@ -442,7 +440,7 @@ public struct CodexThreadMetadataReader: Sendable {
         case multilineLiteral
     }
 
-    #if canImport(SQLite3) || canImport(CSQLite3)
+    #if canImport(SQLite3)
     private static func string(_ statement: OpaquePointer?, column: Int32) -> String? {
         guard sqlite3_column_type(statement, column) != SQLITE_NULL,
               let value = sqlite3_column_text(statement, column)

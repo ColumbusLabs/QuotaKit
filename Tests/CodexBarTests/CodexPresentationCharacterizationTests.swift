@@ -467,70 +467,12 @@ struct CodexPresentationCharacterizationTests {
         #expect(store.codexCookieCacheScopeForOpenAIWeb() == nil)
     }
 
-    @Test
-    func `zai menu descriptor includes 5-hour weekly and MCP rows`() {
-        let settings = self.makeSettingsStore(suite: "CodexPresentationCharacterizationTests-zai-three-quota")
-        settings.statusChecksEnabled = false
-
-        let fetcher = UsageFetcher(environment: [:])
-        let store = UsageStore(
-            fetcher: fetcher,
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            settings: settings,
-            startupBehavior: .testing)
-        store._setSnapshotForTesting(
-            UsageSnapshot(
-                primary: RateWindow(
-                    usedPercent: 25,
-                    windowMinutes: 300,
-                    resetsAt: nil,
-                    resetDescription: "5-hour"),
-                secondary: RateWindow(
-                    usedPercent: 9,
-                    windowMinutes: 10080,
-                    resetsAt: nil,
-                    resetDescription: "1 week window"),
-                tertiary: nil,
-                extraRateWindows: [
-                    NamedRateWindow(
-                        id: "zai-mcp",
-                        title: "MCP",
-                        window: RateWindow(
-                            usedPercent: 50,
-                            windowMinutes: nil,
-                            resetsAt: nil,
-                            resetDescription: "MCP")),
-                ],
-                updatedAt: Date(),
-                identity: ProviderIdentitySnapshot(
-                    providerID: .zai,
-                    accountEmail: nil,
-                    accountOrganization: nil,
-                    loginMethod: "pro")),
-            provider: .zai)
-
-        let descriptor = MenuDescriptor.build(
-            provider: .zai,
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updateReady: false,
-            includeContextualActions: false)
-
-        let lines = self.textLines(from: descriptor)
-        #expect(lines.contains(where: { $0.hasPrefix("MCP:") }))
-        #expect(lines.contains(where: { $0.hasPrefix("5-hour:") }))
-        #expect(lines.contains(where: { $0.hasPrefix("Weekly:") }))
-    }
-
     private func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings._test_activeManagedCodexAccount = nil
         settings._test_activeManagedCodexRemoteHomePath = nil
         settings._test_unreadableManagedCodexAccountStore = false

@@ -8,21 +8,20 @@ read_when:
 # Status checks
 
 ## Sources
-- OpenAI + Claude + Cursor + Factory + Copilot: Statuspage.io `api/v2/status.json`.
-- Gemini + Antigravity: Google Workspace incidents feed for the Gemini product.
+
+- Codex: OpenAI Statuspage.io feed.
+- Claude: Anthropic Statuspage.io feed.
+- Cursor: Cursor Statuspage.io feed.
+- Grok: browser-only link to `https://status.x.ai`; QuotaKit does not poll it for an in-app incident indicator.
 
 ## Behavior
-- Toggle: Settings → Advanced → “Check provider status”.
-- `UsageStore` polls status and stores `ProviderStatus` for indicator/description.
+- Toggle: Settings → General → “Check provider status”.
+- `UsageStore` polls the three configured feeds and stores `ProviderStatus` for indicator/description.
 - Menu shows incident summary + freshness; icon overlays indicator.
 
-## Workspace incidents
-- Feed: `https://www.google.com/appsstatus/dashboard/incidents.json`.
-- Uses the Gemini product ID from provider metadata.
-- Chooses the most severe active incident for the provider.
-
 ## Links
-- If `statusPageURL` is set, status polling uses it and the menu action opens it.
-- If only `statusLinkURL` exists, the menu action opens it without polling.
+- Codex, Claude, and Cursor set `statusPageURL`; status polling appends `api/v2/status.json`, and the menu action opens
+  the provider's status site.
+- Grok sets only `statusLinkURL`, so its menu action opens xAI Status without polling.
 
 See also: `docs/providers.md`.

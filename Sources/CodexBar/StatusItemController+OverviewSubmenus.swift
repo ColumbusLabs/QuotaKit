@@ -7,20 +7,6 @@ extension StatusItemController {
         model: UsageMenuCardView.Model,
         width: CGFloat) -> NSMenu?
     {
-        if provider == .openai,
-           let submenu = self.makeOpenAIAPIUsageSubmenu(provider: provider, width: width)
-        {
-            return submenu
-        }
-        // Mistral's top usage pane has no rate-limit bars of its own, so its Overview row always
-        // prioritizes cost history too. Other `tokenCostRequiresProviderSnapshot` providers (e.g.
-        // opencodego) show real rate-limit bars and should fall through to the settings-gated
-        // check below, same as Codex/Claude (see StatusItemController+Menu.swift's makeUsageSubmenu).
-        if provider == .mistral,
-           let submenu = self.makeCostHistorySubmenu(provider: provider, width: width)
-        {
-            return submenu
-        }
         if self.settings.costSummaryShowsSubmenu(for: provider),
            model.tokenUsage != nil,
            let submenu = self.makeCostHistorySubmenu(provider: provider, width: width)
@@ -50,7 +36,11 @@ extension StatusItemController {
     }
 
     func selectOverviewProvider(_ provider: UsageProvider, menu: NSMenu) {
-        if !self.settings.mergedMenuLastSelectedWasOverview, self.selectedMenuProvider == provider.instanceID { return }
+        if !self.settings.mergedMenuLastSelectedWasOverview,
+           self.selectedMenuProvider == provider.instanceID
+        {
+            return
+        }
         self.preservingMergedSwitcherContentCachesDuringInvalidation {
             self.settings.mergedMenuLastSelectedWasOverview = false
             self.lastMergedSwitcherSelection = .provider(provider.instanceID)

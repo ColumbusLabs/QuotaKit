@@ -5,7 +5,7 @@ import Testing
 @testable import CodexBarMobile
 
 /// T17 (research doc 024 Round 8 / P7) — aggregate over a full ledger
-/// (365 days × 40 providers ≈ 14.6k rows) must (a) produce correct totals at
+/// (365 days × 40 accounts across four providers ≈ 14.6k rows) must (a) produce correct totals at
 /// scale and (b) finish well within a generous CI ceiling. The precise device
 /// target (≤ 50 ms p95) is verified manually on a real device (M-perf) — a
 /// tight wall-clock assertion would flake on shared CI timing, so here we use
@@ -25,7 +25,7 @@ struct CWLPerformanceTests {
     }
 
     @Test
-    func `T17: aggregate(365) over 365 days × 40 providers — correct + under 5s`() throws {
+    func `T17: aggregate(365) over 365 days × 40 supported-provider accounts — correct + under 5s`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -40,8 +40,8 @@ struct CWLPerformanceTests {
                 let dayKey = CostLedgerService.utcDayKeyFormatter.string(from: date)
                 context.insert(DailyCostPoint(
                     deviceID: "dev-A",
-                    providerID: "p\(p)",
-                    accountEmail: nil,
+                    providerID: QuotaKitProviderCatalog.providerIDs[p % QuotaKitProviderCatalog.providerIDs.count],
+                    accountEmail: "account-\(p)@example.test",
                     dayKey: dayKey,
                     costUSD: 1.0,
                     totalTokens: 100,

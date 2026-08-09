@@ -8,21 +8,8 @@ struct WidgetProviderChoiceTests {
     private static let literalTitles: [String: String] = [
         "codex": "Codex",
         "claude": "Claude",
-        "gemini": "Gemini",
-        "alibaba": "Alibaba",
-        "alibabatokenplan": "Alibaba Token Plan",
-        "qwencloud": "Qwen Cloud",
-        "antigravity": "Antigravity",
         "cursor": "Cursor",
-        "zai": "z.ai / GLM",
-        "copilot": "Copilot",
-        "devin": "Devin",
-        "minimax": "MiniMax",
-        "kilo": "Kilo",
-        "opencode": "OpenCode",
-        "opencodego": "OpenCode Go",
-        "mistral": "Mistral",
-        "kimi": "Kimi Code",
+        "grok": "Grok",
     ]
 
     @Test
@@ -46,5 +33,6 @@ struct WidgetProviderChoiceTests {
                 Self.literalTitles[raw] != nil,
                 "Provider \(raw) is widgetSelectable but missing from the widget literal")
         }
+        #expect(Set(selectable) == Set(Self.literalTitles.keys))
     }
 }

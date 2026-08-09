@@ -8,8 +8,8 @@ struct ProviderDiagnosticExportTests {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let export = ProviderDiagnosticExport(
             timestamp: now,
-            provider: "openai",
-            displayName: "OpenAI",
+            provider: "codex",
+            displayName: "Codex",
             source: "api",
             sourceMode: "auto",
             auth: ProviderDiagnosticAuthSummary(configured: true, modes: ["api"]),
@@ -28,13 +28,12 @@ struct ProviderDiagnosticExportTests {
                     errorCategory: nil),
             ],
             error: nil,
-            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto),
-            details: nil)
+            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto))
 
         let json = try self.json(export)
 
         #expect(json.contains("\"provider\""))
-        #expect(json.contains("\"openai\""))
+        #expect(json.contains("\"codex\""))
         #expect(json.contains("\"platform\""))
         #expect(json.contains("\"auth\""))
         #expect(json.contains("\"dataConfidence\""))
@@ -49,7 +48,7 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
-    func `diagnostic export carries copilot credits detail`() throws {
+    func `diagnostic export carries generic detail sections`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let snapshot = UsageSnapshot(
             primary: nil,
@@ -61,7 +60,7 @@ struct ProviderDiagnosticExportTests {
         let summary = ProviderDiagnosticUsageSummary(from: snapshot)
 
         #expect(summary.detailSections == snapshot.details)
-        #expect(!summary.providerSpecificData.contains("copilotCredits"))
+        #expect(summary.providerSpecificData.isEmpty)
 
         let json = try self.json(summary)
         #expect(json.contains("\"detailSections\""))
@@ -73,16 +72,15 @@ struct ProviderDiagnosticExportTests {
     func `diagnostic export decodes legacy schema without platform metadata`() throws {
         let export = ProviderDiagnosticExport(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            provider: "openai",
-            displayName: "OpenAI",
+            provider: "codex",
+            displayName: "Codex",
             source: "api",
             sourceMode: "auto",
             auth: ProviderDiagnosticAuthSummary(configured: true, modes: ["api"]),
             usage: nil,
             fetchAttempts: [],
             error: nil,
-            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto),
-            details: nil)
+            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto))
         var object = try #require(
             try JSONSerialization.jsonObject(with: Data(self.json(export).utf8)) as? [String: Any])
         object.removeValue(forKey: "platform")
@@ -205,17 +203,10 @@ struct ProviderDiagnosticExportTests {
     @Test
     func `unwired provider diagnostics remain unknown confidence`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let snapshot = MiniMaxUsageSnapshot(
-            planName: "Max",
-            availablePrompts: 1000,
-            currentPrompts: 250,
-            remainingPrompts: 750,
-            windowMinutes: 300,
-            usedPercent: 25,
-            resetsAt: now.addingTimeInterval(18000),
+        let usage = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
             updatedAt: now)
-
-        let usage = snapshot.toUsageSnapshot()
         let summary = ProviderDiagnosticUsageSummary(from: usage)
 
         #expect(usage.dataConfidence == .unknown)
@@ -271,8 +262,8 @@ struct ProviderDiagnosticExportTests {
     func `raw error text never appears in encoded JSON`() throws {
         let export = ProviderDiagnosticExport(
             timestamp: Date(timeIntervalSince1970: 1_700_000_000),
-            provider: "minimax",
-            displayName: "MiniMax",
+            provider: "grok",
+            displayName: "Grok",
             source: "failed",
             sourceMode: "auto",
             auth: ProviderDiagnosticAuthSummary(configured: true, modes: ["api"]),
@@ -286,8 +277,7 @@ struct ProviderDiagnosticExportTests {
             error: ProviderDiagnosticError(
                 category: "network",
                 safeDescription: "Network error - check your connection"),
-            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto, apiRegion: "global"),
-            details: nil)
+            settings: ProviderDiagnosticSettingsSummary(sourceMode: .auto))
 
         let json = try self.json(export)
 
@@ -301,27 +291,6 @@ struct ProviderDiagnosticExportTests {
         #expect(json.contains("\"network\""))
     }
 
-    @Test
-    func `diagnostic error maps MiniMaxUsageError categories safely`() {
-        let networkError = MiniMaxUsageError.networkError("connection refused")
-        let invalidCreds = MiniMaxUsageError.invalidCredentials
-        let apiError = MiniMaxUsageError.apiError("HTTP 404")
-        let parseError = MiniMaxUsageError.parseFailed("unexpected")
-
-        let diagNetwork = ProviderDiagnosticError(from: networkError, authConfigured: true)
-        #expect(diagNetwork.category == "network")
-        #expect(!diagNetwork.safeDescription.contains("connection refused"))
-
-        let diagCreds = ProviderDiagnosticError(from: invalidCreds, authConfigured: true)
-        #expect(diagCreds.category == "auth")
-
-        let diagAPI = ProviderDiagnosticError(from: apiError, authConfigured: true)
-        #expect(diagAPI.category == "api")
-
-        let diagParse = ProviderDiagnosticError(from: parseError, authConfigured: true)
-        #expect(diagParse.category == "parse")
-    }
-
     @Test(arguments: [
         (ProviderFetchClassifiedError.Kind.authenticationExpired, "auth"),
         (.missingCredential, "auth"),
@@ -332,7 +301,7 @@ struct ProviderDiagnosticExportTests {
         (.parseFailure, "parse"),
         (.networkFailure, "network"),
     ])
-    func `diagnostic error maps classified plugin failures`(kind: ProviderFetchClassifiedError.Kind, category: String) {
+    func `diagnostic error maps classified fetch failures`(kind: ProviderFetchClassifiedError.Kind, category: String) {
         let error = ProviderFetchClassifiedError(kind: kind, message: "fixture detail")
 
         let diagnostic = ProviderDiagnosticError(from: error, authConfigured: true)
@@ -342,33 +311,8 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
-    func `diagnostic error maps Alibaba invalid endpoint override to configuration`() {
-        let error = ProviderEndpointOverrideError.alibabaCodingPlan("ALIBABA_CODING_PLAN_QUOTA_URL")
-        let diag = ProviderDiagnosticError(from: error, authConfigured: true)
-
-        #expect(diag.category == "configuration")
-        #expect(diag.safeDescription == "Configuration issue - check provider source and settings")
-    }
-
-    @Test
-    func `endpoint override fetch attempt stays in configuration category`() {
-        let error = ProviderEndpointOverrideError.minimax("MINIMAX_HOST")
-        let attempt = ProviderFetchAttempt(
-            strategyID: "minimax.web",
-            kind: .web,
-            wasAvailable: true,
-            errorDescription: error.localizedDescription)
-
-        let diagError = ProviderDiagnosticError(from: error, authConfigured: true)
-        let diagAttempt = ProviderDiagnosticFetchAttempt(from: attempt)
-
-        #expect(diagError.category == "configuration")
-        #expect(diagAttempt.errorCategory == "configuration")
-    }
-
-    @Test
     func `no available strategy maps missing auth to auth category`() {
-        let error = ProviderFetchError.noAvailableStrategy(.minimax)
+        let error = ProviderFetchError.noAvailableStrategy(.grok)
         let diag = ProviderDiagnosticError(from: error, authConfigured: false)
 
         #expect(diag.category == "auth")
@@ -378,10 +322,10 @@ struct ProviderDiagnosticExportTests {
     @Test
     func `available failed strategy does not imply auth is configured`() {
         let outcome = ProviderFetchOutcome(
-            result: .failure(ProviderFetchError.noAvailableStrategy(.antigravity)),
+            result: .failure(ProviderFetchError.noAvailableStrategy(.cursor)),
             attempts: [
                 ProviderFetchAttempt(
-                    strategyID: "antigravity.ide-local",
+                    strategyID: "cursor.local",
                     kind: .localProbe,
                     wasAvailable: true,
                     errorDescription: "unauthenticated local probe"),
@@ -396,10 +340,10 @@ struct ProviderDiagnosticExportTests {
     @Test
     func `fetch attempt error maps to safe category, never raw text`() {
         let attemptWithRawError = ProviderFetchAttempt(
-            strategyID: "minimax.api",
+            strategyID: "grok.api",
             kind: .apiToken,
             wasAvailable: true,
-            errorDescription: "MiniMax API timeout after 30 seconds - connection refused for host platform.minimax.io")
+            errorDescription: "Grok API timeout after 30 seconds - connection refused for host example.invalid")
         let diagAttempt = ProviderDiagnosticFetchAttempt(from: attemptWithRawError)
         #expect(diagAttempt.kind == "api")
         #expect(diagAttempt.wasAvailable == true)
@@ -408,10 +352,10 @@ struct ProviderDiagnosticExportTests {
         let cat1 = errorCategoryOne ?? ""
         #expect(!cat1.contains("timeout"))
         #expect(!cat1.contains("connection refused"))
-        #expect(!cat1.contains("platform.minimax.io"))
+        #expect(!cat1.contains("example.invalid"))
 
         let attemptWithAuthError = ProviderFetchAttempt(
-            strategyID: "minimax.web",
+            strategyID: "grok.web",
             kind: .web,
             wasAvailable: false,
             errorDescription: "invalid auth token cookie HERTZ-SESSION=abc123")
@@ -426,132 +370,33 @@ struct ProviderDiagnosticExportTests {
     @Test
     func `missing api key setup errors map to auth before api`() {
         let category = ProviderDiagnosticFetchAttempt.errorCategoryLabel(
-            "Azure OpenAI API key not configured. Set AZURE_OPENAI_API_KEY.")
+            "Provider API key not configured. Set PROVIDER_API_KEY.")
 
         #expect(category == "auth")
     }
 
     @Test
-    func `MiniMax details map from MiniMaxUsageSnapshot correctly`() {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let snapshot = MiniMaxUsageSnapshot(
-            planName: "Max",
-            availablePrompts: 1000,
-            currentPrompts: 250,
-            remainingPrompts: 750,
-            windowMinutes: 300,
-            usedPercent: 25,
-            resetsAt: now.addingTimeInterval(18000),
-            updatedAt: now,
-            services: nil)
-
-        let details = MiniMaxDiagnosticDetails(from: snapshot)
-        #expect(details.planName == "Max")
-        #expect(details.availablePrompts == 1000)
-        #expect(details.currentPrompts == 250)
-        #expect(details.remainingPrompts == 750)
-        #expect(details.windowMinutes == 300)
-        #expect(details.usedPercent == 25)
-    }
-
-    @Test
-    func `service usage maps from MiniMaxServiceUsage correctly`() throws {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let service = MiniMaxServiceUsage(
-            serviceType: "General",
-            windowType: "Weekly",
-            timeRange: "Jun 15-Jun 22",
-            usage: 6,
-            limit: 150,
-            percent: 4,
-            resetsAt: now.addingTimeInterval(18000),
-            resetDescription: "Weekly")
-
-        let diagService = MiniMaxDiagnosticServiceUsage(from: service)
-        #expect(diagService.displayName == "General")
-        #expect(diagService.percent == 4)
-        #expect(diagService.usage == 6)
-        #expect(diagService.limit == 150)
-        #expect(diagService.remaining == 144)
-        #expect(diagService.isUnlimited == false)
-        #expect(diagService.windowType == "Weekly")
-        #expect(diagService.hasResetDescription == true)
-
-        let json = try self.json(diagService)
-        #expect(json.contains("hasResetDescription"))
-        #expect(json.contains(#""usage" : 6"#))
-        #expect(json.contains(#""limit" : 150"#))
-        #expect(json.contains(#""remaining" : 144"#))
-        #expect(!json.contains("resetDescription"))
-    }
-
-    @Test
-    func `unlimited MiniMax diagnostic omits remaining quota`() throws {
-        let service = MiniMaxServiceUsage(
-            serviceType: "General",
-            windowType: "Weekly",
-            timeRange: "",
-            usage: 0,
-            limit: 0,
-            percent: 0,
-            isUnlimited: true,
-            resetsAt: nil,
-            resetDescription: "Unlimited")
-
-        let diagnostic = MiniMaxDiagnosticServiceUsage(from: service)
-        #expect(diagnostic.isUnlimited)
-        #expect(diagnostic.remaining == nil)
-
-        let json = try self.json(diagnostic)
-        #expect(!json.contains("remaining"))
-    }
-
-    @Test
-    func `legacy MiniMax service diagnostic decodes without quota values`() throws {
-        let data = Data(#"""
-        {
-          "displayName": "General",
-          "percent": 4,
-          "windowType": "Weekly",
-          "resetsAt": null,
-          "hasResetDescription": true
-        }
-        """#.utf8)
-
-        let diagnostic = try JSONDecoder().decode(MiniMaxDiagnosticServiceUsage.self, from: data)
-
-        #expect(diagnostic.displayName == "General")
-        #expect(diagnostic.percent == 4)
-        #expect(diagnostic.usage == 0)
-        #expect(diagnostic.limit == 0)
-        #expect(diagnostic.remaining == nil)
-        #expect(!diagnostic.isUnlimited)
-        #expect(diagnostic.windowType == "Weekly")
-        #expect(diagnostic.hasResetDescription)
-    }
-
-    @Test
     func `builder creates generic safe diagnostic with error on failure`() {
         let outcome = ProviderFetchOutcome(
-            result: .failure(MiniMaxUsageError.networkError("timeout")),
+            result: .failure(ProviderFetchClassifiedError(kind: .networkFailure, message: "timeout")),
             attempts: [
                 ProviderFetchAttempt(
-                    strategyID: "minimax.api",
+                    strategyID: "grok.api",
                     kind: .apiToken,
                     wasAvailable: true,
                     errorDescription: "timeout"),
             ])
 
         let diag = ProviderDiagnosticExportBuilder.build(.init(
-            provider: .minimax,
-            descriptor: ProviderDescriptorRegistry.descriptor(for: .minimax),
+            provider: .grok,
+            descriptor: ProviderDescriptorRegistry.descriptor(for: .grok),
             outcome: outcome,
             sourceMode: .auto,
             settings: nil,
             auth: ProviderDiagnosticAuthSummary(configured: true, modes: ["apiToken"]),
             appVersion: "9.8.7"))
 
-        #expect(diag.provider == "minimax")
+        #expect(diag.provider == "grok")
         #expect(diag.platform == ProviderDiagnosticPlatform.current)
         #expect(diag.appVersion == "9.8.7")
         #expect(diag.source == "failed")
@@ -564,52 +409,46 @@ struct ProviderDiagnosticExportTests {
     }
 
     @Test
-    func `builder creates generic safe diagnostic with MiniMax details on success`() {
+    func `builder creates generic safe diagnostic on success`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let snapshot = MiniMaxUsageSnapshot(
-            planName: "Max",
-            availablePrompts: 1000,
-            currentPrompts: 250,
-            remainingPrompts: 750,
-            windowMinutes: 300,
-            usedPercent: 25,
-            resetsAt: now.addingTimeInterval(18000),
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
             updatedAt: now)
 
         let result = ProviderFetchResult(
-            usage: snapshot.toUsageSnapshot(),
+            usage: snapshot,
             credits: nil,
             dashboard: nil,
             sourceLabel: "api",
-            strategyID: "minimax.api",
+            strategyID: "grok.api",
             strategyKind: .apiToken)
 
         let outcome = ProviderFetchOutcome(
             result: .success(result),
             attempts: [
                 ProviderFetchAttempt(
-                    strategyID: "minimax.api",
+                    strategyID: "grok.api",
                     kind: .apiToken,
                     wasAvailable: true,
                     errorDescription: nil),
             ])
 
         let diag = ProviderDiagnosticExportBuilder.build(.init(
-            provider: .minimax,
-            descriptor: ProviderDescriptorRegistry.descriptor(for: .minimax),
+            provider: .grok,
+            descriptor: ProviderDescriptorRegistry.descriptor(for: .grok),
             outcome: outcome,
             sourceMode: .auto,
             settings: nil,
             auth: ProviderDiagnosticAuthSummary(configured: true, modes: ["apiToken"])))
 
-        #expect(diag.provider == "minimax")
+        #expect(diag.provider == "grok")
         #expect(diag.source == "api")
         #expect(diag.auth.configured == true)
         #expect(diag.usage != nil)
         #expect(diag.error == nil)
 
-        #expect(diag.details == nil)
-        #expect(diag.usage?.detailSections == snapshot.toUsageSnapshot().details)
+        #expect(diag.usage?.detailSections == snapshot.details)
     }
 
     private func json(_ value: some Encodable) throws -> String {

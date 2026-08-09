@@ -1,6 +1,6 @@
 import Foundation
 
-#if os(macOS) || os(Linux)
+#if os(macOS)
 extension CursorStatusProbe {
     private struct CachedSessionFetchContext<Value: Sendable> {
         let cookieHeaderOverride: String?

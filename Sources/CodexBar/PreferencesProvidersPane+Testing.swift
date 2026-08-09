@@ -118,20 +118,12 @@ enum ProvidersPaneTestHarness {
         store._setSnapshotForTesting(
             UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()),
             provider: .codex)
-        store._setSnapshotForTesting(
-            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()),
-            provider: .minimax)
         store._setErrorForTesting(String(repeating: "x", count: 200), provider: .cursor)
-        store.lastSourceLabels[.minimax] = "cookies"
+        store.lastSourceLabels[.grok] = "rpc"
         store.refreshingProviders.insert(.codex)
 
         settings.claudeCookieSource = .manual
         settings.cursorCookieSource = .manual
-        settings.opencodeCookieSource = .manual
-        settings.opencodegoCookieSource = .manual
-        settings.factoryCookieSource = .manual
-        settings.minimaxCookieSource = .manual
-        settings.augmentCookieSource = .manual
     }
 
     private static func exercisePaneBasics(pane: ProvidersPane) {
@@ -139,13 +131,7 @@ enum ProvidersPaneTestHarness {
         _ = pane._test_providerSubtitle(.codex)
         _ = pane._test_providerSubtitle(.claude)
         _ = pane._test_providerSubtitle(.cursor)
-        _ = pane._test_providerSubtitle(.opencode)
-        _ = pane._test_providerSubtitle(.opencodego)
-        _ = pane._test_providerSubtitle(.zai)
-        _ = pane._test_providerSubtitle(.synthetic)
-        _ = pane._test_providerSubtitle(.minimax)
-        _ = pane._test_providerSubtitle(.kimi)
-        _ = pane._test_providerSubtitle(.gemini)
+        _ = pane._test_providerSubtitle(.grok)
 
         if let descriptor = pane._test_tokenAccountDescriptor(for: .claude) {
             _ = descriptor.isVisible?()

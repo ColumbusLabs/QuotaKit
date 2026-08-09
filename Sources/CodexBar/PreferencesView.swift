@@ -13,7 +13,6 @@ enum SettingsPane: Hashable {
     case advanced
     case mobile
     case hooks
-    case plugins
     case about
     case debug
     case provider(ProviderInstanceID)
@@ -39,7 +38,6 @@ enum SettingsPane: Hashable {
         case .advanced: L("tab_advanced")
         case .mobile: L("tab_mobile")
         case .hooks: L("tab_hooks")
-        case .plugins: L("Plugins")
         case .about: L("tab_about")
         case .debug: L("tab_debug")
         case let .provider(instanceID):
@@ -129,7 +127,6 @@ struct PreferencesView: View {
             minHeight: SettingsPane.windowMinHeight,
             idealHeight: SettingsPane.windowHeight,
             maxHeight: .infinity)
-        .id(self.settings.appLanguage)
         .background {
             SettingsWindowAppearanceBridge(colorScheme: self.colorScheme, windowTitle: self.selection.pane.title)
                 .allowsHitTesting(false)
@@ -182,8 +179,6 @@ struct PreferencesView: View {
             MobilePane(settings: self.settings, syncCoordinator: self.syncCoordinator)
         case .hooks:
             HooksPane(settings: self.settings)
-        case .plugins:
-            PluginsPane(settings: self.settings, store: self.store)
         case .about:
             AboutPane(updater: self.updater)
         case .debug:

@@ -28,9 +28,9 @@ Tick the appropriate boxes:
   `Sources/CodexBar/Sync/MockProviderInjector.swift` (or a comment
   here explains why no mock is needed).
 - [ ] **Mock tests pass locally.** `swift test --filter
-  "MockProviderInjector"` shows ≥55 tests passing.
+  "MockProviderInjector"` passes.
 - [ ] **No regression in existing mocks.** `swift test --filter
-  "Sync|MockProviderInjector"` shows ≥136 tests passing.
+  "Sync|MockProviderInjector"` passes.
 - [ ] **Mock toggle still safe to flip.** Activating + deactivating
   the mock toggle (Settings → Mobile → Debug · Mock Provider Data)
   doesn't pollute real data.

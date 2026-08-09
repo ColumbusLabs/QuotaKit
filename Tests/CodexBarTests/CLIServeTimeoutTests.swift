@@ -647,7 +647,7 @@ struct CLIServeTimeoutTests {
 
         let first = Task {
             await CodexBarCLI.serveCollectUsageOutputs(
-                providers: [.claude, .gemini],
+                providers: [.claude, .grok],
                 configFingerprint: "config-a",
                 deadline: deadline,
                 operations: operations)
@@ -655,7 +655,7 @@ struct CLIServeTimeoutTests {
                 if provider == .claude {
                     return await blocked.run(UsageCommandOutput(sections: ["late:claude"]))
                 }
-                return await healthy.run(UsageCommandOutput(sections: ["ok:gemini"]))
+                return await healthy.run(UsageCommandOutput(sections: ["ok:grok"]))
             }
         }
         await blocked.waitForStarts(1)
@@ -665,7 +665,7 @@ struct CLIServeTimeoutTests {
         clock.advance(by: .seconds(30))
         await clock.fireAll()
         let firstOutput = await first.value
-        #expect(firstOutput.sections == ["ok:gemini"])
+        #expect(firstOutput.sections == ["ok:grok"])
         #expect(firstOutput.payload.count == 1)
         #expect(firstOutput.payload.first?.provider == UsageProvider.claude.rawValue)
         #expect(firstOutput.payload.first?.error?.kind == .provider)

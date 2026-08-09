@@ -7,7 +7,6 @@ enum MenuBarMetricWindowResolver {
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
         supportsAverage: Bool,
-        antigravityPrioritizeExhaustedQuotas: Bool = false,
         now: Date = Date())
         -> RateWindow?
     {
@@ -18,7 +17,7 @@ enum MenuBarMetricWindowResolver {
             metric: metric,
             snapshot: snapshot,
             supportsAverage: supportsAverage,
-            prioritizesExhaustedQuotas: antigravityPrioritizeExhaustedQuotas,
+            prioritizesExhaustedQuotas: false,
             now: now))
         {
         case let .resolved(window):
@@ -27,8 +26,6 @@ enum MenuBarMetricWindowResolver {
             break
         }
         switch preference {
-        case .monthlyPlan:
-            return nil
         case .extraUsage:
             return Self.extraUsageWindow(snapshot: snapshot)
         case .tertiary:
@@ -112,93 +109,7 @@ enum MenuBarMetricWindowResolver {
         case .tertiary: .tertiary
         case .extraUsage: .extraUsage
         case .average: .average
-        case .monthlyPlan: .monthlyPlan
         }
-    }
-
-    private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
-    /// Picks the binding supported quota-summary lane for the exhausted-first opt-in.
-    static func antigravityQuotaSummaryRankingWindow(
-        snapshot: UsageSnapshot,
-        now: Date)
-        -> RateWindow?
-    {
-        self.rateWindow(
-            preference: .automatic,
-            provider: .antigravity,
-            snapshot: snapshot,
-            supportsAverage: false,
-            antigravityPrioritizeExhaustedQuotas: true,
-            now: now)
-    }
-
-    /// True only when every fully understood quota family has an exhausted binding lane.
-    /// Any incomplete or unfamiliar summary row fails open so automatic provider rotation
-    /// does not hide quota that CodexBar cannot classify safely.
-    static func antigravityQuotaSummaryFamiliesAreAllBlocked(snapshot: UsageSnapshot) -> Bool {
-        let rows = Self.antigravityQuotaSummaryRows(snapshot: snapshot)
-        guard !rows.isEmpty else { return false }
-
-        var familyBlocked: [String: Bool] = [:]
-        for row in rows {
-            guard row.usageKnown,
-                  row.window.usedPercent.isFinite,
-                  Self.isSupportedAntigravityQuotaCadence(row.window.windowMinutes),
-                  let family = Self.antigravityQuotaFamily(for: row)
-            else {
-                return false
-            }
-            familyBlocked[family, default: false] =
-                familyBlocked[family, default: false] || row.window.usedPercent >= 100
-        }
-        return !familyBlocked.isEmpty && familyBlocked.values.allSatisfy(\.self)
-    }
-
-    private static let antigravitySupportedQuotaCadences: Set<Int> = [300, 10080]
-
-    private static func isSupportedAntigravityQuotaCadence(_ windowMinutes: Int?) -> Bool {
-        guard let windowMinutes else { return false }
-        return Self.antigravitySupportedQuotaCadences.contains(windowMinutes)
-    }
-
-    private static func antigravityQuotaSummaryRows(snapshot: UsageSnapshot) -> [NamedRateWindow] {
-        snapshot.extraRateWindows?.filter {
-            $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
-        } ?? []
-    }
-
-    private static func antigravityQuotaFamily(for row: NamedRateWindow) -> String? {
-        let suffix = row.id.dropFirst(Self.antigravityQuotaSummaryWindowIDPrefix.count)
-        var normalizedSuffix = suffix
-            .lowercased()
-            .replacingOccurrences(of: "_", with: "-")
-        if normalizedSuffix.hasSuffix(" limit") {
-            normalizedSuffix.removeLast(" limit".count)
-        }
-        let cadenceSuffixes: [String]
-        switch row.window.windowMinutes {
-        case 300:
-            cadenceSuffixes = ["-session", "-5h", "-5-hour", "-five hour", "-five-hour"]
-        case 10080:
-            cadenceSuffixes = ["-weekly"]
-        default:
-            return nil
-        }
-
-        guard let cadenceSuffix = cadenceSuffixes.first(where: normalizedSuffix.hasSuffix) else {
-            return nil
-        }
-        let family = normalizedSuffix
-            .dropLast(cadenceSuffix.count)
-            .trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !family.isEmpty,
-              family.first != "-",
-              family.last != "-",
-              family.allSatisfy({ $0.isLetter || $0.isNumber || $0 == "-" || $0 == "_" || $0 == "." })
-        else {
-            return nil
-        }
-        return family
     }
 
     private static func requestedWindow(

@@ -193,12 +193,6 @@ enum CompactMetricFormatter {
     static func display(for entry: WidgetSnapshot.ProviderEntry, metric: CompactMetric) -> CompactMetricDisplay {
         switch metric {
         case .credits:
-            if let cost = WidgetBalanceFormatter.extraUsageCost(for: entry) {
-                return CompactMetricDisplay(
-                    value: WidgetFormat.currency(cost.used, code: cost.currencyCode),
-                    label: "Extra usage balance",
-                    detail: nil)
-            }
             let value = entry.creditsRemaining.map(WidgetFormat.credits) ?? "—"
             return CompactMetricDisplay(value: value, label: "Credits left", detail: nil)
         case .todayCost:
@@ -334,9 +328,6 @@ private struct SwitcherSmallUsageView: View {
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
             }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
-            }
         }
     }
 }
@@ -368,9 +359,6 @@ private struct SwitcherMediumUsageView: View {
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
-            }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
             }
         }
     }
@@ -418,9 +406,6 @@ private struct SwitcherLargeUsageView: View {
                             currencyCode: token.currencyCode))
                 }
             }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
-            }
             UsageHistoryChart(
                 points: self.entry.dailyUsage,
                 color: WidgetColors.color(for: self.entry.provider),
@@ -462,9 +447,6 @@ private struct SmallUsageView: View {
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
             }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
-            }
         }
         .padding(12)
     }
@@ -498,9 +480,6 @@ private struct MediumUsageView: View {
                         cost: token.sessionCostUSD,
                         tokens: token.sessionTokens,
                         currencyCode: token.currencyCode))
-            }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
             }
         }
         .padding(12)
@@ -550,9 +529,6 @@ private struct LargeUsageView: View {
                             currencyCode: token.currencyCode))
                 }
             }
-            if let balance = extraUsageBalanceLine(for: entry) {
-                balance
-            }
             UsageHistoryChart(
                 points: self.entry.dailyUsage,
                 color: WidgetColors.color(for: self.entry.provider),
@@ -567,11 +543,6 @@ struct WidgetUsageRow: Identifiable, Equatable {
     let id: String
     let title: String
     let percentLeft: Double?
-
-    private enum AntigravityQuotaFamily {
-        case gemini
-        case claudeGPT
-    }
 
     static func smallWidgetRowLimit(for entry: WidgetSnapshot.ProviderEntry) -> Int? {
         self.widgetRowLimit(for: entry, family: .small)
@@ -642,35 +613,6 @@ struct WidgetUsageRow: Identifiable, Equatable {
             rows = defaultRows.filter { $0.percentLeft != nil }
         }
         guard let limit else { return rows }
-        // Provider-specific by design: Antigravity medium widgets select one constrained row per model family.
-        if entry.provider == .antigravity,
-           limit >= 2,
-           rows.contains(where: { $0.id.hasPrefix("antigravity-quota-summary-") })
-        {
-            var selected = [AntigravityQuotaFamily.gemini, .claudeGPT].compactMap { family in
-                rows
-                    .filter { self.antigravityQuotaFamily(for: $0) == family }
-                    .min(by: self.isMoreConstrained)
-            }
-            let selectedIDs = Set(selected.map(\.id))
-            let fallbackRows = rows.enumerated()
-                .filter { !selectedIDs.contains($0.element.id) }
-                .sorted { lhs, rhs in
-                    switch (lhs.element.percentLeft, rhs.element.percentLeft) {
-                    case let (.some(left), .some(right)):
-                        left == right ? lhs.offset < rhs.offset : left < right
-                    case (.some, .none):
-                        true
-                    case (.none, .some):
-                        false
-                    case (.none, .none):
-                        lhs.offset < rhs.offset
-                    }
-                }
-                .map(\.element)
-            selected.append(contentsOf: fallbackRows.prefix(max(0, limit - selected.count)))
-            return selected
-        }
         return Array(rows.prefix(max(0, limit)))
     }
 
@@ -724,40 +666,6 @@ struct WidgetUsageRow: Identifiable, Equatable {
             return nil
         }
         return entry.tokenUsage
-    }
-
-    private static func antigravityQuotaFamily(for row: WidgetUsageRow) -> AntigravityQuotaFamily? {
-        // Provider-specific by design: Antigravity IDs/titles classify Gemini versus third-party quota families.
-        guard row.id.hasPrefix("antigravity-quota-summary-") else { return nil }
-        let id = row.id.lowercased()
-        if id.contains("gemini") {
-            return .gemini
-        }
-        if id.contains("3p") || id.contains("third-party") {
-            return .claudeGPT
-        }
-
-        let title = row.title.lowercased()
-        if title.contains("gemini") {
-            return .gemini
-        }
-        if title.contains("claude") || title.contains("gpt") {
-            return .claudeGPT
-        }
-        return nil
-    }
-
-    private static func isMoreConstrained(_ lhs: WidgetUsageRow, than rhs: WidgetUsageRow) -> Bool {
-        switch (lhs.percentLeft, rhs.percentLeft) {
-        case let (.some(left), .some(right)):
-            left < right
-        case (.some, .none):
-            true
-        case (.none, .some):
-            false
-        case (.none, .none):
-            false
-        }
     }
 }
 
@@ -931,34 +839,6 @@ enum WidgetColors {
         let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.widgetColor
         return Color(red: color.red, green: color.green, blue: color.blue)
     }
-}
-
-struct WidgetBalanceLine: Equatable {
-    let title: String
-    let value: String
-}
-
-enum WidgetBalanceFormatter {
-    static func extraUsageCost(for entry: WidgetSnapshot.ProviderEntry) -> ProviderCostSnapshot? {
-        // Provider-specific by design: Devin encodes its extra-usage balance as a named provider-cost period.
-        guard entry.provider == .devin,
-              let cost = entry.providerCost,
-              cost.period == "Extra usage balance"
-        else { return nil }
-        return cost
-    }
-
-    static func extraUsageBalance(for entry: WidgetSnapshot.ProviderEntry) -> WidgetBalanceLine? {
-        guard let cost = self.extraUsageCost(for: entry) else { return nil }
-        return WidgetBalanceLine(
-            title: "Extra usage",
-            value: "Balance: \(WidgetFormat.currency(cost.used, code: cost.currencyCode))")
-    }
-}
-
-private func extraUsageBalanceLine(for entry: WidgetSnapshot.ProviderEntry) -> ValueLine? {
-    guard let line = WidgetBalanceFormatter.extraUsageBalance(for: entry) else { return nil }
-    return ValueLine(title: line.title, value: line.value)
 }
 
 enum WidgetFormat {

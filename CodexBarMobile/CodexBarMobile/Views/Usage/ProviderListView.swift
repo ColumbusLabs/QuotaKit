@@ -6,10 +6,6 @@ struct ProviderListView: View {
     let usageData: SyncedUsageData
     let isDemoMode: Bool
     @Environment(\.quotaKitTheme) private var theme
-    @Environment(ProEntitlementStore.self) private var proEntitlementStore
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
-    @AppStorage(MobileSettingsKeys.freeSelectedProviderID) private var freeSelectedProviderID = ""
-    @AppStorage(MobileSettingsKeys.freeSelectedProviderLockedUntil) private var freeSelectedProviderLockedUntil = 0.0
     /// Local per-launch suppression of linkage prompts the user clicked
     /// "Keep separate" on. Persisted only across the current session —
     /// next launch re-evaluates so a user who reconsidered can confirm.
@@ -27,7 +23,9 @@ struct ProviderListView: View {
         // Drop extinct mock zombies before any rendering so duplicate
         // cards (OLD vs NEW mock-injector designs) don't appear on the
         // Usage list. iOS 1.5.2+: see `MockProviderDetector.extinctMockProviderIDs`.
-        let liveProviders = MockProviderDetector.filteredProviders(from: self.snapshot)
+        let liveProviders = MockProviderDetector.filteredProviders(from: self.snapshot).filter {
+            QuotaKitProviderCatalog.contains($0.providerID)
+        }
         // Compute linkage candidates ONCE per render. The detector handles
         // ambiguity rules (skips multi-account-named scenarios where we
         // can't tell which named card a legacy entry belongs to).
@@ -67,35 +65,24 @@ struct ProviderListView: View {
             preferences: self.providerPreferences,
             providerID: \.providerID,
             providerName: \.providerName)
-        let access = ProviderAccessGate.resolve(
-            groups: groups,
-            isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked,
-            selectedProviderID: self.freeSelectedProviderID.isEmpty ? nil : self.freeSelectedProviderID,
-            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.unlimitedProviders))
-        let advancedMergeUnlocked = ProFeatureAccess.isUnlocked(
-            .advancedMergeViews,
-            isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked,
-            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.advancedMergeViews))
         let query = self.searchText.trimmingCharacters(in: .whitespacesAndNewlines)
-        let filteredGroups = query.isEmpty ? access.visibleGroups : access.visibleGroups.filter { group in
+        let filteredGroups = query.isEmpty ? groups : groups.filter { group in
             group.representative.providerName.localizedCaseInsensitiveContains(query)
                 || group.providerID.localizedCaseInsensitiveContains(query)
         }
         return Group {
-            if self.isReorderingProviders, access.visibleGroups.count > 1 {
+            if self.isReorderingProviders, groups.count > 1 {
                 ProviderOrderModeView(
                     groups: filteredGroups,
-                    availableGroups: access.visibleGroups,
-                    selectedWidgetProviderID: self.resolvedWidgetProviderID(availableGroups: access.visibleGroups),
-                    widgetProviderSelection: self.widgetProviderBinding(availableGroups: access.visibleGroups),
+                    availableGroups: groups,
+                    selectedWidgetProviderID: self.resolvedWidgetProviderID(availableGroups: groups),
+                    widgetProviderSelection: self.widgetProviderBinding(availableGroups: groups),
                     onMove: { source, destination in
                         self.moveProviderOrder(
                             from: source,
                             to: destination,
                             visibleGroups: filteredGroups,
-                            allGroups: access.visibleGroups)
+                            allGroups: groups)
                     })
             } else {
                 ScrollView {
@@ -106,7 +93,7 @@ struct ProviderListView: View {
                             ProviderListHeaderRow(
                                 snapshot: self.usageData.snapshot,
                                 syncStatus: self.usageData.syncStatus,
-                                showsProviderOrderButton: access.visibleGroups.count > 1,
+                                showsProviderOrderButton: groups.count > 1,
                                 refreshAction: {
                                     Task { await self.usageData.refresh() }
                                 },
@@ -117,19 +104,11 @@ struct ProviderListView: View {
                                 })
                         }
 
-                        if access.isLimited {
-                            FreeProviderSelectorView(
-                                groups: groups,
-                                selectedProviderID: self.$freeSelectedProviderID,
-                                selectedProviderLockedUntil: self.$freeSelectedProviderLockedUntil,
-                                effectiveSelectedProviderID: access.effectiveSelectedProviderID)
-                        }
-
-                        if access.visibleGroups.count > 1 {
+                        if groups.count > 1 {
                             WidgetProviderPickerCard(
-                                groups: access.visibleGroups,
+                                groups: groups,
                                 selectedProviderID: self.widgetProviderBinding(
-                                    availableGroups: access.visibleGroups))
+                                    availableGroups: groups))
                         }
 
                         ForEach(filteredGroups) { group in
@@ -159,35 +138,29 @@ struct ProviderListView: View {
                                     provider: group.representative,
                                     duplicateOrdinal: nil,
                                     accountCount: group.hasMultipleAccounts ? group.accounts.count : nil,
-                                    linkageCandidate: advancedMergeUnlocked ? candidate : nil,
-                                    activeLinkage: advancedMergeUnlocked ? activeLinkage : nil,
+                                    linkageCandidate: candidate,
+                                    activeLinkage: activeLinkage,
                                     showsSyntheticDataIndicator: !self.isDemoMode,
-                                    onConfirmMerge: advancedMergeUnlocked ? { c in
+                                    onConfirmMerge: { c in
                                         Task { @MainActor in
                                             await self.usageData.confirmLinkage(
                                                 providerID: c.named.providerID,
                                                 linkedIdentifiers: c.linkedIdentifiers)
                                         }
-                                    } : nil,
-                                    onDismissMergeCandidate: advancedMergeUnlocked ? { c in
+                                    },
+                                    onDismissMergeCandidate: { c in
                                         self.dismissedCandidateKeys.insert(c.hashKey)
-                                    } : nil,
-                                    onRevokeLinkage: advancedMergeUnlocked ? { linkage in
+                                    },
+                                    onRevokeLinkage: { linkage in
                                         Task { @MainActor in
                                             await self.usageData.revokeLinkage(
                                                 providerID: linkage.providerID,
                                                 linkedIdentifiers: linkage.linkedIdentifiers)
                                         }
-                                    } : nil)
+                                    })
                             }
                             .buttonStyle(.plain)
                             .accessibilityIdentifier("provider-group-\(group.providerID)")
-                        }
-
-                        if access.isLimited, access.lockedCount > 0 {
-                            QuotaKitProLockedSummaryView(
-                                store: self.proEntitlementStore,
-                                lockedProviderCount: access.lockedCount)
                         }
 
                         if filteredGroups.isEmpty {
@@ -225,7 +198,7 @@ struct ProviderListView: View {
             placement: .navigationBarDrawer(displayMode: .always),
             prompt: Text("Search providers"))
         .toolbar {
-            if self.isReorderingProviders, access.visibleGroups.count > 1 {
+            if self.isReorderingProviders, groups.count > 1 {
                 ToolbarItem(placement: .topBarLeading) {
                     Button {
                         withAnimation(.easeInOut(duration: 0.18)) {

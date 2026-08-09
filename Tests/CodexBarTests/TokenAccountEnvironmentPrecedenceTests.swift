@@ -5,260 +5,8 @@ import Testing
 @testable import CodexBarCLI
 
 @Suite(.serialized)
-struct AlibabaTokenPlanRegionSelectionTests {
-    @Test @MainActor
-    func `fresh app settings default to International`() {
-        let settings = testSettingsStore(suiteName: "AlibabaTokenPlanRegionSelectionTests-fresh")
-
-        #expect(settings.alibabaTokenPlanAPIRegion == .international)
-    }
-
-    @Test @MainActor
-    func `legacy app settings without region remain China mainland`() {
-        var config = CodexBarConfig.makeDefault()
-        config.setProviderConfig(ProviderConfig(id: .alibabatokenplan, region: nil))
-        let settings = testSettingsStore(
-            suiteName: "AlibabaTokenPlanRegionSelectionTests-legacy",
-            config: config)
-
-        #expect(settings.alibabaTokenPlanAPIRegion == .chinaMainland)
-    }
-
-    @Test @MainActor
-    func `app settings trim configured region`() {
-        var config = CodexBarConfig.makeDefault()
-        config.setProviderConfig(ProviderConfig(id: .alibabatokenplan, region: " intl "))
-        let settings = testSettingsStore(
-            suiteName: "AlibabaTokenPlanRegionSelectionTests-trimmed",
-            config: config)
-
-        #expect(settings.alibabaTokenPlanAPIRegion == .international)
-    }
-
-    @Test
-    func `CLI honors explicit region and keeps legacy config on China mainland`() throws {
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let internationalContext = try TokenAccountCLIContext(
-            selection: selection,
-            config: CodexBarConfig(providers: [
-                ProviderConfig(id: .alibabatokenplan, region: AlibabaTokenPlanAPIRegion.international.rawValue),
-            ]),
-            verbose: false)
-        let legacyContext = try TokenAccountCLIContext(
-            selection: selection,
-            config: CodexBarConfig(providers: [
-                ProviderConfig(id: .alibabatokenplan, region: nil),
-            ]),
-            verbose: false)
-
-        #expect(internationalContext.settingsSnapshot(for: .alibabatokenplan, account: nil)?
-            .alibabaTokenPlan?.apiRegion == .international)
-        #expect(legacyContext.settingsSnapshot(for: .alibabatokenplan, account: nil)?
-            .alibabaTokenPlan?.apiRegion == .chinaMainland)
-    }
-}
-
-@Suite(.serialized)
-struct ZaiTokenAccountEnvironmentPrecedenceTests {
-    @Test
-    func `zai CLI settings snapshot defaults to personal without account scope`() throws {
-        let config = CodexBarConfig(providers: [
-            ProviderConfig(id: .zai),
-        ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(
-            selection: selection,
-            config: config,
-            verbose: false,
-            baseEnvironment: [
-                ZaiSettingsReader.bigModelOrganizationKey: " org-env ",
-                ZaiSettingsReader.bigModelProjectKey: " proj-env ",
-            ])
-
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .zai, account: nil)?.zai)
-
-        #expect(snapshot.usageScope == .personal)
-        #expect(snapshot.teamContext == nil)
-    }
-
-    @Test
-    func `zai CLI settings snapshot uses selected team account scope`() throws {
-        let account = ProviderTokenAccount(
-            id: UUID(),
-            label: "Team",
-            token: "account-token",
-            addedAt: 0,
-            lastUsed: nil,
-            usageScope: " team ",
-            organizationID: " org-account ",
-            workspaceID: " proj-account ")
-        let config = CodexBarConfig(providers: [
-            ProviderConfig(id: .zai),
-        ])
-        let tokenContext = try TokenAccountCLIContext(
-            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
-            config: config,
-            verbose: false,
-            baseEnvironment: [
-                ZaiSettingsReader.bigModelOrganizationKey: "org-env",
-                ZaiSettingsReader.bigModelProjectKey: "proj-env",
-            ])
-
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .zai, account: account)?.zai)
-
-        #expect(snapshot.usageScope == .team)
-        #expect(snapshot.teamContext?.organizationID == "org-account")
-        #expect(snapshot.teamContext?.projectID == "proj-account")
-    }
-
-    @Test
-    func `zai CLI personal account scope clears inherited team context`() throws {
-        let account = ProviderTokenAccount(
-            id: UUID(),
-            label: "Personal",
-            token: "account-token",
-            addedAt: 0,
-            lastUsed: nil,
-            usageScope: "personal")
-        let config = CodexBarConfig(providers: [
-            ProviderConfig(id: .zai),
-        ])
-        let tokenContext = try TokenAccountCLIContext(
-            selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
-            config: config,
-            verbose: false,
-            baseEnvironment: [
-                ZaiSettingsReader.bigModelOrganizationKey: "org-env",
-                ZaiSettingsReader.bigModelProjectKey: "proj-env",
-            ])
-
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .zai, account: account)?.zai)
-
-        #expect(snapshot.usageScope == .personal)
-        #expect(snapshot.teamContext == nil)
-    }
-}
-
-@Suite(.serialized)
 @MainActor
 struct TokenAccountEnvironmentPrecedenceTests {
-    @Test
-    func `token account environment overrides config API key in app environment builder`() {
-        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-app")
-        settings.zaiAPIToken = "config-token"
-        settings.addTokenAccount(provider: .zai, label: "Account 1", token: "account-token")
-
-        let env = ProviderRegistry.makeEnvironment(
-            base: ["FOO": "bar"],
-            provider: .zai,
-            settings: settings,
-            tokenOverride: nil)
-
-        #expect(env["FOO"] == "bar")
-        #expect(env[ZaiSettingsReader.apiTokenKey] == "account-token")
-        #expect(env[ZaiSettingsReader.apiTokenKey] != "config-token")
-    }
-
-    @Test
-    func `deepseek token account injects environment in app environment builder`() {
-        let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-deepseek-app")
-        settings.addTokenAccount(provider: .deepseek, label: "Account 1", token: "account-token")
-
-        let env = ProviderRegistry.makeEnvironment(
-            base: ["FOO": "bar"],
-            provider: .deepseek,
-            settings: settings,
-            tokenOverride: nil)
-
-        #expect(env["FOO"] == "bar")
-        #expect(env[DeepSeekSettingsReader.apiKeyEnvironmentKey] == "account-token")
-    }
-
-    @Test
-    func `token account environment overrides config API key in CLI environment builder`() throws {
-        let config = CodexBarConfig(
-            providers: [
-                ProviderConfig(id: .zai, apiKey: "config-token"),
-            ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let account = ProviderTokenAccount(
-            id: UUID(),
-            label: "Account 1",
-            token: "account-token",
-            addedAt: Date().timeIntervalSince1970,
-            lastUsed: nil)
-
-        let env = tokenContext.environment(base: [:], provider: .zai, account: account)
-
-        #expect(env[ZaiSettingsReader.apiTokenKey] == "account-token")
-        #expect(env[ZaiSettingsReader.apiTokenKey] != "config-token")
-    }
-
-    @Test
-    func `deepseek token account injects environment in CLI environment builder`() throws {
-        let config = CodexBarConfig(providers: [])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let account = ProviderTokenAccount(
-            id: UUID(),
-            label: "Account 1",
-            token: "account-token",
-            addedAt: Date().timeIntervalSince1970,
-            lastUsed: nil)
-
-        let env = tokenContext.environment(base: [:], provider: .deepseek, account: account)
-
-        #expect(env[DeepSeekSettingsReader.apiKeyEnvironmentKey] == "account-token")
-    }
-
-    @Test
-    func `ollama token account selection forces manual cookie source in CLI settings snapshot`() throws {
-        let accounts = ProviderTokenAccountData(
-            version: 1,
-            accounts: [
-                ProviderTokenAccount(
-                    id: UUID(),
-                    label: "Primary",
-                    token: "session=account-token",
-                    addedAt: 0,
-                    lastUsed: nil),
-            ],
-            activeIndex: 0)
-        let config = CodexBarConfig(
-            providers: [
-                ProviderConfig(
-                    id: .ollama,
-                    cookieSource: .auto,
-                    tokenAccounts: accounts),
-            ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let account = try #require(tokenContext.resolvedAccounts(for: .ollama).first)
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .ollama, account: account))
-        let ollamaSettings = try #require(snapshot.ollama)
-
-        #expect(ollamaSettings.cookieSource == .manual)
-        #expect(ollamaSettings.manualCookieHeader == "session=account-token")
-    }
-
-    @Test
-    func `command code config cookie is carried into CLI settings snapshot`() throws {
-        let config = CodexBarConfig(providers: [
-            ProviderConfig(
-                id: .commandcode,
-                cookieHeader: "better-auth.session_token=manual-token",
-                cookieSource: .manual),
-        ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .commandcode, account: nil))
-        let commandCodeSettings = try #require(snapshot.commandcode)
-
-        #expect(commandCodeSettings.cookieSource == .manual)
-        #expect(commandCodeSettings.manualCookieHeader == "better-auth.session_token=manual-token")
-    }
-
     @Test
     func `app snapshot override resolves cookie account without mutating stored selection`() throws {
         let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-cookie-override-app")
@@ -279,51 +27,6 @@ struct TokenAccountEnvironmentPrecedenceTests {
         #expect(cursorSettings.cookieSource == .manual)
         #expect(cursorSettings.manualCookieHeader == "account=true")
         #expect(settings.tokenAccounts(for: .cursor).isEmpty)
-    }
-
-    @Test
-    func `stepfun CLI snapshot reads manual token from region field`() throws {
-        let config = CodexBarConfig(
-            providers: [
-                ProviderConfig(
-                    id: .stepfun,
-                    region: "Oasis-Token=manual-token; Oasis-Webid=web"),
-            ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .stepfun, account: nil))
-        let stepfunSettings = try #require(snapshot.stepfun)
-
-        #expect(stepfunSettings.cookieSource == .manual)
-        #expect(stepfunSettings.manualToken == "Oasis-Token=manual-token; Oasis-Webid=web")
-    }
-
-    @Test
-    func `stepfun CLI token account overrides region manual token`() throws {
-        let account = ProviderTokenAccount(
-            id: UUID(),
-            label: "StepFun",
-            token: "account-token",
-            addedAt: Date().timeIntervalSince1970,
-            lastUsed: nil)
-        let config = CodexBarConfig(
-            providers: [
-                ProviderConfig(
-                    id: .stepfun,
-                    region: "manual-token",
-                    tokenAccounts: ProviderTokenAccountData(
-                        version: 1,
-                        accounts: [account],
-                        activeIndex: 0)),
-            ])
-        let selection = TokenAccountCLISelection(label: nil, index: nil, allAccounts: false)
-        let tokenContext = try TokenAccountCLIContext(selection: selection, config: config, verbose: false)
-        let resolvedAccount = try #require(tokenContext.resolvedAccounts(for: .stepfun).first)
-        let snapshot = try #require(tokenContext.settingsSnapshot(for: .stepfun, account: resolvedAccount))
-        let stepfunSettings = try #require(snapshot.stepfun)
-
-        #expect(stepfunSettings.cookieSource == .manual)
-        #expect(stepfunSettings.manualToken == "account-token")
     }
 
     @Test
@@ -863,7 +566,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
     func `apply account label in app preserves snapshot fields`() throws {
         let settings = Self.makeSettingsStore(suite: "TokenAccountEnvironmentPrecedenceTests-apply-app")
         let store = Self.makeUsageStore(settings: settings)
-        let snapshot = try Self.makeSnapshotWithAllFields(provider: .zai)
+        let snapshot = try Self.makeSnapshotWithAllFields(provider: .cursor)
         let account = ProviderTokenAccount(
             id: UUID(),
             label: "Team Account",
@@ -871,10 +574,10 @@ struct TokenAccountEnvironmentPrecedenceTests {
             addedAt: 0,
             lastUsed: nil)
 
-        let labeled = store.applyAccountLabel(snapshot, provider: .zai, account: account)
+        let labeled = store.applyAccountLabel(snapshot, provider: .cursor, account: account)
 
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
-        #expect(labeled.identity?.providerID == .zai)
+        #expect(labeled.identity?.providerID == .cursor)
         #expect(labeled.identity?.accountEmail == "Team Account")
     }
 
@@ -884,7 +587,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
             selection: TokenAccountCLISelection(label: nil, index: nil, allAccounts: false),
             config: CodexBarConfig(providers: []),
             verbose: false)
-        let snapshot = try Self.makeSnapshotWithAllFields(provider: .zai)
+        let snapshot = try Self.makeSnapshotWithAllFields(provider: .cursor)
         let account = ProviderTokenAccount(
             id: UUID(),
             label: "CLI Account",
@@ -892,10 +595,10 @@ struct TokenAccountEnvironmentPrecedenceTests {
             addedAt: 0,
             lastUsed: nil)
 
-        let labeled = context.applyAccountLabel(snapshot, provider: .zai, account: account)
+        let labeled = context.applyAccountLabel(snapshot, provider: .cursor, account: account)
 
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
-        #expect(labeled.identity?.providerID == .zai)
+        #expect(labeled.identity?.providerID == .cursor)
         #expect(labeled.identity?.accountEmail == "CLI Account")
     }
 
@@ -1038,21 +741,7 @@ extension TokenAccountEnvironmentPrecedenceTests {
 
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+            configStore: configStore)
     }
 
     fileprivate static func makeUsageStore(settings: SettingsStore) -> UsageStore {

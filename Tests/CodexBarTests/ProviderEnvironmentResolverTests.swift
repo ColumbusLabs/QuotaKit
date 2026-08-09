@@ -4,49 +4,6 @@ import Testing
 
 struct ProviderEnvironmentResolverTests {
     @Test
-    func `selected API account overrides saved and ambient credentials`() {
-        let account = Self.account(token: "account-token")
-        let environment = ProviderEnvironmentResolver.resolve(
-            base: [ZaiSettingsReader.apiTokenKey: "ambient-token"],
-            provider: .zai,
-            config: ProviderConfig(id: .zai, apiKey: "saved-token"),
-            selectedAccount: account)
-
-        #expect(environment[ZaiSettingsReader.apiTokenKey] == "account-token")
-    }
-
-    @Test
-    func `NeuralWatt selected API account overrides saved and ambient credentials`() {
-        let account = Self.account(token: "sk-neuralwatt-account")
-        let environment = ProviderEnvironmentResolver.resolve(
-            base: [NeuralWattSettingsReader.apiKeyEnvironmentKey: "ambient-token"],
-            provider: .neuralwatt,
-            config: ProviderConfig(id: .neuralwatt, apiKey: "saved-token"),
-            selectedAccount: account)
-
-        #expect(environment[NeuralWattSettingsReader.apiKeyEnvironmentKey] == "sk-neuralwatt-account")
-    }
-
-    @Test
-    func `OpenAI account removes project scoping from saved config`() {
-        let account = Self.account(token: "sk-admin-account")
-        let environment = ProviderEnvironmentResolver.resolve(
-            base: [
-                OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey: "ambient-token",
-                OpenAIAPISettingsReader.projectIDEnvironmentKey: "ambient-project",
-            ],
-            provider: .openai,
-            config: ProviderConfig(
-                id: .openai,
-                apiKey: "saved-token",
-                workspaceID: "saved-project"),
-            selectedAccount: account)
-
-        #expect(environment[OpenAIAPISettingsReader.adminAPIKeyEnvironmentKey] == "sk-admin-account")
-        #expect(environment[OpenAIAPISettingsReader.projectIDEnvironmentKey] == nil)
-    }
-
-    @Test
     func `Claude session account removes API and OAuth credentials`() {
         let environment = ProviderEnvironmentResolver.resolve(
             base: [

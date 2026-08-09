@@ -95,7 +95,6 @@ struct DashboardSnapshotBuilderTests {
             status: nil,
             usage: nil,
             credits: nil,
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: ProviderErrorPayload(code: 1, message: "temporary failure", kind: .provider))
         let rows: [UsageProvider: ProviderPayload] = [.claude: healthy, .codex: failed]
@@ -148,7 +147,6 @@ struct DashboardSnapshotBuilderTests {
                         status: nil,
                         usage: nil,
                         credits: nil,
-                        antigravityPlanInfo: nil,
                         openaiDashboard: nil,
                         error: nil)
                 }
@@ -182,7 +180,7 @@ struct DashboardSnapshotBuilderTests {
         let config = CodexBarConfig(providers: [
             ProviderConfig(id: .claude, enabled: true),
             ProviderConfig(id: .codex, enabled: true),
-            ProviderConfig(id: .gemini, enabled: false),
+            ProviderConfig(id: .grok, enabled: false),
         ])
         let snapshot = DashboardSnapshotBuilder.makeShellSnapshot(
             config: config,
@@ -246,7 +244,6 @@ struct DashboardSnapshotBuilderTests {
                 url: "https://status.example.com"),
             usage: usage,
             credits: CreditsSnapshot(remaining: 112.4, events: [], updatedAt: updatedAt),
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: nil)
         let cost = CostPayload(
@@ -349,7 +346,6 @@ struct DashboardSnapshotBuilderTests {
             status: nil,
             usage: usage,
             credits: nil,
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: nil)
 
@@ -368,50 +364,6 @@ struct DashboardSnapshotBuilderTests {
         #expect(provider["status"] is NSNull)
         #expect(provider["credits"] is NSNull)
         #expect(provider["cost"] is NSNull)
-    }
-
-    @Test
-    func `dashboard labels amp subscription pools as provider specific windows`() throws {
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let usage = AmpUsageSnapshot(
-            freeQuota: nil,
-            freeUsed: nil,
-            hourlyReplenishment: nil,
-            windowHours: nil,
-            updatedAt: now,
-            subscription: AmpSubscriptionUsage(
-                plan: "Megawatt",
-                otherUsedPercent: 3,
-                orbUsedPercent: 0,
-                resetsAt: now.addingTimeInterval(29 * 24 * 60 * 60),
-                resetDescription: "renews in 29 days"))
-            .toUsageSnapshot(now: now)
-        let payload = ProviderPayload(
-            provider: .amp,
-            account: nil,
-            version: nil,
-            source: "cli",
-            status: nil,
-            usage: usage,
-            credits: nil,
-            antigravityPlanInfo: nil,
-            openaiDashboard: nil,
-            error: nil)
-
-        let snapshot = DashboardSnapshotBuilder.makeSnapshot(
-            usagePayloads: [payload],
-            costPayloads: [],
-            config: CodexBarConfig(providers: [ProviderConfig(id: .amp, enabled: true)]),
-            identityMode: .redacted,
-            generatedAt: now,
-            refreshInterval: 60,
-            codexBarVersion: nil)
-        let object = try self.jsonObject(snapshot)
-        let provider = try #require((object["providers"] as? [[String: Any]])?.first)
-        let windows = try #require(provider["windows"] as? [[String: Any]])
-
-        #expect(windows.map { $0["kind"] as? String } == ["other", "orb"])
-        #expect(windows.map { $0["label"] as? String } == ["Other usage", "Orb usage"])
     }
 
     @Test
@@ -508,7 +460,6 @@ struct DashboardSnapshotBuilderTests {
             status: nil,
             usage: nil,
             credits: nil,
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: ProviderErrorPayload(code: 1, message: "temporary failure", kind: .provider))
 
@@ -576,7 +527,6 @@ struct DashboardSnapshotBuilderTests {
                 url: "https://status.anthropic.com"),
             usage: nil,
             credits: nil,
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: nil)
 
@@ -668,7 +618,6 @@ struct DashboardSnapshotBuilderTests {
                     accountOrganization: nil,
                     loginMethod: "pro")),
             credits: nil,
-            antigravityPlanInfo: nil,
             openaiDashboard: nil,
             error: nil)
     }

@@ -19,30 +19,7 @@ COLOR_RE = re.compile(
 MOBILE_ENTRY_RE = re.compile(
     r'\(\s*\[(?P<aliases>[^\]]+)\],\s*RawColor\(red:\s*(?P<red>[^,\)]+),\s*green:\s*(?P<green>[^,\)]+),\s*blue:\s*(?P<blue>[^,\)]+)\)\s*\)'
 )
-MOBILE_ALIAS_TARGETS = {
-    "11labs": "elevenlabs",
-    "ai&": "aiand",
-    "abacusai": "abacus",
-    "ampcode": "amp",
-    "anthropic": "claude",
-    "bailian": "alibaba",
-    "bailiantokenplan": "alibabatokenplan",
-    "alibabatoken": "alibabatokenplan",
-    "chatgpt": "openai",
-    "droid": "factory",
-    "eleven": "elevenlabs",
-    "groqapi": "groq",
-    "groqcloud": "groq",
-    "kimiapi": "moonshot",
-    "kimik2unofficial": "kimik2",
-    "moonshotkimiapi": "moonshot",
-    "sakanaai": "sakana",
-    "syntheticnew": "synthetic",
-    "t3": "t3chat",
-    "vertex": "vertexai",
-    "xiaomimimo": "mimo",
-}
-MOBILE_LEGACY_ONLY = {"kimik2", "crossmodel"}
+EXPECTED_PROVIDER_IDS = {"codex", "claude", "cursor", "grok"}
 
 
 def evaluate_channel(expression: str) -> float:
@@ -96,6 +73,13 @@ def main() -> int:
     mobile, aliases = mobile_palette()
     failures: list[str] = []
 
+    if set(mac) != EXPECTED_PROVIDER_IDS:
+        failures.append(
+            f"Mac provider IDs {sorted(mac)!r} != expected {sorted(EXPECTED_PROVIDER_IDS)!r}")
+    if set(mobile) != EXPECTED_PROVIDER_IDS:
+        failures.append(
+            f"mobile provider IDs {sorted(mobile)!r} != expected {sorted(EXPECTED_PROVIDER_IDS)!r}")
+
     for provider, mac_color in sorted(mac.items()):
         mobile_color = mobile.get(provider)
         if mobile_color is None:
@@ -105,19 +89,12 @@ def main() -> int:
             failures.append(
                 f"{provider}: Mac {mac_color!r} != mobile {mobile_color!r}")
 
-    extra = sorted(set(mobile) - set(mac) - MOBILE_LEGACY_ONLY)
+    extra = sorted(set(mobile) - set(mac))
     for provider in extra:
         failures.append(f"{provider}: mobile canonical alias has no Mac descriptor")
 
     for alias, canonical in sorted(aliases.items()):
-        expected = MOBILE_ALIAS_TARGETS.get(alias)
-        if expected != canonical:
-            failures.append(
-                f"{alias}: mobile alias points to {canonical!r}, expected {expected!r}")
-
-    missing_aliases = sorted(set(MOBILE_ALIAS_TARGETS) - set(aliases))
-    for alias in missing_aliases:
-        failures.append(f"{alias}: expected mobile alias is missing")
+        failures.append(f"{alias}: unexpected mobile alias points to {canonical!r}")
 
     if failures:
         print("ERROR: provider palette parity audit failed:", file=sys.stderr)

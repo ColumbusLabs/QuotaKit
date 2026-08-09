@@ -298,7 +298,6 @@ private struct RawDailyPointRow: View {
 private struct PushSetupDiagnosticView: View {
     @State private var diag = PushSetupDiagnostic.shared
     @State private var persistenceTestResult: String?
-    @Environment(ProEntitlementStore.self) private var proEntitlementStore
 
     var body: some View {
         List {
@@ -335,8 +334,7 @@ private struct PushSetupDiagnosticView: View {
             Section("Actions") {
                 Button("Force Re-run Setup") {
                     Task { @MainActor in
-                        await ProNotificationCoordinator.shared.reconcile(
-                            isProUnlocked: self.proEntitlementStore.isProUnlocked)
+                        await QuotaNotificationCoordinator.shared.reconcile()
                     }
                 }
 

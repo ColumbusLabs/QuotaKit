@@ -109,37 +109,11 @@ extension CodexBarCLI {
     }
 
     static func usageTextNotes(
-        provider: UsageProvider,
-        sourceMode: ProviderSourceMode,
-        resolvedSourceLabel: String) -> [String]
+        provider _: UsageProvider,
+        sourceMode _: ProviderSourceMode,
+        resolvedSourceLabel _: String) -> [String]
     {
-        // Provider-specific by design: Kilo automatic mode reports when its CLI fallback won strategy selection.
-        guard provider == .kilo,
-              sourceMode == .auto,
-              resolvedSourceLabel.trimmingCharacters(in: .whitespacesAndNewlines).lowercased() == "cli"
-        else {
-            return []
-        }
-        return ["Using CLI fallback"]
-    }
-
-    static func kiloAutoFallbackSummary(
-        provider: UsageProvider,
-        sourceMode: ProviderSourceMode,
-        attempts: [ProviderFetchAttempt]) -> String?
-    {
-        // Provider-specific by design: Kilo exposes its ordered API-to-CLI fallback attempts in verbose output.
-        guard provider == .kilo, sourceMode == .auto, !attempts.isEmpty else { return nil }
-        let parts = attempts.map { attempt in
-            let label = Self.fetchKindLabel(attempt.kind)
-            let message = attempt.errorDescription?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
-            if !message.isEmpty {
-                return "\(label): \(message)"
-            }
-            return "\(label): \(attempt.wasAvailable ? "success" : "unavailable")"
-        }
-        guard !parts.isEmpty else { return nil }
-        return "Kilo auto fallback attempts: " + parts.joined(separator: " -> ")
+        []
     }
 
     private static func fetchKindLabel(_ kind: ProviderFetchKind) -> String {
@@ -308,12 +282,10 @@ extension CodexBarCLI {
         switch error {
         case TTYCommandRunner.Error.binaryNotFound,
              CodexStatusProbeError.codexNotInstalled,
-             ClaudeUsageError.claudeNotInstalled,
-             GeminiStatusProbeError.geminiNotInstalled:
+             ClaudeUsageError.claudeNotInstalled:
             ExitCode(2)
         case CodexStatusProbeError.timedOut,
              TTYCommandRunner.Error.timedOut,
-             GeminiStatusProbeError.timedOut,
              ClaudeWebFetchStrategyError.timedOut,
              CostUsageError.timedOut:
             ExitCode(4)
@@ -321,27 +293,10 @@ extension CodexBarCLI {
              ClaudeUsageError.oauthFailed,
              CostUsageError.unsupportedProvider,
              UsageError.decodeFailed,
-             UsageError.noRateLimitsFound,
-             GeminiStatusProbeError.parseFailed,
-             GeminiStatusProbeError.consumerTierDeprecated:
+             UsageError.noRateLimitsFound:
             ExitCode(3)
         default:
             .failure
-        }
-    }
-
-    static func printAntigravityPlanInfo(_ info: AntigravityPlanInfoSummary) {
-        let fields: [(String, String?)] = [
-            ("planName", info.planName),
-            ("planDisplayName", info.planDisplayName),
-            ("displayName", info.displayName),
-            ("productName", info.productName),
-            ("planShortName", info.planShortName),
-        ]
-        self.writeStderr("Antigravity plan info:\n")
-        for (label, value) in fields {
-            guard let value, !value.isEmpty else { continue }
-            self.writeStderr("  \(label): \(value)\n")
         }
     }
 
@@ -362,7 +317,6 @@ extension CodexBarCLI {
                     status: nil,
                     usage: nil,
                     credits: nil,
-                    antigravityPlanInfo: nil,
                     openaiDashboard: nil,
                     error: self.makeErrorPayload(code: .failure, message: error.localizedDescription, kind: .config))
                 self.printJSON([payload], pretty: output.pretty)

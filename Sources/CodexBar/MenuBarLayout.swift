@@ -254,7 +254,7 @@ extension MenuBarLayout {
         case .secondary:
             self.percentWindow(
                 ProviderDescriptorRegistry.descriptor(for: provider ?? .codex).presentation.secondarySemanticWindow)
-        case .automatic, .primaryAndSecondary, .tertiary, .extraUsage, .average, .monthlyPlan:
+        case .automatic, .primaryAndSecondary, .tertiary, .extraUsage, .average:
             .automatic
         }
     }

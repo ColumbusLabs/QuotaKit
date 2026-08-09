@@ -699,7 +699,10 @@ struct SpendDailyChartPresentation: Equatable {
     }
 
     var accessibilityValue: String {
-        L("%d days of usage data across %d services", self.dayCount, self.series.count)
+        if self.dayCount == 1 {
+            return L("%d day of usage data across %d services", self.dayCount, self.series.count)
+        }
+        return L("%d days of usage data across %d services", self.dayCount, self.series.count)
     }
 }
 

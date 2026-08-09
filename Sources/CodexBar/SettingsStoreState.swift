@@ -32,7 +32,6 @@ struct SettingsDefaultsState {
     var menuBarHighContrastOnInactiveDisplays: Bool
     var menuBarDisplayModeRaw: String?
     var menuBarShowsResetTimeWhenExhausted: Bool
-    var kiroMenuBarDisplayModeRaw: String?
     var historicalTrackingEnabled: Bool
     var iCloudSyncEnabled: Bool
     var notificationPushToiOSEnabled: Bool
@@ -42,8 +41,6 @@ struct SettingsDefaultsState {
     var menuBarLayoutOverridesRaw: [String: MenuBarLayout]
     var menuBarLayoutSizeRaw: String
     var menuBarLayoutGapRaw: String
-    var copilotBudgetExtrasEnabled: Bool
-    var copilotIconSecondaryWindowIDRaw: String
     var costUsageEnabled: Bool
     var codexLocalSessionCostLedgerEnabled: Bool
     var costUsageHistoryDays: Int
@@ -64,15 +61,12 @@ struct SettingsDefaultsState {
     var openAIWebBatterySaverEnabled: Bool
     var backgroundWorkLowPowerModeEnabled: Bool
     var providerStorageFootprintsEnabled: Bool
-    var jetbrainsIDEBasePath: String
     var mergeIcons: Bool
     var switcherShowsIcons: Bool
     var mergedMenuLastSelectedWasOverview: Bool
     var mergedOverviewSelectedProvidersRaw: [String]
     var selectedMenuProviderRaw: String?
-    var providerDetectionCompleted: Bool
     var providersSortedAlphabetically: Bool
-    var appLanguageRaw: String?
     var terminalAppRaw: String?
     var agentSessionsEnabled: Bool
     var agentSessionLabelStyleRaw: String

@@ -25,9 +25,14 @@ const readmeLinks = [
 assert(readmeLinks.length > 0, "README.md has no local documentation links");
 for (const link of readmeLinks) validateLocalDocLink(link, repoRoot, "README.md");
 
-const providerLinks = inlineCodeDocLinks(readText("docs/providers.md"));
+const providerLinks = markdownLinks(readText("docs/providers.md")).filter((link) => {
+  const parsed = parseRelativeURL(link);
+  return parsed && !parsed.protocol && !parsed.host && parsed.pathname.endsWith(".md");
+});
 assert(providerLinks.length > 0, "docs/providers.md has no provider detail links");
-for (const link of providerLinks) validateLocalDocLink(link, repoRoot, "docs/providers.md");
+for (const link of providerLinks) {
+  validateLocalDocLink(link, path.join(repoRoot, "docs"), "docs/providers.md");
+}
 
 const docsLinks = markdownFiles("docs").flatMap((relativePath) => {
   const markdown = readText(relativePath);
@@ -77,17 +82,6 @@ function htmlLinks(markdown) {
   const source = markdownTextOutsideCode(markdown);
   const pattern = /<\s*(?:a|img)\b[^>]*?\b(?:href|src)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'=<>`]+))/gi;
   return [...source.matchAll(pattern)].map((match) => match[1] ?? match[2] ?? match[3]);
-}
-
-function inlineCodeDocLinks(markdown) {
-  return markdown.split("\n").flatMap((line) => {
-    const trimmed = line.trim();
-    const prefix = "- Details: `";
-    if (!trimmed.startsWith(prefix)) return [];
-    const rest = trimmed.slice(prefix.length);
-    const end = rest.indexOf("`");
-    return end === -1 ? [] : [rest.slice(0, end)];
-  });
 }
 
 function validateLocalDocLink(rawLink, baseDirectory, sourceLabel) {

@@ -17,7 +17,7 @@ extension CursorStatusProbe {
     }
 }
 
-#if os(macOS) || os(Linux)
+#if os(macOS)
 extension CursorStatusProbe {
     /// Stores the browser session selected by the user after candidate discovery completes.
     @discardableResult

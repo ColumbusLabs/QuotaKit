@@ -190,7 +190,7 @@ struct ProviderSettingsTokenAccountsDescriptor: Identifiable {
 /// Shared organizations descriptor rendered in the Providers settings pane.
 ///
 /// Used by providers that let the user opt in to additional account scopes
-/// (e.g. Kilo organizations) shown alongside the personal account.
+/// shown alongside the personal account.
 @MainActor
 struct ProviderSettingsOrganizationsDescriptor: Identifiable {
     struct Entry: Identifiable {

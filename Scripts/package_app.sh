@@ -581,9 +581,6 @@ seal_app_bundle_copy() {
     if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
       resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
     fi
-    if [[ -d "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
-      resign "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
-    fi
     if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
       resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
     fi
@@ -617,9 +614,6 @@ seal_app_bundle_copy() {
 
   if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
     resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
-  fi
-  if [[ -d "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
-    resign "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
   fi
   if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
     resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
@@ -682,17 +676,6 @@ if [[ ! -d "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle" 
   exit 1
 fi
 
-# The helper CLI resolves CodexBarCore resources beside its executable. Keep a
-# dedicated copy in Helpers; the app copy above remains in Contents/Resources.
-CORE_RESOURCE_BUNDLE="${PREFERRED_BUILD_DIR}/CodexBar_CodexBarCore.bundle"
-if [[ ! -d "$CORE_RESOURCE_BUNDLE" ]]; then
-  echo "ERROR: Missing CodexBarCore SwiftPM resource bundle for ${CLI_EXECUTABLE_NAME}." >&2
-  echo "Expected: ${CORE_RESOURCE_BUNDLE}" >&2
-  exit 1
-fi
-rm -rf "$APP/Contents/Helpers/CodexBar_CodexBarCore.bundle"
-cp -R "$CORE_RESOURCE_BUNDLE" "$APP/Contents/Helpers/"
-
 # Ensure contents are writable before stripping attributes and signing.
 chmod -R u+w "$APP"
 
@@ -707,9 +690,6 @@ find "$APP" -name '._*' -delete 2>/dev/null || true
 # Sign helper binaries if present
 if [[ -f "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
   resign "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
-fi
-if [[ -d "${APP}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
-  resign "${APP}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
 fi
 if [[ -f "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
   resign "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"

@@ -146,10 +146,6 @@ public struct ProviderIconDecorations: OptionSet, Sendable {
 
     public static let face = Self(rawValue: 1 << 0)
     public static let notches = Self(rawValue: 1 << 1)
-    public static let gemini = Self(rawValue: 1 << 2)
-    public static let antigravity = Self(rawValue: 1 << 3)
-    public static let factory = Self(rawValue: 1 << 4)
-    public static let warp = Self(rawValue: 1 << 5)
 }
 
 public struct ProviderIconWindowContext: Sendable {
@@ -224,7 +220,6 @@ public struct ProviderUsageNotesContext: Sendable {
 
 public enum ProviderUsageNotesResolution: Sendable {
     case unhandled
-    case openAIAPI(OpenAIAPIUsageSnapshot)
     case localized([String])
 }
 
@@ -255,8 +250,6 @@ public enum ProviderPrimaryDescriptionPlacement: Sendable {
 
 public enum ProviderPrimaryDetailKind: Sendable {
     case none
-    case poeBalance
-    case kiroCredits
     case requestQuota
 }
 
@@ -282,8 +275,6 @@ public struct ProviderMenuCardPresentation: Sendable {
     public let hidesPrimaryResetWithoutSecondary: Bool
     public let clearsPrimaryReset: Bool
     public let primaryDetailKind: ProviderPrimaryDetailKind
-    public let usesAbacusPace: Bool
-    public let usesSyntheticRollingRegen: Bool
     public let usesRawPrimaryResetDescription: Bool
     public let resetWindowUsesWeeklyPace: Bool
 
@@ -302,8 +293,6 @@ public struct ProviderMenuCardPresentation: Sendable {
         clearsPrimaryReset: Bool = false,
         movePrimaryDetailToStatus: @escaping SnapshotPredicate = { _ in false },
         primaryDetailKind: ProviderPrimaryDetailKind = .none,
-        usesAbacusPace: Bool = false,
-        usesSyntheticRollingRegen: Bool = false,
         usesRawPrimaryResetDescription: Bool = false,
         resetWindowUsesWeeklyPace: Bool = false)
     {
@@ -321,8 +310,6 @@ public struct ProviderMenuCardPresentation: Sendable {
         self.clearsPrimaryReset = clearsPrimaryReset
         self.movePrimaryDetailToStatus = movePrimaryDetailToStatus
         self.primaryDetailKind = primaryDetailKind
-        self.usesAbacusPace = usesAbacusPace
-        self.usesSyntheticRollingRegen = usesSyntheticRollingRegen
         self.usesRawPrimaryResetDescription = usesRawPrimaryResetDescription
         self.resetWindowUsesWeeklyPace = resetWindowUsesWeeklyPace
     }

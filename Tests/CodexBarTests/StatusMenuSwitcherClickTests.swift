@@ -20,9 +20,7 @@ struct StatusMenuSwitcherClickTests {
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: configStore)
     }
 
     private func makeInstalledSwitcherShortcutMonitor() -> (controller: StatusItemController, menu: StatusItemMenu) {
@@ -366,96 +364,6 @@ struct StatusMenuSwitcherClickTests {
     }
 
     @Test
-    func `merged switcher switches provider while overview chart submenu is open`() async throws {
-        let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
-        let previousMenuRefresh = StatusItemController.menuRefreshEnabled
-        StatusItemController.menuCardRenderingEnabled = false
-        StatusItemController.setMenuRefreshEnabledForTesting(false)
-        defer {
-            StatusItemController.menuCardRenderingEnabled = previousMenuCardRendering
-            StatusItemController.setMenuRefreshEnabledForTesting(previousMenuRefresh)
-        }
-
-        let settings = self.makeSettings()
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = true
-        settings.selectedMenuProvider = .openai
-        settings.mergedMenuLastSelectedWasOverview = true
-        settings.costUsageEnabled = true
-        settings.costSummaryDisplayStyle = .both
-
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            let shouldEnable = provider == .openai || provider == .claude
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: shouldEnable)
-        }
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let now = Date(timeIntervalSince1970: 1_700_000_000)
-        let usage = OpenAIAPIUsageSnapshot(
-            daily: [
-                OpenAIAPIUsageSnapshot.DailyBucket(
-                    day: "2023-11-14",
-                    startTime: now,
-                    endTime: now.addingTimeInterval(86400),
-                    costUSD: 9,
-                    requests: 12,
-                    inputTokens: 100,
-                    cachedInputTokens: 0,
-                    outputTokens: 50,
-                    totalTokens: 150,
-                    lineItems: [],
-                    models: []),
-            ],
-            updatedAt: now)
-        store._setSnapshotForTesting(usage.toUsageSnapshot(), provider: .openai)
-
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: self.makeStatusBarForTesting())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        let menu = controller.makeMenu()
-        controller.menuWillOpen(menu)
-        controller.openMenus[ObjectIdentifier(menu)] = menu
-
-        let openAIRow = try #require(menu.items.first {
-            ($0.representedObject as? String) == "overviewRow-openai"
-        })
-        let submenu = try #require(openAIRow.submenu)
-        controller.openMenus[ObjectIdentifier(submenu)] = submenu
-
-        var rebuildCount = 0
-        controller._test_openMenuRebuildObserver = { _ in
-            rebuildCount += 1
-        }
-        defer { controller._test_openMenuRebuildObserver = nil }
-
-        let switcher = try #require(menu.items.first?.view as? ProviderSwitcherView)
-        #expect(switcher._test_simulateRuntimeClick(buttonTag: 2))
-        for _ in 0..<100 where rebuildCount == 0 {
-            await Task.yield()
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-
-        #expect(settings.mergedMenuLastSelectedWasOverview == false)
-        #expect(settings.selectedMenuProvider == .claude)
-        #expect(rebuildCount == 1)
-        #expect(controller.openMenus[ObjectIdentifier(submenu)] == nil)
-
-        let ids = menu.items.compactMap { $0.representedObject as? String }
-        #expect(ids.contains("menuCard"))
-        #expect(ids.contains(where: { $0.hasPrefix("overviewRow-") }) == false)
-    }
-
-    @Test
     func `merged switcher handles left and right arrow keyboard navigation`() async throws {
         let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
         let previousMenuRefresh = StatusItemController.menuRefreshEnabled
@@ -630,7 +538,7 @@ struct StatusMenuSwitcherClickTests {
     @Test
     func `switcher hover styling keeps layout stable`() {
         let view = ProviderSwitcherView(
-            providers: [.codex, .claude, .cursor, .factory, .zai, .minimax, .alibaba],
+            providers: [.codex, .claude, .cursor, .grok],
             selected: .provider(.codex),
             includesOverview: true,
             width: 300,
@@ -819,26 +727,6 @@ struct StatusMenuSwitcherClickTests {
         #expect(withQuotaHeight == withoutQuotaHeight)
     }
 
-    @Test
-    func `multi row switcher quota bars stay inside bounds`() {
-        let view = ProviderSwitcherView(
-            providers: [.codex, .claude, .cursor, .factory, .zai, .minimax, .alibaba],
-            selected: .provider(.codex),
-            includesOverview: true,
-            width: 300,
-            showsIcons: true,
-            iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
-            weeklyRemainingProvider: { _ in 50 },
-            onSelect: { _ in })
-        view.updateConstraintsForSubtreeIfNeeded()
-        view.layoutSubtreeIfNeeded()
-
-        for frame in view._test_buttonFrames() {
-            #expect(frame.minY >= 0)
-            #expect(frame.maxY <= view.bounds.maxY)
-        }
-    }
-
     private static func arrowKeyEvent(keyCode: UInt16) throws -> NSEvent {
         try #require(NSEvent.keyEvent(
             with: .keyDown,
@@ -865,54 +753,5 @@ struct StatusMenuSwitcherClickTests {
             charactersIgnoringModifiers: characters,
             isARepeat: false,
             keyCode: keyCode))
-    }
-
-    @Test
-    func `multi-row switcher uses compact height and stays inside bounds`() {
-        // 14 providers + Overview forces the four-row path and includes multi-word titles.
-        let view = ProviderSwitcherView(
-            providers: [
-                .codex,
-                .claude,
-                .cursor,
-                .factory,
-                .zai,
-                .minimax,
-                .alibaba,
-                .opencodego,
-                .grok,
-                .groq,
-                .gemini,
-                .openrouter,
-                .perplexity,
-                .kiro,
-            ],
-            selected: .provider(.codex),
-            includesOverview: true,
-            width: 300,
-            showsIcons: true,
-            iconProvider: { _ in NSImage(size: NSSize(width: 16, height: 16)) },
-            weeklyRemainingProvider: { _ in 50 },
-            onSelect: { _ in })
-        view.updateConstraintsForSubtreeIfNeeded()
-        view.layoutSubtreeIfNeeded()
-
-        // All buttons must stay within switcher bounds (no vertical overflow).
-        let buttonFrames = view._test_buttonFrames()
-        let contentFrames = view._test_buttonContentFrames()
-        let trackFrames = view._test_quotaIndicatorTrackFrames()
-        for (frame, contentFrame) in zip(buttonFrames, contentFrames) {
-            #expect(frame.minY >= 0)
-            #expect(frame.maxY <= view.bounds.maxY)
-            #expect(abs((contentFrame?.midY ?? -1) - frame.height / 2) <= 0.5)
-        }
-        for (buttonFrame, trackFrame) in zip(buttonFrames.dropFirst(), trackFrames) {
-            #expect(trackFrame.minY >= buttonFrame.minY)
-            #expect(trackFrame.maxY <= buttonFrame.maxY)
-        }
-
-        #expect(view._test_rowCount() == 4)
-        #expect(view._test_rowHeight() == 39)
-        #expect(view.bounds.height == 168)
     }
 }

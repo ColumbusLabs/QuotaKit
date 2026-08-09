@@ -34,10 +34,9 @@ read_when:
 - **CodexBar Burn Down (Combined)** (`CodexBarCombinedBurnDownWidget`): session and weekly burn-down charts, medium only.
 
 ## Provider picker support
-The configurable provider widgets currently expose:
-Codex, Claude, Cursor, Gemini, Alibaba, Antigravity, z.ai, Copilot, MiniMax, Kilo, OpenCode, and OpenCode Go.
 
-Providers without a `ProviderChoice` case can still be present in the app snapshot, but they are not selectable from the widget configuration UI yet.
+The configurable provider widgets expose Codex, Claude, Cursor, and Grok. Widget snapshots discard retired provider
+records, and a saved selection for a retired provider falls back to a supported choice.
 
 Burn-down widgets currently support Codex and Claude. Their dedicated configuration intents keep existing Usage and History widget configurations unchanged.
 

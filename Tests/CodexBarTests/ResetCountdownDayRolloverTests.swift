@@ -5,51 +5,24 @@ import Testing
 struct ResetCountdownDayRolloverTests {
     private static let now = Date(timeIntervalSince1970: 1_700_000_000)
 
-    private func at(hoursFromNow hours: Double) -> Date {
-        Self.now.addingTimeInterval(hours * 3600)
+    @Test
+    func `generic countdown rolls exactly twenty four hours into one day`() {
+        let reset = Self.now.addingTimeInterval(24 * 3600)
+
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: Self.now) == "in 1d")
     }
 
     @Test
-    func `Windsurf web reset at exactly 24h rolls over to a day`() {
-        // Was "Resets in 24h 0m"; the day form must be reachable at the 24h boundary.
-        #expect(
-            WindsurfGetPlanStatusResponse.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Resets in 1d 0h")
+    func `generic countdown includes days and hours above the boundary`() {
+        let reset = Self.now.addingTimeInterval(25 * 3600)
+
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: Self.now) == "in 1d 1h")
     }
 
     @Test
-    func `Windsurf web reset above 24h shows day and hour`() {
-        #expect(
-            WindsurfGetPlanStatusResponse.formatResetDescription(self.at(hoursFromNow: 25), now: Self.now)
-                == "Resets in 1d 1h")
-    }
+    func `generic countdown stays in hours below the boundary`() {
+        let reset = Self.now.addingTimeInterval(23 * 3600)
 
-    @Test
-    func `Windsurf web reset below 24h stays in hours`() {
-        #expect(
-            WindsurfGetPlanStatusResponse.formatResetDescription(self.at(hoursFromNow: 23), now: Self.now)
-                == "Resets in 23h 0m")
-    }
-
-    @Test
-    func `Windsurf cached reset at exactly 24h rolls over to a day`() {
-        #expect(
-            WindsurfCachedPlanInfo.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Resets in 1d 0h")
-    }
-
-    @Test
-    func `Zed cycle at exactly 24h rolls over to a day`() {
-        // Was "Cycle ends in 24h 0m".
-        #expect(
-            ZedUsageSnapshot.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Cycle ends in 1d 0h")
-    }
-
-    @Test
-    func `JetBrains reset at exactly 24h rolls over to a day`() {
-        #expect(
-            JetBrainsStatusSnapshot.formatResetDescription(self.at(hoursFromNow: 24), now: Self.now)
-                == "Resets in 1d 0h")
+        #expect(UsageFormatter.resetCountdownDescription(from: reset, now: Self.now) == "in 23h")
     }
 }

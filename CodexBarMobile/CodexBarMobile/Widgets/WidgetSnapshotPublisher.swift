@@ -7,15 +7,9 @@ enum WidgetSnapshotPublisher {
     static func publish(
         from snapshot: SyncedUsageSnapshot,
         generatedAt: Date = Date(),
-        isProUnlocked: Bool = ProEntitlementCacheStore.load() != nil,
         saveSnapshot: (QuotaKitWidgetSnapshot) -> Void = { QuotaKitWidgetSnapshotStore.save($0) },
         reloadTimelines: () -> Void = WidgetTimelineRefresher.reloadAllTimelines)
     {
-        guard isProUnlocked else {
-            self.clear(reloadTimelines: true, reloadTimelinesAction: reloadTimelines)
-            return
-        }
-
         let widgetSnapshot = QuotaKitWidgetSnapshotBuilder.makeSnapshot(
             from: snapshot,
             generatedAt: generatedAt)

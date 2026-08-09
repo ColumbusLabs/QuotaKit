@@ -143,7 +143,6 @@ extension StatusItemController {
             provider: provider,
             snapshot: snapshot,
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
-            antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
             now: now)
         return (semanticWindows.session, semanticWindows.weekly, automatic)
     }

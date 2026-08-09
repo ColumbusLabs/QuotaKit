@@ -11,7 +11,7 @@ import Foundation
 /// ### Two-layer push copy (iOS 1.6.0 / Mac 0.25.2+)
 ///
 /// 1. **Static fallback** baked into the subscription's `alertBody` at
-///    setup time — e.g. `"Codex usage warning"` / `"Codex 用量警告"`. This is
+///    setup time — e.g. `"Codex usage warning"`. This is
 ///    what shows up if the NSE doesn't run (low memory, extension load
 ///    failure, etc.) so the push is still informative.
 /// 2. **NSE-enriched body** rewritten by `NotificationService` after the
@@ -44,14 +44,14 @@ import Foundation
 ///   this too via `mutableContent.title` for depleted/restored.
 /// - **Body, NSE OK**: e.g. "Codex session usage at 50% threshold" —
 ///   threshold and window parsed from the record's `recordName`.
-/// - **Body, NSE skipped**: e.g. "Codex usage warning" / "Codex 用量警告"
+/// - **Body, NSE skipped**: e.g. "Codex usage warning"
 ///   — the static fallback baked into the sub at setup.
 ///
 /// ### Scale
 ///
-/// `QuotaProviderList.providers.count × 3` subscriptions (120 today, iOS 1.7.0) created
-/// in a single batched `modifySubscriptions(saving:deleting:)` call on first
-/// launch. Subsequent launches diff the server state against the expected
+/// `QuotaProviderList.providers.count × 3` subscriptions (12 today) are created
+/// in a single batched call on first launch. Subsequent launches diff server
+/// state against the expected
 /// config and only save the subs whose `alertBody` has drifted (e.g. locale
 /// change, new display name, new provider in the list). CloudKit Private DB
 /// has no practical subscription limit for a single user at this scale.
@@ -63,10 +63,7 @@ final class QuotaTransitionSubscriptions {
     private let recordType = CloudSyncConstants.quotaTransitionRecordType
 
     /// Closures are used for `localizedAlertBody` so `String(localized:)`
-    /// re-resolves against the iPhone's **current** locale on every call,
-    /// instead of the locale that was active when `configs` was populated.
-    /// That's what lets a locale change trigger a sub recreate on next launch
-    /// (the stored body no longer matches the expected body).
+    /// re-resolves the current English catalog value on every call.
     private struct SubConfig {
         let zoneName: String
         let subscriptionID: String
@@ -109,9 +106,9 @@ final class QuotaTransitionSubscriptions {
             // threshold % is encoded in the record's recordName, which
             // `NotificationService` (NSE) reads to rewrite the body
             // with the specific window + threshold ("Codex session at
-            // 50%"). Subscription count: 76 → 114 zones. APPENDED at
-            // the tail so existing 76-entry CK subscription IDs stay
-            // stable across the 1.5.x/1.6.0 upgrade.
+            // 50%"). Warning subscriptions remain appended after the
+            // depleted/restored entries so the established live IDs stay
+            // stable; the four-provider catalog produces 12 live entries.
             configs.append(SubConfig(
                 zoneName: QuotaProviderList.quotaZoneName(
                     providerID: provider.id, state: "warning"),
@@ -134,6 +131,22 @@ final class QuotaTransitionSubscriptions {
         CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
     ]
 
+    /// Exact tombstones for the 56 providers removed from the product. This
+    /// list intentionally comes from the frozen migration inventory rather
+    /// than the four-provider live catalog: an install can skip directly from
+    /// an older build and still needs all 168 old subscriptions removed.
+    nonisolated static var retiredSubscriptionIDs: [CKSubscription.ID] {
+        self.managedSubscriptionIDs(providerIDs: QuotaProviderList.retiredProviderIDs)
+    }
+
+    nonisolated static func subscriptionIDsToDelete(
+        existingIDs: [CKSubscription.ID],
+        legacyIDs: [CKSubscription.ID]) -> [CKSubscription.ID]
+    {
+        let tombstonedIDs = Set(self.retiredSubscriptionIDs + legacyIDs)
+        return existingIDs.filter { tombstonedIDs.contains($0) }
+    }
+
     private init() {}
 
     /// Configures the `(provider, state)` subscription matrix and cleans up
@@ -151,11 +164,6 @@ final class QuotaTransitionSubscriptions {
 
         let container = CKContainer(identifier: containerIdentifier)
         let database = container.privateCloudDatabase
-
-        // Step 0: clean up legacy subs. Safe to no-op if they don't exist.
-        for legacyID in self.legacySubscriptionIDs {
-            _ = try? await database.deleteSubscription(withID: legacyID)
-        }
 
         let configs = self.makeConfigs()
 
@@ -175,7 +183,7 @@ final class QuotaTransitionSubscriptions {
         }
 
         // Step 2: diff server state vs expected configs.
-        let existing: [CKSubscription]
+        var existing: [CKSubscription]
         do {
             existing = try await database.allSubscriptions()
         } catch {
@@ -184,6 +192,28 @@ final class QuotaTransitionSubscriptions {
             await diag.recordError(msg)
             await diag.refreshSubscriptionList()
             return
+        }
+
+        // Step 2a: remove only QuotaKit-owned legacy/tombstoned IDs. Do not
+        // broad-delete subscriptions by prefix: the same private database can
+        // contain unrelated app subscriptions, including the live provider
+        // zone subscription used for silent snapshot refreshes.
+        let idsToDelete = Self.subscriptionIDsToDelete(
+            existingIDs: existing.map(\.subscriptionID),
+            legacyIDs: self.legacySubscriptionIDs)
+        if !idsToDelete.isEmpty {
+            do {
+                _ = try await database.modifySubscriptions(
+                    saving: [],
+                    deleting: idsToDelete)
+                let deletedIDSet = Set(idsToDelete)
+                existing.removeAll { deletedIDSet.contains($0.subscriptionID) }
+                print("[QuotaKit Push] ✓ removed \(idsToDelete.count) retired quota alert sub(s)")
+            } catch {
+                let msg = "✗ retired quota alert cleanup failed: \(error.localizedDescription)"
+                print("[QuotaKit Push] \(msg)")
+                await diag.recordError(msg)
+            }
         }
 
         var subsToSave: [CKSubscription] = []
@@ -239,62 +269,6 @@ final class QuotaTransitionSubscriptions {
                 print("[CodexBar Push v6] \(msg)")
                 await diag.recordError(msg)
             }
-        }
-
-        await diag.refreshSubscriptionList()
-    }
-
-    func removeManagedSubscriptions() async {
-        let diag = await PushSetupDiagnostic.shared
-        guard !CloudKitRuntimeGate.isDisabledForLocalLaunch else {
-            await diag.recordPermission("CloudKit disabled for local simulator launch")
-            await diag.recordDepletedSub("quota alert cleanup skipped")
-            await diag.recordRestoredSub("")
-            await diag.refreshSubscriptionList()
-            return
-        }
-
-        let database = CKContainer(identifier: containerIdentifier).privateCloudDatabase
-        let managedIDs = Set(Self.managedSubscriptionIDs(
-            providerIDs: QuotaProviderList.providers.map(\.id))
-            + self.legacySubscriptionIDs)
-
-        let existing: [CKSubscription]
-        do {
-            existing = try await database.allSubscriptions()
-        } catch {
-            let msg = "✗ allSubscriptions failed during Pro cleanup: \(error.localizedDescription)"
-            print("[QuotaKit Push] \(msg)")
-            await diag.recordError(msg)
-            await diag.refreshSubscriptionList()
-            return
-        }
-
-        let idsToDelete = existing
-            .map(\.subscriptionID)
-            .filter { managedIDs.contains($0) }
-
-        guard !idsToDelete.isEmpty else {
-            await diag.recordPermission("Pro required for quota alerts")
-            await diag.recordDepletedSub("✓ no quota alert subscriptions active")
-            await diag.recordRestoredSub("")
-            await diag.refreshSubscriptionList()
-            return
-        }
-
-        do {
-            _ = try await database.modifySubscriptions(
-                saving: [],
-                deleting: idsToDelete)
-            let msg = "✓ removed \(idsToDelete.count) quota alert sub(s) for Free mode"
-            print("[QuotaKit Push] \(msg)")
-            await diag.recordPermission("Pro required for quota alerts")
-            await diag.recordDepletedSub(msg)
-            await diag.recordRestoredSub("")
-        } catch {
-            let msg = "✗ quota alert cleanup failed: \(error.localizedDescription)"
-            print("[QuotaKit Push] \(msg)")
-            await diag.recordError(msg)
         }
 
         await diag.refreshSubscriptionList()

@@ -53,8 +53,6 @@ public struct ProviderCredentialSettingsContext: Sendable {
     {
         let configuredSource: ProviderCookieSource = if let override = self.config?.cookieSource {
             override
-        } else if provider == .stepfun, self.config?.sanitizedRegion != nil {
-            .manual
         } else if self.config?.sanitizedCookieHeader != nil {
             .manual
         } else {

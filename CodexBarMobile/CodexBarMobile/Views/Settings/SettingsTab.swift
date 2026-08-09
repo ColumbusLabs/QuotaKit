@@ -4,8 +4,6 @@ struct SettingsTab: View {
     let usageData: SyncedUsageData
     let isDemoMode: Bool
     @Environment(\.quotaKitTheme) private var theme
-    @Environment(ProEntitlementStore.self) private var proEntitlementStore
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @AppStorage(MobileSettingsKeys.appearanceMode) private var appearanceModeRaw =
         AppearanceMode.dark.rawValue
     @State private var showingSetupGuide = false
@@ -27,27 +25,6 @@ struct SettingsTab: View {
                             selection: self.appearanceMode,
                             options: AppearanceMode.allCases.map { ($0, $0.title) })
                             .padding(16)
-                    }
-
-                    QKSurfaceCard {
-                        QuotaKitProSettingsView(store: self.proEntitlementStore)
-                            .padding(16)
-                    }
-
-                    if let announcement = self.remoteConfigStore.activeAnnouncement {
-                        QKSectionHeader(title: "Announcement")
-                        QKSurfaceCard {
-                            VStack(alignment: .leading, spacing: 6) {
-                                Text(announcement.title)
-                                    .font(.subheadline.weight(.semibold))
-                                    .foregroundStyle(self.theme.textPrimary)
-                                Text(announcement.body)
-                                    .font(.caption)
-                                    .foregroundStyle(self.theme.textMuted)
-                            }
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .padding(16)
-                        }
                     }
 
                     QKSectionHeader(title: "Setup")

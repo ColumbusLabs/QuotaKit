@@ -62,7 +62,6 @@ struct MenuDescriptor {
     enum MenuAction: Equatable {
         case installUpdate
         case refresh
-        case refreshAugmentSession
         case dashboard
         case statusPage
         case changelog
@@ -314,7 +313,7 @@ struct MenuDescriptor {
                 }
             }
             if labels.showsTertiary, let opus = snap.tertiary {
-                // Perplexity purchased credits don't reset; show the balance as plain text.
+                // Purchased credits without a reset render as plain text.
                 let opusResetOverride: String? = presentation.menu.tertiaryDescriptionOverridesReset
                     ? opus.resetDescription?.trimmingCharacters(in: .whitespacesAndNewlines)
                     : nil
@@ -339,8 +338,7 @@ struct MenuDescriptor {
                 entries: &entries,
                 provider: provider,
                 snapshot: snap,
-                showOptionalUsage: settings.showOptionalCreditsAndExtraUsage,
-                preferredCurrencyCode: settings.preferredCurrencyCode)
+                showOptionalUsage: settings.showOptionalCreditsAndExtraUsage)
             if snap.rateLimitsUnavailable(for: provider) {
                 entries.append(.text(L("Limits not available"), .secondary))
             }
@@ -368,8 +366,7 @@ struct MenuDescriptor {
         entries: inout [Entry],
         provider: UsageProvider,
         snapshot: UsageSnapshot,
-        showOptionalUsage: Bool,
-        preferredCurrencyCode: String = "auto")
+        showOptionalUsage: Bool)
     {
         if let cost = snapshot.providerCost {
             if cost.currencyCode == "Quota" {
@@ -378,40 +375,8 @@ struct MenuDescriptor {
                 entries.append(.text("\(L("Quota")): \(used) / \(limit)", .primary))
             }
         }
-        if let openAIAPIUsage = snapshot.openAIAPIUsage {
-            Self.appendOpenAIAPIUsageSummary(
-                entries: &entries,
-                usage: openAIAPIUsage,
-                preferredCurrencyCode: preferredCurrencyCode)
-        }
-        if let mistralUsage = snapshot.mistralUsage, !mistralUsage.daily.isEmpty {
-            Self.appendMistralUsageSummary(
-                entries: &entries,
-                usage: mistralUsage,
-                preferredCurrencyCode: preferredCurrencyCode)
-        }
-        let hasQuotaKitXAIUsage = provider == .xai && snapshot.xaiUsage != nil
-        if provider == .xai, let xaiUsage = snapshot.xaiUsage {
-            let balance = UsageFormatter.convertedCostString(
-                xaiUsage.balanceUSD,
-                preferredCurrency: preferredCurrencyCode,
-                providerCurrency: "USD")
-            entries.append(.text("\(L("Posted balance")): \(balance)", .primary))
-            entries.append(.text(L("Ledger may lag current-cycle spend"), .secondary))
-            if !xaiUsage.daily.isEmpty {
-                let spend = UsageFormatter.convertedCostString(
-                    xaiUsage.windowCostUSD,
-                    preferredCurrency: preferredCurrencyCode,
-                    providerCurrency: "USD")
-                entries.append(.text(
-                    "\(xaiUsage.historyWindowPeriodLabel): \(spend)",
-                    .secondary))
-            }
-        }
         let policy = ProviderDescriptorRegistry.descriptor(for: provider).presentation.optionalDetails
-        // xAI keeps QuotaKit's posted-balance and ledger-lag wording above; its declarative rows
-        // carry the same values. Other providers render through the descriptor-owned detail contract.
-        if !hasQuotaKitXAIUsage, !policy.hidesAllWithoutOptionalUsage || showOptionalUsage {
+        if !policy.hidesAllWithoutOptionalUsage || showOptionalUsage {
             let details = showOptionalUsage || policy.hiddenTitlesWithoutOptionalUsage.isEmpty
                 ? snapshot.details
                 : snapshot.details.filter { section in
@@ -461,47 +426,11 @@ struct MenuDescriptor {
         if let emailText, !emailText.isEmpty, !redactedEmail.isEmpty {
             entries.append(.text("\(L("Account")): \(redactedEmail)", .secondary))
         }
-        if provider == .kiro {
-            if let plan = snapshot?.detailRow(label: "Plan")?.value,
-               !plan.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            {
-                entries.append(.text("\(L("Plan")): \(plan)", .secondary))
-            }
-            if let loginMethodText, !loginMethodText.isEmpty {
-                entries.append(.text("\(L("Auth")): \(loginMethodText)", .secondary))
-            }
-            if let overages = snapshot?.detailRow(label: "Overages")?.value,
-               !overages.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
-            {
-                entries.append(.text("\(L("Overages")): \(overages)", .secondary))
-            }
-        } else if provider == .kilo {
-            let kiloLogin = self.kiloLoginParts(loginMethod: loginMethodText)
-            if let pass = kiloLogin.pass {
-                entries.append(.text("\(L("Plan")): \(AccountFormatter.plan(pass, provider: provider))", .secondary))
-            }
-            for detail in kiloLogin.details {
-                entries.append(.text("\(L("Activity")): \(detail)", .secondary))
-            }
-        } else if let loginMethodText, !loginMethodText.isEmpty {
-            if provider == .openrouter || provider == .mimo || provider == .poe,
-               loginMethodText.localizedCaseInsensitiveContains("balance:")
-            {
-                let balanceValue = loginMethodText
-                    .replacingOccurrences(
-                        of: #"(?i)^\s*balance:\s*"#,
-                        with: "",
-                        options: [.regularExpression])
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-                let value = balanceValue.isEmpty ? loginMethodText : balanceValue
-                entries.append(
-                    .text("\(L("Balance")): \(AccountFormatter.plan(value, provider: provider))", .secondary))
-            } else {
-                entries.append(
-                    .text(
-                        "\(L("Plan")): \(AccountFormatter.plan(loginMethodText, provider: provider))",
-                        .secondary))
-            }
+        if let loginMethodText, !loginMethodText.isEmpty {
+            entries.append(
+                .text(
+                    "\(L("Plan")): \(AccountFormatter.plan(loginMethodText, provider: provider))",
+                    .secondary))
         }
 
         if metadata.usesAccountFallback {
@@ -520,29 +449,6 @@ struct MenuDescriptor {
         }
 
         return entries
-    }
-
-    private static func kiloLoginParts(loginMethod: String?) -> (pass: String?, details: [String]) {
-        guard let loginMethod else {
-            return (nil, [])
-        }
-        let parts = loginMethod
-            .components(separatedBy: "·")
-            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-            .filter { !$0.isEmpty }
-        guard !parts.isEmpty else {
-            return (nil, [])
-        }
-        let first = parts[0]
-        if self.isKiloActivitySegment(first) {
-            return (nil, parts)
-        }
-        return (first, Array(parts.dropFirst()))
-    }
-
-    private static func isKiloActivitySegment(_ text: String) -> Bool {
-        let normalized = text.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
-        return normalized.hasPrefix("auto top-up:")
     }
 
     private static func accountProviderForCombined(store: UsageStore) -> UsageProvider? {
@@ -692,9 +598,6 @@ struct MenuDescriptor {
         metadata: ProviderMetadata,
         snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
     {
-        if provider == .factory, snapshot.tertiary != nil {
-            return ("5-hour", L("Weekly"), L("Monthly"), true)
-        }
         let cursorLabels = provider == .cursor
             ? Self.cursorRateWindowLabels(
                 snapshot: snapshot,
@@ -711,16 +614,6 @@ struct MenuDescriptor {
                 weeklyLabel: metadata.weeklyLabel)
         } else if provider == .grok {
             GrokProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
-        } else if provider == .crof {
-            CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
-        } else if provider == .doubao {
-            DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
-        } else if provider == .sub2api {
-            Sub2APIProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
-        } else if provider == .amp {
-            AmpProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
-        } else if provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
         } else {
             metadata.sessionLabel
         }
@@ -732,10 +625,6 @@ struct MenuDescriptor {
                 windowMinutes: snapshot.secondary?.windowMinutes,
                 sessionLabel: metadata.sessionLabel,
                 weeklyLabel: metadata.weeklyLabel)
-        } else if provider == .amp {
-            AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? metadata.weeklyLabel
-        } else if provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ?? metadata.weeklyLabel
         } else {
             metadata.weeklyLabel
         }
@@ -823,7 +712,6 @@ extension MenuDescriptor.MenuAction {
         case .about: MenuDescriptor.MenuActionSystemImage.about.rawValue
         case .quit: MenuDescriptor.MenuActionSystemImage.quit.rawValue
         case .refresh: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
-        case .refreshAugmentSession: MenuDescriptor.MenuActionSystemImage.refresh.rawValue
         case .dashboard: MenuDescriptor.MenuActionSystemImage.dashboard.rawValue
         case .statusPage: MenuDescriptor.MenuActionSystemImage.statusPage.rawValue
         case .changelog: MenuDescriptor.MenuActionSystemImage.changelog.rawValue

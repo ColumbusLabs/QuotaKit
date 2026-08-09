@@ -6,15 +6,12 @@ import UIKit
 @testable import CodexBarMobile
 
 /// Guards `UtilizationAggregateView` (the Cost-tab 30-day subscription
-/// utilization chart) against iOS 1.3.0's new upstream providers that
-/// don't emit utilization history.
+/// utilization chart) against historical provider rows that do not emit
+/// utilization history.
 ///
-/// Perplexity and OpenCode Go have no `utilizationHistory` on Mac today —
-/// Perplexity publishes three credit pools instead (handled by T3's
-/// PerplexityCreditsCard), OpenCode Go's web usage is reported as flat
-/// rate windows. If the aggregate view crashes or produces malformed
-/// state on providers with no history, the user opens the Cost tab
-/// once with Perplexity enabled and gets a blank screen or a fall-off.
+/// Retired provider IDs can still be decoded from an older payload before the
+/// four-provider presentation filter drops them. The aggregate model must keep
+/// tolerating rows with no utilization history during that compatibility step.
 ///
 /// `UtilizationAggregateModelBuilder.buildModel(from:windowSize:)` is already
 /// `compactMap`-gated on `utilizationHistory` being non-nil and its
@@ -22,7 +19,7 @@ import UIKit
 /// silent skip. These tests pin that behavior (so a future refactor
 /// can't reintroduce a force-unwrap) and cover the identity-key stability
 /// that the cache invalidation depends on.
-@Suite("Subscription Utilization compatibility with new providers (T6)")
+@Suite("Subscription Utilization historical-provider compatibility")
 struct SubscriptionUtilizationCompatTests {
     private let baseDate = Date(timeIntervalSince1970: 1_700_000_000)
 
@@ -117,19 +114,20 @@ struct SubscriptionUtilizationCompatTests {
     }
 
     @Test
-    func `Provider tint color resolves to the palette entry (Perplexity teal, OpenCode Go mint)`() {
-        // UtilizationAggregateView.providerColor(for:) now delegates to
-        // ProviderColorPalette (consolidated in T2 / Build 70). This pins
-        // that the aggregate view uses the SAME colors as the provider
-        // cards — before consolidation it silently rendered unknown
-        // providers as .gray.
+    func `Retired provider tint colors resolve to the shared fallback`() {
+        // Retired and unknown provider IDs can still occur in historical test
+        // fixtures, but they no longer retain product-specific palette entries.
         let perplexityColor = ProviderColorPalette.color(for: "perplexity")
         let goColor = ProviderColorPalette.color(for: "opencodego")
-        // These both used to be .gray in UtilizationAggregateView and
-        // .blue everywhere else. Post-T2/T6 they're unique.
+
+        #expect(ProviderColorPalette.rawColor(for: "perplexity") == nil)
+        #expect(ProviderColorPalette.rawColor(for: "opencodego") == nil)
         #expect(UIColor(perplexityColor) != UIColor(.gray))
         #expect(UIColor(goColor) != UIColor(.gray))
-        #expect(UIColor(perplexityColor) != UIColor(goColor))
+        let traits = UITraitCollection(userInterfaceStyle: .light)
+        #expect(
+            UIColor(perplexityColor).resolvedColor(with: traits)
+                == UIColor(goColor).resolvedColor(with: traits))
     }
 
     // MARK: - Daily-peak semantics (Build 77)

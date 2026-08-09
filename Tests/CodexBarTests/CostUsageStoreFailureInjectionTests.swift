@@ -4,8 +4,6 @@ import Testing
 
 #if canImport(SQLite3)
 import SQLite3
-#elseif canImport(CSQLite3)
-import CSQLite3
 #endif
 
 /// Adversarial failure injection for the SQLite cost-usage store: constraint failures,

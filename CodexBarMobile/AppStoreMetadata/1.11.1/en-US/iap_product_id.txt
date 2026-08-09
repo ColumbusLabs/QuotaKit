@@ -1,1 +1,0 @@
-com.columbuslabs.quotakit.pro.lifetime

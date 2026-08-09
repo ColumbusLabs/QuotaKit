@@ -1762,7 +1762,7 @@ enum CostUsageScanner {
         let emptyReport = CostUsageDailyReport(data: [], summary: nil)
         try checkCancellation?()
 
-        // Provider-specific by design: Codex JSONL and Claude/Vertex transcripts have distinct parsers and caches.
+        // Provider-specific by design: Codex JSONL and Claude transcripts have distinct parsers and caches.
         switch provider {
         case .codex:
             return try self.loadCodexDaily(
@@ -1776,17 +1776,6 @@ enum CostUsageScanner {
                 range: range,
                 now: now,
                 options: options,
-                checkCancellation: checkCancellation)
-        case .vertexai:
-            var filtered = options
-            if filtered.claudeLogProviderFilter == .all {
-                filtered.claudeLogProviderFilter = .vertexAIOnly
-            }
-            return try self.loadClaudeDaily(
-                provider: .vertexai,
-                range: range,
-                now: now,
-                options: filtered,
                 checkCancellation: checkCancellation)
         default:
             return emptyReport

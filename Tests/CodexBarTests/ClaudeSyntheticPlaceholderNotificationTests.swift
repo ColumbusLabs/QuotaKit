@@ -180,13 +180,13 @@ struct ClaudeSyntheticPlaceholderNotificationTests {
     }
 
     private func makeStore(suiteName: String, notifier: NotifierSpy) -> UsageStore {
-        let defaults = UserDefaults(suiteName: suiteName)!
+        guard let defaults = UserDefaults(suiteName: suiteName) else {
+            preconditionFailure("Could not create test defaults")
+        }
         defaults.removePersistentDomain(forName: suiteName)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suiteName))
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.sessionQuotaNotificationsEnabled = true

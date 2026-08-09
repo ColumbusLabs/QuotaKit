@@ -120,9 +120,8 @@ extension CodexBarCLI {
     }
 
     static func unsupportedAPIKeyErrorMessage(for provider: UsageProvider, rawProvider: String) -> String {
-        // Provider-specific by design: Codex users are redirected to the separate OpenAI Platform provider ID.
         if provider == .codex {
-            "\(rawProvider) does not support config API keys. For OpenAI Platform API keys, use '--provider openai'."
+            "\(rawProvider) does not support config API keys; Codex uses OAuth or the Codex CLI."
         } else {
             "\(rawProvider) does not support config API keys."
         }
@@ -160,23 +159,11 @@ extension CodexBarCLI {
         let enableProvider = !values.flags.contains("noEnable")
         let store = CodexBarConfigStore()
         var config = Self.loadConfig(output: output)
-        let accountOptions: ConfigAPIKeyAccountOptions?
-        do {
-            accountOptions = try Self.resolveConfigAPIKeyAccountOptions(
-                provider: provider,
-                label: values.options["label"]?.last,
-                usageScope: values.options["usageScope"]?.last,
-                organizationID: values.options["organizationId"]?.last,
-                workspaceID: values.options["workspaceId"]?.last)
-        } catch {
-            Self.exit(code: .failure, message: error.localizedDescription, output: output, kind: .args)
-        }
         config = Self.configSettingAPIKey(
             config,
             provider: provider,
             apiKey: apiKey,
-            enableProvider: enableProvider,
-            accountOptions: accountOptions)
+            enableProvider: enableProvider)
 
         do {
             try store.save(config)
@@ -193,8 +180,7 @@ extension CodexBarCLI {
         case .text:
             let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
             let suffix = result.enabled ? " and enabled" : ""
-            let action = accountOptions == nil ? "stored API key" : "stored team token account"
-            print("Config: \(action) for \(name)\(suffix)")
+            print("Config: stored API key for \(name)\(suffix)")
         case .json:
             Self.printJSON(result, pretty: output.pretty)
         }
@@ -223,87 +209,16 @@ extension CodexBarCLI {
         _ config: CodexBarConfig,
         provider: UsageProvider,
         apiKey: String,
-        enableProvider: Bool,
-        accountOptions: ConfigAPIKeyAccountOptions? = nil) -> CodexBarConfig
+        enableProvider: Bool) -> CodexBarConfig
     {
         var updated = config.normalized()
         var providerConfig = updated.providerConfig(for: provider.instanceID) ?? ProviderConfig(id: provider.instanceID)
-        if let accountOptions {
-            let existing = providerConfig.tokenAccounts
-            let accounts = existing?.accounts ?? []
-            let account = ProviderTokenAccount(
-                id: UUID(),
-                label: accountOptions.label,
-                token: apiKey,
-                addedAt: Date().timeIntervalSince1970,
-                lastUsed: nil,
-                usageScope: accountOptions.usageScope.rawValue,
-                organizationID: accountOptions.organizationID,
-                workspaceID: accountOptions.workspaceID)
-            providerConfig.tokenAccounts = ProviderTokenAccountData(
-                version: existing?.version ?? 1,
-                accounts: accounts + [account],
-                activeIndex: accounts.count)
-            providerConfig.apiKey = nil
-            if enableProvider {
-                providerConfig.enabled = true
-            }
-            updated.setProviderConfig(providerConfig)
-            return updated
-        }
         providerConfig.apiKey = apiKey
-        // Provider-specific by design: legacy Moonshot config binds a newly set key to its existing/default region.
-        if provider == .moonshot {
-            providerConfig.apiKeyRegion = providerConfig.sanitizedRegion ?? MoonshotRegion.international.rawValue
-        }
         if enableProvider {
             providerConfig.enabled = true
         }
         updated.setProviderConfig(providerConfig)
         return updated
-    }
-
-    static func resolveConfigAPIKeyAccountOptions(
-        provider: UsageProvider,
-        label: String?,
-        usageScope: String?,
-        organizationID: String?,
-        workspaceID: String?) throws -> ConfigAPIKeyAccountOptions?
-    {
-        let cleanedLabel = Self.cleanConfigValue(label)
-        let cleanedScope = Self.cleanConfigValue(usageScope)
-        let cleanedOrganizationID = try Self.cleanSingleLineConfigValue(
-            organizationID,
-            fieldName: "organization-id")
-        let cleanedWorkspaceID = try Self.cleanSingleLineConfigValue(
-            workspaceID,
-            fieldName: "workspace-id")
-        let hasAccountOptions = cleanedLabel != nil ||
-            cleanedScope != nil ||
-            cleanedOrganizationID != nil ||
-            cleanedWorkspaceID != nil
-        guard hasAccountOptions else { return nil }
-
-        // Provider-specific by design: z.ai team tokens alone accept organization, workspace, and usage-scope fields.
-        guard provider == .zai else {
-            throw CLIArgumentError("Token-account options are only supported for --provider zai.")
-        }
-
-        guard cleanedScope?.lowercased() == ZaiUsageScope.team.rawValue else {
-            throw CLIArgumentError("Use --usage-scope team for z.ai team accounts, or omit account options.")
-        }
-        guard let organizationID = cleanedOrganizationID else {
-            throw CLIArgumentError("Missing --organization-id for z.ai team usage.")
-        }
-        guard let workspaceID = cleanedWorkspaceID else {
-            throw CLIArgumentError("Missing --workspace-id for z.ai team usage.")
-        }
-
-        return ConfigAPIKeyAccountOptions(
-            label: cleanedLabel ?? "Team",
-            usageScope: .team,
-            organizationID: organizationID,
-            workspaceID: workspaceID)
     }
 
     static func configSettingProviderEnabled(
@@ -344,26 +259,6 @@ extension CodexBarCLI {
         value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
-
-    private static func cleanConfigValue(_ raw: String?) -> String? {
-        guard let value = self.cleanConfigSecret(raw) else { return nil }
-        return value
-    }
-
-    private static func cleanSingleLineConfigValue(_ raw: String?, fieldName: String) throws -> String? {
-        guard let value = self.cleanConfigValue(raw) else { return nil }
-        guard !value.contains(where: \.isNewline) else {
-            throw CLIArgumentError("--\(fieldName) must be a single line.")
-        }
-        return value
-    }
-}
-
-struct ConfigAPIKeyAccountOptions: Equatable {
-    let label: String
-    let usageScope: ZaiUsageScope
-    let organizationID: String
-    let workspaceID: String
 }
 
 struct ConfigOptions: CommanderParsable {
@@ -448,18 +343,6 @@ struct ConfigSetAPIKeyOptions: CommanderParsable {
 
     @Flag(name: .long("no-enable"), help: "Store the key without enabling the provider")
     var noEnable: Bool = false
-
-    @Option(name: .long("label"), help: "Token-account label (z.ai team mode)")
-    var label: String?
-
-    @Option(name: .long("usage-scope"), help: "Token-account usage scope (z.ai: team)")
-    var usageScope: String?
-
-    @Option(name: .long("organization-id"), help: "z.ai BigModel organization ID for team usage")
-    var organizationId: String?
-
-    @Option(name: .long("workspace-id"), help: "z.ai BigModel project ID for team usage")
-    var workspaceId: String?
 }
 
 struct ConfigProviderToggleOptions: CommanderParsable {

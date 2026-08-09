@@ -2,10 +2,6 @@ import AppKit
 import CodexBarCore
 import QuartzCore
 
-// The animation/rendering extension intentionally keeps the icon state machine
-// together; splitting it would expose private render caches across files.
-// swiftlint:disable file_length
-
 extension StatusItemController {
     private struct MergedIconRenderState {
         let button: NSStatusBarButton
@@ -543,9 +539,8 @@ extension StatusItemController {
         return false
     }
 
-    // This is one render transaction: cache signature, layout, animation,
-    // fallback, and button mutation must stay ordered.
-    // swiftlint:disable function_body_length
+    /// This is one render transaction: cache signature, layout, animation,
+    /// fallback, and button mutation must stay ordered.
     @discardableResult
     func applyIcon(for provider: UsageProvider, phase: Double?) -> Bool {
         guard let button = self.statusItems[provider.instanceID]?.button else { return false }
@@ -596,7 +591,7 @@ extension StatusItemController {
             return false
         }
 
-        // OpenRouter always gets a meter here — the brand-logo fallback was removed on purpose.
+        // Render the provider's quota meter when a brand-and-text presentation was not selected.
         let resolved = self.resolvedMenuBarIconPercents(
             provider: provider,
             snapshot: snapshot,
@@ -635,13 +630,7 @@ extension StatusItemController {
         }
 
         let isLoading = phase != nil && self.shouldAnimate(provider: provider)
-        let blink: CGFloat = {
-            guard isLoading, style == .warp, let phase else {
-                return self.blinkAmount(for: provider)
-            }
-            let normalized = (sin(phase * 3) + 1) / 2
-            return CGFloat(max(0, min(normalized, 1)))
-        }()
+        let blink = self.blinkAmount(for: provider)
         let wiggle = self.wiggleAmount(for: provider)
         let tilt = self.tiltAmount(for: provider) * .pi / 28 // limit to ~6.4°
         let statusIndicator = self.store.statusIndicator(for: provider)
@@ -715,8 +704,6 @@ extension StatusItemController {
         return false
     }
 
-    // swiftlint:enable function_body_length
-
     static func iconSignatureValue(_ value: Double?) -> String {
         guard let value else { return "nil" }
         return String(format: "%.3f", value)
@@ -731,42 +718,11 @@ extension StatusItemController {
         -> (primary: Double?, secondary: Double?)?
     {
         guard let snapshot else { return nil }
-        let preference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
-        if preference == .monthlyPlan {
-            guard let metricWindow = self.menuBarMetricWindowForIconOverride(
-                preference: preference,
-                provider: provider,
-                snapshot: snapshot)
-            else {
-                return (primary: nil, secondary: nil)
-            }
-            return (
-                primary: showUsed ? metricWindow.usedPercent : metricWindow.remainingPercent,
-                secondary: nil)
-        }
-        // Provider-specific by design: Mistral's balance/spend text replaces percentage lanes in its icon.
-        if provider == .mistral {
-            return (primary: nil, secondary: nil)
-        }
         return IconRemainingResolver.resolvedPercents(
             snapshot: snapshot,
             style: style,
             showUsed: showUsed,
-            renderingStyle: renderingStyle,
-            secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: snapshot))
-    }
-
-    private func menuBarMetricWindowForIconOverride(
-        preference: MenuBarMetricPreference,
-        provider: UsageProvider,
-        snapshot: UsageSnapshot)
-        -> RateWindow?
-    {
-        MenuBarMetricWindowResolver.rateWindow(
-            preference: preference,
-            provider: provider,
-            snapshot: snapshot,
-            supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider))
+            renderingStyle: renderingStyle)
     }
 
     func menuBarCreditsRemainingForIcon(
@@ -986,61 +942,7 @@ extension StatusItemController {
         snapshot: UsageSnapshot?,
         now: Date = .init()) -> String?
     {
-        // Provider-specific by design: provider payload fields and display modes supply distinct balance/spend text.
         let mode = self.settings.menuBarDisplayMode
-        if provider == .openrouter,
-           self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .automatic,
-           let balance = snapshot?.detailRow(label: "Remaining")?.value
-        {
-            return balance
-        }
-        if provider == .opencodego,
-           let balance = Self.openCodeGoZenBalanceDisplayText(snapshot: snapshot)
-        {
-            return balance
-        }
-        if provider == .deepseek,
-           let balance = Self.deepSeekBalanceDisplayText(snapshot: snapshot)
-        {
-            return balance
-        }
-        if provider == .deepinfra,
-           let balance = Self.deepInfraBalanceDisplayText(snapshot: snapshot)
-        {
-            return balance
-        }
-        if provider == .mimo,
-           let balance = Self.miMoBalanceDisplayText(
-               snapshot: snapshot,
-               preference: self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot))
-        {
-            return balance
-        }
-        if provider == .moonshot,
-           let balance = Self.moonshotBalanceDisplayText(snapshot: snapshot)
-        {
-            return balance
-        }
-        if provider == .poe,
-           let balance = Self.poeBalanceDisplayText(snapshot: snapshot)
-        {
-            return balance
-        }
-        if provider == .mistral {
-            let preference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
-            let hasMonthlyPlan = snapshot?.extraRateWindows?.contains { $0.id == "mistral-monthly-plan" } == true
-            if preference != .monthlyPlan || !hasMonthlyPlan,
-               let spend = Self.mistralSpendDisplayText(snapshot: snapshot)
-            {
-                return spend
-            }
-        }
-        if provider == .kiro {
-            return Self.kiroDisplayText(
-                snapshot: snapshot,
-                mode: self.settings.kiroMenuBarDisplayMode,
-                showUsed: self.settings.usageBarsShowUsed)
-        }
         if mode != .resetTime,
            self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot) == .extraUsage,
            provider != .cursor || mode == .pace,
@@ -1122,76 +1024,6 @@ extension StatusItemController {
             now: now)
     }
 
-    nonisolated static func deepSeekBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
-        guard
-            let rawValue = snapshot?.primary?.resetDescription?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                !rawValue.isEmpty,
-                rawValue.hasPrefix("$") || rawValue.hasPrefix("¥")
-        else {
-            return nil
-        }
-
-        let balance = rawValue.split(separator: " ", maxSplits: 1).first
-        return balance.map(String.init)
-    }
-
-    nonisolated static func deepInfraBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
-        guard
-            let detail = snapshot?.primary?.resetDescription?
-                .trimmingCharacters(in: .whitespacesAndNewlines),
-                let balanceDetail = detail.components(separatedBy: " · ").dropLast().last?
-                    .trimmingCharacters(in: .whitespacesAndNewlines),
-                    balanceDetail.hasPrefix("$"),
-                    let value = balanceDetail.split(separator: " ", maxSplits: 1).first
-        else {
-            return nil
-        }
-
-        let prefix = balanceDetail.contains(" owed") ? "-" : ""
-        return prefix + String(value)
-    }
-
-    nonisolated static func miMoBalanceDisplayText(
-        snapshot: UsageSnapshot?,
-        preference: MenuBarMetricPreference) -> String?
-    {
-        guard let snapshot, let detail = snapshot.detailRow(label: "Balance")?.value else { return nil }
-        if snapshot.primary != nil, preference != .secondary {
-            return nil
-        }
-        return detail.components(separatedBy: " (Paid:").first
-    }
-
-    nonisolated static func poeBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
-        // Provider-specific by design: Poe stores its point balance in the login-method payload field.
-        self.displayValue(
-            from: snapshot?.loginMethod(for: .poe),
-            prefix: "Balance:",
-            removingSuffix: "")
-    }
-
-    nonisolated static func moonshotBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
-        // Provider-specific by design: Moonshot stores cash/voucher balance text in its login-method payload.
-        self.displayValue(
-            from: snapshot?.loginMethod(for: .moonshot),
-            prefix: "Balance:",
-            removingSuffix: "")
-            .flatMap { value in
-                value
-                    .split(separator: "·", maxSplits: 1)
-                    .first?
-                    .trimmingCharacters(in: .whitespacesAndNewlines)
-            }
-    }
-
-    nonisolated static func mistralSpendDisplayText(snapshot: UsageSnapshot?) -> String? {
-        self.displayValue(
-            from: snapshot?.identity?.loginMethod,
-            prefix: "API spend:",
-            removingSuffix: " this month")
-    }
-
     nonisolated static func extraUsageSpendDisplayText(snapshot: UsageSnapshot?) -> String? {
         guard let cost = snapshot?.providerCost,
               cost.limit > 0,
@@ -1200,136 +1032,6 @@ extension StatusItemController {
             return nil
         }
         return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-    }
-
-    nonisolated static func openCodeGoZenBalanceDisplayText(snapshot: UsageSnapshot?) -> String? {
-        guard snapshot?.primary == nil,
-              snapshot?.secondary == nil,
-              let cost = snapshot?.providerCost,
-              cost.period == "Zen balance"
-        else {
-            return nil
-        }
-        return UsageFormatter.currencyString(cost.used, currencyCode: cost.currencyCode)
-    }
-
-    nonisolated static func kiroDisplayText(
-        snapshot: UsageSnapshot?,
-        mode: KiroMenuBarDisplayMode,
-        showUsed: Bool)
-        -> String?
-    {
-        guard mode != .hidden else { return nil }
-        guard let snapshot else {
-            return MenuBarDisplayText.percentText(window: snapshot?.primary, showUsed: showUsed)
-        }
-        let percentText = MenuBarDisplayText.percentText(
-            window: snapshot.primary,
-            showUsed: showUsed)
-        let creditsLeft = snapshot.detailRow(label: "Credits left")?.value
-        let creditsUsed = snapshot.detailRow(label: "Credits used")?.value
-        let creditsTotal = snapshot.detailRow(label: "Credits total")?.value
-        let usedTotal = [creditsUsed, creditsTotal].compactMap(\.self).joined(separator: " / ")
-
-        switch mode {
-        case .automatic, .creditsLeft:
-            if let creditsLeft, creditsTotal != "0" {
-                return creditsLeft
-            }
-            return percentText
-        case .hidden:
-            return nil
-        case .percentLeft:
-            return MenuBarDisplayText.percentText(window: snapshot.primary, showUsed: false)
-        case .creditsAndPercent:
-            guard creditsTotal != "0" else { return percentText }
-            guard let percentText else { return creditsLeft }
-            return creditsLeft.map { "\($0) · \(percentText)" } ?? percentText
-        case .usedAndTotal:
-            guard creditsTotal != "0" else { return percentText }
-            return usedTotal.isEmpty ? percentText : usedTotal
-        case .overageCreditsWhenExhausted:
-            return self.kiroOverageDisplayText(
-                snapshot: snapshot,
-                format: .credits,
-                fallback: creditsLeft ?? percentText,
-                percentFallback: percentText)
-        case .overageCostWhenExhausted:
-            return self.kiroOverageDisplayText(
-                snapshot: snapshot,
-                format: .cost,
-                fallback: creditsLeft ?? percentText,
-                percentFallback: percentText)
-        case .overageCreditsAndCostWhenExhausted:
-            return self.kiroOverageDisplayText(
-                snapshot: snapshot,
-                format: .creditsAndCost,
-                fallback: creditsLeft ?? percentText,
-                percentFallback: percentText)
-        }
-    }
-
-    private enum KiroOverageDisplayFormat {
-        case credits
-        case cost
-        case creditsAndCost
-    }
-
-    private nonisolated static func kiroOverageDisplayText(
-        snapshot: UsageSnapshot,
-        format: KiroOverageDisplayFormat,
-        fallback: String?,
-        percentFallback: String?)
-        -> String?
-    {
-        guard snapshot.detailRow(label: "Credits total")?.value != "0" else { return percentFallback }
-        guard snapshot.detailRow(label: "Credits left")?.value == "0" else { return fallback }
-        guard
-            snapshot.detailRow(label: "Overages")?.value
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased()
-                .hasPrefix("enabled") == true
-        else {
-            return fallback
-        }
-
-        let credits = snapshot.detailRow(label: "Overage usage")?.value
-            .replacingOccurrences(of: " credits", with: " over")
-        let cost = snapshot.detailRow(label: "Overage cost").map { "\($0.value) over" }
-
-        switch format {
-        case .credits:
-            return credits ?? cost ?? fallback
-        case .cost:
-            return cost ?? credits ?? fallback
-        case .creditsAndCost:
-            if let credits, let cost {
-                let creditsValue = credits.replacingOccurrences(of: " over", with: "")
-                let costValue = cost.replacingOccurrences(of: " over", with: "")
-                return "\(creditsValue) · \(costValue)"
-            }
-            return credits ?? cost ?? fallback
-        }
-    }
-
-    private nonisolated static func displayValue(
-        from text: String?,
-        prefix: String,
-        removingSuffix suffix: String)
-        -> String?
-    {
-        guard let rawValue = text?.trimmingCharacters(in: .whitespacesAndNewlines),
-              rawValue.hasPrefix(prefix)
-        else {
-            return nil
-        }
-        let valueStart = rawValue.index(rawValue.startIndex, offsetBy: prefix.count)
-        var value = rawValue[valueStart...].trimmingCharacters(in: .whitespacesAndNewlines)
-        if !suffix.isEmpty, value.hasSuffix(suffix) {
-            value = String(value.dropLast(suffix.count)).trimmingCharacters(
-                in: .whitespacesAndNewlines)
-        }
-        return value.isEmpty ? nil : value
     }
 
     private func menuBarPercentWindow(for provider: UsageProvider, snapshot: UsageSnapshot?, now: Date)
@@ -1448,9 +1150,8 @@ extension StatusItemController {
     }
 
     /// The window the weekly pace is computed on in pace/both modes. Codex paces on its projected weekly
-    /// lane; the combined Session + Weekly metric paces on the weekly lane too (matching Codex); Abacus
-    /// has no secondary window so it paces on the primary monthly credits; everything else paces on the
-    /// selected percent window.
+    /// lane; the combined Session + Weekly metric paces on the weekly lane too (matching Codex);
+    /// everything else paces on the selected percent window.
     private func menuBarPaceWindow(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -1460,10 +1161,6 @@ extension StatusItemController {
     {
         if let projection {
             return projection.menuBarSelectableRateWindow(for: .weekly)
-        }
-        // Provider-specific by design: Abacus publishes its weekly semantic window in the primary lane.
-        if provider == .abacus {
-            return snapshot?.primary
         }
         if let combinedLanes {
             return combinedLanes.weekly
@@ -1599,10 +1296,6 @@ extension StatusItemController {
 
         let isStale = self.store.isStale(provider: provider)
         let hasSatisfiedUsageFetch = self.store.hasSatisfiedMenuBarUsageFetch(for: provider)
-        // Provider-specific by design: Warp animates while its first remote refresh is still in flight.
-        if provider == .warp, !hasSatisfiedUsageFetch, self.store.refreshingProviders.contains(provider.instanceID) {
-            return true
-        }
         return !hasSatisfiedUsageFetch && !isStale
     }
 

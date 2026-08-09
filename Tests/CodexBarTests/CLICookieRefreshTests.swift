@@ -10,10 +10,10 @@ struct CLICookieRefreshTests {
     func `cookie refresh parses explicit keychain acknowledgement`() throws {
         let parser = CommandParser(signature: CommandSignature.describe(CookieOptions()))
         let parsed = try parser.parse(arguments: [
-            "--provider", "opencodego", "--allow-keychain-prompt", "--json",
+            "--provider", "grok", "--allow-keychain-prompt", "--json",
         ])
 
-        #expect(parsed.options["provider"] == ["opencodego"])
+        #expect(parsed.options["provider"] == ["grok"])
         #expect(parsed.flags.contains("allowKeychainPrompt"))
         #expect(parsed.flags.contains("jsonShortcut"))
     }
@@ -23,9 +23,9 @@ struct CLICookieRefreshTests {
     func `all provider selection is descriptor driven`() throws {
         let targets = try CodexBarCLI.cookieRefreshTargets(rawProvider: nil, refreshAll: true)
 
-        #expect(targets.count > 2)
+        #expect(targets.map(\.id) == [.codex, .claude, .cursor, .grok])
         #expect(targets.contains(where: { $0.id == .claude }))
-        #expect(targets.contains(where: { $0.id == .opencode }))
+        #expect(targets.contains(where: { $0.id == .grok }))
         #expect(targets.allSatisfy { $0.metadata.browserCookieOrder != nil })
         #expect(targets.allSatisfy { $0.fetchPlan.sourceModes.contains(.web) })
     }
@@ -33,14 +33,14 @@ struct CLICookieRefreshTests {
     @Test
     func `prompt capable refresh is gated before provider work`() async {
         var operationCalled = false
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: .opencode)
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .grok)
 
         let results = await CodexBarCLI.performCookieRefreshes(
             targets: [descriptor],
             allowKeychainPrompt: false)
         { _ in
             operationCalled = true
-            return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+            return CookieRefreshResult(provider: "grok", status: .refreshed, message: "unexpected")
         }
 
         #expect(operationCalled == false)
@@ -52,7 +52,7 @@ struct CLICookieRefreshTests {
     @Test
     func `preflight skip does not require keychain acknowledgement`() async {
         var operationCalled = false
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: .opencode)
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .grok)
 
         let results = await CodexBarCLI.performCookieRefreshes(
             targets: [descriptor],
@@ -62,7 +62,7 @@ struct CLICookieRefreshTests {
             },
             operation: { _ in
                 operationCalled = true
-                return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+                return CookieRefreshResult(provider: "grok", status: .refreshed, message: "unexpected")
             })
 
         #expect(operationCalled == false)
@@ -72,7 +72,7 @@ struct CLICookieRefreshTests {
 
     @Test
     func `failed refresh preserves default cookie and unrelated account scopes`() async {
-        let provider = UsageProvider.opencode
+        let provider = UsageProvider.grok
         let accountScope = CookieHeaderCache.Scope.managedAccount(UUID())
         let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
 
@@ -90,7 +90,7 @@ struct CLICookieRefreshTests {
 
                 let result = await CodexBarCLI.withCookieRefreshCacheSuppressed(
                     provider: provider,
-                    providerName: "opencode")
+                    providerName: "grok")
                 {
                     #expect(CookieHeaderCache.load(provider: provider) == nil)
                     #expect(CookieHeaderCache.loadSerialized(provider: provider) == nil)
@@ -100,7 +100,7 @@ struct CLICookieRefreshTests {
                         cookieHeader: "unvalidated-test-cookie",
                         sourceLabel: "Test unvalidated")
                     #expect(CookieHeaderCache.load(provider: provider)?.cookieHeader == "unvalidated-test-cookie")
-                    return CookieRefreshResult(provider: "opencode", status: .failed, message: "test failure")
+                    return CookieRefreshResult(provider: "grok", status: .failed, message: "test failure")
                 }
 
                 #expect(result.status == .failed)
@@ -112,7 +112,7 @@ struct CLICookieRefreshTests {
 
     @Test
     func `successful refresh keeps replacement cookie`() async {
-        let provider = UsageProvider.opencode
+        let provider = UsageProvider.grok
         let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
 
         await KeychainCacheStore.withServiceOverrideForTesting(service) {
@@ -126,7 +126,7 @@ struct CLICookieRefreshTests {
 
                 let result = await CodexBarCLI.withCookieRefreshCacheSuppressed(
                     provider: provider,
-                    providerName: "opencode")
+                    providerName: "grok")
                 {
                     let observation = CookieHeaderCache.observeForConditionalMutation(provider: provider)
                     #expect(observation.entry == nil)
@@ -136,7 +136,7 @@ struct CLICookieRefreshTests {
                         cookieHeader: "new-test-cookie",
                         sourceLabel: "Test new")
                     #expect(stored)
-                    return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "ok")
+                    return CookieRefreshResult(provider: "grok", status: .refreshed, message: "ok")
                 }
 
                 #expect(result.status == .refreshed)
@@ -147,7 +147,7 @@ struct CLICookieRefreshTests {
 
     @Test
     func `successful provider result without a staged cookie fails safely`() async {
-        let provider = UsageProvider.opencode
+        let provider = UsageProvider.grok
         let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
 
         await KeychainCacheStore.withServiceOverrideForTesting(service) {
@@ -159,9 +159,9 @@ struct CLICookieRefreshTests {
 
                 let result = await CodexBarCLI.withCookieRefreshCacheSuppressed(
                     provider: provider,
-                    providerName: "opencode")
+                    providerName: "grok")
                 {
-                    CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+                    CookieRefreshResult(provider: "grok", status: .refreshed, message: "unexpected")
                 }
 
                 #expect(result.status == .failed)
@@ -172,7 +172,7 @@ struct CLICookieRefreshTests {
 
     @Test
     func `multiple staged replacements fail before changing persisted cookies`() async {
-        let provider = UsageProvider.opencode
+        let provider = UsageProvider.grok
         let accountScope = CookieHeaderCache.Scope.managedAccount(UUID())
         let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
 
@@ -190,7 +190,7 @@ struct CLICookieRefreshTests {
 
                 let result = await CodexBarCLI.withCookieRefreshCacheSuppressed(
                     provider: provider,
-                    providerName: "opencode")
+                    providerName: "grok")
                 {
                     CookieHeaderCache.store(
                         provider: provider,
@@ -201,7 +201,7 @@ struct CLICookieRefreshTests {
                         scope: accountScope,
                         cookieHeader: "new-account-cookie",
                         sourceLabel: "Test new account")
-                    return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+                    return CookieRefreshResult(provider: "grok", status: .refreshed, message: "unexpected")
                 }
 
                 #expect(result.status == .failed)
@@ -214,7 +214,7 @@ struct CLICookieRefreshTests {
 
     @Test
     func `commit detaches the gate before later writes`() {
-        let provider = UsageProvider.opencode
+        let provider = UsageProvider.grok
         let service = "com.steipete.codexbar.tests.cookie-refresh.\(UUID().uuidString)"
 
         KeychainCacheStore.withServiceOverrideForTesting(service) {
@@ -245,7 +245,7 @@ struct CLICookieRefreshTests {
         defer { BrowserCookieAccessGate.resetForTesting() }
         let start = Date(timeIntervalSince1970: 2000)
         BrowserCookieAccessGate.recordDenied(for: .chrome, now: start)
-        let descriptor = ProviderDescriptorRegistry.descriptor(for: .opencode)
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .grok)
         var unacknowledgedOperationCalled = false
 
         var observedInteraction: ProviderInteraction?
@@ -257,7 +257,7 @@ struct CLICookieRefreshTests {
                     allowKeychainPrompt: false)
                 { _ in
                     unacknowledgedOperationCalled = true
-                    return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "unexpected")
+                    return CookieRefreshResult(provider: "grok", status: .refreshed, message: "unexpected")
                 }
 
                 _ = await CodexBarCLI.performCookieRefreshes(
@@ -268,7 +268,7 @@ struct CLICookieRefreshTests {
                     explicitRetryAllowed = BrowserCookieAccessGate.shouldAttempt(
                         .chrome,
                         now: start.addingTimeInterval(1))
-                    return CookieRefreshResult(provider: "opencode", status: .refreshed, message: "ok")
+                    return CookieRefreshResult(provider: "grok", status: .refreshed, message: "ok")
                 }
             }
         }
@@ -287,7 +287,7 @@ struct CLICookieRefreshTests {
                 code: 1,
                 userInfo: [NSLocalizedDescriptionKey: privateMarker])
 
-            let result = CodexBarCLI.cookieRefreshFailure(provider: .opencode, error: error)
+            let result = CodexBarCLI.cookieRefreshFailure(provider: .grok, error: error)
             let text = CodexBarCLI.cookieRefreshText([result])
             let encoded = try? JSONEncoder().encode(result)
             let json = encoded.flatMap { String(data: $0, encoding: .utf8) } ?? ""
@@ -306,7 +306,7 @@ struct CLICookieRefreshTests {
 
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             let result = CodexBarCLI.cookieRefreshFailure(
-                provider: .opencode,
+                provider: .grok,
                 error: NSError(domain: "opaque-test-marker", code: 1))
 
             #expect(result.message ==

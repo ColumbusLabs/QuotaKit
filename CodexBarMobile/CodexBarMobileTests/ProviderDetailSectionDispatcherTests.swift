@@ -6,39 +6,39 @@ import Testing
 @Suite("Provider detail section dispatcher")
 struct ProviderDetailSectionDispatcherTests {
     @Test
-    func `Perplexity credits claim the primary section`() {
-        let credits = SyncPerplexityCreditSummary(planName: "Pro")
-        let provider = Self.snapshot(
-            providerID: "perplexity",
-            providerName: "Perplexity",
-            perplexityCredits: credits)
-
-        if case let .perplexity(actual) = ProviderDetailSectionDispatcher.primarySection(for: provider) {
-            #expect(actual == credits)
-        } else {
-            Issue.record("Expected Perplexity primary section")
+    func `All supported providers keep the generic rate-window primary section`() {
+        for providerID in QuotaKitProviderCatalog.providerIDs {
+            if case .genericRateLimits = ProviderDetailSectionDispatcher.primarySection(
+                for: Self.snapshot(providerID: providerID))
+            {
+                #expect(true)
+            }
         }
     }
 
     @Test
-    func `Dedicated Kiro card suppresses generic rate window primary`() {
-        let credits = SyncKiroCredits(
-            planName: "Pro",
-            creditsUsed: 10,
-            creditsTotal: 100,
-            creditsPercent: 10,
-            bonusUsed: nil,
-            bonusTotal: nil,
-            bonusExpiryDays: nil,
-            resetsAt: nil)
-        let provider = Self.snapshot(providerID: "kiro", providerName: "Kiro", kiroCredits: credits)
+    func `Grok billing renders its dedicated detail section`() {
+        let billing = SyncGrokBilling(
+            monthlyUsedPercent: 25,
+            monthlySpendUSD: 25,
+            monthlyLimitUSD: 100,
+            billingPeriodEndDate: nil,
+            planTier: "SuperGrok",
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let provider = ProviderUsageSnapshot(
+            providerID: "grok",
+            providerName: "Grok",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            grokBilling: billing)
 
-        if case .suppressedByDedicatedCard = ProviderDetailSectionDispatcher.primarySection(for: provider) {
-            #expect(true)
-        } else {
-            Issue.record("Expected dedicated-card primary suppression")
-        }
-        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).map(\.id) == ["kiro"])
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false)
+            .map(\.id) == ["grok"])
     }
 
     @Test
@@ -49,7 +49,17 @@ struct ProviderDetailSectionDispatcherTests {
             weeklyPaceDelta: 0.12,
             weeklyPaceLabel: "Ahead of pace",
             updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
-        let provider = Self.snapshot(providerID: "codex", providerName: "Codex", codexWorkspace: context)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            codexWorkspace: context)
 
         #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false)
             .map(\.id) == ["codex-workspace"])
@@ -57,95 +67,26 @@ struct ProviderDetailSectionDispatcherTests {
     }
 
     @Test
-    func `Codex banked reset inventory renders outside the primary usage section`() {
-        let credits = SyncCodexResetCredits(
-            credits: [
-                SyncCodexResetCredit(
-                    id: "reset-1",
-                    resetType: "codex_rate_limits",
-                    status: "available",
-                    grantedAt: Date(timeIntervalSince1970: 1_700_000_000)),
-            ],
-            availableCount: 1,
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
-        let available = Self.snapshot(
-            providerID: "codex",
-            providerName: "Codex",
-            codexResetCredits: credits)
-        let empty = Self.snapshot(
-            providerID: "codex",
-            providerName: "Codex",
-            codexResetCredits: SyncCodexResetCredits(
-                credits: [],
-                availableCount: 0,
-                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)))
+    func `Retired provider compatibility fields never create mobile detail sections`() {
+        let provider = ProviderUsageSnapshot(
+            providerID: "perplexity",
+            providerName: "Perplexity",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
+            perplexityCredits: SyncPerplexityCreditSummary(planName: "Pro"))
 
-        #expect(ProviderDetailSectionDispatcher.sections(for: available, hasRateWindowPace: false)
-            .map(\.id) == ["codex-reset-credits"])
-        #expect(ProviderDetailSectionDispatcher.sections(for: empty, hasRateWindowPace: false).isEmpty)
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).isEmpty)
     }
 
-    @Test
-    func `Antigravity account section requires more than one account`() {
-        let one = SyncMultiAccountList(
-            accounts: [SyncMultiAccountEntry(email: "one@example.com", isActive: true, expiresAt: nil)],
-            activeIndex: 0)
-        let two = SyncMultiAccountList(
-            accounts: [
-                SyncMultiAccountEntry(email: "one@example.com", isActive: true, expiresAt: nil),
-                SyncMultiAccountEntry(email: "two@example.com", isActive: false, expiresAt: nil),
-            ],
-            activeIndex: 0)
-
-        let single = Self.snapshot(providerID: "antigravity", providerName: "Antigravity", antigravityAccounts: one)
-        let multiple = Self.snapshot(providerID: "antigravity", providerName: "Antigravity", antigravityAccounts: two)
-
-        #expect(ProviderDetailSectionDispatcher.sections(for: single, hasRateWindowPace: false).isEmpty)
-        #expect(ProviderDetailSectionDispatcher.sections(for: multiple, hasRateWindowPace: false)
-            .map(\.id) == ["antigravity"])
-    }
-
-    @Test
-    func `CrossModel usage suppresses generic primary and renders provider section`() {
-        let usage = SyncCrossModelUsage(
-            currency: "USD",
-            balance: 8.06,
-            uncollected: 0,
-            daily: SyncCrossModelUsageWindow(
-                cost: 0.42,
-                promptTokens: 8100,
-                completionTokens: 4367,
-                totalTokens: 12467,
-                requestCount: 42,
-                successCount: 40),
-            weekly: nil,
-            monthly: nil,
-            updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
-        let provider = Self.snapshot(providerID: "crossmodel", providerName: "CrossModel", crossModelUsage: usage)
-
-        if case .suppressedByDedicatedCard = ProviderDetailSectionDispatcher.primarySection(for: provider) {
-            #expect(true)
-        } else {
-            Issue.record("Expected CrossModel usage to suppress the empty generic primary card")
-        }
-        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false).map(\.id) == [
-            "crossmodel",
-        ])
-    }
-
-    private static func snapshot(
-        providerID: String,
-        providerName: String,
-        perplexityCredits: SyncPerplexityCreditSummary? = nil,
-        codexResetCredits: SyncCodexResetCredits? = nil,
-        kiroCredits: SyncKiroCredits? = nil,
-        antigravityAccounts: SyncMultiAccountList? = nil,
-        codexWorkspace: SyncCodexWorkspaceContext? = nil,
-        crossModelUsage: SyncCrossModelUsage? = nil) -> ProviderUsageSnapshot
-    {
+    private static func snapshot(providerID: String) -> ProviderUsageSnapshot {
         ProviderUsageSnapshot(
             providerID: providerID,
-            providerName: providerName,
+            providerName: providerID,
             primary: SyncRateWindow(
                 label: "Session",
                 usedPercent: 20,
@@ -157,12 +98,6 @@ struct ProviderDetailSectionDispatcherTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000),
-            perplexityCredits: perplexityCredits,
-            codexResetCredits: codexResetCredits,
-            kiroCredits: kiroCredits,
-            antigravityAccounts: antigravityAccounts,
-            codexWorkspace: codexWorkspace,
-            crossModelUsage: crossModelUsage)
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
     }
 }

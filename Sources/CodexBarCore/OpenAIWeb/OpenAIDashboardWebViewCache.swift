@@ -13,7 +13,7 @@ struct OpenAIDashboardWebViewLease {
 @MainActor
 final class OpenAIDashboardWebViewCache {
     static let shared = OpenAIDashboardWebViewCache()
-    fileprivate static let log = CodexBarLog.logger(LogCategories.provider(.openai, scope: "webview"))
+    fileprivate static let log = CodexBarLog.logger(LogCategories.provider(.codex, scope: "webview"))
 
     private final class ReleaseState {
         var preserveLoadedPageOnRelease: Bool

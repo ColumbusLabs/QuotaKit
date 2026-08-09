@@ -30,28 +30,6 @@ extension UsageStore {
     private nonisolated static let unresolvedSessionEquivalentComponentIdentity = "__unresolved__"
 
     func planUtilizationWeeklyWindow(provider: UsageProvider, snapshot: UsageSnapshot) -> RateWindow? {
-        // Provider-specific by design: Antigravity session equivalents aggregate named model-family quota windows.
-        if provider == .antigravity {
-            let namedWeeklyWindows = snapshot.extraRateWindows?
-                .filter {
-                    $0.usageKnown
-                        && $0.id.hasPrefix("antigravity-quota-summary-")
-                        && $0.window.windowMinutes == Self.weeklyWindowMinutes
-                }
-                .map(\.window) ?? []
-            if let mostUsedWeeklyWindow = namedWeeklyWindows.max(by: { $0.usedPercent < $1.usedPercent }) {
-                return mostUsedWeeklyWindow
-            }
-
-            let legacyWeeklyWindows = [snapshot.primary, snapshot.secondary, snapshot.tertiary]
-                .compactMap(\.self)
-                .filter { $0.windowMinutes == Self.weeklyWindowMinutes }
-                + (snapshot.extraRateWindows?
-                    .filter { $0.usageKnown && $0.window.windowMinutes == Self.weeklyWindowMinutes }
-                    .map(\.window) ?? [])
-            return legacyWeeklyWindows.max(by: { $0.usedPercent < $1.usedPercent })
-        }
-
         let standardWeeklyWindow = [snapshot.primary, snapshot.secondary, snapshot.tertiary]
             .compactMap(\.self)
             .first { $0.windowMinutes == Self.weeklyWindowMinutes }
@@ -65,11 +43,7 @@ extension UsageStore {
     func sessionEquivalentWindows(provider: UsageProvider, snapshot: UsageSnapshot)
         -> (session: RateWindow, weekly: RateWindow, weeklyWindowID: String?, historyIdentity: String?)?
     {
-        // Provider-specific by design: Antigravity family identity and Claude's fixed session/weekly pair preserve
-        // established burn-history identities across refreshes.
-        if provider == .antigravity {
-            return Self.antigravitySessionEquivalentWindows(snapshot: snapshot)
-        }
+        // Claude's fixed session/weekly pair preserves established burn-history identities across refreshes.
         if provider == .claude {
             guard let session = snapshot.primary,
                   session.windowMinutes.map({ PlanUtilizationSeriesName.session.canonicalWindowMinutes($0) })
@@ -180,7 +154,7 @@ extension UsageStore {
         accountKey: String?,
         historyIdentity: String?) -> Bool
     {
-        guard ![UsageProvider.codex, .claude, .antigravity].contains(provider) else { return true }
+        guard ![UsageProvider.codex, .claude].contains(provider) else { return true }
         guard let historyIdentity else { return false }
         let persistedIdentity = self.planUtilizationHistory[provider.instanceID]?
             .sessionEquivalentWindowPairIdentity(for: accountKey)
@@ -347,27 +321,6 @@ extension UsageStore {
             ?? extraSessionWindow
     }
 
-    private nonisolated static func antigravitySessionEquivalentWindows(snapshot: UsageSnapshot)
-        -> (session: RateWindow, weekly: RateWindow, weeklyWindowID: String?, historyIdentity: String?)?
-    {
-        let namedWindows = snapshot.extraRateWindows?
-            .filter { $0.usageKnown && $0.id.hasPrefix("antigravity-quota-summary-") } ?? []
-        let grouped = Dictionary(grouping: namedWindows) { window in
-            Self.antigravityQuotaFamilyKey(window.id)
-        }
-        // Provider-specific by design: Antigravity's Gemini family is the only complete session/weekly pair.
-        let completeGeminiFamilies: [(session: NamedRateWindow, weekly: NamedRateWindow)] = grouped.keys
-            .filter { $0 == "gemini" }.compactMap { family in
-                guard let windows = grouped[family] else { return nil }
-                let sessions = windows.filter { $0.window.windowMinutes == Self.sessionWindowMinutes }
-                let weeklies = windows.filter { $0.window.windowMinutes == Self.weeklyWindowMinutes }
-                guard sessions.count == 1, weeklies.count == 1 else { return nil }
-                return (session: sessions[0], weekly: weeklies[0])
-            }
-        guard completeGeminiFamilies.count == 1, let pair = completeGeminiFamilies.first else { return nil }
-        return (pair.session.window, pair.weekly.window, pair.weekly.id, nil)
-    }
-
     private enum SessionEquivalentWindowResolution {
         case resolved(window: RateWindow, namedID: String?, identity: String)
         case incomplete
@@ -434,19 +387,5 @@ extension UsageStore {
         guard let suffix = suffixes.first(where: { normalized.hasSuffix($0) }) else { return nil }
         let family = normalized.dropLast(suffix.count)
         return family.isEmpty ? nil : String(family)
-    }
-
-    private nonisolated static func antigravityQuotaFamilyKey(_ id: String) -> String {
-        var key = String(id.dropFirst("antigravity-quota-summary-".count)).lowercased()
-        let suffixes = [
-            "-5h limit", "_5h_limit", "-weekly", "_weekly", " weekly",
-            "-session", "_session", " session", "-5h", "_5h", " 5h",
-        ]
-        if let suffix = suffixes.first(where: { key.hasSuffix($0) }) {
-            key.removeLast(suffix.count)
-        } else if ["weekly", "session", "5h"].contains(key) {
-            key = ""
-        }
-        return key
     }
 }
