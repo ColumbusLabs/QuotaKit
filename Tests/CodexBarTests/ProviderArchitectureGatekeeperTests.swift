@@ -878,13 +878,13 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This test-only app seam pins Codex fixture data and does not make production routing policy."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/SettingsStore+MenuObservation.swift",
-            line: 95,
+            line: 96,
             anchor: "_ = self[providerConfig: .synthetic, field: .apiKey]",
             expectedProviderIDs: ["synthetic"],
             reason: "This observation touchpoint reads a fixed provider field so UI invalidation tracks that setting."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/SettingsStore+MenuObservation.swift",
-            line: 114,
+            line: 115,
             anchor: "_ = self[providerConfig: .warp, field: .apiKey]",
             expectedProviderIDs: ["warp"],
             reason: "This observation touchpoint reads a fixed provider field so UI invalidation tracks that setting."),
@@ -4040,7 +4040,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Z.ai team-scope credentials uniquely require an organization or workspace identifier."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/SettingsStore.swift",
-            line: 773,
+            line: 777,
             anchor: "switch MenuBarMetricPreference(rawValue: migrated[UsageProvider.antigravity.rawValue] ?? \"\") {",
             expectedProviderIDs: ["antigravity", "cursor"],
             expectedReferenceCount: 8,
