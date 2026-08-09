@@ -18,37 +18,49 @@ struct BoundedChildProcessProofTests {
         defer { try? FileManager.default.removeItem(at: directory) }
 
         let pidURL = directory.appendingPathComponent("child.pid")
+        let descendantPIDURL = directory.appendingPathComponent("descendant.pid")
         let scriptURL = directory.appendingPathComponent("overflow-child.sh")
-        // Keep one unbounded block writer in the tracked process so PTY pipeline behavior cannot affect the proof.
+        // Keep an unbounded writer in a descendant so the proof covers process-group cleanup, not only the root.
         let script = """
         #!/bin/sh
         printf '%s\\n' "$$" > "$CODEXBAR_PROOF_PID_FILE"
-        exec /bin/dd if=/dev/zero bs=1048576
+        /bin/dd if=/dev/zero bs=1048576 &
+        printf '%s\\n' "$!" > "$CODEXBAR_PROOF_DESCENDANT_PID_FILE"
+        wait
         """
         try script.write(to: scriptURL, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: scriptURL.path)
 
         var environment = ProcessInfo.processInfo.environment
         environment["CODEXBAR_PROOF_PID_FILE"] = pidURL.path
+        environment["CODEXBAR_PROOF_DESCENDANT_PID_FILE"] = descendantPIDURL.path
         let runner = TTYCommandRunner()
         let start = ContinuousClock.now
         do {
-            _ = try runner.run(
-                binary: scriptURL.path,
-                send: "",
-                options: .init(timeout: 60, baseEnvironment: environment, initialDelay: 0))
+            _ = try TTYCommandRunner.withOutputLimitOverrideForTesting(64 * 1024) {
+                try runner.run(
+                    binary: scriptURL.path,
+                    send: "",
+                    options: .init(timeout: 60, baseEnvironment: environment, initialDelay: 0))
+            }
             Issue.record("Expected the synthetic child to exceed the PTY output limit")
         } catch TTYCommandRunner.Error.outputTooLarge {
             // Expected: the production runner propagated the bounded-output error.
         } catch {
             Issue.record("Unexpected overflow error: \(error)")
         }
-        #expect(start.duration(to: .now) < .seconds(10))
+        // A small test-only limit isolates abort latency from the host's PTY throughput.
+        #expect(start.duration(to: .now) < .seconds(5))
 
         let pidText = try String(contentsOf: pidURL, encoding: .utf8)
             .trimmingCharacters(in: .whitespacesAndNewlines)
         let pid = try #require(pid_t(pidText))
+        let descendantPIDText = try String(contentsOf: descendantPIDURL, encoding: .utf8)
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let descendantPID = try #require(pid_t(descendantPIDText))
         #expect(kill(pid, 0) == -1)
+        #expect(errno == ESRCH)
+        #expect(kill(descendantPID, 0) == -1)
         #expect(errno == ESRCH)
     }
 
