@@ -235,30 +235,46 @@ extension CostUsageStore {
 
     /// Runs a complete save cycle as one all-or-nothing SQLite transaction.
     func withSaveTransaction<T>(default fallback: T, _ operation: () throws -> T) -> T {
-        self.withDatabase(default: fallback) { database in
-            let ownsTransaction = sqlite3_get_autocommit(database) != 0
+        var isRetry = false
+        while true {
             do {
-                if ownsTransaction {
-                    try Self.execute(database, "BEGIN IMMEDIATE")
-                }
-                self.activeTransactionDatabase = database
-                defer {
+                let database = try self.ensureDatabase()
+                let ownsTransaction = sqlite3_get_autocommit(database) != 0
+                do {
+                    if ownsTransaction {
+                        try Self.execute(database, "BEGIN IMMEDIATE")
+                    }
+                    self.activeTransactionDatabase = database
+                    let value = try operation()
+                    if let failure = self.activeTransactionError { throw failure }
+                    if ownsTransaction {
+                        try Self.execute(database, "COMMIT")
+                    }
                     self.activeTransactionDatabase = nil
                     self.activeTransactionError = nil
+                    return value
+                } catch {
+                    if ownsTransaction {
+                        try? Self.execute(database, "ROLLBACK")
+                    }
+                    self.activeTransactionDatabase = nil
+                    self.activeTransactionError = nil
+                    throw error
                 }
-                let value = try operation()
-                if let failure = self.activeTransactionError { throw failure }
-                if ownsTransaction {
-                    try Self.execute(database, "COMMIT")
-                }
-                return value
             } catch {
-                if ownsTransaction {
-                    try? Self.execute(database, "ROLLBACK")
+                if !isRetry, Self.shouldRebuild(after: error) {
+                    self.rebuildDatabase(reason: "operation failed: \(error)")
+                    isRetry = true
+                    continue
                 }
-                self.activeTransactionDatabase = nil
-                self.activeTransactionError = nil
-                throw error
+                if Self.shouldRebuild(after: error) {
+                    self.rebuildDatabase(reason: "retry failed: \(error)")
+                } else {
+                    self.recoverConnectionAfterFailure()
+                    let context = isRetry ? "retry" : "operation"
+                    Self.log.warning("cost-usage store \(context) failed; keeping database: \(error)")
+                }
+                return fallback
             }
         }
     }
