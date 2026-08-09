@@ -92,20 +92,16 @@ extension CodexManagedOpenAIWebTests {
     func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        defaults.set(true, forKey: "providerDetectionCompleted")
         let configStore = testConfigStore(suiteName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: configStore)
         settings._test_activeManagedCodexAccount = nil
         settings._test_activeManagedCodexRemoteHomePath = nil
         settings._test_unreadableManagedCodexAccountStore = false
         settings._test_managedCodexAccountStoreURL = nil
         settings._test_liveSystemCodexAccount = nil
         settings._test_codexReconciliationEnvironment = nil
-        settings.providerDetectionCompleted = true
         if let codexMetadata = ProviderDescriptorRegistry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
         }
@@ -173,7 +169,9 @@ actor CoalescingManagedOpenAIDashboardLoader {
     }
 
     func waitUntilStarted(count: Int = 1) async {
-        if self.started >= count { return }
+        if self.started >= count {
+            return
+        }
         await withCheckedContinuation { continuation in
             self.startWaiters.append((count: count, continuation: continuation))
         }

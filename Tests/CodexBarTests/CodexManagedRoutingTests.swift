@@ -771,21 +771,7 @@ struct CodexManagedRoutingTests {
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore,
-            zaiTokenStore: InMemoryZaiTokenStore(),
-            syntheticTokenStore: InMemorySyntheticTokenStore(),
-            codexCookieStore: InMemoryCookieHeaderStore(),
-            claudeCookieStore: InMemoryCookieHeaderStore(),
-            cursorCookieStore: InMemoryCookieHeaderStore(),
-            opencodeCookieStore: InMemoryCookieHeaderStore(),
-            factoryCookieStore: InMemoryCookieHeaderStore(),
-            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
-            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
-            kimiTokenStore: InMemoryKimiTokenStore(),
-            augmentCookieStore: InMemoryCookieHeaderStore(),
-            ampCookieStore: InMemoryCookieHeaderStore(),
-            copilotTokenStore: InMemoryCopilotTokenStore(),
-            tokenAccountStore: InMemoryTokenAccountStore())
+            configStore: configStore)
     }
 
     private func writeCodexAuthFile(
@@ -831,20 +817,4 @@ struct CodexManagedRoutingTests {
 
         return "\(base64URL(header)).\(base64URL(payload))."
     }
-}
-
-private final class InMemoryZaiTokenStore: ZaiTokenStoring, @unchecked Sendable {
-    func loadToken() throws -> String? {
-        nil
-    }
-
-    func storeToken(_: String?) throws {}
-}
-
-private final class InMemorySyntheticTokenStore: SyntheticTokenStoring, @unchecked Sendable {
-    func loadToken() throws -> String? {
-        nil
-    }
-
-    func storeToken(_: String?) throws {}
 }

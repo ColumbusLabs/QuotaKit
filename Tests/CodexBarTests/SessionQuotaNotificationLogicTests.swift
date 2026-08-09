@@ -36,30 +36,22 @@ struct SessionQuotaNotificationLogicTests {
     }
 
     @Test
-    func `depleted notification copy follows Traditional Chinese app language`() {
-        Self.withAppLanguage("zh-Hant") {
-            let copy = SessionQuotaNotificationLogic.notificationCopy(
-                transition: .depleted,
-                providerName: "Codex")
+    func `depleted notification uses English copy`() {
+        let copy = SessionQuotaNotificationLogic.notificationCopy(
+            transition: .depleted,
+            providerName: "Codex")
 
-            #expect(copy.title == "Codex 工作階段已用完")
-            #expect(copy.body == "剩餘 0%。恢復可用時會再通知。")
-        }
+        #expect(copy.title == "Codex session depleted")
+        #expect(copy.body == "0% left. Will notify when it's available again.")
     }
 
     @Test
-    func `restored notification copy follows Traditional Chinese app language`() {
-        Self.withAppLanguage("zh-Hant") {
-            let copy = SessionQuotaNotificationLogic.notificationCopy(
-                transition: .restored,
-                providerName: "Codex")
+    func `restored notification uses English copy`() {
+        let copy = SessionQuotaNotificationLogic.notificationCopy(
+            transition: .restored,
+            providerName: "Codex")
 
-            #expect(copy.title == "Codex 工作階段已恢復")
-            #expect(copy.body == "工作階段配額已恢復可用。")
-        }
-    }
-
-    private static func withAppLanguage(_ language: String, perform body: () -> Void) {
-        CodexBarLocalizationOverride.$appLanguage.withValue(language, operation: body)
+        #expect(copy.title == "Codex session restored")
+        #expect(copy.body == "Session quota is available again.")
     }
 }

@@ -150,7 +150,6 @@ struct AdaptiveRefreshHeuristicsTests {
 
     private static func makeStore(suite: String, frequency: RefreshFrequency) -> UsageStore {
         let settings = testSettingsStore(suiteName: "AdaptiveRefreshHeuristicsTests-\(suite)")
-        settings.providerDetectionCompleted = true
         settings.refreshFrequency = frequency
         Self.disableAllProviders(settings: settings)
         return UsageStore(

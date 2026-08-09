@@ -2,47 +2,15 @@ import CodexBarCore
 import Foundation
 
 enum ProviderImplementationRegistry {
-    private final class Store: @unchecked Sendable {
-        var ordered: [any ProviderImplementation] = []
-        var byID: [UsageProvider: any ProviderImplementation] = [:]
-    }
-
-    private static let lock = NSLock()
-    private static let store = Store()
-
-    private static let bootstrap: Void = {
-        for makeImplementation in ProviderImplementationManifest.makeImplementations {
-            _ = ProviderImplementationRegistry.register(makeImplementation())
-        }
-    }()
-
-    private static func ensureBootstrapped() {
-        _ = self.bootstrap
-    }
-
-    @discardableResult
-    static func register(_ implementation: any ProviderImplementation) -> any ProviderImplementation {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        if self.store.byID[implementation.id] == nil {
-            self.store.ordered.append(implementation)
-        }
-        self.store.byID[implementation.id] = implementation
-        return implementation
-    }
+    private static let implementations = ProviderImplementationManifest.makeImplementations.map { $0() }
+    private static let byID: [UsageProvider: any ProviderImplementation] = Dictionary(
+        uniqueKeysWithValues: implementations.map { ($0.id, $0) })
 
     static var all: [any ProviderImplementation] {
-        self.ensureBootstrapped()
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.store.ordered
+        self.implementations
     }
 
     static func implementation(for id: UsageProvider) -> (any ProviderImplementation)? {
-        self.ensureBootstrapped()
-        if let found = self.store.byID[id] {
-            return found
-        }
-        return self.all.first(where: { $0.id == id })
+        self.byID[id]
     }
 }

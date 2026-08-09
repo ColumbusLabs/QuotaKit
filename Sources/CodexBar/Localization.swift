@@ -5,59 +5,8 @@ enum CodexBarLocalizationOverride {
     @TaskLocal static var appLanguage: String?
 }
 
-enum AppLanguagePreferenceMigration {
-    private static let appleLanguagesKey = "AppleLanguages"
-
-    static func clearLegacyOverrideIfOwned(
-        storedAppLanguage: String,
-        defaults: UserDefaults = .standard)
-    {
-        let language = storedAppLanguage.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !language.isEmpty,
-              defaults.stringArray(forKey: self.appleLanguagesKey) == [language]
-        else { return }
-
-        defaults.removeObject(forKey: self.appleLanguagesKey)
-    }
-}
-
-private func appLanguageDefaults() -> UserDefaults {
-    if Bundle.main.bundleIdentifier != nil {
-        return .standard
-    }
-    if UserDefaults.standard.object(forKey: "appLanguage") != nil {
-        return .standard
-    }
-    // Fallback for running outside a .app bundle (swift run / debug builds)
-    return UserDefaults(suiteName: "CodexBar") ?? .standard
-}
-
-private let isRunningTestsProcessAtStartup: Bool = {
-    let env = ProcessInfo.processInfo.environment
-    if env["XCTestConfigurationFilePath"] != nil {
-        return true
-    }
-    if env["TESTING_LIBRARY_VERSION"] != nil {
-        return true
-    }
-    if env["SWIFT_TESTING"] != nil {
-        return true
-    }
-    return NSClassFromString("XCTestCase") != nil
-}()
-
-private func isRunningTestsProcess() -> Bool {
-    isRunningTestsProcessAtStartup
-}
-
 private func resolvedAppLanguage() -> String {
-    if let override = CodexBarLocalizationOverride.appLanguage {
-        return override
-    }
-    if isRunningTestsProcess() {
-        return "en"
-    }
-    return appLanguageDefaults().string(forKey: "appLanguage") ?? ""
+    "en"
 }
 
 func codexBarLocalizationSignature() -> String {

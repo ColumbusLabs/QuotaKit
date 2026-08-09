@@ -13,9 +13,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
 
         let store = UsageStore(
@@ -81,9 +79,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
         defaultsA.removePersistentDomain(forName: suiteA)
         let settingsA = SettingsStore(
             userDefaults: defaultsA,
-            configStore: testConfigStore(suiteName: suiteA),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suiteA))
         settingsA.statusChecksEnabled = false
 
         let environmentA = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-profile-a"]
@@ -121,9 +117,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
         defaultsB.removePersistentDomain(forName: suiteB)
         let settingsB = SettingsStore(
             userDefaults: defaultsB,
-            configStore: testConfigStore(suiteName: suiteB),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suiteB))
         settingsB.statusChecksEnabled = false
 
         let environmentB = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-profile-b"]
@@ -178,9 +172,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
 
         let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-shared-profile"]
@@ -248,9 +240,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
 
         let environment = ["CLAUDE_CONFIG_DIR": "/tmp/codexbar-widget-\(sourceLabel)-profile"]
@@ -314,9 +304,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "primary-token")
         settings.addTokenAccount(provider: .claude, label: "Secondary", token: "secondary-token")
@@ -392,9 +380,7 @@ struct UsageStoreWidgetSnapshotAccountTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
         settings.multiAccountMenuLayout = .stacked
         settings.addTokenAccount(provider: .claude, label: "Primary", token: "primary-token")

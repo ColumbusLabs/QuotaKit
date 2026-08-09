@@ -6,7 +6,6 @@ struct QuotaKitWidgetProvider: TimelineProvider {
         QuotaKitWidgetEntry(
             date: Date(),
             snapshot: QuotaKitWidgetPreviewData.snapshot,
-            isUnlocked: true,
             isPreview: true)
     }
 
@@ -30,7 +29,6 @@ struct QuotaKitWidgetProvider: TimelineProvider {
     }
 
     private func makeEntry(isPreview: Bool) -> QuotaKitWidgetEntry {
-        let isProUnlocked = ProEntitlementCacheStore.load() != nil
         let preferences = isPreview
             ? QuotaKitWidgetProviderPreferences.empty
             : QuotaKitWidgetProviderPreferencesStore.load()
@@ -44,15 +42,9 @@ struct QuotaKitWidgetProvider: TimelineProvider {
         #else
         let snapshot = isPreview ? QuotaKitWidgetPreviewData.snapshot : storedSnapshot
         #endif
-        #if DEBUG && targetEnvironment(simulator)
-        let isUnlocked = isPreview || isProUnlocked || snapshot.primaryProvider != nil
-        #else
-        let isUnlocked = isPreview || isProUnlocked
-        #endif
         return QuotaKitWidgetEntry(
             date: Date(),
             snapshot: snapshot,
-            isUnlocked: isUnlocked,
             isPreview: isPreview,
             displayMode: QuotaKitWidgetEntryDisplayModeResolver.resolve(isPreview: isPreview))
     }
@@ -94,13 +86,11 @@ struct QuotaKitProviderWidget: Widget {
     QuotaKitWidgetEntry(
         date: Date(),
         snapshot: QuotaKitWidgetPreviewData.referenceSnapshot,
-        isUnlocked: true,
         isPreview: true,
         displayMode: .weekly)
     QuotaKitWidgetEntry(
         date: Date(),
         snapshot: QuotaKitWidgetPreviewData.snapshot,
-        isUnlocked: true,
         isPreview: true,
         displayMode: .weekly)
 }
@@ -111,7 +101,6 @@ struct QuotaKitProviderWidget: Widget {
     QuotaKitWidgetEntry(
         date: Date(),
         snapshot: QuotaKitWidgetPreviewData.snapshot,
-        isUnlocked: true,
         isPreview: true)
 }
 
@@ -121,7 +110,6 @@ struct QuotaKitProviderWidget: Widget {
     QuotaKitWidgetEntry(
         date: Date(),
         snapshot: QuotaKitWidgetPreviewData.snapshot,
-        isUnlocked: true,
         isPreview: true)
 }
 #endif

@@ -10,8 +10,6 @@ struct ProviderDetailView: View {
     /// "click into provider menu → tabs" UX.
     let group: ProviderAccountGroup
     let isDemoMode: Bool
-    @Environment(ProEntitlementStore.self) private var proEntitlementStore
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
 
     @State private var selectedAccountIndex: Int = 0
 
@@ -60,33 +58,6 @@ struct ProviderDetailView: View {
         MockProviderDetector.isMock(self.provider)
     }
 
-    private var isUsageHistoryUnlocked: Bool {
-        ProFeatureAccess.isUnlocked(
-            .usageHistory,
-            isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked,
-            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.usageHistory))
-    }
-
-    private var isCostDetailUnlocked: Bool {
-        ProFeatureAccess.isUnlocked(
-            .fullCostDashboard,
-            isDemoMode: self.isDemoMode,
-            isProUnlocked: self.proEntitlementStore.isProUnlocked,
-            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.fullCostDashboard))
-    }
-
-    private var hasLockedDetailContent: Bool {
-        guard !self.isUsageHistoryUnlocked || !self.isCostDetailUnlocked else { return false }
-        if !self.isCostDetailUnlocked {
-            if self.provider.costSummary != nil || self.provider.budget != nil { return true }
-        }
-        if !self.isUsageHistoryUnlocked {
-            if let history = self.provider.utilizationHistory, !history.isEmpty { return true }
-        }
-        return false
-    }
-
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -121,33 +92,24 @@ struct ProviderDetailView: View {
 
                 // Cost summary grid
                 if let cost = self.provider.costSummary,
-                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil,
-                   self.isCostDetailUnlocked
+                   cost.sessionCostUSD != nil || cost.last30DaysCostUSD != nil
                 {
                     self.costSummarySection(cost)
                 }
 
                 // Budget progress
-                if let budget = self.provider.budget, self.isCostDetailUnlocked {
+                if let budget = self.provider.budget {
                     BudgetProgressView(budget: budget, tintColor: self.providerColor)
                 }
 
                 // Utilization history chart
-                if let history = self.provider.utilizationHistory, !history.isEmpty, self.isUsageHistoryUnlocked {
+                if let history = self.provider.utilizationHistory, !history.isEmpty {
                     UtilizationHistoryView(series: history, tintColor: self.providerColor)
                 }
 
                 // Daily chart
-                if let cost = self.provider.costSummary, !cost.daily.isEmpty, self.isCostDetailUnlocked {
+                if let cost = self.provider.costSummary, !cost.daily.isEmpty {
                     self.dailyChartSection(cost.daily, currencyCode: cost.currencyCode)
-                }
-
-                if self.hasLockedDetailContent {
-                    ProFeatureLockedCard(
-                        store: self.proEntitlementStore,
-                        feature: .usageHistory,
-                        message: String(
-                            localized: "Unlock QuotaKit Pro to view usage history charts, cost details, budgets, and daily spend for this provider."))
                 }
             }
             .padding(.horizontal, 20)
@@ -914,14 +876,10 @@ extension ProviderDailySpendModelRow {
     NavigationStack {
         ProviderDetailView(provider: PreviewData.claudeProvider)
     }
-    .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
-    .environment(RemoteConfigStore())
 }
 
 #Preview("No Cost Data") {
     NavigationStack {
-        ProviderDetailView(provider: PreviewData.cursorProvider)
+        ProviderDetailView(provider: PreviewData.codexProvider)
     }
-    .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
-    .environment(RemoteConfigStore())
 }

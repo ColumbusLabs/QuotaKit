@@ -68,8 +68,7 @@ struct CodexWeeklyCapSurfaceTests {
     @Test
     func `primary menu bar metric and credits follow binding weekly reset`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "CodexWeeklyCapSurfaceTests-menu-bar"),
-            zaiTokenStore: NoopZaiTokenStore())
+            configStore: testConfigStore(suiteName: "CodexWeeklyCapSurfaceTests-menu-bar"))
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -130,9 +129,7 @@ struct CodexWeeklyCapSurfaceTests {
     @Test
     func `combined menu bar modes ignore exhausted weekly lane after its reset`() throws {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "CodexWeeklyCapSurfaceTests-combined-reset"),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: "CodexWeeklyCapSurfaceTests-combined-reset"))
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true

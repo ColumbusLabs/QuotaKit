@@ -13,9 +13,7 @@ struct MenuDescriptorCursorTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
 
         let store = UsageStore(
@@ -47,9 +45,15 @@ struct MenuDescriptorCursorTests {
             }
 
         let rateWindowLabels = textLines.compactMap { line -> String? in
-            if line.hasPrefix("Auto:") { return "Auto" }
-            if line.hasPrefix("API:") { return "API" }
-            if line.hasPrefix("Total:") { return "Total" }
+            if line.hasPrefix("Auto:") {
+                return "Auto"
+            }
+            if line.hasPrefix("API:") {
+                return "API"
+            }
+            if line.hasPrefix("Total:") {
+                return "Total"
+            }
             return nil
         }
 
@@ -64,9 +68,7 @@ struct MenuDescriptorCursorTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
 
         let store = UsageStore(

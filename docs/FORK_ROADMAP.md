@@ -18,7 +18,7 @@ across Mac and iPhone.
 - Keep iPhone onboarding framed as a Mac setup handoff, not an iPhone download
   flow.
 - Preserve local-first provider collection and private iCloud sync.
-- Improve Pro widgets, alerts, cost history, and share cards without exposing
+- Improve widgets, alerts, cost history, and share cards without exposing
   sensitive provider data.
 - Keep upstream provider fixes flowing in without inheriting upstream release or
   support surfaces.
@@ -36,7 +36,7 @@ across Mac and iPhone.
 
 - Expand provider detail surfaces where synced data already exists.
 - Improve cost history and model mix explanations.
-- Continue widget polish and entitlement-state reliability.
+- Continue widget polish and notification reliability.
 - Add focused provider improvements when they fit the privacy model.
 
 ## Sync And Upstream

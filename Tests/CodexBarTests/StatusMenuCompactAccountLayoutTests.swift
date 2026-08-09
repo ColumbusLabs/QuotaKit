@@ -23,34 +23,12 @@ final class StatusMenuCompactAccountLayoutTests: XCTestCase {
             isBestCandidate: false)
 
         let localized = StatusItemController.localizedCompactConstraintDetail(row) { label in
-            ["Weekly": "Hebdomadaire", "Monthly": "Mensuel"][label] ?? label
+            ["Weekly": "Week", "Monthly": "Month"][label] ?? label
         }
 
-        XCTAssertEqual(localized, "Hebdomadaire 43% · Mensuel 12%")
+        XCTAssertEqual(localized, "Week 43% · Month 12%")
         XCTAssertEqual(row.headroomPercent, 43)
         XCTAssertEqual(row.severity, .warning)
-    }
-
-    private func disableMenuCardsForTesting() {
-        StatusItemController.menuCardRenderingEnabled = false
-        StatusItemController.setMenuRefreshEnabledForTesting(false)
-    }
-
-    private func makeSettings() -> SettingsStore {
-        let settings = testSettingsStore(
-            suiteName: "StatusMenuCompactAccountLayoutTests",
-            tokenAccountStore: InMemoryTokenAccountStore())
-        settings.providerDetectionCompleted = true
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = false
-        settings.multiAccountMenuLayout = .stacked
-        let registry = ProviderRegistry.shared
-        for provider in UsageProvider.allCases {
-            guard let metadata = registry.metadata[provider] else { continue }
-            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .copilot)
-        }
-        return settings
     }
 
     private func snapshot(usedPercent: Double) -> UsageSnapshot {
@@ -63,84 +41,6 @@ final class StatusMenuCompactAccountLayoutTests: XCTestCase {
             secondary: nil,
             updatedAt: Date(),
             identity: nil)
-    }
-
-    func test_tokenAccountsUseCompactLayoutAtFourOrMoreAccounts() {
-        self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
-        for label in ["One", "Two", "Three", "Four", "Five"] {
-            settings.addTokenAccount(provider: .copilot, label: label, token: "gh_\(label)")
-        }
-        settings.setActiveTokenAccountIndex(0, for: .copilot)
-        let accounts = settings.tokenAccounts(for: .copilot)
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let usedPercents: [Double] = [10, 95, 20, 30, 40]
-        store.accountSnapshots[.copilot] = accounts.enumerated().map { index, account in
-            TokenAccountUsageSnapshot(
-                account: account,
-                snapshot: self.snapshot(usedPercent: usedPercents[index]),
-                error: nil,
-                sourceLabel: "test",
-                cacheKey: store.tokenAccountSnapshotCacheKey(provider: .copilot, account: account))
-        }
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: testStatusBar())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        let menu = controller.makeMenu(for: .copilot)
-        controller.menuWillOpen(menu)
-
-        // Active card + critical row + best-candidate row + two healthy rows folded.
-        let ids = menu.items.compactMap { $0.representedObject as? String }
-            .filter { $0.hasPrefix("tokenAccount") || $0.hasPrefix("menuCard") }
-        XCTAssertEqual(ids, [
-            "tokenAccountCard-\(accounts[0].id.uuidString)",
-            "tokenAccountCompact-\(accounts[1].id.uuidString)",
-            "tokenAccountCompact-\(accounts[2].id.uuidString)",
-            "tokenAccountCollapsed",
-        ])
-    }
-
-    func test_tokenAccountsBelowThresholdKeepStackedCards() {
-        self.disableMenuCardsForTesting()
-        let settings = self.makeSettings()
-        for label in ["One", "Two", "Three"] {
-            settings.addTokenAccount(provider: .copilot, label: label, token: "gh_\(label)")
-        }
-        let accounts = settings.tokenAccounts(for: .copilot)
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        store.accountSnapshots[.copilot] = accounts.map { account in
-            TokenAccountUsageSnapshot(
-                account: account,
-                snapshot: self.snapshot(usedPercent: 10),
-                error: nil,
-                sourceLabel: "test",
-                cacheKey: store.tokenAccountSnapshotCacheKey(provider: .copilot, account: account))
-        }
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: testStatusBar())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        let menu = controller.makeMenu(for: .copilot)
-        controller.menuWillOpen(menu)
-
-        let ids = menu.items.compactMap { $0.representedObject as? String }
-            .filter { $0.hasPrefix("tokenAccount") || $0.hasPrefix("menuCard") }
-        XCTAssertEqual(ids, ["menuCard-0", "menuCard-1", "menuCard-2"])
     }
 
     func test_codexAccountProjectionMapsActiveHealthAndIdentity() {

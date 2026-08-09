@@ -2,8 +2,6 @@ import Foundation
 
 #if canImport(SQLite3)
 import SQLite3
-#elseif canImport(CSQLite3)
-import CSQLite3
 #endif
 
 // swiftlint:disable type_body_length
@@ -77,7 +75,7 @@ struct CodexWorkspaceUsageSidecar: Sendable {
         cache: CostUsageCache? = nil,
         catalog: CodexThreadCatalog? = nil) -> CodexLocalProjectUsageSnapshot?
     {
-        #if canImport(SQLite3) || canImport(CSQLite3)
+        #if canImport(SQLite3)
         guard let db = self.open(readOnly: true) else { return nil }
         defer { sqlite3_close(db) }
         let sql = """
@@ -147,7 +145,7 @@ struct CodexWorkspaceUsageSidecar: Sendable {
         catalogIsComplete: Bool = true,
         rootsFingerprint: [String: Int64]) throws
     {
-        #if canImport(SQLite3) || canImport(CSQLite3)
+        #if canImport(SQLite3)
         guard let db = self.open(readOnly: false) else {
             throw SidecarError.openFailed
         }
@@ -184,7 +182,7 @@ struct CodexWorkspaceUsageSidecar: Sendable {
         catalog: CodexThreadCatalog,
         catalogIsComplete: Bool = true) throws
     {
-        #if canImport(SQLite3) || canImport(CSQLite3)
+        #if canImport(SQLite3)
         guard let db = self.open(readOnly: false) else { throw SidecarError.openFailed }
         defer { sqlite3_close(db) }
         try Self.ensureSchema(db)
@@ -213,7 +211,7 @@ struct CodexWorkspaceUsageSidecar: Sendable {
     /// the existing project aggregator. The scanner remains authoritative for
     /// JSONL cursors and token deltas; this avoids another walk of its cache.
     func usageCache(roots: [String: Int64]) throws -> CostUsageCache {
-        #if canImport(SQLite3) || canImport(CSQLite3)
+        #if canImport(SQLite3)
         guard let db = self.open(readOnly: true) else { throw SidecarError.openFailed }
         defer { sqlite3_close(db) }
         let sql = """
@@ -334,7 +332,7 @@ struct CodexWorkspaceUsageSidecar: Sendable {
             .appendingPathComponent("codex-workspaces-v1.sqlite", isDirectory: false)
     }
 
-    #if canImport(SQLite3) || canImport(CSQLite3)
+    #if canImport(SQLite3)
     private func open(readOnly: Bool) -> OpaquePointer? {
         let url = self.databaseURL()
         if !readOnly {

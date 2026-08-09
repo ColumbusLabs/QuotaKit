@@ -11,10 +11,10 @@ struct StatusMenuMergedOverviewRefreshTests {
         let settings = self.makeSettings()
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
-        let activeProviders: [UsageProvider] = [.claude, .codex, .cursor, .opencode]
+        let activeProviders: [UsageProvider] = [.claude, .codex, .cursor, .grok]
         self.enableOnly(Set(activeProviders), settings: settings)
         settings.setMergedOverviewProviderSelection(
-            provider: .opencode,
+            provider: .grok,
             isSelected: false,
             activeProviders: activeProviders)
         settings.mergedMenuLastSelectedWasOverview = true
@@ -27,9 +27,9 @@ struct StatusMenuMergedOverviewRefreshTests {
 
         let visibleProviders = settings.resolvedMergedOverviewProviders(
             activeProviders: controller.store.enabledFirstPartyProvidersForDisplay())
-        #expect(!visibleProviders.contains(.opencode))
+        #expect(!visibleProviders.contains(.grok))
 
-        controller.store.refreshingProviders.insert(.opencode)
+        controller.store.refreshingProviders.insert(.grok)
         controller.updatePersistentRefreshItemsEnabled()
         #expect(controller.isRefreshActionInFlight(for: menu))
         let refreshItem = try #require(menu.items.first { $0.title == "Refresh" })
@@ -54,9 +54,7 @@ struct StatusMenuMergedOverviewRefreshTests {
         defaults.removePersistentDomain(forName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
     }
 
     private func makeController(settings: SettingsStore) -> StatusItemController {

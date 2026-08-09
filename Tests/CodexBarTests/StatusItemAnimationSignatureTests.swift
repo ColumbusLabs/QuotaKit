@@ -50,14 +50,13 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: true)
+        if let grokMeta = registry.metadata[.grok] {
+            settings.setProviderEnabled(provider: .grok, metadata: grokMeta, enabled: true)
         }
 
         let fetcher = UsageFetcher()
@@ -78,14 +77,14 @@ struct StatusItemAnimationSignatureTests {
                 updatedAt: Date()),
             provider: .codex)
 
-        #expect(store.enabledProvidersForDisplay() == [.codex, .synthetic])
-        #expect(store.enabledProviders() == [.codex, .synthetic])
+        #expect(store.enabledProvidersForDisplay() == [.codex, .grok])
+        #expect(store.enabledProviders() == [.codex, .grok])
         #expect(store.iconStyle == .combined)
         controller.applyIcon(phase: nil)
         let combinedSignature = controller.lastAppliedMergedIconRenderSignature
 
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: false)
+        if let grokMeta = registry.metadata[.grok] {
+            settings.setProviderEnabled(provider: .grok, metadata: grokMeta, enabled: false)
         }
 
         #expect(store.enabledProvidersForDisplay() == [.codex])
@@ -101,178 +100,6 @@ struct StatusItemAnimationSignatureTests {
     }
 
     @Test
-    func `merged antigravity icon resolves quota summary with provider style`() throws {
-        let suite = "StatusItemAnimationSignatureTests-merged-antigravity-provider-style"
-        let settings = testSettingsStore(suiteName: suite)
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = true
-        settings.selectedMenuProvider = .antigravity
-        settings.menuBarShowsBrandIconWithPercent = false
-        settings.usageBarsShowUsed = false
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
-
-        let registry = ProviderRegistry.shared
-        if let antigravityMeta = registry.metadata[.antigravity] {
-            settings.setProviderEnabled(provider: .antigravity, metadata: antigravityMeta, enabled: true)
-        }
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: true)
-        }
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: testStatusBar())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        store._setSnapshotForTesting(
-            UsageSnapshot(
-                primary: RateWindow(usedPercent: 99, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
-                secondary: RateWindow(usedPercent: 16, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
-                tertiary: nil,
-                extraRateWindows: [
-                    NamedRateWindow(
-                        id: "antigravity-quota-summary-gemini-5h",
-                        title: "Gemini Session",
-                        window: RateWindow(usedPercent: 1, windowMinutes: 300, resetsAt: nil, resetDescription: nil)),
-                    NamedRateWindow(
-                        id: "antigravity-quota-summary-gemini-weekly",
-                        title: "Gemini Weekly",
-                        window: RateWindow(
-                            usedPercent: 99,
-                            windowMinutes: 10080,
-                            resetsAt: nil,
-                            resetDescription: nil)),
-                    NamedRateWindow(
-                        id: "antigravity-quota-summary-3p-5h",
-                        title: "Claude + GPT Session",
-                        window: RateWindow(usedPercent: 2, windowMinutes: 300, resetsAt: nil, resetDescription: nil)),
-                    NamedRateWindow(
-                        id: "antigravity-quota-summary-3p-weekly",
-                        title: "Claude + GPT Weekly",
-                        window: RateWindow(
-                            usedPercent: 16,
-                            windowMinutes: 10080,
-                            resetsAt: nil,
-                            resetDescription: nil)),
-                ],
-                updatedAt: Date()),
-            provider: .antigravity)
-
-        #expect(store.iconStyle == .combined)
-        #expect(controller.primaryProviderForUnifiedIcon() == .antigravity)
-
-        controller.applyIcon(phase: nil)
-        let signature = try #require(controller.lastAppliedMergedIconRenderSignature)
-
-        #expect(signature.contains("provider=antigravity"))
-        #expect(signature.contains("style=combined"))
-        #expect(signature.contains("primary=98.000"))
-        #expect(signature.contains("weekly=1.000"))
-    }
-
-    @Test
-    func `merged mistral icon uses monthly plan metric when selected`() throws {
-        let suite = "StatusItemAnimationSignatureTests-merged-mistral-monthly-plan"
-        let settings = testSettingsStore(suiteName: suite)
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.mergeIcons = true
-        settings.selectedMenuProvider = .mistral
-        settings.menuBarShowsBrandIconWithPercent = false
-        settings.usageBarsShowUsed = true
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
-        settings.setMenuBarMetricPreference(.monthlyPlan, for: .mistral)
-
-        let registry = ProviderRegistry.shared
-        if let mistralMeta = registry.metadata[.mistral] {
-            settings.setProviderEnabled(provider: .mistral, metadata: mistralMeta, enabled: true)
-        }
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: true)
-        }
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: testStatusBar())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        store._setSnapshotForTesting(
-            UsageSnapshot(
-                primary: nil,
-                secondary: nil,
-                extraRateWindows: [
-                    NamedRateWindow(
-                        id: "mistral-monthly-plan",
-                        title: "Monthly Plan",
-                        window: RateWindow(usedPercent: 42, windowMinutes: nil, resetsAt: nil, resetDescription: nil)),
-                ],
-                updatedAt: Date()),
-            provider: .mistral)
-
-        #expect(store.iconStyle == .combined)
-        #expect(controller.primaryProviderForUnifiedIcon() == .mistral)
-
-        controller.applyIcon(phase: nil)
-        let signature = try #require(controller.lastAppliedMergedIconRenderSignature)
-
-        #expect(signature.contains("provider=mistral"))
-        #expect(signature.contains("primary=42.000"))
-        #expect(signature.contains("weekly=nil"))
-    }
-
-    @Test
-    func `mistral pay as you go icon ignores balance primary percent`() {
-        let suite = "StatusItemAnimationSignatureTests-mistral-payg-balance-percent"
-        let settings = testSettingsStore(suiteName: suite)
-        settings.statusChecksEnabled = false
-        settings.refreshFrequency = .manual
-        settings.usageBarsShowUsed = true
-        settings.setMenuBarMetricPreference(.automatic, for: .mistral)
-
-        let fetcher = UsageFetcher()
-        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
-        let controller = StatusItemController(
-            store: store,
-            settings: settings,
-            account: fetcher.loadAccountInfo(),
-            updater: DisabledUpdaterController(),
-            preferencesSelection: PreferencesSelection(),
-            statusBar: testStatusBar())
-        defer { controller.releaseStatusItemsForTesting() }
-
-        let snapshot = UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 0,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: "$12.50"),
-            secondary: nil,
-            updatedAt: Date())
-
-        let percents = controller.resolvedMenuBarIconPercents(
-            provider: .mistral,
-            snapshot: snapshot,
-            style: .mistral,
-            showUsed: true)
-
-        #expect(percents?.primary == nil)
-        #expect(percents?.secondary == nil)
-    }
-
-    @Test
     func `merged brand percent reapplies title when cached render is skipped`() throws {
         let suite = "StatusItemAnimationSignatureTests-merged-brand-percent-title-restore"
         let settings = testSettingsStore(suiteName: suite)
@@ -283,14 +110,13 @@ struct StatusItemAnimationSignatureTests {
         settings.menuBarShowsBrandIconWithPercent = true
         settings.menuBarDisplayMode = .percent
         settings.usageBarsShowUsed = false
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: true)
+        if let grokMeta = registry.metadata[.grok] {
+            settings.setProviderEnabled(provider: .grok, metadata: grokMeta, enabled: true)
         }
 
         let fetcher = UsageFetcher()
@@ -469,7 +295,6 @@ struct StatusItemAnimationSignatureTests {
         settings.mergeIcons = true
         settings.selectedMenuProvider = .codex
         settings.menuBarShowsBrandIconWithPercent = false
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
 
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {
@@ -477,7 +302,7 @@ struct StatusItemAnimationSignatureTests {
             settings.setProviderEnabled(
                 provider: provider,
                 metadata: metadata,
-                enabled: provider == .codex || provider == .synthetic)
+                enabled: provider == .codex || provider == .grok)
         }
 
         let fetcher = UsageFetcher()
@@ -540,13 +365,13 @@ struct StatusItemAnimationSignatureTests {
         #expect(controller.lastAppliedMergedIconRenderSignature?.contains("warningFlash=0") == true)
 
         controller.menuWillOpen(menu)
-        settings.selectedMenuProvider = .synthetic
-        #expect(controller.primaryProviderForUnifiedIcon() == .synthetic)
+        settings.selectedMenuProvider = .grok
+        #expect(controller.primaryProviderForUnifiedIcon() == .grok)
         #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=codex") == true)
 
         controller.startQuotaWarningFlash(provider: .codex)
         let switchedProviderWarningTask = controller.quotaWarningFlashTasks[.codex]
-        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=synthetic") == true)
+        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=grok") == true)
         controller.clearExpiredQuotaWarningFlash(provider: .codex, now: .distantFuture)
         switchedProviderWarningTask?.cancel()
         controller.menuDidClose(menu)
@@ -582,15 +407,15 @@ struct StatusItemAnimationSignatureTests {
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
         settings.menuBarShowsBrandIconWithPercent = false
-        settings[providerConfig: .synthetic, field: .apiKey] = "synthetic-test-token"
-        settings.setProviderOrder([.synthetic, .codex])
+
+        settings.setProviderOrder([.grok, .codex])
 
         let registry = ProviderRegistry.shared
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        if let syntheticMeta = registry.metadata[.synthetic] {
-            settings.setProviderEnabled(provider: .synthetic, metadata: syntheticMeta, enabled: true)
+        if let grokMeta = registry.metadata[.grok] {
+            settings.setProviderEnabled(provider: .grok, metadata: grokMeta, enabled: true)
         }
 
         let fetcher = UsageFetcher()
@@ -609,12 +434,12 @@ struct StatusItemAnimationSignatureTests {
             secondary: nil,
             updatedAt: Date())
         store._setSnapshotForTesting(snapshot, provider: .codex)
-        store._setSnapshotForTesting(snapshot, provider: .synthetic)
+        store._setSnapshotForTesting(snapshot, provider: .grok)
 
         controller.applyIcon(phase: nil)
 
-        #expect(store.enabledProviders().prefix(2) == [.synthetic, .codex])
-        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=synthetic") == true)
+        #expect(store.enabledProviders().prefix(2) == [.grok, .codex])
+        #expect(controller.lastAppliedMergedIconRenderSignature?.contains("provider=grok") == true)
     }
 
     @Test

@@ -6,21 +6,8 @@ import WidgetKit
 enum ProviderChoice: String, AppEnum {
     case codex
     case claude
-    case gemini
-    case alibaba
-    case alibabatokenplan
-    case qwencloud
-    case antigravity
     case cursor
-    case zai
-    case copilot
-    case devin
-    case minimax
-    case kilo
-    case opencode
-    case opencodego
-    case mistral
-    case kimi
+    case grok
 
     static let typeDisplayRepresentation = TypeDisplayRepresentation(name: "Provider")
 
@@ -30,21 +17,8 @@ enum ProviderChoice: String, AppEnum {
     static let caseDisplayRepresentations: [ProviderChoice: DisplayRepresentation] = [
         .codex: DisplayRepresentation(title: "Codex"),
         .claude: DisplayRepresentation(title: "Claude"),
-        .gemini: DisplayRepresentation(title: "Gemini"),
-        .alibaba: DisplayRepresentation(title: "Alibaba"),
-        .alibabatokenplan: DisplayRepresentation(title: "Alibaba Token Plan"),
-        .qwencloud: DisplayRepresentation(title: "Qwen Cloud"),
-        .antigravity: DisplayRepresentation(title: "Antigravity"),
         .cursor: DisplayRepresentation(title: "Cursor"),
-        .zai: DisplayRepresentation(title: "z.ai / GLM"),
-        .copilot: DisplayRepresentation(title: "Copilot"),
-        .devin: DisplayRepresentation(title: "Devin"),
-        .minimax: DisplayRepresentation(title: "MiniMax"),
-        .kilo: DisplayRepresentation(title: "Kilo"),
-        .opencode: DisplayRepresentation(title: "OpenCode"),
-        .opencodego: DisplayRepresentation(title: "OpenCode Go"),
-        .mistral: DisplayRepresentation(title: "Mistral"),
-        .kimi: DisplayRepresentation(title: "Kimi Code"),
+        .grok: DisplayRepresentation(title: "Grok"),
     ]
 
     var provider: UsageProvider {

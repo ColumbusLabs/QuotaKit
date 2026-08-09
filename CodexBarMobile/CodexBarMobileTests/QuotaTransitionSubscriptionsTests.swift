@@ -63,22 +63,41 @@ struct QuotaTransitionSubscriptionsTests {
     }
 
     @Test
-    func `locked Pro notification plan keeps silent sync and removes quota alerts`() {
-        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: false)
+    func `retired subscription tombstones cover exactly 168 old IDs`() {
+        let ids = QuotaTransitionSubscriptions.retiredSubscriptionIDs
 
-        #expect(plan.shouldSetupSilentSync)
-        #expect(!plan.shouldRequestAlertPermission)
-        #expect(!plan.shouldSetupQuotaAlerts)
-        #expect(plan.shouldRemoveQuotaAlerts)
+        #expect(ids.count == 168)
+        #expect(Set(ids).count == 168)
+        #expect(ids.contains("quota-perplexity-depleted-sub"))
+        #expect(ids.contains("quota-notion-warning-sub"))
+        #expect(!ids.contains("quota-codex-depleted-sub"))
+        #expect(!ids.contains("quota-claude-restored-sub"))
+        #expect(!ids.contains("quota-cursor-warning-sub"))
+        #expect(!ids.contains("quota-grok-warning-sub"))
     }
 
     @Test
-    func `unlocked Pro notification plan keeps silent sync and creates quota alerts`() {
-        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: true)
+    func `cleanup selects retired and legacy IDs but preserves live and unrelated subscriptions`() {
+        let retiredID = "quota-perplexity-warning-sub"
+        let legacyID = "legacy-quota-sub"
+        let ids = QuotaTransitionSubscriptions.subscriptionIDsToDelete(
+            existingIDs: [
+                retiredID,
+                legacyID,
+                "quota-codex-warning-sub",
+                "device-provider-zone-sub",
+            ],
+            legacyIDs: [legacyID])
+
+        #expect(ids == [retiredID, legacyID])
+    }
+
+    @Test
+    func `notification plan always enables sync and quota alerts`() {
+        let plan = NotificationSetupPlanner.plan()
 
         #expect(plan.shouldSetupSilentSync)
         #expect(plan.shouldRequestAlertPermission)
         #expect(plan.shouldSetupQuotaAlerts)
-        #expect(!plan.shouldRemoveQuotaAlerts)
     }
 }

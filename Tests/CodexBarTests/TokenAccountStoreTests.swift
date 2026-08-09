@@ -45,12 +45,12 @@ func `FileTokenAccountStore round trip`() throws {
     let data = ProviderTokenAccountData(version: 1, accounts: [account], activeIndex: 0)
     let store = FileTokenAccountStore(fileURL: fileURL)
 
-    try store.storeAccounts([.zai: data])
+    try store.storeAccounts([.claude: data])
     let loaded = try store.loadAccounts()
 
-    #expect(loaded[.zai]?.accounts.count == 1)
-    #expect(loaded[.zai]?.accounts[0].label == "user@example.com")
-    #expect(loaded[.zai]?.accounts[0].usageScope == "team")
-    #expect(loaded[.zai]?.accounts[0].organizationID == "org-test")
-    #expect(loaded[.zai]?.accounts[0].workspaceID == "proj-test")
+    #expect(loaded[.claude]?.accounts.count == 1)
+    #expect(loaded[.claude]?.accounts[0].label == "user@example.com")
+    #expect(loaded[.claude]?.accounts[0].usageScope == "team")
+    #expect(loaded[.claude]?.accounts[0].organizationID == "org-test")
+    #expect(loaded[.claude]?.accounts[0].workspaceID == "proj-test")
 }

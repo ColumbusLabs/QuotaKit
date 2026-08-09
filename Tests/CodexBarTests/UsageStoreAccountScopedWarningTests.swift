@@ -10,9 +10,7 @@ struct UsageStoreAccountScopedWarningTests {
         defaults.removePersistentDomain(forName: suiteName)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suiteName))
     }
 
     @MainActor
@@ -171,14 +169,14 @@ struct UsageStoreAccountScopedWarningTests {
         for (step, account) in accounts.enumerated() {
             await store.applySelectedOutcome(
                 Self.outcome(usedPercent: 40, updatedAt: Date(timeIntervalSince1970: 1_780_100_000 + Double(step))),
-                provider: .deepseek,
+                provider: .cursor,
                 account: account,
                 fallbackSnapshot: nil)
         }
         for (step, account) in accounts.enumerated() {
             await store.applySelectedOutcome(
                 Self.outcome(usedPercent: 100, updatedAt: Date(timeIntervalSince1970: 1_780_100_100 + Double(step))),
-                provider: .deepseek,
+                provider: .cursor,
                 account: account,
                 fallbackSnapshot: nil)
         }

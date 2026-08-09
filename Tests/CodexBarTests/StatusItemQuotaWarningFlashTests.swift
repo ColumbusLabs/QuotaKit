@@ -13,9 +13,7 @@ struct StatusItemQuotaWarningFlashTests {
     @Test
     func `quota warning flash state lasts for configured duration`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemQuotaWarningFlashTests-duration"),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: "StatusItemQuotaWarningFlashTests-duration"))
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
 
@@ -58,9 +56,7 @@ struct StatusItemQuotaWarningFlashTests {
     @Test
     func `merged icon render signature includes quota warning flash for selected provider`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemQuotaWarningFlashTests-merged"),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: "StatusItemQuotaWarningFlashTests-merged"))
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -71,10 +67,9 @@ struct StatusItemQuotaWarningFlashTests {
         if let codexMeta = registry.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
         }
-        if let openRouterMeta = registry.metadata[.openrouter] {
-            settings.setProviderEnabled(provider: .openrouter, metadata: openRouterMeta, enabled: true)
+        if let grokMeta = registry.metadata[.grok] {
+            settings.setProviderEnabled(provider: .grok, metadata: grokMeta, enabled: true)
         }
-        settings[providerConfig: .openrouter, field: .apiKey] = "or-token"
 
         let fetcher = UsageFetcher()
         let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)

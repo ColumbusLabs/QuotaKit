@@ -21,7 +21,6 @@ schemes:
         - name: CodexBarMobileTests
         - name: CodexBarMobileUITests
     run:
-      storeKitConfiguration: StoreKit/QuotaKit.storekit
 
 targets:
   CodexBarSync:
@@ -76,7 +75,6 @@ targets:
       - path: CodexBarMobile
         excludes:
           - "**/.DS_Store"
-      - path: StoreKit/QuotaKit.storekit
     dependencies:
       - target: CodexBarSync
       - target: CodexBarMobilePushExtension
@@ -113,7 +111,6 @@ targets:
       - path: CodexBarMobile/Models/ProviderColorPalette.swift
       - path: CodexBarMobile/Design/QuotaUsageColor.swift
       - path: CodexBarMobile/Design/ProviderBrandMark.swift
-      - path: CodexBarMobile/StoreKit/ProEntitlementCache.swift
       - path: CodexBarMobile/ProviderIcons.xcassets
       - path: CodexBarMobile/Localizable.xcstrings
     dependencies:

@@ -3,11 +3,7 @@ import Foundation
 
 extension SettingsStore {
     func costSummaryShowsInlineDashboard(for provider: UsageProvider) -> Bool {
-        // Provider-specific by design: DeepSeek's API exposes a balance card but no token-cost submenu data.
-        if provider == .deepseek {
-            return self.costUsageEnabled
-        }
-        return self.isCostUsageEffectivelyEnabled(for: provider) &&
+        self.isCostUsageEffectivelyEnabled(for: provider) &&
             self.costSummaryDisplayStyle.showsInlineSummary
     }
 

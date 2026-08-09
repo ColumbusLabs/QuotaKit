@@ -672,7 +672,6 @@ private struct MenuBarLayoutPreview: View {
                 provider: provider,
                 snapshot: snapshot,
                 supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
-                antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
                 now: now)
         }
         let scopedNamed = MenuBarLayoutSemanticWindowResolver.scopedWeeklyNamedWindow(snapshot: snapshot)

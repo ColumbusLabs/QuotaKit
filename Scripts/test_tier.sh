@@ -20,17 +20,12 @@ run_suites() {
 
 smoke_suites=(
   "CodexBarTests.ProviderArchitectureGatekeeperTests"
-  "CodexBarTests.ProviderPluginRuntimeTests"
-  "CodexBarTests.ProviderPluginParityTests"
-  "CodexBarTests.ProviderPluginDetailsParityTests"
   "CodexBarTests.SyncCoordinatorTests"
-  "CodexBarTests.CodexBarCoreResourcesTests"
 )
 
 case "$TIER" in
   smoke)
     run_suites "${smoke_suites[@]}"
-    ./Scripts/test-plugin-engines.sh
     ;;
   affected)
     if [[ -z "$BASE" ]]; then

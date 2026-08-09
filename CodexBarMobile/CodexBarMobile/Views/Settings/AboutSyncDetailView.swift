@@ -3,7 +3,6 @@ import SwiftUI
 
 struct AboutSyncDetailView: View {
     let usageData: SyncedUsageData
-    @Environment(RemoteConfigStore.self) private var remoteConfigStore
 
     private var appDisplayVersion: String {
         let version = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? "1.0.0"
@@ -41,36 +40,6 @@ struct AboutSyncDetailView: View {
                 } else {
                     LabeledContent("Mac App", value: String(localized: "Not synced"))
                 }
-            }
-
-            Section {
-                LabeledContent("Status", value: self.remoteConfigStore.configStatusSummary)
-                LabeledContent("Config Version", value: self.remoteConfigStore.config.configVersion)
-                if let fetchedAt = self.remoteConfigStore.lastFetchedAt {
-                    LabeledContent("Last Updated", value: fetchedAt.formatted(.relative(presentation: .named)))
-                }
-                LabeledContent("Setup URL", value: self.remoteConfigStore.setupDisplayURL)
-                LabeledContent("Disabled Features", value: self.disabledFeaturesSummary)
-                if let lastError = self.remoteConfigStore.lastError {
-                    Text(lastError)
-                        .font(.caption)
-                        .foregroundStyle(.orange)
-                }
-                Button {
-                    Task { await self.remoteConfigStore.refresh() }
-                } label: {
-                    if self.remoteConfigStore.isRefreshing {
-                        ProgressView()
-                    } else {
-                        Label("Refresh Remote Config", systemImage: "arrow.clockwise")
-                    }
-                }
-                .disabled(self.remoteConfigStore.isRefreshing)
-            } header: {
-                Text("Remote Config")
-            } footer: {
-                Text(
-                    "Public Columbus Labs configuration for safe OTA guardrails. It cannot change app code or access provider credentials.")
             }
 
             // MARK: Mac Update Prompt
@@ -221,15 +190,6 @@ struct AboutSyncDetailView: View {
     }
 
     @AppStorage(MobileSettingsKeys.showProviderChangelogLinks) private var showProviderChangelogLinks = false
-
-    private var disabledFeaturesSummary: String {
-        let knownDisabled = FeatureGate.allCases
-            .filter { self.remoteConfigStore.isDisabled($0) }
-            .map(\.title)
-        return knownDisabled.isEmpty
-            ? String(localized: "None")
-            : knownDisabled.joined(separator: ", ")
-    }
 
     private var syncStatusIcon: some View {
         Group {

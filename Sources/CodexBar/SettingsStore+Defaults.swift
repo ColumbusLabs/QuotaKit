@@ -342,23 +342,6 @@ extension SettingsStore {
         }
     }
 
-    private var kiroMenuBarDisplayModeRaw: String? {
-        get { self.defaultsState.kiroMenuBarDisplayModeRaw }
-        set {
-            self.defaultsState.kiroMenuBarDisplayModeRaw = newValue
-            if let raw = newValue {
-                self.userDefaults.set(raw, forKey: "kiroMenuBarDisplayMode")
-            } else {
-                self.userDefaults.removeObject(forKey: "kiroMenuBarDisplayMode")
-            }
-        }
-    }
-
-    var kiroMenuBarDisplayMode: KiroMenuBarDisplayMode {
-        get { KiroMenuBarDisplayMode(rawValue: self.kiroMenuBarDisplayModeRaw ?? "") ?? .automatic }
-        set { self.kiroMenuBarDisplayModeRaw = newValue.rawValue }
-    }
-
     var multiAccountMenuLayout: MultiAccountMenuLayout {
         get { MultiAccountMenuLayout(rawValue: self.defaultsState.multiAccountMenuLayoutRaw) ?? .segmented }
         set {
@@ -500,14 +483,6 @@ extension SettingsStore {
     private func persistMenuBarLayoutOverrides() {
         guard let data = try? JSONEncoder().encode(self.defaultsState.menuBarLayoutOverridesRaw) else { return }
         self.userDefaults.set(data, forKey: "menuBarLayoutOverrides")
-    }
-
-    var copilotIconSecondaryWindowIDRaw: String {
-        get { self.defaultsState.copilotIconSecondaryWindowIDRaw }
-        set {
-            self.defaultsState.copilotIconSecondaryWindowIDRaw = newValue
-            self.userDefaults.set(newValue, forKey: "copilotIconSecondaryWindowID")
-        }
     }
 
     var costUsageEnabled: Bool {
@@ -675,18 +650,6 @@ extension SettingsStore {
         set { self.claudeWebExtrasEnabledRaw = newValue }
     }
 
-    var copilotBudgetExtrasEnabled: Bool {
-        get { self.defaultsState.copilotBudgetExtrasEnabled }
-        set {
-            self.defaultsState.copilotBudgetExtrasEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "copilotBudgetExtrasEnabled")
-            CodexBarLog.logger(LogCategories.settings).info(
-                "Copilot budget extras updated",
-                metadata: ["enabled": newValue ? "1" : "0"])
-            self.noteBackgroundWorkSettingsChanged()
-        }
-    }
-
     private var claudeWebExtrasEnabledRaw: Bool {
         get { self.defaultsState.claudeWebExtrasEnabledRaw }
         set {
@@ -774,14 +737,6 @@ extension SettingsStore {
                 "Provider storage footprints updated",
                 metadata: ["enabled": newValue ? "1" : "0"])
             self.noteBackgroundWorkSettingsChanged()
-        }
-    }
-
-    var jetbrainsIDEBasePath: String {
-        get { self.defaultsState.jetbrainsIDEBasePath }
-        set {
-            self.defaultsState.jetbrainsIDEBasePath = newValue
-            self.userDefaults.set(newValue, forKey: "jetbrainsIDEBasePath")
         }
     }
 
@@ -979,14 +934,6 @@ extension SettingsStore {
         return updatedSelection
     }
 
-    var providerDetectionCompleted: Bool {
-        get { self.defaultsState.providerDetectionCompleted }
-        set {
-            self.defaultsState.providerDetectionCompleted = newValue
-            self.userDefaults.set(newValue, forKey: "providerDetectionCompleted")
-        }
-    }
-
     /// Whether the Providers settings pane displays providers sorted alphabetically (enabled on
     /// top). Defaults to `false`. Purely a display preference — it never rewrites the stored manual
     /// order, so turning it on sorts the display without losing the user's hand-arranged sequence.
@@ -995,28 +942,6 @@ extension SettingsStore {
         set {
             self.defaultsState.providersSortedAlphabetically = newValue
             self.userDefaults.set(newValue, forKey: "providersSortedAlphabetically")
-        }
-    }
-
-    var appLanguage: String {
-        get { self.defaultsState.appLanguageRaw ?? "" }
-        set {
-            let stored = newValue.isEmpty ? nil : newValue
-            self.defaultsState.appLanguageRaw = stored
-            if let stored {
-                self.userDefaults.set(stored, forKey: "appLanguage")
-                if self.userDefaults !== UserDefaults.standard {
-                    UserDefaults.standard.set(stored, forKey: "appLanguage")
-                }
-                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-            } else {
-                self.userDefaults.removeObject(forKey: "appLanguage")
-                if self.userDefaults !== UserDefaults.standard {
-                    UserDefaults.standard.removeObject(forKey: "appLanguage")
-                }
-                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
-            }
-            resetCodexBarLocalizationCache()
         }
     }
 

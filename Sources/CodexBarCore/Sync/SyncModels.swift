@@ -34,12 +34,7 @@ public struct ProviderIntentPayload: Codable, Sendable {
     public var enterpriseHost: String?
     public var claudeSwapEnabled: Bool?
     public var claudeSwapShowSingleAccount: Bool?
-    public var antigravityPrioritizeExhaustedQuotas: Bool?
     public var quotaWarnings: QuotaWarningConfig?
-    public var kiloKnownOrganizations: [KiloOrganization]?
-    public var kiloEnabledOrganizationIDs: [String]?
-    public var deepseekProfileID: String?
-    public var deepseekProfileScope: String?
 
     public init(config: ProviderConfig, schemaVersion: Int = CodexBarSyncSchema.currentVersion) {
         self.schemaVersion = schemaVersion
@@ -51,12 +46,7 @@ public struct ProviderIntentPayload: Codable, Sendable {
         self.enterpriseHost = config.enterpriseHost
         self.claudeSwapEnabled = config.claudeSwapEnabled
         self.claudeSwapShowSingleAccount = config.claudeSwapShowSingleAccount
-        self.antigravityPrioritizeExhaustedQuotas = config.antigravityPrioritizeExhaustedQuotas
         self.quotaWarnings = config.quotaWarnings
-        self.kiloKnownOrganizations = config.kiloKnownOrganizations
-        self.kiloEnabledOrganizationIDs = config.kiloEnabledOrganizationIDs
-        self.deepseekProfileID = config.deepseekProfileID
-        self.deepseekProfileScope = config.deepseekProfileScope
     }
 
     public func applying(
@@ -81,12 +71,7 @@ public struct ProviderIntentPayload: Codable, Sendable {
         result.enterpriseHost = self.enterpriseHost
         result.claudeSwapEnabled = self.claudeSwapEnabled
         result.claudeSwapShowSingleAccount = self.claudeSwapShowSingleAccount
-        result.antigravityPrioritizeExhaustedQuotas = self.antigravityPrioritizeExhaustedQuotas
         result.quotaWarnings = self.quotaWarnings
-        result.kiloKnownOrganizations = self.kiloKnownOrganizations
-        result.kiloEnabledOrganizationIDs = self.kiloEnabledOrganizationIDs
-        result.deepseekProfileID = self.deepseekProfileID
-        result.deepseekProfileScope = self.deepseekProfileScope
 
         if let value = secretFields[ProviderIntentSecretField.apiKey.rawValue] {
             result.apiKey = value.isEmpty ? nil : value

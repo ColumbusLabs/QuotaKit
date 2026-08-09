@@ -194,33 +194,6 @@ struct StatusItemIconObservationSignatureTests {
     }
 
     @Test
-    func `store icon observation signature tracks selected copilot budget`() throws {
-        let (settings, store, controller) = self.makeController(
-            suiteName: "StatusItemIconObservationSignatureTests-copilot-budget")
-        defer { controller.releaseStatusItemsForTesting() }
-
-        let registry = ProviderRegistry.shared
-        let codexMetadata = try #require(registry.metadata[.codex])
-        let copilotMetadata = try #require(registry.metadata[.copilot])
-        settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: false)
-        settings.setProviderEnabled(provider: .copilot, metadata: copilotMetadata, enabled: true)
-        settings.selectedMenuProvider = .copilot
-        settings.copilotBudgetExtrasEnabled = true
-        settings.copilotIconSecondaryWindowID = "copilot-budget-agent"
-
-        store._setSnapshotForTesting(
-            Self.makeCopilotSnapshot(budgetUsedPercent: 25),
-            provider: .copilot)
-        let baseline = controller.storeIconObservationSignature()
-
-        store._setSnapshotForTesting(
-            Self.makeCopilotSnapshot(budgetUsedPercent: 75),
-            provider: .copilot)
-
-        #expect(controller.storeIconObservationSignature() != baseline)
-    }
-
-    @Test
     func `store icon observation signature changes when credit fallback changes`() {
         let (_, store, controller) = self.makeController(
             suiteName: "StatusItemIconObservationSignatureTests-credit-fallback")
@@ -398,7 +371,7 @@ struct StatusItemIconObservationSignatureTests {
         store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
         defer { store._test_widgetSnapshotSaveOverride = nil }
 
-        settings.zaiAPIToken = "test-token"
+        settings.codexCookieSource = .manual
         try? await Task.sleep(nanoseconds: 100_000_000)
         await store.widgetSnapshotPersistTask?.value
 
@@ -455,36 +428,6 @@ struct StatusItemIconObservationSignatureTests {
                 accountEmail: email,
                 accountOrganization: nil,
                 loginMethod: "plus"))
-    }
-
-    private static func makeCopilotSnapshot(budgetUsedPercent: Double) -> UsageSnapshot {
-        UsageSnapshot(
-            primary: RateWindow(
-                usedPercent: 10,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: nil),
-            secondary: RateWindow(
-                usedPercent: 20,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: nil),
-            extraRateWindows: [
-                NamedRateWindow(
-                    id: "copilot-budget-agent",
-                    title: "Budget - Copilot Agent Premium Requests",
-                    window: RateWindow(
-                        usedPercent: budgetUsedPercent,
-                        windowMinutes: nil,
-                        resetsAt: nil,
-                        resetDescription: nil)),
-            ],
-            updatedAt: Date(timeIntervalSince1970: 100),
-            identity: ProviderIdentitySnapshot(
-                providerID: .copilot,
-                accountEmail: "copilot@example.com",
-                accountOrganization: nil,
-                loginMethod: "individual"))
     }
 
     private static func makeTokenSnapshot(

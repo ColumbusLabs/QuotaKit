@@ -1,5 +1,5 @@
 ---
-summary: "QuotaKit CLI configuration commands for provider toggles, API keys, and isolated config files."
+summary: "QuotaKit CLI configuration commands for the four supported providers and isolated config files."
 read_when:
   - Using quotakit config from scripts or CI
   - Enabling or disabling providers without opening Settings
@@ -15,6 +15,8 @@ for migrated installs.
 The CLI writes the file with `0600` permissions.
 
 ## Providers
+
+QuotaKit supports Codex, Claude, Cursor, and Grok. Their CLI names are `codex`, `claude`, `cursor`, and `grok`.
 
 List persistent provider toggles:
 
@@ -38,51 +40,21 @@ If every provider is disabled, `quotakit usage` with no `--provider` prints no t
 
 ## API keys
 
-API keys are stored under the provider entry in config:
+Of the four supported providers, only Claude accepts a config-backed API key. This is an Anthropic Admin API key used
+for organization usage data:
 
 ```bash
-printf '%s' "$ELEVENLABS_API_KEY" | quotakit config set-api-key --provider elevenlabs --stdin
+printf '%s' "$ANTHROPIC_ADMIN_KEY" | quotakit config set-api-key --provider claude --stdin
 ```
 
 `set-api-key` enables the provider by default. Add `--no-enable` when you only want to save the key:
 
 ```bash
-printf '%s' "$OPENROUTER_API_KEY" | quotakit config set-api-key --provider openrouter --stdin --no-enable
+printf '%s' "$ANTHROPIC_ADMIN_KEY" | quotakit config set-api-key --provider claude --stdin --no-enable
 ```
 
-Useful examples:
-
-```bash
-printf '%s' "$OPENAI_ADMIN_KEY" | quotakit config set-api-key --provider openai --stdin
-printf '%s' "$ANTHROPIC_ADMIN_KEY" | quotakit config set-api-key --provider claude --stdin
-printf '%s' "$DEEPGRAM_API_KEY" | quotakit config set-api-key --provider deepgram --stdin
-printf '%s' "$GROQ_API_KEY" | quotakit config set-api-key --provider groq --stdin
-printf '%s' "$LLM_PROXY_API_KEY" | quotakit config set-api-key --provider llmproxy --stdin
-printf '%s' "$Z_AI_API_KEY" | quotakit config set-api-key --provider zai --stdin
-printf '%s' "$XAI_MANAGEMENT_API_KEY" | quotakit config set-api-key --provider xai --stdin
-```
-
-For a z.ai team account:
-
-```bash
-printf '%s' "$Z_AI_API_KEY" | quotakit config set-api-key --provider zai --stdin \
-  --label Team \
-  --usage-scope team \
-  --organization-id org_... \
-  --workspace-id proj_...
-```
-
-Use single-line BigModel organization/project IDs; see [z.ai](zai.md).
-
-Only providers that consume config-backed API keys accept this command. Admin API providers may require a key with
-organization/usage permissions, not a normal inference key. The `xai` provider reads xAI developer-platform billing
-with a Management key plus a team ID (set `workspaceID` in the provider entry, `XAI_TEAM_ID`, or the app settings
-pane); inference API keys are not accepted. The separate Grok provider tracks consumer Grok/SuperGrok subscriptions
-through its own browser/CLI session and takes no API key, so enable it with
-`quotakit config enable --provider grok`.
-
-LLM Proxy also needs a base URL. Use `LLM_PROXY_BASE_URL` for CLI runs, or add `"enterpriseHost"` to the provider entry
-in the QuotaKit config file.
+Codex uses OAuth or the Codex CLI. Cursor and Grok use their existing session/browser or CLI authentication. Passing
+any of those three providers to `set-api-key` returns an unsupported-provider error.
 
 ## Isolated config files
 
@@ -116,4 +88,5 @@ quotakit config validate
 quotakit config dump --pretty
 ```
 
-`dump` prints normalized config, including providers omitted from a hand-written file.
+`dump` prints normalized config, including supported providers omitted from a hand-written file. Unknown entries from
+an older config remain decodable for migration compatibility, but the CLI does not treat them as supported providers.

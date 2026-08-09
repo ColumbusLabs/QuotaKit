@@ -30,7 +30,8 @@ final class QuotaKitWidgetTests: XCTestCase {
             PreviewData.sampleSnapshot.syncTimestamp.timeIntervalSince1970,
             accuracy: 1.0)
         XCTAssertEqual(decoded.providers.count, snapshot.providers.count)
-        XCTAssertEqual(decoded.primaryProvider?.providerName, "z.ai")
+        XCTAssertEqual(decoded.primaryProvider?.providerName, snapshot.primaryProvider?.providerName)
+        XCTAssertTrue(decoded.providers.allSatisfy { QuotaKitProviderCatalog.contains($0.id) })
         XCTAssertTrue(decoded.providers.contains { $0.providerName == "Claude" })
         XCTAssertEqual(
             decoded.providers.first(where: { $0.providerName == "Claude" })?
@@ -132,7 +133,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(snapshot.providers.dropFirst().first?.id, "claude")
     }
 
-    func testStoredWidgetSnapshotAppliesProviderPreferencesAtReadTime() {
+    func testStoredWidgetSnapshotDropsRetiredProvidersAtReadTime() {
         let now = Date(timeIntervalSince1970: 1_803_000_000)
         let snapshot = QuotaKitWidgetSnapshot(
             generatedAt: now,
@@ -159,7 +160,8 @@ final class QuotaKitWidgetTests: XCTestCase {
                 selectedProviderID: "claude"))
 
         XCTAssertEqual(reordered.primaryProvider?.id, "claude")
-        XCTAssertEqual(snapshot.primaryProvider?.id, "zai")
+        XCTAssertEqual(snapshot.primaryProvider?.id, "claude")
+        XCTAssertEqual(snapshot.providers.count, 1)
     }
 
     func testWidgetSnapshotUnknownWindowIdentityDecodesAsNil() throws {
@@ -326,43 +328,6 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertEqual(window.resetsAt, Date(timeIntervalSince1970: 1_803_604_800))
     }
 
-    func testProEntitlementCacheAcceptsOnlyQuotaKitProductID() {
-        let defaults = Self.makeDefaults()
-        defer { ProEntitlementCacheStore.clear(defaults: defaults) }
-        let cache = ProEntitlementCache(
-            productID: ProductConfig.storeKitLifetimeProductID,
-            verifiedAt: Date(timeIntervalSince1970: 1_803_000_000))
-
-        ProEntitlementCacheStore.save(cache, defaults: defaults)
-
-        XCTAssertEqual(ProEntitlementCacheStore.load(defaults: defaults), cache)
-
-        ProEntitlementCacheStore.save(
-            ProEntitlementCache(
-                productID: "com.example.other",
-                verifiedAt: Date()),
-            defaults: defaults)
-
-        XCTAssertNil(ProEntitlementCacheStore.load(defaults: defaults))
-    }
-
-    func testProEntitlementCacheMigratesFromLegacyWidgetProCacheKey() {
-        let defaults = Self.makeDefaults()
-        defer {
-            defaults.removeObject(forKey: ProEntitlementCacheStore.key)
-            defaults.removeObject(forKey: ProEntitlementCacheStore.legacyWidgetProCacheKey)
-        }
-
-        let legacyPayload = """
-        {"isProUnlocked":true,"productID":"\(ProductConfig.storeKitLifetimeProductID)","verifiedAt":1803000000}
-        """.data(using: .utf8)!
-        defaults.set(legacyPayload, forKey: ProEntitlementCacheStore.legacyWidgetProCacheKey)
-
-        let loaded = ProEntitlementCacheStore.load(defaults: defaults)
-        XCTAssertEqual(loaded?.productID, ProductConfig.storeKitLifetimeProductID)
-        XCTAssertNil(defaults.data(forKey: ProEntitlementCacheStore.legacyWidgetProCacheKey))
-    }
-
     func testWidgetSnapshotStoreRoundTripsThroughTempDirectory() throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("quotakit-widget-store-\(UUID().uuidString)", isDirectory: true)
@@ -418,19 +383,16 @@ final class QuotaKitWidgetTests: XCTestCase {
         WidgetSnapshotPublisher.publish(
             from: first,
             generatedAt: generatedAt,
-            isProUnlocked: true,
             saveSnapshot: { savedSnapshots.append($0) },
             reloadTimelines: { reloadCount += 1 })
         WidgetSnapshotPublisher.publish(
             from: first,
             generatedAt: generatedAt.addingTimeInterval(60),
-            isProUnlocked: true,
             saveSnapshot: { savedSnapshots.append($0) },
             reloadTimelines: { reloadCount += 1 })
         WidgetSnapshotPublisher.publish(
             from: second,
             generatedAt: generatedAt.addingTimeInterval(120),
-            isProUnlocked: true,
             saveSnapshot: { savedSnapshots.append($0) },
             reloadTimelines: { reloadCount += 1 })
 
@@ -537,7 +499,7 @@ final class QuotaKitWidgetTests: XCTestCase {
         let catalog = try JSONDecoder().decode(StringCatalog.self, from: data)
         let entry = try XCTUnwrap(catalog.strings["Synced %@ ago"])
 
-        for locale in ["en", "ja", "zh-Hans", "zh-Hant"] {
+        for locale in ["en"] {
             let localization = try XCTUnwrap(entry.localizations[locale])
             XCTAssertEqual(localization.stringUnit.state, "translated")
             XCTAssertFalse(localization.stringUnit.value.isEmpty)
@@ -563,11 +525,28 @@ final class QuotaKitWidgetTests: XCTestCase {
 
         for key in keys {
             let entry = try XCTUnwrap(catalog.strings[key])
-            for locale in ["en", "ja", "zh-Hans", "zh-Hant"] {
+            for locale in ["en"] {
                 let localization = try XCTUnwrap(entry.localizations[locale])
                 XCTAssertEqual(localization.stringUnit.state, "translated")
                 XCTAssertFalse(localization.stringUnit.value.isEmpty)
             }
+        }
+    }
+
+    func testMobileCatalogIsEnglishOnlyAndEveryEntryIsTranslated() throws {
+        let testFileURL = URL(fileURLWithPath: #filePath)
+        let catalogURL = testFileURL
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .appendingPathComponent("CodexBarMobile/Localizable.xcstrings")
+        let data = try Data(contentsOf: catalogURL)
+        let catalog = try JSONDecoder().decode(StringCatalog.self, from: data)
+
+        for (key, entry) in catalog.strings {
+            XCTAssertEqual(Set(entry.localizations.keys), ["en"], "Unexpected locales for \(key)")
+            let english = try XCTUnwrap(entry.localizations["en"])
+            XCTAssertEqual(english.stringUnit.state, "translated")
+            XCTAssertFalse(english.stringUnit.value.isEmpty)
         }
     }
 
@@ -672,9 +651,9 @@ final class QuotaKitWidgetTests: XCTestCase {
 
     func testWidgetProviderPreferencesOrderingHonorsSavedOrderAndAppendsNewProvidersByName() {
         let items = [
-            WidgetProviderPreferenceTestItem(id: "zai", name: "z.ai"),
+            WidgetProviderPreferenceTestItem(id: "grok", name: "Grok"),
             WidgetProviderPreferenceTestItem(id: "claude", name: "Claude"),
-            WidgetProviderPreferenceTestItem(id: "gemini", name: "Gemini"),
+            WidgetProviderPreferenceTestItem(id: "cursor", name: "Cursor"),
             WidgetProviderPreferenceTestItem(id: "codex", name: "Codex"),
         ]
 
@@ -686,12 +665,12 @@ final class QuotaKitWidgetTests: XCTestCase {
             providerID: \.id,
             providerName: \.name)
 
-        XCTAssertEqual(ordered.map(\.id), ["codex", "claude", "gemini", "zai"])
+        XCTAssertEqual(ordered.map(\.id), ["codex", "claude", "cursor", "grok"])
     }
 
     func testWidgetProviderPreferencesEmptyOrderPreservesInputOrder() {
         let items = [
-            WidgetProviderPreferenceTestItem(id: "zai", name: "z.ai"),
+            WidgetProviderPreferenceTestItem(id: "grok", name: "Grok"),
             WidgetProviderPreferenceTestItem(id: "claude", name: "Claude"),
             WidgetProviderPreferenceTestItem(id: "codex", name: "Codex"),
         ]
@@ -702,12 +681,12 @@ final class QuotaKitWidgetTests: XCTestCase {
             providerID: \.id,
             providerName: \.name)
 
-        XCTAssertEqual(ordered.map(\.id), ["zai", "claude", "codex"])
+        XCTAssertEqual(ordered.map(\.id), ["grok", "claude", "codex"])
     }
 
     func testWidgetProviderPreferencesSelectionFallsBackToOrderedProvider() {
         let selected = QuotaKitWidgetProviderPreferencesStore.selectedProviderID(
-            availableProviderIDs: ["zai", "claude", "codex"],
+            availableProviderIDs: ["grok", "claude", "codex"],
             preferences: QuotaKitWidgetProviderPreferences(
                 providerOrderIDs: ["codex", "claude"],
                 selectedProviderID: "missing"))
@@ -1264,26 +1243,12 @@ final class QuotaKitWidgetTests: XCTestCase {
         XCTAssertTrue(QuotaKitWidgetPresentation.displayWindows(for: provider, displayMode: .both).isEmpty)
     }
 
-    func testLockedWidgetPlaceholderRendersForAllFamilies() {
-        for family in Self.widgetFamilies {
-            let view = QuotaKitWidgetView(
-                entry: .init(
-                    date: Date(),
-                    snapshot: QuotaKitWidgetPreviewData.snapshot,
-                    isUnlocked: false,
-                    isPreview: false),
-                overrideFamily: family)
-            XCTAssertNotNil(self.renderToImage(view), "Expected locked widget to render for \(family)")
-        }
-    }
-
     func testUnlockedWidgetRendersForAllFamilies() {
         for family in Self.widgetFamilies {
             let view = QuotaKitWidgetView(
                 entry: .init(
                     date: Date(),
                     snapshot: QuotaKitWidgetPreviewData.snapshot,
-                    isUnlocked: true,
                     isPreview: false),
                 overrideFamily: family)
             XCTAssertNotNil(self.renderToImage(view), "Expected unlocked widget to render for \(family)")
@@ -1296,7 +1261,6 @@ final class QuotaKitWidgetTests: XCTestCase {
                 entry: .init(
                     date: Date(),
                     snapshot: QuotaKitWidgetPreviewData.snapshot,
-                    isUnlocked: true,
                     isPreview: false,
                     displayMode: .both),
                 overrideFamily: family)
@@ -1315,7 +1279,6 @@ final class QuotaKitWidgetTests: XCTestCase {
                 entry: .init(
                     date: Date(timeIntervalSince1970: 1_803_000_300),
                     snapshot: snapshot,
-                    isUnlocked: true,
                     isPreview: false,
                     displayMode: .both),
                 overrideFamily: family)
@@ -1335,7 +1298,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: Date(timeIntervalSince1970: 1_803_000_300),
                 snapshot: snapshot,
-                isUnlocked: true,
                 isPreview: false,
                 displayMode: .session),
             overrideFamily: .accessoryRectangular)
@@ -1376,7 +1338,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: Date(timeIntervalSince1970: 1_803_000_300),
                 snapshot: snapshot,
-                isUnlocked: true,
                 isPreview: false,
                 displayMode: .both),
             overrideFamily: .accessoryRectangular)
@@ -1395,7 +1356,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: Date(),
                 snapshot: QuotaKitWidgetPreviewData.snapshot,
-                isUnlocked: true,
                 isPreview: false,
                 displayMode: .session),
             overrideFamily: .systemSmall)
@@ -1413,7 +1373,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: Date(),
                 snapshot: QuotaKitWidgetPreviewData.snapshot,
-                isUnlocked: true,
                 isPreview: false,
                 displayMode: .weekly),
             overrideFamily: .systemSmall)
@@ -1463,7 +1422,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: snapshot.generatedAt,
                 snapshot: snapshot,
-                isUnlocked: true,
                 isPreview: true,
                 displayMode: .weekly),
             overrideFamily: .systemSmall)
@@ -1484,7 +1442,6 @@ final class QuotaKitWidgetTests: XCTestCase {
             entry: .init(
                 date: snapshot.generatedAt,
                 snapshot: snapshot,
-                isUnlocked: true,
                 isPreview: true,
                 displayMode: .weekly),
             overrideFamily: .systemSmall)
@@ -1507,7 +1464,6 @@ final class QuotaKitWidgetTests: XCTestCase {
                 entry: .init(
                     date: Date(),
                     snapshot: nil,
-                    isUnlocked: true,
                     isPreview: false),
                 overrideFamily: family)
             XCTAssertNotNil(self.renderToImage(view), "Expected empty widget to render for \(family)")

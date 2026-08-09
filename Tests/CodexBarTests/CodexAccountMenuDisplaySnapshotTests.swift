@@ -11,14 +11,9 @@ struct CodexAccountMenuDisplaySnapshotTests {
         let suite = "CodexAccountMenuDisplaySnapshotTests-\(UUID().uuidString)"
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        defaults.set(true, forKey: "providerDetectionCompleted")
-        let settings = SettingsStore(
+        return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
-        settings.providerDetectionCompleted = true
-        return settings
+            configStore: testConfigStore(suiteName: suite))
     }
 
     private func enableOnlyCodex(_ settings: SettingsStore) {

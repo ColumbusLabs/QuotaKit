@@ -1,8 +1,8 @@
 # Agent Sessions
 
-QuotaKit can list live Codex, Claude Code, pi, and OMP sessions on this Mac and other Macs or Linux hosts reachable over SSH.
+QuotaKit can list live Codex, Claude Code, pi, and OMP sessions on this Mac and other Macs reachable over SSH.
 
-Enable **Settings → Menu → Agent sessions**. Local sessions refresh every 30 seconds. Remote sessions refresh every 60 seconds and whenever the menu opens. Tailscale discovery includes online macOS and Linux peers; add extra SSH destinations as a comma-separated list, such as `user@host`.
+Enable **Settings → Menu → Agent sessions**. Local sessions refresh every 30 seconds. Remote sessions refresh every 60 seconds and whenever the menu opens. Tailscale discovery includes online Macs; add extra Mac SSH destinations as a comma-separated list, such as `user@host`.
 
 Choose the row label format in the same settings section:
 

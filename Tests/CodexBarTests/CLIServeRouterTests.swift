@@ -309,18 +309,18 @@ struct CLIServeRouterTests {
         let store = testConfigStore(suiteName: "CLIServeRouterTests-serve-config-freshness-\(UUID().uuidString)")
         defer { try? store.deleteIfPresent() }
         var firstConfig = CodexBarConfig.makeDefault()
-        firstConfig.setProviderConfig(ProviderConfig(id: .opencodego, enabled: false))
+        firstConfig.setProviderConfig(ProviderConfig(id: .grok, enabled: false))
         try store.save(firstConfig)
 
         let firstSnapshot = try CodexBarCLI.loadServeConfigSnapshot(configStore: store)
 
         var secondConfig = firstConfig
-        secondConfig.setProviderConfig(ProviderConfig(id: .opencodego, enabled: true))
+        secondConfig.setProviderConfig(ProviderConfig(id: .grok, enabled: true))
         try store.save(secondConfig)
         let secondSnapshot = try CodexBarCLI.loadServeConfigSnapshot(configStore: store)
 
-        #expect(!firstSnapshot.config.enabledProviders().contains(.opencodego))
-        #expect(secondSnapshot.config.enabledProviders().contains(.opencodego))
+        #expect(!firstSnapshot.config.enabledProviders().contains(.grok))
+        #expect(secondSnapshot.config.enabledProviders().contains(.grok))
         #expect(firstSnapshot.cacheToken != secondSnapshot.cacheToken)
         let operationKey = try CodexBarCLI.serveOperationKey(kind: "usage", provider: nil)
         #expect(try operationKey == (CodexBarCLI.serveOperationKey(kind: "usage", provider: nil)))
@@ -371,7 +371,7 @@ struct CLIServeRouterTests {
 
     @Test
     func `serve usage collection bounds a hung provider without blocking others`() async {
-        let providers: [UsageProvider] = [.codex, .claude, .gemini]
+        let providers: [UsageProvider] = [.codex, .claude, .grok]
         let start = Date()
         let output = await CodexBarCLI.serveCollectUsageOutputs(
             providers: providers,
@@ -388,7 +388,7 @@ struct CLIServeRouterTests {
         // The hung provider must not serialize or stall the others.
         #expect(elapsed < 5)
         // Fast providers render in caller order; the hung one yields no section.
-        #expect(output.sections == ["ok:codex", "ok:gemini"])
+        #expect(output.sections == ["ok:codex", "ok:grok"])
         // The hung provider degrades to a single provider error row.
         #expect(output.payload.count == 1)
         #expect(output.payload.first?.provider == UsageProvider.claude.rawValue)
@@ -493,7 +493,7 @@ struct CLIServeRouterTests {
             account: nil,
             codexVisibleAccount: ambiguous) == nil)
         #expect(CodexBarCLI.usageCacheAccountKey(
-            provider: .antigravity,
+            provider: .grok,
             account: nil,
             codexVisibleAccount: nil) == nil)
     }
@@ -658,13 +658,13 @@ struct CLIServeRouterTests {
         let counter = ServeTestCounter()
 
         let first = await CodexBarCLI.cachedServeResponse(
-            key: "usage:antigravity",
+            key: "usage:grok",
             cache: cache,
             refreshInterval: 0.05,
             requestTimeout: 1)
         {
             let call = await counter.increment()
-            return Self.response("[{\"provider\":\"antigravity\",\"call\":\(call)}]")
+            return Self.response("[{\"provider\":\"grok\",\"call\":\(call)}]")
         }
         #expect(first.status == .ok)
 
@@ -672,14 +672,14 @@ struct CLIServeRouterTests {
         try? await Task.sleep(nanoseconds: 100_000_000)
 
         let failed = await CodexBarCLI.cachedServeResponse(
-            key: "usage:antigravity",
+            key: "usage:grok",
             cache: cache,
             refreshInterval: 0.05,
             requestTimeout: 1)
         {
             _ = await counter.increment()
             return Self.response(
-                "[{\"provider\":\"antigravity\",\"error\":{\"message\":\"transient\"}}]")
+                "[{\"provider\":\"grok\",\"error\":{\"message\":\"transient\"}}]")
         }
 
         // Transient failure is masked by the last good payload.
@@ -691,13 +691,13 @@ struct CLIServeRouterTests {
         try? await Task.sleep(nanoseconds: 100_000_000)
 
         let recovered = await CodexBarCLI.cachedServeResponse(
-            key: "usage:antigravity",
+            key: "usage:grok",
             cache: cache,
             refreshInterval: 0.05,
             requestTimeout: 1)
         {
             let call = await counter.increment()
-            return Self.response("[{\"provider\":\"antigravity\",\"call\":\(call)}]")
+            return Self.response("[{\"provider\":\"grok\",\"call\":\(call)}]")
         }
 
         #expect(recovered.status == .ok)
@@ -806,8 +806,8 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","account":"personal","call":1},
-              {"provider":"antigravity","account":"work","call":1},
-              {"provider":"antigravity","account":"personal","call":1}
+              {"provider":"grok","account":"work","call":1},
+              {"provider":"grok","account":"personal","call":1}
             ]
             """)
         }
@@ -823,16 +823,16 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","account":"personal","call":2},
-              {"provider":"antigravity","account":"work","error":{"message":"transient"}},
-              {"provider":"antigravity","account":"personal","call":2}
+              {"provider":"grok","account":"work","error":{"message":"transient"}},
+              {"provider":"grok","account":"personal","call":2}
             ]
             """)
         }
         let rows = try Self.jsonRows(refreshed)
 
         #expect(Self.row(rows, provider: "codex", account: "personal")?["call"] as? Int == 2)
-        #expect(Self.row(rows, provider: "antigravity", account: "work")?["call"] as? Int == 1)
-        #expect(Self.row(rows, provider: "antigravity", account: "personal")?["call"] as? Int == 2)
+        #expect(Self.row(rows, provider: "grok", account: "work")?["call"] as? Int == 1)
+        #expect(Self.row(rows, provider: "grok", account: "personal")?["call"] as? Int == 2)
         #expect(rows.allSatisfy { $0["error"] == nil })
     }
 
@@ -849,7 +849,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":1},
-              {"provider":"antigravity","call":1}
+              {"provider":"grok","call":1}
             ]
             """)
         }
@@ -864,7 +864,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":2},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
@@ -879,14 +879,14 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","error":{"message":"transient"}},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
         let rows = try Self.jsonRows(failed)
 
         #expect(Self.row(rows, provider: "codex")?["call"] as? Int == 2)
-        #expect(Self.row(rows, provider: "antigravity")?["call"] as? Int == 1)
+        #expect(Self.row(rows, provider: "grok")?["call"] as? Int == 1)
     }
 
     @Test
@@ -902,7 +902,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":1},
-              {"provider":"antigravity","call":1}
+              {"provider":"grok","call":1}
             ]
             """)
         }
@@ -917,7 +917,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":2},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
@@ -960,7 +960,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":2},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
@@ -977,7 +977,7 @@ struct CLIServeRouterTests {
         }
         #expect(timedOut.status == .gatewayTimeout)
         #expect(!Self.bodyString(timedOut).contains("\"call\":2"))
-        #expect(!Self.bodyString(timedOut).contains("antigravity"))
+        #expect(!Self.bodyString(timedOut).contains("grok"))
     }
 
     @Test
@@ -991,7 +991,7 @@ struct CLIServeRouterTests {
                 """
                 [
                   {"provider":"codex","call":1},
-                  {"provider":"antigravity","call":1}
+                  {"provider":"grok","call":1}
                 ]
                 """),
             for: "usage:",
@@ -1004,7 +1004,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":2},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """),
             for: "usage:",
@@ -1047,7 +1047,7 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","call":2},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
@@ -1062,14 +1062,14 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","error":{"message":"transient"}},
-              {"provider":"antigravity","error":{"message":"transient"}}
+              {"provider":"grok","error":{"message":"transient"}}
             ]
             """)
         }
         let rows = try Self.jsonRows(failed)
 
         #expect(Self.row(rows, provider: "codex")?["call"] as? Int == 2)
-        #expect(Self.row(rows, provider: "antigravity")?["error"] != nil)
+        #expect(Self.row(rows, provider: "grok")?["error"] != nil)
     }
 
     @Test
@@ -1096,14 +1096,14 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","account":"personal","call":2},
-              {"provider":"antigravity","account":"work","error":{"message":"transient"}}
+              {"provider":"grok","account":"work","error":{"message":"transient"}}
             ]
             """)
         }
         let rows = try Self.jsonRows(refreshed)
 
         #expect(Self.row(rows, provider: "codex", account: "personal")?["call"] as? Int == 2)
-        #expect(Self.row(rows, provider: "antigravity", account: "work")?["error"] != nil)
+        #expect(Self.row(rows, provider: "grok", account: "work")?["error"] != nil)
     }
 
     @Test
@@ -1210,7 +1210,7 @@ struct CLIServeRouterTests {
                 """
                 [
                   {"provider":"codex","account":"shared","error":{"message":"transient"}},
-                  {"provider":"antigravity","account":"work","call":2}
+                  {"provider":"grok","account":"work","call":2}
                 ]
                 """,
                 usageCacheKeys: ["account-2", "account-3"])
@@ -1218,7 +1218,7 @@ struct CLIServeRouterTests {
         let rows = try Self.jsonRows(refreshed)
 
         #expect(Self.row(rows, provider: "codex", account: "shared")?["error"] != nil)
-        #expect(Self.row(rows, provider: "antigravity", account: "work")?["call"] as? Int == 2)
+        #expect(Self.row(rows, provider: "grok", account: "work")?["call"] as? Int == 2)
     }
 
     @Test
@@ -1288,7 +1288,7 @@ struct CLIServeRouterTests {
             refreshInterval: 0.05,
             requestTimeout: 1)
         {
-            Self.response(#"[{"provider":"antigravity","account":"work","call":2}]"#)
+            Self.response(#"[{"provider":"grok","account":"work","call":2}]"#)
         }
         try? await Task.sleep(nanoseconds: 100_000_000)
 
@@ -1301,14 +1301,14 @@ struct CLIServeRouterTests {
             Self.response("""
             [
               {"provider":"codex","account":"shared","error":{"message":"transient"}},
-              {"provider":"antigravity","account":"work","call":3}
+              {"provider":"grok","account":"work","call":3}
             ]
             """)
         }
         let rows = try Self.jsonRows(refreshed)
 
         #expect(Self.row(rows, provider: "codex", account: "shared")?["error"] != nil)
-        #expect(Self.row(rows, provider: "antigravity", account: "work")?["call"] as? Int == 3)
+        #expect(Self.row(rows, provider: "grok", account: "work")?["call"] as? Int == 3)
     }
 
     @Test
@@ -1326,7 +1326,7 @@ struct CLIServeRouterTests {
                 [
                   {"provider":"codex","account":"shared","slot":"first","call":1},
                   {"provider":"codex","account":"shared","slot":"second","call":1},
-                  {"provider":"antigravity","account":"work","call":1}
+                  {"provider":"grok","account":"work","call":1}
                 ]
                 """,
                 usageCacheKeys: [nil, nil, nil])
@@ -1354,7 +1354,7 @@ struct CLIServeRouterTests {
                     "slot":"second",
                     "error":{"message":"transient"}
                   },
-                  {"provider":"antigravity","account":"work","error":{"message":"transient"}}
+                  {"provider":"grok","account":"work","error":{"message":"transient"}}
                 ]
                 """,
                 usageCacheKeys: [nil, nil, nil])
@@ -1377,7 +1377,7 @@ struct CLIServeRouterTests {
             requestTimeout: 1)
         {
             Self.response(
-                #"[{"provider":"antigravity","account":"first@example.com","call":1}]"#,
+                #"[{"provider":"grok","account":"first@example.com","call":1}]"#,
                 usageCacheKeys: [nil])
         }
         try? await Task.sleep(nanoseconds: 100_000_000)
@@ -1390,7 +1390,7 @@ struct CLIServeRouterTests {
         {
             try? await Task.sleep(nanoseconds: 200_000_000)
             return Self.response(
-                #"[{"provider":"antigravity","account":"second@example.com","call":2}]"#,
+                #"[{"provider":"grok","account":"second@example.com","call":2}]"#,
                 usageCacheKeys: [nil])
         }
 
@@ -1413,7 +1413,7 @@ struct CLIServeRouterTests {
                 """
                 [
                   {"provider":"codex","account":"stable@example.com","call":1},
-                  {"provider":"antigravity","account":"ambient@example.com","call":1}
+                  {"provider":"grok","account":"ambient@example.com","call":1}
                 ]
                 """,
                 usageCacheKeys: ["account-1", nil])

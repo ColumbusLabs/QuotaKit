@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-import { execFileSync } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,21 +7,44 @@ const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), ".."
 const resources = path.join(repoRoot, "Sources/CodexBar/Resources");
 const english = readCatalog("en");
 const englishKeys = Object.keys(english).sort();
-const strictLocales = ["ar", "ca", "fa", "th"];
-// Catalogs that have reached full English-key coverage. New locales can remain
-// warning-only while they are being bootstrapped, then join this list once complete.
-const completeLocales = [
-  "ar", "ca", "de", "es", "fa", "fr", "gl", "id", "it", "ja", "ko", "nl", "pl", "pt-BR", "ru", "sv",
-  "th", "tr", "uk", "vi", "zh-Hans", "zh-Hant",
-];
-const languageKeys = ["language_arabic", "language_persian", "language_thai"];
+const strictLocales = [];
+const completeLocales = [];
+const languageKeys = [];
 const isTest = process.argv.includes("--test");
 
 function readCatalog(locale) {
   const file = path.join(resources, `${locale}.lproj/Localizable.strings`);
   if (!fs.existsSync(file)) return null;
-  const output = execFileSync("plutil", ["-convert", "json", "-o", "-", file], { encoding: "utf8" });
-  return JSON.parse(output);
+  return parseStringsCatalog(fs.readFileSync(file, "utf8"), file);
+}
+
+function parseStringsCatalog(source, label = "Localizable.strings") {
+  const catalog = {};
+  const entryPattern = /^("(?:\\.|[^"\\])*")\s*=\s*("(?:\\.|[^"\\])*");$/;
+
+  for (const [index, rawLine] of source.replace(/^\uFEFF/, "").split(/\r?\n/).entries()) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith("//") || (line.startsWith("/*") && line.endsWith("*/"))) continue;
+
+    const match = line.match(entryPattern);
+    if (!match) throw new Error(`${label}:${index + 1}: malformed strings entry`);
+
+    let key;
+    let value;
+    try {
+      key = JSON.parse(match[1]);
+      value = JSON.parse(match[2]);
+    } catch (error) {
+      throw new Error(`${label}:${index + 1}: invalid string escape: ${error.message}`);
+    }
+
+    if (Object.hasOwn(catalog, key)) {
+      throw new Error(`${label}:${index + 1}: duplicate key ${JSON.stringify(key)}`);
+    }
+    catalog[key] = value;
+  }
+
+  return catalog;
 }
 
 function tokenSignature(value) {
@@ -75,6 +97,24 @@ function swiftInterpolationTokens(value) {
 }
 
 if (isTest) {
+  const parsedCatalog = parseStringsCatalog(String.raw`
+    /* comment */
+    "alpha" = "line\nvalue";
+    "quote" = "say \"hi\"";
+    "slash" = "a\\b";
+    "unicode" = "\u2026";
+  `, "fixture.strings");
+  assertEqual(parsedCatalog, {
+    alpha: "line\nvalue",
+    quote: "say \"hi\"",
+    slash: "a\\b",
+    unicode: "…",
+  }, "strings parser");
+  assertThrows(
+    () => parseStringsCatalog('"alpha" = "one";\n"alpha" = "two";', "duplicate.strings"),
+    "duplicate key",
+  );
+  assertThrows(() => parseStringsCatalog('"alpha" = "unterminated;', "malformed.strings"), "malformed strings entry");
   assertEqual(tokenSignature("%1$@ · %2$d"), tokenSignature("%2$d · %1$@"), "positional reorder");
   assertNotEqual(tokenSignature("%1$@ · %2$d"), tokenSignature("%1$d · %2$@"), "positional type swap");
   assertEqual(tokenSignature("%.0f%% used"), tokenSignature("%.0f%% verbraucht"), "escaped percent");
@@ -207,4 +247,14 @@ function assertNotEqual(actual, expected, label) {
   if (JSON.stringify(actual) === JSON.stringify(expected)) {
     throw new Error(`${label}: signatures unexpectedly match`);
   }
+}
+
+function assertThrows(operation, expectedMessage) {
+  try {
+    operation();
+  } catch (error) {
+    if (error.message.includes(expectedMessage)) return;
+    throw new Error(`expected error containing ${JSON.stringify(expectedMessage)}, got ${JSON.stringify(error.message)}`);
+  }
+  throw new Error(`expected error containing ${JSON.stringify(expectedMessage)}`);
 }

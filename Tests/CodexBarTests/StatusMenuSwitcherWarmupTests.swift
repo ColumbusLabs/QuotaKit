@@ -14,7 +14,6 @@ final class StatusMenuSwitcherWarmupTests: XCTestCase {
         let settings = testSettingsStore(
             suiteName: "StatusMenuSwitcherWarmupTests",
             tokenAccountStore: InMemoryTokenAccountStore())
-        settings.providerDetectionCompleted = true
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true

@@ -60,7 +60,9 @@ struct CostDashboardView: View {
                 // Subscription Utilization — independent section
                 if let snapshot = self.usageData.snapshot {
                     UtilizationAggregateView(
-                        providers: MockProviderDetector.filteredProviders(from: snapshot))
+                        providers: MockProviderDetector.filteredProviders(from: snapshot).filter {
+                            QuotaKitProviderCatalog.contains($0.providerID)
+                        })
                         .padding(.top, 4)
                 }
 

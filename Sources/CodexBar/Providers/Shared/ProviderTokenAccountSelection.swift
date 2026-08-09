@@ -21,13 +21,10 @@ enum ProviderTokenAccountSelection {
 
     @MainActor
     static func shouldIncludeOptionalUsage(
-        provider: UsageProvider,
+        provider _: UsageProvider,
         settings: SettingsStore,
-        override: TokenAccountOverride?) -> Bool
+        override _: TokenAccountOverride?) -> Bool
     {
-        guard provider == .deepseek else { return settings.showOptionalCreditsAndExtraUsage }
-        guard settings.costUsageEnabled, settings.showOptionalCreditsAndExtraUsage else { return false }
-        guard let override, override.provider == provider else { return true }
-        return settings.selectedTokenAccount(for: provider)?.id == override.account.id
+        settings.showOptionalCreditsAndExtraUsage
     }
 }

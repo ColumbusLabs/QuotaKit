@@ -10,8 +10,6 @@ struct CodexBarMobileApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var appDelegate
     @Environment(\.scenePhase) private var scenePhase
     @State private var usageData: SyncedUsageData
-    @State private var proEntitlementStore: ProEntitlementStore
-    @State private var remoteConfigStore = RemoteConfigStore()
 
     init() {
         let arguments = ProcessInfo.processInfo.arguments
@@ -26,9 +24,6 @@ struct CodexBarMobileApp: App {
             defaults.removeObject(forKey: MobileSettingsKeys.openCostByDefault)
             defaults.removeObject(forKey: MobileSettingsKeys.usagePercentDisplayMode)
             defaults.removeObject(forKey: MobileSettingsKeys.showRemainingUsage)
-            defaults.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderID)
-            defaults.removeObject(forKey: MobileSettingsKeys.freeSelectedProviderLockedUntil)
-            defaults.removeObject(forKey: ProEntitlementCacheStore.key)
             defaults.removeObject(forKey: "onboardingSeenVersion")
             defaults.removeObject(forKey: MobileSettingsKeys.appearanceMode)
             QuotaKitWidgetDisplayModeStore.appGroupDefaults()?
@@ -48,52 +43,29 @@ struct CodexBarMobileApp: App {
         } else {
             _usageData = State(initialValue: SyncedUsageData())
         }
-
-        if arguments.contains("UI_TEST_UNLOCK_PRO") {
-            _proEntitlementStore = State(initialValue: ProEntitlementStore.preview(
-                state: .unlocked(source: .storeKit)))
-        } else {
-            _proEntitlementStore = State(initialValue: ProEntitlementStore())
-        }
     }
 
     var body: some Scene {
         WindowGroup {
             ContentView(usageData: self.usageData)
-                .environment(self.proEntitlementStore)
-                .environment(self.remoteConfigStore)
                 .quotaKitThemed()
                 .onAppear {
                     guard !Self.isAutomatedTestLaunch else { return }
-                    self.remoteConfigStore.start()
-                    self.proEntitlementStore.start()
                     self.usageData.startObserving()
                     if self.appDelegate.consumePendingProviderZoneChangeIfActive(
                         applicationState: UIApplication.shared.applicationState)
                     {
                         Task { await self.usageData.refreshAfterPendingProviderZoneChange() }
                     }
-                    if self.proEntitlementStore.isProUnlocked {
-                        WidgetTimelineRefresher.reloadAllTimelines()
-                    }
-                    Task {
-                        await ProNotificationCoordinator.shared.reconcile(
-                            isProUnlocked: self.proEntitlementStore.isProUnlocked)
-                    }
-                }
-                .onChange(of: self.proEntitlementStore.isProUnlocked) { _, isUnlocked in
-                    guard !Self.isAutomatedTestLaunch else { return }
                     WidgetTimelineRefresher.reloadAllTimelines()
                     Task {
-                        await ProNotificationCoordinator.shared.reconcile(
-                            isProUnlocked: isUnlocked)
+                        await QuotaNotificationCoordinator.shared.reconcile()
                     }
                 }
                 .onChange(of: self.scenePhase) { _, phase in
                     guard phase == .active, !Self.isAutomatedTestLaunch else { return }
                     let consumedPendingZoneChange = self.appDelegate
                         .consumePendingProviderZoneChangeIfActive(applicationState: .active)
-                    Task { await self.remoteConfigStore.refresh() }
                     // Foreground freshness: refresh synced usage when the
                     // last completed refresh is stale. Quick app switches
                     // no-op via the staleness gate; the launch-time fetch
@@ -149,8 +121,7 @@ extension WidgetBackgroundSnapshotRefreshResult {
 ///
 /// 1. Register for remote notifications so CloudKit can dispatch subscriptions.
 /// 2. Configure the silent-push DeviceProvidersZone subscription.
-/// 3. Let `ProNotificationCoordinator` configure or remove visible quota
-///    subscriptions after StoreKit entitlement state is known.
+/// 3. Let `QuotaNotificationCoordinator` configure visible quota subscriptions.
 /// 4. Re-run all subscription setup on iCloud account change.
 /// 5. Handle incoming silent pushes on DeviceProvidersZone — post a notification
 ///    so SyncedUsageData can refresh against its in-memory cache.
@@ -173,12 +144,11 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
         guard !isTestLaunch else { return true }
 
         // 1. Register for remote notifications so CloudKit knows the APNs token.
-        // Alert permission is requested later by ProNotificationCoordinator
-        // only when QuotaKit Pro is unlocked.
+        // Alert permission is requested later by QuotaNotificationCoordinator.
         application.registerForRemoteNotifications()
 
         // 2. Set up silent-push subscription on DeviceProvidersZone. Visible
-        // quota alert subscriptions are gated by ProNotificationCoordinator.
+        // quota alert subscriptions are configured by QuotaNotificationCoordinator.
         Task { @MainActor in
             await DeviceProviderZoneSubscription.shared.setupIfNeeded()
         }
@@ -287,8 +257,7 @@ final class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCent
     @objc private nonisolated func iCloudAccountChanged() {
         print("[CodexBar Push v2] iCloud account changed — re-running subscription setup")
         Task { @MainActor in
-            await ProNotificationCoordinator.shared.reconcile(
-                isProUnlocked: ProEntitlementCacheStore.load() != nil)
+            await QuotaNotificationCoordinator.shared.reconcile()
         }
     }
 

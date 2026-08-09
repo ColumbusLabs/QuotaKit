@@ -352,8 +352,8 @@ struct CloudKitMergeTests {
 
     @Test
     func `Merged providers are sorted alphabetically by name`() throws {
-        let zProvider = self.makeProvider(id: "z-tool", name: "Z Tool", lastUpdated: self.olderDate)
-        let aProvider = self.makeProvider(id: "a-tool", name: "A Tool", lastUpdated: self.newerDate)
+        let zProvider = self.makeProvider(id: "grok", name: "Z Tool", lastUpdated: self.olderDate)
+        let aProvider = self.makeProvider(id: "claude", name: "A Tool", lastUpdated: self.newerDate)
 
         let snapshot = self.makeSnapshot(
             deviceName: "Mac", deviceID: "uuid-1",
@@ -472,8 +472,8 @@ struct CloudKitMergeTests {
 
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeProviderWithCost(
-                id: "augment",
-                name: "Augment",
+                id: "cursor",
+                name: "Cursor",
                 email: "user@a.com",
                 lastUpdated: self.olderDate,
                 sessionCost: 1.00,
@@ -481,8 +481,8 @@ struct CloudKitMergeTests {
         ])
         let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             self.makeProviderWithCost(
-                id: "augment",
-                name: "Augment",
+                id: "cursor",
+                name: "Cursor",
                 email: "user@a.com",
                 lastUpdated: self.newerDate,
                 sessionCost: 2.00,
@@ -742,19 +742,19 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `Provider without cost data is unaffected by merge`() throws {
+    func `Supported provider without cost data is unaffected by merge`() throws {
         let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
             self.makeProvider(
-                id: "copilot",
-                name: "Copilot",
+                id: "cursor",
+                name: "Cursor",
                 email: "user@a.com",
                 lastUpdated: self.olderDate,
                 usedPercent: 40),
         ])
         let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
             self.makeProvider(
-                id: "copilot",
-                name: "Copilot",
+                id: "cursor",
+                name: "Cursor",
                 email: "user@a.com",
                 lastUpdated: self.newerDate,
                 usedPercent: 60),
@@ -797,7 +797,7 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `Merged Perplexity snapshot preserves perplexityCredits from latest device`() throws {
+    func `Merged retired provider records are filtered from mobile results`() throws {
         // Mac A (older) has no structured credits (e.g. still on 0.20.2);
         // Mac B (newer) has the full 3-pool breakdown. Merger must pick
         // Mac B's data (lastUpdated wins for identity fields) AND preserve
@@ -821,11 +821,7 @@ struct CloudKitMergeTests {
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
-        #expect(merged.providers.count == 1)
-        let perplexity = try #require(merged.providers.first)
-        #expect(perplexity.perplexityCredits?.planName == "Pro")
-        #expect(perplexity.perplexityCredits?.recurringTotalCents == 5000)
-        #expect(perplexity.perplexityCredits?.recurringUsedCents == 2500)
+        #expect(merged.providers.isEmpty)
     }
 
     // MARK: - Cross-version data-loss regression (Build 76)
@@ -849,7 +845,7 @@ struct CloudKitMergeTests {
     // device was most recently refreshed.
 
     @Test
-    func `perplexityCredits: older Mac with credits + newer Mac with nil → merged has credits`() throws {
+    func `Retired provider remains filtered across mixed Mac payload versions`() throws {
         let credits = SyncPerplexityCreditSummary(
             recurringTotalCents: 5000,
             recurringUsedCents: 2500,
@@ -865,9 +861,7 @@ struct CloudKitMergeTests {
         ])
         let merged = try #require(CloudSyncReader.mergeSnapshots(
             [macAWithCreditsOlder, macBNoCreditsNewer]))
-        let perplexity = try #require(merged.providers.first)
-        #expect(perplexity.perplexityCredits?.planName == "Pro")
-        #expect(perplexity.perplexityCredits?.recurringTotalCents == 5000)
+        #expect(merged.providers.isEmpty)
     }
 
     @Test
@@ -1022,7 +1016,7 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `Single-device Perplexity snapshot preserves perplexityCredits through merge no-op`() throws {
+    func `Single-device retired provider snapshot is filtered from mobile results`() throws {
         // Degenerate single-device path: mergeProviderEntries still runs
         // (merger doesn't special-case count == 1 at the provider level),
         // so this verifies the field survives even the trivial passthrough.
@@ -1033,8 +1027,7 @@ struct CloudKitMergeTests {
         ])
 
         let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
-        #expect(merged.providers.first?.perplexityCredits?.planName == "Max")
-        #expect(merged.providers.first?.perplexityCredits?.recurringTotalCents == 7500)
+        #expect(merged.providers.isEmpty)
     }
 
     // MARK: - App/mobile version: take highest across devices (Build 77)

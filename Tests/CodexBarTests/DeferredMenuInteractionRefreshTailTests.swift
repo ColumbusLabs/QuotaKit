@@ -11,7 +11,6 @@ struct DeferredMenuInteractionRefreshTailTests {
     func `repeated scheduling during forced enrichment produces one deferred refresh`() async {
         let settings = testSettingsStore(
             suiteName: "DeferredMenuInteractionRefreshTailTests-forced-tail")
-        settings.providerDetectionCompleted = true
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.costUsageEnabled = true

@@ -222,10 +222,10 @@ struct CLICardsRendererTests {
     func `brief reset summary wraps to terminal width`() {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let card = CLICardModel(
-            provider: .alibabatokenplan,
-            title: "Alibaba Token Plan",
+            provider: .grok,
+            title: "Grok",
             sourceLabel: "web",
-            planBadge: "International",
+            planBadge: nil,
             accountLine: nil,
             infoLines: [],
             metrics: [CLICardMetric(
@@ -244,44 +244,8 @@ struct CLICardsRendererTests {
             now: now)
         let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
 
-        #expect(output.contains("Next reset: Alibaba Token Plan"))
+        #expect(output.contains("Next reset: Grok"))
         #expect(lines.allSatisfy { $0.count <= 40 })
-    }
-
-    @Test
-    func `detail backed quota descriptions are not rendered as resets`() {
-        let snapshot = UsageSnapshot(
-            primary: .init(
-                usedPercent: 25,
-                windowMinutes: nil,
-                resetsAt: nil,
-                resetDescription: "25/100 credits"),
-            secondary: nil,
-            tertiary: nil,
-            updatedAt: Date(timeIntervalSince1970: 0))
-        let card = CLICardsRenderer.makeCard(CLICardBuildInput(
-            provider: .kilo,
-            snapshot: snapshot,
-            credits: nil,
-            source: "api",
-            status: nil,
-            notes: [],
-            useColor: false,
-            resetStyle: .countdown,
-            weeklyWorkDays: nil,
-            now: Date(timeIntervalSince1970: 0)))
-
-        #expect(card.metrics.first?.resetText == nil)
-        #expect(card.metrics.first?.detailText == "25/100 credits")
-
-        let output = CLICardsBriefRenderer.render(
-            rows: CLICardsBriefRenderer.makeRows(cards: [card]),
-            failures: [],
-            terminalWidth: 80,
-            useColor: false,
-            now: Date(timeIntervalSince1970: 0))
-        #expect(!output.contains("Next reset"))
-        #expect(!output.contains("Reset 25/100 credits"))
     }
 
     @Test
@@ -327,8 +291,8 @@ struct CLICardsRendererTests {
     @Test
     func `long detail rows stay within card width`() {
         let card = CLICardModel(
-            provider: .clawrouter,
-            title: "ClawRouter",
+            provider: .cursor,
+            title: "Cursor",
             sourceLabel: "api",
             planBadge: nil,
             accountLine: nil,
@@ -344,8 +308,8 @@ struct CLICardsRendererTests {
     @Test
     func `brief warnings name the actual quota metric`() {
         let card = CLICardModel(
-            provider: .openrouter,
-            title: "OpenRouter",
+            provider: .grok,
+            title: "Grok",
             sourceLabel: "api",
             planBadge: nil,
             accountLine: nil,
@@ -361,7 +325,7 @@ struct CLICardsRendererTests {
             useColor: false,
             now: Date(timeIntervalSince1970: 0))
 
-        #expect(output.contains("OpenRouter Spend: 90% used"))
+        #expect(output.contains("Grok Spend: 90% used"))
         #expect(!output.contains("session limit"))
     }
 
@@ -403,9 +367,9 @@ struct CLICardsRendererTests {
 
     @Test
     func `brief warnings wrap to terminal width`() {
-        let cards = ["OpenRouter", "Antigravity", "CommandCode"].map { title in
+        let cards = ["Codex", "Claude", "Cursor", "Grok"].map { title in
             CLICardModel(
-                provider: .openrouter,
+                provider: .cursor,
                 title: title,
                 sourceLabel: "api",
                 planBadge: nil,
@@ -435,9 +399,9 @@ struct CLICardsRendererTests {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let rows = CLICardsBriefRenderer.makeRows(cards: [
             CLICardModel(
-                provider: .kilo,
-                title: "Kilo",
-                sourceLabel: "api",
+                provider: .grok,
+                title: "Grok",
+                sourceLabel: "cli",
                 planBadge: nil,
                 accountLine: nil,
                 infoLines: [],
@@ -469,7 +433,7 @@ struct CLICardsRendererTests {
         let lines = output.split(separator: "\n", omittingEmptySubsequences: false)
 
         #expect(output.contains("Next reset: Codex in 5h"))
-        #expect(!output.contains("Next reset: Kilo"))
+        #expect(!output.contains("Next reset: Grok"))
         #expect(lines.allSatisfy { $0.count <= 40 })
     }
 
@@ -487,7 +451,7 @@ struct CLICardsRendererTests {
                 extraLines: [],
                 statusLine: nil),
             CLICardModel(
-                provider: .openrouter,
+                provider: .cursor,
                 title: "Exhausted",
                 sourceLabel: "api",
                 planBadge: nil,
@@ -528,7 +492,7 @@ struct CLICardsRendererTests {
                 extraLines: [],
                 statusLine: nil),
             CLICardModel(
-                provider: .openrouter,
+                provider: .cursor,
                 title: "Exhausted",
                 sourceLabel: "api",
                 planBadge: nil,
@@ -558,7 +522,7 @@ struct CLICardsRendererTests {
     @Test
     func `standard card grid shows empty remaining bar at exhaustion`() {
         let card = CLICardModel(
-            provider: .openrouter,
+            provider: .cursor,
             title: "Exhausted",
             sourceLabel: "api",
             planBadge: nil,
@@ -575,7 +539,7 @@ struct CLICardsRendererTests {
     @Test
     func `enhanced card grid shows empty remaining bar at exhaustion`() {
         let card = CLICardModel(
-            provider: .openrouter,
+            provider: .cursor,
             title: "Exhausted",
             sourceLabel: "api",
             planBadge: nil,

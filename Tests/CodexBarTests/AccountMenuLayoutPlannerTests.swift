@@ -84,7 +84,9 @@ struct AccountMenuLayoutPlannerTests {
 
     private func compactRows(in plan: AccountMenuLayoutPlanner.Plan) -> [AccountMenuLayoutPlanner.CompactRow] {
         plan.rows.compactMap { row in
-            if case let .compact(compact) = row { return compact }
+            if case let .compact(compact) = row {
+                return compact
+            }
             return nil
         }
     }
@@ -162,7 +164,9 @@ struct AccountMenuLayoutPlannerTests {
             "spare@example.com",
         ])
         #expect(!plan.rows.contains { row in
-            if case .collapsedHealthy = row { return true }
+            if case .collapsedHealthy = row {
+                return true
+            }
             return false
         })
     }
@@ -230,7 +234,9 @@ struct AccountMenuLayoutPlannerTests {
 
         // Healthy rows: only "d" (90% headroom, best candidate) — nothing left to fold.
         #expect(!plan.rows.contains { row in
-            if case .collapsedHealthy = row { return true }
+            if case .collapsedHealthy = row {
+                return true
+            }
             return false
         })
         let compacts = self.compactRows(in: plan)

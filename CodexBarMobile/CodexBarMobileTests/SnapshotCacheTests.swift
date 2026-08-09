@@ -95,6 +95,162 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `Retained specialized-only payloads are not classified as ghosts`() {
+        let adminWindow = SyncClaudeAdminWindowSummary(
+            costUSD: 1,
+            totalTokens: 100,
+            inputTokens: 60,
+            outputTokens: 40,
+            cacheCreationInputTokens: 0,
+            cacheReadInputTokens: 0)
+        let fixtures: [(String, ProviderUsageSnapshot)] = [
+            (
+                "codex-reset",
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "reset@example.com", loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    codexResetCredits: SyncCodexResetCredits(
+                        credits: [], availableCount: 1, updatedAt: self.t1))),
+            (
+                "codex-credit-limit",
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "limit@example.com", loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    codexCreditLimit: SyncCodexCreditLimit(
+                        title: "Monthly credit limit",
+                        used: 10,
+                        limit: 100,
+                        remaining: 90,
+                        remainingPercent: 90,
+                        updatedAt: self.t1))),
+            (
+                "codex-workspace",
+                ProviderUsageSnapshot(
+                    providerID: "codex", providerName: "Codex",
+                    primary: nil, secondary: nil,
+                    accountEmail: "workspace@example.com", loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    codexWorkspace: SyncCodexWorkspaceContext(
+                        workspaceID: "workspace-1",
+                        workspaceName: "Workspace",
+                        weeklyPaceDelta: nil,
+                        weeklyPaceLabel: nil,
+                        updatedAt: self.t1))),
+            (
+                "claude-admin",
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "admin@example.com", loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    claudeAdminUsage: SyncClaudeAdminUsage(
+                        last30Days: adminWindow,
+                        last7Days: adminWindow,
+                        latestDay: adminWindow,
+                        topModels: [],
+                        topCostItems: [],
+                        updatedAt: self.t1))),
+            (
+                "claude-extra",
+                ProviderUsageSnapshot(
+                    providerID: "claude", providerName: "Claude",
+                    primary: nil, secondary: nil,
+                    accountEmail: "extra@example.com", loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    claudeExtraUsage: SyncClaudeExtraUsage(
+                        utilization: 25,
+                        monthlySpendUSD: 25,
+                        monthlyLimitUSD: 100,
+                        isEnabled: true,
+                        planTier: "Team",
+                        updatedAt: self.t1))),
+            (
+                "grok-billing",
+                ProviderUsageSnapshot(
+                    providerID: "grok", providerName: "Grok",
+                    primary: nil, secondary: nil,
+                    accountEmail: nil, loginMethod: nil,
+                    statusMessage: nil, isError: false, lastUpdated: self.t1,
+                    grokBilling: SyncGrokBilling(
+                        monthlyUsedPercent: 25,
+                        monthlySpendUSD: 25,
+                        monthlyLimitUSD: 100,
+                        billingPeriodEndDate: nil,
+                        planTier: "SuperGrok",
+                        updatedAt: self.t1))),
+        ]
+
+        for (deviceID, provider) in fixtures {
+            var cache = SnapshotCache()
+            cache.applyDelta(
+                upserted: [ProviderUsageEnvelope(
+                    deviceID: deviceID,
+                    deviceName: deviceID,
+                    appVersion: "0.20.1",
+                    mobileVersion: "1.3.0",
+                    syncTimestamp: self.t1,
+                    notificationPushEnabled: true,
+                    provider: provider)],
+                deletedRecordNames: [])
+
+            #expect(cache.perProviderByDevice[deviceID]?.count == 1)
+            #expect(cache.buildDeviceSnapshots().first?.providers == [provider])
+        }
+    }
+
+    @Test
+    func `Cursor generic rate window remains its retained non-ghost payload`() {
+        var cache = SnapshotCache()
+        cache.replacePerProviderFromReplay([
+            self.envelope(
+                deviceID: "mac-cursor",
+                deviceName: "Mac Cursor",
+                providerID: "cursor",
+                providerLastUpdated: self.t1,
+                syncTimestamp: self.t1),
+        ])
+
+        #expect(cache.buildDeviceSnapshots().first?.providers.first?.providerID == "cursor")
+    }
+
+    @Test
+    func `Retired specialized-only compatibility payload stays ghosted`() {
+        let retired = ProviderUsageSnapshot(
+            providerID: "crossmodel",
+            providerName: "CrossModel",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: self.t1,
+            crossModelUsage: SyncCrossModelUsage(
+                currency: "USD",
+                balance: 10,
+                uncollected: 0,
+                daily: nil,
+                weekly: nil,
+                monthly: nil,
+                updatedAt: self.t1))
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-retired",
+                deviceName: "Mac Retired",
+                providers: [retired],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+
+        #expect(cache.perProviderByDevice.isEmpty)
+        #expect(cache.buildDeviceSnapshots().isEmpty)
+    }
+
+    @Test
     func `Delta delete removes exactly the matched composite`() {
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1125,7 +1281,7 @@ struct SnapshotCacheTests {
                     now: now), // 1 h — dropped
                 self.envelopeAged(
                     deviceID: "mac-A",
-                    providerID: "abacus",
+                    providerID: "grok",
                     email: nil,
                     lagSeconds: 5 * 60,
                     now: now), // 5 min — kept
@@ -1133,7 +1289,7 @@ struct SnapshotCacheTests {
             deletedRecordNames: [])
         let result = cache.buildDeviceSnapshots()
         let providerIDs = Set(result[0].providers.map(\.providerID))
-        #expect(providerIDs == ["claude", "cursor", "abacus"])
+        #expect(providerIDs == ["claude", "cursor", "grok"])
     }
 
     // ===== Mock-vs-real interaction (1.5.2 hotfix) =====
@@ -1239,7 +1395,7 @@ struct SnapshotCacheTests {
                         email: "alice-mock@codex.test",
                         lastUpdated: now),
                     self.provider(
-                        id: "_mock_synthetic_unknown",
+                        id: "claude",
                         email: "lanes-mock@synthetic.test",
                         lastUpdated: now.addingTimeInterval(-2 * 3600)),
                 ],
@@ -1262,11 +1418,11 @@ struct SnapshotCacheTests {
                 deviceID: "mac-A", deviceName: "Mac A",
                 providers: [
                     self.provider(
-                        id: "_mock_codex_unknown",
+                        id: "codex",
                         email: nil, // nil-email mock (synthetic ID prefix detects)
                         lastUpdated: now),
                     self.provider(
-                        id: "_mock_codex_unknown",
+                        id: "codex",
                         email: "expired-mock@codex.test",
                         lastUpdated: now),
                 ],
@@ -1296,7 +1452,7 @@ struct SnapshotCacheTests {
                     now: now),
                 self.envelopeAged(
                     deviceID: "mac-A",
-                    providerID: "perplexity",
+                    providerID: "grok",
                     email: nil,
                     lagSeconds: 5 * 3600,
                     now: now),
@@ -1557,7 +1713,7 @@ struct SnapshotCacheTests {
     }
 
     @Test
-    func `Edge: device with ONLY real-email entries — Rule 1 + Rule 2 both no-op`() {
+    func `Edge: supported device with ONLY real-email entries — Rule 1 + Rule 2 both no-op`() {
         let now = Date()
         var cache = SnapshotCache()
         cache.applyDelta(
@@ -1576,7 +1732,7 @@ struct SnapshotCacheTests {
                     now: now),
                 self.envelopeAged(
                     deviceID: "mac-A",
-                    providerID: "perplexity",
+                    providerID: "grok",
                     email: "carol@x.com",
                     lagSeconds: 5 * 3600,
                     now: now),

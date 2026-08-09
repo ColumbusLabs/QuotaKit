@@ -266,16 +266,9 @@ enum DashboardSnapshotBuilder {
             return nil
         }
 
-        // Provider-specific by design: Codex plan aliases and Kilo's auto-top-up suffix require distinct cleanup.
+        // Provider-specific by design: Codex plan aliases use product-owned display names.
         if provider == .codex {
             return CodexPlanFormatting.displayName(raw) ?? UsageFormatter.cleanPlanName(raw)
-        }
-        if provider == .kilo {
-            let firstPlanSegment = raw
-                .components(separatedBy: "·")
-                .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
-                .first { !$0.isEmpty && !$0.lowercased().hasPrefix("auto top-up:") }
-            return firstPlanSegment.map(UsageFormatter.cleanPlanName)
         }
         return UsageFormatter.cleanPlanName(raw)
     }
@@ -288,16 +281,11 @@ enum DashboardSnapshotBuilder {
         guard let usage else { return [] }
         let labels = self.rateWindowLabels(provider: provider, metadata: metadata, usage: usage)
         var windows: [DashboardWindowPayload] = []
-        // Provider-specific by design: Amp subscription payloads model balance and orb as non-time-window kinds.
-        let isAmpSubscription = provider == .amp && usage.secondary != nil
-
         if let primary = usage.primary {
-            let kind = isAmpSubscription ? "other" : "session"
-            windows.append(self.makeWindow(kind: kind, label: labels.primary, window: primary))
+            windows.append(self.makeWindow(kind: "session", label: labels.primary, window: primary))
         }
         if let secondary = usage.secondary {
-            let kind = isAmpSubscription ? "orb" : "weekly"
-            windows.append(self.makeWindow(kind: kind, label: labels.secondary, window: secondary))
+            windows.append(self.makeWindow(kind: "weekly", label: labels.secondary, window: secondary))
         }
         if let tertiary = usage.tertiary {
             windows.append(self.makeWindow(kind: "tertiary", label: labels.tertiary, window: tertiary))

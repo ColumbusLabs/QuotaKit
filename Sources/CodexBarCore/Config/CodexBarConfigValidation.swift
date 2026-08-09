@@ -112,11 +112,11 @@ public enum CodexBarConfigValidator {
     private static func validateProvider(_ entry: ProviderConfig, issues: inout [CodexBarConfigIssue]) {
         guard let provider = entry.id.firstPartyProvider else {
             issues.append(CodexBarConfigIssue(
-                severity: .error,
+                severity: .warning,
                 provider: nil,
                 field: "id",
                 code: "unsupported_provider",
-                message: "Provider \(entry.id.rawValue) has no first-party implementation."))
+                message: "Provider \(entry.id.rawValue) is preserved but has no first-party implementation."))
             return
         }
         let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
@@ -252,7 +252,7 @@ public enum CodexBarConfigValidator {
             provider: provider,
             field: "secretKey",
             code: "secret_key_unused",
-            message: "secretKey is set but only bedrock and doubao use secretKey."))
+            message: "secretKey is not used by any supported provider."))
     }
 
     private static func providerSupportsWorkspaceID(_ provider: UsageProvider) -> Bool {

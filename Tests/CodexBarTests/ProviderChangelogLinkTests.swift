@@ -6,12 +6,13 @@ import Testing
 @MainActor
 struct ProviderChangelogLinkTests {
     @Test
-    func `known CLI providers declare changelog URLs`() {
+    func `supported providers expose only maintained changelog URLs`() {
         let metadata = ProviderDefaults.metadata
 
         #expect(metadata[.codex]?.changelogURL == "https://github.com/openai/codex/releases")
         #expect(metadata[.claude]?.changelogURL == "https://github.com/anthropics/claude-code/releases")
-        #expect(metadata[.gemini]?.changelogURL == "https://github.com/google-gemini/gemini-cli/releases")
+        #expect(metadata[.cursor]?.changelogURL == nil)
+        #expect(metadata[.grok]?.changelogURL == "https://x.ai/news")
     }
 
     @Test
@@ -29,12 +30,6 @@ struct ProviderChangelogLinkTests {
             suite: "ProviderChangelogLinkTests-codex",
             changelogLinksEnabled: true)
         #expect(self.actionTitles(from: codexDescriptor).contains("Changelog"))
-
-        let openRouterDescriptor = self.makeDescriptor(
-            provider: .openrouter,
-            suite: "ProviderChangelogLinkTests-openrouter",
-            changelogLinksEnabled: true)
-        #expect(!self.actionTitles(from: openRouterDescriptor).contains("Changelog"))
     }
 
     private func makeDescriptor(
@@ -46,9 +41,7 @@ struct ProviderChangelogLinkTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite),
-            zaiTokenStore: NoopZaiTokenStore(),
-            syntheticTokenStore: NoopSyntheticTokenStore())
+            configStore: testConfigStore(suiteName: suite))
         settings.statusChecksEnabled = false
         settings.providerChangelogLinksEnabled = changelogLinksEnabled
 

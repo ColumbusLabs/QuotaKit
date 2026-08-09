@@ -42,7 +42,7 @@ Use this sequence for feature and fix work:
 ## iOS Documentation Rules
 
 - Update `CodexBarMobile/CHANGELOG.md` for iOS user-facing or App Review relevant changes.
-- Update `MobileReleaseNotesCatalog` in `CodexBarMobile/CodexBarMobile/ContentView.swift` for in-app release notes.
+- Update `MobileReleaseNotesCatalog` in `CodexBarMobile/CodexBarMobile/Models/MobileReleaseNotesCatalog.swift` for in-app release notes.
 - Same `MARKETING_VERSION` means the same release-notes block; merge related details instead of creating duplicate entries.
 - Mark research docs `done` after the implemented behavior is verified.
 

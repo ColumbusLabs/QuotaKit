@@ -54,10 +54,7 @@ public struct CodexBarConfig: Codable, Sendable {
         metadata: [UsageProvider: ProviderMetadata] = ProviderDescriptorRegistry.metadata) -> CodexBarConfig
     {
         let providers = UsageProvider.allCases.map { provider in
-            Self.defaultProviderConfig(
-                provider,
-                metadata: metadata,
-                alibabaTokenPlanRegion: .international)
+            Self.defaultProviderConfig(provider, metadata: metadata)
         }
         return CodexBarConfig(version: Self.currentVersion, providers: providers)
     }
@@ -102,10 +99,7 @@ public struct CodexBarConfig: Codable, Sendable {
         }
 
         for provider in UsageProvider.allCases where !seen.contains(provider.instanceID) {
-            normalized.append(Self.defaultProviderConfig(
-                provider,
-                metadata: metadata,
-                alibabaTokenPlanRegion: .chinaMainland))
+            normalized.append(Self.defaultProviderConfig(provider, metadata: metadata))
         }
 
         return CodexBarConfig(
@@ -149,13 +143,11 @@ public struct CodexBarConfig: Codable, Sendable {
 
     private static func defaultProviderConfig(
         _ provider: UsageProvider,
-        metadata: [UsageProvider: ProviderMetadata],
-        alibabaTokenPlanRegion: AlibabaTokenPlanAPIRegion) -> ProviderConfig
+        metadata: [UsageProvider: ProviderMetadata]) -> ProviderConfig
     {
         ProviderConfig(
             id: provider.instanceID,
-            enabled: metadata[provider]?.defaultEnabled,
-            region: provider == .alibabatokenplan ? alibabaTokenPlanRegion.rawValue : nil)
+            enabled: metadata[provider]?.defaultEnabled)
     }
 }
 
@@ -173,9 +165,6 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
     public var enterpriseHost: String?
     public var tokenAccounts: ProviderTokenAccountData?
     public var quotaWarnings: QuotaWarningConfig?
-    /// Arbitrary user-plugin values stay scoped to the provider instance. Secure values are redacted from config dumps.
-    public var pluginSettings: [String: String]?
-    public var pluginSecrets: [String: String]?
     var extensionValues: [String: ProviderConfigExtensionValue]
 
     public init(
@@ -191,9 +180,7 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         workspaceID: String? = nil,
         enterpriseHost: String? = nil,
         tokenAccounts: ProviderTokenAccountData? = nil,
-        quotaWarnings: QuotaWarningConfig? = nil,
-        pluginSettings: [String: String]? = nil,
-        pluginSecrets: [String: String]? = nil)
+        quotaWarnings: QuotaWarningConfig? = nil)
     {
         self.id = id
         self.enabled = enabled
@@ -208,8 +195,6 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         self.enterpriseHost = enterpriseHost
         self.tokenAccounts = tokenAccounts
         self.quotaWarnings = quotaWarnings
-        self.pluginSettings = pluginSettings
-        self.pluginSecrets = pluginSecrets
         self.extensionValues = [:]
     }
 
@@ -247,9 +232,6 @@ public struct ProviderConfig: Codable, Sendable, Identifiable {
         }
         if copy.cookieHeader != nil {
             copy.cookieHeader = "[REDACTED]"
-        }
-        if copy.pluginSecrets != nil {
-            copy.pluginSecrets = copy.pluginSecrets?.mapValues { _ in "[REDACTED]" }
         }
         if let tokenAccounts = copy.tokenAccounts {
             copy.tokenAccounts = tokenAccounts.sanitizedForDump()
