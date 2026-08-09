@@ -6,6 +6,22 @@ ROOT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 tmp_dir="$(mktemp -d)"
 trap 'rm -rf "$tmp_dir"' EXIT
 
+python3 - "${ROOT_DIR}/.github/workflows/ci.yml" <<'PY'
+import pathlib
+import re
+import sys
+
+workflow = pathlib.Path(sys.argv[1]).read_text()
+lint_job = re.search(r"(?ms)^  lint:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if lint_job is None or "runs-on: macos-26" not in lint_job.group("body"):
+    raise SystemExit("lint job must run on macos-26")
+if re.search(r"(?m)^  build-linux(?:-musl)?-cli:", workflow):
+    raise SystemExit("Linux build-only CI jobs must remain removed")
+aggregate = re.search(r"(?ms)^  lint-build-test:\n(?P<body>.*?)(?=^  [a-zA-Z0-9_-]+:|\Z)", workflow)
+if aggregate is None or "build-linux" in aggregate.group("body") or "linux-musl" in aggregate.group("body"):
+    raise SystemExit("aggregate CI gate must not depend on removed Linux jobs")
+PY
+
 assert_gate() {
   local expected="$1"
   local name="$2"
@@ -68,44 +84,6 @@ assert_gate true empty
 assert_gate true source-to-docs $'R100\tSources/CodexBar/App.swift\tdocs/App.md'
 assert_gate true docs-to-source $'R100\tdocs/App.md\tSources/CodexBar/App.swift'
 assert_gate false docs-to-site $'R100\tdocs/old.md\tdocs/site.css'
-
-assert_linux_musl_gate() {
-  local expected="$1"
-  local name="$2"
-  local paths_file="${tmp_dir}/linux-musl-${name}.paths"
-  local output_file="${tmp_dir}/linux-musl-${name}.output"
-  shift 2
-
-  printf '%s\n' "$@" > "$paths_file"
-  GITHUB_OUTPUT="$output_file" "${ROOT_DIR}/Scripts/ci_linux_musl_build_gate.sh" "$paths_file" >/dev/null
-  local actual
-  actual="$(sed -n 's/^linux-musl-build=//p' "$output_file")"
-  if [[ "$actual" != "$expected" ]]; then
-    printf '%s: expected linux-musl-build=%s, got %s\n' "$name" "$expected" "${actual:-<empty>}" >&2
-    exit 1
-  fi
-
-  local reason
-  reason="$(sed -n 's/^linux-musl-build-reason=//p' "$output_file")"
-  if [[ -z "$reason" ]]; then
-    printf '%s: expected linux-musl-build-reason output\n' "$name" >&2
-    exit 1
-  fi
-}
-
-assert_linux_musl_gate true package-manifest $'M\tPackage.swift'
-assert_linux_musl_gate true swift-source $'M\tSources/CodexBarCore/Process.swift'
-assert_linux_musl_gate true nested-swift-source $'M\tSources/CodexBarCore/Host/Process/Process.swift'
-assert_linux_musl_gate true c-module-map $'M\tSources/CSQLite3/module.modulemap'
-assert_linux_musl_gate true c-shim-header $'M\tSources/CSQLite3/shim.h'
-assert_linux_musl_gate true rename-from-swift $'R100\tSources/CodexBarCore/Old.swift\tdocs/Old.md'
-assert_linux_musl_gate true rename-to-swift $'R100\tdocs/New.md\tSources/CodexBarCore/New.swift'
-assert_linux_musl_gate false tests-only $'M\tTests/CodexBarTests/ProcessTests.swift'
-assert_linux_musl_gate true workflow-only $'M\t.github/workflows/ci.yml'
-assert_linux_musl_gate true gate-script $'M\tScripts/ci_linux_musl_build_gate.sh'
-assert_linux_musl_gate false script-only $'M\tScripts/ci_verify_test_jobs.sh'
-assert_linux_musl_gate true package-resolved $'M\tPackage.resolved'
-assert_linux_musl_gate true empty-diff
 
 draft_paths="${tmp_dir}/draft-source.paths"
 draft_output="${tmp_dir}/draft-source.output"
@@ -197,23 +175,6 @@ assert_gate_fails missing-rename-score $'R\tREADME.md\tdocs/README.md'
 assert_gate_fails invalid-rename-score $'Rfoo\tREADME.md\tdocs/README.md'
 assert_gate_fails out-of-range-rename-score $'R101\tREADME.md\tdocs/README.md'
 
-for malformed_case in missing-rename-target extra-modified-path missing-rename-score \
-  invalid-rename-score out-of-range-rename-score
-do
-  paths_file="${tmp_dir}/${malformed_case}.paths"
-  output_file="${tmp_dir}/linux-musl-${malformed_case}.output"
-  if GITHUB_OUTPUT="$output_file" \
-    "${ROOT_DIR}/Scripts/ci_linux_musl_build_gate.sh" "$paths_file" >/dev/null 2>&1
-  then
-    printf '%s: malformed Linux musl gate input unexpectedly succeeded\n' "$malformed_case" >&2
-    exit 1
-  fi
-  if [[ -s "$output_file" ]]; then
-    printf '%s: malformed Linux musl gate input emitted an output\n' "$malformed_case" >&2
-    exit 1
-  fi
-done
-
 if CI_PULL_REQUEST_DRAFT=maybe GITHUB_OUTPUT="${tmp_dir}/invalid-draft.output" \
   "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "${tmp_dir}/docs-only.paths" >/dev/null 2>&1
 then
@@ -247,14 +208,10 @@ if [[ -s "$ios_unterminated_output" ]]; then
 fi
 
 verify="${ROOT_DIR}/Scripts/ci_verify_test_jobs.sh"
-"$verify" success success true success false true success true success >/dev/null
-"$verify" success success false skipped false false skipped false skipped >/dev/null
-"$verify" success success true success false false skipped true success >/dev/null
-"$verify" success success false skipped false true success false skipped >/dev/null
-"$verify" success success true success false true success false skipped >/dev/null
-"$verify" success success true success false false skipped false skipped >/dev/null
-"$verify" success success false skipped false true success true success >/dev/null
-"$verify" success success false skipped false false skipped true success >/dev/null
+"$verify" success success true success false true success >/dev/null
+"$verify" success success false skipped false false skipped >/dev/null
+"$verify" success success true success false false skipped >/dev/null
+"$verify" success success false skipped false true success >/dev/null
 
 assert_verify_fails() {
   if "$verify" "$@" >/dev/null 2>&1; then
@@ -263,19 +220,16 @@ assert_verify_fails() {
   fi
 }
 
-assert_verify_fails success success true skipped false true success true success
-assert_verify_fails success success true skipped true true success true success
-assert_verify_fails success success false skipped true true success true success
-assert_verify_fails success success true success true true success true success
-assert_verify_fails success success false success false true success true success
-assert_verify_fails success success "" skipped false true success true success
-assert_verify_fails failure success true success false true success true success
-assert_verify_fails success failure true success false true success true success
-assert_verify_fails success success true success false true skipped true success
-assert_verify_fails success success true success false false success true success
-assert_verify_fails success success true success false "" skipped true success
-assert_verify_fails success success true success false true success true skipped
-assert_verify_fails success success true success false true success false success
-assert_verify_fails success success true success false true success "" skipped
+assert_verify_fails success success true skipped false true success
+assert_verify_fails success success true skipped true true success
+assert_verify_fails success success false skipped true true success
+assert_verify_fails success success true success true true success
+assert_verify_fails success success false success false true success
+assert_verify_fails success success "" skipped false true success
+assert_verify_fails failure success true success false true success
+assert_verify_fails success failure true success false true success
+assert_verify_fails success success true success false true skipped
+assert_verify_fails success success true success false false success
+assert_verify_fails success success true success false "" skipped
 
 printf 'CI path gate tests passed.\n'
