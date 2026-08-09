@@ -209,25 +209,33 @@ extension CostUsageStore {
         }
     }
 
-    /// Runs a complete save cycle as one all-or-nothing SQLite transaction.
-    func withSaveTransaction<T>(default fallback: T, _ operation: () throws -> T) -> T {
-        self.withDatabase(default: fallback) { database in
-            do {
-                return try Self.inTransaction(database) {
-                    self.activeTransactionDatabase = database
-                    defer {
-                        self.activeTransactionDatabase = nil
-                        self.activeTransactionError = nil
-                    }
-                    let value = try operation()
-                    if let failure = self.activeTransactionError { throw failure }
-                    return value
-                }
-            } catch {
-                self.activeTransactionDatabase = nil
-                self.activeTransactionError = nil
-                throw error
+    /// Opens the save cycle's all-or-nothing transaction. Nested `withDatabase` calls join
+    /// the transaction and record the first failure so `endSaveTransaction()` can roll the
+    /// complete cycle back. Separate begin/end methods keep non-Sendable operation closures
+    /// from crossing actor-isolation boundaries on older Swift 6 compilers.
+    @discardableResult
+    func beginSaveTransaction() -> Bool {
+        self.withDatabase(default: false) { database in
+            try Self.execute(database, "BEGIN IMMEDIATE")
+            self.activeTransactionDatabase = database
+            return true
+        }
+    }
+
+    /// Commits the open save transaction, or rolls it back when a nested write failed.
+    @discardableResult
+    func endSaveTransaction() -> Bool {
+        guard self.activeTransactionDatabase != nil else { return false }
+        let failure = self.activeTransactionError
+        self.activeTransactionDatabase = nil
+        self.activeTransactionError = nil
+        return self.withDatabase(default: false) { database in
+            if let failure {
+                try? Self.execute(database, "ROLLBACK")
+                throw failure
             }
+            try Self.execute(database, "COMMIT")
+            return true
         }
     }
 
