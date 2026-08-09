@@ -236,18 +236,26 @@ extension CostUsageStore {
     /// Runs a complete save cycle as one all-or-nothing SQLite transaction.
     func withSaveTransaction<T>(default fallback: T, _ operation: () throws -> T) -> T {
         self.withDatabase(default: fallback) { database in
+            let ownsTransaction = sqlite3_get_autocommit(database) != 0
             do {
-                return try Self.inTransaction(database) {
-                    self.activeTransactionDatabase = database
-                    defer {
-                        self.activeTransactionDatabase = nil
-                        self.activeTransactionError = nil
-                    }
-                    let value = try operation()
-                    if let failure = self.activeTransactionError { throw failure }
-                    return value
+                if ownsTransaction {
+                    try Self.execute(database, "BEGIN IMMEDIATE")
                 }
+                self.activeTransactionDatabase = database
+                defer {
+                    self.activeTransactionDatabase = nil
+                    self.activeTransactionError = nil
+                }
+                let value = try operation()
+                if let failure = self.activeTransactionError { throw failure }
+                if ownsTransaction {
+                    try Self.execute(database, "COMMIT")
+                }
+                return value
             } catch {
+                if ownsTransaction {
+                    try? Self.execute(database, "ROLLBACK")
+                }
                 self.activeTransactionDatabase = nil
                 self.activeTransactionError = nil
                 throw error
