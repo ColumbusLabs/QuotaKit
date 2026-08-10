@@ -117,13 +117,6 @@ if [[ -z "$TEAM_ID" ]]; then
 fi
 
 if [[ "$DO_ARCHIVE" -eq 1 ]]; then
-  LOGIN_KEYCHAIN="${HOME}/Library/Keychains/login.keychain-db"
-  if [[ -f "$LOGIN_KEYCHAIN" ]] && ! security show-keychain-info "$LOGIN_KEYCHAIN" >/dev/null 2>&1; then
-    echo "ERROR: The login Keychain is locked; Xcode cannot use the signing private key." >&2
-    echo "       Run: security unlock-keychain '$LOGIN_KEYCHAIN'" >&2
-    exit 2
-  fi
-
   signing_identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
   if [[ "$signing_identities" != *"Apple Distribution: Columbus Labs LLC ($TEAM_ID)"* ]]; then
     echo "ERROR: The Columbus Labs Apple Distribution signing identity is unavailable." >&2
@@ -236,17 +229,22 @@ if [[ "$DO_ARCHIVE" -eq 1 ]]; then
   echo ""
   echo "==> Archiving for generic iOS"
   set +e
+  # Xcode 26.6 can deadlock while probing clang when verbose macro output fills
+  # the build service pipe. The wrapper trims only that probe's verbose output.
   xcodebuild archive \
     -project CodexBarMobile/CodexBarMobile.xcodeproj \
     -scheme CodexBarMobile \
     -configuration Release \
+    -sdk iphoneos \
     -destination "generic/platform=iOS" \
+    -destination-timeout 5 \
     -archivePath "$ARCHIVE_PATH" \
     -allowProvisioningUpdates \
     "${ASC_AUTH_ARGS[@]}" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    2>&1 | tee "$ARCHIVE_LOG"
-  status=${PIPESTATUS[0]}
+    CC="$ROOT/Scripts/xcode-clang-probe-wrapper.sh" \
+    >"$ARCHIVE_LOG" 2>&1
+  status=$?
   set -e
 
   if [[ "$status" -ne 0 ]]; then
@@ -282,7 +280,8 @@ fi
 echo ""
 echo "==> Exporting and uploading to App Store Connect"
 set +e
-xcodebuild -exportArchive \
+# Keep Apple's rsync on PATH. A Homebrew rsync server rejects Xcode's Apple -E flag.
+PATH=/usr/bin:/bin:/usr/sbin:/sbin xcodebuild -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
   -exportPath "$EXPORT_PATH" \
   -exportOptionsPlist "$OPTIONS_PLIST" \
