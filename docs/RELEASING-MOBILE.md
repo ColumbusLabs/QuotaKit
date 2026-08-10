@@ -35,6 +35,56 @@ Before a pushed iOS release change:
 4. Run the full iPhone simulator test command in `AGENTS.md`.
 5. Archive/upload with `./Scripts/ios_testflight_xcode.sh`.
 
+## Headless TestFlight Contract
+
+QuotaKit's canonical TestFlight lane is the `xcodebuild` CLI script above.
+The Xcode GUI is not part of this workflow, and the script requires App Store
+Connect API-key authentication instead of falling back to an account stored in
+Xcode. Validate the machine without generating the project or creating an
+archive:
+
+```bash
+./Scripts/ios_testflight_xcode.sh --preflight-only
+```
+
+The preflight prints the selected Xcode build, developer directory, system and
+shell `rsync` versions, verifies all three App Store Connect key inputs, and
+proves the installed Apple Distribution private key by signing a disposable
+binary. If the signing probe reports a locked Keychain, run the exact
+`security unlock-keychain ...` command it prints in Terminal and retry. Opening
+Xcode is appropriate only when the distribution certificate/private-key pair
+is genuinely absent.
+
+A locked or unavailable paired iPhone is non-blocking for a generic iOS
+archive. Messages such as `The device is passcode protected` or failures to
+start `com.apple.mobile.notification_proxy` are device-discovery noise; do not
+unlock the phone, change the generic destination, or open Xcode to work around
+them. The archive target remains `generic/platform=iOS`.
+
+The export step intentionally pins `PATH=/usr/bin:/bin:/usr/sbin:/sbin` so
+Xcode cannot mix Apple's `/usr/bin/rsync` with an incompatible Homebrew rsync
+server.
+
+### Retest the clang workaround after Xcode upgrades
+
+The current wrapper removes `-v` only from Xcode's `-E -dM ... /dev/null`
+compiler-identification probe. The release script records the Xcode build on
+which that workaround was verified and warns when the active build changes.
+After an Xcode upgrade:
+
+1. Run `./Scripts/ios_testflight_xcode.sh --preflight-only` and review the tool versions.
+2. Prove the normal wrapper path with `./Scripts/ios_testflight_xcode.sh --skip-lint --archive-only`.
+3. Test native clang without uploading:
+
+   ```bash
+   QUOTAKIT_DISABLE_CLANG_PROBE_WORKAROUND=1 \
+     ./Scripts/ios_testflight_xcode.sh --skip-lint --archive-only
+   ```
+
+4. If native `xcodebuild` archives reliably, remove the wrapper, its build
+   marker, and the corresponding regression assertions. If it hangs, stop the
+   archive and retain the workaround for that Xcode build.
+
 ## CloudKit
 
 All release builds must use CloudKit Production for `iCloud.com.columbuslabs.quotakit`.

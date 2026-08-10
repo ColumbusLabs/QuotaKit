@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 #
 # Archive QuotaKit iOS and upload it to App Store Connect/TestFlight using the
-# direct Xcode lane.
+# headless xcodebuild CLI lane.
 #
 # This is the canonical iOS upload lane. It generates the project, archives for
 # generic iOS with App Store distribution profiles, verifies the widget
@@ -15,8 +15,11 @@ cd "$ROOT"
 RUN_LINT=1
 DO_ARCHIVE=1
 DO_UPLOAD=1
+PREFLIGHT_ONLY=0
 ARCHIVE_PATH=""
 TEAM_ID="${IOS_TEAM_ID:-${QUOTAKIT_TEAM_ID:-${APP_TEAM_ID:-${DEVELOPMENT_TEAM:-}}}}"
+EXPORT_SYSTEM_PATH="/usr/bin:/bin:/usr/sbin:/sbin"
+CLANG_PROBE_WORKAROUND_XCODE_BUILD="17F113"
 
 usage() {
   cat <<'USAGE' >&2
@@ -28,6 +31,7 @@ Options:
   --skip-lint          Skip ./Scripts/lint.sh lint.
   --skip-archive       Reuse --archive-path and only export/upload.
   --archive-only       Stop after creating and verifying the archive.
+  --preflight-only     Validate credentials, signing, and tool versions only.
   -h, --help           Show this help.
 
 Environment:
@@ -35,7 +39,11 @@ Environment:
   the team ID. If omitted, the script tries to infer it from an installed
   "Apple Distribution: Columbus Labs LLC (...)" signing identity.
   APP_STORE_CONNECT_API_KEY_FILE, APP_STORE_CONNECT_KEY_ID, and
-  APP_STORE_CONNECT_ISSUER_ID enable non-interactive provisioning and upload.
+  APP_STORE_CONNECT_ISSUER_ID are all required. Xcode-account authentication
+  is intentionally unsupported in this headless release lane.
+  QUOTAKIT_SIGNING_KEYCHAIN may override the login Keychain used for signing.
+  QUOTAKIT_DISABLE_CLANG_PROBE_WORKAROUND=1 is only for an explicit
+  archive-only maintenance check after an Xcode upgrade.
 USAGE
 }
 
@@ -58,6 +66,12 @@ while [[ $# -gt 0 ]]; do
       shift
       ;;
     --archive-only)
+      DO_UPLOAD=0
+      shift
+      ;;
+    --preflight-only)
+      PREFLIGHT_ONLY=1
+      DO_ARCHIVE=0
       DO_UPLOAD=0
       shift
       ;;
@@ -84,23 +98,22 @@ asc_auth_values=0
 [[ -n "${APP_STORE_CONNECT_KEY_ID:-}" ]] && ((asc_auth_values += 1))
 [[ -n "${APP_STORE_CONNECT_ISSUER_ID:-}" ]] && ((asc_auth_values += 1))
 
-if [[ "$asc_auth_values" -ne 0 && "$asc_auth_values" -ne 3 ]]; then
-  echo "ERROR: App Store Connect authentication requires all three release-secret values." >&2
+if [[ "$asc_auth_values" -ne 3 ]]; then
+  echo "ERROR: App Store Connect API-key authentication is required; Xcode-account fallback is disabled." >&2
   echo "       Set APP_STORE_CONNECT_API_KEY_FILE, APP_STORE_CONNECT_KEY_ID, and APP_STORE_CONNECT_ISSUER_ID." >&2
   exit 2
 fi
 
-if [[ "$asc_auth_values" -eq 3 ]]; then
-  if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
-    echo "ERROR: App Store Connect API key file was not found." >&2
-    exit 2
-  fi
-  ASC_AUTH_ARGS=(
-    -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_FILE"
-    -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"
-    -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
-  )
+if [[ ! -f "$APP_STORE_CONNECT_API_KEY_FILE" || ! -r "$APP_STORE_CONNECT_API_KEY_FILE" ]]; then
+  echo "ERROR: App Store Connect API key file was not found or is not readable." >&2
+  exit 2
 fi
+
+ASC_AUTH_ARGS=(
+  -authenticationKeyPath "$APP_STORE_CONNECT_API_KEY_FILE"
+  -authenticationKeyID "$APP_STORE_CONNECT_KEY_ID"
+  -authenticationKeyIssuerID "$APP_STORE_CONNECT_ISSUER_ID"
+)
 
 TEAM_ID="${TEAM_ID:-${IOS_TEAM_ID:-${QUOTAKIT_TEAM_ID:-${APP_TEAM_ID:-${DEVELOPMENT_TEAM:-}}}}}"
 
@@ -116,16 +129,7 @@ if [[ -z "$TEAM_ID" ]]; then
   exit 2
 fi
 
-if [[ "$DO_ARCHIVE" -eq 1 ]]; then
-  signing_identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
-  if [[ "$signing_identities" != *"Apple Distribution: Columbus Labs LLC ($TEAM_ID)"* ]]; then
-    echo "ERROR: The Columbus Labs Apple Distribution signing identity is unavailable." >&2
-    echo "       Open Xcode > Settings > Accounts > Manage Certificates and verify it is installed." >&2
-    exit 2
-  fi
-fi
-
-if [[ "$DO_ARCHIVE" -eq 0 && -z "$ARCHIVE_PATH" ]]; then
+if [[ "$DO_ARCHIVE" -eq 0 && "$PREFLIGHT_ONLY" -eq 0 && -z "$ARCHIVE_PATH" ]]; then
   echo "ERROR: --skip-archive requires --archive-path PATH." >&2
   exit 2
 fi
@@ -142,6 +146,74 @@ ARCHIVE_LOG="$RUN_DIR/archive.log"
 EXPORT_LOG="$RUN_DIR/export-upload.log"
 EXPORT_PATH="$RUN_DIR/export"
 OPTIONS_PLIST="$RUN_DIR/ExportOptions-app-store-connect.plist"
+SIGNING_PROBE_LOG="$RUN_DIR/signing-probe.log"
+
+xcode_version_output=$(/usr/bin/xcodebuild -version 2>&1) || {
+  echo "ERROR: xcodebuild is unavailable through the active developer directory." >&2
+  printf '%s\n' "$xcode_version_output" >&2
+  exit 2
+}
+xcode_version=$(awk 'NR == 1 {print $2}' <<<"$xcode_version_output")
+xcode_build=$(awk '/^Build version / {print $3}' <<<"$xcode_version_output")
+developer_dir=$(xcode-select -p 2>/dev/null || true)
+system_rsync_output=$(/usr/bin/rsync --version 2>&1 || true)
+system_rsync_version=${system_rsync_output%%$'\n'*}
+shell_rsync_path=$(command -v rsync 2>/dev/null || true)
+if [[ -n "$shell_rsync_path" ]]; then
+  shell_rsync_output=$("$shell_rsync_path" --version 2>&1 || true)
+  shell_rsync_version=${shell_rsync_output%%$'\n'*}
+else
+  shell_rsync_path="unavailable"
+  shell_rsync_version="unavailable"
+fi
+
+echo "==> Release toolchain"
+echo "    Xcode: ${xcode_version:-unknown} (build ${xcode_build:-unknown})"
+echo "    Developer directory: ${developer_dir:-unknown}"
+echo "    System rsync: $system_rsync_version (/usr/bin/rsync)"
+echo "    Shell rsync: $shell_rsync_version ($shell_rsync_path)"
+echo "    Export PATH: $EXPORT_SYSTEM_PATH"
+
+if [[ -n "$xcode_build" && "$xcode_build" != "$CLANG_PROBE_WORKAROUND_XCODE_BUILD" ]]; then
+  echo "WARNING: The clang-probe workaround was verified on Xcode build $CLANG_PROBE_WORKAROUND_XCODE_BUILD," >&2
+  echo "         but the active build is $xcode_build. Run the documented archive-only" >&2
+  echo "         maintenance check and remove the workaround if native xcodebuild is stable." >&2
+fi
+
+signing_identity_name="Apple Distribution: Columbus Labs LLC ($TEAM_ID)"
+signing_identities=$(security find-identity -v -p codesigning 2>/dev/null || true)
+signing_identity_line=$(grep -F "\"$signing_identity_name\"" <<<"$signing_identities" | head -1 || true)
+signing_identity_hash=$(sed -nE 's/^[[:space:]]*[0-9]+\)[[:space:]]+([[:xdigit:]]{40})[[:space:]].*/\1/p' \
+  <<<"$signing_identity_line")
+
+if [[ -z "$signing_identity_hash" ]]; then
+  echo "ERROR: The $signing_identity_name certificate/private-key pair is not installed." >&2
+  echo "       This is the only release recovery that may require Xcode > Settings > Accounts" >&2
+  echo "       > Manage Certificates; Xcode is not part of the normal archive/upload lane." >&2
+  exit 2
+fi
+
+LOGIN_KEYCHAIN="${QUOTAKIT_SIGNING_KEYCHAIN:-${HOME}/Library/Keychains/login.keychain-db}"
+if [[ ! -f "$LOGIN_KEYCHAIN" ]]; then
+  echo "ERROR: Signing Keychain was not found: $LOGIN_KEYCHAIN" >&2
+  exit 2
+fi
+
+SIGNING_PROBE="$RUN_DIR/signing-probe"
+/bin/cp /usr/bin/true "$SIGNING_PROBE"
+if ! codesign --force --sign "$signing_identity_hash" --keychain "$LOGIN_KEYCHAIN" \
+  "$SIGNING_PROBE" >"$SIGNING_PROBE_LOG" 2>&1 \
+  || ! codesign --verify --strict "$SIGNING_PROBE" >>"$SIGNING_PROBE_LOG" 2>&1
+then
+  echo "ERROR: The installed Apple Distribution private key is not usable for headless signing." >&2
+  echo "       Unlock it in Terminal, then rerun this command:" >&2
+  printf '       security unlock-keychain %q\n' "$LOGIN_KEYCHAIN" >&2
+  echo "       If signing still fails after unlock, inspect the key ACL/certificate pair." >&2
+  echo "       Signing probe log: $SIGNING_PROBE_LOG" >&2
+  exit 2
+fi
+/bin/rm -f "$SIGNING_PROBE"
+echo "    Signing probe: passed ($signing_identity_name)"
 
 printf '%s\n' "$ARCHIVE_PATH" > /tmp/quotakit-latest-archive-path
 printf '%s\n' "$ARCHIVE_LOG" > /tmp/quotakit-latest-archive-log
@@ -185,8 +257,13 @@ summarize_failure() {
   echo "Full log: $log_file" >&2
 
   if grep -q "No Accounts: Add a new account in Accounts settings" "$log_file"; then
-    echo "Detected blocker: Xcode has no Apple Developer account configured for automatic provisioning." >&2
-    echo "Add the Columbus Labs account in Xcode Settings > Accounts, or use an API-key/profile path with sufficient signing permissions." >&2
+    echo "Detected blocker: xcodebuild reported an account error even though API-key auth was supplied." >&2
+    echo "Do not open Xcode. Verify the App Store Connect key role and provisioning-profile access." >&2
+  fi
+
+  if grep -q "rsync: on remote machine: --extended-attributes: unknown option" "$log_file"; then
+    echo "Detected blocker: Xcode mixed Apple rsync with an incompatible PATH rsync." >&2
+    echo "The export command must keep PATH=$EXPORT_SYSTEM_PATH." >&2
   fi
 
   if grep -q "doesn't include the App Groups capability\\|doesn't support the group.com.columbuslabs.quotakit App Group" "$log_file"; then
@@ -211,9 +288,16 @@ MARKETING=$(awk '/MARKETING_VERSION:/ {gsub(/"/, "", $2); print $2; exit}' Codex
 echo "==> QuotaKit iOS TestFlight lane"
 echo "    Version: ${MARKETING:-unknown} (${BUILD:-unknown})"
 echo "    Team ID: $TEAM_ID"
-echo "    App Store Connect auth: $([[ ${#ASC_AUTH_ARGS[@]} -gt 0 ]] && echo 'API key' || echo 'Xcode account')"
+echo "    App Store Connect auth: API key (required)"
+echo "    Xcode GUI/account: not used"
 echo "    Archive: $ARCHIVE_PATH"
 echo "    Run logs: $RUN_DIR"
+
+if [[ "$PREFLIGHT_ONLY" -eq 1 ]]; then
+  echo ""
+  echo "==> Preflight complete; no project generation, archive, export, or upload performed"
+  exit 0
+fi
 
 if [[ "$RUN_LINT" -eq 1 ]]; then
   echo ""
@@ -228,10 +312,23 @@ echo "==> Generating Xcode project"
 if [[ "$DO_ARCHIVE" -eq 1 ]]; then
   echo ""
   echo "==> Archiving for generic iOS"
+  ARCHIVE_COMPILER_ARGS=()
+  case "${QUOTAKIT_DISABLE_CLANG_PROBE_WORKAROUND:-0}" in
+    0)
+      ARCHIVE_COMPILER_ARGS=(CC="$ROOT/Scripts/xcode-clang-probe-wrapper.sh")
+      ;;
+    1)
+      echo "WARNING: Running the explicit native-clang maintenance check without the probe workaround." >&2
+      ;;
+    *)
+      echo "ERROR: QUOTAKIT_DISABLE_CLANG_PROBE_WORKAROUND must be 0 or 1." >&2
+      exit 2
+      ;;
+  esac
   set +e
   # Xcode 26.6 can deadlock while probing clang when verbose macro output fills
   # the build service pipe. The wrapper trims only that probe's verbose output.
-  xcodebuild archive \
+  /usr/bin/xcodebuild archive \
     -project CodexBarMobile/CodexBarMobile.xcodeproj \
     -scheme CodexBarMobile \
     -configuration Release \
@@ -242,7 +339,7 @@ if [[ "$DO_ARCHIVE" -eq 1 ]]; then
     -allowProvisioningUpdates \
     "${ASC_AUTH_ARGS[@]}" \
     DEVELOPMENT_TEAM="$TEAM_ID" \
-    CC="$ROOT/Scripts/xcode-clang-probe-wrapper.sh" \
+    "${ARCHIVE_COMPILER_ARGS[@]}" \
     >"$ARCHIVE_LOG" 2>&1
   status=$?
   set -e
@@ -281,7 +378,7 @@ echo ""
 echo "==> Exporting and uploading to App Store Connect"
 set +e
 # Keep Apple's rsync on PATH. A Homebrew rsync server rejects Xcode's Apple -E flag.
-PATH=/usr/bin:/bin:/usr/sbin:/sbin xcodebuild -exportArchive \
+PATH="$EXPORT_SYSTEM_PATH" /usr/bin/xcodebuild -exportArchive \
   -archivePath "$ARCHIVE_PATH" \
   -exportPath "$EXPORT_PATH" \
   -exportOptionsPlist "$OPTIONS_PLIST" \
