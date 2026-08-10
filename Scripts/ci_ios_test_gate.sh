@@ -42,7 +42,7 @@ classify_path() {
     Scripts/ci_ios_test_gate.sh|Scripts/ci_verify_test_jobs.sh|Scripts/test_ci_path_gate.sh)
       require_ios_tests "$path" "changes iOS CI gate or aggregate verification"
       ;;
-    Scripts/ios_testflight_xcode.sh|Scripts/upload_ios_testflight.sh)
+    Scripts/ios_testflight_xcode.sh|Scripts/xcode-clang-probe-wrapper.sh|Scripts/upload_ios_testflight.sh|Scripts/test_ios_testflight_release_lane.sh)
       require_ios_tests "$path" "changes iOS archive or TestFlight upload lane"
       ;;
     .swiftlint.yml|Scripts/lint.sh|Scripts/audit_localized_keys.py|Scripts/check-app-locales.mjs|Scripts/audit_customer_branding.py|Scripts/audit_provider_palette.py)
