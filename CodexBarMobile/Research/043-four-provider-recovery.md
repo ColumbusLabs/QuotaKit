@@ -1,6 +1,6 @@
 # Four-Provider Teardown Recovery
 
-**Status:** `in-progress`  
+**Status:** `in-progress`
 **Date:** 2026-08-11
 
 ## Goal
