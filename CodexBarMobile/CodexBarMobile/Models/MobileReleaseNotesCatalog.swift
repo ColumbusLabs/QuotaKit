@@ -26,11 +26,17 @@ enum MobileReleaseNotesCatalog {
             version: "1.11.3",
             status: String(localized: "Latest"),
             summary: String(
-                localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
+                localized: "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
+                        String(
+                            localized: "The full provider surface from QuotaKit Mac is restored after the previous TestFlight build showed only four providers."),
+                        String(
+                            localized: "QuotaKit Pro lifetime purchase and access are restored and safely revalidated without dropping valid production access during TestFlight checks."),
+                        String(
+                            localized: "Quota alert subscriptions are restored for the full supported provider set."),
                         String(
                             localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
                         String(

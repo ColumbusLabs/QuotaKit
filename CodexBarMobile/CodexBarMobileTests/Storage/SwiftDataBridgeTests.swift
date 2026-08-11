@@ -245,6 +245,40 @@ struct SwiftDataBridgeTests {
     }
 
     @Test
+    func `Non-four provider survives store reopen`() throws {
+        let url = self.makeStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            let perplexity = self.makeProvider(
+                id: "perplexity",
+                name: "Perplexity",
+                email: "research@example.com",
+                lastUpdated: self.ts1)
+            try SwiftDataBridge.upsert(
+                deviceSnapshots: [self.makeSnapshot(
+                    deviceID: "device-non-four",
+                    providers: [perplexity],
+                    timestamp: self.ts1)],
+                into: context)
+        }
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            let snapshot = try #require(
+                SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+            let provider = try #require(snapshot.providers.first)
+            #expect(provider.providerID == "perplexity")
+            #expect(provider.providerName == "Perplexity")
+            #expect(provider.accountEmail == "research@example.com")
+            #expect(provider.lastUpdated == self.ts1)
+        }
+    }
+
+    @Test
     func `Snapshots without deviceID map to a deterministic fallback row`() throws {
         let container = self.makeContainer()
         let context = ModelContext(container)

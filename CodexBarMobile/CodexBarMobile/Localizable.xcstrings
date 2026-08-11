@@ -19708,6 +19708,118 @@
           }
         }
       }
+    },
+    "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復旧アップデート：全プロバイダ機能、QuotaKit Pro の買い切りアクセス、すべてのクォータ通知購読を復元しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "恢复更新：恢复完整的提供商功能、QuotaKit Pro 终身访问权限以及全部配额提醒订阅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "復原更新：恢復完整的供應商功能、QuotaKit Pro 終身存取權限，以及全部配額提醒訂閱。"
+          }
+        }
+      }
+    },
+    "The full provider surface from QuotaKit Mac is restored after the previous TestFlight build showed only four providers.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "The full provider surface from QuotaKit Mac is restored after the previous TestFlight build showed only four providers."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "前の TestFlight ビルドでは4つしか表示されなかった、QuotaKit Mac の全プロバイダが再び利用できるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "此前的 TestFlight 构建仅显示四个提供商；现已恢复 QuotaKit Mac 的完整提供商功能。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "先前的 TestFlight 版本僅顯示四個供應商；現已恢復 QuotaKit Mac 的完整供應商功能。"
+          }
+        }
+      }
+    },
+    "QuotaKit Pro lifetime purchase and access are restored and safely revalidated without dropping valid production access during TestFlight checks.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro lifetime purchase and access are restored and safely revalidated without dropping valid production access during TestFlight checks."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "QuotaKit Pro の買い切り購入とアクセスを復元し、TestFlight での確認時にも有効な製品版アクセスを失わず安全に再検証します。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已恢复 QuotaKit Pro 终身购买和访问权限，并可安全地重新验证，不会在 TestFlight 检查期间丢失有效的正式版访问权限。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已恢復 QuotaKit Pro 終身購買與存取權限，並可安全地重新驗證，不會在 TestFlight 檢查期間失去有效的正式版存取權限。"
+          }
+        }
+      }
+    },
+    "Quota alert subscriptions are restored for the full supported provider set.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Quota alert subscriptions are restored for the full supported provider set."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "対応するすべてのプロバイダでクォータ通知購読を復元しました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已为全部受支持的提供商恢复配额提醒订阅。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已為全部支援的供應商恢復配額提醒訂閱。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

@@ -2,6 +2,53 @@ import CloudKit
 import CodexBarSync
 import Foundation
 
+/// Narrow CloudKit surface used by quota-subscription reconciliation.
+///
+/// The production adapter delegates directly to `CKDatabase`; tests inject an
+/// in-memory implementation so upgrade reconciliation can be verified without
+/// contacting a real CloudKit container.
+@MainActor
+protocol QuotaTransitionSubscriptionDatabase {
+    func deleteSubscription(withID subscriptionID: CKSubscription.ID) async throws
+    func modifyRecordZones(saving zonesToSave: [CKRecordZone]) async throws
+    func allSubscriptions() async throws -> [CKSubscription]
+    func modifySubscriptions(
+        saving subscriptionsToSave: [CKSubscription],
+        deleting subscriptionIDsToDelete: [CKSubscription.ID]) async throws
+}
+
+@MainActor
+private final class CloudKitQuotaTransitionSubscriptionDatabase:
+    QuotaTransitionSubscriptionDatabase
+{
+    private let database: CKDatabase
+
+    init(database: CKDatabase) {
+        self.database = database
+    }
+
+    func deleteSubscription(withID subscriptionID: CKSubscription.ID) async throws {
+        _ = try await self.database.deleteSubscription(withID: subscriptionID)
+    }
+
+    func modifyRecordZones(saving zonesToSave: [CKRecordZone]) async throws {
+        _ = try await self.database.modifyRecordZones(saving: zonesToSave, deleting: [])
+    }
+
+    func allSubscriptions() async throws -> [CKSubscription] {
+        try await self.database.allSubscriptions()
+    }
+
+    func modifySubscriptions(
+        saving subscriptionsToSave: [CKSubscription],
+        deleting subscriptionIDsToDelete: [CKSubscription.ID]) async throws
+    {
+        _ = try await self.database.modifySubscriptions(
+            saving: subscriptionsToSave,
+            deleting: subscriptionIDsToDelete)
+    }
+}
+
 /// Sets up one `CKRecordZoneSubscription` per `(provider, state)` pair so every
 /// incoming CloudKit push already carries the provider's name in its body text,
 /// then asks APNS to wake the `NotificationService` extension (NSE) to enrich
@@ -49,8 +96,8 @@ import Foundation
 ///
 /// ### Scale
 ///
-/// `QuotaProviderList.providers.count × 3` subscriptions (120 today, iOS 1.7.0) created
-/// in a single batched `modifySubscriptions(saving:deleting:)` call on first
+/// `QuotaProviderList.providers.count × 3` subscriptions created in a single
+/// batched `modifySubscriptions(saving:deleting:)` call on first
 /// launch. Subsequent launches diff the server state against the expected
 /// config and only save the subs whose `alertBody` has drifted (e.g. locale
 /// change, new display name, new provider in the list). CloudKit Private DB
@@ -150,7 +197,22 @@ final class QuotaTransitionSubscriptions {
         }
 
         let container = CKContainer(identifier: containerIdentifier)
-        let database = container.privateCloudDatabase
+        let database = CloudKitQuotaTransitionSubscriptionDatabase(
+            database: container.privateCloudDatabase)
+
+        await self.setupIfNeeded(using: database) {
+            await diag.refreshSubscriptionList()
+        }
+    }
+
+    /// Performs the full idempotent reconciliation against an injected
+    /// subscription database. Production passes the private CloudKit database;
+    /// tests pass an in-memory database to exercise mixed-version upgrades.
+    func setupIfNeeded(
+        using database: any QuotaTransitionSubscriptionDatabase,
+        refreshSubscriptionList: () async -> Void = {}) async
+    {
+        let diag = await PushSetupDiagnostic.shared
 
         // Step 0: clean up legacy subs. Safe to no-op if they don't exist.
         for legacyID in self.legacySubscriptionIDs {
@@ -163,7 +225,7 @@ final class QuotaTransitionSubscriptions {
         // saving an existing zone as a no-op, so this is idempotent.
         let zones = configs.map { CKRecordZone(zoneName: $0.zoneName) }
         do {
-            _ = try await database.modifyRecordZones(saving: zones, deleting: [])
+            try await database.modifyRecordZones(saving: zones)
             await diag.recordZone("✓ \(zones.count) quota zones ensured")
         } catch {
             let msg = "✗ quota zones batch create failed: \(error.localizedDescription)"
@@ -182,7 +244,7 @@ final class QuotaTransitionSubscriptions {
             let msg = "✗ allSubscriptions failed: \(error.localizedDescription)"
             print("[CodexBar Push v6] \(msg)")
             await diag.recordError(msg)
-            await diag.refreshSubscriptionList()
+            await refreshSubscriptionList()
             return
         }
 
@@ -229,7 +291,7 @@ final class QuotaTransitionSubscriptions {
         // Step 3: batch save the drifted subs.
         if !subsToSave.isEmpty {
             do {
-                _ = try await database.modifySubscriptions(
+                try await database.modifySubscriptions(
                     saving: subsToSave, deleting: [])
                 let msg = "✓ saved \(subsToSave.count) subs"
                 print("[CodexBar Push v6] \(msg)")
@@ -241,7 +303,7 @@ final class QuotaTransitionSubscriptions {
             }
         }
 
-        await diag.refreshSubscriptionList()
+        await refreshSubscriptionList()
     }
 
     func removeManagedSubscriptions() async {

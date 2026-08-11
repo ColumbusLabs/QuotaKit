@@ -94,6 +94,10 @@ struct CodexBarMobileApp: App {
                     let consumedPendingZoneChange = self.appDelegate
                         .consumePendingProviderZoneChangeIfActive(applicationState: .active)
                     Task { await self.remoteConfigStore.refresh() }
+                    // Retry transient StoreKit/product-metadata failures when
+                    // the app becomes active. Cached lifetime access remains
+                    // available while this refresh is inconclusive.
+                    Task { await self.proEntitlementStore.refresh() }
                     // Foreground freshness: refresh synced usage when the
                     // last completed refresh is stale. Quick app switches
                     // no-op via the staleness gate; the launch-time fetch

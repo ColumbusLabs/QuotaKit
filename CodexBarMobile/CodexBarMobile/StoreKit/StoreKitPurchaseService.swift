@@ -12,11 +12,17 @@ struct ProProductInfo: Equatable, Sendable {
 enum StoreKitEntitlementStatus: Equatable, Sendable {
     case verified(productID: String, verifiedAt: Date)
     case unverified(productID: String)
+    case revoked(productID: String)
     case none
 }
 
+struct StoreKitEntitlementSnapshot: Equatable, Sendable {
+    let status: StoreKitEntitlementStatus
+    let environment: ProEntitlementEnvironment
+}
+
 enum StoreKitPurchaseOutcome: Equatable, Sendable {
-    case purchased(StoreKitEntitlementStatus)
+    case purchased(StoreKitEntitlementSnapshot)
     case pending
     case cancelled
 }
@@ -24,9 +30,9 @@ enum StoreKitPurchaseOutcome: Equatable, Sendable {
 protocol ProPurchaseServicing: Sendable {
     func loadProduct() async throws -> ProProductInfo?
     func purchase() async throws -> StoreKitPurchaseOutcome
-    func restorePurchases() async throws -> StoreKitEntitlementStatus
-    func currentEntitlementStatus() async -> StoreKitEntitlementStatus
-    func transactionUpdates() -> AsyncStream<StoreKitEntitlementStatus>
+    func restorePurchases() async throws -> StoreKitEntitlementSnapshot
+    func currentEntitlementStatus() async -> StoreKitEntitlementSnapshot
+    func transactionUpdates() -> AsyncStream<StoreKitEntitlementSnapshot>
 }
 
 enum StoreKitPurchaseServiceError: LocalizedError {
@@ -67,11 +73,11 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
 
         switch try await product.purchase() {
         case let .success(result):
-            let status = Self.entitlementStatus(from: result)
-            if case .verified = status, case let .verified(transaction) = result {
+            let snapshot = Self.entitlementSnapshot(from: result)
+            if case let .verified(transaction) = result {
                 await transaction.finish()
             }
-            return .purchased(status)
+            return .purchased(snapshot)
         case .pending:
             return .pending
         case .userCancelled:
@@ -81,30 +87,32 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         }
     }
 
-    func restorePurchases() async throws -> StoreKitEntitlementStatus {
+    func restorePurchases() async throws -> StoreKitEntitlementSnapshot {
         try await AppStore.sync()
         return await self.currentEntitlementStatus()
     }
 
-    func currentEntitlementStatus() async -> StoreKitEntitlementStatus {
+    func currentEntitlementStatus() async -> StoreKitEntitlementSnapshot {
         for await result in Transaction.currentEntitlements {
-            let status = Self.entitlementStatus(from: result)
-            if Self.matchesConfiguredProduct(status, productID: self.productID) {
-                return status
+            let snapshot = Self.entitlementSnapshot(from: result)
+            if Self.matchesConfiguredProduct(snapshot.status, productID: self.productID) {
+                return snapshot
             }
         }
-        return .none
+        return await StoreKitEntitlementSnapshot(
+            status: .none,
+            environment: Self.currentAppEnvironment())
     }
 
-    func transactionUpdates() -> AsyncStream<StoreKitEntitlementStatus> {
+    func transactionUpdates() -> AsyncStream<StoreKitEntitlementSnapshot> {
         AsyncStream { continuation in
             let task = Task {
                 for await result in Transaction.updates {
-                    let status = Self.entitlementStatus(from: result)
-                    guard Self.matchesConfiguredProduct(status, productID: self.productID) else {
+                    let snapshot = Self.entitlementSnapshot(from: result)
+                    guard Self.matchesConfiguredProduct(snapshot.status, productID: self.productID) else {
                         continue
                     }
-                    continuation.yield(status)
+                    continuation.yield(snapshot)
                     if case let .verified(transaction) = result {
                         await transaction.finish()
                     }
@@ -115,15 +123,64 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         }
     }
 
-    private static func entitlementStatus(
-        from result: VerificationResult<Transaction>) -> StoreKitEntitlementStatus
+    private static func entitlementSnapshot(
+        from result: VerificationResult<Transaction>) -> StoreKitEntitlementSnapshot
     {
         switch result {
         case let .verified(transaction):
-            .verified(productID: transaction.productID, verifiedAt: Date())
+            StoreKitEntitlementSnapshot(
+                status: Self.verifiedEntitlementStatus(
+                    productID: transaction.productID,
+                    verifiedAt: Date(),
+                    revocationDate: transaction.revocationDate),
+                environment: Self.entitlementEnvironment(transaction.environment))
         case let .unverified(transaction, _):
-            .unverified(productID: transaction.productID)
+            StoreKitEntitlementSnapshot(
+                status: .unverified(productID: transaction.productID),
+                environment: Self.entitlementEnvironment(transaction.environment))
         }
+    }
+
+    private static func currentAppEnvironment() async -> ProEntitlementEnvironment {
+        do {
+            switch try await AppTransaction.shared {
+            case let .verified(appTransaction):
+                return Self.entitlementEnvironment(appTransaction.environment)
+            case .unverified:
+                return .unknown
+            }
+        } catch {
+            return .unknown
+        }
+    }
+
+    private static func entitlementEnvironment(
+        _ environment: AppStore.Environment) -> ProEntitlementEnvironment
+    {
+        switch environment {
+        case .production:
+            .production
+        case .sandbox:
+            .sandbox
+        case .xcode:
+            .xcode
+        default:
+            .unknown
+        }
+    }
+
+    /// A verified signature proves the transaction is authentic, not that it
+    /// still grants access. StoreKit emits refunded/revoked transactions on
+    /// `Transaction.updates`, so keep this mapping independently testable.
+    static func verifiedEntitlementStatus(
+        productID: String,
+        verifiedAt: Date,
+        revocationDate: Date?) -> StoreKitEntitlementStatus
+    {
+        if revocationDate != nil {
+            return .revoked(productID: productID)
+        }
+        return .verified(productID: productID, verifiedAt: verifiedAt)
     }
 
     private static func matchesConfiguredProduct(
@@ -131,7 +188,7 @@ struct StoreKitPurchaseService: ProPurchaseServicing {
         productID: String) -> Bool
     {
         switch status {
-        case let .verified(id, _), let .unverified(id):
+        case let .verified(id, _), let .unverified(id), let .revoked(id):
             id == productID
         case .none:
             false
