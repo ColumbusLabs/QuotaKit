@@ -301,7 +301,7 @@ struct CodexLocalProjectUsageTests {
         #expect(snapshot.projects.first?.displayName == "CodexBar")
         #expect(snapshot.projects.first?.path == project.standardizedFileURL.path)
         let allModels = try #require(snapshot.modelsAnalytics?.allWorkspaces)
-        #if canImport(SQLite3)
+        #if canImport(SQLite3) || canImport(CSQLite3)
         #expect(snapshot.sourceStatus == .catalogMissing)
         #expect(allModels.currentIsComplete == false)
         #expect(allModels.previousIsComplete == false)

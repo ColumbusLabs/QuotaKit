@@ -412,8 +412,37 @@ extension UsageStore {
         provider: UsageProvider,
         snapshot: UsageSnapshot) -> (window: RateWindow, source: SessionQuotaWindowSource)?
     {
+        // Provider-specific by design: MiMo/Qoder balances, Crof PAYG, Antigravity families, and Copilot chat
+        // fallback encode distinct session-quota payload semantics.
+        // MiMo/Qoder balances are never session quotas. Crof is handled below so quota-backed
+        // Crof snapshots can still participate when a real request-quota window is present.
+        guard provider != .mimo, provider != .qoder else { return nil }
+        if provider == .antigravity {
+            guard let window = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60) else {
+                return nil
+            }
+            let source: SessionQuotaWindowSource = Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
+                ? .antigravityQuotaSummary
+                : .antigravityLegacy
+            return (window, source)
+        }
+        // z.ai's typed sessionTokenLimit is rendered in the tertiary lane when the response also
+        // contains its weekly token limit and MCP time limit. Prefer that semantic session lane.
+        if provider == .zai, let tertiary = snapshot.tertiary {
+            return (tertiary, .zaiTertiary)
+        }
+        // Crof's real request quota is a daily (1440-minute) window, so it does not pass the
+        // generic <=6-hour session heuristic. Its credits-only shape has no secondary window;
+        // only the quota-backed request-primary + credits-secondary shape participates here.
+        if provider == .crof {
+            guard snapshot.secondary != nil, let primary = snapshot.primary else { return nil }
+            return (primary, .primary)
+        }
         if let primary = snapshot.primary, Self.isSessionWindow(primary) {
             return (primary, .primary)
+        }
+        if provider == .copilot, let secondary = snapshot.secondary {
+            return (secondary, .copilotSecondaryFallback)
         }
         return nil
     }
@@ -449,6 +478,38 @@ extension UsageStore {
         let requirement = self.codexSessionQuotaBaselineRequirement ??
             CodexSessionQuotaBaselineRequirement(observedAtWatermark: nil)
         self.codexSessionQuotaBaselineRequirement = requirement.merging(observedAt: observedAt)
+    }
+
+    private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
+
+    static func hasAntigravityQuotaSummaryWindows(snapshot: UsageSnapshot) -> Bool {
+        snapshot.extraRateWindows?.contains {
+            $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+        } == true
+    }
+
+    static func antigravityWindow(
+        snapshot: UsageSnapshot,
+        windowMinutes: Int) -> RateWindow?
+    {
+        let windows: [RateWindow] = if Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot) {
+            snapshot.extraRateWindows?
+                .filter {
+                    $0.usageKnown
+                        && $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+                        && $0.window.windowMinutes == windowMinutes
+                }
+                .map(\.window) ?? []
+        } else {
+            [snapshot.primary, snapshot.secondary, snapshot.tertiary]
+                .compactMap(\.self)
+                .filter {
+                    // Legacy Antigravity family lanes historically drive session notifications.
+                    $0.windowMinutes == windowMinutes
+                        || (windowMinutes == 5 * 60 && $0.windowMinutes == nil)
+                }
+        }
+        return windows.max { $0.usedPercent < $1.usedPercent }
     }
 }
 

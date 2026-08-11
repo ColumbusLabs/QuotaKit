@@ -885,7 +885,8 @@ struct UsageStorePlanUtilizationClaudeIdentityTests {
         historyStore.save([.claude: buckets])
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            tokenAccountStore: InMemoryTokenAccountStore())
         settings.addTokenAccount(provider: .claude, label: "Unrelated", token: "unrelated-token")
         settings.setActiveTokenAccountIndex(0, for: .claude)
         let store = UsageStore(

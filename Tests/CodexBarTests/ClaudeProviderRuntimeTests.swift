@@ -179,13 +179,13 @@ struct ClaudeProviderRuntimeTests {
 
     private func makeStore() -> (SettingsStore, UsageStore) {
         let suite = "ClaudeProviderRuntimeTests-\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suite) else {
-            preconditionFailure("Could not create test defaults")
-        }
+        let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0),

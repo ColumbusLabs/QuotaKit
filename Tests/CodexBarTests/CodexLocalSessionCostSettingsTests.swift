@@ -77,7 +77,9 @@ struct CodexLocalSessionCostSettingsTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),

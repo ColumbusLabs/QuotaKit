@@ -32,7 +32,11 @@ struct SyncCodexMultiAccountIntegrationTests {
         UserDefaults.standard.removeObject(
             forKey: MockProviderInjector.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
-        return SettingsStore(userDefaults: defaults, configStore: configStore)
+        return SettingsStore(
+            userDefaults: defaults,
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private func makeUsageStore(settings: SettingsStore) -> UsageStore {

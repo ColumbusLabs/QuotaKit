@@ -88,6 +88,8 @@ extension StatusItemController {
         }
 
         let sourceLabel = surface == .liveCard ? self.store.sourceLabel(for: target) : nil
+        // Provider-specific by design: Kilo's automatic source mode is surfaced as card fallback context.
+        let kiloAutoMode = target == .kilo && self.settings.kiloUsageDataSource == .auto
         let (weeklyPace, sessionEquivalentForecast) = self.resolvePaceAndForecast(
             target: target,
             snapshot: snapshot,
@@ -127,14 +129,14 @@ extension StatusItemController {
             tokenCostIsRefreshing: self.store.tokenCostRefreshIsActive(for: target),
             codexLocalSessionCostLedgerEnabled: self.settings.codexLocalSessionCostLedgerEnabled,
             tokenCostInlineDashboardEnabled: self.settings.costSummaryShowsInlineDashboard(for: target),
-            // Provider-native cost history always surfaces via the inline dashboard or a
+            // openai/mistral's cost history always surfaces via the inline dashboard or a
             // dedicated top-pane submenu (see `makeUsageSubmenu`), so they skip the generic
             // "Cost" row. This must stay an explicit provider check rather than reusing
             // `usesProviderCostHistoryAsPrimaryDashboard` (or `tokenCostRequiresProviderSnapshot`):
             // both of those sets are shared with unrelated concerns (inline-dashboard eligibility,
             // provider-derived snapshot sourcing) and gain members for reasons that have nothing to
             // do with whether this row should show, silently disabling the Cost row for those
-            // providers too when the inline-dashboard set changes.
+            // providers too (e.g. groq's addition to the inline-dashboard set previously did this).
             tokenCostMenuSectionEnabled: ProviderDescriptorRegistry.descriptor(for: target).tokenCost
                 .showsCostMenuSection &&
                 self.settings.costSummaryShowsSubmenu(for: target),
@@ -142,8 +144,10 @@ extension StatusItemController {
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: self.settings.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: self.settings.codexSparkUsageVisible,
+            copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             sourceLabel: sourceLabel,
             subtitleOverride: subtitleOverride,
+            kiloAutoMode: kiloAutoMode,
             hidePersonalInfo: self.settings.hidePersonalInfo,
             weeklyPace: weeklyPace,
             sessionEquivalentForecast: sessionEquivalentForecast,

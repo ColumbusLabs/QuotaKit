@@ -2,6 +2,8 @@ import Foundation
 
 #if canImport(SQLite3)
 import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
 #endif
 
 // MARK: - Typed reads

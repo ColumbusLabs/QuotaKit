@@ -88,17 +88,14 @@ enum SwiftDataBridge {
         // (user disconnected a provider on Mac) and must be pruned locally to keep
         // the SwiftData mirror in lockstep. Without this, phantom provider rows
         // accumulate forever. Flagged in Codex review (P2).
-        let supportedProviders = snapshot.providers.filter {
-            QuotaKitProviderCatalog.contains($0.providerID)
-        }
-        let incomingKeys: Set<String> = Set(supportedProviders.map { provider in
+        let incomingKeys: Set<String> = Set(snapshot.providers.map { provider in
             ProviderSnapshotModel.makeCompositeKey(
                 deviceID: deviceID,
                 providerID: provider.providerID,
                 accountEmail: provider.accountEmail)
         })
 
-        for provider in supportedProviders {
+        for provider in snapshot.providers {
             try Self.upsertProvider(provider, deviceID: deviceID, device: device, in: context)
         }
 
@@ -304,7 +301,7 @@ enum SwiftDataBridge {
             var providers: [ProviderUsageSnapshot] = []
             providers.reserveCapacity(device.providers.count)
 
-            for row in device.providers where QuotaKitProviderCatalog.contains(row.providerID) {
+            for row in device.providers {
                 let rateWindows = (try? decoder.decode([SyncRateWindow].self, from: row.rateWindowsData)) ?? []
                 let costSummary = row.costSummaryData.flatMap {
                     try? decoder.decode(SyncCostSummary.self, from: $0)

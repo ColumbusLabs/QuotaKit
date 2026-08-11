@@ -18,7 +18,9 @@ struct MenuSwitchFlickerProbeTests {
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore)
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     @Test

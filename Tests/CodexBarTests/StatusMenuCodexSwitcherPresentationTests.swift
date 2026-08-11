@@ -18,7 +18,9 @@ struct StatusMenuCodexSwitcherPresentationTests {
         defaults.removePersistentDomain(forName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private func makeManagedAccountStoreURL(accounts: [ManagedCodexAccount]) throws -> URL {

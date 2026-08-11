@@ -32,7 +32,9 @@ struct ClaudeDailyRoutinesSettingsTests {
         let configStore = testConfigStore(suiteName: suite)
         let store = SettingsStore(
             userDefaults: defaults,
-            configStore: configStore)
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         #expect(store.claudeDailyRoutinesUsageVisible)
         let backgroundRevision = store.backgroundWorkSettingsRevision
@@ -49,7 +51,9 @@ struct ClaudeDailyRoutinesSettingsTests {
 
         let reloaded = SettingsStore(
             userDefaults: defaults,
-            configStore: configStore)
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         #expect(reloaded.claudeDailyRoutinesUsageVisible == false)
     }
 }

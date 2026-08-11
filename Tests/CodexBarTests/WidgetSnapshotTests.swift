@@ -78,15 +78,11 @@ struct WidgetSnapshotTests {
     }
 
     @Test
-    func `widget snapshot round trip preserves Grok provider`() throws {
+    func `widget snapshot round trip preserves kilo provider`() throws {
         let entry = WidgetSnapshot.ProviderEntry(
-            provider: .grok,
+            provider: .kilo,
             updatedAt: Date(),
-            primary: RateWindow(
-                usedPercent: 40,
-                windowMinutes: 10080,
-                resetsAt: nil,
-                resetDescription: "Weekly"),
+            primary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: "40/100 credits"),
             secondary: nil,
             tertiary: nil,
             creditsRemaining: nil,
@@ -102,7 +98,7 @@ struct WidgetSnapshotTests {
 
         let snapshot = WidgetSnapshot(
             entries: [entry],
-            enabledProviders: [.grok, .codex],
+            enabledProviders: [.kilo, .codex],
             generatedAt: Date())
 
         let encoder = JSONEncoder()
@@ -113,26 +109,29 @@ struct WidgetSnapshotTests {
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(WidgetSnapshot.self, from: data)
 
-        #expect(decoded.entries.first?.provider == .grok)
-        #expect(decoded.entries.first?.primary?.resetDescription == "Weekly")
-        #expect(decoded.enabledProviders == [.grok, .codex])
+        #expect(decoded.entries.first?.provider == .kilo)
+        #expect(decoded.entries.first?.primary?.resetDescription == "40/100 credits")
+        #expect(decoded.enabledProviders == [.kilo, .codex])
     }
 
     @Test
-    func `widget snapshot round trip preserves Grok exhausted edge state`() throws {
+    func `widget snapshot round trip preserves kilo zero total edge state`() throws {
         let now = Date()
-        let exhausted = RateWindow(
-            usedPercent: 100,
-            windowMinutes: 10080,
-            resetsAt: nil,
-            resetDescription: "Weekly")
+        let kiloSnapshot = KiloUsageSnapshot(
+            creditsUsed: 0,
+            creditsTotal: 0,
+            creditsRemaining: 0,
+            planName: "Kilo Pass Pro",
+            autoTopUpEnabled: true,
+            autoTopUpMethod: "visa",
+            updatedAt: now).toUsageSnapshot()
 
         let entry = WidgetSnapshot.ProviderEntry(
-            provider: .grok,
+            provider: .kilo,
             updatedAt: now,
-            primary: exhausted,
-            secondary: nil,
-            tertiary: nil,
+            primary: kiloSnapshot.primary,
+            secondary: kiloSnapshot.secondary,
+            tertiary: kiloSnapshot.tertiary,
             creditsRemaining: nil,
             codeReviewRemainingPercent: nil,
             tokenUsage: nil,
@@ -140,7 +139,7 @@ struct WidgetSnapshotTests {
 
         let snapshot = WidgetSnapshot(
             entries: [entry],
-            enabledProviders: [.grok],
+            enabledProviders: [.kilo],
             generatedAt: now)
 
         let encoder = JSONEncoder()
@@ -151,11 +150,11 @@ struct WidgetSnapshotTests {
         decoder.dateDecodingStrategy = .iso8601
         let decoded = try decoder.decode(WidgetSnapshot.self, from: data)
 
-        #expect(decoded.entries.first?.provider == .grok)
+        #expect(decoded.entries.first?.provider == .kilo)
         #expect(decoded.entries.first?.primary?.usedPercent == 100)
         #expect(decoded.entries.first?.primary?.remainingPercent == 0)
-        #expect(decoded.entries.first?.primary?.resetDescription == "Weekly")
-        #expect(decoded.enabledProviders == [.grok])
+        #expect(decoded.entries.first?.primary?.resetDescription == "0/0 credits")
+        #expect(decoded.enabledProviders == [.kilo])
     }
 
     @Test

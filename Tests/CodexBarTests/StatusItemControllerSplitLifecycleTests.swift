@@ -21,7 +21,9 @@ struct StatusItemControllerSplitLifecycleTests {
         defaults.removePersistentDomain(forName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private func containsHostingView(_ view: NSView) -> Bool {
@@ -37,6 +39,7 @@ struct StatusItemControllerSplitLifecycleTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
+        settings.providerDetectionCompleted = true
 
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {

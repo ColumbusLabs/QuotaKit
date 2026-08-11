@@ -515,11 +515,11 @@ struct SyncModelTests {
     }
 
     @Test
-    func `Cost dashboard insights aggregate the supported providers`() {
+    func `Cost dashboard insights aggregate ten providers`() {
         var providers: [ProviderUsageSnapshot] = []
         var expectedTotal30DayCost = 0.0
 
-        for (index, providerID) in QuotaKitProviderCatalog.providerIDs.enumerated() {
+        for index in 0..<10 {
             let dayCost = Double(index + 1) * 0.9
             let last30DayCost = Double(index + 1) * 3.5
             let daily = [
@@ -549,8 +549,8 @@ struct SyncModelTests {
 
             providers.append(
                 ProviderUsageSnapshot(
-                    providerID: providerID,
-                    providerName: providerID.capitalized,
+                    providerID: "provider-\(index)",
+                    providerName: "Provider \(index)",
                     primary: nil,
                     secondary: nil,
                     accountEmail: "user\(index)@example.com",
@@ -569,9 +569,9 @@ struct SyncModelTests {
             deviceName: "Test Mac")
         let insights = CostDashboardInsights(snapshot: snapshot)
 
-        #expect(insights.providerRows.count == QuotaKitProviderCatalog.providerIDs.count)
-        #expect(insights.budgetRows.count == QuotaKitProviderCatalog.providerIDs.count)
-        #expect(insights.dailyPoints.count == QuotaKitProviderCatalog.providerIDs.count)
+        #expect(insights.providerRows.count == 10)
+        #expect(insights.budgetRows.count == 10)
+        #expect(insights.dailyPoints.count == 10)
         #expect(insights.total30DayCost == expectedTotal30DayCost)
         #expect(insights.serviceRows.first?.label == "Codex Run")
         #expect(insights.hasDisplayData == true)

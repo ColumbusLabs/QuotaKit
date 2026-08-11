@@ -137,6 +137,14 @@ struct DebugPane: View {
                         }
                     }
 
+                    Button {
+                        self.settings.rerunProviderDetection()
+                        self.loadLog(self.currentLogProvider)
+                    } label: {
+                        Label(L("rerun_provider_autodetect"), systemImage: "dot.radiowaves.left.and.right")
+                    }
+                    .controlSize(.small)
+
                     ZStack(alignment: .topLeading) {
                         ScrollView {
                             Text(self.displayedLog)

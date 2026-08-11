@@ -1,0 +1,17 @@
+QuotaKit is the iPhone companion for tracking AI quota, reset windows, and spend across the tools you use.
+
+Install QuotaKit on your Mac, enable the providers you care about, turn on iCloud Sync, and your iPhone becomes a clean mobile dashboard for your AI usage. See what is left, when limits reset, how much you have spent, and whether you are on pace for the current usage window.
+
+Built for AI power users, developers, and anyone juggling multiple AI tools, QuotaKit helps you stop guessing before a long coding session.
+
+Track what matters:
+- Multi-provider AI quota tracking
+- Reset windows and provider status
+- Daily spend and renewal-cycle progress
+- iCloud sync from Mac to iPhone
+- Alerts when quota runs out or becomes available again
+- Home Screen and Lock Screen widgets with QuotaKit Pro
+- Share cards for usage and cost views
+- Local collection with private iCloud sync
+
+QuotaKit for iPhone requires QuotaKit for Mac. The Mac app gathers provider data locally for the providers you enable, then syncs quota snapshots through your iCloud account so your iPhone can show status, alerts, widgets, and dashboards.

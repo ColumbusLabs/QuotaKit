@@ -660,7 +660,7 @@ extension UsageStore {
             return windows.prefix(2).max(by: { $0.usedPercent < $1.usedPercent })
         case .automatic:
             return projection.automaticMenuBarWindow()
-        case .primary:
+        case .primary, .monthlyPlan:
             return first
         }
     }

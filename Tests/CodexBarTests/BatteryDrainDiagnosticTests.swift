@@ -24,7 +24,9 @@ struct BatteryDrainDiagnosticTests {
         self.ensureAppKitInitialized()
 
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "BatteryDrain-AllDisabled"))
+            configStore: testConfigStore(suiteName: "BatteryDrain-AllDisabled"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -65,7 +67,9 @@ struct BatteryDrainDiagnosticTests {
         self.ensureAppKitInitialized()
 
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "BatteryDrain-HasData"))
+            configStore: testConfigStore(suiteName: "BatteryDrain-HasData"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -111,7 +115,9 @@ struct BatteryDrainDiagnosticTests {
         self.ensureAppKitInitialized()
 
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "BatteryDrain-NoData"))
+            configStore: testConfigStore(suiteName: "BatteryDrain-NoData"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
@@ -147,7 +153,9 @@ struct BatteryDrainDiagnosticTests {
         self.ensureAppKitInitialized()
 
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "BatteryDrain-ErrorStops"))
+            configStore: testConfigStore(suiteName: "BatteryDrain-ErrorStops"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
 
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual

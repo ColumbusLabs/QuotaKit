@@ -86,7 +86,7 @@ struct SpendActivityHeatmapTests {
         let model = SpendDashboardModel.build(
             inputs: [
                 .init(id: "annual", provider: .claude, displayName: "Claude", snapshot: annual),
-                .init(id: "recent", provider: .cursor, displayName: "Cursor", snapshot: recent),
+                .init(id: "recent", provider: .openai, displayName: "OpenAI", snapshot: recent),
             ],
             requestedDays: 30,
             now: now,

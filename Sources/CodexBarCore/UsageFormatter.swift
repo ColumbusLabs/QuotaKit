@@ -55,14 +55,10 @@ public enum UsageFormatter {
         // fallback below; app localization is injected through localizationProvider.
         let coreBundle = Bundle(for: BundleToken.self)
         let coreValue = NSLocalizedString(key, tableName: "Localizable", bundle: coreBundle, value: key, comment: "")
-        if coreValue != key {
-            return coreValue
-        }
+        if coreValue != key { return coreValue }
 
         let mainValue = NSLocalizedString(key, tableName: "Localizable", bundle: .main, value: key, comment: "")
-        if mainValue != key {
-            return mainValue
-        }
+        if mainValue != key { return mainValue }
         #endif
 
         switch key {
@@ -106,17 +102,13 @@ public enum UsageFormatter {
 
     public static func percentString(_ percent: Double) -> String {
         let clamped = min(100, max(0, percent))
-        if clamped > 0, clamped < 1 {
-            return "<1%"
-        }
+        if clamped > 0, clamped < 1 { return "<1%" }
         return String(format: "%.0f%%", clamped)
     }
 
     public static func resetCountdownDescription(from date: Date, now: Date = .init()) -> String {
         let seconds = max(0, date.timeIntervalSince(now))
-        if seconds < 1 {
-            return "now"
-        }
+        if seconds < 1 { return "now" }
 
         let totalMinutes = max(1, Int(ceil(seconds / 60.0)))
         let days = totalMinutes / (24 * 60)
@@ -124,18 +116,12 @@ public enum UsageFormatter {
         let minutes = totalMinutes % 60
 
         if days > 0 {
-            if hours > 0 {
-                return "in \(days)d \(hours)h"
-            }
-            if minutes > 0 {
-                return "in \(days)d \(minutes)m"
-            }
+            if hours > 0 { return "in \(days)d \(hours)h" }
+            if minutes > 0 { return "in \(days)d \(minutes)m" }
             return "in \(days)d"
         }
         if hours > 0 {
-            if minutes > 0 {
-                return "in \(hours)h \(minutes)m"
-            }
+            if minutes > 0 { return "in \(hours)h \(minutes)m" }
             return "in \(hours)h"
         }
         return "in \(totalMinutes)m"
@@ -228,6 +214,14 @@ public enum UsageFormatter {
         // Use explicit locale for consistent formatting on all systems
         number.locale = Locale(identifier: "en_US_POSIX")
         return number.string(from: NSNumber(value: value)) ?? String(format: "%.2f", value)
+    }
+
+    public static func kiroCreditNumber(_ value: Double) -> String {
+        let rounded = value.rounded()
+        if abs(value - rounded) < 0.005 {
+            return String(format: "%.0f", rounded)
+        }
+        return String(format: "%.2f", value)
     }
 
     /// Formats a USD value into a target currency code with exchange rate conversion applied.
@@ -353,9 +347,7 @@ public enum UsageFormatter {
                 formatted = String(format: "%.0f", scaled)
             } else {
                 var s = String(format: "%.1f", scaled)
-                if s.hasSuffix(".0") {
-                    s.removeLast(2)
-                }
+                if s.hasSuffix(".0") { s.removeLast(2) }
                 formatted = s
             }
             return "\(sign)\(formatted)\(unit.suffix)"
@@ -447,12 +439,8 @@ public enum UsageFormatter {
     public static func modelDisplayName(_ raw: String) -> String {
         var cleaned = raw.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !cleaned.isEmpty else { return raw }
-        if cleaned == "codex-auto-review" {
-            return "Codex Auto Review"
-        }
-        if CostUsagePricing.isCodexUnattributedModel(cleaned) {
-            return "Unknown model"
-        }
+        if cleaned == "codex-auto-review" { return "Codex Auto Review" }
+        if CostUsagePricing.isCodexUnattributedModel(cleaned) { return "Unknown model" }
 
         let patterns = [
             #"(?:-|\s)\d{8}$"#,
@@ -511,6 +499,9 @@ public enum UsageFormatter {
             .trimmingCharacters(in: .whitespacesAndNewlines)
         if cleaned.isEmpty {
             cleaned = stripped.trimmingCharacters(in: .whitespacesAndNewlines)
+        }
+        if cleaned.lowercased() == "oauth" {
+            return "Ollama"
         }
         // Capitalize first letter only if lowercase, preserving acronyms like "AI"
         if let first = cleaned.first, first.isLowercase {

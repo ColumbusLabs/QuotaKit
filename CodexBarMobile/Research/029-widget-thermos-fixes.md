@@ -21,7 +21,8 @@ Close all P0–P3 Thermos review findings from the iOS WidgetKit + QuotaKit bran
 ### Phase 2 — Security & product
 
 - [x] **2A** `statusMessage` email/credential redaction in widget snapshot builder
-- [x] **2B/2C** Superseded by the four-provider core: widget entitlement gating and locked-price UI were removed
+- [x] **2B** Pro-gated `WidgetSnapshotPublisher.publish`
+- [x] **2C** Dynamic locked-widget price via `ProductConfig.launchPriceCopy`
 
 ### Phase 3 — Architecture
 

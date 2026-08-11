@@ -18,17 +18,45 @@ extension UsageStore {
             self.clearQuotaLowHookUsage(provider: provider)
         }
         guard notificationsEnabled || hooksActive else { return }
+        if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
+            return
+        }
+
         let account = QuotaWarningAccountContext(
             displayName: self.quotaWarningAccountDisplayName(provider: provider, snapshot: snapshot),
             discriminator: self.quotaWarningAccountDiscriminator(
                 provider: provider,
                 snapshot: snapshot,
                 accountDiscriminatorOverride: accountDiscriminator))
-        let source: SessionQuotaWindowSource? = nil
-        let primaryWindow = snapshot.primary
-        let secondaryWindow = snapshot.secondary
-        let primaryWindowDisplayLabel: String? = nil
-        let secondaryWindowDisplayLabel: String? = nil
+        // Provider-specific by design: warning lanes follow Antigravity families, balance-only suppression, and
+        // provider-authored dynamic labels rather than the generic primary/secondary pair.
+        let source: SessionQuotaWindowSource? = if provider == .antigravity {
+            Self.hasAntigravityQuotaSummaryWindows(snapshot: snapshot)
+                ? .antigravityQuotaSummary
+                : .antigravityLegacy
+        } else {
+            nil
+        }
+        let primaryWindow: RateWindow?
+        let secondaryWindow: RateWindow?
+        if provider == .antigravity {
+            primaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 5 * 60)
+            secondaryWindow = Self.antigravityWindow(snapshot: snapshot, windowMinutes: 7 * 24 * 60)
+        } else {
+            // Crof credits-only accounts publish a duration-less balance as `primary`; a drained
+            // prepaid balance is not a quota threshold crossing, so it must not raise warnings.
+            // Crof accounts that do expose request quotas (secondary present) keep normal warnings.
+            let isBalanceOnlyCrof = provider == .crof && snapshot.secondary == nil
+            let suppressWindows = provider == .mimo || provider == .qoder || isBalanceOnlyCrof
+            primaryWindow = suppressWindows ? nil : snapshot.primary
+            secondaryWindow = suppressWindows ? nil : snapshot.secondary
+        }
+        let primaryWindowDisplayLabel = provider == .amp
+            ? AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
+            : nil
+        let secondaryWindowDisplayLabel = provider == .amp
+            ? AmpProviderDescriptor.secondaryLabel(snapshot: snapshot)
+            : nil
         if notificationsEnabled {
             self.handleQuotaWarningTransition(
                 provider: provider,
@@ -102,7 +130,8 @@ extension UsageStore {
 
     /// Emit weekly-lane quota warnings for Claude's extra rate windows — model-scoped weekly
     /// carve-outs (`claude-weekly-scoped-*`, e.g. Fable) and Daily Routines — which surface in the
-    /// menu but were otherwise silent.
+    /// menu but were otherwise silent. Antigravity's summary windows are already covered by the
+    /// primary and weekly lanes above, so they are excluded here.
     private func handleClaudeExtraWindowQuotaWarnings(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
@@ -254,7 +283,12 @@ extension UsageStore {
         if let email = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.accountEmail(for: provider)) {
             return "email:\(email)"
         }
-        if let loginMethod = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.loginMethod(for: provider)) {
+        // Command Code's login method includes the live monthly-credit balance, so it is display
+        // metadata rather than a stable account identity. Keying warnings by it would split one
+        // threshold episode every time the balance changes.
+        if provider != .commandcode,
+           let loginMethod = Self.normalizedQuotaWarningDiscriminatorValue(snapshot.loginMethod(for: provider))
+        {
             return "login:\(loginMethod)"
         }
         return nil
@@ -295,6 +329,7 @@ extension UsageStore {
             now: now)
     }
 
+    // swiftlint:disable:next cyclomatic_complexity
     func handleSessionQuotaTransition(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
@@ -310,6 +345,12 @@ extension UsageStore {
                 accountDiscriminatorOverride: $0)
         }
         let stateKey = SessionQuotaStateKey(provider: provider, accountDiscriminator: accountDiscriminator)
+        if provider == .commandcode,
+           snapshot.commandCodeSubscriptionEnrichmentUnavailable,
+           SessionQuotaNotificationLogic.isDepleted(snapshot.primary?.remainingPercent)
+        {
+            return
+        }
         let quotaReachedHookActive = self.hasQuotaHookRule(event: .quotaReached, provider: provider)
         if provider == .codex,
            !self.settings.sessionQuotaNotificationsEnabled,
@@ -326,6 +367,9 @@ extension UsageStore {
             return
         }
         guard let sessionWindow = self.sessionQuotaWindow(provider: provider, snapshot: snapshot) else {
+            if provider == .commandcode, snapshot.commandCodeSubscriptionEnrichmentUnavailable {
+                return
+            }
             if provider == .codex {
                 if let previous = self.sessionQuotaTransitionStates[stateKey] {
                     if previous.codexOwnerKey != codexOwnerKey {

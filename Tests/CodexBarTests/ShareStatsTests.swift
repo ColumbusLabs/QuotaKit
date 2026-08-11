@@ -6,16 +6,17 @@ import Testing
 
 struct ShareStatsTests {
     @Test
-    func `descriptor share plan labels cover retained plan providers`() {
-        let labelsByProvider = Dictionary(uniqueKeysWithValues: ProviderDescriptorRegistry.all.map {
-            ($0.id, $0.metadata.sharePlanLabels)
-        })
+    func `descriptor share plan labels preserve the legacy central table`() throws {
+        var fingerprint: UInt64 = 1_469_598_103_934_665_603
+        for descriptor in ProviderDescriptorRegistry.all where !descriptor.metadata.sharePlanLabels.isEmpty {
+            Self.hash(descriptor.id.rawValue, into: &fingerprint)
+            for key in descriptor.metadata.sharePlanLabels.keys.sorted() {
+                Self.hash(key, into: &fingerprint)
+                try Self.hash(#require(descriptor.metadata.sharePlanLabels[key]), into: &fingerprint)
+            }
+        }
 
-        #expect(Set(labelsByProvider.keys) == Set(UsageProvider.allCases))
-        #expect(labelsByProvider[.codex]?["pro"] == "Pro 20x")
-        #expect(labelsByProvider[.claude]?["max 5x"] == "Max 5x")
-        #expect(labelsByProvider[.cursor]?["cursor pro"] == "Cursor Pro")
-        #expect(labelsByProvider[.grok]?.isEmpty == true)
+        #expect(fingerprint == 2_500_333_924_415_227_190)
     }
 
     @Test
@@ -94,8 +95,14 @@ struct ShareStatsTests {
         #expect(Self.subscriptionName(provider: .codex, rawName: "pro")?.displayName == "Pro 20x")
         #expect(Self.subscriptionName(provider: .codex, rawName: "Plus Plan")?.displayName == "Plus")
         #expect(Self.subscriptionName(provider: .cursor, rawName: "Cursor Pro")?.displayName == "Cursor Pro")
-        #expect(Self.subscriptionName(provider: .claude, rawName: "Claude Max")?.displayName == "Max")
-        #expect(Self.subscriptionName(provider: .grok, rawName: "Team") == nil)
+        #expect(Self.subscriptionName(provider: .gemini, rawName: "Paid")?.displayName == "Paid")
+        #expect(Self.subscriptionName(provider: .copilot, rawName: "Business")?.displayName == "Business")
+        #expect(Self.subscriptionName(provider: .perplexity, rawName: "Max")?.displayName == "Max")
+        #expect(Self.subscriptionName(provider: .windsurf, rawName: "Teams")?.displayName == "Teams")
+        #expect(Self.subscriptionName(provider: .zed, rawName: "Zed Pro")?.displayName == "Zed Pro")
+        #expect(Self.subscriptionName(provider: .minimax, rawName: "MiniMax Star")?.displayName == "MiniMax Star")
+        #expect(Self.subscriptionName(provider: .synthetic, rawName: "Starter")?.displayName == "Starter")
+        #expect(Self.subscriptionName(provider: .openrouter, rawName: "Team") == nil)
         #expect(Self.subscriptionName(provider: .claude, rawName: "name@example.com") == nil)
         #expect(Self.subscriptionName(provider: .claude, rawName: "Alice Smith") == nil)
         #expect(Self.subscriptionName(provider: .codex, rawName: "123456789") == nil)

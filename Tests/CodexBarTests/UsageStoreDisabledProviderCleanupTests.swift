@@ -10,7 +10,7 @@ struct UsageStoreDisabledProviderCleanupTests {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-provider-race")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        try Self.setOnlyProvider(.grok, enabled: true, settings: settings)
+        try Self.setOnlyProvider(.amp, enabled: true, settings: settings)
         let store = Self.makeUsageStore(settings: settings)
         let gate = CleanupAsyncGate()
         let stale = Self.usageSnapshot(usedPercent: 71)
@@ -19,20 +19,20 @@ struct UsageStoreDisabledProviderCleanupTests {
             return Self.providerOutcome(snapshot: stale)
         }
 
-        let staleTask = Task { await store.refreshProvider(.grok) }
+        let staleTask = Task { await store.refreshProvider(.amp) }
         await gate.waitUntilStarted()
-        try Self.setProvider(.grok, enabled: false, settings: settings)
+        try Self.setProvider(.amp, enabled: false, settings: settings)
         store.clearDisabledProviderState(enabledProviders: [])
-        try Self.setProvider(.grok, enabled: true, settings: settings)
+        try Self.setProvider(.amp, enabled: true, settings: settings)
         await gate.resume()
         await staleTask.value
 
-        #expect(store.snapshot(for: .grok) == nil)
+        #expect(store.snapshot(for: .amp) == nil)
 
         let fresh = Self.usageSnapshot(usedPercent: 19)
         store._test_providerFetchOutcomeOverride = { _ in Self.providerOutcome(snapshot: fresh) }
-        await store.refreshProvider(.grok)
-        #expect(store.snapshot(for: .grok)?.primary?.usedPercent == 19)
+        await store.refreshProvider(.amp)
+        #expect(store.snapshot(for: .amp)?.primary?.usedPercent == 19)
     }
 
     @Test
@@ -40,7 +40,7 @@ struct UsageStoreDisabledProviderCleanupTests {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-provider-config-race")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        try Self.setOnlyProvider(.grok, enabled: true, settings: settings)
+        try Self.setOnlyProvider(.amp, enabled: true, settings: settings)
         let store = Self.makeUsageStore(settings: settings)
         let gate = CleanupAsyncGate()
         store._test_providerFetchOutcomeOverride = { _ in
@@ -48,14 +48,14 @@ struct UsageStoreDisabledProviderCleanupTests {
             return Self.providerOutcome(snapshot: Self.usageSnapshot(usedPercent: 71))
         }
 
-        let staleTask = Task { await store.refreshProvider(.grok) }
+        let staleTask = Task { await store.refreshProvider(.amp) }
         await gate.waitUntilStarted()
-        try Self.setProvider(.grok, enabled: false, settings: settings)
-        try Self.setProvider(.grok, enabled: true, settings: settings)
+        try Self.setProvider(.amp, enabled: false, settings: settings)
+        try Self.setProvider(.amp, enabled: true, settings: settings)
         await gate.resume()
         await staleTask.value
 
-        #expect(store.snapshot(for: .grok) == nil)
+        #expect(store.snapshot(for: .amp) == nil)
     }
 
     @Test
@@ -63,7 +63,7 @@ struct UsageStoreDisabledProviderCleanupTests {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-provider-order")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        try Self.setOnlyProvider(.grok, enabled: true, settings: settings)
+        try Self.setOnlyProvider(.amp, enabled: true, settings: settings)
         let store = Self.makeUsageStore(settings: settings)
         let gate = CleanupAsyncGate()
         store._test_providerFetchOutcomeOverride = { _ in
@@ -71,13 +71,13 @@ struct UsageStoreDisabledProviderCleanupTests {
             return Self.providerOutcome(snapshot: Self.usageSnapshot(usedPercent: 43))
         }
 
-        let refreshTask = Task { await store.refreshProvider(.grok) }
+        let refreshTask = Task { await store.refreshProvider(.amp) }
         await gate.waitUntilStarted()
         settings.setProviderOrder(Array(settings.orderedProviders().reversed()))
         await gate.resume()
         await refreshTask.value
 
-        #expect(store.snapshot(for: .grok)?.primary?.usedPercent == 43)
+        #expect(store.snapshot(for: .amp)?.primary?.usedPercent == 43)
     }
 
     @Test
@@ -85,8 +85,8 @@ struct UsageStoreDisabledProviderCleanupTests {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-provider-config")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        try Self.setOnlyProvider(.grok, enabled: true, settings: settings)
-        settings.updateProviderConfig(provider: .grok) { $0.source = .auto }
+        try Self.setOnlyProvider(.amp, enabled: true, settings: settings)
+        settings.updateProviderConfig(provider: .amp) { $0.source = .auto }
         let store = Self.makeUsageStore(settings: settings)
         let gate = CleanupAsyncGate()
         store._test_providerFetchOutcomeOverride = { _ in
@@ -94,14 +94,43 @@ struct UsageStoreDisabledProviderCleanupTests {
             return Self.providerOutcome(snapshot: Self.usageSnapshot(usedPercent: 71))
         }
 
-        let staleTask = Task { await store.refreshProvider(.grok) }
+        let staleTask = Task { await store.refreshProvider(.amp) }
         await gate.waitUntilStarted()
-        settings.updateProviderConfig(provider: .grok) { $0.source = .api }
-        settings.updateProviderConfig(provider: .grok) { $0.source = .auto }
+        settings.updateProviderConfig(provider: .amp) { $0.source = .api }
+        settings.updateProviderConfig(provider: .amp) { $0.source = .auto }
         await gate.resume()
         await staleTask.value
 
-        #expect(store.snapshot(for: .grok) == nil)
+        #expect(store.snapshot(for: .amp) == nil)
+    }
+
+    @Test
+    func `base URL change rejects suspended token account result and cache`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-token-base-url")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        try Self.setOnlyProvider(.sub2api, enabled: true, settings: settings)
+        settings.updateProviderConfig(provider: .sub2api) { config in
+            config.enterpriseHost = "https://first.example.test"
+        }
+        settings.addTokenAccount(provider: .sub2api, label: "Primary", token: "k1")
+        let store = Self.makeUsageStore(settings: settings)
+        let gate = CleanupAsyncGate()
+        store._test_providerFetchOutcomeOverride = { _ in
+            await gate.suspend()
+            return Self.providerOutcome(snapshot: Self.usageSnapshot(usedPercent: 71))
+        }
+
+        let staleTask = Task { await store.refreshProvider(.sub2api) }
+        await gate.waitUntilStarted()
+        settings.updateProviderConfig(provider: .sub2api) { config in
+            config.enterpriseHost = "https://second.example.test"
+        }
+        await gate.resume()
+        await staleTask.value
+
+        #expect(store.snapshot(for: .sub2api) == nil)
+        #expect(store.accountSnapshots[.sub2api] == nil)
     }
 
     @Test
@@ -109,7 +138,7 @@ struct UsageStoreDisabledProviderCleanupTests {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-allow-disabled")
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
-        try Self.setOnlyProvider(.grok, enabled: false, settings: settings)
+        try Self.setOnlyProvider(.amp, enabled: false, settings: settings)
         let store = Self.makeUsageStore(settings: settings)
         let gate = CleanupAsyncGate()
         store._test_providerFetchOutcomeOverride = { _ in
@@ -117,16 +146,16 @@ struct UsageStoreDisabledProviderCleanupTests {
             return Self.providerOutcome(snapshot: Self.usageSnapshot(usedPercent: 27))
         }
 
-        let refreshTask = Task { await store.refreshProvider(.grok, allowDisabled: true) }
+        let refreshTask = Task { await store.refreshProvider(.amp, allowDisabled: true) }
         await gate.waitUntilStarted()
         store.clearDisabledProviderState(enabledProviders: [])
         await gate.resume()
         await refreshTask.value
 
-        #expect(store.snapshot(for: .grok)?.primary?.usedPercent == 27)
+        #expect(store.snapshot(for: .amp)?.primary?.usedPercent == 27)
 
         store.clearDisabledProviderState(enabledProviders: [])
-        #expect(store.snapshot(for: .grok) == nil)
+        #expect(store.snapshot(for: .amp) == nil)
     }
 
     @Test
@@ -370,6 +399,99 @@ struct UsageStoreDisabledProviderCleanupTests {
     }
 
     @Test
+    func `disabled provider cleanup clears derived reset scope and warning state`() throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-derived")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+
+        let metadata = ProviderRegistry.shared.metadata
+        for provider in UsageProvider.allCases {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(metadata[provider]),
+                enabled: false)
+        }
+        try settings.setProviderEnabled(provider: .codex, metadata: #require(metadata[.codex]), enabled: true)
+
+        let store = Self.makeUsageStore(settings: settings)
+        let staleSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 40, windowMinutes: 300, resetsAt: Date(), resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        let retainedSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 12, windowMinutes: 300, resetsAt: Date(), resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(staleSnapshot, provider: .kilo)
+        store.lastKnownResetSnapshots[.kilo] = staleSnapshot
+        store.lastKnownResetSnapshots[.codex] = retainedSnapshot
+        store.kiloScopeSnapshots = [
+            KiloScopeSnapshot(
+                id: KiloUsageScope.personal.scopeIdentifier,
+                scope: .personal,
+                snapshot: staleSnapshot,
+                errorMessage: nil,
+                sourceLabel: "personal"),
+            KiloScopeSnapshot(
+                id: "org-stale",
+                scope: .organization(id: "org-stale", name: "Stale Org"),
+                snapshot: staleSnapshot,
+                errorMessage: nil,
+                sourceLabel: "org"),
+        ]
+        store.providerStorageFootprints[.kilo] = ProviderStorageFootprint(
+            provider: .kilo,
+            totalBytes: 42,
+            paths: ["/tmp/kilo"],
+            missingPaths: [],
+            unreadablePaths: [],
+            components: [],
+            updatedAt: Date())
+        store.quotaWarningState[
+            UsageStore.QuotaWarningStateKey(provider: .kilo, window: .session, accountDiscriminator: nil),
+        ] =
+            UsageStore.QuotaWarningState(lastRemaining: 20, firedThresholds: [50], source: .primary)
+        store.quotaWarningState[
+            UsageStore.QuotaWarningStateKey(provider: .codex, window: .session, accountDiscriminator: nil),
+        ] =
+            UsageStore.QuotaWarningState(lastRemaining: 80, firedThresholds: [20], source: .primary)
+        store.predictivePaceWarningNotifiedKeys = [
+            PredictivePaceWarningStateKey(
+                provider: .kilo,
+                accountDiscriminator: "kilo",
+                window: .session,
+                resetWindow: PredictivePaceWarningResetWindow(windowMinutes: 300, resetsAt: Date())),
+            PredictivePaceWarningStateKey(
+                provider: .codex,
+                accountDiscriminator: "codex",
+                window: .session,
+                resetWindow: PredictivePaceWarningResetWindow(windowMinutes: 300, resetsAt: Date())),
+        ]
+        store.lastTokenFetchAt[.kilo] = Date()
+        store.lastTokenFetchScope[.kilo] = "stale"
+
+        store.clearDisabledProviderState(enabledProviders: Set(store.enabledProvidersForDisplay()))
+
+        #expect(store.snapshot(for: .kilo) == nil)
+        #expect(store.lastKnownResetSnapshots[.kilo] == nil)
+        #expect(store.kiloScopeSnapshots.isEmpty)
+        #expect(store.providerStorageFootprints[.kilo] == nil)
+        #expect(store.quotaWarningState[
+            UsageStore.QuotaWarningStateKey(provider: .kilo, window: .session, accountDiscriminator: nil),
+        ] == nil)
+        #expect(store.predictivePaceWarningNotifiedKeys.allSatisfy { $0.provider != .kilo })
+        #expect(store.lastTokenFetchAt[.kilo] == nil)
+        #expect(store.lastTokenFetchScope[.kilo] == nil)
+
+        #expect(store.lastKnownResetSnapshots[.codex]?.primary?.usedPercent == 12)
+        #expect(store.quotaWarningState[
+            UsageStore.QuotaWarningStateKey(provider: .codex, window: .session, accountDiscriminator: nil),
+        ] != nil)
+        #expect(store.predictivePaceWarningNotifiedKeys.contains { $0.provider == .codex })
+    }
+
+    @Test
     func `disabled Codex cleanup clears account snapshots and publication guard`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-codex")
         settings.refreshFrequency = .manual
@@ -459,12 +581,74 @@ struct UsageStoreDisabledProviderCleanupTests {
         #expect(settings.claudeSwapExecutablePath == "/tmp/cswap-fixture")
     }
 
+    @Test
+    func `unavailable provider cleanup clears derived reset and scope state`() throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreDisabledProviderCleanupTests-unavailable")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+
+        let metadata = ProviderRegistry.shared.metadata
+        for provider in UsageProvider.allCases {
+            try settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(metadata[provider]),
+                enabled: false)
+        }
+        try settings.setProviderEnabled(provider: .kilo, metadata: #require(metadata[.kilo]), enabled: true)
+
+        let store = Self.makeUsageStore(settings: settings)
+        let staleSnapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 55, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+        store._setSnapshotForTesting(staleSnapshot, provider: .kilo)
+        store.lastKnownResetSnapshots[.kilo] = staleSnapshot
+        store.kiloScopeSnapshots = [
+            KiloScopeSnapshot(
+                id: KiloUsageScope.personal.scopeIdentifier,
+                scope: .personal,
+                snapshot: staleSnapshot,
+                errorMessage: nil,
+                sourceLabel: "personal"),
+            KiloScopeSnapshot(
+                id: "org-stale",
+                scope: .organization(id: "org-stale", name: "Stale Org"),
+                snapshot: staleSnapshot,
+                errorMessage: nil,
+                sourceLabel: "org"),
+        ]
+
+        store.clearUnavailableProviderState(
+            displayEnabledProviders: [.kilo],
+            availableProviders: [])
+
+        #expect(store.snapshot(for: .kilo) == nil)
+        #expect(store.lastKnownResetSnapshots[.kilo] == nil)
+        #expect(store.kiloScopeSnapshots.isEmpty)
+    }
+
     private static func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        return SettingsStore(
+        let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
+        settings.providerDetectionCompleted = true
+        return settings
     }
 
     private static func makeUsageStore(settings: SettingsStore) -> UsageStore {

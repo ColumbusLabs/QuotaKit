@@ -44,7 +44,13 @@ extension UsageStore {
         now: Date) -> RateWindow?
     {
         let effectivePreference = self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
-        // Provider-specific by design: Codex uses its reconciled dashboard projection.
+        // Provider-specific by design: these paths depend on live Codex projection and Antigravity user policy.
+        if provider == .antigravity,
+           effectivePreference == .automatic,
+           !self.settings.antigravityPrioritizeExhaustedQuotas
+        {
+            return Self.mostConstrainedAntigravityQuotaSummaryWindow(snapshot: snapshot)
+        }
         if provider == .codex {
             return self.codexMenuBarMetricWindow(snapshot: snapshot, now: now)
         }
@@ -53,6 +59,7 @@ extension UsageStore {
             provider: provider,
             snapshot: snapshot,
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
+            antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
             now: now)
     }
 
@@ -91,6 +98,22 @@ extension UsageStore {
             guard !percents.isEmpty else { return true }
             return percents.allSatisfy { $0 >= 100 }
         }
+        if provider == .antigravity, effectivePreference == .automatic {
+            if self.settings.antigravityPrioritizeExhaustedQuotas {
+                return MenuBarMetricWindowResolver.antigravityQuotaSummaryFamiliesAreAllBlocked(snapshot: snapshot)
+            }
+            let windows = Self.antigravityRenderedQuotaSummaryWindows(snapshot: snapshot)
+            guard !windows.isEmpty else { return true }
+            return windows.allSatisfy { $0.usedPercent >= 100 }
+        }
+        if provider == .copilot,
+           effectivePreference == .automatic,
+           let primary = snapshot.primary,
+           let secondary = snapshot.secondary
+        {
+            // In automatic mode Copilot can have one depleted lane while another still has quota.
+            return primary.usedPercent >= 100 && secondary.usedPercent >= 100
+        }
         if provider == .cursor,
            effectivePreference == .automatic
         {
@@ -115,5 +138,27 @@ extension UsageStore {
         }
 
         return true
+    }
+
+    private nonisolated static func mostConstrainedAntigravityQuotaSummaryWindow(
+        snapshot: UsageSnapshot)
+        -> RateWindow?
+    {
+        let windows = self.antigravityRenderedQuotaSummaryWindows(snapshot: snapshot)
+        guard !windows.isEmpty else { return nil }
+
+        let usableWindows = windows.filter { $0.usedPercent < 100 }
+        if let maxUsable = usableWindows.max(by: { $0.usedPercent < $1.usedPercent }) {
+            return maxUsable
+        }
+        return windows.max(by: { $0.usedPercent < $1.usedPercent })
+    }
+
+    private nonisolated static func antigravityRenderedQuotaSummaryWindows(
+        snapshot: UsageSnapshot)
+        -> [RateWindow]
+    {
+        let windows = IconRemainingResolver.resolvedWindows(snapshot: snapshot, style: .antigravity)
+        return [windows.primary, windows.secondary].compactMap(\.self)
     }
 }

@@ -355,12 +355,39 @@ public struct ProviderDescriptor: Sendable {
 }
 
 public enum ProviderDescriptorRegistry {
-    private static let descriptors = ProviderManifest.allDescriptors
-    private static let byID: [UsageProvider: ProviderDescriptor] = Dictionary(
-        uniqueKeysWithValues: descriptors.map { ($0.id, $0) })
+    private final class Store: @unchecked Sendable {
+        var ordered: [ProviderDescriptor] = []
+        var byID: [UsageProvider: ProviderDescriptor] = [:]
+    }
+
+    private static let lock = NSLock()
+    private static let store = Store()
+    private static let bootstrap: Void = {
+        for descriptor in ProviderManifest.allDescriptors {
+            _ = ProviderDescriptorRegistry.register(descriptor)
+        }
+    }()
+
+    private static func ensureBootstrapped() {
+        _ = self.bootstrap
+    }
+
+    @discardableResult
+    public static func register(_ descriptor: ProviderDescriptor) -> ProviderDescriptor {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        if self.store.byID[descriptor.id] == nil {
+            self.store.ordered.append(descriptor)
+        }
+        self.store.byID[descriptor.id] = descriptor
+        return descriptor
+    }
 
     public static var all: [ProviderDescriptor] {
-        self.descriptors
+        self.ensureBootstrapped()
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.store.ordered
     }
 
     public static var metadata: [UsageProvider: ProviderMetadata] {
@@ -368,11 +395,18 @@ public enum ProviderDescriptorRegistry {
     }
 
     public static func descriptor(for id: UsageProvider) -> ProviderDescriptor {
-        if let descriptor = self.byID[id] { return descriptor }
+        self.ensureBootstrapped()
+        if let found = self.store.byID[id] {
+            return found
+        }
+        if let found = self.all.first(where: { $0.id == id }) {
+            return found
+        }
         fatalError("Missing ProviderDescriptor for \(id.rawValue)")
     }
 
     public static var cliNameMap: [String: UsageProvider] {
+        self.ensureBootstrapped()
         var map: [String: UsageProvider] = [:]
         for descriptor in self.all {
             map[descriptor.cli.name] = descriptor.id

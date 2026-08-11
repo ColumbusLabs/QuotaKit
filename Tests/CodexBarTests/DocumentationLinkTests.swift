@@ -31,13 +31,11 @@ struct DocumentationLinkTests {
         let providers = try String(
             contentsOf: root.appending(path: "docs/providers.md"),
             encoding: .utf8)
-        let links = try Self.markdownLinks(in: providers)
-            .filter { URLComponents(string: $0)?.path.hasSuffix(".md") == true }
+        let links = Self.inlineCodeDocLinks(in: providers)
 
         #expect(!links.isEmpty)
         for link in links {
-            let repositoryLink = link.hasPrefix("docs/") ? link : "docs/\(link)"
-            try Self.validateLocalDocLink(repositoryLink, existsUnder: root)
+            try Self.validateLocalDocLink(link, existsUnder: root)
         }
     }
 

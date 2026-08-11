@@ -4,7 +4,7 @@ Track live Codex, Claude Code, pi, and OMP agent sessions — local Mac first, o
 
 ## Why in QuotaKit
 
-QuotaKit already parses local agent-session data and ships a bundled Mac CLI. The local scanner feeds the menu UI, and the same scanner exposed as `quotakit sessions --json` is what remote Macs run over SSH. No daemon, no new app.
+QuotaKit already parses `~/.claude/projects` JSONL (cost scanner) and ships a bundled CLI on macOS + Linux. Sessions reuse both: the local scanner feeds the menu UI, and the same scanner exposed as `quotakit sessions --json` is what remote Macs run over SSH. No daemon, no new app.
 
 ## Data model (CodexBarCore)
 
@@ -30,8 +30,6 @@ public struct AgentSession: Codable, Sendable, Identifiable {
 
 Pi-family rows additionally carry a `pi` or `omp` dialect. The legacy v1 JSON protocol remains restricted to Codex and Claude; v2 adds current providers and optional dialect fields so remote hosts can negotiate v2 first and fall back safely during mixed-version upgrades.
 
-`AgentSession.Provider` describes a local process/transcript dialect. It does not add a quota provider to the four-provider `UsageProvider` product surface.
-
 `active` = last activity ≤ 120 s ago. `idle` = live process (or recent file) with older activity. Constants live in one `SessionScanConfig` struct (activeWindow 120 s, fileOnlyWindow 30 min) so thresholds are tunable/testable.
 
 ## Local scanner (CodexBarCore, no new deps)
@@ -55,13 +53,13 @@ Pi-family discovery uses one bounded scanner. Plain pi reads version-3 session h
 
 - `quotakit sessions` — table; `--json` — the legacy v1 array; `--json-v2` — the complete array including Pi-family dialects (stable field names; ISO-8601 dates).
 - `quotakit sessions focus <id>` — macOS only: focus the session's terminal window (see Focus). Exit 1 if id unknown, 2 if focus failed.
-- Follows existing `CLI*Command.swift` conventions and runs from the bundled Mac CLI.
+- Follows existing `CLI*Command.swift` conventions. Works on Linux for listing (ps/proc paths guarded), focus is Darwin-only.
 
 ## Remote hosts (CodexBarCore + app)
 
 `RemoteSessionFetcher`:
 
-- Host list = manual Mac SSH entries plus automatic Tailscale discovery. Discovery is a no-op when Tailscale is absent, includes online macOS peers, uses the first `DNSName` label, and excludes the local host.
+- Host list = manual entries (settings, ssh destinations like `steipete@clawmac`) ∪ automatic Tailscale discovery (no-op when tailscale is absent): run `tailscale status --json` (PATH, then `/Applications/Tailscale.app/Contents/MacOS/Tailscale`), take online peers with `"OS": "macOS"|"linux"`, use first `DNSName` label as host. Local host excluded.
 - Fetch per host (parallel, 5 s budget): `ssh -o BatchMode=yes -o ConnectTimeout=3 <host> sh -lc 'quotakit sessions --json'` with fallback to the bundled app CLI path (resolve the canonical bundled location from `Scripts/package_app.sh` and hardcode it as fallback: `… || <bundled-path> sessions --json`). Host errors are non-fatal: host shown as unreachable, others still render.
 - Remote focus: fire-and-forget `ssh <host> sh -lc 'quotakit sessions focus <id>'`.
 - Refresh: local scan every 30 s while the status item exists (cheap), remote every 60 s and immediately on menu open; both skipped when the feature is off. Reuse existing refresh loop plumbing rather than new timers if it fits.
@@ -91,7 +89,7 @@ Fixture-driven, no live processes, no Keychain/AX:
 - lsof `-Fn` parser.
 - Claude cwd escaping → project dir mapping; newest-jsonl selection (temp dirs).
 - Codex rollout first-line parse → AgentSession (fixture JSONL), file-only window cutoff.
-- Tailscale status JSON → Mac host list (fixture; offline and non-macOS peers excluded).
+- Tailscale status JSON → host list (fixture; offline/iOS peers excluded).
 - Sessions JSON round-trip (CLI output schema stability).
 - Menu section descriptor: counts, grouping, unreachable-host rendering.
 

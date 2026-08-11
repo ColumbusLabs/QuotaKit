@@ -57,20 +57,13 @@ struct SnapshotCache: Sendable {
     /// when no data is ready), but this defense eliminates the ghost on
     /// existing installs without a Mac rebuild.
     private static func isGhost(_ provider: ProviderUsageSnapshot) -> Bool {
-        // Keep this retained-specialized-field tail aligned with Mac
-        // `SyncCoordinator.isGhostProvider`. Cursor has no separate retained
-        // payload field; its usable signal remains the generic rate windows.
         provider.primary == nil
             && provider.secondary == nil
             && provider.rateWindows.isEmpty
             && provider.costSummary == nil
             && provider.budget == nil
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
-            && provider.codexCreditLimit == nil
-            && provider.codexWorkspace == nil
-            && provider.claudeAdminUsage == nil
-            && provider.claudeExtraUsage == nil
-            && provider.grokBilling == nil
+            && provider.crossModelUsage == nil
             && !provider.isError
             && provider.statusMessage == nil
     }
@@ -303,8 +296,8 @@ struct SnapshotCache: Sendable {
             notificationPushEnabled: snapshot.notificationPushEnabled)
     }
 
-    /// Drop retired-product entries plus per-provider entries that are almost
-    /// certainly orphan / stale records left behind by Mac state transitions:
+    /// Drop per-provider entries that are almost certainly orphan / stale
+    /// records left behind by Mac state transitions:
     ///
     /// **Rule 1 · nil-email-when-real-email-exists.** If two entries share
     /// `providerID` but one has `accountEmail == nil` and the other has a
@@ -345,17 +338,6 @@ struct SnapshotCache: Sendable {
     {
         guard !byComposite.isEmpty else { return [:] }
 
-        // Product boundary: retain raw zone contents in the cache so CloudKit
-        // change-token and deletion semantics stay intact, but never publish a
-        // card for a provider outside the current four-provider catalog. This
-        // is deliberately a read-time filter; the iPhone does not delete
-        // production CloudKit records and older Mac reconciliation can finish
-        // independently.
-        let supported = byComposite.filter { _, provider in
-            QuotaKitProviderCatalog.contains(provider.providerID)
-        }
-        guard !supported.isEmpty else { return [:] }
-
         // Rule 1: group by providerID; drop nil-email when a REAL (non-mock)
         // sibling has an email.
         //
@@ -369,19 +351,19 @@ struct SnapshotCache: Sendable {
         // entries had emails. Mocks themselves bypass the rule (always kept)
         // since they have unique synthetic emails by design.
         var byProviderID: [String: [String]] = [:]
-        for (key, provider) in supported {
+        for (key, provider) in byComposite {
             byProviderID[provider.providerID, default: []].append(key)
         }
         var keptKeys = Set<String>()
         for (_, keys) in byProviderID {
             let hasRealEmail = keys.contains { key in
-                guard let provider = supported[key] else { return false }
+                guard let provider = byComposite[key] else { return false }
                 guard !MockProviderDetector.isMock(provider) else { return false }
                 guard let email = provider.accountEmail else { return false }
                 return !email.isEmpty
             }
             for key in keys {
-                guard let provider = supported[key] else { continue }
+                guard let provider = byComposite[key] else { continue }
                 let hasEmail = !(provider.accountEmail ?? "").isEmpty
                 let isMock = MockProviderDetector.isMock(provider)
                 // Keep if any of:
@@ -393,7 +375,7 @@ struct SnapshotCache: Sendable {
                 }
             }
         }
-        let afterOrphanDrop = supported.filter { keptKeys.contains($0.key) }
+        let afterOrphanDrop = byComposite.filter { keptKeys.contains($0.key) }
 
         // Rule 2: TTL on nil-email entries only, relative to REAL device
         // freshness. Mock `lastUpdated` tracks injection time (refreshes on

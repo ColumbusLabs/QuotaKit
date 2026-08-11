@@ -1,12 +1,6 @@
 import Foundation
 
 enum ClaudeCLIAuthStatusProbe {
-    enum AuthenticationStatus: Equatable {
-        case loggedIn
-        case loggedOut
-        case unavailable
-    }
-
     private struct Response: Decodable {
         let loggedIn: Bool
     }
@@ -38,21 +32,8 @@ enum ClaudeCLIAuthStatusProbe {
         workingDirectory: URL? = nil,
         timeout: TimeInterval = 5) async -> Bool
     {
-        await self.authenticationStatus(
-            binary: binary,
-            environment: environment,
-            workingDirectory: workingDirectory,
-            timeout: timeout) == .loggedIn
-    }
-
-    static func authenticationStatus(
-        binary: String,
-        environment: [String: String],
-        workingDirectory: URL? = nil,
-        timeout: TimeInterval = 5) async -> AuthenticationStatus
-    {
         if let resultOverrideForTesting = self.resultOverrideForTesting {
-            return resultOverrideForTesting ? .loggedIn : .loggedOut
+            return resultOverrideForTesting
         }
         do {
             let workingDirectory = workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
@@ -65,24 +46,19 @@ enum ClaudeCLIAuthStatusProbe {
                 timeout: self.timeoutOverrideForTesting ?? timeout,
                 standardInput: FileHandle.nullDevice,
                 currentDirectoryURL: workingDirectory,
-                acceptsNonZeroExit: true,
                 label: "claude-auth-status")
-            return self.parseStatus(result.stdout) ?? .unavailable
+            return self.parseLoggedIn(result.stdout)
         } catch {
-            return .unavailable
+            return false
         }
     }
 
     static func parseLoggedIn(_ output: String) -> Bool {
-        self.parseStatus(output) == .loggedIn
-    }
-
-    static func parseStatus(_ output: String) -> AuthenticationStatus? {
         guard let data = output.data(using: .utf8),
               let response = try? JSONDecoder().decode(Response.self, from: data)
         else {
-            return nil
+            return false
         }
-        return response.loggedIn ? .loggedIn : .loggedOut
+        return response.loggedIn
     }
 }

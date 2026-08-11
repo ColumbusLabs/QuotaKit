@@ -15,8 +15,6 @@ extension ProviderConfig {
         case enterpriseHost
         case tokenAccounts
         case quotaWarnings
-        // Retired user-plugin fields remain reserved so old config files decode safely.
-        // They are intentionally discarded and are never emitted again.
         case pluginSettings
         case pluginSecrets
     }
@@ -44,6 +42,12 @@ extension ProviderConfig {
         self.quotaWarnings = try container.decodeIfPresent(
             QuotaWarningConfig.self,
             forKey: .init(CodingKeys.quotaWarnings.rawValue))
+        self.pluginSettings = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .init(CodingKeys.pluginSettings.rawValue))
+        self.pluginSecrets = try container.decodeIfPresent(
+            [String: String].self,
+            forKey: .init(CodingKeys.pluginSecrets.rawValue))
 
         let genericKeys = Set(CodingKeys.allCases.map(\.rawValue))
         self.extensionValues = try container.allKeys.reduce(into: [:]) { values, key in
@@ -67,6 +71,8 @@ extension ProviderConfig {
         try container.encodeIfPresent(self.enterpriseHost, forKey: .init(CodingKeys.enterpriseHost.rawValue))
         try container.encodeIfPresent(self.tokenAccounts, forKey: .init(CodingKeys.tokenAccounts.rawValue))
         try container.encodeIfPresent(self.quotaWarnings, forKey: .init(CodingKeys.quotaWarnings.rawValue))
+        try container.encodeIfPresent(self.pluginSettings, forKey: .init(CodingKeys.pluginSettings.rawValue))
+        try container.encodeIfPresent(self.pluginSecrets, forKey: .init(CodingKeys.pluginSecrets.rawValue))
         for (key, value) in self.extensionValues {
             try container.encode(value, forKey: .init(key))
         }

@@ -95,21 +95,19 @@ unless Columbus Labs intentionally adds one later.
 
 ## iOS / TestFlight
 
-Run the canonical headless `xcodebuild` CLI lane:
+Run the canonical direct-Xcode lane:
 
 ```bash
-./Scripts/ios_testflight_xcode.sh --preflight-only
 ./Scripts/ios_testflight_xcode.sh
 ```
 
 The script loads the App Store Connect API key through
-`Scripts/load-release-secrets.sh`, requires API-key authentication, proves the
-distribution private key with a disposable signing probe, generates the Xcode
-project, archives with the QuotaKit-specific App Store profiles, and uploads to
-App Store Connect. The Xcode GUI and Xcode-account authentication are not part
-of the normal lane. A locked paired phone is irrelevant to the generic archive;
-see `docs/RELEASING-MOBILE.md` for the headless-release contract, system-rsync
-pin, and post-Xcode-upgrade clang-workaround check.
+`Scripts/load-release-secrets.sh`, verifies that the login Keychain is unlocked,
+generates the Xcode project, archives with the QuotaKit-specific App Store
+profiles, and uploads to App Store Connect. The app, push extension, and widget
+profiles are pinned in `CodexBarMobile/project.yml` so Release builds use the
+current Columbus Labs Distribution certificate while Debug builds remain
+unchanged.
 
 The profiles named `QuotaKit iOS App Store 2026-07-31`,
 `QuotaKit Push App Store 2026-07-31`, and

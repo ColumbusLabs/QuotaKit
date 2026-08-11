@@ -8,6 +8,11 @@ extension UsageSnapshot {
 
         // Keep the existing provider-specific fallback for providers without a weekly allowance.
         switch provider {
+        case .factory:
+            // Factory prefers secondary window
+            return self.secondary ?? self.primary
+        case .perplexity:
+            return self.automaticPerplexityWindow()
         case .cursor:
             // Cursor: fall back to on-demand budget when the included plan is exhausted (only in
             // "show remaining" mode). The secondary/tertiary lanes are Total/Auto/API breakdowns,

@@ -309,6 +309,35 @@ struct CodexSessionQuotaFalseRestoreTests {
     }
 
     @Test
+    func `source change establishes a new reducer baseline`() throws {
+        let owner = try self.owner("source-change")
+        let boundary = self.start.addingTimeInterval(5 * 3600)
+        let previous = SessionQuotaTransitionState(
+            remaining: 0,
+            source: .primary,
+            observedAt: self.start,
+            codexOwnerKey: owner,
+            trustedResetBoundary: boundary,
+            pendingCodexRestoreObservationAt: nil)
+
+        let evaluation = SessionQuotaTransitionReducer.evaluate(
+            previous: previous,
+            observation: SessionQuotaTransitionObservation(
+                provider: .codex,
+                remaining: 100,
+                source: .copilotSecondaryFallback,
+                resetBoundary: boundary,
+                observedAt: self.start.addingTimeInterval(60),
+                evaluationTime: self.start.addingTimeInterval(60),
+                codexOwnerKey: owner),
+            notificationsEnabled: true)
+
+        #expect(evaluation.outcome == .baselineChanged)
+        #expect(evaluation.state.remaining == 100)
+        #expect(evaluation.state.source == .copilotSecondaryFallback)
+    }
+
+    @Test
     func `missing owner fails closed and clears prior state`() throws {
         let owner = try self.owner("missing-owner")
         let boundary = self.start.addingTimeInterval(5 * 3600)
@@ -1016,7 +1045,9 @@ extension CodexSessionQuotaFalseRestoreTests {
         defaults.removePersistentDomain(forName: suiteName)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.sessionQuotaNotificationsEnabled = true

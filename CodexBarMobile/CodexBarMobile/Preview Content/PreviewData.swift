@@ -156,7 +156,7 @@ enum PreviewData {
                     leftLabel: "On pace")),
         ])
 
-    static let codexProvider = ProviderUsageSnapshot(
+    static let cursorProvider = ProviderUsageSnapshot(
         providerID: "codex",
         providerName: "Codex",
         primary: SyncRateWindow(
@@ -205,9 +205,9 @@ enum PreviewData {
             period: "Monthly",
             resetsAt: Date().addingTimeInterval(3600 * 24 * 9)))
 
-    static let cursorProvider = ProviderUsageSnapshot(
-        providerID: "cursor",
-        providerName: "Cursor",
+    static let openRouterProvider = ProviderUsageSnapshot(
+        providerID: "openrouter",
+        providerName: "OpenRouter",
         primary: SyncRateWindow(
             usedPercent: 92,
             windowMinutes: 60,
@@ -221,8 +221,8 @@ enum PreviewData {
                 leftLabel: "42% in deficit",
                 rightLabel: "Projected empty in 6m")),
         secondary: nil,
-        accountEmail: "dev@cursor.com",
-        loginMethod: "Business",
+        accountEmail: "user@openrouter.ai",
+        loginMethod: "Credits",
         statusMessage: "Rate limit approaching",
         isError: true,
         lastUpdated: Date().addingTimeInterval(-60),
@@ -234,11 +234,11 @@ enum PreviewData {
             daily: makeDaily(
                 baseCost: 0.39,
                 tokenBase: 13500,
-                modelMix: [("Composer", 0.44), ("Auto", 0.31), ("Agent", 0.25)])))
+                modelMix: [("openrouter/sonoma", 0.44), ("deepseek-chat", 0.31), ("qwen-max", 0.25)])))
 
-    static let grokProvider = ProviderUsageSnapshot(
-        providerID: "grok",
-        providerName: "Grok",
+    static let chatGPTProvider = ProviderUsageSnapshot(
+        providerID: "chatgpt",
+        providerName: "ChatGPT",
         primary: SyncRateWindow(
             usedPercent: 5,
             windowMinutes: 180,
@@ -262,8 +262,8 @@ enum PreviewData {
                 expectedUsedPercent: 12,
                 actualUsedPercent: 12,
                 leftLabel: "On pace")),
-        accountEmail: "user@x.ai",
-        loginMethod: "SuperGrok",
+        accountEmail: "user@openai.com",
+        loginMethod: "Plus",
         statusMessage: nil,
         isError: false,
         lastUpdated: Date().addingTimeInterval(-600),
@@ -275,7 +275,7 @@ enum PreviewData {
             daily: makeDaily(
                 baseCost: 0.65,
                 tokenBase: 24500,
-                modelMix: [("grok-4", 0.58), ("grok-3", 0.42)])))
+                modelMix: [("gpt-4.1", 0.58), ("gpt-4o", 0.42)])))
 
     // MARK: - iOS 1.7.0 / v0.26 preview providers
 
@@ -464,7 +464,9 @@ enum PreviewData {
 
     static let sampleSnapshot = SyncedUsageSnapshot(
         providers: [
-            codexProvider, claudeProvider, cursorProvider, grokProvider,
+            claudeProvider, cursorProvider, openRouterProvider, chatGPTProvider,
+            kiroProvider, bedrockProvider, moonshotProvider, zaiProvider,
+            openAIDashboardProvider, antigravityMultiAccountProvider,
         ],
         syncTimestamp: Date().addingTimeInterval(-45),
         deviceName: "MacBook Pro",

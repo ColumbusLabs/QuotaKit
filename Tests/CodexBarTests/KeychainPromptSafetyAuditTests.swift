@@ -143,9 +143,15 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `retained legacy migration store reads and deletes with no UI keychain queries`() throws {
+    func `legacy migration stores read and delete with no UI keychain queries`() throws {
         let files = [
             "Sources/CodexBar/CookieHeaderStore.swift",
+            "Sources/CodexBar/CopilotTokenStore.swift",
+            "Sources/CodexBar/KimiTokenStore.swift",
+            "Sources/CodexBar/MiniMaxAPITokenStore.swift",
+            "Sources/CodexBar/MiniMaxCookieStore.swift",
+            "Sources/CodexBar/SyntheticTokenStore.swift",
+            "Sources/CodexBar/ZaiTokenStore.swift",
         ]
 
         for file in files {
@@ -174,6 +180,23 @@ struct KeychainPromptSafetyAuditTests {
         #expect(migration.contains("let updateStatus = client.update(updateQuery, attributes)"))
         #expect(!migration.contains("SecItemDelete"))
         #expect(!migration.contains("SecItemAdd"))
+    }
+
+    @Test
+    func `alibaba safe storage password read uses no UI query`() throws {
+        let importer = try Self.readRepoFile(
+            "Sources/CodexBarCore/Providers/Shared/AliyunOneConsole/" +
+                "AliyunOneConsoleChromiumCookieFallbackImporter.swift")
+        let lines = importer.split(separator: "\n", omittingEmptySubsequences: false)
+        guard let readIndex = lines.firstIndex(where: {
+            $0.contains("SecItemCopyMatching") || $0.contains("KeychainSecurity.copyMatching")
+        }) else {
+            Issue.record("Expected Alibaba importer to contain a Safe Storage keychain read")
+            return
+        }
+
+        let window = Self.window(lines: lines, endingAt: readIndex, maxDistance: 8)
+        #expect(window.contains("KeychainNoUIQuery.apply"))
     }
 
     @Test

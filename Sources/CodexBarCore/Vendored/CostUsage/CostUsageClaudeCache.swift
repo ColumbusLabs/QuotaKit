@@ -1,6 +1,6 @@
 import Foundation
 
-/// Claude retains its small transcript cache. Codex deliberately has no route
+/// Claude and Vertex retain their small transcript cache. Codex deliberately has no route
 /// through this JSON I/O boundary; its only persistence authority is `CostUsageStore`.
 enum CostUsageClaudeCacheIO {
     private static func defaultCacheRoot() -> URL {
@@ -8,15 +8,20 @@ enum CostUsageClaudeCacheIO {
         return root.appendingPathComponent("CodexBar", isDirectory: true)
     }
 
-    // Provider-specific by design: Claude cost caching still uses the legacy JSON artifact pending its own
+    // Provider-specific by design: Claude/Vertex cost caching still uses the legacy JSON artifact pending its own
     // migration (see #2760).
 
     static func cacheFileURL(provider: UsageProvider, cacheRoot: URL? = nil) -> URL {
-        precondition(provider == .claude)
+        precondition(provider == .claude || provider == .vertexai)
         let root = cacheRoot ?? self.defaultCacheRoot()
+        let generation = switch provider {
+        case .claude: 7
+        case .vertexai: 6
+        default: preconditionFailure("unsupported cost cache provider")
+        }
         return root
             .appendingPathComponent("cost-usage", isDirectory: true)
-            .appendingPathComponent("\(provider.rawValue)-v7.json", isDirectory: false)
+            .appendingPathComponent("\(provider.rawValue)-v\(generation).json", isDirectory: false)
     }
 
     static func load(

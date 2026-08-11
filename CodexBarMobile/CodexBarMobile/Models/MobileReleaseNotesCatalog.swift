@@ -26,19 +26,23 @@ enum MobileReleaseNotesCatalog {
             version: "1.11.3",
             status: String(localized: "Latest"),
             summary: String(
-                localized: "QuotaKit now focuses on Codex, Claude, Cursor, and Grok, with every retained iPhone feature available directly."),
+                localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
                     items: [
                         String(
-                            localized: "Usage, cost history, widgets, and quota alerts now show Codex, Claude, Cursor, and Grok only."),
+                            localized: "Background sync now finishes without leaving a local database write running after iOS closes the silent-push window."),
                         String(
-                            localized: "Historical records from retired providers are ignored on iPhone without deleting CloudKit data."),
+                            localized: "Provider presentation and quota alerts now recognize ClinePass, LongCat, Qwen Cloud, and ZoomMate synced from your Mac."),
                         String(
-                            localized: "All retained companion features are available directly without a separate Pro purchase or remote feature switches."),
+                            localized: "Codex banked resets now show the available count and exact expiration time for every reset detail synced from your Mac."),
                         String(
-                            localized: "QuotaKit now uses an English-only mobile interface."),
+                            localized: "Monthly utilization history synced from your Mac now uses the app's selected language."),
+                        String(
+                            localized: "Model Mix in the Cost dashboard can now switch between per-model cost and token usage."),
+                        String(
+                            localized: "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail."),
                     ]),
             ]),
         ReleaseNotesVersion(
@@ -62,7 +66,7 @@ enum MobileReleaseNotesCatalog {
             version: "1.11.1",
             status: "",
             summary: String(
-                localized: "Expanded synced provider, cost, history, sharing, merge, notification, and widget features, with a cleaner QuotaKit-branded iOS experience."),
+                localized: "QuotaKit Pro now gates provider, cost, history, sharing, merge, notifications, and iOS widgets for real synced data, with a cleaner QuotaKit-branded iOS experience."),
             sections: [
                 .init(
                     title: String(localized: "What's New"),
@@ -70,7 +74,9 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "Daily Spend chart — shows a clean ~30-day window and scrolls left to reveal your full cost history (30 / 90 / 365-day windows); the latest day stays pinned to the right edge."),
                         String(
-                            localized: "Widgets and pace — widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
+                            localized: "QuotaKit Pro — Free mode keeps one selected synced provider plus basic quota details, while Pro and demo mode unlock the full provider list, cost dashboard, history charts, share actions, advanced merge controls, and visible quota alerts."),
+                        String(
+                            localized: "Widgets and pace — QuotaKit Pro widgets show Session and Weekly quota windows by default, with a Settings control for Both / Session / Weekly display, sanitized iPhone-side snapshot data, sync-age badges, quota-bar pace markers, and pace chips in single-window modes; daily and monthly day-count labels no longer get mistaken for weekly quota; Usage cards now match the Mac app with deficit/reserve pace labels, projected run-out timing, and expected-usage markers."),
                         String(
                             localized: "Usage organization — provider logos now match the Mac app across cards, detail screens, dashboard provider-share rows, and widgets; you can still choose which provider appears in widgets, and the Usage tab now shows a labeled Provider order button beside the live sync status."),
                         String(
@@ -79,6 +85,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Sync polish — provider colors now stay distinct and readable in both appearances, and the synced-time chip keeps its status available to VoiceOver while refreshing."),
                         String(
                             localized: "Widget sync — widgets now refresh directly from CloudKit silent pushes in the background, so new Mac sync data can update the widget without opening the app first."),
+                        String(
+                            localized: "Remote guardrails — Columbus Labs can now update safe setup links, announcements, and feature kill switches over the air while native app changes still go through TestFlight/App Store."),
                         String(
                             localized: "Performance — synced data refreshes automatically when you return to the app, the Cost dashboard loads faster, and chart scrubbing stays smooth."),
                     ]),

@@ -605,7 +605,7 @@ struct PredictivePaceWarningTests {
         let store = self.makeStore(settings: settings, notifier: notifier)
 
         store.handlePredictivePaceWarningTransitions(
-            provider: .grok,
+            provider: .zai,
             snapshot: self.snapshot(now: now, sessionUsed: 80, weeklyUsed: 90, accountEmail: "person@example.com"))
 
         #expect(notifier.predictivePosts.isEmpty)
@@ -645,7 +645,10 @@ struct PredictivePaceWarningTests {
         }
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
     }
 
     private func makeStore(settings: SettingsStore, notifier: NotifierSpy) -> UsageStore {

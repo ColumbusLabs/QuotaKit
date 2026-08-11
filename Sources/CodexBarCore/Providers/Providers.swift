@@ -20,9 +20,72 @@ public struct ProviderDebugPaneCapabilities: Sendable {
 // swiftformat:disable sortDeclarations
 public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case codex
+    case openai
+    case azureopenai
     case claude
+    case clinepass
     case cursor
+    case opencode
+    case opencodego
+    case alibaba
+    case alibabatokenplan
+    case qwencloud
+    case factory
+    case gemini
+    case antigravity
+    case copilot
+    case devin
+    case zai
+    case minimax
+    case manus
+    case kimi
+    case kilo
+    case kiro
+    case vertexai
+    case augment
+    case jetbrains
+    case moonshot
+    case amp
+    case t3chat
+    case ollama
+    case synthetic
+    case openrouter
+    case elevenlabs
+    case warp
+    case windsurf
+    case zed
+    case perplexity
+    case mimo
+    case doubao
+    case sakana
+    case abacus
+    case mistral
+    case deepseek
+    case deepinfra
+    case codebuff
+    case crof
+    case venice
+    case commandcode
+    case qoder
+    case stepfun
+    case bedrock
     case grok
+    case groq
+    case llmproxy
+    case litellm
+    case deepgram
+    case poe
+    case chutes
+    case neuralwatt
+    case clawrouter
+    case longcat
+    case sub2api
+    case wayfinder
+    case zenmux
+    case aiand
+    case zoommate
+    case xai
+    case notion
 }
 
 // swiftformat:enable sortDeclarations
@@ -49,8 +112,18 @@ public struct IconStyle: RawRepresentable, Hashable, Sendable, CaseIterable, Cus
     // Provider-specific by design: named styles preserve source-compatible renderer entry points.
     public static let codex = Self(provider: .codex)
     public static let claude = Self(provider: .claude)
+    public static let gemini = Self(provider: .gemini)
+    public static let antigravity = Self(provider: .antigravity)
     public static let cursor = Self(provider: .cursor)
-    public static let grok = Self(provider: .grok)
+    public static let factory = Self(provider: .factory)
+    public static let copilot = Self(provider: .copilot)
+    public static let commandcode = Self(provider: .commandcode)
+    public static let kimi = Self(provider: .kimi)
+    public static let mimo = Self(provider: .mimo)
+    public static let mistral = Self(provider: .mistral)
+    public static let qoder = Self(provider: .qoder)
+    public static let warp = Self(provider: .warp)
+    public static let perplexity = Self(provider: .perplexity)
     public static let combined = Self(rawValue: "combined")
 }
 
@@ -150,8 +223,6 @@ public struct ProviderMetadata: Sendable {
     }
 }
 
-// SwiftFormat 0.61.1's Linux `enumNamespaces` rule times out on these explicit namespaces.
-// swiftformat:disable enumNamespaces
 public enum ProviderDefaults {
     public static var metadata: [UsageProvider: ProviderMetadata] {
         ProviderDescriptorRegistry.metadata
@@ -167,5 +238,3 @@ public enum ProviderBrowserCookieDefaults {
         #endif
     }
 }
-
-// swiftformat:enable enumNamespaces

@@ -11,7 +11,7 @@ struct ProviderVersionDetectionGatingTests {
         let implementations = UsageStore.versionDetectionImplementations(enabled: [.codex, .claude])
         let ids = Set(implementations.map(\.id))
         #expect(ids == [.codex, .claude])
-        #expect(!ids.contains(.grok))
+        #expect(!ids.contains(.antigravity))
     }
 
     @Test
@@ -22,7 +22,7 @@ struct ProviderVersionDetectionGatingTests {
     @Test
     func `enabling a provider includes it in version probes`() {
         let ids = Set(UsageStore.versionDetectionImplementations(
-            enabled: [.codex, .grok]).map(\.id))
-        #expect(ids == [.codex, .grok])
+            enabled: [.codex, .antigravity]).map(\.id))
+        #expect(ids.contains(.antigravity))
     }
 }

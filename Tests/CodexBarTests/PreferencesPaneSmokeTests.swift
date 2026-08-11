@@ -63,16 +63,34 @@ struct PreferencesPaneSmokeTests {
 
     @Test
     func `general menu options cover persisted settings`() {
+        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
+        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
+        defer {
+            if let previousLanguage {
+                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "appLanguage")
+            }
+            if let previousAppleLanguages {
+                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+        }
+
+        #expect(GeneralSettingsMenuOptions.languages == AppLanguage.allCases.map(\.rawValue))
         #expect(GeneralSettingsMenuOptions.refreshFrequencies == RefreshFrequency.allCases)
         #expect(GeneralSettingsMenuOptions.terminalApps(selected: .terminal) { _ in nil } == [.terminal])
         #expect(GeneralSettingsMenuOptions.terminalApps(selected: .iTerm) { _ in nil } == [.terminal, .iTerm])
 
         let suite = "PreferencesPaneSmokeTests-general-menu-persistence"
         let settings = Self.makeSettingsStore(suite: suite)
+        settings.appLanguage = "ja"
         settings.terminalApp = .iTerm
         settings.refreshFrequency = .fiveMinutes
 
         let reloaded = Self.makeSettingsStore(suite: suite, reset: false)
+        #expect(reloaded.appLanguage == "ja")
         #expect(reloaded.terminalApp == .iTerm)
         #expect(reloaded.refreshFrequency == .fiveMinutes)
     }
@@ -197,24 +215,6 @@ struct PreferencesPaneSmokeTests {
     }
 
     @Test
-    func `agent session hosts editor builds for empty disabled and populated states`() {
-        let suite = "PreferencesPaneSmokeTests-agent-session-hosts"
-        let settings = Self.makeSettingsStore(suite: suite)
-
-        settings.agentSessionsEnabled = false
-        settings.agentSessionsManualHosts = ""
-        _ = AgentSessionHostsEditor(settings: settings).body
-        #expect(AgentSessionHostsEditor.inputFormatHint == "user@host, user@host")
-
-        settings.agentSessionsEnabled = true
-        settings.agentSessionsManualHosts = "developer@example-host"
-        _ = AgentSessionHostsEditor(settings: settings).body
-
-        let reloaded = Self.makeSettingsStore(suite: suite, reset: false)
-        #expect(reloaded.agentSessionsManualHosts == "developer@example-host")
-    }
-
-    @Test
     func `quota warning compact threshold text filters and persists typed values`() {
         let suite = "PreferencesPaneSmokeTests-quota-warning-threshold-editor"
         let settings = Self.makeSettingsStore(suite: suite)
@@ -289,19 +289,24 @@ struct PreferencesPaneSmokeTests {
         let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-quota-warning-semantic-labels")
         settings.quotaWarningNotificationsEnabled = true
 
-        #expect(L("quota_warning_global") == "Global")
-        #expect(L("quota_warning_warning") == "Warning")
-        #expect(L("quota_warning_critical") == "Critical")
-        _ = GlobalQuotaWarningSettingsView(settings: settings).body
+        CodexBarLocalizationOverride.$appLanguage.withValue("ru") {
+            #expect(L("quota_warning_global") == "Глобально")
+            #expect(L("quota_warning_warning") == "Предупреждение")
+            #expect(L("quota_warning_critical") == "Критично")
+
+            _ = GlobalQuotaWarningSettingsView(settings: settings).body
+        }
     }
 
     @Test
     func `provider quota warning inherited summary keeps additional active thresholds visible`() {
-        let thresholdText = ProviderQuotaWarningSettingsView.thresholdText([80, 50, 20], enabled: true)
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            let thresholdText = ProviderQuotaWarningSettingsView.thresholdText([80, 50, 20], enabled: true)
 
-        #expect(thresholdText == "Warning 80%, Critical 50%, 20%")
-        #expect(String(format: L("quota_warning_inherited"), thresholdText)
-            == "Inherited: Warning 80%, Critical 50%, 20%")
+            #expect(thresholdText == "Warning 80%, Critical 50%, 20%")
+            #expect(String(format: L("quota_warning_inherited"), thresholdText)
+                == "Inherited: Warning 80%, Critical 50%, 20%")
+        }
     }
 
     @Test
@@ -341,7 +346,9 @@ struct PreferencesPaneSmokeTests {
         #expect(inheritedView.overrideMode(for: .session) == .global)
         #expect(inheritedView.overrideMode(for: .weekly) == .global)
 
-        #expect(view.footerText == "Uses the global quota warning settings unless a window is customized here.")
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(view.footerText == "Uses the global quota warning settings unless a window is customized here.")
+        }
 
         settings.quotaWarningNotificationsEnabled = false
 
@@ -354,8 +361,10 @@ struct PreferencesPaneSmokeTests {
         #expect(settings.explicitQuotaWarningThresholds(provider: .codex, window: .session) == [70, 30])
         #expect(settings.explicitQuotaWarningThresholds(provider: .codex, window: .weekly) == [60, 10])
 
-        #expect(view.footerText == "Quota warning notifications are disabled globally. " +
-            "These settings still control usage-bar markers.")
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(view.footerText == "Quota warning notifications are disabled globally. " +
+                "These settings still control usage-bar markers.")
+        }
 
         settings.quotaWarningMarkersVisible = false
         settings.predictivePaceWarningNotificationsEnabled = true
@@ -363,8 +372,10 @@ struct PreferencesPaneSmokeTests {
         #expect(!view.controlsEnabled)
         #expect(!inheritedView.controlsEnabled)
 
-        #expect(view.footerText == "Quota warning notifications and usage-bar markers are disabled. " +
-            "Enable either to edit these saved settings.")
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(view.footerText == "Quota warning notifications and usage-bar markers are disabled. " +
+                "Enable either to edit these saved settings.")
+        }
 
         settings.quotaWarningNotificationsEnabled = true
 
@@ -375,7 +386,9 @@ struct PreferencesPaneSmokeTests {
         #expect(inheritedView.overrideMode(for: .session) == .global)
         #expect(inheritedView.overrideMode(for: .weekly) == .global)
 
-        #expect(view.footerText == "Uses the global quota warning settings unless a window is customized here.")
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(view.footerText == "Uses the global quota warning settings unless a window is customized here.")
+        }
     }
 
     @Test
@@ -430,6 +443,119 @@ struct PreferencesPaneSmokeTests {
         #expect(view.shouldCommitThresholdEditorOnDisappear(for: .session))
     }
 
+    @Test
+    func `language preference updates global localization resolver`() {
+        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
+        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
+        defer {
+            if let previousLanguage {
+                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "appLanguage")
+            }
+            if let previousAppleLanguages {
+                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+        }
+
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language")
+
+        settings.appLanguage = "zh-Hans"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "zh-Hans")
+        CodexBarLocalizationOverride.$appLanguage.withValue("zh-Hans") {
+            #expect(L("tab_general") == "通用")
+            #expect(L("threshold_warnings_title") == "阈值预警")
+            #expect(L("show_provider_storage_usage_title") == "显示提供商存储用量")
+        }
+
+        settings.appLanguage = "ja"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "ja")
+        CodexBarLocalizationOverride.$appLanguage.withValue("ja") {
+            #expect(L("language_title") == "言語")
+            #expect(L("start_at_login_title") == "ログイン時に起動")
+            // Fork: ja.lproj displayed values are rebranded to QuotaKit.
+            #expect(L("quit_app") == "QuotaKit を終了")
+        }
+
+        settings.appLanguage = "id"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "id")
+        CodexBarLocalizationOverride.$appLanguage.withValue("id") {
+            #expect(L("language_title") == "Bahasa")
+            #expect(L("start_at_login_title") == "Mulai saat Login")
+            #expect(L("quit_app") == "Keluar QuotaKit")
+        }
+    }
+
+    @Test
+    func `language preference clears stale app level AppleLanguages override`() {
+        let previousLanguage = UserDefaults.standard.object(forKey: "appLanguage")
+        let previousAppleLanguages = UserDefaults.standard.object(forKey: "AppleLanguages")
+        defer {
+            if let previousLanguage {
+                UserDefaults.standard.set(previousLanguage, forKey: "appLanguage")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "appLanguage")
+            }
+            if let previousAppleLanguages {
+                UserDefaults.standard.set(previousAppleLanguages, forKey: "AppleLanguages")
+            } else {
+                UserDefaults.standard.removeObject(forKey: "AppleLanguages")
+            }
+        }
+
+        let staleOverride = ["zz-StaleLanguageOverride"]
+        UserDefaults.standard.set(staleOverride, forKey: "AppleLanguages")
+
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-system")
+        settings.appLanguage = "ko"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "ko")
+        #expect(UserDefaults.standard.object(forKey: "AppleLanguages") as? [String] != staleOverride)
+
+        settings.appLanguage = ""
+
+        #expect(UserDefaults.standard.object(forKey: "appLanguage") == nil)
+        #expect(UserDefaults.standard.object(forKey: "AppleLanguages") as? [String] != staleOverride)
+    }
+
+    @Test
+    func `german app language resolves localized labels`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-de")
+        settings.appLanguage = "de"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "de")
+        CodexBarLocalizationOverride.$appLanguage.withValue("de") {
+            #expect(L("tab_general") == "Allgemein")
+            #expect(L("language_title") == "Sprache")
+            #expect(L("quit_app") == "QuotaKit beenden")
+            #expect(L("display_mode_reset_time") == "Zurücksetzungszeit")
+            #expect(L("display_mode_reset_time_desc").contains("↻ 15:56"))
+            #expect(L("vertex_ai_login_instructions").contains("\n\n1. Öffnen Sie Terminal"))
+            #expect(!L("vertex_ai_login_instructions").contains("\\n"))
+        }
+    }
+
+    @Test
+    func `italian language preference resolves italian strings`() {
+        let settings = Self.makeSettingsStore(suite: "PreferencesPaneSmokeTests-language-italian")
+        settings.appLanguage = "it"
+
+        #expect(UserDefaults.standard.string(forKey: "appLanguage") == "it")
+        CodexBarLocalizationOverride.$appLanguage.withValue("it") {
+            #expect(L("language_title") == "Lingua")
+            #expect(L("section_system") == "Sistema")
+            #expect(L("language_italian") == "Italiano")
+            #expect(L("tab_menu_bar") == "Barra menu")
+            #expect(L("tab_advanced") == "Avanzate")
+            #expect(L("quit_app") == "Esci da QuotaKit")
+        }
+    }
+
     private static func makeSettingsStore(suite: String, reset: Bool = true) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         if reset {
@@ -439,7 +565,21 @@ struct PreferencesPaneSmokeTests {
 
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore)
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
     }
 
     private static func makeUsageStore(settings: SettingsStore) -> UsageStore {

@@ -53,6 +53,57 @@ struct DarwinProcessEnumeratorTests {
         #expect(DarwinProcessEnumerator.parseProcArgs2(data) == nil)
     }
 
+    @Test
+    func `antigravity candidate paths cover known executable shapes`() {
+        let paths = [
+            "/Applications/Antigravity.app/Contents/Resources/bin/language_server_macos_arm",
+            "/opt/editor/extensions/antigravity/bin/language_server",
+            "/usr/local/bin/agy",
+            "~/.antigravity/x/antigravity-cli",
+            "language_server",
+        ]
+
+        for path in paths {
+            #expect(DarwinProcessEnumerator.isAntigravityCandidatePath(path))
+        }
+    }
+
+    @Test
+    func `antigravity candidate paths reject unrelated executables`() {
+        let paths = [
+            "/bin/ps",
+            "/Applications/Xcode.app/Contents/MacOS/Xcode",
+            "/opt/gravity/bin/tool",
+        ]
+
+        for path in paths {
+            #expect(!DarwinProcessEnumerator.isAntigravityCandidatePath(path))
+        }
+    }
+
+    @Test
+    func `antigravity candidate prefilter is a superset of classifier fixtures`() {
+        let fixtures = [
+            (
+                "/Applications/Antigravity.app/Contents/Resources/bin/language_server --csrf_token token",
+                "/Applications/Antigravity.app/Contents/Resources/bin/language_server"),
+            (
+                "/Applications/Google Antigravity.app/Contents/Resources/bin/language-server --csrf_token token",
+                "/Applications/Google Antigravity.app/Contents/Resources/bin/language-server"),
+            (
+                "/Users/test/.local/bin/agy -p hello",
+                "/Users/test/.local/bin/agy"),
+            (
+                "node /Users/test/.gemini/antigravity-cli/build/mcp-server.cjs --app_data_dir antigravity",
+                "node"),
+        ]
+
+        for fixture in fixtures {
+            #expect(AntigravityStatusProbe.antigravityProcessKind(fixture.0) != nil)
+            #expect(DarwinProcessEnumerator.isAntigravityCandidatePath(fixture.1))
+        }
+    }
+
     #if canImport(Darwin)
     @Test
     func `self executable path is absolute and nonempty`() throws {

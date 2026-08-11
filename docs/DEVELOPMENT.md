@@ -51,6 +51,7 @@ For Mac local development:
 | `Sources/CodexBarCLI/` | Bundled `quotakit` command-line tool |
 | `Sources/CodexBarWidget/` | WidgetKit support |
 | `Tests/CodexBarTests/` | macOS app/core test suite |
+| `TestsLinux/` | Linux-specific CLI/core coverage |
 | `Shared/` | CloudKit, sync, and shared models |
 | `CodexBarMobile/` | iOS companion app |
 | `WidgetExtension/` | iOS widget extension project config |
@@ -58,13 +59,22 @@ For Mac local development:
 
 ## Common Tasks
 
-### Provider Scope
+### Add a New Provider
+See the canonical [provider authoring guide](provider.md#adding-a-new-provider) for the complete flow.
 
-QuotaKit has a fixed provider inventory: Codex, Claude, Cursor, and Grok. Provider work should simplify or maintain
-those four integrations rather than introduce a general provider-authoring surface. Keep their descriptors, Mac
-implementations, CLI behavior, widgets, shared sync models, and focused tests aligned.
+1. Add the provider identity to `Sources/CodexBarCore/Providers/Providers.swift`.
+2. Add the descriptor and the fetcher, parser, settings-reader, or status-probe pieces the provider needs under
+   `Sources/CodexBarCore/Providers/YourProvider/`.
+3. Register the descriptor from `Sources/CodexBarCore/Providers/ProviderDescriptor.swift`.
+4. Add an app-side `ProviderImplementation` under `Sources/CodexBar/Providers/YourProvider/`; implementations can use
+   protocol defaults when no custom UI or macOS integration is needed.
+5. Add the provider's exhaustive switch case to
+   `Sources/CodexBar/Providers/Shared/ProviderImplementationRegistry.swift`.
+6. Add icon assets under `Sources/CodexBar/Resources/`.
+7. Add focused tests under `Tests/CodexBarTests/` and, for CLI/core behavior that must run on Linux, `TestsLinux/`.
 
-See [providers.md](providers.md) for the supported fetch and presentation contracts.
+Add tests for parsing, status, and sync behavior. Add mock-provider coverage when
+the provider affects visible UI or sync.
 
 ### Debug Cookie Or Credential Issues
 

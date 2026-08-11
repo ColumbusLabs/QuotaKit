@@ -9,9 +9,14 @@ struct CodexProfileHomeAccountTests {
     private static func makeSettings(suite: String) throws -> SettingsStore {
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
-        return SettingsStore(
+        defaults.set(true, forKey: "providerDetectionCompleted")
+        let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.providerDetectionCompleted = true
+        return settings
     }
 
     @Test

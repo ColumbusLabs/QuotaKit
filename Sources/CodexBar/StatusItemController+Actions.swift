@@ -79,12 +79,6 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
             let refreshStartedAt = Date()
             await self.store.refreshProvider(provider)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
-            // Provider-specific by design: Codex publishes a compatible core quota model before its optional
-            // credits and OpenAI Web enrichment stages below. Incompatible cards remain frozen until the final
-            // menu reconciliation, so they never lose their loading state while still showing the old layout.
-            if provider == .codex {
-                self.menuCardRefreshMonitor.publishResolvedModelIfCompatible(for: provider)
-            }
             await self.store.refreshProviderStatus(provider)
             guard !Task.isCancelled, !self.hasPreparedForAppShutdown else { return }
             await self.store.refreshTokenUsageNow(for: provider, force: true)
@@ -315,6 +309,17 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
+    @objc func refreshAugmentSession() {
+        Task {
+            await self.store.forceRefreshAugmentSession()
+            // Also trigger a full refresh to update the menu and clear any stale errors
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await self.store.refresh(forceTokenUsage: false)
+            }
+            self.refreshOpenMenusAfterExplicitStoreAction()
+        }
+    }
+
     @objc func installUpdate() {
         self.updater.installUpdate()
     }
@@ -333,6 +338,42 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         for provider: UsageProvider,
         environment: [String: String] = ProcessInfo.processInfo.environment) -> URL?
     {
+        // Provider-specific by design: these dashboards depend on region, source label, scope, or subscription plan.
+        if provider == .alibaba {
+            return self.settings.alibabaCodingPlanAPIRegion.dashboardURL
+        }
+        if provider == .alibabatokenplan {
+            return AlibabaTokenPlanUsageFetcher.dashboardURL(
+                region: self.settings.alibabaTokenPlanAPIRegion,
+                environment: environment)
+        }
+        if provider == .minimax {
+            return self.settings.minimaxAPIRegion.dashboardURL
+        }
+
+        if provider == .opencodego {
+            return self.settings.opencodegoDashboardURL
+        }
+
+        if provider == .wayfinder {
+            return WayfinderProviderImplementation.dashboardURL(
+                settings: self.settings,
+                environment: environment)
+        }
+
+        if provider == .zai {
+            return ZaiEndpointRouter.resolveDashboardURL(
+                region: self.settings.zaiAPIRegion,
+                environment: environment,
+                usageScope: self.settings.zaiEffectiveUsageScope())
+        }
+
+        if provider == .qoder {
+            return QoderProviderDescriptor.dashboardURL(
+                settings: self.settings.qoderSettingsSnapshot(tokenOverride: nil),
+                sourceLabel: self.store.sourceLabel(for: .qoder))
+        }
+
         let meta = self.store.metadata(for: provider)
         let urlString: String? = if provider == .claude, self.store.isClaudeSubscription() {
             meta.subscriptionDashboardURL ?? meta.dashboardURL
@@ -740,9 +781,72 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         }
     }
 
+    func describe(_ outcome: GeminiLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case .success: "success"
+        case .missingBinary: "missingBinary"
+        case let .launchFailed(message): "launchFailed(\(message))"
+        }
+    }
+
+    func describe(_ outcome: AntigravityLoginRunner.Result.Outcome) -> String {
+        switch outcome {
+        case let .success(email):
+            "success(email: \(email ?? "nil"))"
+        case .cancelled:
+            "cancelled"
+        case .timedOut:
+            "timedOut"
+        case let .launchFailed(message):
+            "launchFailed(\(message))"
+        case let .failed(message):
+            "failed(\(message))"
+        }
+    }
+
+    func presentGeminiLoginResult(_ result: GeminiLoginRunner.Result) {
+        guard let info = Self.geminiLoginAlertInfo(for: result) else { return }
+        self.presentLoginAlert(title: info.title, message: info.message)
+    }
+
+    func presentAntigravityLoginResult(_ result: AntigravityLoginRunner.Result) {
+        guard let info = Self.antigravityLoginAlertInfo(for: result) else { return }
+        self.presentLoginAlert(title: info.title, message: info.message)
+    }
+
     struct LoginAlertInfo: Equatable {
         let title: String
         let message: String
+    }
+
+    nonisolated static func geminiLoginAlertInfo(for result: GeminiLoginRunner.Result) -> LoginAlertInfo? {
+        switch result.outcome {
+        case .success:
+            nil
+        case .missingBinary:
+            LoginAlertInfo(
+                title: L("Gemini CLI not found"),
+                message: L("Install the Gemini CLI (npm i -g @google/gemini-cli) and try again."))
+        case let .launchFailed(message):
+            LoginAlertInfo(title: L("Could not open Terminal for Gemini"), message: message)
+        }
+    }
+
+    nonisolated static func antigravityLoginAlertInfo(for result: AntigravityLoginRunner.Result) -> LoginAlertInfo? {
+        switch result.outcome {
+        case .success, .cancelled:
+            nil
+        case .timedOut:
+            LoginAlertInfo(
+                title: L("Antigravity login timed out"),
+                message: L("The browser login did not complete in time. Try Antigravity login again."))
+        case let .launchFailed(message):
+            LoginAlertInfo(
+                title: L("Could not open browser for Antigravity"),
+                message: String(format: L("Open this URL manually to continue login:\n\n%@"), message))
+        case let .failed(message):
+            LoginAlertInfo(title: L("Antigravity login failed"), message: message)
+        }
     }
 
     func presentLoginAlert(title: String, message: String) {

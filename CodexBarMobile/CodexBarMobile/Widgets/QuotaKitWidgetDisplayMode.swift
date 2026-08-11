@@ -244,6 +244,6 @@ enum QuotaKitWidgetProviderPreferencesStore {
     private static func sanitizedProviderID(_ providerID: String?) -> String? {
         guard let providerID else { return nil }
         let sanitized = providerID.trimmingCharacters(in: .whitespacesAndNewlines)
-        return QuotaKitProviderCatalog.contains(sanitized) ? sanitized : nil
+        return sanitized.isEmpty ? nil : sanitized
     }
 }

@@ -129,9 +129,7 @@ private struct UsageTab: View {
         NavigationStack {
             Group {
                 if let snapshot = self.displaySnapshot {
-                    if MockProviderDetector.filteredProviders(from: snapshot).allSatisfy({
-                        !QuotaKitProviderCatalog.contains($0.providerID)
-                    }) {
+                    if MockProviderDetector.filteredProviders(from: snapshot).isEmpty {
                         EmptyStateView(
                             title: "No Providers Enabled",
                             message: "Enable providers in QuotaKit on your Mac to see usage data here.",
@@ -173,10 +171,14 @@ private struct UsageTab: View {
 
 #Preview("With Data") {
     ContentView(usageData: PreviewData.makeSyncedUsageData())
+        .environment(ProEntitlementStore.preview(state: .locked))
+        .environment(RemoteConfigStore())
         .quotaKitThemed()
 }
 
 #Preview("Empty State") {
     ContentView(usageData: PreviewData.makeEmptyUsageData())
+        .environment(ProEntitlementStore.preview(state: .locked))
+        .environment(RemoteConfigStore())
         .quotaKitThemed()
 }

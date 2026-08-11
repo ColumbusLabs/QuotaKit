@@ -43,7 +43,7 @@ struct PlanUtilizationHistoryChartMenuViewTests {
 
         let model = PlanUtilizationHistoryChartMenuView._modelSnapshotForTesting(
             histories: [history],
-            provider: .grok,
+            provider: .zai,
             snapshot: snapshot)
 
         #expect(model.visibleSeries == ["weekly:10080"])
@@ -79,7 +79,7 @@ struct PlanUtilizationHistoryChartMenuViewTests {
 
         let model = PlanUtilizationHistoryChartMenuView._modelSnapshotForTesting(
             histories: [history],
-            provider: .grok,
+            provider: .zed,
             snapshot: snapshot)
 
         #expect(model.visibleSeries == ["weekly:10080"])

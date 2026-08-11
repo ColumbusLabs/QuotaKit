@@ -31,7 +31,7 @@ extension UsageStore {
         } else {
             // Generic providers must carry an explicit window duration. Using the 10080-minute fallback for
             // windows without windowMinutes would fabricate a weekly pace for non-weekly windows
-            // (for example, a monthly window with only resetsAt).
+            // (e.g. Factory monthly with only resetsAt).
             guard window.windowMinutes != nil else { return nil }
             // Expand a monthly sentinel to the real calendar cycle before scoring. The menu card and the
             // CLI both resolve first, so skipping it here would score a billing period as a flat 30 days

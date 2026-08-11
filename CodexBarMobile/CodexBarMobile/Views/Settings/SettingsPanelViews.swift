@@ -194,10 +194,20 @@ struct CostSettingsView: View {
     @AppStorage(MobileSettingsKeys.dashboardCostChartStyle) private var dashboardCostChartStyleRawValue =
         CostChartStyle.line.rawValue
     @AppStorage(MobileSettingsKeys.openCostByDefault) private var openCostByDefault = false
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @Environment(\.modelContext) private var modelContext
     @AppStorage(MobileSettingsKeys.cwlEnabled) private var cwlEnabled = false
     @AppStorage(MobileSettingsKeys.cwlWindowDays) private var cwlWindowDays = 30
     @State private var showClearLedgerConfirm = false
+
+    private var isCostHistoryUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .usageHistory,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.usageHistory))
+    }
 
     var body: some View {
         ScrollView {
@@ -209,12 +219,21 @@ struct CostSettingsView: View {
                             title: "Local cost history",
                             subtitle: "Keep a longer cost history on this iPhone, independent of the Mac's window. Builds up as the Mac keeps syncing.",
                             isOn: self.$cwlEnabled)
+                            .disabled(!self.isCostHistoryUnlocked)
 
-                        if self.cwlEnabled {
+                        if self.cwlEnabled, self.isCostHistoryUnlocked {
                             QKSettingsPickerRow(
                                 title: "History window",
                                 selection: self.$cwlWindowDays,
                                 options: [(7, "7 Days"), (30, "30 Days"), (90, "90 Days"), (365, "365 Days")])
+                        }
+
+                        if !self.isCostHistoryUnlocked {
+                            ProFeatureLockedCard(
+                                store: self.proEntitlementStore,
+                                feature: .usageHistory,
+                                message: String(
+                                    localized: "Unlock QuotaKit Pro to keep extended local cost history and choose longer history windows on this iPhone."))
                         }
                     }
                     .padding(16)
@@ -274,6 +293,12 @@ struct CostSettingsView: View {
                             title: "Open Cost by default",
                             subtitle: "Launch the app on the Cost tab next time.",
                             isOn: self.$openCostByDefault)
+                            .disabled(!self.isCostHistoryUnlocked)
+                        if !self.isCostHistoryUnlocked {
+                            Text("QuotaKit Pro is required to launch directly into the Cost dashboard.")
+                                .font(.caption)
+                                .foregroundStyle(self.theme.textMuted)
+                        }
                     }
                     .padding(16)
                 }

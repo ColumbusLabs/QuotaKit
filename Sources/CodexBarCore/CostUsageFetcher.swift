@@ -502,7 +502,7 @@ public struct CostUsageFetcher: Sendable {
     {
         try Task.checkCancellation()
         // Provider-specific by design: Codex owns project/session attribution and optional Pi merge state, while
-        // Claude uses the transcript scanner with Vertex-hosted sessions excluded.
+        // Claude/Vertex share the transcript scanner with mutually exclusive filters.
         // These synchronous scans can run for minutes on large archives. The dedicated queue keeps
         // them off the cooperative pool and bridges task cancellation into scanner-level checks.
         return try await CostUsageScanExecutor.run { checkCancellation in
@@ -514,6 +514,23 @@ public struct CostUsageFetcher: Sendable {
                 options: options.scanOptions,
                 checkCancellation: checkCancellation)
             try checkCancellation()
+
+            if provider == .vertexai,
+               !options.allowVertexClaudeFallback,
+               options.scanOptions.claudeLogProviderFilter == .vertexAIOnly,
+               daily.data.isEmpty
+            {
+                var fallback = options.scanOptions
+                fallback.claudeLogProviderFilter = .all
+                daily = try CostUsageScanner.loadDailyReportCancellable(
+                    provider: provider,
+                    since: since,
+                    until: now,
+                    now: now,
+                    options: fallback,
+                    checkCancellation: checkCancellation)
+                try checkCancellation()
+            }
 
             var projects: [CostUsageProjectBreakdown] = []
             var sessions: [CostUsageSessionBreakdown] = []
@@ -963,6 +980,19 @@ public struct CostUsageFetcher: Sendable {
         return CodexLocalDataScope.resolve(options: options).applying(to: options)
     }
 
+    private static func loadBedrockDailyReport(
+        environment: [String: String],
+        since: Date,
+        until: Date) async throws -> CostUsageDailyReport
+    {
+        let resolved = try await BedrockCredentialResolver.resolve(environment: environment)
+        return try await BedrockUsageFetcher.fetchDailyReport(
+            credentials: resolved.credentials,
+            since: since,
+            until: until,
+            environment: environment)
+    }
+
     /// Snap a Cursor window start to the local day boundary so the dashboard query keeps full days.
     /// `since` arrives as the current instant N-1 days back, so a 1-day window would otherwise become
     /// an empty exact-instant range; snapping to 00:00 keeps all of today (and the first day's early
@@ -1081,7 +1111,9 @@ public struct CostUsageFetcher: Sendable {
         forceRefresh: Bool,
         bypassScannerDebounce: Bool)
     {
-        if provider == .claude {
+        if provider == .vertexai {
+            options.claudeLogProviderFilter = allowVertexClaudeFallback ? .all : .vertexAIOnly
+        } else if provider == .claude {
             options.claudeLogProviderFilter = .excludeVertexAI
         }
         if forceRefresh || bypassScannerDebounce {
@@ -1315,8 +1347,20 @@ extension CostUsageFetcher {
         historyDays: Int,
         cursorCookieHeaderOverride: String?) async throws -> CostUsageTokenSnapshot?
     {
-        // Cursor uses its macOS dashboard session for remote token-cost history.
+        // Provider-specific by design: Bedrock uses AWS billing while Cursor uses its macOS dashboard session.
         let since = Calendar.current.date(byAdding: .day, value: -(historyDays - 1), to: now) ?? now
+        if provider == .bedrock {
+            let daily = try await Self.loadBedrockDailyReport(
+                environment: environment,
+                since: since,
+                until: now)
+            return Self.tokenSnapshot(
+                from: daily,
+                now: now,
+                historyDays: historyDays,
+                useCurrentLocalDayForSession: false)
+        }
+
         #if os(macOS)
         if provider == .cursor {
             return try await self.loadCursorTokenSnapshot(

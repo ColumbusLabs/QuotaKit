@@ -31,14 +31,12 @@ struct SettingsWindowOpener {
     static func live() -> Self {
         Self(
             notification: {
-                DockIconController.shared.promote()
                 let request = SettingsOpenRequest()
                 NotificationCenter.default.post(name: .codexbarOpenSettings, object: request)
                 return request.wasHandled
             },
             appKit: {
-                DockIconController.shared.promote()
-                return NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
+                NSApp.sendAction(Selector(("showPreferencesWindow:")), to: nil, from: nil)
             })
     }
 

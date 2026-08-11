@@ -85,6 +85,11 @@
             ReferencedContainer = "container:CodexBarMobile.xcodeproj">
          </BuildableReference>
       </BuildableProductRunnable>
+      <CommandLineArguments>
+      </CommandLineArguments>
+      <StoreKitConfigurationFileReference
+         identifier = "../../StoreKit/QuotaKit.storekit">
+      </StoreKitConfigurationFileReference>
    </LaunchAction>
    <ProfileAction
       buildConfiguration = "Release"

@@ -77,11 +77,28 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["claude:account:anthropic-org-xyz", "claude:email:claude-user@example.com"])
     }
 
+    @Test
+    func `VertexAI uses project: prefix for the org identifier`() throws {
+        let identity = ProviderIdentitySnapshot(
+            providerID: .vertexai,
+            accountEmail: "gcp-user@example.com",
+            accountOrganization: "gcp-project-12345",
+            loginMethod: "gcloud")
+        let ids = try #require(AccountIdentityComputer.compute(provider: .vertexai, identity: identity))
+        #expect(ids == ["vertexai:project:gcp-project-12345", "vertexai:email:gcp-user@example.com"])
+    }
+
     // MARK: - Non-Tier-A providers
 
     @Test
     func `Non-Tier-A providers return nil — fall to legacy per-device bucket on iOS`() {
-        let nonTierA: [UsageProvider] = [.cursor, .grok]
+        // Sample a few; the implementation switch lists them all.
+        let nonTierA: [UsageProvider] = [
+            .perplexity, .cursor, .copilot, .gemini, .opencode, .opencodego,
+            .alibaba, .factory, .minimax, .kimi, .augment, .jetbrains,
+            .amp, .ollama, .synthetic, .openrouter, .warp, .abacus, .mistral,
+            .zai, .antigravity, .kilo, .kiro, .zed, .poe, .chutes, .clinepass, .longcat,
+        ]
         let identity = ProviderIdentitySnapshot(
             providerID: .codex,
             accountEmail: "x@y.com",

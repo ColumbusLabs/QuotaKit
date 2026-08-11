@@ -296,35 +296,37 @@ struct InlineCostHistoryDashboardLabelTests {
             "Estimated from token usage · not a subscription bill",
         ])
 
-        let accessibilityLabels = [7, 30].map { historyDays in
-            UsageMenuCardView.Model.make(.init(
-                provider: .codex,
-                metadata: metadata,
-                snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
-                credits: nil,
-                creditsError: nil,
-                dashboard: nil,
-                dashboardError: nil,
-                tokenSnapshot: CostUsageTokenSnapshot(
-                    sessionTokens: 275,
-                    sessionCostUSD: 0.25,
-                    last30DaysTokens: 425,
-                    last30DaysCostUSD: 0.37,
-                    historyDays: historyDays,
-                    daily: tokenSnapshot.daily,
-                    updatedAt: now),
-                tokenError: nil,
-                account: AccountInfo(email: nil, plan: nil),
-                isRefreshing: false,
-                lastError: nil,
-                usageBarsShowUsed: false,
-                resetTimeDisplayStyle: .countdown,
-                tokenCostUsageEnabled: true,
-                showOptionalCreditsAndExtraUsage: true,
-                hidePersonalInfo: false,
-                now: now)).inlineUsageDashboard?.accessibilityLabel
+        let japaneseAccessibilityLabels = CodexBarLocalizationOverride.$appLanguage.withValue("ja") {
+            [7, 30].map { historyDays in
+                UsageMenuCardView.Model.make(.init(
+                    provider: .codex,
+                    metadata: metadata,
+                    snapshot: UsageSnapshot(primary: nil, secondary: nil, updatedAt: now),
+                    credits: nil,
+                    creditsError: nil,
+                    dashboard: nil,
+                    dashboardError: nil,
+                    tokenSnapshot: CostUsageTokenSnapshot(
+                        sessionTokens: 275,
+                        sessionCostUSD: 0.25,
+                        last30DaysTokens: 425,
+                        last30DaysCostUSD: 0.37,
+                        historyDays: historyDays,
+                        daily: tokenSnapshot.daily,
+                        updatedAt: now),
+                    tokenError: nil,
+                    account: AccountInfo(email: nil, plan: nil),
+                    isRefreshing: false,
+                    lastError: nil,
+                    usageBarsShowUsed: false,
+                    resetTimeDisplayStyle: .countdown,
+                    tokenCostUsageEnabled: true,
+                    showOptionalCreditsAndExtraUsage: true,
+                    hidePersonalInfo: false,
+                    now: now)).inlineUsageDashboard?.accessibilityLabel
+            }
         }
-        #expect(accessibilityLabels == ["Codex: Last 7 days cost", "Codex: 30d cost"])
+        #expect(japaneseAccessibilityLabels == ["Codex: 過去7日間のコスト", "Codex: 過去30日間のコスト"])
     }
 
     @Test
@@ -364,5 +366,44 @@ struct InlineCostHistoryDashboardLabelTests {
         #expect(dashboard.kpis.first?.title == "Cursor-metered")
         #expect(dashboard.kpis.first?.value == "$1.25")
         #expect(dashboard.points.isEmpty)
+    }
+
+    @Test
+    func `token-only provider details use token chart units`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let metadata = try #require(ProviderDefaults.metadata[.zai])
+        let modelUsage = ZaiModelUsageData(
+            xTime: ["2023-11-17 00:00"],
+            modelDataList: [
+                ZaiModelDataItem(modelName: "glm-test", tokensUsage: [123]),
+            ])
+        let snapshot = ZaiUsageSnapshot(
+            tokenLimit: nil,
+            timeLimit: nil,
+            planName: nil,
+            modelUsage: modelUsage,
+            updatedAt: now).toUsageSnapshot()
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .zai,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: false,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: true,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+        #expect(model.inlineUsageDashboard == nil)
+        #expect(model.providerDetails.last?.chart?.unit == "tokens")
     }
 }

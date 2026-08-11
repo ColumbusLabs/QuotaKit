@@ -1,6 +1,6 @@
 import Foundation
 
-/// The providers QuotaKit currently emits quota transition notifications for. The ID
+/// The providers CodexBar can emit quota transition notifications for. The ID
 /// strings must match `UsageProvider` raw values in
 /// `Sources/CodexBarCore/Providers/Providers.swift` — when a new provider is
 /// added upstream, this list and the iOS app must ship an update together to
@@ -9,7 +9,7 @@ import Foundation
 /// Used on iOS to create one `CKRecordZoneSubscription` per
 /// `(provider, state)` pair at app launch. Each subscription's static
 /// `alertBody` is pre-filled with the `displayName` via `String(format:)` so
-/// the push body shows e.g. "Codex quota depleted" without
+/// the push body shows e.g. "Codex 会话额度已耗尽" on a Chinese iPhone without
 /// needing CloudKit to substitute anything per record (see
 /// `Research/007-push-per-provider-subscriptions.md`).
 ///
@@ -26,29 +26,114 @@ public enum QuotaProviderList {
         }
     }
 
-    /// The current product inventory. Keep this byte-for-byte aligned with
-    /// `QuotaKitProviderCatalog.providerIDs` and Mac's enabled-provider catalog.
+    /// Display names track `ProviderDescriptor.metadata.displayName` on Mac as
+    /// of 2026-04-22. If a Mac-side rename lands later, iOS subscriptions
+    /// still fire — the body just shows the stale name until the iOS app ships
+    /// an update.
     public static let providers: [Provider] = [
+        // Each displayName must match the string in the corresponding
+        // `ProviderDescriptor.metadata.displayName` on Mac (grep for
+        // `displayName:` in Sources/CodexBarCore/Providers/*/*ProviderDescriptor.swift).
         Provider(id: "codex", displayName: "Codex"),
         Provider(id: "claude", displayName: "Claude"),
         Provider(id: "cursor", displayName: "Cursor"),
+        Provider(id: "opencode", displayName: "OpenCode"),
+        Provider(id: "opencodego", displayName: "OpenCode Go"),
+        Provider(id: "alibaba", displayName: "Alibaba"),
+        Provider(id: "factory", displayName: "Droid"),
+        Provider(id: "gemini", displayName: "Gemini"),
+        Provider(id: "antigravity", displayName: "Antigravity"),
+        Provider(id: "copilot", displayName: "Copilot"),
+        Provider(id: "zai", displayName: "z.ai"),
+        Provider(id: "perplexity", displayName: "Perplexity"),
+        Provider(id: "minimax", displayName: "MiniMax"),
+        Provider(id: "kimi", displayName: "Kimi"),
+        Provider(id: "kilo", displayName: "Kilo"),
+        Provider(id: "kiro", displayName: "Kiro"),
+        Provider(id: "vertexai", displayName: "Vertex AI"),
+        Provider(id: "augment", displayName: "Augment"),
+        Provider(id: "jetbrains", displayName: "JetBrains AI"),
+        Provider(id: "kimik2", displayName: "Kimi K2"),
+        Provider(id: "amp", displayName: "Amp"),
+        Provider(id: "ollama", displayName: "Ollama"),
+        Provider(id: "synthetic", displayName: "Synthetic"),
+        Provider(id: "warp", displayName: "Warp"),
+        Provider(id: "openrouter", displayName: "OpenRouter"),
+        // Added in iOS 1.5.0 alongside Mac v0.23. Display names match
+        // `AbacusProviderDescriptor.metadata.displayName` ("Abacus AI") and
+        // `MistralProviderDescriptor.metadata.displayName` ("Mistral").
+        // Subscription count: 25 → 27 providers × 2 states = 54 zones.
+        Provider(id: "abacus", displayName: "Abacus AI"),
+        Provider(id: "mistral", displayName: "Mistral"),
+        // Added in iOS 1.6.0 alongside Mac v0.24+v0.25 (commit 1c95d6e7).
+        // 11 new providers verified against upstream descriptors
+        // (`grep "displayName:" Sources/CodexBarCore/Providers/*/[A-Z]*ProviderDescriptor.swift`).
+        // Subscription count: 27 → 38 (iOS 1.6.0) → 40 (iOS 1.7.0)
+        // providers × 3 states (depleted+restored+warning) = 120 zones.
+        // APPENDED at the tail so existing 27-entry CK subscription IDs
+        // stay stable across the 1.5.x → 1.6.0 upgrade (no re-subscribe
+        // churn for installed users).
+        Provider(id: "openai", displayName: "OpenAI API"),
+        Provider(id: "manus", displayName: "Manus"),
+        Provider(id: "windsurf", displayName: "Windsurf"),
+        Provider(id: "mimo", displayName: "Xiaomi MiMo"),
+        Provider(id: "doubao", displayName: "Doubao"),
+        Provider(id: "deepseek", displayName: "DeepSeek"),
+        Provider(id: "codebuff", displayName: "Codebuff"),
+        Provider(id: "crof", displayName: "Crof"),
+        Provider(id: "venice", displayName: "Venice"),
+        Provider(id: "commandcode", displayName: "Command Code"),
+        Provider(id: "stepfun", displayName: "StepFun"),
+        // iOS 1.7.0 catch-up — upstream v0.26.0 new providers.
+        // Mirrors MockProviderInjector.realProviderIDsBorrowedByMocks.
+        Provider(id: "moonshot", displayName: "Moonshot / Kimi API"),
+        Provider(id: "bedrock", displayName: "AWS Bedrock"),
+        // iOS 1.8.0 catch-up — upstream v0.27.0 new providers.
+        // Push subscriptions for these get registered on first iOS
+        // launch after the upgrade so quota-depleted / -restored
+        // notifications work end-to-end.
         Provider(id: "grok", displayName: "Grok"),
-    ]
-
-    /// Frozen migration inventory for the 60-provider notification catalog
-    /// shipped before the four-provider contraction. Do not derive this from
-    /// `providers`: clients can skip releases, so cleanup must continue to know
-    /// every retired subscription ID after the live catalog has been reduced.
-    public static let retiredProviderIDs: [String] = [
-        "opencode", "opencodego", "alibaba", "factory", "gemini", "antigravity",
-        "copilot", "zai", "perplexity", "minimax", "kimi", "kilo", "kiro",
-        "vertexai", "augment", "jetbrains", "kimik2", "amp", "ollama", "synthetic",
-        "warp", "openrouter", "abacus", "mistral", "openai", "manus", "windsurf",
-        "mimo", "doubao", "deepseek", "codebuff", "crof", "venice", "commandcode",
-        "stepfun", "moonshot", "bedrock", "groq", "elevenlabs", "deepgram", "llmproxy",
-        "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api",
-        "zenmux", "clinepass", "longcat", "neuralwatt", "deepinfra", "qwencloud",
-        "zoommate", "xai", "notion",
+        Provider(id: "groq", displayName: "GroqCloud"),
+        Provider(id: "elevenlabs", displayName: "ElevenLabs"),
+        Provider(id: "deepgram", displayName: "Deepgram"),
+        Provider(id: "llmproxy", displayName: "LLM Proxy"),
+        // iOS 1.9.0 catch-up — upstream v0.28.0+v0.29.0 new providers.
+        // IDs match UsageProvider raw values; display names match each
+        // ProviderDescriptor.metadata.displayName. APPENDED at the tail so
+        // existing per-provider CK subscription IDs stay stable across the
+        // 1.8.0 → 1.9.0 upgrade. 45 → 48 providers × 3 states = 144 zones.
+        Provider(id: "azureopenai", displayName: "Azure OpenAI"),
+        Provider(id: "alibabatokenplan", displayName: "Alibaba Token Plan"),
+        Provider(id: "t3chat", displayName: "T3 Chat"),
+        // iOS 1.10.0 catch-up — upstream v0.36.x new provider.
+        // 48 → 49 providers × 3 states = 147 zones.
+        Provider(id: "sakana", displayName: "Sakana AI"),
+        // iOS 1.11.1 catch-up — upstream v0.36.x live-tail provider.
+        // 49 → 50 providers × 3 states = 150 zones.
+        Provider(id: "qoder", displayName: "Qoder"),
+        Provider(id: "sub2api", displayName: "Sub2API"),
+        // iOS 1.11.3 catch-up — upstream v0.42.x live-tail provider.
+        // 51 → 52 providers × 3 states = 156 zones.
+        Provider(id: "zenmux", displayName: "ZenMux"),
+        // iOS 1.11.3 upstream-sync catch-up. Retired providers remain above so
+        // existing CloudKit subscription IDs and historical pushes stay compatible.
+        Provider(id: "clinepass", displayName: "ClinePass"),
+        Provider(id: "longcat", displayName: "LongCat"),
+        Provider(id: "neuralwatt", displayName: "Neuralwatt"),
+        // iOS 1.11.3 upstream-sync catch-up. Appended to preserve every
+        // existing per-provider CloudKit subscription identifier.
+        Provider(id: "deepinfra", displayName: "DeepInfra"),
+        // iOS 1.11.3 upstream-sync catch-up. Appended for upstream providers
+        // added after DeepInfra so existing CloudKit subscription identifiers
+        // remain stable.
+        Provider(id: "qwencloud", displayName: "Qwen Cloud"),
+        Provider(id: "zoommate", displayName: "ZoomMate"),
+        // xAI platform billing. Appended so all existing CloudKit subscription
+        // identifiers remain stable.
+        Provider(id: "xai", displayName: "xAI"),
+        // iOS 1.11.3 upstream-sync catch-up. Append-only to preserve every
+        // existing per-provider CloudKit subscription identifier.
+        Provider(id: "notion", displayName: "Notion AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

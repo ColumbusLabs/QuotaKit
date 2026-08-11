@@ -147,7 +147,7 @@ final class CloudSyncReader: @unchecked Sendable {
     /// would double-count. **Adding a new local-CLI provider here is a
     /// behavior change.** Test multi-device Cost tab before and after to
     /// verify the summed value matches user expectation.
-    private static let localCostProviders: Set<String> = ["claude", "codex"]
+    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
 
     /// Merges snapshots from multiple devices into a single unified snapshot.
     ///
@@ -184,9 +184,7 @@ final class CloudSyncReader: @unchecked Sendable {
         // alongside the current mock design's records.
         var allProviders: [ProviderUsageSnapshot] = []
         for snapshot in snapshots {
-            allProviders.append(contentsOf: MockProviderDetector.filteredProviders(from: snapshot).filter {
-                QuotaKitProviderCatalog.contains($0.providerID)
-            })
+            allProviders.append(contentsOf: MockProviderDetector.filteredProviders(from: snapshot))
         }
 
         // 2. Compute effective identifiers per provider snapshot

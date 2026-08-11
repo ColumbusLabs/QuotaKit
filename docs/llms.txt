@@ -1,9 +1,9 @@
 # QuotaKit
 
-A focused macOS menu bar tool for Codex, Claude, Cursor, and Grok usage, cost, and reset windows.
+A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 67 providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, LiteLLM, and more.
 
 Canonical documentation:
-- QuotaKit — four AI usage sources in your menu bar: https://columbus-labs.com/quotakit/mac - A focused macOS menu bar tool for Codex, Claude, Cursor, and Grok usage, cost, and reset windows.
+- QuotaKit — every AI coding limit in your menu bar: https://columbus-labs.com/quotakit/mac - A tiny macOS menu bar app that tracks AI coding-provider usage windows, credits, costs, and resets across 67 providers — Codex, OpenAI, Claude, Cursor, Gemini, Copilot, LiteLLM, and more.
 
 Source: https://github.com/ColumbusLabs/QuotaKit
 

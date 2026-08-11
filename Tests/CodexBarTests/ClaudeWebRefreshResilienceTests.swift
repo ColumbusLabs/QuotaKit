@@ -176,13 +176,27 @@ struct ClaudeWebRefreshResilienceTests {
 
     @MainActor
     private static func makeSettingsStore(suite: String) -> SettingsStore {
-        guard let defaults = UserDefaults(suiteName: suite) else {
-            preconditionFailure("Could not create test defaults")
-        }
+        let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
-        return SettingsStore(
+        let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
+        settings.providerDetectionCompleted = true
+        return settings
     }
 }
 

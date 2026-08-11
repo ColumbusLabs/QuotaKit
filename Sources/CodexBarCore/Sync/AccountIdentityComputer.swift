@@ -53,7 +53,33 @@ public enum AccountIdentityComputer {
             self.codex(identity: identity)
         case .claude:
             self.claude(identity: identity)
-        case .cursor, .grok:
+        case .vertexai:
+            self.vertexAI(identity: identity)
+        case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .openrouter, .warp, .perplexity, .abacus, .mistral,
+             // Upstream 0.24–0.25.1 providers. Kept non-Tier-A for now —
+             // iOS falls back to per-device legacy bucket. Promote to a
+             // dedicated case (with stable identifier extraction) only
+             // after we ship corresponding iOS render support and have a
+             // real cross-Mac merge use case for that provider.
+             .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
+             .codebuff, .crof, .venice, .commandcode, .stepfun,
+             // Upstream v0.26.0 new providers. Same rationale as above —
+             // iOS 1.7 surfaces these via single-account cards; promote
+             // to Tier-A only when cross-Mac merging is needed.
+             .moonshot, .bedrock,
+             // Upstream v0.27.0 new providers. iOS 1.8 surfaces these
+             // via single-account cards. Promote to Tier-A only if a
+             // user files a cross-Mac merging request for them.
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy, .litellm,
+             // Upstream v0.28.0–v0.29.0 new providers. iOS 1.9 surfaces
+             // these via single-account cards. Promote to Tier-A only if a
+             // user files a cross-Mac merging request for them.
+             .azureopenai, .alibabatokenplan, .t3chat,
+             // Upstream 0.33+ new providers. Same rationale as above.
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api, .xai,
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .notion:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
@@ -92,6 +118,20 @@ public enum AccountIdentityComputer {
         // `sub` claim as a third identifier (Research/019 §4.2).
         if let normalized = Self.normalize(identity.accountEmail) {
             ids.append("claude:email:\(normalized)")
+        }
+        return ids
+    }
+
+    private static func vertexAI(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity else { return [] }
+        var ids: [String] = []
+        // Primary: GCP project / org identifier.
+        if let normalized = Self.normalize(identity.accountOrganization) {
+            ids.append("vertexai:project:\(normalized)")
+        }
+        // Secondary: GCP user account email.
+        if let normalized = Self.normalize(identity.accountEmail) {
+            ids.append("vertexai:email:\(normalized)")
         }
         return ids
     }

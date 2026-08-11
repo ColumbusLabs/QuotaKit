@@ -7,13 +7,13 @@ struct MenuOpenRefreshPlanTests {
     func `refresh all selects every enabled provider concurrently`() {
         let plan = MenuOpenRefreshPlan.resolve(.init(
             refreshAllOnOpen: true,
-            enabledProviders: [.codex, .claude, .grok],
+            enabledProviders: [.codex, .claude, .factory],
             visibleProviders: [.codex],
             refreshingProviders: [],
             staleProviders: [],
             missingProviders: []))
 
-        #expect(plan.providers == [.codex, .claude, .grok])
+        #expect(plan.providers == [.codex, .claude, .factory])
         #expect(plan.scheduling == .concurrent)
         #expect(plan.refreshCodexDashboard)
     }
@@ -22,13 +22,13 @@ struct MenuOpenRefreshPlanTests {
     func `refresh all skips dashboard refresh when codex is disabled`() {
         let plan = MenuOpenRefreshPlan.resolve(.init(
             refreshAllOnOpen: true,
-            enabledProviders: [.claude, .grok],
+            enabledProviders: [.claude, .factory],
             visibleProviders: [.claude],
             refreshingProviders: [],
             staleProviders: [],
             missingProviders: []))
 
-        #expect(plan.providers == [.claude, .grok])
+        #expect(plan.providers == [.claude, .factory])
         #expect(!plan.refreshCodexDashboard)
     }
 
@@ -36,13 +36,13 @@ struct MenuOpenRefreshPlanTests {
     func `ordinary refresh selects only visible enabled retries sequentially`() {
         let plan = MenuOpenRefreshPlan.resolve(.init(
             refreshAllOnOpen: false,
-            enabledProviders: [.codex, .claude, .grok],
-            visibleProviders: [.grok, .codex, .claude, .cursor],
-            refreshingProviders: [.grok],
+            enabledProviders: [.codex, .claude, .factory],
+            visibleProviders: [.factory, .codex, .claude, .cursor],
+            refreshingProviders: [.factory],
             staleProviders: [.codex],
             missingProviders: [.claude, .cursor]))
 
-        #expect(plan.providers == [.grok, .codex, .claude])
+        #expect(plan.providers == [.factory, .codex, .claude])
         #expect(plan.scheduling == .sequential)
         #expect(!plan.refreshCodexDashboard)
     }

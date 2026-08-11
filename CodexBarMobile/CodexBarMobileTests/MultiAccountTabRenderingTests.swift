@@ -18,6 +18,15 @@ import XCTest
 /// new `group: ProviderAccountGroup` parameter.
 @MainActor
 final class MultiAccountTabRenderingTests: XCTestCase {
+    private nonisolated static let remoteConfigSuiteName = "com.columbuslabs.quotakit.tests.multi-account"
+
+    override func setUp() {
+        super.setUp()
+        UserDefaults.standard.removePersistentDomain(forName: Self.remoteConfigSuiteName)
+        UserDefaults(suiteName: Self.remoteConfigSuiteName)?
+            .removePersistentDomain(forName: Self.remoteConfigSuiteName)
+    }
+
     private func snapshot(
         providerID: String,
         providerName: String,
@@ -37,7 +46,10 @@ final class MultiAccountTabRenderingTests: XCTestCase {
     }
 
     private func renderToImage(_ view: some View) -> UIImage? {
-        let renderer = ImageRenderer(content: view.frame(width: 390, height: 800))
+        let renderer = ImageRenderer(content: view
+            .environment(ProEntitlementStore.preview(state: .unlocked(source: .storeKit)))
+            .environment(RemoteConfigStore(defaults: UserDefaults(suiteName: Self.remoteConfigSuiteName)))
+            .frame(width: 390, height: 800))
         renderer.scale = 2.0
         return renderer.uiImage
     }

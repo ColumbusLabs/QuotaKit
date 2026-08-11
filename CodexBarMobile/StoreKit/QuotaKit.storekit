@@ -1,0 +1,35 @@
+{
+  "identifier" : "B5B0F8D0-8B62-4ED2-A968-C424DF9A8D53",
+  "nonRenewingSubscriptions" : [
+
+  ],
+  "products" : [
+    {
+      "displayPrice" : "4.99",
+      "familyShareable" : false,
+      "internalID" : "D2A1F56F",
+      "localizations" : [
+        {
+          "description" : "Unlock QuotaKit Pro for life.",
+          "displayName" : "QuotaKit Pro",
+          "locale" : "en_US"
+        }
+      ],
+      "productID" : "com.columbuslabs.quotakit.pro.lifetime",
+      "referenceName" : "QuotaKit Pro Lifetime",
+      "type" : "NonConsumable"
+    }
+  ],
+  "settings" : {
+    "_applicationInternalID" : "0",
+    "_developerTeamID" : "QUOTAKIT_TEAM_ID",
+    "_lastSynchronizedDate" : 0
+  },
+  "subscriptionGroups" : [
+
+  ],
+  "version" : {
+    "major" : 3,
+    "minor" : 0
+  }
+}

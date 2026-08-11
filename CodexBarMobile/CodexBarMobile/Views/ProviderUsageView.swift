@@ -346,7 +346,7 @@ struct ProviderUsageView: View {
 
 #Preview("OpenRouter (Error)") {
     ScrollView {
-        ProviderUsageView(provider: PreviewData.cursorProvider)
+        ProviderUsageView(provider: PreviewData.openRouterProvider)
             .padding()
     }
 }

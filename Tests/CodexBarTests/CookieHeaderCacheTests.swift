@@ -290,7 +290,7 @@ struct CookieHeaderCacheTests {
                 scope: .managedAccount(codexAccount),
                 cookieHeader: "auth=codex-account",
                 sourceLabel: "Safari")
-            CookieHeaderCache.store(provider: .grok, cookieHeader: "grok=web", sourceLabel: "Chrome")
+            CookieHeaderCache.store(provider: .perplexity, cookieHeader: "pplx=web", sourceLabel: "Chrome")
 
             let cleared = CookieHeaderCache.clearAllScopesDetailed(provider: .claude)
 
@@ -300,7 +300,7 @@ struct CookieHeaderCacheTests {
             #expect(CookieHeaderCache.load(provider: .codex)?.cookieHeader == "auth=codex-global")
             #expect(CookieHeaderCache.load(provider: .codex, scope: .managedAccount(codexAccount))?
                 .cookieHeader == "auth=codex-account")
-            #expect(CookieHeaderCache.load(provider: .grok)?.cookieHeader == "grok=web")
+            #expect(CookieHeaderCache.load(provider: .perplexity)?.cookieHeader == "pplx=web")
         }
     }
 
@@ -613,9 +613,7 @@ struct CookieHeaderCacheTests {
             var retried: CookieHeaderCache.Entry?
             for _ in 0..<500 {
                 retried = CookieHeaderCache.loadForDisplay(provider: provider)
-                if retried != nil {
-                    break
-                }
+                if retried != nil { break }
                 try await Task.sleep(for: .milliseconds(10))
             }
             #expect(retried?.cookieHeader == "auth=available-after-retry")

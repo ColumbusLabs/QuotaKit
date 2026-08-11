@@ -3,6 +3,10 @@ import CodexBarCore
 extension UsageStore {
     enum SessionQuotaWindowSource: String {
         case primary
+        case copilotSecondaryFallback
+        case zaiTertiary
+        case antigravityQuotaSummary
+        case antigravityLegacy
     }
 
     struct QuotaWarningStateKey: Hashable {

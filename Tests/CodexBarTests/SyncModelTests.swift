@@ -27,6 +27,8 @@ struct SyncModelTests {
         local.claudeSwapExecutablePath = "/machine/bin/cswap"
         local.codexActiveSource = .managedAccount(id: UUID())
         local.codexProfileHomePaths = ["/machine/codex"]
+        local.awsProfile = "machine-profile"
+        local.awsAuthMode = "machine-auth"
 
         let payload = ProviderIntentPayload(config: local)
         let encoded = try CanonicalSyncJSON.string(payload)
@@ -35,6 +37,7 @@ struct SyncModelTests {
 
         #expect(!encoded.contains("api-secret"))
         #expect(!encoded.contains("machine/bin"))
+        #expect(!encoded.contains("machine-profile"))
         #expect(!encoded.contains("source"))
         #expect(secrets["apiKey"] == "api-secret")
         #expect(secrets["cookieHeader"] == "session=secret")
@@ -49,6 +52,8 @@ struct SyncModelTests {
         baseline.claudeSwapExecutablePath = "/local/cswap"
         baseline.codexActiveSource = .liveSystem
         baseline.codexProfileHomePaths = ["/local/home"]
+        baseline.awsProfile = "local-profile"
+        baseline.awsAuthMode = "local-auth"
         let applied = try decoded.applying(to: baseline, secretFields: secrets) { _, _ in true }
 
         #expect(applied.enabled == true)
@@ -59,6 +64,8 @@ struct SyncModelTests {
         #expect(applied.claudeSwapExecutablePath == "/local/cswap")
         #expect(applied.codexActiveSource == .liveSystem)
         #expect(applied.codexProfileHomePaths == ["/local/home"])
+        #expect(applied.awsProfile == "local-profile")
+        #expect(applied.awsAuthMode == "local-auth")
         #expect(applied.apiKey == "api-secret")
         #expect(applied.tokenAccounts?.accounts.first?.token == "account-secret")
     }
@@ -115,8 +122,8 @@ struct SyncModelTests {
 
     @Test
     func `absent secrets preserve local values and empty markers delete them`() throws {
-        let payload = ProviderIntentPayload(config: ProviderConfig(id: .grok))
-        let local = ProviderConfig(id: .grok, apiKey: "keep", secretKey: "remove")
+        let payload = ProviderIntentPayload(config: ProviderConfig(id: .openai))
+        let local = ProviderConfig(id: .openai, apiKey: "keep", secretKey: "remove")
         let preserved = try payload.applying(to: local, secretFields: [:]) { _, _ in true }
         #expect(preserved.apiKey == "keep")
         #expect(preserved.secretKey == "remove")
@@ -208,7 +215,7 @@ struct SyncModelTests {
 
         let decoded = try CanonicalSyncJSON.decode(AccountSnapshotSyncPayload.self, from: legacy)
 
-        #expect(decoded.provider.rawValue == "openrouter")
+        #expect(decoded.provider == .openrouter)
         #expect(decoded.usage.details.isEmpty)
         #expect(decoded.usage.updatedAt == decoded.fetchedAt)
     }

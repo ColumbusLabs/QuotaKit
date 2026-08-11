@@ -125,7 +125,6 @@ enum CostLedgerService {
         deviceID: String,
         in context: ModelContext) throws
     {
-        guard QuotaKitProviderCatalog.contains(provider.providerID) else { return }
         guard let summary = provider.costSummary else { return }
         guard !summary.daily.isEmpty else { return }
 
@@ -238,9 +237,7 @@ enum CostLedgerService {
 
         let descriptor = FetchDescriptor<DailyCostPoint>(
             predicate: #Predicate { $0.dayKey >= cutoffKey })
-        let rows = try context.fetch(descriptor).filter {
-            QuotaKitProviderCatalog.contains($0.providerID)
-        }
+        let rows = try context.fetch(descriptor)
 
         // Cross-device merge: group by (providerID, accountEmail, dayKey), keep
         // latest lastUpdated. accountEmail is part of the key so multi-account
@@ -386,9 +383,7 @@ enum CostLedgerService {
     /// Coarse ledger health stats for the Settings diagnostics panel (P4).
     /// O(n) over ledger rows.
     static func diagnostics(in context: ModelContext) throws -> CostLedgerDiagnostics {
-        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>()).filter {
-            QuotaKitProviderCatalog.contains($0.providerID)
-        }
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
         let devices = Set(rows.map(\.deviceID))
         let providers = Set(rows.map(\.providerID))
         let days = Set(rows.map(\.dayKey))
@@ -439,7 +434,7 @@ enum CostLedgerService {
         let providers = try context.fetch(FetchDescriptor<ProviderSnapshotModel>())
         let decoder = CloudSyncConstants.makeJSONDecoder()
         let encoder = CloudSyncConstants.makeJSONEncoder()
-        for row in providers where QuotaKitProviderCatalog.contains(row.providerID) {
+        for row in providers {
             guard let blob = row.costSummaryData,
                   let summary = try? decoder.decode(SyncCostSummary.self, from: blob)
             else { continue }

@@ -1233,6 +1233,7 @@ extension CodexBackgroundRefreshCoalescingTests {
         let settings = testSettingsStore(suiteName: suite)
         let codexMetadata = try #require(ProviderDescriptorRegistry.metadata[.codex])
         settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
+        settings.providerDetectionCompleted = true
         settings.openAIWebAccessEnabled = true
         settings.codexCookieSource = .auto
         return settings

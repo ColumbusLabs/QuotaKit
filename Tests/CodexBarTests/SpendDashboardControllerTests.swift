@@ -76,15 +76,15 @@ struct SpendDashboardControllerTests {
         let recorder = SpendDashboardLoadResultRecorder()
         let configuration = SpendDashboardConfiguration(
             costUsageEnabled: true,
-            providerIDs: [UsageProvider.codex.rawValue, UsageProvider.cursor.rawValue],
+            providerIDs: [UsageProvider.codex.rawValue, UsageProvider.openai.rawValue],
             codexAccountIdentities: ["account|auth-rotation"],
             codexAccountDisplayNames: ["codex:account": "Codex"],
-            sourceOwnershipFingerprints: ["cursor:stable"])
+            sourceOwnershipFingerprints: ["openai:stable"])
         let controller = SpendDashboardController(
             requestBuilder: { mode in
                 SpendDashboardLoadRequest(
                     configuration: configuration,
-                    capturedInputs: [Self.input(id: "cursor", provider: .cursor, cost: 2)],
+                    capturedInputs: [Self.input(id: "openai", provider: .openai, cost: 2)],
                     unavailableSourceIDs: [],
                     codexRequests: [account],
                     now: Date(timeIntervalSince1970: 1_784_179_200),
@@ -116,7 +116,7 @@ struct SpendDashboardControllerTests {
         #expect(results.last?.failedSourceIDs == ["codex:account"])
         #expect(controller.failedSourceCount == 1)
         #expect(controller.model.groups.first?.totalCost == 2)
-        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["cursor"])
+        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["openai"])
     }
 
     @Test
@@ -179,7 +179,7 @@ struct SpendDashboardControllerTests {
             inputs: [
                 Self.input(cost: 7),
                 Self.input(id: "claude", provider: .claude, cost: 3),
-                Self.input(id: "cursor", provider: .cursor, cost: 2),
+                Self.input(id: "openai", provider: .openai, cost: 2),
             ],
             failedSourceIDs: []))
         await Self.waitUntil { !controller.isRefreshing }
@@ -208,7 +208,7 @@ struct SpendDashboardControllerTests {
                 Self.input(cost: 7),
                 Self.input(id: "claude", provider: .claude, cost: 3),
             ],
-            failedSourceIDs: ["cursor"]))
+            failedSourceIDs: ["openai"]))
         await Self.waitUntil { !controller.isRefreshing }
         #expect(controller.failedSourceCount == 1)
 
@@ -350,15 +350,15 @@ struct SpendDashboardControllerTests {
         let controller = Self.controller(gate: gate)
         let firstConfiguration = SpendDashboardConfiguration(
             costUsageEnabled: true,
-            providerIDs: ["codex", "claude", "cursor"],
+            providerIDs: ["codex", "claude", "openai"],
             codexAccountIdentities: ["same|cache"],
-            sourceOwnershipFingerprints: ["claude:owner-one", "cursor:owner"],
+            sourceOwnershipFingerprints: ["claude:owner-one", "openai:owner"],
             sourceRevisions: ["first"])
         let replacementConfiguration = SpendDashboardConfiguration(
             costUsageEnabled: true,
-            providerIDs: ["codex", "claude", "cursor"],
+            providerIDs: ["codex", "claude", "openai"],
             codexAccountIdentities: ["same|cache"],
-            sourceOwnershipFingerprints: ["claude:owner-two", "cursor:owner"],
+            sourceOwnershipFingerprints: ["claude:owner-two", "openai:owner"],
             sourceRevisions: ["second"])
 
         controller.update(configuration: firstConfiguration)
@@ -367,7 +367,7 @@ struct SpendDashboardControllerTests {
             inputs: [
                 Self.input(cost: 7),
                 Self.input(id: "claude", provider: .claude, cost: 3),
-                Self.input(id: "cursor", provider: .cursor, cost: 2),
+                Self.input(id: "openai", provider: .openai, cost: 2),
             ],
             failedSourceIDs: []))
         await Self.waitUntil { !controller.isRefreshing }
@@ -376,15 +376,15 @@ struct SpendDashboardControllerTests {
         await Self.waitForPendingCount(1, gate: gate)
         #expect(controller.isRefreshing)
         #expect(controller.model.groups.first?.totalCost == 9)
-        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "cursor"])
+        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "openai"])
         #expect(controller.failedSourceCount == 0)
         await gate.resume(at: 0, result: .init(
             inputs: [Self.input(cost: 8)],
-            failedSourceIDs: ["claude", "cursor"]))
+            failedSourceIDs: ["claude", "openai"]))
         await Self.waitUntil { !controller.isRefreshing }
 
         #expect(controller.model.groups.first?.totalCost == 10)
-        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "cursor"])
+        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "openai"])
         #expect(controller.failedSourceCount == 2)
     }
 
@@ -450,6 +450,61 @@ struct SpendDashboardControllerTests {
     }
 
     @Test
+    func `selected token account ownership ignores inactive edits and drops failed replacement`() async throws {
+        let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-token-account-owner")
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .mistral)
+        }
+        settings.addTokenAccount(provider: .mistral, label: "Primary", token: UUID().uuidString)
+        settings.addTokenAccount(provider: .mistral, label: "Backup", token: UUID().uuidString)
+        settings.setActiveTokenAccountIndex(0, for: .mistral)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+
+        let primaryConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        let accounts = settings.tokenAccounts(for: .mistral)
+        let backup = try #require(accounts.last)
+        settings.updateTokenAccount(provider: .mistral, accountID: backup.id, label: "Renamed backup")
+        let inactiveEditConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        #expect(primaryConfiguration.sourceOwnershipFingerprints == inactiveEditConfiguration
+            .sourceOwnershipFingerprints)
+
+        settings.setActiveTokenAccountIndex(1, for: .mistral)
+        let selectedBackupConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        #expect(inactiveEditConfiguration.sourceOwnershipFingerprints != selectedBackupConfiguration
+            .sourceOwnershipFingerprints)
+
+        store._setTokenSnapshotForTesting(Self.input(provider: .mistral, cost: 3).snapshot, provider: .mistral)
+        store._test_providerRefreshOverride = { _ in }
+        let controller = Self.dashboardController(settings: settings, store: store)
+        controller.update(configuration: selectedBackupConfiguration)
+        await Self.waitUntil { !controller.isRefreshing }
+        #expect(controller.model.groups.first?.totalCost == 3)
+
+        let selectedBackup = try #require(settings.effectiveSelectedTokenAccount(for: .mistral))
+        settings.updateTokenAccount(
+            provider: .mistral,
+            accountID: selectedBackup.id,
+            token: UUID().uuidString)
+        let replacementConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        #expect(selectedBackupConfiguration.sourceOwnershipFingerprints != replacementConfiguration
+            .sourceOwnershipFingerprints)
+
+        controller.update(configuration: replacementConfiguration)
+        #expect(controller.model.groups.isEmpty)
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.failedSourceCount == 1)
+    }
+
+    @Test
     func `ordinary force failure retains same owner last good snapshot with warning`() async {
         let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-force-failure")
         settings.costUsageEnabled = true
@@ -512,6 +567,39 @@ struct SpendDashboardControllerTests {
     }
 
     @Test
+    func `Vertex spend ownership includes Claude fallback enablement`() {
+        let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-vertex-scope")
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .vertexai)
+        }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        store._setTokenSnapshotForTesting(Self.input(provider: .vertexai, cost: 6).snapshot, provider: .vertexai)
+        let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        let firstVertexOwnership = firstConfiguration.sourceOwnershipFingerprints.first {
+            $0.hasPrefix("vertexai:")
+        }
+        #expect(firstVertexOwnership != nil)
+
+        if let claudeMetadata = ProviderRegistry.shared.metadata[.claude] {
+            settings.setProviderEnabled(provider: .claude, metadata: claudeMetadata, enabled: true)
+        }
+        let replacementConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        let replacementVertexOwnership = replacementConfiguration.sourceOwnershipFingerprints.first {
+            $0.hasPrefix("vertexai:")
+        }
+
+        #expect(firstVertexOwnership != replacementVertexOwnership)
+        #expect(store.tokenSnapshotForCurrentProviderConfig(for: .vertexai) == nil)
+    }
+
+    @Test
     func `cost tracking disable and reenable cannot revive the prior snapshot`() async {
         let settings = testSettingsStore(suiteName: "SpendDashboardControllerTests-cost-enable-epoch")
         settings.costUsageEnabled = true
@@ -561,13 +649,13 @@ struct SpendDashboardControllerTests {
                 if mode == .forceRefresh {
                     await refreshRecorder.append(.claude)
                     controllerBox.controller?.update(configuration: firstProviderConfiguration)
-                    await refreshRecorder.append(.cursor)
+                    await refreshRecorder.append(.openai)
                 }
                 return SpendDashboardLoadRequest(
                     configuration: firstProviderConfiguration,
                     capturedInputs: [
                         Self.input(id: "claude", provider: .claude, cost: 3),
-                        Self.input(id: "cursor", provider: .cursor, cost: 4),
+                        Self.input(id: "openai", provider: .openai, cost: 4),
                     ],
                     unavailableSourceIDs: [],
                     codexRequests: [],
@@ -582,11 +670,11 @@ struct SpendDashboardControllerTests {
         controller.update(configuration: initialConfiguration, force: true)
         await Self.waitUntil { !controller.isRefreshing }
 
-        #expect(await refreshRecorder.providers == [.claude, .cursor])
+        #expect(await refreshRecorder.providers == [.claude, .openai])
         #expect(controller.configuration == firstProviderConfiguration)
         #expect(controller.generation == 2)
         #expect(controller.model.groups.first?.totalCost == 7)
-        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["claude", "cursor"])
+        #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["claude", "openai"])
     }
 
     @Test

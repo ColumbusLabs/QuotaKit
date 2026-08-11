@@ -17,6 +17,7 @@ final class StatusMenuClaudeSwapCompactTests: XCTestCase {
         let settings = testSettingsStore(
             suiteName: "StatusMenuClaudeSwapCompactTests",
             tokenAccountStore: InMemoryTokenAccountStore())
+        settings.providerDetectionCompleted = true
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false

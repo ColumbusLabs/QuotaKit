@@ -21,6 +21,70 @@ final class InMemoryCookieHeaderStore: CookieHeaderStoring, @unchecked Sendable 
     }
 }
 
+final class InMemoryMiniMaxCookieStore: MiniMaxCookieStoring, @unchecked Sendable {
+    var value: String?
+
+    init(value: String? = nil) {
+        self.value = value
+    }
+
+    func loadCookieHeader() throws -> String? {
+        self.value
+    }
+
+    func storeCookieHeader(_ header: String?) throws {
+        self.value = header
+    }
+}
+
+final class InMemoryMiniMaxAPITokenStore: MiniMaxAPITokenStoring, @unchecked Sendable {
+    var value: String?
+
+    init(value: String? = nil) {
+        self.value = value
+    }
+
+    func loadToken() throws -> String? {
+        self.value
+    }
+
+    func storeToken(_ token: String?) throws {
+        self.value = token
+    }
+}
+
+final class InMemoryKimiTokenStore: KimiTokenStoring, @unchecked Sendable {
+    var value: String?
+
+    init(value: String? = nil) {
+        self.value = value
+    }
+
+    func loadToken() throws -> String? {
+        self.value
+    }
+
+    func storeToken(_ token: String?) throws {
+        self.value = token
+    }
+}
+
+final class InMemoryCopilotTokenStore: CopilotTokenStoring, @unchecked Sendable {
+    var value: String?
+
+    init(value: String? = nil) {
+        self.value = value
+    }
+
+    func loadToken() throws -> String? {
+        self.value
+    }
+
+    func storeToken(_ token: String?) throws {
+        self.value = token
+    }
+}
+
 final class InMemoryTokenAccountStore: ProviderTokenAccountStoring, @unchecked Sendable {
     var accounts: [UsageProvider: ProviderTokenAccountData] = [:]
     private let fileURL: URL
@@ -75,8 +139,23 @@ func testSettingsStore(
             preconditionFailure("Could not save test config: \(error)")
         }
     }
-    _ = tokenAccountStore
-    return SettingsStore(userDefaults: defaults, configStore: configStore)
+    return SettingsStore(
+        userDefaults: defaults,
+        configStore: configStore,
+        zaiTokenStore: NoopZaiTokenStore(),
+        syntheticTokenStore: NoopSyntheticTokenStore(),
+        codexCookieStore: InMemoryCookieHeaderStore(),
+        claudeCookieStore: InMemoryCookieHeaderStore(),
+        cursorCookieStore: InMemoryCookieHeaderStore(),
+        opencodeCookieStore: InMemoryCookieHeaderStore(),
+        factoryCookieStore: InMemoryCookieHeaderStore(),
+        minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+        minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+        kimiTokenStore: InMemoryKimiTokenStore(),
+        augmentCookieStore: InMemoryCookieHeaderStore(),
+        ampCookieStore: InMemoryCookieHeaderStore(),
+        copilotTokenStore: InMemoryCopilotTokenStore(),
+        tokenAccountStore: tokenAccountStore)
 }
 
 #if os(macOS)
@@ -92,14 +171,13 @@ func withStatusItemControllerForTesting<T>(
     store: UsageStore,
     settings: SettingsStore,
     fetcher: UsageFetcher,
-    account: AccountInfo? = nil,
     statusBar: NSStatusBar = .system,
     operation: (StatusItemController) throws -> T) rethrows -> T
 {
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: fetcher.loadAccountInfo(),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)
@@ -113,14 +191,13 @@ func withStatusItemControllerForTesting<T>(
     store: UsageStore,
     settings: SettingsStore,
     fetcher: UsageFetcher,
-    account: AccountInfo? = nil,
     statusBar: NSStatusBar = .system,
     operation: (StatusItemController) async throws -> T) async rethrows -> T
 {
     let controller = StatusItemController(
         store: store,
         settings: settings,
-        account: account ?? fetcher.loadAccountInfo(),
+        account: fetcher.loadAccountInfo(),
         updater: DisabledUpdaterController(),
         preferencesSelection: PreferencesSelection(),
         statusBar: statusBar)

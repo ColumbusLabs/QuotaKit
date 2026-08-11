@@ -2,6 +2,22 @@ import CodexBarCore
 import Foundation
 
 extension CodexBarCLI {
+    static func pluginsHelp(version: String) -> String {
+        """
+        QuotaKit \(version)
+
+        Usage:
+          quotakit plugins list
+          quotakit plugins fetch <id> [--json] [--pretty]
+
+        Description:
+          Discover local .js and .ts provider plugins. Fetch requires a recorded approval binding.
+          An interactive terminal can create the approval after showing exact origins, capabilities,
+          secret names, and cookie domains. Headless use fails closed. Browser-cookie plugins are
+          app-only and fail closed in the CLI.
+        """
+    }
+
     static func cardsHelp(version: String) -> String {
         """
         QuotaKit \(version)
@@ -11,7 +27,7 @@ extension CodexBarCLI {
                         [--provider \(ProviderHelp.list)]
                         [--account <label>] [--account-index <index>] [--all-accounts]
                         [--no-credits] [--no-color] [--status] [--source <auto|web|cli|oauth|api>]
-                        [--web-timeout <seconds>] [--web-debug-dump-html]
+                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
                         [--brief]
 
         Description:
@@ -53,7 +69,7 @@ extension CodexBarCLI {
                        [--provider \(ProviderHelp.list)]
                        [--account <label>] [--account-index <index>] [--all-accounts]
                        [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
-                       [--web-timeout <seconds>] [--web-debug-dump-html]
+                       [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
 
         Description:
           Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
@@ -63,8 +79,8 @@ extension CodexBarCLI {
             Auto falls back to Codex CLI only when cookies are missing.
           - Claude: claude.ai API.
             Auto falls back to Claude CLI only when cookies are missing.
-          - Cursor: Cursor web usage with local database enrichment when available.
-          - Grok: consumer Grok web usage and billing.
+          - Kilo: app.kilo.ai API.
+            Auto falls back to Kilo CLI when API credentials are missing or unauthorized.
           Token accounts are loaded from the resolved QuotaKit config file.
           Use --account or --account-index to select a specific token account.
           Use --all-accounts to fetch every token account, or every visible Codex account for Codex.
@@ -81,8 +97,7 @@ extension CodexBarCLI {
         Examples:
           quotakit usage
           quotakit usage --provider claude
-          quotakit usage --provider cursor
-          quotakit usage --provider grok
+          quotakit usage --provider gemini
           quotakit usage --format json --provider all --pretty
           quotakit usage --provider all --json
           quotakit usage --status
@@ -247,6 +262,8 @@ extension CodexBarCLI {
           quotakit config enable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config disable --provider <name> [--format text|json] [--json] [--json-only] [--pretty]
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
+                                    [--label <label>] [--usage-scope team]
+                                    [--organization-id <org>] [--workspace-id <project>]
                                     [--no-enable]
                                     [--format text|json] [--json] [--json-only] [--pretty]
 
@@ -257,6 +274,8 @@ extension CodexBarCLI {
           providers lists persistent provider enablement.
           enable/disable updates the same provider toggle used by Settings.
           set-api-key stores a provider API key in the resolved config file and enables that provider by default.
+          For z.ai team usage, add --usage-scope team with BigModel organization and project IDs; this stores
+          the key as a token account instead of a provider-level personal key.
 
         Examples:
           quotakit config validate --format json --pretty
@@ -264,7 +283,9 @@ extension CodexBarCLI {
           quotakit config providers
           quotakit config enable --provider grok
           quotakit config disable --provider cursor
-          printf '%s' "$CLAUDE_API_KEY" | quotakit config set-api-key --provider claude --stdin
+          printf '%s' "$ELEVENLABS_API_KEY" | quotakit config set-api-key --provider elevenlabs --stdin
+          printf '%s' "$Z_AI_API_KEY" | quotakit config set-api-key --provider zai --stdin \\
+            --label Team --usage-scope team --organization-id org_... --workspace-id proj_...
         """
     }
 
@@ -350,7 +371,8 @@ extension CodexBarCLI {
           account IDs, org IDs, raw responses, and billing-history records.
 
         Examples:
-          quotakit diagnose --provider cursor --format json --redact --output diagnostic.json
+          quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
+          quotakit diagnose --provider minimax --format json --pretty
           quotakit diagnose --provider claude --format json --pretty
           quotakit diagnose --provider all --format json
         """
@@ -376,9 +398,9 @@ extension CodexBarCLI {
           explicit interactive retry flag is supplied. Cookie values are never shown.
 
         Examples:
-          quotakit cookie refresh --provider cursor --allow-keychain-prompt
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt
           quotakit cookie refresh --all --allow-keychain-prompt
-          quotakit cookie refresh --provider cursor --allow-keychain-prompt --format json --pretty
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt --format json --pretty
         """
     }
 
@@ -431,7 +453,7 @@ extension CodexBarCLI {
                   [--provider \(ProviderHelp.list)]
                   [--account <label>] [--account-index <index>] [--all-accounts]
                   [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]
-                  [--web-timeout <seconds>] [--web-debug-dump-html]
+                  [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
           quotakit cards [--provider \(ProviderHelp.list)] [--brief] [--no-color] [--status]
           quotakit cost [--format text|json]
                        [--json]
@@ -457,8 +479,11 @@ extension CodexBarCLI {
           quotakit config enable --provider <name>
           quotakit config disable --provider <name>
           quotakit config set-api-key --provider <name> (--api-key <key>|--stdin)
+          quotakit config set-api-key --provider zai --stdin --usage-scope team
+                                   --organization-id <org> --workspace-id <project>
           quotakit hooks <list|enable|disable> [--format text|json] [--pretty]
           quotakit hooks test <event> --provider <name>
+          quotakit plugins <list|fetch <id>> [--json] [--pretty]
           quotakit cache clear <--cookies|--cost|--all> [--provider <name>]
           quotakit cookie refresh <--provider <name>|--all> [--allow-keychain-prompt]
           quotakit diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]
@@ -476,7 +501,7 @@ extension CodexBarCLI {
           quotakit
           quotakit --format json --provider all --pretty
           quotakit --provider all --json
-          quotakit --provider grok
+          quotakit --provider gemini
           quotakit cards --provider all --status
           quotakit cards --brief
           quotakit cost --provider claude --format json --pretty
@@ -485,11 +510,13 @@ extension CodexBarCLI {
           quotakit serve --port 8080
           quotakit config validate --format json --pretty
           quotakit config enable --provider grok
-          quotakit config set-api-key --provider claude --stdin
+          quotakit config set-api-key --provider elevenlabs --stdin
           quotakit hooks test quota_reached --provider codex
+          quotakit plugins list
           quotakit cache clear --cookies
-          quotakit cookie refresh --provider cursor --allow-keychain-prompt
-          quotakit diagnose --provider cursor --format json --redact --output diagnostic.json
+          quotakit cookie refresh --provider opencodego --allow-keychain-prompt
+          quotakit diagnose --provider minimax --format json --redact --output diagnostic.json
+          quotakit diagnose --provider minimax --format json --pretty
           quotakit diagnose --provider all --format json
           quotakit guard --provider claude --min-remaining 20
         """

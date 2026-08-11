@@ -203,6 +203,8 @@ struct StatusMenuSwitcherTrackingTests {
         defaults.set(true, forKey: "providerDetectionCompleted")
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 }

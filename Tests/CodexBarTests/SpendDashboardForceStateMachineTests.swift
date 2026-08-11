@@ -140,7 +140,7 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: initial, force: true)
         await Self.waitForLoader(loader)
         controller.update(configuration: first)
-        await loader.resume(SpendDashboardLoadResult(inputs: [], failedSourceIDs: ["cursor"]))
+        await loader.resume(SpendDashboardLoadResult(inputs: [], failedSourceIDs: ["openai"]))
         await Self.waitForBuildGate(firstCaptureGate)
         controller.update(configuration: second)
         await firstCaptureGate.resume()

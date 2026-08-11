@@ -25,7 +25,9 @@ struct StatusItemCombinedMetricPlaceholderTests {
         showUsed: Bool) -> (controller: StatusItemController, store: UsageStore)
     {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true

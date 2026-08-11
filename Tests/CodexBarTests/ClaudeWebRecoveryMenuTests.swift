@@ -15,13 +15,13 @@ struct ClaudeWebRecoveryMenuTests {
 
     private func makeSettings() -> SettingsStore {
         let suite = "ClaudeWebRecoveryMenuTests-\(UUID().uuidString)"
-        guard let defaults = UserDefaults(suiteName: suite) else {
-            preconditionFailure("Could not create test defaults")
-        }
+        let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private func actions(
@@ -81,11 +81,13 @@ struct ClaudeWebRecoveryMenuTests {
     }
 
     @Test
-    func `default account action uses English Claude Code sign in`() {
-        let actions = self.actions(source: .auto)
+    func `default account action localizes ambient Claude Code sign in`() {
+        let actions = CodexBarLocalizationOverride.$appLanguage.withValue("zh-Hant") {
+            self.actions(source: .auto)
+        }
 
         #expect(actions.contains {
-            $0.0 == "Sign in with Claude Code..." && $0.1 == .switchAccount(.claude)
+            $0.0 == "使用 Claude Code 登入…" && $0.1 == .switchAccount(.claude)
         })
         #expect(!actions.contains { $0.0 == "Add Account..." })
     }

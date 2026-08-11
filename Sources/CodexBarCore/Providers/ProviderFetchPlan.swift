@@ -45,7 +45,8 @@ public struct ProviderFetchContext: Sendable {
     /// Restricts a Claude retry to the credential-owning CLI after an ambient account mismatch rejects OAuth.
     /// The original source mode remains intact so background interaction gates still apply.
     public let claudeOwnerCLIRecoveryOnly: Bool
-    /// Whether warm CLI helper sessions may outlive a single fetch. True for long-lived hosts (the app,
+    /// Whether warm CLI helper sessions (such as the managed Antigravity `agy`
+    /// process) may outlive a single fetch. True for long-lived hosts (the app,
     /// `codexbar serve`); false for one-shot CLI invocations that should reset
     /// the session after each fetch.
     public let persistsCLISessions: Bool
@@ -100,7 +101,9 @@ public struct ProviderFetchContext: Sendable {
 }
 
 public enum ProviderCLISessionLifecycle {
-    public static func shutdownPersistentSessions() async {}
+    public static func shutdownPersistentSessions() async {
+        await AntigravityCLISession.shared.reset()
+    }
 }
 
 public struct ProviderFetchResult: Sendable {
@@ -188,7 +191,10 @@ public enum ProviderFetchError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case let .noAvailableStrategy(provider):
-            "No available fetch strategy for \(provider.rawValue)."
+            if provider == .kiro {
+                return "Kiro usage requires the Kiro CLI. Install it from https://kiro.dev/docs/cli/ and run 'kiro-cli login' first."
+            }
+            return "No available fetch strategy for \(provider.rawValue)."
         }
     }
 }
