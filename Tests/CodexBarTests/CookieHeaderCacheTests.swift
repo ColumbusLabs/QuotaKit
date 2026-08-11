@@ -9,6 +9,21 @@ struct CookieHeaderCacheTests {
     }
 
     @Test
+    func `default test legacy cache path is isolated from production application support`() throws {
+        let legacyURL = CookieHeaderCache.withLegacyBaseURLOverrideForTesting(nil) {
+            CookieHeaderCache.legacyURLForTesting(provider: .codex)
+        }
+        let applicationSupport = try #require(
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first)
+        let productionBase = applicationSupport
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .standardizedFileURL
+
+        #expect(legacyURL.standardizedFileURL.path.hasPrefix(productionBase.path) == false)
+        #expect(legacyURL.path.contains("CodexBarTests-\(getpid())-"))
+    }
+
+    @Test
     func `stores and loads entry`() {
         KeychainCacheStore.setTestStoreForTesting(true)
         defer { KeychainCacheStore.setTestStoreForTesting(false) }

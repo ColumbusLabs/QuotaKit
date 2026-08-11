@@ -1222,18 +1222,30 @@ struct AlibabaTokenPlanWebStrategyTests {
     }
 
     private func withIsolatedCookieCache<T>(_ operation: () throws -> T) rethrows -> T {
-        try KeychainCacheStore.withServiceOverrideForTesting(
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("alibaba-token-plan-\(UUID().uuidString)", isDirectory: true)
+        return try KeychainCacheStore.withServiceOverrideForTesting(
             "alibaba-token-plan-web-strategy-tests-\(UUID().uuidString)",
             operation: {
-                try KeychainCacheStore.withImplicitTestStoreForTesting(operation: operation)
+                try KeychainCacheStore.withImplicitTestStoreForTesting {
+                    try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(
+                        legacyBase,
+                        operation: operation)
+                }
             })
     }
 
     private func withIsolatedCookieCache<T>(_ operation: () async throws -> T) async rethrows -> T {
-        try await KeychainCacheStore.withServiceOverrideForTesting(
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("alibaba-token-plan-\(UUID().uuidString)", isDirectory: true)
+        return try await KeychainCacheStore.withServiceOverrideForTesting(
             "alibaba-token-plan-web-strategy-tests-\(UUID().uuidString)",
             operation: {
-                try await KeychainCacheStore.withImplicitTestStoreForTesting(operation: operation)
+                try await KeychainCacheStore.withImplicitTestStoreForTesting {
+                    try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(
+                        legacyBase,
+                        operation: operation)
+                }
             })
     }
 

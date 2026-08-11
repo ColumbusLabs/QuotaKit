@@ -676,21 +676,29 @@ struct AlibabaCodingPlanFallbackTests {
                 apiRegion: .international))
         let context = self.makeContext(sourceMode: .auto, settings: settings)
 
-        CookieHeaderCache.clear(provider: .alibaba)
-        try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
-            throw AlibabaCodingPlanSettingsError.missingCookie()
-        } operation: {
-            do {
-                _ = try AlibabaCodingPlanWebFetchStrategy.resolveCookieHeader(context: context, allowCached: false)
-                Issue.record("Expected auto mode to fail instead of borrowing the manual cookie header")
-            } catch let error as AlibabaCodingPlanSettingsError {
-                guard case .missingCookie = error else {
-                    Issue.record("Expected missingCookie, got \(error)")
-                    return
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("alibaba-fallback-\(UUID().uuidString)", isDirectory: true)
+        try KeychainCacheStore.withImplicitTestStoreForTesting {
+            try CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                CookieHeaderCache.clear(provider: .alibaba)
+                try AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
+                    throw AlibabaCodingPlanSettingsError.missingCookie()
+                } operation: {
+                    do {
+                        _ = try AlibabaCodingPlanWebFetchStrategy.resolveCookieHeader(
+                            context: context,
+                            allowCached: false)
+                        Issue.record("Expected auto mode to fail instead of borrowing the manual cookie header")
+                    } catch let error as AlibabaCodingPlanSettingsError {
+                        guard case .missingCookie = error else {
+                            Issue.record("Expected missingCookie, got \(error)")
+                            return
+                        }
+                        #expect(strategy.shouldFallback(on: error, context: context))
+                    } catch {
+                        Issue.record("Expected AlibabaCodingPlanSettingsError, got \(error)")
+                    }
                 }
-                #expect(strategy.shouldFallback(on: error, context: context))
-            } catch {
-                Issue.record("Expected AlibabaCodingPlanSettingsError, got \(error)")
             }
         }
     }
@@ -708,11 +716,17 @@ struct AlibabaCodingPlanFallbackTests {
             settings: settings,
             env: [AlibabaCodingPlanSettingsReader.apiTokenKey: "token-abc"])
 
-        CookieHeaderCache.clear(provider: .alibaba)
-        try await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
-            throw AlibabaCodingPlanSettingsError.missingCookie()
-        } operation: {
-            #expect(await strategy.isAvailable(context) == false)
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("alibaba-fallback-\(UUID().uuidString)", isDirectory: true)
+        try await KeychainCacheStore.withImplicitTestStoreForTesting {
+            try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                CookieHeaderCache.clear(provider: .alibaba)
+                try await AlibabaCodingPlanCookieImporter.withImportSessionOverrideForTesting { _, _ in
+                    throw AlibabaCodingPlanSettingsError.missingCookie()
+                } operation: {
+                    #expect(await strategy.isAvailable(context) == false)
+                }
+            }
         }
     }
 }
