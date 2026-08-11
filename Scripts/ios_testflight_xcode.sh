@@ -353,6 +353,22 @@ require_plist_array_value() {
   fi
 }
 
+require_plist_array_value_or_wildcard() {
+  local label="$1"
+  local plist="$2"
+  local key="$3"
+  local expected="$4"
+  local values
+  values=$(plist_value "$plist" "$key" || true)
+  if [[ "$values" == "*" ]]; then
+    return 0
+  fi
+  if ! grep -Eq "^[[:space:]]*${expected//./\\.}[[:space:]]*$" <<<"$values"; then
+    echo "ERROR: $label is missing '$expected' or a wildcard in $key." >&2
+    return 1
+  fi
+}
+
 extract_leaf_certificate_fingerprint() {
   local label="$1"
   local code_path="$2"
@@ -369,7 +385,7 @@ extract_leaf_certificate_fingerprint() {
   certificate_prefix="$certificate_dir/certificate"
   leaf_certificate="${certificate_prefix}0"
 
-  if ! codesign -d --extract-certificates "$certificate_prefix" \
+  if ! codesign -d "--extract-certificates=$certificate_prefix" \
     "$code_path" >>"$codesign_log" 2>&1
   then
     echo "ERROR: Unable to extract the signing certificate chain from $label." >&2
@@ -523,11 +539,11 @@ verify_archive_bundle() {
       Entitlements:com.apple.developer.icloud-container-identifiers "$EXPECTED_ICLOUD_CONTAINER" || return 1
     require_plist_array_value "$label signed entitlements" "$signed_entitlements" \
       com.apple.developer.icloud-services CloudKit || return 1
-    require_plist_array_value "$label profile" "$profile_plist" \
+    require_plist_array_value_or_wildcard "$label profile" "$profile_plist" \
       Entitlements:com.apple.developer.icloud-services CloudKit || return 1
     require_plist_value "$label signed entitlements" "$signed_entitlements" \
       com.apple.developer.icloud-container-environment Production || return 1
-    require_plist_value "$label profile" "$profile_plist" \
+    require_plist_array_value "$label profile" "$profile_plist" \
       Entitlements:com.apple.developer.icloud-container-environment Production || return 1
   fi
 

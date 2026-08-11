@@ -86,12 +86,10 @@ printf '%s\n' \
   'if [[ " $* " == *" --entitlements :- "* ]]; then' \
   '  cat "$code_path/MockSignedEntitlements.plist"' \
   'fi' \
-  'if [[ " $* " == *" --extract-certificates "* ]]; then' \
+  'if [[ " $* " == *" --extract-certificates="* ]]; then' \
   '  certificate_prefix=""' \
-  '  expect_certificate_prefix=0' \
   '  for arg in "$@"; do' \
-  '    if [[ "$expect_certificate_prefix" == 1 ]]; then certificate_prefix="$arg"; break; fi' \
-  '    if [[ "$arg" == "--extract-certificates" ]]; then expect_certificate_prefix=1; fi' \
+  '    if [[ "$arg" == --extract-certificates=* ]]; then certificate_prefix="${arg#*=}"; break; fi' \
   '  done' \
   '  [[ -n "$certificate_prefix" ]] || exit 2' \
   '  printf "%s" "${MOCK_LEAF_CERTIFICATE_CONTENT:-mock-leaf-certificate}" > "${certificate_prefix}0"' \
@@ -109,7 +107,7 @@ assert_contains "$RELEASE_SCRIPT" 'CLANG_PROBE_WORKAROUND_XCODE_BUILD="17F113"'
 assert_contains "$RELEASE_SCRIPT" 'REQUIRED_XCODEGEN_VERSION="2.45.4"'
 assert_contains "$RELEASE_SCRIPT" 'verify_archive_contents "$APP_PATH"'
 assert_contains "$RELEASE_SCRIPT" 'codesign --verify --deep --strict "$app_path"'
-assert_contains "$RELEASE_SCRIPT" 'codesign -d --extract-certificates "$certificate_prefix"'
+assert_contains "$RELEASE_SCRIPT" 'codesign -d "--extract-certificates=$certificate_prefix"'
 assert_contains "$RELEASE_SCRIPT" 'DeveloperCertificates.$certificate_index'
 assert_contains "$RELEASE_SCRIPT" 'CFBundleShortVersionString "$MARKETING"'
 assert_contains "$RELEASE_SCRIPT" '/usr/bin/plutil -lint "$OPTIONS_PLIST"'
@@ -266,9 +264,10 @@ create_profile() {
     plist_add "$plist" \
       -c 'Add :Entitlements:com.apple.developer.icloud-container-identifiers array' \
       -c 'Add :Entitlements:com.apple.developer.icloud-container-identifiers:0 string iCloud.com.columbuslabs.quotakit' \
-      -c 'Add :Entitlements:com.apple.developer.icloud-services array' \
-      -c 'Add :Entitlements:com.apple.developer.icloud-services:0 string CloudKit' \
-      -c 'Add :Entitlements:com.apple.developer.icloud-container-environment string Production'
+      -c 'Add :Entitlements:com.apple.developer.icloud-services string *' \
+      -c 'Add :Entitlements:com.apple.developer.icloud-container-environment array' \
+      -c 'Add :Entitlements:com.apple.developer.icloud-container-environment:0 string Production' \
+      -c 'Add :Entitlements:com.apple.developer.icloud-container-environment:1 string Development'
   fi
   if [[ "$push" == 1 ]]; then
     plist_add "$plist" -c 'Add :Entitlements:aps-environment string production'
@@ -366,6 +365,24 @@ assert_contains "$TEMP_DIR/codesign.args" "--verify --strict $DYLIB_PATH"
 assert_contains "$TEMP_DIR/codesign.args" "--extract-certificates"
 
 create_archive
+/usr/libexec/PlistBuddy \
+  -c 'Delete :Entitlements:com.apple.developer.icloud-services' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-services array' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-services:0 string CloudKit' \
+  "$PUSH_PATH/embedded.mobileprovision"
+run_archive_validation "$TEMP_DIR/profile-cloudkit-array-success.log"
+assert_contains "$TEMP_DIR/profile-cloudkit-array-success.log" 'Archive validation passed'
+
+create_archive
+/usr/libexec/PlistBuddy \
+  -c 'Delete :Entitlements:com.apple.developer.icloud-services' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-services array' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-services:0 string UnrelatedService' \
+  "$PUSH_PATH/embedded.mobileprovision"
+expect_archive_failure invalid-profile-cloudkit-service \
+  "push extension profile is missing 'CloudKit' or a wildcard"
+
+create_archive
 /usr/libexec/PlistBuddy -c 'Set :ApplicationProperties:Team WRONGTEAM' "$ARCHIVE_PATH/Info.plist"
 expect_archive_failure wrong-archive-team "archive metadata has invalid ApplicationProperties:Team"
 
@@ -424,9 +441,28 @@ create_archive
 expect_archive_failure missing-app-group "missing 'group.com.columbuslabs.quotakit'"
 
 create_archive
-/usr/libexec/PlistBuddy -c 'Set :Entitlements:com.apple.developer.icloud-container-environment Development' \
+/usr/libexec/PlistBuddy \
+  -c 'Delete :Entitlements:com.apple.developer.icloud-container-environment' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-container-environment array' \
+  -c 'Add :Entitlements:com.apple.developer.icloud-container-environment:0 string Development' \
   "$PUSH_PATH/embedded.mobileprovision"
-expect_archive_failure development-cloudkit "expected 'Production', found 'Development'"
+expect_archive_failure development-cloudkit "missing 'Production'"
+
+create_archive
+/usr/libexec/PlistBuddy -c 'Delete :com.apple.developer.icloud-services' \
+  "$PUSH_PATH/MockSignedEntitlements.plist"
+expect_archive_failure missing-signed-cloudkit-service \
+  "push extension signed entitlements is missing 'CloudKit'"
+
+create_archive
+/usr/libexec/PlistBuddy \
+  -c 'Delete :com.apple.developer.icloud-container-environment' \
+  -c 'Add :com.apple.developer.icloud-container-environment array' \
+  -c 'Add :com.apple.developer.icloud-container-environment:0 string Production' \
+  -c 'Add :com.apple.developer.icloud-container-environment:1 string Development' \
+  "$PUSH_PATH/MockSignedEntitlements.plist"
+expect_archive_failure broad-signed-cloudkit-environment \
+  "push extension signed entitlements has invalid com.apple.developer.icloud-container-environment"
 
 create_archive
 /usr/libexec/PlistBuddy -c 'Set :aps-environment development' \
