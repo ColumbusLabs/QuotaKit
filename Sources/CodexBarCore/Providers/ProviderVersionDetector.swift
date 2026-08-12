@@ -152,10 +152,7 @@ public enum ProviderVersionDetector {
         guard let path = pathOpt else { return nil }
 
         guard let fingerprint = getClaudeFingerprint(forPath: path) else {
-            guard ClaudeCLIBackgroundAvailability.allowsOpaqueChildExecution(
-                binary: path,
-                environment: environment)
-            else { return nil }
+            guard ClaudeOpaqueOperationContext.isAllowed else { return nil }
             return self.runClaudeVersionCommand(path: path)
         }
         self.lock.lock()
@@ -181,10 +178,7 @@ public enum ProviderVersionDetector {
             return result
         }
 
-        guard ClaudeCLIBackgroundAvailability.allowsOpaqueChildExecution(
-            binary: path,
-            environment: environment)
-        else {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
             self.lock.unlock()
             return nil
         }

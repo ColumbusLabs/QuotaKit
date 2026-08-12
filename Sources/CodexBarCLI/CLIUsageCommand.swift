@@ -37,6 +37,32 @@ struct UsageCommandOutput {
     var exitCode: ExitCode = .success
 }
 
+extension CodexBarCLI {
+    /// A hidden verifier-only JSON marker. It is emitted only after the app-runtime Auto pipeline reaches an
+    /// installed Claude CLI fallback and declines it before execution, which proves the opaque-child guard ran.
+    static let appAutoBackgroundSafeDenialMarker = "app-auto-background-safe-denial"
+
+    static func appAutoBackgroundSafeDenialDiagnostic(
+        provider: UsageProvider,
+        sourceMode: ProviderSourceMode,
+        runtime: ProviderRuntime,
+        claudeCLIPathAvailable: Bool,
+        attempts: [ProviderFetchAttempt]) -> String?
+    {
+        // Provider-specific by design: the live verifier proves Claude's app-only opaque-child denial route.
+        guard provider == .claude,
+              sourceMode == .auto,
+              runtime == .app,
+              claudeCLIPathAvailable,
+              attempts.contains(where: { $0.strategyID == "claude.cli" && !$0.wasAvailable }),
+              !attempts.contains(where: { $0.strategyID == "claude.cli" && $0.wasAvailable })
+        else {
+            return nil
+        }
+        return self.appAutoBackgroundSafeDenialMarker
+    }
+}
+
 private struct UsageSuccessRenderInput {
     let provider: UsageProvider
     let accountLabel: String?
@@ -187,26 +213,6 @@ extension CodexBarCLI {
 
         for p in providerList {
             let status = includeStatus ? await Self.fetchStatus(for: p) : nil
-            if appAutoVerifier {
-                // Background app Auto intentionally launches the opaque Claude owner CLI only after a successful
-                // user-initiated fetch has established this process's account-scoped availability marker. Recreate
-                // that real app lifecycle before exercising the background route; discard the foreground payload.
-                var establishmentCommand = command
-                establishmentCommand.sourceModeOverride = .cli
-                let establishment = await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                    await Self.fetchUsageOutputs(
-                        provider: p,
-                        status: status,
-                        tokenContext: tokenContext,
-                        command: establishmentCommand)
-                }
-                if establishment.exitCode != .success {
-                    exitCode = establishment.exitCode
-                    sections.append(contentsOf: establishment.sections)
-                    payload.append(contentsOf: establishment.payload)
-                    continue
-                }
-            }
             // CLI usage should not clear Keychain cooldowns or attempt interactive Keychain prompts.
             let output = await ProviderInteractionContext.$current.withValue(.background) {
                 await Self.fetchUsageOutputs(
@@ -241,7 +247,7 @@ extension CodexBarCLI {
         tokenSelection: TokenAccountCLISelection) -> String?
     {
         guard enabled else { return nil }
-        // Provider-specific by design: this hidden verifier recreates Claude's owner-CLI lifecycle only.
+        // Provider-specific by design: this hidden verifier exercises Claude's app-runtime background route.
         guard providers == [.claude], sourceMode == .auto else {
             return "--app-auto-verifier requires --provider claude --source auto."
         }
@@ -561,7 +567,13 @@ extension CodexBarCLI {
                     source: effectiveSourceMode.rawValue,
                     status: status,
                     error: error,
-                    kind: .provider))
+                    kind: .provider,
+                    diagnostic: Self.appAutoBackgroundSafeDenialDiagnostic(
+                        provider: provider,
+                        sourceMode: effectiveSourceMode,
+                        runtime: command.providerRuntime,
+                        claudeCLIPathAvailable: ClaudeCLIResolver.resolvedBinaryPath(environment: env) != nil,
+                        attempts: outcome.attempts)))
             } else if command.cardsLayout {
                 output.cardFailures.append(CLICardFailure(
                     provider: provider,

@@ -198,11 +198,13 @@ struct ClaudeOAuthCredentialsStoreCLIStorageOwnershipTests {
                                             data: keychainData,
                                             fingerprint: keychainFingerprint)
                                         {
-                                            try ClaudeOAuthCredentialsStore.loadRecord(
-                                                environment: environment,
-                                                allowKeychainPrompt: false,
-                                                respectKeychainPromptCooldown: true,
-                                                allowClaudeKeychainRepairWithoutPrompt: false)
+                                            try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                                try ClaudeOAuthCredentialsStore.loadRecord(
+                                                    environment: environment,
+                                                    allowKeychainPrompt: false,
+                                                    respectKeychainPromptCooldown: true,
+                                                    allowClaudeKeychainRepairWithoutPrompt: false)
+                                            }
                                         }
                                     }
                                 }
@@ -539,19 +541,21 @@ struct ClaudeOAuthCredentialsStoreCLIStorageOwnershipTests {
                             createdAt: 1,
                             persistentRefHash: "unrelated-profile-keychain-item")
 
-                        let record = try ClaudeOAuthKeychainPromptPreference
-                            .withTaskOverrideForTesting(.onlyOnUserAction) {
-                                try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                                    data: keychainData,
-                                    fingerprint: keychainFingerprint)
-                                {
-                                    try ClaudeOAuthCredentialsStore.loadRecord(
-                                        environment: [:],
-                                        allowKeychainPrompt: false,
-                                        respectKeychainPromptCooldown: true,
-                                        allowClaudeKeychainRepairWithoutPrompt: false)
+                        let record = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                            try ClaudeOAuthKeychainPromptPreference
+                                .withTaskOverrideForTesting(.onlyOnUserAction) {
+                                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                        data: keychainData,
+                                        fingerprint: keychainFingerprint)
+                                    {
+                                        try ClaudeOAuthCredentialsStore.loadRecord(
+                                            environment: [:],
+                                            allowKeychainPrompt: false,
+                                            respectKeychainPromptCooldown: true,
+                                            allowClaudeKeychainRepairWithoutPrompt: false)
+                                    }
                                 }
-                            }
+                        }
 
                         #expect(record.credentials.accessToken == "codexbar-cache")
                         #expect(record.owner == .claudeCLI)
@@ -624,7 +628,9 @@ struct ClaudeOAuthCredentialsStoreCLIStorageOwnershipTests {
     }
 
     @Test
-    func `expired claude CLI owner blocks background mcp O auth but lets user action delegate`() async throws {
+    func `expired claude CLI owner skips background mcp O auth inspection and delegates only to user action`() async
+        throws
+    {
         let service = "com.steipete.codexbar.cache.tests.\(UUID().uuidString)"
         let mcpOAuthOnly = Data("""
         {
@@ -674,10 +680,10 @@ struct ClaudeOAuthCredentialsStoreCLIStorageOwnershipTests {
                                         environment: [:],
                                         allowKeychainPrompt: false,
                                         respectKeychainPromptCooldown: true)
-                                    Issue.record("Expected mcpOAuth-only keychain error")
+                                    Issue.record("Expected deferred Claude CLI refresh")
                                 } catch let error as ClaudeOAuthCredentialsError {
-                                    guard case .mcpOAuthOnlyKeychain = error else {
-                                        Issue.record("Expected .mcpOAuthOnlyKeychain, got \(error)")
+                                    guard case .refreshDelegatedToClaudeCLI = error else {
+                                        Issue.record("Expected .refreshDelegatedToClaudeCLI, got \(error)")
                                         return
                                     }
                                 } catch {

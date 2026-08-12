@@ -20,7 +20,7 @@ struct ClaudeOAuthFetchStrategyProfileRoutingTests {
     }
 
     @Test
-    func `selected profile file ignores unrelated global MCP-only keychain`() async throws {
+    func `background selected profile stays unavailable despite unrelated global MCP-only keychain`() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let profile = root.appendingPathComponent("selected-profile", isDirectory: true)
@@ -76,7 +76,7 @@ struct ClaudeOAuthFetchStrategyProfileRoutingTests {
             }
         }
 
-        #expect(available)
+        #expect(!available)
     }
 
     private func makeCredentialsData(accessToken: String, expiresAt: Date) -> Data {

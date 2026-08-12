@@ -57,21 +57,25 @@ struct ClaudeOAuthHistoryCredentialRoutingTests {
             }
         }
 
-        ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-            data: nil,
-            fingerprint: fingerprint)
-        {
-            let unavailable = ClaudeOAuthCredentialsStore
-                .claudeKeychainCredentialMatchWithoutPrompt(for: matchingCLIRecord)
-            #expect(unavailable == .unavailable)
-            #expect(unavailable.isUnavailable)
-            #expect(!unavailable.isMismatch)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                data: nil,
+                fingerprint: fingerprint)
+            {
+                let unavailable = ClaudeOAuthCredentialsStore
+                    .claudeKeychainCredentialMatchWithoutPrompt(for: matchingCLIRecord)
+                #expect(unavailable == .unavailable)
+                #expect(unavailable.isUnavailable)
+                #expect(!unavailable.isMismatch)
+            }
         }
 
         let absentStore = ClaudeOAuthCredentialsStore.ClaudeKeychainOverrideStore()
-        ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(absentStore) {
-            #expect(ClaudeOAuthCredentialsStore
-                .claudeKeychainCredentialMatchWithoutPrompt(for: matchingCLIRecord) == .absent)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(absentStore) {
+                #expect(ClaudeOAuthCredentialsStore
+                    .claudeKeychainCredentialMatchWithoutPrompt(for: matchingCLIRecord) == .absent)
+            }
         }
     }
 

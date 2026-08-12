@@ -282,7 +282,9 @@ struct ClaudeDebugDiagnosticsTests {
                                     fingerprint: nil)
                                 {
                                     await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                                        await store.debugLog(for: .claude)
+                                        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                            await store.debugLog(for: .claude)
+                                        }
                                     }
                                 }
                             }
@@ -417,7 +419,9 @@ struct ClaudeDebugDiagnosticsTests {
                                     fingerprint: nil)
                                 {
                                     await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                                        await store.debugLog(for: .claude)
+                                        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                            await store.debugLog(for: .claude)
+                                        }
                                     }
                                 }
                             }
@@ -446,7 +450,9 @@ struct ClaudeDebugDiagnosticsTests {
                                     data: nil,
                                     fingerprint: nil)
                                 {
-                                    await store.debugLog(for: .claude)
+                                    await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                        await store.debugLog(for: .claude)
+                                    }
                                 }
                             }
                         }

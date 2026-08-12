@@ -143,6 +143,33 @@ struct ProviderSettingsFieldDescriptor: Identifiable {
     let actions: [ProviderSettingsActionDescriptor]
     let isVisible: (() -> Bool)?
     let onActivate: (() -> Void)?
+    let onChange: (@MainActor @Sendable (_ value: String) async -> Void)?
+
+    init(
+        id: String,
+        title: String,
+        subtitle: String,
+        footerText: String? = nil,
+        kind: Kind,
+        placeholder: String?,
+        binding: Binding<String>,
+        actions: [ProviderSettingsActionDescriptor],
+        isVisible: (() -> Bool)?,
+        onActivate: (() -> Void)?,
+        onChange: (@MainActor @Sendable (_ value: String) async -> Void)? = nil)
+    {
+        self.id = id
+        self.title = title
+        self.subtitle = subtitle
+        self.footerText = footerText
+        self.kind = kind
+        self.placeholder = placeholder
+        self.binding = binding
+        self.actions = actions
+        self.isVisible = isVisible
+        self.onActivate = onActivate
+        self.onChange = onChange
+    }
 }
 
 /// Shared action row descriptor rendered in the Providers settings pane.

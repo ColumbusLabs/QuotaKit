@@ -610,11 +610,12 @@ extension SettingsStore {
     var claudeOAuthKeychainPromptMode: ClaudeOAuthKeychainPromptMode {
         get {
             let raw = self.defaultsState.claudeOAuthKeychainPromptModeRaw
-            return ClaudeOAuthKeychainPromptMode(rawValue: raw ?? "") ?? .onlyOnUserAction
+            return (ClaudeOAuthKeychainPromptMode(rawValue: raw ?? "") ?? .onlyOnUserAction).normalized
         }
         set {
-            self.defaultsState.claudeOAuthKeychainPromptModeRaw = newValue.rawValue
-            self.userDefaults.set(newValue.rawValue, forKey: "claudeOAuthKeychainPromptMode")
+            let normalized = newValue.normalized
+            self.defaultsState.claudeOAuthKeychainPromptModeRaw = normalized.rawValue
+            self.userDefaults.set(normalized.rawValue, forKey: "claudeOAuthKeychainPromptMode")
             self.noteBackgroundWorkSettingsChanged()
         }
     }

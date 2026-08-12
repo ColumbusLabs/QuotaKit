@@ -5,6 +5,65 @@ import Testing
 
 extension CodexBackgroundRefreshCoalescingTests {
     @Test
+    func `background startup request upgraded by manual refresh retains startup metadata and user interaction`() async
+        throws
+    {
+        let settings = try self.makeSettingsStore(
+            suite: "CodexBackgroundRefreshCoalescingTests-required-startup-user-upgrade")
+        settings.statusChecksEnabled = false
+        settings.costUsageEnabled = false
+        settings.openAIWebAccessEnabled = false
+        let store = self.makeStore(settings: settings)
+        var observed: [(ProviderInteraction, ProviderRefreshPhase)] = []
+        store._test_providerRefreshOverride = { _ in
+            observed.append((ProviderInteractionContext.current, ProviderRefreshContext.current))
+        }
+        store._test_codexCreditsLoaderOverride = {
+            CreditsSnapshot(remaining: 25, events: [], updatedAt: Date())
+        }
+        defer {
+            store._test_providerRefreshOverride = nil
+            store._test_codexCreditsLoaderOverride = nil
+        }
+
+        store.isRefreshing = true
+        let startupRequest = Task { @MainActor in
+            await ProviderInteractionContext.$current.withValue(.background) {
+                await store.enqueueRequiredRefresh(
+                    startupConnectivityRetryAttempt: 1,
+                    coalesceProviderRefreshesOverride: true)
+            }
+        }
+        for _ in 0..<100 where store.requiredRefreshRequestGeneration < 1 {
+            await Task.yield()
+        }
+
+        let manualRequest = Task { @MainActor in
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await store.enqueueRequiredRefresh(
+                    startupConnectivityRetryAttempt: nil,
+                    coalesceProviderRefreshesOverride: false)
+            }
+        }
+        for _ in 0..<100 where store.requiredRefreshRequestGeneration < 2 {
+            await Task.yield()
+        }
+
+        let merged = try #require(store.pendingRequiredRefreshRequest)
+        #expect(merged.startupConnectivityRetryAttempt == 1)
+        #expect(merged.interaction == .userInitiated)
+        #expect(!merged.coalesceProviderRefreshes)
+
+        store.isRefreshing = false
+        #expect(await startupRequest.value)
+        #expect(await manualRequest.value)
+
+        #expect(!observed.isEmpty)
+        #expect(observed.allSatisfy { $0.0 == .userInitiated && $0.1 == .startup })
+        #expect(store.requiredRefreshCompletedGeneration == 2)
+    }
+
+    @Test
     func `required refresh requests during a pass share one follow-up`() async throws {
         let settings = try self.makeSettingsStore(
             suite: "CodexBackgroundRefreshCoalescingTests-required-refresh-follow-up")

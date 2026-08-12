@@ -47,15 +47,17 @@ struct ClaudeDirectUsageFallbackTests {
             ],
             dataSource: .cli)
 
-        try await ClaudeCLISession.withIsolatedSessionForTesting {
-            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(fakeCLI.path) {
-                do {
-                    _ = try await fetcher.loadLatestUsage(model: "sonnet")
-                    #expect(Bool(false), "Subscription-only usage should fail parsing")
-                } catch let ClaudeUsageError.parseFailed(message) {
-                    #expect(message.lowercased().contains("subscription"))
-                } catch let ClaudeStatusProbeError.parseFailed(message) {
-                    #expect(message.lowercased().contains("subscription"))
+        try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await ClaudeCLISession.withIsolatedSessionForTesting {
+                try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(fakeCLI.path) {
+                    do {
+                        _ = try await fetcher.loadLatestUsage(model: "sonnet")
+                        #expect(Bool(false), "Subscription-only usage should fail parsing")
+                    } catch let ClaudeUsageError.parseFailed(message) {
+                        #expect(message.lowercased().contains("subscription"))
+                    } catch let ClaudeStatusProbeError.parseFailed(message) {
+                        #expect(message.lowercased().contains("subscription"))
+                    }
                 }
             }
         }
@@ -80,15 +82,17 @@ struct ClaudeDirectUsageFallbackTests {
             environment: ["CLAUDE_CLI_PATH": fakeCLI.path],
             dataSource: .cli)
 
-        await ClaudeCLISession.withIsolatedSessionForTesting {
-            await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(fakeCLI.path) {
-                do {
-                    _ = try await fetcher.loadLatestUsage(model: "sonnet")
-                    #expect(Bool(false), "PTY failure should still surface")
-                } catch let ClaudeStatusProbeError.parseFailed(message) {
-                    #expect(message.lowercased().contains("could not load usage data"))
-                } catch {
-                    #expect(Bool(false), "Unexpected error: \(error)")
+        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            await ClaudeCLISession.withIsolatedSessionForTesting {
+                await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(fakeCLI.path) {
+                    do {
+                        _ = try await fetcher.loadLatestUsage(model: "sonnet")
+                        #expect(Bool(false), "PTY failure should still surface")
+                    } catch let ClaudeStatusProbeError.parseFailed(message) {
+                        #expect(message.lowercased().contains("could not load usage data"))
+                    } catch {
+                        #expect(Bool(false), "Unexpected error: \(error)")
+                    }
                 }
             }
         }

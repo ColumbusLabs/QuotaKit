@@ -659,8 +659,9 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
-    func `claude legacy security CLI migration preserves explicit prompt policy`() throws {
+    func `claude legacy always prompt policy migrates once without changing direct read consent`() throws {
         let suite = "SettingsStoreCoverageTests-claude-keychain-explicit-prompt-migration"
+        let promptModeKey = "claudeOAuthKeychainPromptMode"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
         defaults.set(
@@ -668,14 +669,38 @@ struct SettingsStoreCoverageTests {
             forKey: "claudeOAuthKeychainReadStrategy")
         defaults.set(
             ClaudeOAuthKeychainPromptMode.always.rawValue,
-            forKey: "claudeOAuthKeychainPromptMode")
+            forKey: promptModeKey)
+        defaults.set(true, forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey)
         let configStore = testConfigStore(suiteName: suite)
 
         let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
 
         #expect(settings.claudeOAuthKeychainReadStrategy == .securityFramework)
-        #expect(settings.claudeOAuthKeychainPromptMode == .always)
+        #expect(settings.claudeOAuthKeychainPromptMode == .onlyOnUserAction)
         #expect(!settings.claudeOAuthPromptFreeCredentialsEnabled)
+        #expect(settings.claudeOAuthDirectKeychainReadAllowed)
+        #expect(defaults.string(forKey: promptModeKey) == ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue)
+
+        let reloaded = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        #expect(reloaded.claudeOAuthKeychainPromptMode == .onlyOnUserAction)
+        #expect(reloaded.claudeOAuthDirectKeychainReadAllowed)
+        #expect(defaults.string(forKey: promptModeKey) == ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue)
+    }
+
+    @Test
+    func `claude prompt mode setter cannot persist legacy always policy`() throws {
+        let suite = "SettingsStoreCoverageTests-claude-keychain-always-setter"
+        let promptModeKey = "claudeOAuthKeychainPromptMode"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = Self.makeSettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite))
+
+        settings.claudeOAuthKeychainPromptMode = .always
+
+        #expect(settings.claudeOAuthKeychainPromptMode == .onlyOnUserAction)
+        #expect(defaults.string(forKey: promptModeKey) == ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue)
     }
 
     @Test

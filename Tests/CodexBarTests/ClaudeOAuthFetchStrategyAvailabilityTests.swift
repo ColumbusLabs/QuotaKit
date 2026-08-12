@@ -388,7 +388,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
     }
 
     @Test
-    func `auto mode expired CLI creds remain available after Keychain opt in`() async {
+    func `background auto mode expired CLI creds stay unavailable after legacy Keychain opt in`() async {
         let context = self.makeContext(sourceMode: .auto)
         let strategy = ClaudeOAuthFetchStrategy()
         let available = await KeychainAccessGate.withTaskOverrideForTesting(false) {
@@ -403,7 +403,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
                 }
             }
         }
-        #expect(available == true)
+        #expect(available == false)
     }
 
     @Test
@@ -597,7 +597,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
     }
 
     @Test
-    func `auto mode expired Claude CLI creds env provided CLI override returns available`() async throws {
+    func `background auto mode env provided CLI override remains unavailable`() async throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -620,7 +620,7 @@ struct ClaudeOAuthFetchStrategyAvailabilityTests {
             }
         }
 
-        #expect(available == true)
+        #expect(available == false)
     }
 
     @Test

@@ -75,7 +75,14 @@ extension CodexBarCLI {
     }
 
     static func detectVersion(for provider: UsageProvider, browserDetection: BrowserDetection) -> String? {
-        ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?(browserDetection)
+        // Provider-specific by design: Claude version detection may launch its opaque CLI and requires explicit
+        // QuotaKit CLI capability.
+        if provider == .claude {
+            return ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?(browserDetection)
+            }
+        }
+        return ProviderDescriptorRegistry.descriptor(for: provider).cli.versionDetector?(browserDetection)
     }
 
     static func normalizeVersion(raw: String?) -> String? {

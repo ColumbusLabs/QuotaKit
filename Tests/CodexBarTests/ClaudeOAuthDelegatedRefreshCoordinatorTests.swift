@@ -72,7 +72,9 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                                         .withTouchAuthPathOverrideForTesting(
                                             touchAuthPath)
                                         {
-                                            try await operation()
+                                            try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                                try await operation()
+                                            }
                                         }
                                 }
                             }
@@ -87,7 +89,9 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                         try await ClaudeOAuthDelegatedRefreshCoordinator.withTouchAuthPathOverrideForTesting(
                             touchAuthPath)
                         {
-                            try await operation()
+                            try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                                try await operation()
+                            }
                         }
                     }
                 }
@@ -96,7 +100,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
     }
 
     @Test
-    func `cooldown prevents repeated attempts`() async {
+    func `explicit user attempts bypass cooldown`() async {
         ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
         defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
 
@@ -117,10 +121,11 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
             await self.withCoordinatorOverrides(
                 cliAvailable: true,
                 touchAuthPath: { _, _ in
+                    let next = (box.fingerprint?.modifiedAt ?? 0) + 1
                     box.fingerprint = ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
-                        modifiedAt: 2,
-                        createdAt: 2,
-                        persistentRefHash: "ref2")
+                        modifiedAt: next,
+                        createdAt: next,
+                        persistentRefHash: "ref\(next)")
                 },
                 keychainFingerprint: { box.fingerprint },
                 operation: {
@@ -132,7 +137,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         }
 
         #expect(first == .attemptedSucceeded)
-        #expect(second == .skippedByCooldown)
+        #expect(second == .attemptedSucceeded)
     }
 
     @Test
@@ -152,7 +157,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
     @Test(arguments: [
         (ClaudeOAuthKeychainPromptMode.onlyOnUserAction, false),
         (ClaudeOAuthKeychainPromptMode.never, false),
-        (ClaudeOAuthKeychainPromptMode.always, true),
+        (ClaudeOAuthKeychainPromptMode.always, false),
     ])
     func `background refresh never launches delegated Claude CLI without Keychain opt in`(
         promptMode: ClaudeOAuthKeychainPromptMode,
@@ -182,7 +187,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
         let backgroundOutcome = await ClaudeOAuthKeychainReadStrategyPreference.withTaskOverrideForTesting(
             .securityCLIExperimental)
         {
-            #expect(ClaudeOAuthKeychainPromptPreference.effectiveMode() == .always)
+            #expect(ClaudeOAuthKeychainPromptPreference.effectiveMode() == .onlyOnUserAction)
             return await self.withCoordinatorOverrides(
                 cliAvailable: true,
                 promptMode: .onlyOnUserAction,
@@ -435,7 +440,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
     }
 
     @Test
-    func `user action retries after joining failed background attempt`() async throws {
+    func `explicit user actions coalesce a failed in flight attempt`() async throws {
         ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting()
         defer { ClaudeOAuthDelegatedRefreshCoordinator.resetForTesting() }
 
@@ -529,12 +534,13 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                     },
                     keychainFingerprint: { state.snapshot().1 },
                     operation: {
-                        await ClaudeOAuthDelegatedRefreshCoordinator
-                            .withUserInitiatedBackgroundJoinObserverForTesting {
-                                Task { await gate.markJoined() }
-                            } operation: {
+                        let joinObserver: @Sendable () -> Void = {
+                            Task { await gate.markJoined() }
+                        }
+                        return await ClaudeOAuthDelegatedRefreshCoordinator
+                            .withInFlightJoinObserverForTesting(joinObserver) {
                                 let background = Task {
-                                    await ProviderInteractionContext.$current.withValue(.background) {
+                                    await ProviderInteractionContext.$current.withValue(.userInitiated) {
                                         await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
                                             now: Date(timeIntervalSince1970: 51000),
                                             timeout: 2)
@@ -560,8 +566,11 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
             Issue.record("Expected the background attempt to fail")
             return
         }
-        #expect(outcomes.1 == .attemptedSucceeded)
-        #expect(state.snapshot().0 == 2)
+        guard case .attemptedFailed = outcomes.1 else {
+            Issue.record("Expected the joined user attempt to share the failure")
+            return
+        }
+        #expect(state.snapshot().0 == 1)
     }
 
     @Test
@@ -659,6 +668,8 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                 let outcome = await self.withCoordinatorOverrides(
                     cliAvailable: true,
                     touchAuthPath: { _, _ in
+                        #expect(ProviderInteractionContext.current == .userInitiated)
+                        #expect(ClaudeOpaqueOperationContext.isAllowed)
                         dataBox.store(afterData)
                     },
                     keychainFingerprint: {
@@ -672,7 +683,10 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                         await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
                             .dynamic { _ in
                                 #expect(
-                                    ClaudeOAuthKeychainPromptPreference.currentTaskOverrideForTesting == .always)
+                                    ClaudeOAuthKeychainPromptPreference.currentTaskOverrideForTesting
+                                        == .onlyOnUserAction)
+                                #expect(ProviderInteractionContext.current == .userInitiated)
+                                #expect(ClaudeOpaqueOperationContext.isAllowed)
                                 return dataBox.load()
                             }) {
                                 await ProviderInteractionContext.$current.withValue(.userInitiated) {
@@ -791,9 +805,11 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                         return securityData
                     }) {
                         await KeychainAccessGate.withTaskOverrideForTesting(true) {
-                            await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
-                                now: Date(timeIntervalSince1970: 62000),
-                                timeout: 0.1)
+                            await ProviderInteractionContext.$current.withValue(.background) {
+                                await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
+                                    now: Date(timeIntervalSince1970: 62000),
+                                    timeout: 0.1)
+                            }
                         }
                     }
                 })
@@ -861,11 +877,7 @@ struct ClaudeOAuthDelegatedRefreshCoordinatorTests {
                         }
                     })
 
-                guard case let .attemptedFailed(message) = outcomes.0 else {
-                    Issue.record("Expected background .attemptedFailed outcome")
-                    return
-                }
-                #expect(message.contains("MCP OAuth"))
+                #expect(outcomes.0 == .skippedByPromptPolicy)
                 #expect(outcomes.1 == 0)
                 #expect(outcomes.2 == .attemptedSucceeded)
                 #expect(state.count() == 1)

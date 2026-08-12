@@ -63,9 +63,11 @@ struct ClaudeCLITimeoutRetryTests {
                 rawText: "probe raw")
         }
 
-        let snapshot = try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
-            try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                try await fetcher.loadLatestUsage(model: "sonnet")
+        let snapshot = try await self.withExplicitUserAction {
+            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
+                try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                    try await fetcher.loadLatestUsage(model: "sonnet")
+                }
             }
         }
 
@@ -94,10 +96,12 @@ struct ClaudeCLITimeoutRetryTests {
         }
 
         await #expect(throws: ClaudeStatusProbeError.self) {
-            try await self.withNoOAuthCredentials {
-                try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
-                    try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                        try await fetcher.loadLatestUsage(model: "sonnet")
+            try await self.withExplicitUserAction {
+                try await self.withNoOAuthCredentials {
+                    try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
+                        try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        }
                     }
                 }
             }
@@ -138,17 +142,19 @@ struct ClaudeCLITimeoutRetryTests {
                 rawText: "probe raw")
         }
 
-        let snapshot = try await self.withNoOAuthCredentials {
-            try await self.withClaudeWebStub(handler: { request in
-                webRequests.record(request.url?.path ?? "<missing>")
-                throw URLError(.userAuthenticationRequired)
-            }, operation: {
-                try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
-                    try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                        try await fetcher.loadLatestUsage(model: "sonnet")
+        let snapshot = try await self.withExplicitUserAction {
+            try await self.withNoOAuthCredentials {
+                try await self.withClaudeWebStub(handler: { request in
+                    webRequests.record(request.url?.path ?? "<missing>")
+                    throw URLError(.userAuthenticationRequired)
+                }, operation: {
+                    try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
+                        try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        }
                     }
-                }
-            })
+                })
+            }
         }
 
         let recorded = await attempts.snapshot()
@@ -189,10 +195,12 @@ struct ClaudeCLITimeoutRetryTests {
                 rawText: "probe raw")
         }
 
-        let snapshot = try await self.withNoOAuthCredentials {
-            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
-                try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                    try await fetcher.loadLatestUsage(model: "sonnet")
+        let snapshot = try await self.withExplicitUserAction {
+            try await self.withNoOAuthCredentials {
+                try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting(cliPath.path) {
+                    try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                        try await fetcher.loadLatestUsage(model: "sonnet")
+                    }
                 }
             }
         }
@@ -219,9 +227,11 @@ struct ClaudeCLITimeoutRetryTests {
         }
 
         await #expect(throws: CancellationError.self) {
-            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
-                try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                    try await fetcher.loadLatestUsage(model: "sonnet")
+            try await self.withExplicitUserAction {
+                try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
+                    try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                        try await fetcher.loadLatestUsage(model: "sonnet")
+                    }
                 }
             }
         }
@@ -232,7 +242,7 @@ struct ClaudeCLITimeoutRetryTests {
     }
 
     @Test
-    func `cli usage records background cooldown after rate limit`() async {
+    func `background cli usage neither invokes probe nor records rate limit`() async {
         ClaudeCLIRateLimitGate.resetForTesting()
         defer { ClaudeCLIRateLimitGate.resetForTesting() }
 
@@ -248,7 +258,7 @@ struct ClaudeCLITimeoutRetryTests {
         }
 
         await ProviderInteractionContext.$current.withValue(.background) {
-            await #expect(throws: ClaudeStatusProbeError.self) {
+            await #expect(throws: ClaudeUsageError.self) {
                 try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
                     try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
                         try await fetcher.loadLatestUsage(model: "sonnet")
@@ -258,9 +268,9 @@ struct ClaudeCLITimeoutRetryTests {
         }
 
         let recordedAfterRateLimit = await attempts.snapshot()
-        #expect(recordedAfterRateLimit.count == 1)
-        #expect(recordedAfterRateLimit.timeouts == [24])
-        #expect(ClaudeCLIRateLimitGate.currentBlockedUntil() != nil)
+        #expect(recordedAfterRateLimit.count < 1)
+        #expect(recordedAfterRateLimit.timeouts.isEmpty)
+        #expect(ClaudeCLIRateLimitGate.currentBlockedUntil() == nil)
 
         await ProviderInteractionContext.$current.withValue(.background) {
             await #expect(throws: ClaudeUsageError.self) {
@@ -273,8 +283,8 @@ struct ClaudeCLITimeoutRetryTests {
         }
 
         let recordedAfterBlockedRetry = await attempts.snapshot()
-        #expect(recordedAfterBlockedRetry.count == 1)
-        #expect(recordedAfterBlockedRetry.timeouts == [24])
+        #expect(recordedAfterBlockedRetry.count < 1)
+        #expect(recordedAfterBlockedRetry.timeouts.isEmpty)
     }
 
     @Test
@@ -353,6 +363,12 @@ struct ClaudeCLITimeoutRetryTests {
                     }
                 }
             }
+        }
+    }
+
+    private func withExplicitUserAction<T>(operation: () async throws -> T) async rethrows -> T {
+        try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await operation()
         }
     }
 

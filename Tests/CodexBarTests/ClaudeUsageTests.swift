@@ -314,7 +314,7 @@ struct ClaudeUsageTests {
                 Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
                 return
             }
-            #expect(message.contains("background repair is suppressed"))
+            #expect(message.contains("background repair is disabled"))
             #expect(message.contains("Open the QuotaKit menu or click Refresh"))
             #expect(!message.contains("Open the CodexBar menu or"))
         } catch {
@@ -432,10 +432,9 @@ struct ClaudeUsageTests {
     }
 
     @Test
-    func `oauth delegated retry only on user action background allows delegation for CLI`() async throws {
+    func `legacy background delegation opt in is ignored`() async throws {
         let loadCounter = AsyncCounter()
         let delegatedCounter = AsyncCounter()
-        let usageResponse = try Self.makeOAuthUsageResponse()
 
         final class FlagBox: @unchecked Sendable {
             var allowKeychainPromptFlags: [Bool] = []
@@ -449,7 +448,6 @@ struct ClaudeUsageTests {
             oauthKeychainPromptCooldownEnabled: false,
             allowBackgroundDelegatedRefresh: true)
 
-        let fetchOverride: (@Sendable (String, Bool) async throws -> OAuthUsageResponse)? = { _, _ in usageResponse }
         let delegatedOverride: (@Sendable (
             Date,
             TimeInterval,
@@ -474,9 +472,9 @@ struct ClaudeUsageTests {
                 rateLimitTier: nil)
         }
 
-        let snapshot = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-            try await ProviderInteractionContext.$current.withValue(.background) {
-                try await ClaudeUsageFetcher.$fetchOAuthUsageOverride.withValue(fetchOverride) {
+        do {
+            _ = try await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                try await ProviderInteractionContext.$current.withValue(.background) {
                     try await ClaudeUsageFetcher.$delegatedRefreshAttemptOverride.withValue(delegatedOverride) {
                         try await ClaudeUsageFetcher.$loadOAuthCredentialsOverride.withValue(loadCredsOverride) {
                             try await fetcher.loadLatestUsage(model: "sonnet")
@@ -484,11 +482,19 @@ struct ClaudeUsageTests {
                     }
                 }
             }
+            Issue.record("Expected legacy background delegation opt-in to be ignored")
+        } catch let error as ClaudeUsageError {
+            guard case let .oauthFailed(message) = error else {
+                Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
+                return
+            }
+            #expect(message.contains("background repair is disabled"))
+        } catch {
+            Issue.record("Expected ClaudeUsageError, got \(error)")
         }
 
-        #expect(await loadCounter.current() == 2)
-        #expect(await delegatedCounter.current() == 1)
-        #expect(snapshot.primary.usedPercent == 7)
+        #expect(await loadCounter.current() == 1)
+        #expect(await delegatedCounter.current() == 0)
         #expect(flags.allowKeychainPromptFlags.allSatisfy { !$0 })
     }
 
@@ -584,55 +590,22 @@ struct ClaudeUsageTests {
             return
         }
         let fetcher = ClaudeUsageFetcher(browserDetection: BrowserDetection(cacheTTL: 0), dataSource: .cli)
-        do {
-            let snap = try await fetcher.loadLatestUsage()
-            let opusUsed = snap.opus?.usedPercent ?? -1
-            let weeklyUsed = snap.secondary?.usedPercent ?? -1
-            let email = snap.accountEmail ?? "nil"
-            let org = snap.accountOrganization ?? "nil"
-            print(
-                """
-                Live Claude usage (PTY):
-                session used \(snap.primary.usedPercent)%
-                week used \(weeklyUsed)% 
-                opus \(opusUsed)% 
-                email \(email) org \(org)
-                """)
-            #expect(snap.primary.usedPercent >= 0)
-        } catch {
-            // Dump raw CLI text captured via `script` to help debug.
-            let raw = try Self.captureClaudeUsageRaw(timeout: 15)
-            print("RAW CLAUDE OUTPUT BEGIN\n\(raw)\nRAW CLAUDE OUTPUT END")
-            throw error
+        let snap = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await fetcher.loadLatestUsage()
         }
-    }
-
-    private static func captureClaudeUsageRaw(timeout: TimeInterval) throws -> String {
-        let process = Process()
-        process.launchPath = "/usr/bin/script"
-        process.arguments = [
-            "-q",
-            "/dev/null",
-            "claude",
-            "/usage",
-            "--allowed-tools",
-            "",
-        ]
-        let pipe = Pipe()
-        process.standardOutput = pipe
-        process.standardError = Pipe()
-        process.standardInput = nil
-
-        try process.run()
-        DispatchQueue.global().asyncAfter(deadline: .now() + timeout) {
-            if process.isRunning {
-                process.terminate()
-            }
-        }
-        process.waitUntilExit()
-
-        let data = pipe.fileHandleForReading.readDataToEndOfFile()
-        return String(data: data, encoding: .utf8) ?? ""
+        let opusUsed = snap.opus?.usedPercent ?? -1
+        let weeklyUsed = snap.secondary?.usedPercent ?? -1
+        let email = snap.accountEmail ?? "nil"
+        let org = snap.accountOrganization ?? "nil"
+        print(
+            """
+            Live Claude usage (PTY):
+            session used \(snap.primary.usedPercent)%
+            week used \(weeklyUsed)%
+            opus \(opusUsed)%
+            email \(email) org \(org)
+            """)
+        #expect(snap.primary.usedPercent >= 0)
     }
 
     // MARK: - Web API tests
@@ -864,13 +837,8 @@ struct ClaudeUsageTests {
         let defaultFetcher = ClaudeUsageFetcher(browserDetection: browserDetection)
         let webFetcher = ClaudeUsageFetcher(browserDetection: browserDetection, dataSource: .web)
         let cliFetcher = ClaudeUsageFetcher(browserDetection: browserDetection, dataSource: .cli)
-        // Both should be valid instances (no crashes)
-        let defaultVersion = defaultFetcher.detectVersion()
-        let webVersion = webFetcher.detectVersion()
-        let cliVersion = cliFetcher.detectVersion()
-        #expect(defaultVersion?.isEmpty != true)
-        #expect(webVersion?.isEmpty != true)
-        #expect(cliVersion?.isEmpty != true)
+        // Construction should not perform a live CLI probe.
+        _ = (defaultFetcher, webFetcher, cliFetcher)
     }
 }
 
@@ -1215,7 +1183,9 @@ struct ClaudeAutoFetcherCharacterizationTests {
                             return Self.makeJSONResponse(url: url, body: "{}", statusCode: 404)
                         }
                     }, operation: {
-                        let snapshot = try await fetcher.loadLatestUsage(model: "sonnet")
+                        let snapshot = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                            try await fetcher.loadLatestUsage(model: "sonnet")
+                        }
 
                         #expect(snapshot.rawText != nil)
                         #expect(log.contents().contains("usage"))

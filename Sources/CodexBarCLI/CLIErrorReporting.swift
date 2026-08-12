@@ -53,7 +53,8 @@ extension CodexBarCLI {
         source: String,
         status: ProviderStatusPayload?,
         error: Error,
-        kind: CLIErrorKind = .provider) -> ProviderPayload
+        kind: CLIErrorKind = .provider,
+        diagnostic: String? = nil) -> ProviderPayload
     {
         ProviderPayload(
             provider: provider,
@@ -66,7 +67,8 @@ extension CodexBarCLI {
             credits: nil,
             antigravityPlanInfo: nil,
             openaiDashboard: nil,
-            error: self.makeErrorPayload(error, kind: kind))
+            error: self.makeErrorPayload(error, kind: kind),
+            diagnostic: diagnostic)
     }
 
     static func encodeJSON(_ payload: some Encodable, pretty: Bool) -> String? {

@@ -170,19 +170,21 @@ struct ClaudeOAuthRefreshChainOwnershipTests {
         defer { try? FileManager.default.removeItem(at: profile.directory) }
         let keychain = ClaudeOAuthCredentialsStore.ClaudeKeychainOverrideStore()
 
-        let owner = KeychainAccessGate.withTaskOverrideForTesting(false) {
-            ClaudeOAuthDirectKeychainReadConsent.withTaskOverrideForTesting(true) {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                    ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(keychain) {
-                        #expect(ClaudeOAuthCredentialsStore.keychainAccessAllowed)
-                        #expect(ClaudeAccountProfile.configOwnershipEvidence(environment: profile.environment)
-                            == .signedIn(accountUuid: "consented-profile"))
-                        #expect(ClaudeOAuthCredentialsStore.claudeKeychainCredentialMatchForTesting(
-                            credentials: self.makeCredentials()) == .absent)
-                        return ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
-                            .codexbar,
-                            credentials: self.makeCredentials(),
-                            environment: profile.environment)
+        let owner = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            KeychainAccessGate.withTaskOverrideForTesting(false) {
+                ClaudeOAuthDirectKeychainReadConsent.withTaskOverrideForTesting(true) {
+                    ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                        ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(keychain) {
+                            #expect(ClaudeOAuthCredentialsStore.keychainAccessAllowed)
+                            #expect(ClaudeAccountProfile.configOwnershipEvidence(environment: profile.environment)
+                                == .signedIn(accountUuid: "consented-profile"))
+                            #expect(ClaudeOAuthCredentialsStore.claudeKeychainCredentialMatchForTesting(
+                                credentials: self.makeCredentials()) == .absent)
+                            return ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
+                                .codexbar,
+                                credentials: self.makeCredentials(),
+                                environment: profile.environment)
+                        }
                     }
                 }
             }
@@ -214,12 +216,14 @@ struct ClaudeOAuthRefreshChainOwnershipTests {
         defer { try? FileManager.default.removeItem(at: profile.directory) }
         let keychain = ClaudeOAuthCredentialsStore.ClaudeKeychainOverrideStore()
 
-        let owner = ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-            ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(keychain) {
-                ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
-                    .codexbar,
-                    credentials: self.makeCredentials(),
-                    environment: profile.environment)
+        let owner = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                ClaudeOAuthCredentialsStore.withMutableClaudeKeychainOverrideStoreForTesting(keychain) {
+                    ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
+                        .codexbar,
+                        credentials: self.makeCredentials(),
+                        environment: profile.environment)
+                }
             }
         }
 
@@ -236,15 +240,17 @@ struct ClaudeOAuthRefreshChainOwnershipTests {
             createdAt: 1,
             persistentRefHash: "different-keychain-item")
 
-        let owner = ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-            ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                data: keychainData,
-                fingerprint: keychainFingerprint)
-            {
-                ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
-                    .codexbar,
-                    credentials: self.makeCredentials(),
-                    environment: profile.environment)
+        let owner = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                    data: keychainData,
+                    fingerprint: keychainFingerprint)
+                {
+                    ClaudeOAuthCredentialsStore.resolvedCacheOwnerForTesting(
+                        .codexbar,
+                        credentials: self.makeCredentials(),
+                        environment: profile.environment)
+                }
             }
         }
 

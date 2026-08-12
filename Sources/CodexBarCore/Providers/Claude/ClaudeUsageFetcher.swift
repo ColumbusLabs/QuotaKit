@@ -128,7 +128,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             case .onlyOnUserAction:
                 self.interaction == .userInitiated
             case .always:
-                true
+                self.interaction == .userInitiated
             }
         }
 
@@ -172,16 +172,14 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         policy: ClaudeOAuthKeychainPromptPolicy,
         allowBackgroundDelegatedRefresh: Bool) throws
     {
+        _ = allowBackgroundDelegatedRefresh
         if policy.mode == .never {
             throw ClaudeUsageError.oauthFailed("Delegated refresh is disabled by 'never' keychain policy.")
         }
-        if policy.mode == .onlyOnUserAction,
-           policy.interaction != .userInitiated,
-           !allowBackgroundDelegatedRefresh
-        {
+        if policy.interaction != .userInitiated {
             throw ClaudeUsageError.oauthFailed(
-                "Claude OAuth token expired, but background repair is suppressed when Keychain prompt policy "
-                    + "is set to only prompt on user action. Open the QuotaKit menu or click Refresh to retry.")
+                "Claude OAuth token expired, but background repair is disabled. "
+                    + "Open the QuotaKit menu or click Refresh to retry.")
         }
     }
 
@@ -573,6 +571,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private func loadViaAutoCLI(model: String) async throws -> ClaudeUsageSnapshot {
+            guard ClaudeOpaqueOperationContext.isAllowed else {
+                throw ClaudeUsageError.parseFailed(
+                    "Claude CLI execution is unavailable during background app refresh.")
+            }
             guard let binary = ClaudeCLIResolver.resolvedBinaryPath(environment: self.fetcher.environment),
                   await ClaudeCLIAuthStatusProbe.isLoggedIn(
                       binary: binary,
@@ -592,6 +594,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private func loadViaCLIWithRetry(model: String) async throws -> ClaudeUsageSnapshot {
+            guard ClaudeOpaqueOperationContext.isAllowed else {
+                throw ClaudeUsageError.parseFailed(
+                    "Claude CLI execution is unavailable during background app refresh.")
+            }
             do {
                 return try await self.loadViaCLI(model: model, timeout: ClaudeUsageFetcher.cliProbeTimeout)
             } catch {
@@ -604,6 +610,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         }
 
         private func loadViaCLI(model: String, timeout: TimeInterval) async throws -> ClaudeUsageSnapshot {
+            guard ClaudeOpaqueOperationContext.isAllowed else {
+                throw ClaudeUsageError.parseFailed(
+                    "Claude CLI execution is unavailable during background app refresh.")
+            }
             if ClaudeCLIRateLimitGate.blockedUntil() != nil {
                 throw ClaudeUsageError.parseFailed(ClaudeCLIRateLimitGate.message)
             }
@@ -772,8 +782,13 @@ extension ClaudeUsageFetcher {
     }
 
     public func debugRawProbe(model: String = "sonnet") async -> String {
+        guard ClaudeOpaqueOperationContext.isExplicit(runtime: self.runtime) else {
+            return "Probe failed: Claude CLI execution is unavailable during background app refresh."
+        }
         do {
-            let snap = try await self.loadViaPTY(model: model, timeout: Self.cliProbeTimeout)
+            let snap = try await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: self.runtime) {
+                try await self.loadViaPTY(model: model, timeout: Self.cliProbeTimeout)
+            }
             let opus = snap.opus?.remainingPercent ?? -1
             let email = snap.accountEmail ?? "nil"
             let org = snap.accountOrganization ?? "nil"
@@ -790,7 +805,9 @@ extension ClaudeUsageFetcher {
     }
 
     public func loadLatestUsage(model: String = "sonnet") async throws -> ClaudeUsageSnapshot {
-        try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
+        try await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: self.runtime) {
+            try await StepExecutor(fetcher: self).loadLatestUsage(model: model)
+        }
     }
 
     public static func isCLIRateLimitError(_ error: Error) -> Bool {

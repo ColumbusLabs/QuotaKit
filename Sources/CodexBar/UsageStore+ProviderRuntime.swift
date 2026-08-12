@@ -19,4 +19,16 @@ extension UsageStore {
             runtime.settingsDidChange(context: context)
         }
     }
+
+    func refreshClaudeSwapAfterUserSettingsChange() {
+        guard ProviderInteractionContext.current == .userInitiated else { return }
+        // Provider-specific by design: this explicit Settings action reconciles Claude's optional swap runtime.
+        guard let runtime = self.providerRuntimes[UsageProvider.claude.instanceID] as? ClaudeProviderRuntime else {
+            return
+        }
+        runtime.refreshSwapConfigurationAfterUserChange(context: ProviderRuntimeContext(
+            provider: .claude,
+            settings: self.settings,
+            store: self))
+    }
 }

@@ -148,7 +148,9 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 actions: [],
                 isVisible: nil,
                 isEnabled: nil,
-                onChange: nil,
+                onChange: { _ in
+                    Self.refreshClaudeSwapAfterSettingsChange(context: context)
+                },
                 onAppDidBecomeActive: nil,
                 onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
@@ -214,13 +216,10 @@ struct ClaudeProviderImplementation: ProviderImplementation {
         let keychainPromptPolicyOptions: [ProviderSettingsPickerOption] = [
             ProviderSettingsPickerOption(
                 id: ClaudeOAuthKeychainPromptMode.never.rawValue,
-                title: "Never prompt"),
+                title: "Never"),
             ProviderSettingsPickerOption(
                 id: ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue,
                 title: "Only on user action"),
-            ProviderSettingsPickerOption(
-                id: ClaudeOAuthKeychainPromptMode.always.rawValue,
-                title: "Always allow"),
         ]
         let cookieSubtitle: () -> String? = {
             ProviderCookieSourceUI.subtitle(
@@ -235,7 +234,8 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 return "Global Keychain access is disabled in Advanced, so this setting is currently inactive."
             }
             return "Controls Claude OAuth Keychain prompts for menu, manual refresh, provider actions, " +
-                "and startup bootstrap. Background refreshes avoid prompts unless Always allow is selected."
+                "and startup bootstrap. Background refreshes never access Claude Code's Keychain item " +
+                "or launch Claude Code or claude-swap."
         }
 
         return [
@@ -299,8 +299,18 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 binding: context.stringBinding(\.claudeSwapExecutablePath),
                 actions: [],
                 isVisible: { context.settings.claudeSwapEnabled },
-                onActivate: nil),
+                onActivate: nil,
+                onChange: { _ in
+                    Self.refreshClaudeSwapAfterSettingsChange(context: context)
+                }),
         ]
+    }
+
+    @MainActor
+    private static func refreshClaudeSwapAfterSettingsChange(context: ProviderSettingsContext) {
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            context.store.refreshClaudeSwapAfterUserSettingsChange()
+        }
     }
 
     @MainActor

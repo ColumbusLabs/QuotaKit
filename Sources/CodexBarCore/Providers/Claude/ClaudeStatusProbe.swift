@@ -52,8 +52,9 @@ public struct ClaudeAccountIdentity: Sendable {
     }
 }
 
-public enum ClaudeStatusProbeError: LocalizedError, Sendable {
+public enum ClaudeStatusProbeError: LocalizedError, Equatable, Sendable {
     case claudeNotInstalled
+    case backgroundAccessDenied
     case authenticationFailed(String)
     case parseFailed(String)
     case timedOut
@@ -62,6 +63,8 @@ public enum ClaudeStatusProbeError: LocalizedError, Sendable {
         switch self {
         case .claudeNotInstalled:
             "Claude CLI is not installed or not on PATH."
+        case .backgroundAccessDenied:
+            "Claude CLI access requires an explicit user or QuotaKit CLI action."
         case let .authenticationFailed(message):
             message
         case let .parseFailed(msg):
@@ -128,6 +131,9 @@ public struct ClaudeStatusProbe: Sendable {
     #endif
 
     public func fetch() async throws -> ClaudeStatusSnapshot {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw ClaudeStatusProbeError.backgroundAccessDenied
+        }
         let resolved = Self.resolvedBinaryPath(binaryName: self.claudeBinary, environment: self.environment)
         guard let resolved, Self.isBinaryAvailable(resolved) else {
             throw ClaudeStatusProbeError.claudeNotInstalled
@@ -328,6 +334,9 @@ extension ClaudeStatusProbe {
         timeout: TimeInterval = 12.0,
         environment: [String: String] = ProcessInfo.processInfo.environment) async throws -> ClaudeAccountIdentity
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw ClaudeStatusProbeError.backgroundAccessDenied
+        }
         let resolved = self.resolvedBinaryPath(binaryName: "claude", environment: environment)
         guard let resolved, self.isBinaryAvailable(resolved) else {
             throw ClaudeStatusProbeError.claudeNotInstalled
@@ -345,6 +354,9 @@ extension ClaudeStatusProbe {
         timeout: TimeInterval = 8,
         environment: [String: String] = ProcessInfo.processInfo.environment) async throws
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw ClaudeStatusProbeError.backgroundAccessDenied
+        }
         let resolved = self.resolvedBinaryPath(binaryName: "claude", environment: environment)
         guard let resolved, self.isBinaryAvailable(resolved) else {
             throw ClaudeStatusProbeError.claudeNotInstalled

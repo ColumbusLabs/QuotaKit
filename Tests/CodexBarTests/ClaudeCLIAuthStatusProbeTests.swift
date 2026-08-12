@@ -42,10 +42,12 @@ struct ClaudeCLIAuthStatusProbeTests {
         try script.write(to: binary, atomically: true, encoding: .utf8)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: binary.path)
 
-        let loggedIn = await ClaudeCLIAuthStatusProbe.isLoggedIn(
-            binary: binary.path,
-            environment: [ClaudeConfigPaths.configDirectoryEnvironmentKey: "relative-profile"],
-            workingDirectory: workingDirectory)
+        let loggedIn = await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            await ClaudeCLIAuthStatusProbe.isLoggedIn(
+                binary: binary.path,
+                environment: [ClaudeConfigPaths.configDirectoryEnvironmentKey: "relative-profile"],
+                workingDirectory: workingDirectory)
+        }
 
         #expect(loggedIn)
         #expect(try String(contentsOf: invocationLog, encoding: .utf8) == "\(workingDirectory.path)|yes\n")
@@ -61,11 +63,36 @@ struct ClaudeCLIAuthStatusProbeTests {
         try Data("#!/bin/sh\nprintf '%s\\n' '{\"loggedIn\":false}'\nexit 1\n".utf8).write(to: binary)
         try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: binary.path)
 
-        let status = await ClaudeCLIAuthStatusProbe.authenticationStatus(
-            binary: binary.path,
-            environment: [:],
-            workingDirectory: root)
+        let status = await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            await ClaudeCLIAuthStatusProbe.authenticationStatus(
+                binary: binary.path,
+                environment: [:],
+                workingDirectory: root)
+        }
 
         #expect(status == .loggedOut)
+    }
+
+    @Test
+    func `background auth status never launches Claude`() async throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("ClaudeCLIAuthStatusProbe-\(UUID().uuidString)", isDirectory: true)
+        let marker = root.appendingPathComponent("launched")
+        let binary = root.appendingPathComponent("claude")
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        try Data("#!/bin/sh\ntouch '\(marker.path)'\nprintf '%s\\n' '{\"loggedIn\":true}'\n".utf8)
+            .write(to: binary)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: binary.path)
+
+        let status = await ProviderInteractionContext.$current.withValue(.background) {
+            await ClaudeCLIAuthStatusProbe.authenticationStatus(
+                binary: binary.path,
+                environment: [:],
+                workingDirectory: root)
+        }
+
+        #expect(status == .unavailable)
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
     }
 }

@@ -311,20 +311,22 @@ public enum ClaudeProviderDescriptor {
     }
 
     private static func makePlanningInput(context: ProviderFetchContext) -> ClaudeSourcePlanningInput {
-        let webExtrasEnabled = context.settings?.claude?.webExtrasEnabled ?? false
-        let hasWebSession = Self.hasPlausibleWebSession(context: context)
-        let shouldAttemptOAuth = context.runtime == .app &&
-            (context.sourceMode == .auto || context.sourceMode == .oauth)
+        ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: context.runtime) {
+            let webExtrasEnabled = context.settings?.claude?.webExtrasEnabled ?? false
+            let hasWebSession = Self.hasPlausibleWebSession(context: context)
+            let shouldAttemptOAuth = context.runtime == .app &&
+                (context.sourceMode == .auto || context.sourceMode == .oauth)
 
-        return ClaudeSourcePlanningInput(
-            runtime: context.runtime,
-            selectedDataSource: Self.sourceDataSource(from: context.sourceMode),
-            webExtrasEnabled: webExtrasEnabled,
-            hasWebSession: hasWebSession,
-            hasCLI: ClaudeCLIResolver.isAvailable(environment: context.env),
-            // App Auto and explicit OAuth perform one real, noninteractive OAuth attempt. Do not preflight here:
-            // a preflight can mutate cache state and make the real fetch misclassify a typed error.
-            hasOAuthCredentials: shouldAttemptOAuth)
+            return ClaudeSourcePlanningInput(
+                runtime: context.runtime,
+                selectedDataSource: Self.sourceDataSource(from: context.sourceMode),
+                webExtrasEnabled: webExtrasEnabled,
+                hasWebSession: hasWebSession,
+                hasCLI: ClaudeCLIResolver.isAvailable(environment: context.env),
+                // App Auto and explicit OAuth perform one real, noninteractive OAuth attempt. Do not preflight here:
+                // a preflight can mutate cache state and make the real fetch misclassify a typed error.
+                hasOAuthCredentials: shouldAttemptOAuth)
+        }
     }
 
     private static func hasPlausibleWebSession(context: ProviderFetchContext) -> Bool {
@@ -583,6 +585,19 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
         sourceMode: ProviderSourceMode,
         environment: [String: String]) -> Bool
     {
+        ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: runtime) {
+            self.isPlausiblyAvailableWithCurrentAccess(
+                runtime: runtime,
+                sourceMode: sourceMode,
+                environment: environment)
+        }
+    }
+
+    private static func isPlausiblyAvailableWithCurrentAccess(
+        runtime: ProviderRuntime,
+        sourceMode: ProviderSourceMode,
+        environment: [String: String]) -> Bool
+    {
         let hasEnvironmentOAuthToken = !(environment[ClaudeOAuthCredentialsStore.environmentTokenKey]?
             .trimmingCharacters(in: .whitespacesAndNewlines)
             .isEmpty ?? true)
@@ -617,15 +632,10 @@ struct ClaudeOAuthFetchStrategy: ProviderFetchStrategy {
             case .claudeCLI:
                 guard sourceMode == .auto else { return true }
                 guard claudeCLIAvailable else { return false }
-                guard ProviderInteractionContext.current == .background else { return true }
-                // An expired Claude CLI credential requires the delegated Claude CLI refresh path.
-                // That child process can access Keychain outside CodexBar's no-UI controls, so do
-                // not plan it during background Auto refresh without an explicit opt-in.
-                guard !KeychainAccessGate.isDisabled,
-                      ClaudeOAuthKeychainPromptPreference.storedMode() == .always
-                else {
-                    return false
-                }
+                guard ClaudeOpaqueOperationContext.isAllowed else { return false }
+                // A user action may delegate recovery to Claude Code even when its global Keychain item
+                // contains unrelated MCP-only state. That item has no selected-profile identity.
+                guard ProviderInteractionContext.current != .userInitiated else { return true }
                 return !Self.hasMcpOAuthOnlyClaudeKeychainPayload(environment: environment)
             case .environment:
                 return sourceMode != .auto
@@ -972,39 +982,30 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
         if context.runtime == .cli {
             // A CodexBarCLI invocation is already an explicit user action. Preserve the definitive logged-out guard,
             // but do not let an unavailable credential-reading `auth status` child override the owner CLI's ability
-            // to provide usage. The app keeps the stricter marker policy below for prompt-free scheduled refreshes.
-            return await ClaudeCLIAuthStatusProbe.authenticationStatus(
-                binary: binary,
-                environment: context.env) != .loggedOut
+            // to provide usage. The app denies this child entirely during scheduled refreshes.
+            return await ClaudeOpaqueOperationContext.withExplicitAccessIfAllowed(runtime: context.runtime) {
+                await ClaudeCLIAuthStatusProbe.authenticationStatus(
+                    binary: binary,
+                    environment: context.env)
+            } != .loggedOut
         }
 
-        let isBackgroundAppRefresh = ProviderInteractionContext.current == .background
-        // Explicit OAuth may recover through the interactive owner CLI only from a user action. A scheduled
-        // refresh with missing credentials must remain on the selected OAuth authority and fail without UI.
-        if isBackgroundAppRefresh, context.sourceMode == .oauth {
-            return false
-        }
-
-        let isBackgroundAutoRefresh = isBackgroundAppRefresh && context.sourceMode == .auto
-        if isBackgroundAutoRefresh {
-            // Every Claude child process is opaque to CodexBar's no-UI Keychain controls, including
-            // `claude auth status`. Background Auto therefore reuses only availability established by a
-            // successful user-initiated CLI fetch in this process. The narrow exception is the owner usage
-            // fetch when Keychain access is explicitly disabled; version/auth children retain the global gate.
-            return ClaudeCLIBackgroundAvailability.allowsBackgroundAutoUsageFetch(
-                binary: binary,
-                environment: context.env)
-        }
+        guard ClaudeOpaqueOperationContext.isExplicit(runtime: context.runtime) else { return false }
 
         // App user actions intentionally launch the interactive path directly so the user can complete authentication.
         return true
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        guard ClaudeOpaqueOperationContext.isExplicit(runtime: context.runtime) else {
+            throw ClaudeUsageError.parseFailed(
+                "Claude CLI execution is unavailable during background app refresh.")
+        }
         let keepAlive = context.settings?.debugKeepCLISessionsAlive ?? false
         let fetcher = ClaudeUsageFetcher(
             browserDetection: browserDetection,
             environment: context.env,
+            runtime: context.runtime,
             dataSource: .cli,
             useWebExtras: self.useWebExtras,
             manualCookieHeader: self.manualCookieHeader,
@@ -1012,25 +1013,7 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
             webExtrasTimeout: context.webTimeout,
             includePrepaidBalance: self.includePrepaidBalance && context.includeOptionalUsage,
             keepCLISessionsAlive: keepAlive)
-        let binary = ClaudeCLIResolver.resolvedBinaryPath(environment: context.env)
-        let backgroundAvailabilityMarker = binary.flatMap {
-            ClaudeCLIBackgroundAvailability.captureMarker(binary: $0, environment: context.env)
-        }
-        let usage: ClaudeUsageSnapshot
-        do {
-            usage = try await fetcher.loadLatestUsage(model: "sonnet")
-        } catch {
-            if let backgroundAvailabilityMarker {
-                ClaudeCLIBackgroundAvailability.revoke(backgroundAvailabilityMarker)
-            }
-            throw error
-        }
-        if context.runtime == .app,
-           ProviderInteractionContext.current == .userInitiated,
-           let backgroundAvailabilityMarker
-        {
-            ClaudeCLIBackgroundAvailability.establish(backgroundAvailabilityMarker)
-        }
+        let usage = try await fetcher.loadLatestUsage(model: "sonnet")
         return self.makeResult(
             // The PTY /usage panel exposes rendered percentages only, so CLI-sourced data carries an
             // explicit degraded-fidelity marker that the card surfaces as "via Claude CLI".
@@ -1046,101 +1029,4 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
         // Reuse the bounded planning result instead of repeating browser/Keychain work after CLI failure.
         return self.hasWebFallback
     }
-}
-
-enum ClaudeCLIBackgroundAvailability {
-    struct Marker: Hashable {
-        let binary: String
-        let accountScope: String
-    }
-
-    final class Store: @unchecked Sendable {
-        private let lock = NSLock()
-        private var markers: Set<Marker> = []
-        private var revokedMarkers: Set<Marker> = []
-
-        func contains(_ marker: Marker) -> Bool {
-            self.lock.withLock { self.markers.contains(marker) }
-        }
-
-        func insert(_ marker: Marker) {
-            self.lock.withLock {
-                _ = self.markers.insert(marker)
-                self.revokedMarkers.remove(marker)
-            }
-        }
-
-        func remove(_ marker: Marker) {
-            self.lock.withLock {
-                self.markers.remove(marker)
-                _ = self.revokedMarkers.insert(marker)
-            }
-        }
-
-        func isRevoked(_ marker: Marker) -> Bool {
-            self.lock.withLock { self.revokedMarkers.contains(marker) }
-        }
-    }
-
-    private static let sharedStore = Store()
-    @TaskLocal private static var storeOverrideForTesting: Store?
-
-    private static var store: Store {
-        self.storeOverrideForTesting ?? self.sharedStore
-    }
-
-    static func isEstablished(binary: String, environment: [String: String]) -> Bool {
-        guard let marker = self.captureMarker(binary: binary, environment: environment) else { return false }
-        return self.store.contains(marker)
-    }
-
-    static func allowsOpaqueChildExecution(binary: String, environment: [String: String]) -> Bool {
-        guard ProviderInteractionContext.current == .background else { return true }
-        guard self.isEstablished(binary: binary, environment: environment) else { return false }
-        // Disable Keychain is a complete opt-out, so no prompt policy applies. With Keychain enabled,
-        // retain the explicit background opt-in introduced with the opaque-child safety gate.
-        return KeychainAccessGate.isExplicitlyDisabled
-            || ClaudeOAuthKeychainPromptPreference.storedMode() == .always
-    }
-
-    static func allowsBackgroundAutoUsageFetch(binary: String, environment: [String: String]) -> Bool {
-        guard ProviderInteractionContext.current == .background else { return true }
-        guard KeychainAccessGate.isExplicitlyDisabled else {
-            return self.allowsOpaqueChildExecution(binary: binary, environment: environment)
-        }
-        // Disable Keychain explicitly permits one owner-CLI usage attempt on a cold profile. A failed attempt
-        // records revocation below, preventing each background timer tick from retrying until a foreground success.
-        guard let marker = self.captureMarker(binary: binary, environment: environment) else { return false }
-        return !self.store.isRevoked(marker)
-    }
-
-    static func establish(binary: String, environment: [String: String]) {
-        guard let marker = self.captureMarker(binary: binary, environment: environment) else { return }
-        self.establish(marker)
-    }
-
-    static func establish(_ marker: Marker) {
-        self.store.insert(marker)
-    }
-
-    static func revoke(_ marker: Marker) {
-        self.store.remove(marker)
-    }
-
-    static func captureMarker(binary: String, environment: [String: String]) -> Marker? {
-        guard let accountScope = ClaudeAccountProfile.identifiedSessionScope(environment: environment) else {
-            return nil
-        }
-        return Marker(binary: binary, accountScope: accountScope)
-    }
-
-    #if DEBUG
-    static func withIsolatedStoreForTesting<T>(
-        operation: () async throws -> T) async rethrows -> T
-    {
-        try await self.$storeOverrideForTesting.withValue(Store()) {
-            try await operation()
-        }
-    }
-    #endif
 }

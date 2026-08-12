@@ -372,12 +372,12 @@ struct ClaudeOAuthDelegatedRefreshRecoveryTests {
                                     Issue.record("Expected ClaudeUsageError.oauthFailed, got \(error)")
                                     return
                                 }
-                                #expect(message.contains("still unavailable after delegated Claude CLI refresh"))
+                                #expect(message.contains("background repair is disabled"))
                             } catch {
                                 Issue.record("Expected ClaudeUsageError, got \(error)")
                             }
 
-                            #expect(await delegatedCounter.current() == 1)
+                            #expect(await delegatedCounter.current() == 0)
                         }
                     }
                 }

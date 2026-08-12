@@ -109,4 +109,5 @@ public enum LogCategories {
     public static let zaiUsage = Self.provider(.zai, scope: "usage")
     public static let stepfunUsage = Self.provider(.stepfun, scope: "usage")
     public static let zoommate = Self.provider(.zoommate)
+    public static let keychainSecurity = "keychain-security"
 }

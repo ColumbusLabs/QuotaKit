@@ -129,17 +129,25 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `production source routes Security item APIs through the test safety gateway`() throws {
+    func `production source routes Security item APIs through the bounded executor`() throws {
         let securityItemCalls = ["SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete"]
         let offenders = try Self.swiftFiles(
             under: Self.repoRoot().appendingPathComponent("Sources", isDirectory: true))
             .filter { file in
-                guard !file.path.hasSuffix("Sources/CodexBarCore/KeychainSecurity.swift") else { return false }
+                guard !file.path.hasSuffix("Sources/CodexBarCore/KeychainOperationExecutor.swift") else {
+                    return false
+                }
                 let text = try Self.readFile(file)
                 return securityItemCalls.contains(where: text.contains)
             }
 
-        #expect(offenders.isEmpty, "Security item access bypasses KeychainSecurity: \(offenders.map(\.path))")
+        #expect(offenders.isEmpty, "Security item access bypasses the bounded executor: \(offenders.map(\.path))")
+
+        let gateway = try Self.readRepoFile("Sources/CodexBarCore/KeychainSecurity.swift")
+        #expect(!securityItemCalls.contains(where: gateway.contains))
+        #expect(gateway.contains("private static let executor = KeychainOperationExecutor(backend: .live)"))
+        #expect(gateway.contains("interactionPolicy: InteractionPolicy = .nonInteractive"))
+        #expect(gateway.contains("ProviderInteractionContext.current == .userInitiated"))
     }
 
     @Test

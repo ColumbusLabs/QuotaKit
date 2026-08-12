@@ -2,6 +2,56 @@ import CodexBarCore
 import SwiftUI
 
 @MainActor
+final class ProviderSettingsFieldChangeDebouncer {
+    typealias Action = @MainActor @Sendable (String) async -> Void
+
+    private struct PendingChange {
+        let value: String
+        let action: Action
+    }
+
+    private var generation = 0
+    private var pendingChange: PendingChange?
+    private var pendingTask: Task<Void, Never>?
+
+    func schedule(
+        value: String,
+        delay: Duration = .milliseconds(350),
+        action: @escaping Action)
+    {
+        self.pendingTask?.cancel()
+        self.generation &+= 1
+        let generation = self.generation
+        self.pendingChange = PendingChange(value: value, action: action)
+        self.pendingTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: delay)
+            } catch {
+                return
+            }
+            _ = await self?.performPendingChange(generation: generation, cancelTask: false)
+        }
+    }
+
+    @discardableResult
+    func flush() async -> Bool {
+        await self.performPendingChange(generation: self.generation, cancelTask: true)
+    }
+
+    private func performPendingChange(generation: Int, cancelTask: Bool) async -> Bool {
+        guard generation == self.generation, let change = self.pendingChange else { return false }
+        if cancelTask {
+            self.pendingTask?.cancel()
+        }
+        self.pendingTask = nil
+        self.pendingChange = nil
+        self.generation &+= 1
+        await change.action(change.value)
+        return true
+    }
+}
+
+@MainActor
 struct ProviderSettingsToggleRowView: View {
     let toggle: ProviderSettingsToggleDescriptor
 
@@ -123,6 +173,7 @@ struct ProviderSettingsPickerRowView: View {
 @MainActor
 struct ProviderSettingsFieldRowView: View {
     let field: ProviderSettingsFieldDescriptor
+    @State private var changeDebouncer = ProviderSettingsFieldChangeDebouncer()
 
     var body: some View {
         let trimmedTitle = self.field.title.trimmingCharacters(in: .whitespacesAndNewlines)
@@ -169,6 +220,22 @@ struct ProviderSettingsFieldRowView: View {
         .labelsHidden()
         .textFieldStyle(.plain)
         .onTapGesture { self.field.onActivate?() }
+        .onChange(of: self.field.binding.wrappedValue) { _, value in
+            guard let onChange = self.field.onChange else { return }
+            self.changeDebouncer.schedule(value: value, action: onChange)
+        }
+        .onSubmit {
+            let debouncer = self.changeDebouncer
+            Task { @MainActor in
+                await debouncer.flush()
+            }
+        }
+        .onDisappear {
+            let debouncer = self.changeDebouncer
+            Task { @MainActor in
+                await debouncer.flush()
+            }
+        }
     }
 
     @ViewBuilder

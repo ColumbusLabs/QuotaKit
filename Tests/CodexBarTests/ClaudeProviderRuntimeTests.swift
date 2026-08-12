@@ -36,6 +36,27 @@ struct ClaudeProviderRuntimeTests {
     }
 
     @Test
+    func `background runtime start never launches opted in claude swap`() throws {
+        let (settings, store) = self.makeStore()
+        let marker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-background-launch-\(UUID().uuidString)")
+        let executable = try self.makeSwitchExecutable(marker: marker)
+        let metadata = try #require(ProviderRegistry.shared.metadata[.claude])
+        settings.setProviderEnabled(provider: .claude, metadata: metadata, enabled: true)
+        settings.claudeSwapExecutablePath = executable
+        settings.claudeSwapEnabled = true
+        let runtime = ClaudeProviderRuntime()
+        let context = ProviderRuntimeContext(provider: .claude, settings: settings, store: store)
+
+        ProviderInteractionContext.$current.withValue(.background) {
+            runtime.start(context: context)
+        }
+
+        #expect(store.claudeSwapRefreshTask == nil)
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    @Test
     func `late adapter result is rejected after executable path changes`() async throws {
         let (settings, store) = self.makeStore()
         let executable = try self.makeFakeExecutable()
@@ -45,7 +66,9 @@ struct ClaudeProviderRuntimeTests {
         settings.claudeSwapEnabled = true
 
         let refresh = Task { @MainActor in
-            await store.refreshClaudeSwapAccounts()
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await store.refreshClaudeSwapAccounts()
+            }
         }
         try await Task.sleep(for: .milliseconds(100))
         settings.claudeSwapExecutablePath = "/new/path/to/cswap"
@@ -79,7 +102,9 @@ struct ClaudeProviderRuntimeTests {
         store._test_providerRefreshOverride = { refreshedProviders.append($0) }
         defer { store._test_providerRefreshOverride = nil }
 
-        store.switchClaudeSwapAccount(accountID)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            store.switchClaudeSwapAccount(accountID)
+        }
         let task = try #require(store.claudeSwapTransientState.task)
         await task.value
 
@@ -110,7 +135,9 @@ struct ClaudeProviderRuntimeTests {
             error: "Token expired",
             sourceLabel: ClaudeSwapAccountProjection.sourceLabel)]
 
-        store.switchClaudeSwapAccount(accountID)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            store.switchClaudeSwapAccount(accountID)
+        }
 
         #expect(store.claudeSwapTransientState.task == nil)
     }
@@ -136,7 +163,9 @@ struct ClaudeProviderRuntimeTests {
         store._test_providerRefreshOverride = { _ in }
         defer { store._test_providerRefreshOverride = nil }
 
-        store.switchClaudeSwapAccount(accountID)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            store.switchClaudeSwapAccount(accountID)
+        }
         let task = try #require(store.claudeSwapTransientState.task)
         await task.value
 
@@ -167,7 +196,9 @@ struct ClaudeProviderRuntimeTests {
         }
         defer { store._test_providerRefreshOverride = nil }
 
-        store.switchClaudeSwapAccount(accountID)
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            store.switchClaudeSwapAccount(accountID)
+        }
         let task = try #require(store.claudeSwapTransientState.task)
         await task.value
 

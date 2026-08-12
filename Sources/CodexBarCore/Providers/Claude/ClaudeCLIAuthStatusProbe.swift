@@ -54,6 +54,7 @@ enum ClaudeCLIAuthStatusProbe {
         if let resultOverrideForTesting = self.resultOverrideForTesting {
             return resultOverrideForTesting ? .loggedIn : .loggedOut
         }
+        guard ClaudeOpaqueOperationContext.isAllowed else { return .unavailable }
         do {
             let workingDirectory = workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
             var launchEnvironment = ClaudeCLISession.launchEnvironment(baseEnv: environment)

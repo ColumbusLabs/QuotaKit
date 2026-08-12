@@ -67,10 +67,12 @@ struct ClaudeOAuthDirectKeychainReadConsentTests {
     }
 
     @Test
-    func `explicit consent reopens the single keychain access choke point`() {
+    func `explicit user action and consent reopen the single keychain access choke point`() {
         KeychainAccessGate.withTaskOverrideForTesting(false) {
             ClaudeOAuthDirectKeychainReadConsent.withTaskOverrideForTesting(true) {
-                #expect(ClaudeOAuthCredentialsStore.keychainAccessAllowed == true)
+                ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    #expect(ClaudeOAuthCredentialsStore.keychainAccessAllowed == true)
+                }
             }
         }
     }

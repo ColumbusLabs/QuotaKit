@@ -1,13 +1,16 @@
 import Foundation
 
-public enum ClaudeSwapAccountReaderError: LocalizedError, Sendable {
+public enum ClaudeSwapAccountReaderError: LocalizedError, Equatable, Sendable {
     case executablePathNotConfigured
+    case backgroundAccessDenied
     case outputTooLarge(byteCount: Int)
 
     public var errorDescription: String? {
         switch self {
         case .executablePathNotConfigured:
             "No claude-swap executable path is configured."
+        case .backgroundAccessDenied:
+            "claude-swap access requires an explicit user or QuotaKit CLI action."
         case let .outputTooLarge(byteCount):
             "claude-swap produced \(byteCount) bytes of output; refusing to parse more than " +
                 "\(ClaudeSwapAccountReader.maxOutputBytes)."
@@ -103,6 +106,9 @@ public enum ClaudeSwapAccountReader {
         acceptsNonZeroExit: Bool = false,
         label: String) async throws -> String
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw ClaudeSwapAccountReaderError.backgroundAccessDenied
+        }
         try Task.checkCancellation()
         let binary = try self.resolvedExecutablePath(executablePath)
         let result = try await SubprocessRunner.run(
@@ -126,6 +132,9 @@ public enum ClaudeSwapAccountReader {
         acceptsNonZeroExit: Bool,
         label: String) async throws -> String
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw ClaudeSwapAccountReaderError.backgroundAccessDenied
+        }
         let binary = try self.resolvedExecutablePath(executablePath)
         let result = try await SubprocessRunner.runToCompletion(
             binary: binary,

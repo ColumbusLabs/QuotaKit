@@ -42,8 +42,8 @@ extension ClaudeOAuthCredentialsStore {
     }
 
     /// Attempts a Claude keychain read via `/usr/bin/security` when the experimental reader is enabled.
-    /// - Important: Production reads require a user action, and the stored Never policy always blocks the CLI because
-    ///   `security` can prompt. Isolated classification may explicitly opt into a background read.
+    /// - Important: Production reads require an explicit user or QuotaKit CLI capability, and the stored Never policy
+    ///   always blocks the CLI because `security` can prompt.
     static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
         interaction: ProviderInteraction,
         readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
@@ -89,10 +89,10 @@ extension ClaudeOAuthCredentialsStore {
     static func readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
         interaction: ProviderInteraction,
         readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current(),
-        environment: [String: String] = ProcessInfo.processInfo.environment,
-        allowBackgroundReadForClassification: Bool = false)
+        environment: [String: String] = ProcessInfo.processInfo.environment)
         -> Data?
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else { return nil }
         guard self.shouldPreferSecurityCLIKeychainRead(readStrategy: readStrategy) else { return nil }
         // `/usr/bin/security` is not constrained by Security.framework's no-UI flags. Keep the ownership gate at
         // the process-launch boundary so no caller can bypass it by selecting the experimental reader.
@@ -108,16 +108,6 @@ extension ClaudeOAuthCredentialsStore {
                 ])
             return nil
         }
-        guard interaction == .userInitiated || allowBackgroundReadForClassification else {
-            self.log.debug(
-                "Claude keychain security CLI read skipped outside user action",
-                metadata: [
-                    "reader": "securityCLI",
-                    "callerInteraction": interactionMetadata,
-                ])
-            return nil
-        }
-
         do {
             let preferredAccount = self.preferredClaudeKeychainAccountForSecurityCLIRead(
                 interaction: interaction)
@@ -353,8 +343,7 @@ extension ClaudeOAuthCredentialsStore {
     static func readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
         interaction _: ProviderInteraction,
         readStrategy _: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current(),
-        environment _: [String: String] = ProcessInfo.processInfo.environment,
-        allowBackgroundReadForClassification _: Bool = false)
+        environment _: [String: String] = ProcessInfo.processInfo.environment)
         -> Data?
     {
         nil
@@ -379,6 +368,7 @@ extension ClaudeOAuthCredentialsStore {
         keychainAccessDisabled: Bool = KeychainAccessGate.isDisabled,
         environment: [String: String] = ProcessInfo.processInfo.environment) -> Bool
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else { return false }
         guard !keychainAccessDisabled || self.isolatedSecurityCLIKeychainPath(environment: environment) != nil else {
             return false
         }
@@ -401,8 +391,7 @@ extension ClaudeOAuthCredentialsStore {
             self.readRawClaudeKeychainPayloadViaSecurityCLIIfEnabled(
                 interaction: interaction,
                 readStrategy: readStrategy,
-                environment: environment,
-                allowBackgroundReadForClassification: true)
+                environment: environment)
         }
         guard let payload else { return false }
         return ClaudeOAuthCredentials.isMcpOAuthOnlyPayload(data: payload)

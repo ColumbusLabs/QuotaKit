@@ -39,7 +39,9 @@ struct TTYIntegrationTests {
 
         var shouldAssert = true
         do {
-            let snapshot = try await fetcher.loadLatestUsage()
+            let snapshot = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                try await fetcher.loadLatestUsage()
+            }
             #expect(snapshot.primary.remainingPercent >= 0)
             // Weekly is absent for some enterprise accounts.
         } catch ClaudeUsageError.parseFailed(_) {
@@ -64,8 +66,10 @@ struct TTYIntegrationTests {
         let cli = try Self.makeSlowUsageClaudeCLI()
         defer { Task { await ClaudeCLISession.shared.reset() } }
 
-        let snapshot = try await ClaudeCLISession.withIsolatedSessionForTesting {
-            try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 10).fetch()
+        let snapshot = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeCLISession.withIsolatedSessionForTesting {
+                try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 10).fetch()
+            }
         }
 
         #expect(snapshot.sessionPercentLeft == 93)
@@ -83,8 +87,10 @@ struct TTYIntegrationTests {
         }
 
         do {
-            try await ClaudeCLISession.withIsolatedSessionForTesting {
-                _ = try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 3).fetch()
+            try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                try await ClaudeCLISession.withIsolatedSessionForTesting {
+                    _ = try await ClaudeStatusProbe(claudeBinary: cli.path, timeout: 3).fetch()
+                }
             }
             #expect(Bool(false), "Subscription notice should fail parsing")
         } catch let ClaudeStatusProbeError.parseFailed(message) {
@@ -120,19 +126,21 @@ struct TTYIntegrationTests {
             keepCLISessionsAlive: true,
             environment: environment)
 
-        try await ClaudeCLISession.withIsolatedSessionForTesting {
-            _ = try await probe.fetch()
-            _ = try await probe.fetch()
-            try Self.writeClaudeAccount("account-b", to: configURL)
-            _ = try await probe.fetch()
-            var changedEnvironment = environment
-            changedEnvironment["AWS_PROFILE"] = "profile-b"
-            let changedEnvironmentProbe = ClaudeStatusProbe(
-                claudeBinary: cli.path,
-                timeout: 5,
-                keepCLISessionsAlive: true,
-                environment: changedEnvironment)
-            _ = try await changedEnvironmentProbe.fetch()
+        try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeCLISession.withIsolatedSessionForTesting {
+                _ = try await probe.fetch()
+                _ = try await probe.fetch()
+                try Self.writeClaudeAccount("account-b", to: configURL)
+                _ = try await probe.fetch()
+                var changedEnvironment = environment
+                changedEnvironment["AWS_PROFILE"] = "profile-b"
+                let changedEnvironmentProbe = ClaudeStatusProbe(
+                    claudeBinary: cli.path,
+                    timeout: 5,
+                    keepCLISessionsAlive: true,
+                    environment: changedEnvironment)
+                _ = try await changedEnvironmentProbe.fetch()
+            }
         }
 
         let launches = try String(contentsOf: launchLog, encoding: .utf8)

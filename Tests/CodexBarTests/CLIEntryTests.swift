@@ -582,6 +582,53 @@ final class CLIEntryTests: XCTestCase {
             attempts: attempts))
     }
 
+    func test_appAutoBackgroundSafeDenialDiagnosticRequiresDeniedClaudeCLIFallback() {
+        let deniedClaudeCLI = [
+            ProviderFetchAttempt(
+                strategyID: "claude.oauth",
+                kind: .oauth,
+                wasAvailable: false,
+                errorDescription: nil),
+            ProviderFetchAttempt(
+                strategyID: "claude.cli",
+                kind: .cli,
+                wasAvailable: false,
+                errorDescription: nil),
+        ]
+
+        XCTAssertEqual(
+            CodexBarCLI.appAutoBackgroundSafeDenialDiagnostic(
+                provider: .claude,
+                sourceMode: .auto,
+                runtime: .app,
+                claudeCLIPathAvailable: true,
+                attempts: deniedClaudeCLI),
+            CodexBarCLI.appAutoBackgroundSafeDenialMarker)
+
+        XCTAssertNil(CodexBarCLI.appAutoBackgroundSafeDenialDiagnostic(
+            provider: .claude,
+            sourceMode: .auto,
+            runtime: .app,
+            claudeCLIPathAvailable: true,
+            attempts: [ProviderFetchAttempt(
+                strategyID: "claude.oauth",
+                kind: .oauth,
+                wasAvailable: true,
+                errorDescription: "unrelated failure")]))
+        XCTAssertNil(CodexBarCLI.appAutoBackgroundSafeDenialDiagnostic(
+            provider: .claude,
+            sourceMode: .auto,
+            runtime: .cli,
+            claudeCLIPathAvailable: true,
+            attempts: deniedClaudeCLI))
+        XCTAssertNil(CodexBarCLI.appAutoBackgroundSafeDenialDiagnostic(
+            provider: .claude,
+            sourceMode: .auto,
+            runtime: .app,
+            claudeCLIPathAvailable: false,
+            attempts: deniedClaudeCLI))
+    }
+
     func test_sourceModeRequiresWebSupportIsProviderAware() throws {
         let directory = FileManager.default.temporaryDirectory
             .appendingPathComponent("mimo-cli-source-mode-\(UUID().uuidString)", isDirectory: true)

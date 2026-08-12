@@ -56,6 +56,7 @@ extension UsageStore {
 
     /// Runs the optional adapter independently so it cannot delay the ambient Claude card.
     func scheduleClaudeSwapAccountRefresh(generation: UInt64? = nil) {
+        guard ClaudeOpaqueOperationContext.isAllowed else { return }
         self.claudeSwapRefreshTask?.cancel()
         guard self.shouldFetchClaudeSwapAccounts() else {
             self.clearClaudeSwapAccountState()
@@ -69,6 +70,7 @@ extension UsageStore {
     }
 
     func refreshClaudeSwapAccounts(generation: UInt64? = nil) async {
+        guard ClaudeOpaqueOperationContext.isAllowed else { return }
         let executablePath = self.settings.claudeSwapExecutablePath
         await self.probeClaudeSwapVersionIfNeeded(executablePath: executablePath)
 

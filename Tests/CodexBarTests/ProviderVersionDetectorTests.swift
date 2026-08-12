@@ -1,4 +1,5 @@
 import XCTest
+@testable import CodexBarCLI
 @testable import CodexBarCore
 
 #if canImport(Darwin)
@@ -159,18 +160,16 @@ final class ProviderVersionDetectorTests: XCTestCase {
         XCTAssertEqual(state.callCount, 2)
     }
 
-    func test_claudeVersion_backgroundColdDetectionSkipsChildAndUsesFallback() async {
+    func test_claudeVersion_backgroundColdDetectionSkipsChildAndUsesFallback() {
         let state = MockDetectorState()
         self.configureClaudeVersionHooks(state: state)
 
-        let userAgent = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            KeychainAccessGate.withTaskOverrideForTesting(false) {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
-                    ProviderInteractionContext.$current.withValue(.background) {
-                        ClaudeOAuthUsageFetcher._userAgentForTesting(
-                            detectClaudeVersion: true,
-                            versionDetector: { ProviderVersionDetector.claudeVersion(environment: [:]) })
-                    }
+        let userAgent = KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.onlyOnUserAction) {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    ClaudeOAuthUsageFetcher._userAgentForTesting(
+                        detectClaudeVersion: true,
+                        versionDetector: { ProviderVersionDetector.claudeVersion(environment: [:]) })
                 }
             }
         }
@@ -179,18 +178,30 @@ final class ProviderVersionDetectorTests: XCTestCase {
         XCTAssertEqual(state.callCount, 0)
     }
 
-    func test_claudeVersion_disabledKeychainWithoutMarkerStillSkipsChild() async throws {
+    func test_claudeVersion_backgroundFingerprintFailureStillSkipsChild() {
+        let state = MockDetectorState()
+        ProviderVersionDetector.whichHook = { _ in "/mock/bin/claude" }
+        ProviderVersionDetector.attributesHook = { _ in nil }
+        ProviderVersionDetector.runClaudeVersionHook = { _ in state.increment() }
+
+        let version = ProviderInteractionContext.$current.withValue(.background) {
+            ProviderVersionDetector.claudeVersion(environment: [:])
+        }
+
+        XCTAssertNil(version)
+        XCTAssertEqual(state.callCount, 0)
+    }
+
+    func test_claudeVersion_disabledKeychainWithoutMarkerStillSkipsChild() throws {
         let state = MockDetectorState()
         self.configureClaudeVersionHooks(state: state)
         let profile = try self.makeClaudeProfile(accountID: "account-a")
         defer { try? FileManager.default.removeItem(at: profile.root) }
 
-        let version = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            KeychainAccessGate.withTaskOverrideForTesting(true) {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
-                    ProviderInteractionContext.$current.withValue(.background) {
-                        ProviderVersionDetector.claudeVersion(environment: profile.environment)
-                    }
+        let version = KeychainAccessGate.withTaskOverrideForTesting(true) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    ProviderVersionDetector.claudeVersion(environment: profile.environment)
                 }
             }
         }
@@ -199,11 +210,23 @@ final class ProviderVersionDetectorTests: XCTestCase {
         XCTAssertEqual(state.callCount, 0)
     }
 
-    func test_claudeVersion_userInitiatedColdDetectionRunsChild() async {
+    func test_claudeVersion_userInitiatedColdDetectionRunsChild() {
         let state = MockDetectorState()
         self.configureClaudeVersionHooks(state: state)
 
-        let version = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
+        let version = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ProviderVersionDetector.claudeVersion(environment: [:])
+        }
+
+        XCTAssertEqual(version, "claude-code 2.1.70")
+        XCTAssertEqual(state.callCount, 1)
+    }
+
+    func test_claudeVersion_userInitiatedStartupPhaseRunsChild() {
+        let state = MockDetectorState()
+        self.configureClaudeVersionHooks(state: state)
+
+        let version = ProviderRefreshContext.$current.withValue(.startup) {
             ProviderInteractionContext.$current.withValue(.userInitiated) {
                 ProviderVersionDetector.claudeVersion(environment: [:])
             }
@@ -213,40 +236,49 @@ final class ProviderVersionDetectorTests: XCTestCase {
         XCTAssertEqual(state.callCount, 1)
     }
 
-    func test_claudeVersion_establishedBackgroundWithPromptOptInRunsChild() async throws {
+    func test_explicitQuotaKitCLIVersionDetectionRunsClaudeChild() {
         let state = MockDetectorState()
         self.configureClaudeVersionHooks(state: state)
-        let profile = try self.makeClaudeProfile(accountID: "account-a")
-        defer { try? FileManager.default.removeItem(at: profile.root) }
 
-        let version = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            ClaudeCLIBackgroundAvailability.establish(binary: "/mock/bin/claude", environment: profile.environment)
-            return KeychainAccessGate.withTaskOverrideForTesting(false) {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
-                    ProviderInteractionContext.$current.withValue(.background) {
-                        ProviderVersionDetector.claudeVersion(environment: profile.environment)
-                    }
-                }
-            }
+        let version = ProviderInteractionContext.$current.withValue(.background) {
+            CodexBarCLI.detectVersion(
+                for: .claude,
+                browserDetection: BrowserDetection(cacheTTL: 0))
         }
 
         XCTAssertEqual(version, "claude-code 2.1.70")
         XCTAssertEqual(state.callCount, 1)
     }
 
-    func test_claudeVersion_cachedValueRemainsAvailableInUnconsentedBackground() async {
+    func test_claudeVersion_backgroundWithLegacyPromptOptInStillSkipsChild() throws {
+        let state = MockDetectorState()
+        self.configureClaudeVersionHooks(state: state)
+        let profile = try self.makeClaudeProfile(accountID: "account-a")
+        defer { try? FileManager.default.removeItem(at: profile.root) }
+
+        let version = KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    ProviderVersionDetector.claudeVersion(environment: profile.environment)
+                }
+            }
+        }
+
+        XCTAssertNil(version)
+        XCTAssertEqual(state.callCount, 0)
+    }
+
+    func test_claudeVersion_cachedValueRemainsAvailableInUnconsentedBackground() {
         let state = MockDetectorState()
         self.configureClaudeVersionHooks(state: state)
 
         let cold = ProviderInteractionContext.$current.withValue(.userInitiated) {
             ProviderVersionDetector.claudeVersion(environment: [:])
         }
-        let cached = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            KeychainAccessGate.withTaskOverrideForTesting(false) {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
-                    ProviderInteractionContext.$current.withValue(.background) {
-                        ProviderVersionDetector.claudeVersion(environment: [:])
-                    }
+        let cached = KeychainAccessGate.withTaskOverrideForTesting(false) {
+            ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.never) {
+                ProviderInteractionContext.$current.withValue(.background) {
+                    ProviderVersionDetector.claudeVersion(environment: [:])
                 }
             }
         }

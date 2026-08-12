@@ -115,7 +115,9 @@ enum CLIClaudeSwapCards {
             renderOptions: renderOptions,
             ambientFetch: ambientFetch,
             accountListReader: { path in
-                try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+                try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                    try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+                }
             })
     }
 

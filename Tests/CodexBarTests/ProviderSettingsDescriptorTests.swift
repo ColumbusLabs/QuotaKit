@@ -8,6 +8,24 @@ import Testing
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
     @Test
+    func `field change debounce flushes the latest pending value exactly once`() async {
+        let debouncer = ProviderSettingsFieldChangeDebouncer()
+        var observedValues: [String] = []
+
+        debouncer.schedule(value: "first", delay: .seconds(10)) { value in
+            observedValues.append(value)
+        }
+        debouncer.schedule(value: "latest", delay: .seconds(10)) { value in
+            observedValues.append(value)
+        }
+
+        #expect(await debouncer.flush())
+
+        #expect(observedValues == ["latest"])
+        #expect(await !debouncer.flush())
+    }
+
+    @Test
     func `provider settings refresh enables explicit browser retry`() async {
         var observedInteraction: ProviderInteraction?
         var browserRetryAllowed = false
@@ -318,10 +336,11 @@ struct ProviderSettingsDescriptorTests {
         let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
         #expect(!toggles.contains(where: { $0.id == "claude-peak-hours" }))
         let keychainPicker = try #require(pickers.first(where: { $0.id == "claude-keychain-prompt-policy" }))
-        let optionIDs = Set(keychainPicker.options.map(\.id))
-        #expect(optionIDs.contains(ClaudeOAuthKeychainPromptMode.never.rawValue))
-        #expect(optionIDs.contains(ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue))
-        #expect(optionIDs.contains(ClaudeOAuthKeychainPromptMode.always.rawValue))
+        #expect(keychainPicker.options.map(\.id) == [
+            ClaudeOAuthKeychainPromptMode.never.rawValue,
+            ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue,
+        ])
+        #expect(keychainPicker.options.map(\.title) == ["Never", "Only on user action"])
         #expect(keychainPicker.isEnabled?() ?? true)
     }
 
@@ -362,6 +381,83 @@ struct ProviderSettingsDescriptorTests {
 
         #expect(fixture.settings.claudeSwapShowSingleAccount)
         #expect(fixture.settings.configSnapshot.providerConfig(for: .claude)?.claudeSwapShowSingleAccount == true)
+    }
+
+    @Test
+    func `enabling claude swap performs one explicit refresh across generic observer ordering`() async throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-swap-enable")
+        let marker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-enable-invocations-\(UUID().uuidString)")
+        let executable = try self.makeCountingClaudeSwapExecutable(marker: marker)
+        defer {
+            try? FileManager.default.removeItem(at: executable.root)
+            try? FileManager.default.removeItem(at: marker)
+        }
+        let metadata = try #require(ProviderRegistry.shared.metadata[.claude])
+        fixture.settings.setProviderEnabled(provider: .claude, metadata: metadata, enabled: true)
+        fixture.settings.claudeSwapExecutablePath = executable.path
+        let toggle = try #require(ClaudeProviderImplementation()
+            .settingsToggles(context: fixture.settingsContext(provider: .claude))
+            .first(where: { $0.id == "claude-swap-accounts" }))
+
+        toggle.binding.wrappedValue = true
+        ProviderInteractionContext.$current.withValue(.background) {
+            fixture.store.updateProviderRuntimes()
+        }
+        #expect(fixture.store.claudeSwapRefreshTask == nil)
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+
+        await toggle.onChange?(true)
+        await fixture.store.claudeSwapRefreshTask?.value
+        ProviderInteractionContext.$current.withValue(.background) {
+            fixture.store.updateProviderRuntimes()
+        }
+
+        #expect(try self.claudeSwapInvocations(at: marker) == ["--version", "--list"])
+        #expect(fixture.store.claudeSwapAccountSnapshots.count == 1)
+    }
+
+    @Test
+    func `changing claude swap path performs one explicit refresh after generic reconciliation`() async throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-swap-path")
+        let oldMarker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-old-path-invocations-\(UUID().uuidString)")
+        let newMarker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-new-path-invocations-\(UUID().uuidString)")
+        let oldExecutable = try self.makeCountingClaudeSwapExecutable(marker: oldMarker)
+        let newExecutable = try self.makeCountingClaudeSwapExecutable(marker: newMarker)
+        defer {
+            try? FileManager.default.removeItem(at: oldExecutable.root)
+            try? FileManager.default.removeItem(at: newExecutable.root)
+            try? FileManager.default.removeItem(at: oldMarker)
+            try? FileManager.default.removeItem(at: newMarker)
+        }
+        let metadata = try #require(ProviderRegistry.shared.metadata[.claude])
+        fixture.settings.setProviderEnabled(provider: .claude, metadata: metadata, enabled: true)
+        fixture.settings.claudeSwapEnabled = true
+        fixture.settings.claudeSwapExecutablePath = oldExecutable.path
+        ProviderInteractionContext.$current.withValue(.background) {
+            fixture.store.updateProviderRuntimes()
+        }
+        let field = try #require(ClaudeProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .claude))
+            .first(where: { $0.id == "claude-swap-executable-path" }))
+
+        field.binding.wrappedValue = newExecutable.path
+        ProviderInteractionContext.$current.withValue(.background) {
+            fixture.store.updateProviderRuntimes()
+        }
+        #expect(fixture.store.claudeSwapRefreshTask == nil)
+
+        await field.onChange?(newExecutable.path)
+        await fixture.store.claudeSwapRefreshTask?.value
+        ProviderInteractionContext.$current.withValue(.background) {
+            fixture.store.updateProviderRuntimes()
+        }
+
+        #expect(!FileManager.default.fileExists(atPath: oldMarker.path))
+        #expect(try self.claudeSwapInvocations(at: newMarker) == ["--version", "--list"])
+        #expect(fixture.store.claudeSwapAccountSnapshots.count == 1)
     }
 
     @Test
@@ -1121,6 +1217,35 @@ extension ProviderSettingsDescriptorTests {
             settings: settings,
             environmentBase: environmentBase)
         return ProviderSettingsFixture(settings: settings, store: store)
+    }
+
+    private func makeCountingClaudeSwapExecutable(marker: URL) throws -> (path: String, root: URL) {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-settings-tests-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        let executable = root.appendingPathComponent("cswap")
+        let script = """
+        #!/bin/sh
+        printf '%s\n' "$1" >> '\(marker.path)'
+        if [ "$1" = "--version" ]; then
+          echo 'cswap 0.16.0'
+          exit 0
+        fi
+        cat <<'EOF'
+        {"schemaVersion":1,"activeAccountNumber":1,"accounts":[
+          {"number":1,"email":"settings@example.com","active":true,"usageStatus":"ok","usage":{"fiveHour":{"pct":12.5}}}
+        ]}
+        EOF
+        """
+        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o755], ofItemAtPath: executable.path)
+        return (executable.path, root)
+    }
+
+    private func claudeSwapInvocations(at marker: URL) throws -> [String] {
+        try String(contentsOf: marker, encoding: .utf8)
+            .split(whereSeparator: \.isNewline)
+            .map(String.init)
     }
 
     private struct ProviderSettingsFixture {

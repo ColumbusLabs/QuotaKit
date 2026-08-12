@@ -31,9 +31,11 @@ struct ClaudeCLIScopedWeeklyUsageTests {
             dataSource: .cli)
         let fetchOverride: ClaudeStatusProbe.FetchOverride = { _, _, _ in status }
 
-        let snapshot = try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
-            try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
-                try await fetcher.loadLatestUsage(model: "sonnet")
+        let snapshot = try await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            try await ClaudeCLIResolver.withResolvedBinaryPathOverrideForTesting("/usr/bin/true") {
+                try await ClaudeStatusProbe.withFetchOverrideForTesting(fetchOverride) {
+                    try await fetcher.loadLatestUsage(model: "sonnet")
+                }
             }
         }
 

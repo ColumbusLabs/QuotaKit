@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Live verification for the Claude credential-ownership boundary.
-# QuotaKit must use Claude-owned interfaces and never read Claude Code's Keychain item itself.
+# Background app work must not launch Claude or security or read Claude Code's Keychain item.
 set -euo pipefail
 umask 077
 
@@ -180,7 +180,7 @@ for binary in "${FIRST_PARTY_BINARIES[@]}"; do
 done
 log "Phase 2 passed"
 
-log "Phase 3: bounded app-Auto owner-mediated fetch plus process and unified-log audit"
+log "Phase 3: bounded app-Auto background fetch plus process and unified-log audit"
 VERIFIER_HELPER_SOURCE="$ARTIFACT/verifier-helper.c"
 VERIFIER_HELPER="$ARTIFACT/QuotaKitOwnershipVerifierHelper"
 cat >"$VERIFIER_HELPER_SOURCE" <<'EOF'
@@ -218,7 +218,7 @@ STDERR="$ARTIFACT/live-cli-stderr.log"
 ISOLATED_CONFIG="$ARTIFACT/no-user-config.json"
 PROCESS_SNAPSHOTS="$ARTIFACT/live-cli-process-tree.log"
 SECURITY_DESCENDANTS="$ARTIFACT/security-descendants.log"
-UNOWNED_SECURITY_DESCENDANTS="$ARTIFACT/unowned-security-descendants.log"
+CLAUDE_DESCENDANTS="$ARTIFACT/claude-descendants.log"
 : >"$PROCESS_SNAPSHOTS"
 
 snapshot_cli_process_tree() {
@@ -305,39 +305,15 @@ fi
 ' "$PROCESS_SNAPSHOTS" | /usr/bin/sort -n >"$SECURITY_DESCENDANTS"
 SECURITY_DESCENDANT_COUNT="$(wc -l <"$SECURITY_DESCENDANTS" | tr -d ' ')"
 
-# Claude can legitimately start its own MCP subprocesses; those owner-controlled tools may in turn use the macOS
-# `security` CLI (for example, GitHub tooling). Reject only a security descendant whose ancestry reaches QuotaKitCLI
-# without first crossing the installed `claude` owner boundary. A direct or shell-wrapped QuotaKit reader therefore
-# fails, while Claude-owned descendants remain visible in the retained evidence without being misattributed.
-/usr/bin/awk -v root_pid="$CLI_PID" '
+/usr/bin/awk '
   {
-    pid = $2
     normalized_command = $4
     sub(/^\(/, "", normalized_command)
     sub(/\)$/, "", normalized_command)
-    if (!(pid in parent) || command[pid] == "<defunct>") {
-      parent[pid] = $3
-      command[pid] = normalized_command
-    }
-    if (normalized_command ~ /(^|\/)security$/) security[pid] = 1
+    if (normalized_command ~ /(^|\/)claude$/ && !seen[$2]++) print $2, $3, $4
   }
-  END {
-    for (pid in security) {
-      current = pid
-      crossed_owner = 0
-      for (depth = 0; depth < 128; depth++) {
-        ancestor = parent[current]
-        if (ancestor == root_pid) break
-        if (!ancestor || ancestor == current) break
-        if (command[ancestor] ~ /(^|\/)claude$/) crossed_owner = 1
-        current = ancestor
-      }
-      if (!crossed_owner) print pid, parent[pid], command[pid]
-    }
-  }
-' "$PROCESS_SNAPSHOTS" | /usr/bin/sort -n >"$UNOWNED_SECURITY_DESCENDANTS"
-UNOWNED_SECURITY_DESCENDANT_COUNT="$(wc -l <"$UNOWNED_SECURITY_DESCENDANTS" | tr -d ' ')"
-OWNER_SECURITY_DESCENDANT_COUNT=$((SECURITY_DESCENDANT_COUNT - UNOWNED_SECURITY_DESCENDANT_COUNT))
+' "$PROCESS_SNAPSHOTS" | /usr/bin/sort -n >"$CLAUDE_DESCENDANTS"
+CLAUDE_DESCENDANT_COUNT="$(wc -l <"$CLAUDE_DESCENDANTS" | tr -d ' ')"
 
 # This canary emits only a public OSLog marker. It performs no Keychain query and proves that the bounded
 # `log show` window is visible before a zero-event result is accepted.
@@ -366,19 +342,26 @@ if ! rg -Fq "$LOG_CANARY" "$UNIFIED_LOG"; then
 fi
 
 ATTRIBUTION_PATTERN="${CLI_EXECUTABLE_NAME}|\\($CLI_PID\\)|\\[$CLI_PID:|pid[=: ]+$CLI_PID"
-while read -r security_pid _; do
-  [[ "$security_pid" =~ ^[0-9]+$ ]] || continue
-  ATTRIBUTION_PATTERN+="|\\($security_pid\\)|\\[$security_pid:|pid[=: ]+$security_pid"
-done <"$UNOWNED_SECURITY_DESCENDANTS"
 rg -i "$ATTRIBUTION_PATTERN" "$UNIFIED_LOG" >"$ATTRIBUTED_EVENTS" || true
 ATTRIBUTED_EVENT_COUNT="$(wc -l <"$ATTRIBUTED_EVENTS" | tr -d ' ')"
 
 LIVE_PROVIDER="$(/usr/bin/plutil -extract 0.provider raw -expect string "$STDOUT" 2>/dev/null || true)"
 LIVE_SOURCE="$(/usr/bin/plutil -extract 0.source raw -expect string "$STDOUT" 2>/dev/null || true)"
 LIVE_USAGE_TYPE="$(/usr/bin/plutil -type 0.usage "$STDOUT" 2>/dev/null || true)"
-CLAUDE_OWNER_AUTHENTICATED="no"
+LIVE_ERROR_KIND="$(/usr/bin/plutil -extract 0.error.kind raw -expect string "$STDOUT" 2>/dev/null || true)"
+LIVE_ERROR_MESSAGE="$(/usr/bin/plutil -extract 0.error.message raw -expect string "$STDOUT" 2>/dev/null || true)"
+LIVE_DIAGNOSTIC="$(/usr/bin/plutil -extract 0.diagnostic raw -expect string "$STDOUT" 2>/dev/null || true)"
+BACKGROUND_FETCH_SUCCEEDED="no"
 if [[ "$CLI_STATUS" -eq 0 && "$LIVE_PROVIDER" == "claude" && "$LIVE_USAGE_TYPE" == "dictionary" ]]; then
-  CLAUDE_OWNER_AUTHENTICATED="yes"
+  BACKGROUND_FETCH_SUCCEEDED="yes"
+fi
+BACKGROUND_ROUTE_OBSERVED="no"
+if [[ "$BACKGROUND_FETCH_SUCCEEDED" == "yes" || (
+  "$CLI_STATUS" -ne 0 && "$LIVE_PROVIDER" == "claude" && "$LIVE_SOURCE" == "auto" &&
+  "$LIVE_ERROR_KIND" == "provider" &&
+  "$LIVE_DIAGNOSTIC" == "app-auto-background-safe-denial"
+) ]]; then
+  BACKGROUND_ROUTE_OBSERVED="yes"
 fi
 
 {
@@ -399,7 +382,8 @@ fi
     echo "release-executable-${report_binary_index}-path: $binary_relative_path"
     echo "release-executable-${report_binary_index}-sha256: $binary_sha256"
   done <"$BINARY_HASH_MANIFEST"
-  echo "claude-owner-authenticated: $CLAUDE_OWNER_AUTHENTICATED"
+  echo "background-safe-fetch-succeeded: $BACKGROUND_FETCH_SUCCEEDED"
+  echo "background-route-observed: $BACKGROUND_ROUTE_OBSERVED"
   echo "quotakit-owned-oauth-cache-access: disabled-for-direct-oauth-absence-proof"
   echo "cli-timeout-seconds: $LIVE_TIMEOUT_SECONDS"
   echo "cli-timed-out: $CLI_TIMED_OUT"
@@ -407,29 +391,31 @@ fi
   echo "live-provider: $LIVE_PROVIDER"
   echo "live-source: $LIVE_SOURCE"
   echo "live-usage-type: $LIVE_USAGE_TYPE"
+  echo "live-error-kind: $LIVE_ERROR_KIND"
+  echo "live-error-present: $([[ -n "$LIVE_ERROR_MESSAGE" ]] && echo yes || echo no)"
+  echo "live-diagnostic: $LIVE_DIAGNOSTIC"
+  echo "claude-descendants: $CLAUDE_DESCENDANT_COUNT"
   echo "security-descendants: $SECURITY_DESCENDANT_COUNT"
-  echo "claude-owner-security-descendants: $OWNER_SECURITY_DESCENDANT_COUNT"
-  echo "unowned-security-descendants: $UNOWNED_SECURITY_DESCENDANT_COUNT"
   echo "unified-log-visibility-canary: observed"
   echo "attributed-prompt-authorization-events: $ATTRIBUTED_EVENT_COUNT"
   echo "release-known-foreign-reader-markers: 0"
 } | tee "$ARTIFACT/REPORT.md"
 
 if [[ "$CLI_TIMED_OUT" -eq 1 ]]; then
-  fail "Live Claude CLI-source fetch exceeded ${LIVE_TIMEOUT_SECONDS}s; its process group was terminated."
+  fail "Live app-Auto background fetch exceeded ${LIVE_TIMEOUT_SECONDS}s; its process group was terminated."
 fi
-if [[ "$CLI_STATUS" -ne 0 ]]; then
-  fail "Live app-Auto Claude fetch failed (exit $CLI_STATUS); see $STDERR"
+if [[ "$BACKGROUND_ROUTE_OBSERVED" != "yes" ]]; then
+  fail "Live app Auto did not produce a valid Claude success or app-auto-background-safe denial; see $STDOUT and $STDERR"
 fi
-if [[ "$LIVE_PROVIDER" != "claude" || "$LIVE_SOURCE" != "claude" || "$LIVE_USAGE_TYPE" != "dictionary" ]]; then
-  fail "Live app Auto did not safely fall back to the Claude owner CLI; see $STDOUT"
+if [[ "$CLAUDE_DESCENDANT_COUNT" -ne 0 ]]; then
+  fail "Background app Auto launched Claude; see $CLAUDE_DESCENDANTS"
 fi
-if [[ "$UNOWNED_SECURITY_DESCENDANT_COUNT" -ne 0 ]]; then
-  fail "${CLI_EXECUTABLE_NAME} launched /usr/bin/security outside the Claude owner subtree; see $UNOWNED_SECURITY_DESCENDANTS"
+if [[ "$SECURITY_DESCENDANT_COUNT" -ne 0 ]]; then
+  fail "Background app Auto launched /usr/bin/security; see $SECURITY_DESCENDANTS"
 fi
 if [[ "$ATTRIBUTED_EVENT_COUNT" -ne 0 ]]; then
   fail "Live fetch emitted attributable prompt/authorization events; see $ATTRIBUTED_EVENTS"
 fi
 
-log "Phase 3 passed: owner path succeeded with no direct security child or attributable authorization event"
+log "Phase 3 passed: background route launched neither Claude nor security and emitted no authorization event"
 log "Report: $ARTIFACT/REPORT.md"

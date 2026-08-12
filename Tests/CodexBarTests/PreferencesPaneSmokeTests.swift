@@ -40,7 +40,7 @@ struct PreferencesPaneSmokeTests {
         settings.costUsageEnabled = true
         settings.costComparisonPeriodsEnabled = true
         settings.debugDisableKeychainAccess = true
-        settings.claudeOAuthKeychainPromptMode = .always
+        settings.claudeOAuthKeychainPromptMode = .onlyOnUserAction
         settings.refreshFrequency = .manual
         settings.quotaWarningNotificationsEnabled = true
 

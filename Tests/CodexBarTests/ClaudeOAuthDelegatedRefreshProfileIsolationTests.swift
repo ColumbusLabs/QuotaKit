@@ -37,7 +37,7 @@ struct ClaudeOAuthDelegatedRefreshProfileIsolationTests {
     }
 
     @Test
-    func `overlapping background profiles refresh independently of each other's cooldown`() async throws {
+    func `overlapping explicit profiles refresh independently of each other's cooldown`() async throws {
         actor Gate {
             private var startedContinuation: CheckedContinuation<Void, Never>?
             private var joinedContinuation: CheckedContinuation<Void, Never>?
@@ -150,7 +150,7 @@ struct ClaudeOAuthDelegatedRefreshProfileIsolationTests {
                                                     } operation: {
                                                         let first = Task {
                                                             await ProviderInteractionContext.$current
-                                                                .withValue(.background) {
+                                                                .withValue(.userInitiated) {
                                                                     await ClaudeOAuthDelegatedRefreshCoordinator
                                                                         .attempt(
                                                                             now: Date(timeIntervalSince1970: 70000),
@@ -161,7 +161,7 @@ struct ClaudeOAuthDelegatedRefreshProfileIsolationTests {
                                                         await gate.waitStarted()
                                                         let second = Task {
                                                             await ProviderInteractionContext.$current
-                                                                .withValue(.background) {
+                                                                .withValue(.userInitiated) {
                                                                     await ClaudeOAuthDelegatedRefreshCoordinator
                                                                         .attempt(
                                                                             now: Date(timeIntervalSince1970: 70001),

@@ -88,7 +88,11 @@ extension StatusItemController {
         return { [weak self, weak menu] in
             guard let self else { return }
             self.advanceMenuInteraction(for: menu)
-            self.store.switchClaudeSwapAccount(accountID)
+            Task { @MainActor in
+                ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    self.store.switchClaudeSwapAccount(accountID)
+                }
+            }
         }
     }
 }

@@ -136,9 +136,11 @@ struct DashboardSnapshotProducer: Sendable {
                     ClaudeSwapAccountReader.defaultTimeout,
                     context.usage.providerTimeout ?? ClaudeSwapAccountReader.defaultTimeout)
                 do {
-                    let list = try await ClaudeSwapAccountReader.readAccountList(
-                        executablePath: path,
-                        timeout: timeout)
+                    let list = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                        try await ClaudeSwapAccountReader.readAccountList(
+                            executablePath: path,
+                            timeout: timeout)
+                    }
                     return DashboardClaudeSwapCollection(
                         accounts: ClaudeSwapAccountProjection.accountSnapshots(from: list),
                         adapterError: nil)

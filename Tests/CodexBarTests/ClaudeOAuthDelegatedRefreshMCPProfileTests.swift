@@ -18,7 +18,7 @@ private final class ClaudeDelegatedProfileTouchCounter: @unchecked Sendable {
 @Suite(.serialized)
 struct ClaudeOAuthDelegatedRefreshMCPProfileTests {
     @Test
-    func `selected profile file lets delegated refresh bypass unrelated global mcp O auth`() async throws {
+    func `background delegated refresh skips selected profile and global mcp O auth inspection`() async throws {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let profile = root.appendingPathComponent("selected-profile", isDirectory: true)
@@ -35,6 +35,7 @@ struct ClaudeOAuthDelegatedRefreshMCPProfileTests {
             accessToken: "global-after-touch",
             expiresAt: Date(timeIntervalSinceNow: 3600))
         let touches = ClaudeDelegatedProfileTouchCounter()
+        let securityReads = ClaudeDelegatedProfileTouchCounter()
         let touchAuthPath: @Sendable (TimeInterval, [String: String]) async -> Void = { _, _ in
             touches.increment()
         }
@@ -55,7 +56,8 @@ struct ClaudeOAuthDelegatedRefreshMCPProfileTests {
                                     {
                                         await ClaudeOAuthCredentialsStore.withSecurityCLIReadOverrideForTesting(
                                             .dynamic { _ in
-                                                touches.count() > 0 ? refreshedCredentials : mcpOAuthOnly
+                                                securityReads.increment()
+                                                return touches.count() > 0 ? refreshedCredentials : mcpOAuthOnly
                                             }) {
                                                 await ProviderInteractionContext.$current.withValue(.background) {
                                                     await ClaudeOAuthDelegatedRefreshCoordinator.attempt(
@@ -72,8 +74,9 @@ struct ClaudeOAuthDelegatedRefreshMCPProfileTests {
             }
         }
 
-        #expect(outcome == .attemptedSucceeded)
-        #expect(touches.count() == 1)
+        #expect(outcome == .skippedByPromptPolicy)
+        #expect(touches.count() == 0)
+        #expect(securityReads.count() == 0)
     }
 
     private func makeCredentialsData(accessToken: String, expiresAt: Date) -> Data {

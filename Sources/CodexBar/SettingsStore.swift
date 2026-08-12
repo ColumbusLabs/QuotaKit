@@ -500,7 +500,7 @@ extension SettingsStore {
         let confettiOnReset = Self.loadConfettiOnResetDefaults(userDefaults: userDefaults)
         let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
         let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
-        let claudeOAuthKeychainPromptModeRaw = userDefaults.string(forKey: "claudeOAuthKeychainPromptMode")
+        let claudeOAuthKeychainPromptModeRaw = Self.loadClaudeOAuthKeychainPromptModeRaw(userDefaults: userDefaults)
         // Explicit consent for reading Claude Code's Keychain item (#2634). Default OFF; never enabled silently.
         let claudeOAuthDirectKeychainReadAllowed = userDefaults.object(
             forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey) as? Bool ?? false
@@ -746,6 +746,16 @@ extension SettingsStore {
         if userDefaults.string(forKey: promptModeKey) == nil {
             userDefaults.set(ClaudeOAuthKeychainPromptMode.never.rawValue, forKey: promptModeKey)
         }
+        return migrated
+    }
+
+    private static func loadClaudeOAuthKeychainPromptModeRaw(userDefaults: UserDefaults) -> String? {
+        let key = "claudeOAuthKeychainPromptMode"
+        guard let raw = userDefaults.string(forKey: key) else { return nil }
+        guard ClaudeOAuthKeychainPromptMode(rawValue: raw) == .always else { return raw }
+
+        let migrated = ClaudeOAuthKeychainPromptMode.onlyOnUserAction.rawValue
+        userDefaults.set(migrated, forKey: key)
         return migrated
     }
 

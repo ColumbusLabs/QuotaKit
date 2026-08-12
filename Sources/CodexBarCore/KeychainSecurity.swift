@@ -41,9 +41,15 @@ enum KeychainTestSafety {
         processName: String,
         environment: [String: String]) -> Bool
     {
-        if environment[self.allowAccessEnvironmentKey] == "1" { return false }
-        if environment[self.suppressAccessEnvironmentKey] == "1" { return true }
-        if environment[KeychainAccessGate.disableAccessEnvironmentKey] == "1" { return true }
+        if environment[self.allowAccessEnvironmentKey] == "1" {
+            return false
+        }
+        if environment[self.suppressAccessEnvironmentKey] == "1" {
+            return true
+        }
+        if environment[KeychainAccessGate.disableAccessEnvironmentKey] == "1" {
+            return true
+        }
         return self.isRunningUnderTests(processName: processName, environment: environment)
     }
 
@@ -99,38 +105,100 @@ enum KeychainLegacyInteraction {
 /// Test processes fail closed before touching the user's Keychain, even when a test enables
 /// higher-level Keychain logic with `KeychainAccessGate.withTaskOverrideForTesting(false)`.
 public enum KeychainSecurity {
-    public static func copyMatching(
-        _ query: CFDictionary,
-        _ result: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus
-    {
-        guard !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
-            return errSecInteractionNotAllowed
-        }
-        return SecItemCopyMatching(query, result)
+    public enum InteractionPolicy: Sendable {
+        case nonInteractive
+        case userInitiatedPrompt
     }
 
-    public static func update(_ query: CFDictionary, _ attributesToUpdate: CFDictionary) -> OSStatus {
-        guard !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
+    public struct HealthSnapshot: Equatable, Sendable {
+        public enum State: String, Equatable, Sendable {
+            case idle
+            case running
+            case tripped
+        }
+
+        public let state: State
+        public let operationKind: String?
+        public let elapsedSeconds: TimeInterval?
+        public let timedOutAfterSeconds: TimeInterval?
+    }
+
+    private static let executor = KeychainOperationExecutor(backend: .live)
+    @TaskLocal private static var executorOverrideForTesting: KeychainOperationExecutor?
+
+    private static var effectiveExecutor: KeychainOperationExecutor {
+        self.executorOverrideForTesting ?? self.executor
+    }
+
+    public static var healthSnapshot: HealthSnapshot {
+        self.effectiveExecutor.healthSnapshot
+    }
+
+    public static func copyMatching(
+        _ query: CFDictionary,
+        _ result: UnsafeMutablePointer<CFTypeRef?>?,
+        interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
+    {
+        guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }
-        return SecItemUpdate(query, attributesToUpdate)
+        guard self.isAllowed(interactionPolicy) else { return errSecInteractionNotAllowed }
+        return self.effectiveExecutor.copyMatching(
+            query,
+            result,
+            interactionPolicy: interactionPolicy)
+    }
+
+    public static func update(
+        _ query: CFDictionary,
+        _ attributesToUpdate: CFDictionary,
+        interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
+    {
+        guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
+            return errSecInteractionNotAllowed
+        }
+        guard self.isAllowed(interactionPolicy) else { return errSecInteractionNotAllowed }
+        return self.effectiveExecutor.update(
+            query,
+            attributesToUpdate,
+            interactionPolicy: interactionPolicy)
     }
 
     public static func add(
         _ attributes: CFDictionary,
-        _ result: UnsafeMutablePointer<CFTypeRef?>?) -> OSStatus
+        _ result: UnsafeMutablePointer<CFTypeRef?>?,
+        interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
     {
-        guard !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
+        guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }
-        return SecItemAdd(attributes, result)
+        guard self.isAllowed(interactionPolicy) else { return errSecInteractionNotAllowed }
+        return self.effectiveExecutor.add(
+            attributes,
+            result,
+            interactionPolicy: interactionPolicy)
     }
 
-    public static func delete(_ query: CFDictionary) -> OSStatus {
-        guard !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
+    public static func delete(
+        _ query: CFDictionary,
+        interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
+    {
+        guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }
-        return SecItemDelete(query)
+        guard self.isAllowed(interactionPolicy) else { return errSecInteractionNotAllowed }
+        return self.effectiveExecutor.delete(query, interactionPolicy: interactionPolicy)
+    }
+
+    static func isAllowed(_ interactionPolicy: InteractionPolicy) -> Bool {
+        interactionPolicy == .nonInteractive || ProviderInteractionContext.current == .userInitiated
+    }
+
+    static func withExecutorOverrideForTesting<T>(
+        _ executor: KeychainOperationExecutor,
+        operation: () throws -> T) rethrows -> T
+    {
+        try self.$executorOverrideForTesting.withValue(executor, operation: operation)
     }
 }
 #endif

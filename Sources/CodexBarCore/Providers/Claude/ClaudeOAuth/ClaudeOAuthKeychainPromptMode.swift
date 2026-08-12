@@ -3,7 +3,12 @@ import Foundation
 public enum ClaudeOAuthKeychainPromptMode: String, Sendable, Codable, CaseIterable {
     case never
     case onlyOnUserAction
+    /// Legacy persisted value. Keep decoding it for compatibility, but do not expose it at runtime.
     case always
+
+    public var normalized: Self {
+        self == .always ? .onlyOnUserAction : self
+    }
 }
 
 public enum ClaudeOAuthKeychainPromptPreference {
@@ -40,7 +45,7 @@ public enum ClaudeOAuthKeychainPromptPreference {
     public static func storedMode(userDefaults: UserDefaults? = nil) -> ClaudeOAuthKeychainPromptMode {
         #if DEBUG
         if let taskOverride {
-            return taskOverride
+            return taskOverride.normalized
         }
         // Unit tests must not inherit the developer's persisted app preference. Tests that exercise a specific
         // policy use a task or UserDefaults override explicitly.
@@ -55,7 +60,7 @@ public enum ClaudeOAuthKeychainPromptPreference {
         if let raw = userDefaults.string(forKey: self.userDefaultsKey),
            let mode = ClaudeOAuthKeychainPromptMode(rawValue: raw)
         {
-            return mode
+            return mode.normalized
         }
         return .onlyOnUserAction
     }
@@ -72,7 +77,7 @@ public enum ClaudeOAuthKeychainPromptPreference {
         -> ClaudeOAuthKeychainPromptMode
     {
         guard self.isApplicable(readStrategy: readStrategy) else {
-            return .always
+            return .onlyOnUserAction
         }
         return self.storedMode(userDefaults: userDefaults)
     }

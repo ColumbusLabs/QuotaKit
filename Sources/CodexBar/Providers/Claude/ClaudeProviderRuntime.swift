@@ -18,12 +18,20 @@ final class ClaudeProviderRuntime: ProviderRuntime {
         self.reconcileSwapConfiguration(context: context)
     }
 
-    private func reconcileSwapConfiguration(context: ProviderRuntimeContext) {
+    func refreshSwapConfigurationAfterUserChange(context: ProviderRuntimeContext) {
+        guard ProviderInteractionContext.current == .userInitiated else { return }
+        self.reconcileSwapConfiguration(context: context, forceRefresh: true)
+    }
+
+    private func reconcileSwapConfiguration(
+        context: ProviderRuntimeContext,
+        forceRefresh: Bool = false)
+    {
         let configuration = Configuration(
             providerEnabled: context.store.isEnabled(.claude),
             enabled: context.settings.claudeSwapEnabled,
             executablePath: context.settings.claudeSwapExecutablePath)
-        guard configuration != self.lastSwapConfiguration else { return }
+        guard forceRefresh || configuration != self.lastSwapConfiguration else { return }
         self.lastSwapConfiguration = configuration
 
         // Cancel before clearing so an old executable can never repopulate the menu.

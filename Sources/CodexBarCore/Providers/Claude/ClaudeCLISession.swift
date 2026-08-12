@@ -75,7 +75,8 @@ actor ClaudeCLISession {
     }
     #endif
 
-    enum SessionError: LocalizedError {
+    enum SessionError: LocalizedError, Equatable {
+        case backgroundAccessDenied
         case launchFailed(String)
         case ioFailed(String)
         case timedOut
@@ -84,6 +85,8 @@ actor ClaudeCLISession {
 
         var errorDescription: String? {
             switch self {
+            case .backgroundAccessDenied:
+                "Claude CLI access requires an explicit user or QuotaKit CLI action."
             case let .launchFailed(msg): "Failed to launch Claude CLI session: \(msg)"
             case let .ioFailed(msg): "Claude CLI PTY I/O failed: \(msg)"
             case .timedOut: "Claude CLI session timed out."
@@ -192,6 +195,9 @@ actor ClaudeCLISession {
         settleAfterStop: TimeInterval = 0.25,
         sendEnterEvery: TimeInterval? = nil) async throws -> String
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw SessionError.backgroundAccessDenied
+        }
         let operationID = UUID()
         let acquired = await withTaskCancellationHandler {
             await self.operationGate.acquire(id: operationID, rejectIfCancelled: true)
@@ -392,6 +398,9 @@ actor ClaudeCLISession {
         accountScope: String?,
         environment: [String: String]) throws
     {
+        guard ClaudeOpaqueOperationContext.isAllowed else {
+            throw SessionError.backgroundAccessDenied
+        }
         let sessionIdentity = SessionIdentity(
             binaryPath: binary,
             accountScope: accountScope,

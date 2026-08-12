@@ -84,27 +84,30 @@ struct ClaudeCLISessionTests {
         secondEnvironment["HOME"] = secondHome.path
 
         do {
-            let first = try await session.capture(
-                subcommand: "/status",
-                binary: cliURL.path,
-                timeout: 2,
-                environment: firstEnvironment,
-                idleTimeout: 0.1,
-                settleAfterStop: 0)
-            let second = try await session.capture(
-                subcommand: "/status",
-                binary: cliURL.path,
-                timeout: 2,
-                environment: secondEnvironment,
-                idleTimeout: 0.1,
-                settleAfterStop: 0)
-            let reused = try await session.capture(
-                subcommand: "/status",
-                binary: cliURL.path,
-                timeout: 2,
-                environment: secondEnvironment,
-                idleTimeout: 0.1,
-                settleAfterStop: 0)
+            let (first, second, reused) = try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                let first = try await session.capture(
+                    subcommand: "/status",
+                    binary: cliURL.path,
+                    timeout: 2,
+                    environment: firstEnvironment,
+                    idleTimeout: 0.1,
+                    settleAfterStop: 0)
+                let second = try await session.capture(
+                    subcommand: "/status",
+                    binary: cliURL.path,
+                    timeout: 2,
+                    environment: secondEnvironment,
+                    idleTimeout: 0.1,
+                    settleAfterStop: 0)
+                let reused = try await session.capture(
+                    subcommand: "/status",
+                    binary: cliURL.path,
+                    timeout: 2,
+                    environment: secondEnvironment,
+                    idleTimeout: 0.1,
+                    settleAfterStop: 0)
+                return (first, second, reused)
+            }
             await session.reset()
 
             #expect(first.contains("Account: \(firstConfig.path)"))
@@ -146,13 +149,15 @@ struct ClaudeCLISessionTests {
         secondEnvironment["CLAUDE_CONFIG_DIR"] = secondConfig.path
 
         let firstTask = Task {
-            try await session.capture(
-                subcommand: "/status",
-                binary: cliURL.path,
-                timeout: 5,
-                environment: firstEnvironment,
-                idleTimeout: 0.1,
-                settleAfterStop: 0)
+            try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                try await session.capture(
+                    subcommand: "/status",
+                    binary: cliURL.path,
+                    timeout: 5,
+                    environment: firstEnvironment,
+                    idleTimeout: 0.1,
+                    settleAfterStop: 0)
+            }
         }
         do {
             try await Self.waitForLaunchCount(1, at: logURL)
@@ -163,13 +168,15 @@ struct ClaudeCLISessionTests {
         }
 
         let secondTask = Task {
-            try await session.capture(
-                subcommand: "/status",
-                binary: cliURL.path,
-                timeout: 5,
-                environment: secondEnvironment,
-                idleTimeout: 0.1,
-                settleAfterStop: 0)
+            try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+                try await session.capture(
+                    subcommand: "/status",
+                    binary: cliURL.path,
+                    timeout: 5,
+                    environment: secondEnvironment,
+                    idleTimeout: 0.1,
+                    settleAfterStop: 0)
+            }
         }
 
         do {

@@ -1030,7 +1030,7 @@ public enum ClaudeOAuthCredentialsStore {
                 }
                 return true
             case .always:
-                return true
+                return ProviderInteractionContext.current == .userInitiated
             }
         }
 
@@ -2195,8 +2195,9 @@ public enum ClaudeOAuthCredentialsStore {
         }
         #endif
 
-        // This probe must work under the default `onlyOnUserAction` policy, but must never show Keychain UI.
-        // The candidate and data queries both use KeychainNoUIQuery; `.always` only bypasses the prompt-policy gate.
+        // This explicit-user probe must never show Keychain UI. The candidate and data queries both use
+        // KeychainNoUIQuery; prompt-policy enforcement is disabled because the opaque-operation capability
+        // and direct-read consent gates have already admitted this call.
         switch self.claudeKeychainCandidatesProbeWithoutPrompt(
             promptMode: .always,
             enforcePromptPolicy: false)
@@ -2496,7 +2497,10 @@ public enum ClaudeOAuthCredentialsStore {
 
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(
+            query as CFDictionary,
+            &result,
+            interactionPolicy: allowKeychainPrompt ? .userInitiatedPrompt : .nonInteractive)
         let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
         self.log.debug(
             "Claude keychain data read result",
@@ -2559,7 +2563,10 @@ public enum ClaudeOAuthCredentialsStore {
 
         var result: AnyObject?
         let startedAtNs = DispatchTime.now().uptimeNanoseconds
-        let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
+        let status = KeychainSecurity.copyMatching(
+            query as CFDictionary,
+            &result,
+            interactionPolicy: allowKeychainPrompt ? .userInitiatedPrompt : .nonInteractive)
         let durationMs = Double(DispatchTime.now().uptimeNanoseconds - startedAtNs) / 1_000_000.0
         self.log.debug(
             "Claude keychain legacy data read result",
@@ -2963,6 +2970,9 @@ public enum ClaudeOAuthCredentialsStore {
     }
 
     static var keychainAccessAllowed: Bool {
+        // Claude Code owns this item, so every read/enumeration/fingerprint path is an opaque
+        // credential operation. Background/startup work must stay on QuotaKit-owned caches and files.
+        guard ClaudeOpaqueOperationContext.isAllowed else { return false }
         #if DEBUG
         if let override = self.taskKeychainAccessOverride {
             return !override
@@ -3038,21 +3048,23 @@ public enum ClaudeOAuthCredentialsStore {
         mode: ClaudeOAuthKeychainPromptMode = ClaudeOAuthKeychainPromptPreference.current(),
         allowKeychainPrompt: Bool = true) -> Bool
     {
+        _ = allowKeychainPrompt
         guard self.keychainAccessAllowed else { return false }
         switch mode {
         case .never:
             return false
         case .onlyOnUserAction:
             return ProviderInteractionContext.current == .userInitiated
-        case .always: return true
+        case .always:
+            return ProviderInteractionContext.current == .userInitiated
         }
     }
 
     static func preferredClaudeKeychainAccountForSecurityCLIRead(
         interaction: ProviderInteraction = ProviderInteractionContext.current) -> String?
     {
-        // Keep the experimental background path fully on /usr/bin/security by default.
-        // Account pinning requires Security.framework candidate probing, so only allow it on explicit user actions.
+        // Explicit user or QuotaKit CLI actions can use /usr/bin/security without prompting in-process.
+        // Account pinning still requires Security.framework candidate probing, so it remains user-action-only.
         guard interaction == .userInitiated else { return nil }
         #if DEBUG
         if let override = self.taskSecurityCLIReadAccountOverride {

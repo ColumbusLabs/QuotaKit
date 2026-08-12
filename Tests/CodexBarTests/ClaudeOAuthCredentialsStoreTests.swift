@@ -39,17 +39,21 @@ struct ClaudeOAuthCredentialsStoreTests {
             createdAt: 1,
             persistentRefHash: "opaque-ref")
 
-        let firstHash = ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-            data: nil,
-            fingerprint: first)
-        {
-            ClaudeOAuthCredentialsStore.claudeKeychainPersistentRefHashWithoutPrompt()
+        let firstHash = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                data: nil,
+                fingerprint: first)
+            {
+                ClaudeOAuthCredentialsStore.claudeKeychainPersistentRefHashWithoutPrompt()
+            }
         }
-        let refreshedHash = ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-            data: nil,
-            fingerprint: refreshed)
-        {
-            ClaudeOAuthCredentialsStore.claudeKeychainPersistentRefHashWithoutPrompt()
+        let refreshedHash = ProviderInteractionContext.$current.withValue(.userInitiated) {
+            ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                data: nil,
+                fingerprint: refreshed)
+            {
+                ClaudeOAuthCredentialsStore.claudeKeychainPersistentRefHashWithoutPrompt()
+            }
         }
 
         #expect(firstHash == "opaque-ref")
@@ -792,24 +796,28 @@ struct ClaudeOAuthCredentialsStoreTests {
                     modifiedAt: 1,
                     createdAt: 1,
                     persistentRefHash: "ref1")
-                let first = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                    data: cachedData,
-                    fingerprint: fingerprint,
-                    operation: {
-                        try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
-                    })
+                let first = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                        data: cachedData,
+                        fingerprint: fingerprint,
+                        operation: {
+                            try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
+                        })
+                }
                 #expect(first.accessToken == "cached-token")
 
                 ClaudeOAuthCredentialsStore._resetClaudeKeychainChangeThrottleForTesting()
                 let keychainData = self.makeCredentialsData(
                     accessToken: "keychain-token",
                     expiresAt: Date(timeIntervalSinceNow: 3600))
-                let second = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                    data: keychainData,
-                    fingerprint: fingerprint,
-                    operation: {
-                        try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
-                    })
+                let second = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                        data: keychainData,
+                        fingerprint: fingerprint,
+                        operation: {
+                            try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
+                        })
+                }
                 #expect(second.accessToken == "cached-token")
 
                 switch KeychainCacheStore.load(key: cacheKey, as: ClaudeOAuthCredentialsStore.CacheEntry.self) {
@@ -847,15 +855,17 @@ struct ClaudeOAuthCredentialsStoreTests {
                     key: cacheKey,
                     entry: ClaudeOAuthCredentialsStore.CacheEntry(data: cachedData, storedAt: Date()))
 
-                let first = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                    data: cachedData,
-                    fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
-                        modifiedAt: 1,
-                        createdAt: 1,
-                        persistentRefHash: "ref1"),
-                    operation: {
-                        try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
-                    })
+                let first = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                        data: cachedData,
+                        fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                            modifiedAt: 1,
+                            createdAt: 1,
+                            persistentRefHash: "ref1"),
+                        operation: {
+                            try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
+                        })
+                }
                 #expect(first.accessToken == "cached-token")
 
                 ClaudeOAuthCredentialsStore._resetClaudeKeychainChangeThrottleForTesting()
@@ -863,15 +873,17 @@ struct ClaudeOAuthCredentialsStoreTests {
                 let expiredKeychainData = self.makeCredentialsData(
                     accessToken: "expired-keychain-token",
                     expiresAt: Date(timeIntervalSinceNow: -3600))
-                let second = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                    data: expiredKeychainData,
-                    fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
-                        modifiedAt: 2,
-                        createdAt: 2,
-                        persistentRefHash: "ref2"),
-                    operation: {
-                        try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
-                    })
+                let second = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                        data: expiredKeychainData,
+                        fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                            modifiedAt: 2,
+                            createdAt: 2,
+                            persistentRefHash: "ref2"),
+                        operation: {
+                            try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
+                        })
+                }
                 #expect(second.accessToken == "cached-token")
 
                 switch KeychainCacheStore.load(key: cacheKey, as: ClaudeOAuthCredentialsStore.CacheEntry.self) {
@@ -919,15 +931,17 @@ struct ClaudeOAuthCredentialsStoreTests {
                             key: cacheKey,
                             entry: ClaudeOAuthCredentialsStore.CacheEntry(data: cachedData, storedAt: Date()))
 
-                        let first = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                            data: cachedData,
-                            fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
-                                modifiedAt: 1,
-                                createdAt: 1,
-                                persistentRefHash: "ref1"),
-                            operation: {
-                                try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
-                            })
+                        let first = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                data: cachedData,
+                                fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                                    modifiedAt: 1,
+                                    createdAt: 1,
+                                    persistentRefHash: "ref1"),
+                                operation: {
+                                    try ClaudeOAuthCredentialsStore.load(environment: [:], allowKeychainPrompt: false)
+                                })
+                        }
                         #expect(first.accessToken == "cached-token")
 
                         ClaudeOAuthCredentialsStore._resetClaudeKeychainChangeThrottleForTesting()
@@ -936,18 +950,20 @@ struct ClaudeOAuthCredentialsStoreTests {
                         let keychainData = self.makeCredentialsData(
                             accessToken: "keychain-token",
                             expiresAt: Date(timeIntervalSinceNow: 3600))
-                        let second = try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
-                            data: keychainData,
-                            fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
-                                modifiedAt: 2,
-                                createdAt: 2,
-                                persistentRefHash: "ref2"),
-                            operation: {
-                                try ClaudeOAuthCredentialsStore.load(
-                                    environment: [:],
-                                    allowKeychainPrompt: false,
-                                    respectKeychainPromptCooldown: true)
-                            })
+                        let second = try ProviderInteractionContext.$current.withValue(.userInitiated) {
+                            try ClaudeOAuthCredentialsStore.withClaudeKeychainOverridesForTesting(
+                                data: keychainData,
+                                fingerprint: ClaudeOAuthCredentialsStore.ClaudeKeychainFingerprint(
+                                    modifiedAt: 2,
+                                    createdAt: 2,
+                                    persistentRefHash: "ref2"),
+                                operation: {
+                                    try ClaudeOAuthCredentialsStore.load(
+                                        environment: [:],
+                                        allowKeychainPrompt: false,
+                                        respectKeychainPromptCooldown: true)
+                                })
+                        }
                         #expect(second.accessToken == "cached-token")
 
                         switch KeychainCacheStore.load(key: cacheKey, as: ClaudeOAuthCredentialsStore.CacheEntry.self) {
@@ -1005,9 +1021,11 @@ struct ClaudeOAuthCredentialsStoreTests {
             let snapshot = ClaudeOAuthCredentialsStore.currentTestingOverridesSnapshotForTask
 
             return await Task.detached {
-                ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
-                    ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(snapshot) {
-                        ClaudeOAuthCredentialsStore.currentClaudeKeychainFingerprintWithoutPromptForAuthGate()
+                ProviderInteractionContext.$current.withValue(.userInitiated) {
+                    ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
+                        ClaudeOAuthCredentialsStore.withTestingOverridesSnapshotForTask(snapshot) {
+                            ClaudeOAuthCredentialsStore.currentClaudeKeychainFingerprintWithoutPromptForAuthGate()
+                        }
                     }
                 }
             }.value

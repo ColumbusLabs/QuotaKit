@@ -15,6 +15,34 @@ struct ClaudeSwapAccountReaderTests {
         return url.path
     }
 
+    private func readAccountList(
+        executablePath: String,
+        timeout: TimeInterval = ClaudeSwapAccountReader.defaultTimeout) async throws -> ClaudeSwapAccountList
+    {
+        try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeSwapAccountReader.readAccountList(
+                executablePath: executablePath,
+                timeout: timeout)
+        }
+    }
+
+    private func readVersion(executablePath: String) async -> String? {
+        await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            await ClaudeSwapAccountReader.readVersion(executablePath: executablePath)
+        }
+    }
+
+    private func switchAccount(
+        executablePath: String,
+        accountNumber: Int) async throws -> ClaudeSwapAccountSwitchResult
+    {
+        try await ClaudeOpaqueOperationContext.withExplicitCLIAccess {
+            try await ClaudeSwapAccountReader.switchAccount(
+                executablePath: executablePath,
+                accountNumber: accountNumber)
+        }
+    }
+
     @Test
     func `reads and parses a schema v1 list from the executable`() async throws {
         let path = try self.makeFakeExecutable("""
@@ -31,7 +59,7 @@ struct ClaudeSwapAccountReaderTests {
         EOF
         """)
 
-        let list = try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+        let list = try await self.readAccountList(executablePath: path)
         #expect(list.activeAccountNumber == 1)
         #expect(list.accounts.first?.fiveHour?.usedPercent == 12.5)
         #expect(list.accounts.first?.scoped == [
@@ -43,6 +71,20 @@ struct ClaudeSwapAccountReaderTests {
     }
 
     @Test
+    func `background list read is rejected before launching claude swap`() async throws {
+        let marker = FileManager.default.temporaryDirectory
+            .appendingPathComponent("claude-swap-background-list-\(UUID().uuidString)")
+        let path = try self.makeFakeExecutable("touch '\(marker.path)'")
+
+        await #expect(throws: ClaudeSwapAccountReaderError.backgroundAccessDenied) {
+            try await ProviderInteractionContext.$current.withValue(.background) {
+                try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+            }
+        }
+        #expect(!FileManager.default.fileExists(atPath: marker.path))
+    }
+
+    @Test
     func `surfaces the error envelope from a non zero exit`() async throws {
         let path = try self.makeFakeExecutable("""
         echo '{"schemaVersion": 1, "error": {"type": "SwitchError", "message": "store locked"}}'
@@ -50,7 +92,7 @@ struct ClaudeSwapAccountReaderTests {
         """)
 
         await #expect(throws: ClaudeSwapListParserError.reportedError(type: "SwitchError", message: "store locked")) {
-            try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+            try await self.readAccountList(executablePath: path)
         }
     }
 
@@ -59,7 +101,7 @@ struct ClaudeSwapAccountReaderTests {
         let path = try self.makeFakeExecutable("sleep 30")
 
         await #expect(throws: (any Error).self) {
-            try await ClaudeSwapAccountReader.readAccountList(executablePath: path, timeout: 0.5)
+            try await self.readAccountList(executablePath: path, timeout: 0.5)
         }
     }
 
@@ -74,18 +116,18 @@ struct ClaudeSwapAccountReaderTests {
         """)
 
         await #expect(throws: (any Error).self) {
-            try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+            try await self.readAccountList(executablePath: path)
         }
     }
 
     @Test
     func `fails cleanly when the executable is missing`() async throws {
         await #expect(throws: (any Error).self) {
-            try await ClaudeSwapAccountReader.readAccountList(
+            try await self.readAccountList(
                 executablePath: "/nonexistent/path/to/cswap")
         }
         await #expect(throws: ClaudeSwapAccountReaderError.self) {
-            try await ClaudeSwapAccountReader.readAccountList(executablePath: "   ")
+            try await self.readAccountList(executablePath: "   ")
         }
     }
 
@@ -96,7 +138,7 @@ struct ClaudeSwapAccountReaderTests {
         echo 'cswap 0.16.0'
         """)
 
-        let version = await ClaudeSwapAccountReader.readVersion(executablePath: path)
+        let version = await self.readVersion(executablePath: path)
         #expect(version == "0.16.0")
     }
 
@@ -110,7 +152,7 @@ struct ClaudeSwapAccountReaderTests {
         echo '{"schemaVersion":1,"switched":true,"from":{"number":1},"to":{"number":7},"reason":"switched"}'
         """)
 
-        let result = try await ClaudeSwapAccountReader.switchAccount(
+        let result = try await self.switchAccount(
             executablePath: path,
             accountNumber: 7)
 
@@ -126,7 +168,7 @@ struct ClaudeSwapAccountReaderTests {
         """)
 
         await #expect(throws: ClaudeSwapSwitchParserError.mismatchedTarget(expected: 7, actual: 8)) {
-            try await ClaudeSwapAccountReader.switchAccount(executablePath: path, accountNumber: 7)
+            try await self.switchAccount(executablePath: path, accountNumber: 7)
         }
     }
 
@@ -141,7 +183,7 @@ struct ClaudeSwapAccountReaderTests {
             type: "SwitchError",
             message: "credentials missing"))
         {
-            try await ClaudeSwapAccountReader.switchAccount(executablePath: path, accountNumber: 2)
+            try await self.switchAccount(executablePath: path, accountNumber: 2)
         }
     }
 
@@ -155,7 +197,7 @@ struct ClaudeSwapAccountReaderTests {
         echo '{"schemaVersion":1,"switched":true,"from":{"number":1},"to":{"number":2},"reason":"switched"}'
         """)
         let task = Task {
-            try await ClaudeSwapAccountReader.switchAccount(executablePath: path, accountNumber: 2)
+            try await self.switchAccount(executablePath: path, accountNumber: 2)
         }
 
         try await Task.sleep(for: .milliseconds(100))
@@ -170,7 +212,7 @@ struct ClaudeSwapAccountReaderTests {
     func `version probe returns nil when the executable fails`() async throws {
         let path = try self.makeFakeExecutable("exit 3")
 
-        let version = await ClaudeSwapAccountReader.readVersion(executablePath: path)
+        let version = await self.readVersion(executablePath: path)
         #expect(version == nil)
     }
 
@@ -187,8 +229,8 @@ struct ClaudeSwapAccountReaderTests {
         echo '{"schemaVersion":1,"activeAccountNumber":null,"accounts":[]}'
         """)
         let task = Task {
-            _ = await ClaudeSwapAccountReader.readVersion(executablePath: path)
-            return try await ClaudeSwapAccountReader.readAccountList(executablePath: path)
+            _ = await self.readVersion(executablePath: path)
+            return try await self.readAccountList(executablePath: path)
         }
 
         try await Task.sleep(for: .milliseconds(100))

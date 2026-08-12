@@ -87,7 +87,7 @@ struct ClaudeWebFetchDeadlineTests {
     }
 
     @Test
-    func `stalled app auto browser probe does not delay CLI success`() async throws {
+    func `stalled user initiated app auto browser probe does not delay CLI success`() async throws {
         let planningProbe = ClaudeWebPlanningAvailabilityProbe()
         let cliPath = try Self.makeLoggedInClaudeCLI()
         defer { try? FileManager.default.removeItem(atPath: cliPath) }
@@ -116,9 +116,8 @@ struct ClaudeWebFetchDeadlineTests {
         let cliFetchOverride: @Sendable (String, TimeInterval, Bool) async throws -> ClaudeStatusSnapshot =
             { _, _, _ in Self.makeClaudeStatus() }
 
-        let outcome = await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            ClaudeCLIBackgroundAvailability.establish(binary: cliPath, environment: context.env)
-            return await KeychainAccessGate.withTaskOverrideForTesting(false) {
+        let outcome = await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            await KeychainAccessGate.withTaskOverrideForTesting(false) {
                 await ClaudeOAuthKeychainPromptPreference.withTaskOverrideForTesting(.always) {
                     await ClaudeWebFetchStrategy.$availabilityProbeOverrideForTesting.withValue(
                         availabilityOverride)
