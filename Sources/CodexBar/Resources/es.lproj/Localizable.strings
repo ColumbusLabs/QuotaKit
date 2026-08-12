@@ -778,6 +778,7 @@
 "requests" = "solicitudes";
 "Latest" = "Último";
 "Monthly" = "Mensual";
+"Monthly quota" = "Mensual";
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticación";
 "Overages" = "Excesos";
@@ -1273,6 +1274,7 @@
 "usage_percent_suffix_used" = "usado";
 "Use Account" = "Usar cuenta";
 "Weekly" = "Semanal";
+"Weekly quota" = "Semanal";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "No se encontró el token de API de z.ai. Define apiKey en ~/.quotakit/config.json o Z_AI_API_KEY.";
 /* Spend dashboard */
 "tab_usage_spend" = "Uso y gasto";

@@ -134,6 +134,9 @@ public enum QuotaProviderList {
         // iOS 1.11.3 upstream-sync catch-up. Append-only to preserve every
         // existing per-provider CloudKit subscription identifier.
         Provider(id: "notion", displayName: "Notion AI"),
+        // iOS full-catalog catch-up. Append-only to preserve every existing
+        // CloudKit subscription identifier.
+        Provider(id: "ibmbob", displayName: "IBM Bob"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

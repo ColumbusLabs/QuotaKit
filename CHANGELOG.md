@@ -29,6 +29,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Copilot: decode the AI credits counter for token-billed seats and expose it in `quotakit diagnose`, so Business seats with zero-entitlement quotas are no longer blank at the data layer (#2613, refs #2593). Thanks @Yuxin-Qiao, and @KSEGIT for the discovery!
 
 ### Changed
+- Synced reviewed CodexBar development through `a90dfed5c`, adding Fireworks and IBM Bob to QuotaKit's complete Mac/iPhone provider catalog, safer Codex cost-cache persistence, quota presentation improvements, and Mac reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit and App Group contracts, and all build numbers.
 - Cost history: add the upstream SQLite `CostUsageStore` foundation and fixture coverage without switching QuotaKit's production cache or iCloud/iPhone summary contract yet.
 - Provider plugins: import the latest Synthetic, Poe, xAI, and z.ai JavaScript parity and sandbox support while retaining QuotaKit's native-default fetchers and typed compatibility payloads for iCloud and iPhone.
 - Provider plugins: add a portable QuickJS engine for Linux and explicit local engine testing while keeping QuotaKit's native provider fetchers as the default where typed compatibility data feeds iCloud and iPhone.

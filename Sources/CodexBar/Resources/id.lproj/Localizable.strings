@@ -909,6 +909,7 @@
 "requests" = "permintaan";
 "Latest" = "Terbaru";
 "Monthly" = "Bulanan";
+"Monthly quota" = "Bulanan";
 "Sonnet" = "Sonnet";
 "Overages" = "Kelebihan";
 "Activity" = "Aktivitas";
@@ -1034,6 +1035,7 @@
 "State" = "Status";
 "Unavailable" = "Tidak tersedia";
 "Weekly" = "Mingguan";
+"Weekly quota" = "Mingguan";
 "not detected" = "tidak terdeteksi";
 "Estimated from local Codex logs for the selected account." = "Diperkirakan dari log Codex lokal untuk akun yang dipilih.";
 "minimax_usage_amount_format" = "Penggunaan: %@ / %@";

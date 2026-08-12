@@ -319,7 +319,7 @@ struct ProviderPluginDetailsParityTests {
         }
         let now = Date(timeIntervalSince1970: 1_786_073_946)
         let swift = try await ZaiUsageFetcher.fetchUsage(apiKey: "fixture-key", environment: [:], transport: transport)
-            .toUsageSnapshot()
+            .toUsageSnapshot(now: now)
         let script = try await ProviderPluginRuntime(bundledPlugin: "zai", transport: transport)
             .fetchUsage(
                 settings: [
@@ -341,6 +341,7 @@ struct ProviderPluginDetailsParityTests {
             Self.section("Quota details", rows: [
                 Self.row("Credit quota", "10% used", "10000 limit · 9000 remaining"),
                 Self.row("Session credit quota", "5% used", "2000 limit · 1900 remaining"),
+                Self.row("Quota rate", "Off-peak", "peak in 2h 21m"),
             ]),
         ])
     }

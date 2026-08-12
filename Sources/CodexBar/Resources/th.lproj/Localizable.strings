@@ -907,6 +907,7 @@
 "requests" = "คําขอ";
 "Latest" = "ล่าสุด";
 "Monthly" = "รายเดือน";
+"Monthly quota" = "รายเดือน";
 "Sonnet" = "โคลง";
 "Overages" = "ส่วนเกิน";
 "Activity" = "กิจกรรม";
@@ -1032,6 +1033,7 @@
 "State" = "สถานะ";
 "Unavailable" = "ไม่พร้อมใช้งาน";
 "Weekly" = "รายสัปดาห์";
+"Weekly quota" = "รายสัปดาห์";
 "not detected" = "ตรวจไม่พบ";
 "Estimated from local Codex logs for the selected account." = "ประมาณการจากบันทึก Codex ท้องถิ่นสําหรับบัญชีที่เลือก";
 "minimax_usage_amount_format" = "การใช้งาน: %@ / %@";

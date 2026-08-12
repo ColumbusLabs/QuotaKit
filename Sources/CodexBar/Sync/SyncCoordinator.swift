@@ -763,7 +763,7 @@ final class SyncCoordinator {
         rateWindows: [SyncRateWindow]) -> String?
     {
         if let error { return error }
-        if provider == .aiand, let providerCost {
+        if provider == .aiand || provider == .fireworks, let providerCost {
             let amount = String(format: "%.2f", providerCost.used)
             let period = providerCost.period ?? "Last 30 days"
             return "\(period) spend: \(providerCost.currencyCode) \(amount)"
@@ -792,6 +792,7 @@ final class SyncCoordinator {
         guard provider != .zenmux,
               provider != .neuralwatt,
               provider != .aiand,
+              provider != .fireworks,
               provider != .xai
         else {
             return nil
@@ -1623,7 +1624,8 @@ final class SyncCoordinator {
              // from their own APIs/local sessions — never via the local
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
-             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion:
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
+             .fireworks, .ibmbob:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

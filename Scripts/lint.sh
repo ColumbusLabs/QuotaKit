@@ -84,7 +84,7 @@ check_codex_parser_hash() {
 
 # Claude parsing is intentionally excluded from the generated Codex producer hash.
 # Keep its cache invalidation contract explicit: semantic scanner changes must bump
-# the Claude artifact version in CostUsageCache.swift.
+# the Claude artifact version in CostUsageClaudeCache.swift.
 audit_claude_parser_version() {
   if [[ "${ALLOW_PARSER_CHANGE:-0}" == "1" ]]; then
     echo "Claude parser-version audit: ALLOW_PARSER_CHANGE=1 → skipping"
@@ -111,14 +111,14 @@ audit_claude_parser_version() {
   fi
 
   local scanner_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageScanner+Claude.swift"
-  local cache_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageCache.swift"
+  local cache_file="Sources/CodexBarCore/Vendored/CostUsage/CostUsageClaudeCache.swift"
   if git -C "$ROOT_DIR" diff --quiet "$base"...HEAD -- "$scanner_file"; then
     echo "Claude parser-version audit: no parser code changes since $base"
     return 0
   fi
 
   if git -C "$ROOT_DIR" diff "$base"...HEAD -- "$cache_file" \
-       | grep -E '^[+-][[:space:]]*case[[:space:]]+\.claude([^[:alnum:]_]|$).*:[[:space:]]*[0-9]+' >/dev/null; then
+       | grep -E '^[+-][[:space:]]*case[[:space:]]+\.claude[[:space:]]*:[[:space:]]*[0-9]+' >/dev/null; then
     echo "Claude parser-version audit: parser code changed AND artifact version bumped — OK"
     return 0
   fi

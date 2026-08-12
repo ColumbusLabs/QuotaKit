@@ -462,7 +462,12 @@ extension CostUsageStore {
 
     private static func reclaimFreePages(_ database: OpaquePointer) throws {
         try self.execute(database, "PRAGMA incremental_vacuum(1000000)")
-        try self.execute(database, "PRAGMA wal_checkpoint(TRUNCATE)")
+        // A checkpoint cannot run inside the save transaction used by the identical-cache
+        // revalidation path (SQLite returns SQLITE_LOCKED). The transaction still reclaims
+        // incremental-vacuum pages atomically; the next autocommit maintenance pass truncates WAL.
+        if sqlite3_get_autocommit(database) != 0 {
+            try self.execute(database, "PRAGMA wal_checkpoint(TRUNCATE)")
+        }
     }
 
     private static func fileSize(at url: URL) -> Int64 {

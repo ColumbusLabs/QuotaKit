@@ -397,6 +397,7 @@
 "Waiting for Authentication..." = "等待認證…";
 "Website" = "網站";
 "Weekly" = "每週";
+"Weekly quota" = "每週";
 "Weekly limit confetti" = "每週重置慶祝動畫";
 "Weekly token limit" = "每週 token 限制";
 "Weekly usage" = "每週使用量";
@@ -773,6 +774,7 @@
 "requests" = "請求";
 "Latest" = "最新";
 "Monthly" = "每月";
+"Monthly quota" = "每月";
 "Sonnet" = "Sonnet";
 "Overages" = "超額";
 "Activity" = "活動";

@@ -44,6 +44,7 @@ public enum ChutesProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "Chutes cost history is not available from QuotaKit." }),
             presentation: ProviderUsagePresentation(
+                primaryBindingQuotaLanes: [.secondary],
                 menuCard: ProviderMenuCardPresentation(
                     showsPrimaryBalanceDescription: true,
                     hidesPrimaryResetWithoutDate: true),

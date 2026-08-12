@@ -938,6 +938,7 @@
 "State" = "Tillstånd";
 "Unavailable" = "Inte tillgänglig";
 "Weekly" = "Vecka";
+"Weekly quota" = "Vecka";
 "not detected" = "inte hittad";
 "Estimated from local Codex logs for the selected account." = "Uppskattat från lokala Codex-loggar för valt konto.";
 "minimax_usage_amount_format" = "Användning: %@ / %@";
@@ -1002,6 +1003,7 @@
 "Claude Admin API 30 day spend trend" = "30-dagars kostnadstrend för Claude Admin API";
 "%@/%@ left" = "%@/%@ kvar";
 "Monthly" = "Månadsvis";
+"Monthly quota" = "Månadsvis";
 "Gemini Flash" = "Gemini Flash";
 "Cost history chart" = "Diagram över kostnadshistorik";
 "Today requests" = "Dagens förfrågningar";

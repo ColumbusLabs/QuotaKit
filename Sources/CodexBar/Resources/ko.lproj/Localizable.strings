@@ -868,6 +868,7 @@
 "requests" = "요청";
 "Latest" = "최신";
 "Monthly" = "월간";
+"Monthly quota" = "월간";
 "Sonnet" = "Sonnet";
 "Overages" = "초과분";
 "Activity" = "활동";
@@ -982,6 +983,7 @@
 "State" = "상태";
 "Unavailable" = "사용할 수 없음";
 "Weekly" = "주간";
+"Weekly quota" = "주간";
 "not detected" = "감지되지 않음";
 "Estimated from local Codex logs for the selected account." = "선택한 계정의 로컬 Codex 로그를 기반으로 추정됨.";
 "minimax_usage_amount_format" = "사용량: %@ / %@";

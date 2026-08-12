@@ -900,6 +900,7 @@
 "requests" = "запити";
 "Latest" = "Останній";
 "Monthly" = "Щомісяця";
+"Monthly quota" = "Щомісяця";
 "Sonnet" = "Сонет";
 "Overages" = "Надлишки";
 "Activity" = "діяльність";
@@ -1015,6 +1016,7 @@
 "State" = "Держава";
 "Unavailable" = "Недоступний";
 "Weekly" = "Щотижня";
+"Weekly quota" = "Щотижня";
 "not detected" = "не виявлено";
 "Estimated from local Codex logs for the selected account." = "Оцінено з локальних журналів Codex для вибраного облікового запису.";
 "minimax_usage_amount_format" = "Використання: %@ / %@";

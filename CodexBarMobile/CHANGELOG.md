@@ -19,6 +19,8 @@ current Columbus Labs product surface and recent release history.
 
 - Kept the model-token dashboard improvements and background-sync reliability
   fixes already included in the 1.11.3 release line.
+- Extended the restored provider presentation, brand assets, and synced-card support
+  to Fireworks and IBM Bob, plus quota-alert coverage for IBM Bob, without changing the release build.
 
 ## [1.11.3 (175)] — 2026-08-04 — Model token usage
 

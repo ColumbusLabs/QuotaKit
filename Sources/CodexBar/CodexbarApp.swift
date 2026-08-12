@@ -139,6 +139,7 @@ struct CodexBarApp: App {
 
     private func openSettings(pane: SettingsPane) {
         self.preferencesSelection.pane = pane
+        DockIconController.shared.promote()
         NSApp.activate(ignoringOtherApps: true)
         let outcome = SettingsWindowOpener.live().open(preferred: .appKit)
         let logger = CodexBarLog.logger(LogCategories.app)
@@ -148,6 +149,7 @@ struct CodexBarApp: App {
         case .fallback:
             logger.warning("Settings AppKit action was not handled; used notification fallback")
         case .failed:
+            DockIconController.shared.presentationFailed()
             logger.error("Failed to open Settings; AppKit action and notification fallback unavailable")
         }
     }
@@ -246,12 +248,13 @@ final class SparkleUpdaterController: NSObject, UpdaterProviding, SPUUpdaterDele
     }
 
     func checkForUpdates(_ sender: Any?) {
+        DockIconController.shared.promote()
         self.controller.checkForUpdates(sender)
     }
 
     func installUpdate() {
         guard let immediateInstallHandler else {
-            self.controller.checkForUpdates(nil)
+            self.checkForUpdates(nil)
             return
         }
 
@@ -393,6 +396,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     let cloudSyncState = CloudSyncState()
     private let confettiOverlayController = ScreenConfettiOverlayController()
     private let confettiLogger = CodexBarLog.logger(LogCategories.confetti)
+    private let dockIconController = DockIconController.shared
     private lazy var memoryPressureMonitor = MemoryPressureMonitor(trimAppCaches: { [weak self] in
         self?.trimRebuildableCachesForMemoryPressure() ?? MemoryPressureCacheTrimSummary()
     })
@@ -428,6 +432,7 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     }
 
     func applicationDidFinishLaunching(_ notification: Notification) {
+        self.dockIconController.start()
         self.memoryPressureMonitor.start()
         #if DEBUG
         self.installDebugMemoryPressureObserverIfNeeded()
