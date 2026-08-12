@@ -80,6 +80,7 @@ extension StatusItemController {
                 window: windows.automatic,
                 now: now),
             runsOut: runsOut,
+            balance: MenuBarLayoutBalanceResolver.balance(provider: provider, snapshot: snapshot),
             costToday: costStrings.today,
             cost30d: costStrings.last30Days)
     }
@@ -145,7 +146,13 @@ extension StatusItemController {
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
             antigravityPrioritizeExhaustedQuotas: self.settings.antigravityPrioritizeExhaustedQuotas,
             now: now)
-        return (semanticWindows.session, semanticWindows.weekly, automatic)
+        return (
+            semanticWindows.session,
+            semanticWindows.weekly,
+            MenuBarLayoutAutomaticWindowDisplayNormalizer.normalized(
+                provider: provider,
+                snapshot: snapshot,
+                window: automatic))
     }
 
     private func setButtonLayoutContent(

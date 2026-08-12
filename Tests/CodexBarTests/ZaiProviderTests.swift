@@ -1232,7 +1232,7 @@ struct ZaiCreditLimitTests {
         #expect(usage.secondary?.windowMinutes == 10080)
 
         let quotaRows = usage.details.first { $0.title == "Quota details" }?.rows ?? []
-        #expect(quotaRows.map(\.label) == ["Credit quota", "Session credit quota"])
+        #expect(quotaRows.map(\.label) == ["Credit quota", "Session credit quota", "Quota rate"])
     }
 
     @Test

@@ -769,6 +769,7 @@
 "requests" = "sol·licituds";
 "Latest" = "Més recent";
 "Monthly" = "Mensual";
+"Monthly quota" = "Mensual";
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticació";
 "Overages" = "Excedents";
@@ -1245,6 +1246,7 @@
 "usage_percent_suffix_left" = "restant";
 "usage_percent_suffix_used" = "usat";
 "Weekly" = "Setmanal";
+"Weekly quota" = "Setmanal";
 "z.ai API token not found. Set apiKey in ~/.codexbar/config.json or Z_AI_API_KEY." = "No s'ha trobat el token d'API de z.ai. Definiu apiKey a ~/.quotakit/config.json o Z_AI_API_KEY.";
 "≈ %d%% run-out risk" = "≈ %d%% risc d'esgotament";
 

@@ -39,6 +39,7 @@ struct MenuBarLayoutRenderData: Hashable {
     let weeklyPace: String?
     let automaticPace: String?
     let runsOut: String?
+    let balance: String?
     let costToday: String?
     let cost30d: String?
 }
@@ -328,6 +329,11 @@ final class MenuBarLayoutRenderer {
             return self.optionalTextToken(
                 data.runsOut,
                 unavailableLabel: L("Run-out estimate unavailable"),
+                attributes: style.attributes)
+        case .balance:
+            return self.optionalTextToken(
+                data.balance,
+                unavailableLabel: L("%@ unavailable", L("Balance")),
                 attributes: style.attributes)
         case .costToday:
             return self.optionalTextToken(

@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (60 after Notion AI catch-up)`() {
+    func `Provider list has expected count (61 after IBM Bob catch-up)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -26,11 +26,11 @@ struct QuotaProviderListTests {
         // same upstream line → 51 after Sub2API → 52 after ZenMux →
         // 54 after ClinePass and LongCat → 55 after Neuralwatt → 56 after
         // DeepInfra, then 58 after Qwen Cloud and ZoomMate, 59 after xAI,
-        // and 60 after Notion AI.
+        // 60 after Notion AI, and 61 after IBM Bob. Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 60)
+        #expect(QuotaProviderList.providers.count == 61)
     }
 
     @Test
@@ -112,7 +112,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 60 × 3 = 180 (depleted + restored + warning)`() {
+    func `iOS subscription count is 61 × 3 = 183 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -130,13 +130,20 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 180)
+        #expect(subscriptionCount == 183)
     }
 
     @Test
     func `Notion AI is registered with the Mac-side displayName`() throws {
         let entry = try #require(QuotaProviderList.providers.first { $0.id == "notion" })
         #expect(entry.displayName == "Notion AI")
+    }
+
+    @Test
+    func `IBM Bob is registered while spend-only Fireworks is excluded`() throws {
+        let ibmBob = try #require(QuotaProviderList.providers.first { $0.id == "ibmbob" })
+        #expect(!QuotaProviderList.providers.contains { $0.id == "fireworks" })
+        #expect(ibmBob.displayName == "IBM Bob")
     }
 
     // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up

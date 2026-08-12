@@ -176,7 +176,7 @@ public struct ZaiUsageSnapshot: Sendable {
 }
 
 extension ZaiUsageSnapshot {
-    public func toUsageSnapshot() -> UsageSnapshot {
+    public func toUsageSnapshot(now: Date = .init()) -> UsageSnapshot {
         let primaryLimit = self.sessionTokenLimit ?? self.tokenLimit ?? self.timeLimit
         let secondaryLimit = self.sessionTokenLimit == nil ? nil : self.tokenLimit
         let primary = primaryLimit.map { Self.rateWindow(for: $0) } ?? RateWindow(
@@ -207,6 +207,9 @@ extension ZaiUsageSnapshot {
             quotaRows.append(Self.detailRow(
                 label: sessionTokenLimit.type == .creditLimit ? "Session credit quota" : "Session token quota",
                 limit: sessionTokenLimit))
+        }
+        if self.tokenLimit?.type == .creditLimit || self.sessionTokenLimit?.type == .creditLimit {
+            quotaRows.append(Self.quotaRateRow(now: now))
         }
         if let timeLimit = self.timeLimit {
             quotaRows.append(Self.detailRow(label: "MCP quota", limit: timeLimit))
@@ -244,6 +247,29 @@ extension ZaiUsageSnapshot {
             label: label,
             value: Self.percentString(limit.usedPercent),
             secondaryValue: secondary.isEmpty ? nil : secondary)
+    }
+
+    private static func quotaRateRow(now: Date) -> ProviderDetailSection.Row {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        let weekday = calendar.component(.weekday, from: now)
+        let hour = calendar.component(.hour, from: now)
+        let isWeekday = weekday >= 2 && weekday <= 6
+        let isPeak = isWeekday && hour >= 6 && hour < 10
+        var boundary = calendar.date(bySettingHour: isPeak ? 10 : 6, minute: 0, second: 0, of: now)!
+        if !isPeak {
+            if hour >= 6 {
+                boundary = calendar.date(byAdding: .day, value: 1, to: boundary)!
+            }
+            while calendar.isDateInWeekend(boundary) {
+                boundary = calendar.date(byAdding: .day, value: 1, to: boundary)!
+            }
+        }
+        let countdown = UsageFormatter.resetCountdownDescription(from: boundary, now: now)
+        return .makeRow(
+            label: "Quota rate",
+            value: isPeak ? "Peak" : "Off-peak",
+            secondaryValue: "\(isPeak ? "off-peak" : "peak") \(countdown)")
     }
 
     private static func modelUsageSection(title: String, data: ZaiModelUsageData) -> ProviderDetailSection {

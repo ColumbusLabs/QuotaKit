@@ -903,6 +903,7 @@
 "requests" = "istek";
 "Latest" = "Son";
 "Monthly" = "Aylık";
+"Monthly quota" = "Aylık";
 "Sonnet" = "Sonnet";
 "Overages" = "Aşmalar";
 "Activity" = "Etkinlik";
@@ -1027,6 +1028,7 @@
 "State" = "Durum";
 "Unavailable" = "Kullanılamıyor";
 "Weekly" = "Haftalık";
+"Weekly quota" = "Haftalık";
 "not detected" = "algılanmadı";
 "Estimated from local Codex logs for the selected account." = "Seçili hesap için yerel Codex günlüklerinden tahmin edildi.";
 "minimax_usage_amount_format" = "Kullanım: %@ / %@";

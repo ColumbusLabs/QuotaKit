@@ -158,7 +158,7 @@ struct QuotaTransitionSubscriptionsTests {
 
     @Test
     @MainActor
-    func `restored reconciliation expands build 176 subscriptions from 12 to 180 without data loss`() async throws {
+    func `restored reconciliation expands build 176 subscriptions from 12 to 183 without data loss`() async throws {
         let build176ProviderIDs = ["codex", "claude", "cursor", "grok"]
         let states = ["depleted", "restored", "warning"]
         let build176Managed = try build176ProviderIDs.flatMap { providerID in
@@ -203,17 +203,17 @@ struct QuotaTransitionSubscriptionsTests {
             CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
         ]
 
-        #expect(allManagedIDs.count == 180)
+        #expect(allManagedIDs.count == 183)
         #expect(database.savedSubscriptionBatches.count == 1)
-        #expect(database.savedSubscriptionBatches.first?.count == 168)
-        #expect(savedIDs.count == 168)
+        #expect(database.savedSubscriptionBatches.first?.count == 171)
+        #expect(savedIDs.count == 171)
         #expect(savedIDs == allManagedIDs.subtracting(build176ManagedIDs))
         #expect(deletedIDs == expectedLegacyCleanupIDs)
         #expect(deletedIDs.isDisjoint(with: build176ManagedIDs))
         #expect(!deletedIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
         #expect(!deletedIDs.contains("unrelated-subscription"))
-        #expect(finalIDs.count == 182)
-        #expect(finalIDs.intersection(allManagedIDs).count == 180)
+        #expect(finalIDs.count == 185)
+        #expect(finalIDs.intersection(allManagedIDs).count == 183)
         #expect(finalIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
         #expect(finalIDs.contains("unrelated-subscription"))
     }
@@ -232,8 +232,8 @@ struct QuotaTransitionSubscriptionsTests {
                 providerIDs: QuotaProviderList.providers.map(\.id)))
         #expect(database.savedZoneBatches.count == 1)
         #expect(database.savedSubscriptionBatches.count == 1)
-        #expect(database.savedSubscriptionBatches.first?.count == 180)
-        #expect(finalManagedIDs.count == 180)
+        #expect(database.savedSubscriptionBatches.first?.count == 183)
+        #expect(finalManagedIDs.count == 183)
     }
 
     @Test

@@ -902,6 +902,7 @@
 "requests" = "запросы";
 "Latest" = "Последние";
 "Monthly" = "Ежемесячно";
+"Monthly quota" = "Ежемесячно";
 "Sonnet" = "Sonnet";
 "Overages" = "Перерасходы";
 "Activity" = "Активность";
@@ -1020,6 +1021,7 @@
 "State" = "Состояние";
 "Unavailable" = "Недоступно";
 "Weekly" = "Недельный";
+"Weekly quota" = "Недельный";
 "not detected" = "не обнаружено";
 "Estimated from local Codex logs for the selected account." = "Оценено на основе локальных журналов Codex для выбранного аккаунта.";
 "minimax_usage_amount_format" = "Использование: %@ / %@";

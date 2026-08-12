@@ -897,6 +897,7 @@
 "requests" = "リクエスト";
 "Latest" = "最新";
 "Monthly" = "月間";
+"Monthly quota" = "月間";
 "Sonnet" = "Sonnet";
 "Overages" = "超過分";
 "Activity" = "アクティビティ";
@@ -1012,6 +1013,7 @@
 "State" = "状態";
 "Unavailable" = "利用不可";
 "Weekly" = "週間";
+"Weekly quota" = "週間";
 "not detected" = "未検出";
 "Estimated from local Codex logs for the selected account." = "選択したアカウントのローカル Codex ログから推定しています。";
 "minimax_usage_amount_format" = "使用量: %@ / %@";

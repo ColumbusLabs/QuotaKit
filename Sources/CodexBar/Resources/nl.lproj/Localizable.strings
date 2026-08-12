@@ -900,6 +900,7 @@
 "requests" = "verzoeken";
 "Latest" = "Nieuwste";
 "Monthly" = "Maandelijks";
+"Monthly quota" = "Maandelijks";
 "Sonnet" = "Sonnet";
 "Overages" = "Overschotten";
 "Activity" = "Activiteit";
@@ -1015,6 +1016,7 @@
 "State" = "Staat";
 "Unavailable" = "Niet beschikbaar";
 "Weekly" = "Wekelijks";
+"Weekly quota" = "Wekelijks";
 "not detected" = "niet gedetecteerd";
 "Estimated from local Codex logs for the selected account." = "Geschat op basis van lokale Codex-logboeken voor het geselecteerde account.";
 "minimax_usage_amount_format" = "Gebruik: %@ / %@";

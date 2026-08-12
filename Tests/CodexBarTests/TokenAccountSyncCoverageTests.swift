@@ -36,7 +36,7 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains the 27 providers known after OpenRouter and DeepInfra sync`() {
+    func `Catalog contains the 28 providers known after IBM Bob sync`() {
         // v0.33.0 baseline — 22 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -47,7 +47,7 @@ struct TokenAccountSyncCoverageTests {
         //   Upstream Qoder sync added Qoder as a cookie/API-key provider.
         //   Upstream Sub2API sync added Sub2API as an API-key provider.
         //   Upstream Neuralwatt sync added Neuralwatt as an API-key provider.
-        //   This upstream sync added OpenRouter and DeepInfra API-key accounts.
+        //   This upstream sync added OpenRouter, DeepInfra, and IBM Bob API-key accounts.
         // If this count changes (up or down), confirm the catalog change
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
@@ -68,7 +68,7 @@ struct TokenAccountSyncCoverageTests {
             // Neuralwatt sync addition
             "neuralwatt",
             // Current upstream additions
-            "openrouter", "deepinfra",
+            "openrouter", "deepinfra", "ibmbob",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)

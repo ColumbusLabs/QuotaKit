@@ -399,6 +399,7 @@
 "Waiting for Authentication..." = "等待认证…";
 "Website" = "网站";
 "Weekly" = "每周";
+"Weekly quota" = "每周";
 "Weekly limit confetti" = "每周限制彩纸";
 "Weekly token limit" = "每周 token 限制";
 "Weekly usage" = "每周用量";
@@ -870,6 +871,7 @@
 "requests" = "请求";
 "Latest" = "最新";
 "Monthly" = "每月";
+"Monthly quota" = "每月";
 "Sonnet" = "Sonnet";
 "Overages" = "超额";
 "Activity" = "活动";

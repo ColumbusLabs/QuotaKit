@@ -907,6 +907,7 @@
 "requests" = "درخواست ها";
 "Latest" = "جدیدترین ها";
 "Monthly" = "ماهانه";
+"Monthly quota" = "ماهانه";
 "Sonnet" = "سونت";
 "Overages" = "اضافه هزینه ها";
 "Activity" = "فعالیت ها";
@@ -1032,6 +1033,7 @@
 "State" = "ایالت";
 "Unavailable" = "در دسترس نیست";
 "Weekly" = "هفتگی";
+"Weekly quota" = "هفتگی";
 "not detected" = "شناسایی نشد";
 "Estimated from local Codex logs for the selected account." = "برآورد شده از لاگ های محلی Codex حساب انتخاب شده.";
 "minimax_usage_amount_format" = "استفاده: %@ / %@";

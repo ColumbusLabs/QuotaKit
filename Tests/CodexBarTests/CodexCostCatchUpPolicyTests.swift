@@ -16,6 +16,23 @@ struct CodexCostCatchUpPolicyTests {
     }
 
     @Test
+    func `automatic mode targets fifteen percent duty cycle for unknown power`() {
+        let decision = CodexCostCatchUpPolicy().decision(for: .init(
+            mode: .automatic,
+            previousActiveDuration: 2,
+            powerSource: .unknown,
+            lowPowerModeEnabled: false,
+            thermalState: .nominal))
+
+        guard case let .runAfter(delay) = decision.action else {
+            Issue.record("Expected automatic catch-up to schedule another pass")
+            return
+        }
+        #expect(abs(delay - (34.0 / 3.0)) < 0.000_001)
+        #expect(decision.targetDutyCycle == 0.15)
+    }
+
+    @Test
     func `automatic mode targets five percent duty cycle on battery`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,

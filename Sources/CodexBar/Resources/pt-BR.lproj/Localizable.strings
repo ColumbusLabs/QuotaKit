@@ -897,6 +897,7 @@
 "requests" = "requisições";
 "Latest" = "Mais recente";
 "Monthly" = "Mensal";
+"Monthly quota" = "Mensal";
 "Sonnet" = "Sonnet";
 "Overages" = "Excedentes";
 "Activity" = "Atividade";
@@ -1012,6 +1013,7 @@
 "State" = "Estado";
 "Unavailable" = "Indisponível";
 "Weekly" = "Semanal";
+"Weekly quota" = "Semanal";
 "not detected" = "não detectado";
 "Estimated from local Codex logs for the selected account." = "Estimado a partir de logs locais do Codex para a conta selecionada.";
 "minimax_usage_amount_format" = "Uso: %@ / %@";

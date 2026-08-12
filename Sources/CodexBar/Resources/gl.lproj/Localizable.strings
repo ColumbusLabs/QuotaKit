@@ -758,6 +758,7 @@
 "requests" = "solicitudes";
 "Latest" = "Máis recente";
 "Monthly" = "Mensual";
+"Monthly quota" = "Mensual";
 "Sonnet" = "Sonnet";
 "Auth" = "Autenticación";
 "Overages" = "Excesos";
@@ -1202,6 +1203,7 @@
 "Updated relative %@" = "Actualizado %@";
 "Usage Dashboard" = "Panel de uso";
 "Weekly" = "Semanal";
+"Weekly quota" = "Semanal";
 "just now" = "agora mesmo";
 "login_success_notification_body" = "Podes volver á aplicación; a autenticación rematou.";
 "login_success_notification_title" = "Inicio de sesión en %@ correcto";
