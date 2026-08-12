@@ -93,8 +93,13 @@ public enum CursorProviderDescriptor {
                 name: "cursor",
                 versionDetector: nil,
                 supportsCostCommand: self.supportsCostCommand,
-                browserSupportExemption: { _, _, _ in
+                browserSupportExemption: { _, _, settings in
+                    #if os(Linux)
+                    // Linux uses Cursor app auth and manual cookies; browser import remains macOS-only.
+                    settings?.cursor?.cookieSource != .off
+                    #else
                     false
+                    #endif
                 }))
     }
 

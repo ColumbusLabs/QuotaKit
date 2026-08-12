@@ -5,17 +5,28 @@ import Testing
 
 struct SpendDashboardModelTests {
     @Test
-    func `count labels use stable English copy`() {
-        #expect(spendDashboardRefreshFailureText(1) == "Refresh failures: 1")
-        #expect(spendDashboardRefreshFailureText(2) == "Refresh failures: 2")
-        #expect(spendDashboardCoverageText(covered: 3, requested: 7) == "Coverage: 3 / 7")
-        #expect(spendDashboardDayRangeText(7) == "7d")
-        #expect(spendDashboardDayRangeText(30) == "30d")
-        #expect(spendDashboardRankText(1234) == "#1,234")
+    func `count labels avoid plural agreement and localize numbers`() {
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(spendDashboardRefreshFailureText(1) == "Refresh failures: 1")
+            #expect(spendDashboardRefreshFailureText(2) == "Refresh failures: 2")
+            #expect(spendDashboardCoverageText(covered: 3, requested: 7) == "Coverage: 3 / 7")
+        }
+        CodexBarLocalizationOverride.$appLanguage.withValue("de") {
+            #expect(spendDashboardRefreshFailureText(1234) == "Fehlgeschlagene Aktualisierungen: 1.234")
+            #expect(spendDashboardCoverageText(covered: 3, requested: 30) == "Abdeckung: 3 / 30")
+        }
+        CodexBarLocalizationOverride.$appLanguage.withValue("fa") {
+            #expect(codexBarLocalizedInteger(12) == "۱۲")
+            #expect(spendDashboardDayRangeText(7) == "۷ روز")
+            #expect(spendDashboardDayRangeText(30) == "۳۰ روز")
+            #expect(spendDashboardRankText(1234) == "#۱٬۲۳۴")
+            #expect(spendDashboardRefreshFailureText(2) == "\(L("Refresh failures")): ۲")
+            #expect(spendDashboardCoverageText(covered: 3, requested: 30) == "پوشش: ۳ / ۳۰")
+        }
     }
 
     @Test
-    func `Codex account indices use English numerals`() throws {
+    func `Codex account indices use app locale numerals`() throws {
         let home = FileManager.default.temporaryDirectory
             .appendingPathComponent("SpendDashboardModelTests-index-locale-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: home, withIntermediateDirectories: true)
@@ -31,14 +42,25 @@ struct SpendDashboardModelTests {
             canReauthenticate: true,
             canRemove: true)
 
-        let displayName = SpendDashboardSource.codexRequest(
-            account: account,
-            homePath: home.path,
-            providerName: "Codex",
-            index: 1,
-            count: 2)?.displayName
+        let persian = CodexBarLocalizationOverride.$appLanguage.withValue("fa") {
+            SpendDashboardSource.codexRequest(
+                account: account,
+                homePath: home.path,
+                providerName: "Codex",
+                index: 1,
+                count: 2)?.displayName
+        }
+        let arabic = CodexBarLocalizationOverride.$appLanguage.withValue("ar") {
+            SpendDashboardSource.codexRequest(
+                account: account,
+                homePath: home.path,
+                providerName: "Codex",
+                index: 1,
+                count: 2)?.displayName
+        }
 
-        #expect(displayName == "Codex · #2")
+        #expect(persian == "Codex · #۲")
+        #expect(arabic == "Codex · #٢")
     }
 
     @Test
@@ -46,7 +68,7 @@ struct SpendDashboardModelTests {
         let providers = Set(ProviderDescriptorRegistry.all
             .filter(\.tokenCost.supportsTokenCost)
             .map(\.id))
-        #expect(providers == [.codex, .claude, .cursor])
+        #expect(providers == [.codex, .claude, .vertexai, .openai, .mistral, .bedrock, .cursor, .opencodego])
     }
 
     @Test
@@ -54,7 +76,7 @@ struct SpendDashboardModelTests {
         let model = SpendDashboardModel.build(
             inputs: [
                 Self.input(id: "usd-low", provider: .claude, currency: "usd", cost: 2),
-                Self.input(id: "eur", provider: .cursor, currency: "EUR", cost: 100),
+                Self.input(id: "eur", provider: .openai, currency: "EUR", cost: 100),
                 Self.input(id: "usd-high", provider: .codex, currency: "USD", cost: 8),
             ],
             requestedDays: 30,
@@ -364,7 +386,7 @@ struct SpendDashboardModelTests {
                 Self.entry(day: "2026-06-31", cost: 99),
             ]))
         let hugeA = Self.input(id: "huge-a", provider: .codex, currency: "USD", cost: .greatestFiniteMagnitude)
-        let hugeB = Self.input(id: "huge-b", provider: .grok, currency: "USD", cost: .greatestFiniteMagnitude)
+        let hugeB = Self.input(id: "huge-b", provider: .openai, currency: "USD", cost: .greatestFiniteMagnitude)
         let group = try #require(SpendDashboardModel.build(
             inputs: [invalid, hugeA, hugeB],
             requestedDays: 30,
@@ -466,7 +488,7 @@ struct SpendDashboardModelTests {
                 ])),
             SpendDashboardModel.ProviderInput(
                 id: "nonfinite",
-                provider: .cursor,
+                provider: .openai,
                 displayName: "Nonfinite",
                 snapshot: Self.snapshot(currency: "USD", entries: [
                     Self.entry(day: "2026-07-16", cost: 1, tokens: 1),
@@ -474,7 +496,7 @@ struct SpendDashboardModelTests {
                 ])),
             SpendDashboardModel.ProviderInput(
                 id: "overflow",
-                provider: .grok,
+                provider: .mistral,
                 displayName: "Overflow",
                 snapshot: Self.snapshot(currency: "USD", entries: [
                     Self.entry(day: "2026-07-16", cost: .greatestFiniteMagnitude, tokens: .max),
@@ -644,7 +666,7 @@ struct SpendDashboardModelTests {
                 Self.entry(day: "2026-07-16", cost: .greatestFiniteMagnitude),
                 Self.entry(day: "2026-07-16", cost: .greatestFiniteMagnitude),
             ]))
-        let complete = Self.input(id: "complete", provider: .cursor, currency: "USD", cost: 3)
+        let complete = Self.input(id: "complete", provider: .openai, currency: "USD", cost: 3)
         let group = try #require(SpendDashboardModel.build(
             inputs: [missing, overflow, complete],
             requestedDays: 7,

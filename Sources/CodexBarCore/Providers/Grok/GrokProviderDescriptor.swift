@@ -28,7 +28,7 @@ public enum GrokProviderDescriptor {
                 toggleTitle: "Show Grok usage",
                 cliName: "grok",
                 defaultEnabled: false,
-                widgetSelectable: true,
+                widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Grok debug log not yet implemented",

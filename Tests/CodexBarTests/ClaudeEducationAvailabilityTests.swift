@@ -47,6 +47,8 @@ struct ClaudeEducationAvailabilityTests {
                     settings.statusChecksEnabled = false
                     settings.claudeUsageDataSource = .cli
                     settings.claudeOAuthKeychainPromptMode = .never
+                    settings.providerDetectionCompleted = true
+
                     let metadata = ProviderRegistry.shared.metadata
                     for provider in UsageProvider.allCases {
                         try settings.setProviderEnabled(

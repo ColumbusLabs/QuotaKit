@@ -5,9 +5,11 @@ import FoundationNetworking
 import SweetCookieKit
 #if canImport(SQLite3)
 import SQLite3
+#elseif canImport(CSQLite3)
+import CSQLite3
 #endif
 
-#if os(macOS)
+#if os(macOS) || os(Linux)
 
 #if os(macOS)
 private let cursorCookieImportOrder: BrowserCookieImportOrder =
@@ -466,6 +468,19 @@ struct CursorAppAuthStore: CursorAppAuthSessionProviding {
         _ = environment
         _ = fileManager
         return "\(home)/Library/Application Support/Cursor/User/globalStorage/state.vscdb"
+        #elseif os(Linux)
+        let configHome = environment[CodexBarConfigStore.xdgConfigHomeEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+        let expandedConfigHome = configHome.map { ($0 as NSString).expandingTildeInPath }
+        let base: String = if let expandedConfigHome,
+                              !expandedConfigHome.isEmpty,
+                              (expandedConfigHome as NSString).isAbsolutePath
+        {
+            expandedConfigHome
+        } else {
+            "\(home)/.config"
+        }
+        return "\(base)/Cursor/User/globalStorage/state.vscdb"
         #else
         _ = home
         _ = environment
@@ -919,7 +934,7 @@ public actor CursorSessionStore {
             return
         }
         // These are Cursor auth session cookies. Write them owner-only (0600) with the permission
-        // established before any bytes land, matching the Codex credential store;
+        // established before any bytes land, matching the codex/kimi/antigravity credential stores;
         // a plain Data.write leaves them world-readable (0644).
         try? CredentialFileWriter.writePrivate(data, to: self.fileURL)
     }

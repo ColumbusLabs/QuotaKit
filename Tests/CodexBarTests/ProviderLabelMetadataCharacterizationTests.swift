@@ -29,7 +29,7 @@ struct ProviderLabelMetadataCharacterizationTests {
         // Allowlist of providers known to have empty weeklyLabel on current main.
         // If a new provider is added with empty weeklyLabel, this test fails and
         // requires a deliberate decision to add it here — preventing silent regressions.
-        let knownEmptyWeeklyLabelProviders: Set<UsageProvider> = []
+        let knownEmptyWeeklyLabelProviders: Set<UsageProvider> = [.mistral]
         for descriptor in ProviderDescriptorRegistry.all where descriptor.metadata.weeklyLabel.isEmpty {
             #expect(
                 knownEmptyWeeklyLabelProviders.contains(descriptor.id),

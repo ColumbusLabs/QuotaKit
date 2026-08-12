@@ -61,6 +61,7 @@ struct WidgetSnapshotTestIsolationTests {
 
     private static func makeStore(suite: String, widgetSnapshotURL: URL? = nil) -> UsageStore {
         let settings = testSettingsStore(suiteName: "WidgetSnapshotTestIsolationTests-\(suite)")
+        settings.providerDetectionCompleted = true
         return UsageStore(
             fetcher: UsageFetcher(environment: [:]),
             browserDetection: BrowserDetection(cacheTTL: 0),

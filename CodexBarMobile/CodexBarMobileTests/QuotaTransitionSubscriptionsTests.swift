@@ -1,6 +1,61 @@
 import CloudKit
+import CodexBarSync
+import Foundation
 import Testing
 @testable import CodexBarMobile
+
+@MainActor
+private final class InMemoryQuotaTransitionSubscriptionDatabase:
+    QuotaTransitionSubscriptionDatabase
+{
+    enum StubError: Error {
+        case zoneModificationFailed
+    }
+
+    private(set) var subscriptionsByID: [CKSubscription.ID: CKSubscription]
+    private(set) var deletedSubscriptionIDs: [CKSubscription.ID] = []
+    private(set) var savedSubscriptionBatches: [[CKSubscription]] = []
+    private(set) var deletedSubscriptionBatches: [[CKSubscription.ID]] = []
+    private(set) var savedZoneBatches: [[CKRecordZone]] = []
+    var zoneModificationError: Error?
+
+    init(existingSubscriptions: [CKSubscription] = []) {
+        self.subscriptionsByID = Dictionary(
+            uniqueKeysWithValues: existingSubscriptions.map {
+                ($0.subscriptionID, $0)
+            })
+    }
+
+    func deleteSubscription(withID subscriptionID: CKSubscription.ID) async throws {
+        self.deletedSubscriptionIDs.append(subscriptionID)
+        self.subscriptionsByID.removeValue(forKey: subscriptionID)
+    }
+
+    func modifyRecordZones(saving zonesToSave: [CKRecordZone]) async throws {
+        self.savedZoneBatches.append(zonesToSave)
+        if let zoneModificationError {
+            throw zoneModificationError
+        }
+    }
+
+    func allSubscriptions() async throws -> [CKSubscription] {
+        Array(self.subscriptionsByID.values)
+    }
+
+    func modifySubscriptions(
+        saving subscriptionsToSave: [CKSubscription],
+        deleting subscriptionIDsToDelete: [CKSubscription.ID]) async throws
+    {
+        self.savedSubscriptionBatches.append(subscriptionsToSave)
+        self.deletedSubscriptionBatches.append(subscriptionIDsToDelete)
+        for subscription in subscriptionsToSave {
+            self.subscriptionsByID[subscription.subscriptionID] = subscription
+        }
+        for subscriptionID in subscriptionIDsToDelete {
+            self.subscriptionsByID.removeValue(forKey: subscriptionID)
+        }
+    }
+}
 
 /// Pins the `CKSubscription.NotificationInfo` payload used by every quota
 /// transition subscription. The `shouldSendMutableContent = true` bit in
@@ -11,6 +66,45 @@ import Testing
 /// test fails, all quota push body / title rewrites are dead.
 @Suite("Quota transition subscriptions")
 struct QuotaTransitionSubscriptionsTests {
+    private func makeValidManagedSubscription(
+        providerID: String,
+        state: String) throws -> CKRecordZoneSubscription
+    {
+        let provider = try #require(QuotaProviderList.providers.first {
+            $0.id == providerID
+        })
+        let template = switch state {
+        case "depleted": String(localized: "Push.QuotaDepleted.bodyWithProvider")
+        case "restored": String(localized: "Push.QuotaRestored.bodyWithProvider")
+        case "warning": String(localized: "Push.QuotaWarning.bodyWithProvider")
+        default: ""
+        }
+        let body = String(format: template, provider.displayName)
+        let zoneID = CKRecordZone.ID(
+            zoneName: QuotaProviderList.quotaZoneName(
+                providerID: providerID,
+                state: state),
+            ownerName: CKCurrentUserDefaultName)
+        let subscription = CKRecordZoneSubscription(
+            zoneID: zoneID,
+            subscriptionID: "quota-\(providerID)-\(state)-sub")
+        subscription.recordType = CloudSyncConstants.quotaTransitionRecordType
+        subscription.notificationInfo = QuotaTransitionSubscriptions.makeNotificationInfo(
+            alertBody: body)
+        return subscription
+    }
+
+    private func makeZoneSubscription(
+        zoneName: String,
+        subscriptionID: CKSubscription.ID) -> CKRecordZoneSubscription
+    {
+        CKRecordZoneSubscription(
+            zoneID: CKRecordZone.ID(
+                zoneName: zoneName,
+                ownerName: CKCurrentUserDefaultName),
+            subscriptionID: subscriptionID)
+    }
+
     @Test
     func `notification info sets alertBody from input`() {
         let info = QuotaTransitionSubscriptions.makeNotificationInfo(
@@ -63,41 +157,102 @@ struct QuotaTransitionSubscriptionsTests {
     }
 
     @Test
-    func `retired subscription tombstones cover exactly 168 old IDs`() {
-        let ids = QuotaTransitionSubscriptions.retiredSubscriptionIDs
+    @MainActor
+    func `restored reconciliation expands build 176 subscriptions from 12 to 180 without data loss`() async throws {
+        let build176ProviderIDs = ["codex", "claude", "cursor", "grok"]
+        let states = ["depleted", "restored", "warning"]
+        let build176Managed = try build176ProviderIDs.flatMap { providerID in
+            try states.map { state in
+                try self.makeValidManagedSubscription(
+                    providerID: providerID,
+                    state: state)
+            }
+        }
+        #expect(build176Managed.count == 12)
 
-        #expect(ids.count == 168)
-        #expect(Set(ids).count == 168)
-        #expect(ids.contains("quota-perplexity-depleted-sub"))
-        #expect(ids.contains("quota-notion-warning-sub"))
-        #expect(!ids.contains("quota-codex-depleted-sub"))
-        #expect(!ids.contains("quota-claude-restored-sub"))
-        #expect(!ids.contains("quota-cursor-warning-sub"))
-        #expect(!ids.contains("quota-grok-warning-sub"))
+        let silentSubscription = self.makeZoneSubscription(
+            zoneName: CloudSyncConstants.providerZoneName,
+            subscriptionID: DeviceProviderZoneSubscription.subscriptionID)
+        let silentInfo = CKSubscription.NotificationInfo()
+        silentInfo.shouldSendContentAvailable = true
+        silentSubscription.notificationInfo = silentInfo
+        let unrelatedSubscription = self.makeZoneSubscription(
+            zoneName: "UnrelatedZone",
+            subscriptionID: "unrelated-subscription")
+        let database = InMemoryQuotaTransitionSubscriptionDatabase(
+            existingSubscriptions: build176Managed + [
+                silentSubscription,
+                unrelatedSubscription,
+            ])
+
+        await QuotaTransitionSubscriptions.shared.setupIfNeeded(using: database)
+
+        let allManagedIDs = Set(QuotaTransitionSubscriptions.managedSubscriptionIDs(
+            providerIDs: QuotaProviderList.providers.map(\.id)))
+        let build176ManagedIDs = Set(build176Managed.map(\.subscriptionID))
+        let savedIDs = Set(database.savedSubscriptionBatches.flatMap {
+            $0.map(\.subscriptionID)
+        })
+        let deletedIDs = Set(
+            database.deletedSubscriptionIDs
+                + database.deletedSubscriptionBatches.flatMap(\.self))
+        let finalIDs = Set(database.subscriptionsByID.keys)
+        let expectedLegacyCleanupIDs: Set<CKSubscription.ID> = [
+            CloudSyncConstants.quotaTransitionLegacySubscriptionID,
+            CloudSyncConstants.quotaTransitionDepletedSubscriptionID,
+            CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
+        ]
+
+        #expect(allManagedIDs.count == 180)
+        #expect(database.savedSubscriptionBatches.count == 1)
+        #expect(database.savedSubscriptionBatches.first?.count == 168)
+        #expect(savedIDs.count == 168)
+        #expect(savedIDs == allManagedIDs.subtracting(build176ManagedIDs))
+        #expect(deletedIDs == expectedLegacyCleanupIDs)
+        #expect(deletedIDs.isDisjoint(with: build176ManagedIDs))
+        #expect(!deletedIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
+        #expect(!deletedIDs.contains("unrelated-subscription"))
+        #expect(finalIDs.count == 182)
+        #expect(finalIDs.intersection(allManagedIDs).count == 180)
+        #expect(finalIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
+        #expect(finalIDs.contains("unrelated-subscription"))
     }
 
     @Test
-    func `cleanup selects retired and legacy IDs but preserves live and unrelated subscriptions`() {
-        let retiredID = "quota-perplexity-warning-sub"
-        let legacyID = "legacy-quota-sub"
-        let ids = QuotaTransitionSubscriptions.subscriptionIDsToDelete(
-            existingIDs: [
-                retiredID,
-                legacyID,
-                "quota-codex-warning-sub",
-                "device-provider-zone-sub",
-            ],
-            legacyIDs: [legacyID])
+    @MainActor
+    func `zone creation failure fails soft and still restores subscriptions`() async {
+        let database = InMemoryQuotaTransitionSubscriptionDatabase()
+        database.zoneModificationError =
+            InMemoryQuotaTransitionSubscriptionDatabase.StubError.zoneModificationFailed
 
-        #expect(ids == [retiredID, legacyID])
+        await QuotaTransitionSubscriptions.shared.setupIfNeeded(using: database)
+
+        let finalManagedIDs = Set(database.subscriptionsByID.keys).intersection(
+            QuotaTransitionSubscriptions.managedSubscriptionIDs(
+                providerIDs: QuotaProviderList.providers.map(\.id)))
+        #expect(database.savedZoneBatches.count == 1)
+        #expect(database.savedSubscriptionBatches.count == 1)
+        #expect(database.savedSubscriptionBatches.first?.count == 180)
+        #expect(finalManagedIDs.count == 180)
     }
 
     @Test
-    func `notification plan always enables sync and quota alerts`() {
-        let plan = NotificationSetupPlanner.plan()
+    func `locked Pro notification plan keeps silent sync and removes quota alerts`() {
+        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: false)
+
+        #expect(plan.shouldSetupSilentSync)
+        #expect(!plan.shouldRequestAlertPermission)
+        #expect(!plan.shouldSetupQuotaAlerts)
+        #expect(plan.shouldRemoveQuotaAlerts)
+    }
+
+    @Test
+    func `unlocked Pro notification plan keeps silent sync and creates quota alerts`() {
+        let plan = ProNotificationSetupPlanner.plan(isProUnlocked: true)
 
         #expect(plan.shouldSetupSilentSync)
         #expect(plan.shouldRequestAlertPermission)
         #expect(plan.shouldSetupQuotaAlerts)
+        #expect(!plan.shouldRemoveQuotaAlerts)
     }
 }

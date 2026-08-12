@@ -9,6 +9,21 @@ struct CookieHeaderCacheTests {
     }
 
     @Test
+    func `default test legacy cache path is isolated from production application support`() throws {
+        let legacyURL = CookieHeaderCache.withLegacyBaseURLOverrideForTesting(nil) {
+            CookieHeaderCache.legacyURLForTesting(provider: .codex)
+        }
+        let applicationSupport = try #require(
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first)
+        let productionBase = applicationSupport
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .standardizedFileURL
+
+        #expect(legacyURL.standardizedFileURL.path.hasPrefix(productionBase.path) == false)
+        #expect(legacyURL.path.contains("CodexBarTests-\(getpid())-"))
+    }
+
+    @Test
     func `stores and loads entry`() {
         KeychainCacheStore.setTestStoreForTesting(true)
         defer { KeychainCacheStore.setTestStoreForTesting(false) }
@@ -290,7 +305,7 @@ struct CookieHeaderCacheTests {
                 scope: .managedAccount(codexAccount),
                 cookieHeader: "auth=codex-account",
                 sourceLabel: "Safari")
-            CookieHeaderCache.store(provider: .grok, cookieHeader: "grok=web", sourceLabel: "Chrome")
+            CookieHeaderCache.store(provider: .perplexity, cookieHeader: "pplx=web", sourceLabel: "Chrome")
 
             let cleared = CookieHeaderCache.clearAllScopesDetailed(provider: .claude)
 
@@ -300,7 +315,7 @@ struct CookieHeaderCacheTests {
             #expect(CookieHeaderCache.load(provider: .codex)?.cookieHeader == "auth=codex-global")
             #expect(CookieHeaderCache.load(provider: .codex, scope: .managedAccount(codexAccount))?
                 .cookieHeader == "auth=codex-account")
-            #expect(CookieHeaderCache.load(provider: .grok)?.cookieHeader == "grok=web")
+            #expect(CookieHeaderCache.load(provider: .perplexity)?.cookieHeader == "pplx=web")
         }
     }
 
@@ -613,9 +628,7 @@ struct CookieHeaderCacheTests {
             var retried: CookieHeaderCache.Entry?
             for _ in 0..<500 {
                 retried = CookieHeaderCache.loadForDisplay(provider: provider)
-                if retried != nil {
-                    break
-                }
+                if retried != nil { break }
                 try await Task.sleep(for: .milliseconds(10))
             }
             #expect(retried?.cookieHeader == "auth=available-after-retry")

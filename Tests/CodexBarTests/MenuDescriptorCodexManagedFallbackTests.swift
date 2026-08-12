@@ -13,7 +13,21 @@ struct MenuDescriptorCodexManagedFallbackTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
         settings.statusChecksEnabled = false
 
         let ambientHome = FileManager.default.temporaryDirectory.appendingPathComponent(
@@ -75,7 +89,21 @@ struct MenuDescriptorCodexManagedFallbackTests {
 
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
         settings.statusChecksEnabled = false
 
         let fetcher = UsageFetcher()

@@ -90,9 +90,7 @@ struct CostDashboardInsights {
         // Drop extinct mock zombies before aggregation so the Cost
         // dashboard's totals don't include them. iOS 1.5.2+: see
         // `MockProviderDetector.extinctMockProviderIDs`.
-        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot).filter {
-            QuotaKitProviderCatalog.contains($0.providerID)
-        }
+        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
         for provider in liveProviders {
             if let budget = provider.budget {
                 budgetRows.append(CostBudgetRow(provider: provider, budget: budget))
@@ -199,9 +197,7 @@ struct CostDashboardInsights {
         snapshot: SyncedUsageSnapshot) -> CostDashboardInsights
     {
         let todayKey = Self.dayKeyFormatter.string(from: Date())
-        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot).filter {
-            QuotaKitProviderCatalog.contains($0.providerID)
-        }
+        let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
 
         var providerRows: [ProviderRow] = []
         for rollup in aggregation.providerRollups.values {

@@ -19,7 +19,9 @@ struct StatusMenuCodexSwitcherTests {
         let configStore = testConfigStore(suiteName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: configStore)
+            configStore: configStore,
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private func makeStatusBarForTesting() -> NSStatusBar {
@@ -1316,9 +1318,7 @@ private actor BlockingStatusMenuCodexFetchStrategy {
     }
 
     func waitForStartCount(_ count: Int) async {
-        if self.startCount >= count {
-            return
-        }
+        if self.startCount >= count { return }
         await withCheckedContinuation { continuation in
             self.startedWaiters.append((count, continuation))
         }
@@ -1351,9 +1351,7 @@ private actor BlockingManagedCodexLoginRunnerForStatusMenuTests: ManagedCodexLog
     }
 
     func waitUntilStarted() async {
-        if self.didStart {
-            return
-        }
+        if self.didStart { return }
         await withCheckedContinuation { continuation in
             self.startedWaiters.append(continuation)
         }

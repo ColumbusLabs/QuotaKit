@@ -44,11 +44,38 @@ extension UsageMenuCardView.Model {
             tokenCostInlineDashboardEnabled: input.tokenCostInlineDashboardEnabled,
             showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
         {
+        case let .openAIAPI(usage):
+            return self.openAIAPIUsageNotes(usage)
         case let .localized(keys):
             return keys.map { L($0) }
         case .unhandled:
             return nil
         }
+    }
+
+    static func openAIAPIUsageNotes(_ usage: OpenAIAPIUsageSnapshot) -> [String] {
+        let today = usage.currentDay
+        let seven = usage.last7Days
+        let thirty = usage.last30Days
+        let historyLabel = usage.historyWindowLabel
+        let todayNote = String(
+            format: L("Today: %@ · %@ tokens"),
+            UsageFormatter.usdString(today.costUSD),
+            UsageFormatter.tokenCountString(today.totalTokens))
+        let sevenDayNote = "7d: \(UsageFormatter.usdString(seven.costUSD)) · " +
+            "\(UsageFormatter.tokenCountString(seven.requests)) \(L("requests"))"
+        let thirtyDayNote =
+            "\(historyLabel): \(UsageFormatter.tokenCountString(thirty.totalTokens)) \(L("tokens")) · " +
+            "\(UsageFormatter.tokenCountString(thirty.requests)) \(L("requests"))"
+        var notes: [String] = [
+            todayNote,
+            sevenDayNote,
+            thirtyDayNote,
+        ]
+        if let topModel = usage.topModels.first {
+            notes.append("\(L("Top model")): \(topModel.name)")
+        }
+        return notes
     }
 
     static func inlineUsageDashboard(input: Input) -> InlineUsageDashboardModel? {
@@ -267,6 +294,21 @@ extension UsageMenuCardView.Model {
                 value: latest?.totalTokens.map(UsageFormatter.tokenCountString) ?? "—",
                 emphasis: false),
         ]
+    }
+
+    private static func topMistralModel(from entries: [MistralDailyUsageBucket]) -> String? {
+        var tokens: [String: Int] = [:]
+        for entry in entries {
+            for model in entry.models {
+                tokens[model.name, default: 0] += model.totalTokens
+            }
+        }
+        return tokens.max {
+            if $0.value == $1.value {
+                return $0.key > $1.key
+            }
+            return $0.value < $1.value
+        }?.key
     }
 
     private static func costString(_ value: Double, currencyCode: String) -> String {

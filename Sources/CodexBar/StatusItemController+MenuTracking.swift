@@ -370,6 +370,15 @@ extension StatusItemController {
                 }
             }
 
+            if target == .kilo {
+                for scopeSnapshot in self.store.kiloScopeSnapshots {
+                    parts.append(Self.menuIdentityField(scopeSnapshot.id))
+                    parts
+                        .append(self
+                            .providerIdentitySignature(scopeSnapshot.snapshot?.identity(for: target.instanceID)))
+                }
+            }
+
             if target == .claude {
                 parts.append(Self.menuIdentityField(self.store.claudeSwapLastError ?? ""))
                 for accountSnapshot in self.store.claudeSwapAccountSnapshots {

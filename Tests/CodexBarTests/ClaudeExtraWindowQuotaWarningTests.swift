@@ -6,13 +6,13 @@ import Testing
 @MainActor
 struct ClaudeExtraWindowQuotaWarningTests {
     private func makeSettings(suiteName: String) -> SettingsStore {
-        guard let defaults = UserDefaults(suiteName: suiteName) else {
-            preconditionFailure("Could not create test defaults")
-        }
+        let defaults = UserDefaults(suiteName: suiteName)!
         defaults.removePersistentDomain(forName: suiteName)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     @MainActor

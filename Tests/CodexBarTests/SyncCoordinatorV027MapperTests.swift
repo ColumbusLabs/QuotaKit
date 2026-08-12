@@ -1,7 +1,11 @@
 // swiftlint:disable multiline_arguments
 //
-// Coverage for the retained Codex, Claude, and Grok companion mappers.
-// Includes provider gating, nil pruning, field conversion, and pace mapping.
+// Mirrors `SyncCoordinatorV026MapperTests` for the 6 mappers added
+// in v0.27.0 (Mac build 65.1 → 65.4 + iOS 1.8.0 build 132 → 136).
+// Closes the integration-test gap flagged by the Opus 4.7 CR (build
+// 135). Covers wrong-provider early-return and missing-payload
+// early-return for each mapper, plus the nil-pruning behaviour that
+// keeps iOS from rendering empty cards.
 import Foundation
 import Testing
 @testable import CodexBar
@@ -70,7 +74,7 @@ struct SyncCoordinatorV027MapperTests {
         let snapshot = UsageSnapshot(
             primary: nil, secondary: nil, claudeAdminAPIUsage: admin, updatedAt: Self.now)
         #expect(SyncCoordinator.mapClaudeAdminUsage(
-            provider: .codex, snapshot: snapshot) == nil)
+            provider: .openai, snapshot: snapshot) == nil)
     }
 
     @Test
@@ -127,53 +131,121 @@ struct SyncCoordinatorV027MapperTests {
         #expect(result?.topCostItems.count == 8)
     }
 
-    // MARK: - mapGrokBilling
+    // MARK: - mapMiniMaxBilling
 
     @Test
-    func `Grok billing mapper converts cents and preserves billing period`() throws {
-        let billing = GrokBillingResponse(
-            billingCycle: GrokBillingCycle(
-                billingPeriodStart: "2026-05-01T00:00:00Z",
-                billingPeriodEnd: "2026-06-01T00:00:00Z"),
-            monthlyLimit: GrokCent(val: 5000),
-            onDemandCap: nil,
-            onDemandEnabled: false,
-            disabledByConfig: false,
-            usage: GrokBillingUsage(
-                includedUsed: GrokCent(val: 1250),
-                onDemandUsed: nil,
-                totalUsed: GrokCent(val: 1250)))
-        let grok = GrokUsageSnapshot(
-            billing: billing,
-            credentials: nil,
-            localSummary: nil,
-            cliVersion: nil,
-            updatedAt: Self.now)
-
-        let result = try #require(SyncCoordinator.mapGrokBilling(
-            provider: .grok,
-            snapshot: grok.toUsageSnapshot()))
-
-        #expect(result.monthlyUsedPercent == 25)
-        #expect(result.monthlySpendUSD == 12.50)
-        #expect(result.monthlyLimitUSD == 50)
-        #expect(result.billingPeriodEndDate != nil)
-        #expect(result.updatedAt == Self.now)
+    func `MiniMax billing mapper: returns nil when provider != .minimax`() {
+        let billing = MiniMaxBillingSummary(
+            todayTokens: 1000, last30DaysTokens: 30000,
+            todayCash: 1.5, last30DaysCash: 45.0,
+            daily: [MiniMaxBillingDay(day: "2026-05-01", tokens: 1000, cash: 1.5)],
+            topMethods: [], topModels: [], updatedAt: Self.now)
+        let mini = MiniMaxUsageSnapshot(
+            planName: "Pro", availablePrompts: nil, currentPrompts: nil,
+            remainingPrompts: nil, windowMinutes: nil, usedPercent: nil,
+            resetsAt: nil, updatedAt: Self.now, services: nil,
+            billingSummary: billing)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, minimaxUsage: mini, updatedAt: Self.now)
+        #expect(SyncCoordinator.mapMiniMaxBilling(
+            provider: .claude, snapshot: snapshot) == nil)
     }
 
     @Test
-    func `Grok billing mapper prunes wrong provider and empty payload`() {
-        let webOnly = GrokUsageSnapshot(
-            billing: nil,
-            webBilling: GrokWebBillingSnapshot(usedPercent: nil, resetsAt: nil),
-            credentials: nil,
-            localSummary: nil,
-            cliVersion: nil,
-            updatedAt: Self.now)
-        let snapshot = webOnly.toUsageSnapshot()
+    func `MiniMax billing mapper: returns nil when billingSummary is missing`() {
+        let mini = MiniMaxUsageSnapshot(
+            planName: "Pro", availablePrompts: nil, currentPrompts: nil,
+            remainingPrompts: nil, windowMinutes: nil, usedPercent: nil,
+            resetsAt: nil, updatedAt: Self.now, services: nil,
+            billingSummary: nil)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, minimaxUsage: mini, updatedAt: Self.now)
+        #expect(SyncCoordinator.mapMiniMaxBilling(
+            provider: .minimax, snapshot: snapshot) == nil)
+    }
 
-        #expect(SyncCoordinator.mapGrokBilling(provider: .claude, snapshot: snapshot) == nil)
-        #expect(SyncCoordinator.mapGrokBilling(provider: .grok, snapshot: snapshot) == nil)
+    @Test
+    func `MiniMax billing mapper: returns nil for empty 30-day window`() {
+        let billing = MiniMaxBillingSummary(
+            todayTokens: 0, last30DaysTokens: 0,
+            todayCash: nil, last30DaysCash: nil,
+            daily: [], topMethods: [], topModels: [],
+            updatedAt: Self.now)
+        let mini = MiniMaxUsageSnapshot(
+            planName: nil, availablePrompts: nil, currentPrompts: nil,
+            remainingPrompts: nil, windowMinutes: nil, usedPercent: nil,
+            resetsAt: nil, updatedAt: Self.now, services: nil,
+            billingSummary: billing)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, minimaxUsage: mini, updatedAt: Self.now)
+        #expect(SyncCoordinator.mapMiniMaxBilling(
+            provider: .minimax, snapshot: snapshot) == nil)
+    }
+
+    @Test
+    func `MiniMax billing mapper: caps method+model lists at top-3`() {
+        let methods = (0..<5).map {
+            MiniMaxBillingBreakdown(name: "method-\($0)", tokens: 100 - $0, cash: nil)
+        }
+        let models = (0..<5).map {
+            MiniMaxBillingBreakdown(name: "model-\($0)", tokens: 100 - $0, cash: nil)
+        }
+        let billing = MiniMaxBillingSummary(
+            todayTokens: 100, last30DaysTokens: 3000,
+            todayCash: nil, last30DaysCash: nil,
+            daily: [MiniMaxBillingDay(day: "2026-05-01", tokens: 100, cash: nil)],
+            topMethods: methods, topModels: models, updatedAt: Self.now)
+        let mini = MiniMaxUsageSnapshot(
+            planName: nil, availablePrompts: nil, currentPrompts: nil,
+            remainingPrompts: nil, windowMinutes: nil, usedPercent: nil,
+            resetsAt: nil, updatedAt: Self.now, services: nil,
+            billingSummary: billing)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, minimaxUsage: mini, updatedAt: Self.now)
+        let result = SyncCoordinator.mapMiniMaxBilling(
+            provider: .minimax, snapshot: snapshot)
+        #expect(result?.topMethods.count == 3)
+        #expect(result?.topModels.count == 3)
+    }
+
+    // MARK: - mapOpenCodeGoZenBalance
+
+    @Test
+    func `OpenCodeGo Zen mapper: returns nil when provider != .opencodego`() {
+        let cost = ProviderCostSnapshot(
+            used: 42.5, limit: 0, currencyCode: "USD",
+            period: "Zen balance", updatedAt: Self.now)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, providerCost: cost, updatedAt: Self.now)
+        #expect(SyncCoordinator.mapOpenCodeGoZenBalance(
+            provider: .claude, snapshot: snapshot,
+            providerCost: cost, workspaceID: nil) == nil)
+    }
+
+    @Test
+    func `OpenCodeGo Zen mapper: returns nil when providerCost period is not 'Zen balance'`() {
+        let cost = ProviderCostSnapshot(
+            used: 42.5, limit: 100.0, currencyCode: "USD",
+            period: "Monthly", updatedAt: Self.now)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, providerCost: cost, updatedAt: Self.now)
+        #expect(SyncCoordinator.mapOpenCodeGoZenBalance(
+            provider: .opencodego, snapshot: snapshot,
+            providerCost: cost, workspaceID: nil) == nil)
+    }
+
+    @Test
+    func `OpenCodeGo Zen mapper: emits envelope when period matches + currency USD`() {
+        let cost = ProviderCostSnapshot(
+            used: 42.5, limit: 0, currencyCode: "USD",
+            period: "Zen balance", updatedAt: Self.now)
+        let snapshot = UsageSnapshot(
+            primary: nil, secondary: nil, providerCost: cost, updatedAt: Self.now)
+        let result = SyncCoordinator.mapOpenCodeGoZenBalance(
+            provider: .opencodego, snapshot: snapshot,
+            providerCost: cost, workspaceID: "ws-acme")
+        #expect(result?.balanceUSD == 42.5)
+        #expect(result?.workspaceID == "ws-acme")
     }
 
     // MARK: - buildCodexWorkspaceContext (mapCodexWorkspace pure core)

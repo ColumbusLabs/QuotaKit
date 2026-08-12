@@ -1,4 +1,10 @@
+#if canImport(Darwin)
 import Darwin
+#elseif canImport(Glibc)
+import Glibc
+#elseif canImport(Musl)
+import Musl
+#endif
 import Foundation
 
 extension CodexBarCLI {
@@ -43,6 +49,8 @@ extension CodexBarCLI {
             print(Self.diagnoseHelp(version: version))
         case "guard":
             print(Self.guardHelp(version: version))
+        case "plugins":
+            print(Self.pluginsHelp(version: version))
         default:
             print(Self.rootHelp(version: version))
         }
@@ -69,11 +77,19 @@ extension CodexBarCLI {
             return path
         }
 
+        #if canImport(Darwin)
         var size: UInt32 = 0
         guard _NSGetExecutablePath(nil, &size) != 0 else { return nil }
         var buffer = [Int8](repeating: 0, count: Int(size))
         guard _NSGetExecutablePath(&buffer, &size) == 0 else { return nil }
         return String(cString: buffer)
+        #elseif os(Linux)
+        let path = "/proc/self/exe"
+        guard FileManager.default.fileExists(atPath: path) else { return nil }
+        return URL(fileURLWithPath: path).resolvingSymlinksInPath().path
+        #else
+        return nil
+        #endif
     }
 
     static func currentVersion(bundleVersion: String?, executablePath: String?) -> String? {

@@ -18,6 +18,11 @@ concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  SWIFT_VERSION: 6.3.3
+  SWIFTLY_VERSION: 1.1.3
+  SWIFTLY_SIGNING_FINGERPRINT: E813C892820A6FA13755B268F167DF1ACF9CE069
+
 jobs:
   changes:
     runs-on: ubuntu-24.04
@@ -214,6 +219,10 @@ jobs:
             CODEXBAR_TEST_SHARD_INDEX=${{ matrix.shard-index }} \
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
             ./Scripts/test.sh
+
+      - name: Provider plugin engine A/B goldens
+        if: ${{ matrix.shard-index == 0 }}
+        run: ./Scripts/test-plugin-engines.sh
 
       - name: Summarize macOS shard
         if: ${{ always() }}

@@ -46,6 +46,11 @@ if [[ ! -x "$APP_BUNDLE/Contents/Helpers/$CLI_EXECUTABLE_NAME" ]]; then
   echo "ERROR: Launch smoke check: missing Helpers/${CLI_EXECUTABLE_NAME} in ${APP_BUNDLE}" >&2
   exit 1
 fi
+if [[ ! -d "$APP_BUNDLE/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
+  echo "ERROR: Launch smoke check: missing CodexBarCore resource bundle beside Helpers/${CLI_EXECUTABLE_NAME}" >&2
+  exit 1
+fi
+
 if ! command -v sandbox-exec >/dev/null 2>&1; then
   warn "Launch smoke check skipped: sandbox-exec is unavailable on this system."
   exit 0
@@ -83,12 +88,88 @@ trap cleanup EXIT INT TERM
 
 cp -R "$APP_BUNDLE" "$SMOKE_DIR/$APP_NAME"
 SMOKE_BIN="$SMOKE_DIR/$APP_NAME/Contents/MacOS/$BUNDLE_EXECUTABLE"
+CLI_BIN="$SMOKE_DIR/$APP_NAME/Contents/Helpers/$CLI_EXECUTABLE_NAME"
 SMOKE_LOG="$SMOKE_DIR/launch.log"
+PROBE_LOG="$SMOKE_DIR/probe.log"
+CLI_PROBE_LOG="$SMOKE_DIR/cli-probe.log"
 SANDBOX_PROFILE="(version 1)
 (allow default)
 (deny file-read* (subpath \"${ROOT}\"))"
 
-# Launch the app for real and require it to stay alive.
+fail_with_probe_log() {
+  echo "ERROR: $1" >&2
+  echo "----- probe output (tail) -----" >&2
+  tail -40 "$PROBE_LOG" >&2 || true
+  echo "-------------------------------" >&2
+  exit 1
+}
+
+fail_with_cli_probe_log() {
+  echo "ERROR: $1" >&2
+  echo "----- CLI probe output (tail) -----" >&2
+  tail -40 "$CLI_PROBE_LOG" >&2 || true
+  echo "-----------------------------------" >&2
+  exit 1
+}
+
+# Probe the executable-context resolver before the app-context resolver. The
+# checkout denial proves the helper is using its adjacent bundle rather than
+# SwiftPM's compile-time development path.
+log "Launch smoke check: probing packaged Helpers CLI resource loads with ${ROOT} unreadable."
+(
+  cd "$SMOKE_DIR"
+  exec env CODEXBAR_RESOURCE_SMOKE=1 sandbox-exec -p "$SANDBOX_PROFILE" "$CLI_BIN"
+) >"$CLI_PROBE_LOG" 2>&1 &
+SMOKE_PID=$!
+CLI_PROBE_OK=0
+for _ in $(seq 1 60); do
+  if ! kill -0 "$SMOKE_PID" 2>/dev/null; then
+    CLI_PROBE_OK=1
+    break
+  fi
+  sleep 0.5
+done
+if [[ "$CLI_PROBE_OK" == "0" ]]; then
+  fail_with_cli_probe_log "Launch smoke check FAILED: Helpers CLI resource probe did not finish within 30s."
+fi
+CLI_PROBE_STATUS=0
+wait "$SMOKE_PID" || CLI_PROBE_STATUS=$?
+SMOKE_PID=""
+if [[ "$CLI_PROBE_STATUS" -ne 0 ]] || ! grep -q "CODEXBAR_RESOURCE_SMOKE_OK" "$CLI_PROBE_LOG"; then
+  fail_with_cli_probe_log "Launch smoke check FAILED: packaged Helpers CLI cannot load CodexBarCore resources without the build checkout. Exit status: ${CLI_PROBE_STATUS}."
+fi
+log "Launch smoke check: Helpers CLI resource probe OK."
+
+# Phase 1 (deterministic, headless-safe): CODEXBAR_RESOURCE_SMOKE=1 makes the
+# app force the resource loads that trapped in 0.48.0 and exit before any UI.
+# The loads are lazy in normal operation, so the liveness phase below cannot be
+# relied on alone to reach them.
+log "Launch smoke check: probing packaged resource loads with ${ROOT} unreadable."
+(
+  cd "$SMOKE_DIR"
+  exec env CODEXBAR_RESOURCE_SMOKE=1 sandbox-exec -p "$SANDBOX_PROFILE" "$SMOKE_BIN"
+) >"$PROBE_LOG" 2>&1 &
+SMOKE_PID=$!
+PROBE_OK=0
+for _ in $(seq 1 60); do
+  if ! kill -0 "$SMOKE_PID" 2>/dev/null; then
+    PROBE_OK=1
+    break
+  fi
+  sleep 0.5
+done
+if [[ "$PROBE_OK" == "0" ]]; then
+  fail_with_probe_log "Launch smoke check FAILED: resource probe did not finish within 30s."
+fi
+PROBE_STATUS=0
+wait "$SMOKE_PID" || PROBE_STATUS=$?
+SMOKE_PID=""
+if [[ "$PROBE_STATUS" -ne 0 ]] || ! grep -q "CODEXBAR_RESOURCE_SMOKE_OK" "$PROBE_LOG"; then
+  fail_with_probe_log "Launch smoke check FAILED: packaged app cannot load its resource bundles without the build checkout (the 0.48.0 crash class, #2738). Do not ship this build. Exit status: ${PROBE_STATUS}."
+fi
+log "Launch smoke check: resource probe OK."
+
+# Phase 2: launch the app for real and require it to stay alive.
 log "Launch smoke check: running packaged binary with ${ROOT} unreadable for ${SMOKE_SECONDS}s."
 (
   cd "$SMOKE_DIR"

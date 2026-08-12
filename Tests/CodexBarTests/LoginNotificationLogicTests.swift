@@ -4,10 +4,16 @@ import Testing
 @Suite(.serialized)
 struct LoginNotificationLogicTests {
     @Test
-    func `login success notification uses English copy`() {
-        let copy = LoginNotificationLogic.notificationCopy(providerName: "Codex")
+    func `login success notification copy follows Traditional Chinese app language`() {
+        Self.withAppLanguage("zh-Hant") {
+            let copy = LoginNotificationLogic.notificationCopy(providerName: "Codex")
 
-        #expect(copy.title == "Codex login successful")
-        #expect(copy.body == "You can return to the app; authentication finished.")
+            #expect(copy.title == "Codex 登入成功")
+            #expect(copy.body == "你可以回到 App；認證已完成。")
+        }
+    }
+
+    private static func withAppLanguage(_ language: String, perform body: () -> Void) {
+        CodexBarLocalizationOverride.$appLanguage.withValue(language, operation: body)
     }
 }

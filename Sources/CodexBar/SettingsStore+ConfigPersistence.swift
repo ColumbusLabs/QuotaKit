@@ -124,8 +124,8 @@ extension SettingsStore {
             var seen: Set<ProviderInstanceID> = []
             for index in config.providers.indices {
                 let instanceID = config.providers[index].id
-                guard let provider = instanceID.firstPartyProvider else { continue }
-                config.providers[index].tokenAccounts = accounts[provider]
+                let provider = instanceID.firstPartyProvider
+                config.providers[index].tokenAccounts = provider.flatMap { accounts[$0] }
                 seen.insert(instanceID)
             }
             for (provider, data) in accounts where !seen.contains(provider.instanceID) {
@@ -137,12 +137,11 @@ extension SettingsStore {
     func setProviderOrder(_ order: [ProviderInstanceID]) {
         self.updateConfig(reason: "order", affectsBackgroundWork: false) { config in
             let configsByID = Dictionary(uniqueKeysWithValues: config.providers.map { ($0.id, $0) })
-            let unknownConfigs = config.providers.filter { $0.id.firstPartyProvider == nil }
             var seen: Set<ProviderInstanceID> = []
             var ordered: [ProviderConfig] = []
             ordered.reserveCapacity(max(order.count, config.providers.count))
 
-            for provider in order where provider.firstPartyProvider != nil {
+            for provider in order {
                 guard !seen.contains(provider) else { continue }
                 seen.insert(provider)
                 ordered.append(configsByID[provider] ?? ProviderConfig(id: provider))
@@ -152,7 +151,6 @@ extension SettingsStore {
                 ordered.append(configsByID[provider.instanceID] ?? ProviderConfig(id: provider.instanceID))
             }
 
-            ordered.append(contentsOf: unknownConfigs)
             config.providers = ordered
         }
     }

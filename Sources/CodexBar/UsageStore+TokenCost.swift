@@ -54,9 +54,15 @@ extension UsageStore {
 
         let fetcher = self.costUsageFetcher
         let timeoutSeconds = self.tokenFetchTimeout
-        // Provider-specific by design: the Codex ledger owns pricing refresh.
+        // Provider-specific by design: the Codex ledger owns pricing refresh while Bedrock resolves AWS environment.
         let allowPricingRefresh = provider != .codex || !self.settings.codexLocalSessionCostLedgerEnabled
-        let environment = self.environmentBase
+        let environment = provider == .bedrock
+            ? ProviderRegistry.makeEnvironment(
+                base: self.environmentBase,
+                provider: provider,
+                settings: self.settings,
+                tokenOverride: nil)
+            : self.environmentBase
         return try await withThrowingTaskGroup(of: CostUsageTokenSnapshot.self) { group in
             group.addTask(priority: .utility) {
                 try await fetcher.loadTokenSnapshot(
@@ -273,6 +279,9 @@ extension UsageStore {
     }
 
     func tokenCostScope(for provider: UsageProvider) -> (codexHomePath: String?, signature: String) {
+        if provider == .vertexai {
+            return (nil, "vertexai:allow-claude-fallback=\(!self.isEnabled(.claude))")
+        }
         guard provider == .codex else {
             return (nil, provider.rawValue)
         }
@@ -409,11 +418,31 @@ extension UsageStore {
         provider: UsageProvider)
         -> CostUsageTokenSnapshot?
     {
-        nil
+        switch provider {
+        case .openai:
+            snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
+        case .mistral:
+            snapshot?.mistralUsage?.toCostUsageTokenSnapshot(historyDays: self.settings.costUsageHistoryDays)
+        case .opencodego:
+            // Web-only source mode and machines with no readable local database leave
+            // `opencodegoUsage.daily` empty; a non-nil-but-dataless projection would still
+            // surface a Cost row whose history submenu has nothing to render.
+            snapshot?.opencodegoUsage.flatMap { usage in
+                usage.daily.isEmpty ? nil : usage
+                    .toCostUsageTokenSnapshot(historyDays: self.settings.costUsageHistoryDays)
+            }
+        default:
+            nil
+        }
     }
 
     nonisolated static func tokenCostRequiresProviderSnapshot(_ provider: UsageProvider) -> Bool {
-        false
+        switch provider {
+        case .mistral, .openai, .opencodego:
+            true
+        default:
+            false
+        }
     }
 
     nonisolated static func costUsageCacheDirectory(

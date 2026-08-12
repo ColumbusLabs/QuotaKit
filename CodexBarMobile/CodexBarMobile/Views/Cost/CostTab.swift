@@ -5,6 +5,8 @@ import SwiftUI
 struct CostTab: View {
     let usageData: SyncedUsageData
     @Binding var isDemoMode: Bool
+    @Environment(ProEntitlementStore.self) private var proEntitlementStore
+    @Environment(RemoteConfigStore.self) private var remoteConfigStore
     @State private var showShareSheet = false
 
     // Round 6 / P4b — Cost Window Ledger dispatch. When `cwlEnabled` and not
@@ -97,6 +99,22 @@ struct CostTab: View {
         return self.computeInsights()
     }
 
+    private var isCostDashboardUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .fullCostDashboard,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.fullCostDashboard))
+    }
+
+    private var isShareUnlocked: Bool {
+        ProFeatureAccess.isUnlocked(
+            .shareCards,
+            isDemoMode: self.isDemoMode,
+            isProUnlocked: self.proEntitlementStore.isProUnlocked,
+            isRemotelyDisabled: self.remoteConfigStore.isDisabled(.shareCards))
+    }
+
     var body: some View {
         // Resolve ONCE per body evaluation — content, toolbar, and share
         // sheet all read this local instead of re-running the aggregation.
@@ -105,10 +123,18 @@ struct CostTab: View {
             Group {
                 if self.displaySnapshot != nil {
                     if let insights {
-                        CostDashboardView(
-                            insights: insights,
-                            usageData: self.usageData,
-                            isDemoMode: self.isDemoMode)
+                        if self.isCostDashboardUnlocked {
+                            CostDashboardView(
+                                insights: insights,
+                                usageData: self.usageData,
+                                isDemoMode: self.isDemoMode)
+                        } else {
+                            ProFeatureLockedStateView(
+                                store: self.proEntitlementStore,
+                                feature: .fullCostDashboard,
+                                message: String(
+                                    localized: "Unlock QuotaKit Pro to view the full cost dashboard, history charts, and share cards for synced provider data."))
+                        }
                     } else {
                         EmptyStateView(
                             title: "No Cost Data Yet",
@@ -137,7 +163,7 @@ struct CostTab: View {
                         .accessibilityLabel(Text("Exit demo preview"))
                     }
                 }
-                if insights != nil {
+                if insights != nil, self.isCostDashboardUnlocked, self.isShareUnlocked {
                     ToolbarItem(placement: .topBarTrailing) {
                         Button {
                             self.showShareSheet = true
@@ -148,7 +174,7 @@ struct CostTab: View {
                 }
             }
             .sheet(isPresented: self.$showShareSheet) {
-                if let insights {
+                if let insights, self.isShareUnlocked {
                     CostShareSheet(insights: insights)
                 }
             }
@@ -158,5 +184,23 @@ struct CostTab: View {
             self.cachedInsightsKey = newKey
             self.cachedInsights = self.computeInsights()
         }
+    }
+}
+
+struct ProFeatureLockedStateView: View {
+    let store: ProEntitlementStore
+    let feature: FeatureGate
+    let message: String
+
+    var body: some View {
+        ScrollView {
+            ProFeatureLockedCard(
+                store: self.store,
+                feature: self.feature,
+                message: self.message)
+                .padding(.horizontal, 20)
+                .padding(.top, 24)
+        }
+        .accessibilityIdentifier("pro-feature-locked-state-\(self.feature.rawValue)")
     }
 }

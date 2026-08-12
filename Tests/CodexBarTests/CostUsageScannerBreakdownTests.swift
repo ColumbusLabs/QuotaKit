@@ -3,9 +3,6 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
-// SwiftFormat 0.61.1's Linux `wrap` rule times out on this large characterization fixture.
-// Keep every other formatting rule active; line length remains enforced by strict SwiftLint.
-// swiftformat:disable wrap
 // swiftlint:disable file_length
 // swiftlint:disable type_body_length
 struct CostUsageScannerBreakdownTests {
@@ -6743,4 +6740,3 @@ struct CostUsageScannerBreakdownTests {
 }
 
 // swiftlint:enable type_body_length
-// swiftformat:enable wrap

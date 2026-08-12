@@ -1261,6 +1261,8 @@ extension CodexBarCLI {
             format: .json,
             includeCredits: true,
             sourceModeOverride: nil,
+            antigravityPlanDebug: false,
+            augmentDebug: false,
             webDebugDumpHTML: false,
             webTimeout: context.providerTimeout ?? 60,
             verbose: false,

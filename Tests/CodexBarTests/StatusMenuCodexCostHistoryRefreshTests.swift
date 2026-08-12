@@ -160,7 +160,9 @@ struct StatusMenuCodexCostHistoryRefreshTests {
         defaults.removePersistentDomain(forName: suite)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
     }
 
     private static func enableOnly(_ settings: SettingsStore, provider enabledProvider: UsageProvider) {

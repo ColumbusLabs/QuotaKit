@@ -21,18 +21,14 @@ private actor TokenRefreshGate {
     }
 
     func waitForStart() async {
-        if self.didStart {
-            return
-        }
+        if self.didStart { return }
         await withCheckedContinuation { continuation in
             self.startWaiters.append(continuation)
         }
     }
 
     func waitForRelease() async {
-        if self.released {
-            return
-        }
+        if self.released { return }
         await withCheckedContinuation { continuation in
             self.releaseWaiters.append(continuation)
         }
@@ -57,9 +53,7 @@ private actor TokenRefreshGate {
     }
 
     func waitForFinish() async {
-        if self.didFinish {
-            return
-        }
+        if self.didFinish { return }
         await withCheckedContinuation { continuation in
             self.finishWaiters.append(continuation)
         }
@@ -351,6 +345,8 @@ struct UsageStoreManualTokenRefreshTests {
         settings.costUsageEnabled = true
         settings.openAIWebAccessEnabled = false
         settings.codexCookieSource = .off
+        settings.providerDetectionCompleted = true
+
         let registry = ProviderRegistry.shared
         for provider in UsageProvider.allCases {
             guard let metadata = registry.metadata[provider] else { continue }

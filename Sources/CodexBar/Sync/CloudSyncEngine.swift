@@ -63,17 +63,12 @@ enum CloudSyncBatchRecordProvider {
 enum CloudSyncDirtyState {
     private static let providerIntentPrefix = "intent-"
 
-    static func isSyncableProvider(_ provider: ProviderInstanceID) -> Bool {
-        provider.firstPartyProvider != nil
-    }
-
     static func configurationRecordNamesToQueue(
         envelope: CloudSyncPersistence.Envelope,
         configuredProviders: [ProviderInstanceID]) -> Set<String>
     {
-        var recordNames = Set(configuredProviders.compactMap { provider -> String? in
-            guard self.isSyncableProvider(provider) else { return nil }
-            return envelope.dirtyProviders.contains(provider.rawValue)
+        var recordNames = Set(configuredProviders.compactMap { provider in
+            envelope.dirtyProviders.contains(provider.rawValue)
                 ? ProviderIntentPayload.recordName(for: provider)
                 : nil
         })
@@ -90,8 +85,7 @@ enum CloudSyncDirtyState {
         guard !envelope.recordMetadata.keys.contains(where: { $0.hasPrefix(self.providerIntentPrefix) }) else {
             return
         }
-        envelope.dirtyProviders.formUnion(
-            configuredProviders.filter(self.isSyncableProvider).map(\.rawValue))
+        envelope.dirtyProviders.formUnion(configuredProviders.map(\.rawValue))
         envelope.preferencesDirty = true
     }
 
@@ -245,7 +239,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     func localUserConfigurationDidChange(_ config: CodexBarConfig) {
         let previousSuppressedEnableIntents = self.persistenceEnvelope.suppressedEnableIntents
         for providerConfig in config.providers {
-            guard CloudSyncDirtyState.isSyncableProvider(providerConfig.id) else { continue }
             if let previous = self.lastKnownProviderConfigs[providerConfig.id],
                previous.enabled != providerConfig.enabled
             {
@@ -290,8 +283,7 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
     func localIncludeSecretsDidChange(_ includeSecrets: Bool, config: CodexBarConfig) {
         defer { self.lastKnownIncludeSecrets = includeSecrets }
         guard let previous = self.lastKnownIncludeSecrets, previous != includeSecrets else { return }
-        self.persistenceEnvelope.dirtyProviders.formUnion(
-            config.providers.map(\.id).filter(CloudSyncDirtyState.isSyncableProvider).map(\.rawValue))
+        self.persistenceEnvelope.dirtyProviders.formUnion(config.providers.map(\.id.rawValue))
         self.persistEnvelope()
     }
 

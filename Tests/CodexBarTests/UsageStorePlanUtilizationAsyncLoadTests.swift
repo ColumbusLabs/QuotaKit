@@ -316,9 +316,7 @@ struct UsageStorePlanUtilizationAsyncLoadTests {
                 historyStore.load()[.claude]?.unscoped ?? [],
                 name: .session,
                 windowMinutes: 300)
-            if persisted == inMemory {
-                break
-            }
+            if persisted == inMemory { break }
             try? await Task.sleep(for: .milliseconds(10))
         }
         #expect(inMemory?.entries.map(\.capturedAt) == [oldCapture, newCapture])
@@ -400,7 +398,8 @@ struct UsageStorePlanUtilizationAsyncLoadTests {
         defaults.removePersistentDomain(forName: suiteName)
         return SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            tokenAccountStore: InMemoryTokenAccountStore())
     }
 
     private static func makeSyntheticHistoryPayload(entriesPerProvider: Int) -> Data {

@@ -420,7 +420,7 @@ struct SpendDashboardSourceConcurrencyTests {
             settings.setProviderEnabled(
                 provider: provider,
                 metadata: metadata,
-                enabled: provider == .claude || provider == .cursor)
+                enabled: provider == .claude || provider == .mistral)
         }
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -429,9 +429,9 @@ struct SpendDashboardSourceConcurrencyTests {
             startupBehavior: .testing,
             environmentBase: [:])
         let providers = SpendDashboardSource.costCapableProviders(store: store)
-        #expect(providers == [.claude, .cursor])
+        #expect(providers == [.claude, .mistral])
         let firstProvider = UsageProvider.claude
-        let laterProvider = UsageProvider.cursor
+        let laterProvider = UsageProvider.mistral
         store._setTokenSnapshotForTesting(
             Self.input(provider: firstProvider, cost: 1).snapshot,
             provider: firstProvider)
@@ -441,12 +441,12 @@ struct SpendDashboardSourceConcurrencyTests {
 
         let gate = SpendDashboardProviderBatchGate()
         store._test_tokenUsageRefreshOverride = { provider, _ in
-            if provider == firstProvider {
-                store._setTokenSnapshotForTesting(
-                    Self.input(provider: provider, cost: 10).snapshot,
-                    provider: provider)
-                return
-            }
+            #expect(provider == firstProvider)
+            store._setTokenSnapshotForTesting(
+                Self.input(provider: provider, cost: 10).snapshot,
+                provider: provider)
+        }
+        store._test_providerRefreshOverride = { provider in
             #expect(provider == laterProvider)
             await gate.suspend()
             store._setTokenSnapshotForTesting(

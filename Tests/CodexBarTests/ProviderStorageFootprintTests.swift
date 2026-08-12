@@ -199,15 +199,15 @@ struct ProviderStorageFootprintTests {
     }
 
     @Test
-    func `Grok storage returns no cleanup recommendations`() {
+    func `unknown provider storage returns no cleanup recommendations`() {
         let footprint = ProviderStorageFootprint(
-            provider: .grok,
+            provider: .gemini,
             totalBytes: 10,
-            paths: ["/Users/test/.grok"],
+            paths: ["/Users/test/.gemini"],
             missingPaths: [],
             unreadablePaths: [],
             components: [
-                .init(path: "/Users/test/.grok/cache", totalBytes: 10),
+                .init(path: "/Users/test/.gemini/cache", totalBytes: 10),
             ],
             updatedAt: Date(timeIntervalSince1970: 0))
 
@@ -333,7 +333,9 @@ struct ProviderStorageFootprintTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         if let codexMetadata = ProviderDefaults.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
         }
@@ -372,7 +374,9 @@ struct ProviderStorageFootprintTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         if let codexMetadata = ProviderDefaults.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
         }
@@ -418,7 +422,9 @@ struct ProviderStorageFootprintTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         if let codexMetadata = ProviderDefaults.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
         }
@@ -456,7 +462,9 @@ struct ProviderStorageFootprintTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         let store = UsageStore(
             fetcher: UsageFetcher(),
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -499,7 +507,9 @@ struct ProviderStorageFootprintTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         if let codexMetadata = ProviderDefaults.metadata[.codex] {
             settings.setProviderEnabled(provider: .codex, metadata: codexMetadata, enabled: true)
         }

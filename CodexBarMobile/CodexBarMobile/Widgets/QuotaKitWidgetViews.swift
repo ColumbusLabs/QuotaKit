@@ -6,6 +6,7 @@ import WidgetKit
 struct QuotaKitWidgetEntry: TimelineEntry {
     let date: Date
     let snapshot: QuotaKitWidgetSnapshot?
+    let isUnlocked: Bool
     let isPreview: Bool
     var displayMode: QuotaKitWidgetDisplayMode = .both
 }
@@ -23,8 +24,10 @@ struct QuotaKitWidgetView: View {
     var body: some View {
         let family = self.overrideFamily ?? self.family
         Group {
-            if let snapshot = self.entry.snapshot,
-               let provider = snapshot.primaryProvider
+            if !self.entry.isUnlocked {
+                QuotaKitWidgetLockedView(family: family)
+            } else if let snapshot = self.entry.snapshot,
+                      let provider = snapshot.primaryProvider
             {
                 switch family {
                 case .systemMedium:
@@ -541,6 +544,46 @@ private struct QuotaKitWidgetAccessoryCircularView: View {
             .gaugeStyle(.accessoryCircularCapacity)
         } else {
             Image(systemName: self.provider.isError ? "exclamationmark.triangle" : "minus")
+        }
+    }
+}
+
+private struct QuotaKitWidgetLockedView: View {
+    let family: WidgetFamily
+
+    var body: some View {
+        switch self.family {
+        case .accessoryCircular:
+            Image(systemName: "lock.fill")
+        case .accessoryRectangular:
+            VStack(alignment: .center, spacing: 2) {
+                Text(String(localized: "QuotaKit Pro"))
+                    .font(.headline)
+                Text(String(localized: "Unlock widgets"))
+                    .font(.caption)
+                    .multilineTextAlignment(.center)
+            }
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
+        default:
+            VStack(spacing: 6) {
+                Spacer(minLength: 0)
+                Image(systemName: "lock.fill")
+                    .font(.title3)
+                    .foregroundStyle(WidgetPalette.brandAccent)
+                Text(String(localized: "QuotaKit Pro"))
+                    .font(.headline)
+                Text(String(
+                    format: String(localized: "Widgets are included with %@."),
+                    ProductConfig.launchPriceCopy))
+                    .font(.caption2)
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+                    .lineLimit(3)
+                    .minimumScaleFactor(0.82)
+                Spacer(minLength: 0)
+            }
+            .padding(12)
+            .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .center)
         }
     }
 }

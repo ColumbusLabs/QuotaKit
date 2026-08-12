@@ -77,7 +77,7 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
         self.schemaVersion = schemaVersion
         self.generatedAt = generatedAt
         self.lastSyncedAt = lastSyncedAt ?? generatedAt
-        self.providers = providers.filter { QuotaKitProviderCatalog.contains($0.id) }
+        self.providers = providers
     }
 
     init(from decoder: Decoder) throws {
@@ -87,7 +87,6 @@ struct QuotaKitWidgetSnapshot: Codable, Equatable, Sendable {
         self.lastSyncedAt = try container.decodeIfPresent(Date.self, forKey: .lastSyncedAt)
             ?? self.generatedAt
         self.providers = try container.decode([Provider].self, forKey: .providers)
-            .filter { QuotaKitProviderCatalog.contains($0.id) }
     }
 
     var primaryProvider: Provider? {
@@ -129,7 +128,6 @@ enum QuotaKitWidgetSnapshotBuilder {
         -> QuotaKitWidgetSnapshot
     {
         let snapshotProviders = snapshot.providers
-            .filter { QuotaKitProviderCatalog.contains($0.providerID) }
             .sorted {
                 if $0.lastUpdated != $1.lastUpdated {
                     return $0.lastUpdated > $1.lastUpdated

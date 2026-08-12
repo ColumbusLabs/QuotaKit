@@ -581,6 +581,9 @@ seal_app_bundle_copy() {
     if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
       resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
     fi
+    if [[ -d "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
+      resign "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
+    fi
     if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
       resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
     fi
@@ -614,6 +617,9 @@ seal_app_bundle_copy() {
 
   if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
     resign "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
+  fi
+  if [[ -d "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
+    resign "${bundle}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
   fi
   if [[ -f "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
     resign "${bundle}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"
@@ -659,8 +665,6 @@ if [[ ! -f "$APP/Contents/Resources/Icon-classic.icns" ]]; then
 fi
 
 # SwiftPM resource bundles (e.g. KeyboardShortcuts) are emitted next to the built binary.
-# Incremental builds do not remove bundles for deleted targets, so only the current app target's
-# first-party bundle may be copied. Dependency bundles remain runtime-owned and are copied normally.
 CODEXBAR_BINARY="$(resolve_binary_path "$APP_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")"
 PREFERRED_BUILD_DIR="$(dirname "${CODEXBAR_BINARY:-$(build_product_path "$APP_SWIFTPM_PRODUCT" "${ARCH_LIST[0]}")}")"
 shopt -s nullglob
@@ -669,23 +673,25 @@ shopt -u nullglob
 if [[ ${#SWIFTPM_BUNDLES[@]} -gt 0 ]]; then
   for bundle in "${SWIFTPM_BUNDLES[@]}"; do
     bundle_name="$(basename "$bundle")"
-    if [[ "$bundle_name" == CodexBar_*.bundle && "$bundle_name" != "CodexBar_CodexBar.bundle" ]]; then
-      echo "Skipping stale first-party SwiftPM resource bundle: $bundle_name"
-      continue
-    fi
     cp -R "$bundle" "$APP/Contents/Resources/"
   done
-fi
-if [[ ! -d "$APP/Contents/Resources/CodexBar_CodexBar.bundle" ]]; then
-  echo "ERROR: Missing CodexBar app SwiftPM resource bundle." >&2
-  echo "Expected: ${PREFERRED_BUILD_DIR}/CodexBar_CodexBar.bundle" >&2
-  exit 1
 fi
 if [[ ! -d "$APP/Contents/Resources/KeyboardShortcuts_KeyboardShortcuts.bundle" ]]; then
   echo "ERROR: Missing KeyboardShortcuts SwiftPM resource bundle (Settings → Keyboard shortcut will crash)." >&2
   echo "Expected: ${PREFERRED_BUILD_DIR}/KeyboardShortcuts_KeyboardShortcuts.bundle" >&2
   exit 1
 fi
+
+# The helper CLI resolves CodexBarCore resources beside its executable. Keep a
+# dedicated copy in Helpers; the app copy above remains in Contents/Resources.
+CORE_RESOURCE_BUNDLE="${PREFERRED_BUILD_DIR}/CodexBar_CodexBarCore.bundle"
+if [[ ! -d "$CORE_RESOURCE_BUNDLE" ]]; then
+  echo "ERROR: Missing CodexBarCore SwiftPM resource bundle for ${CLI_EXECUTABLE_NAME}." >&2
+  echo "Expected: ${CORE_RESOURCE_BUNDLE}" >&2
+  exit 1
+fi
+rm -rf "$APP/Contents/Helpers/CodexBar_CodexBarCore.bundle"
+cp -R "$CORE_RESOURCE_BUNDLE" "$APP/Contents/Helpers/"
 
 # Ensure contents are writable before stripping attributes and signing.
 chmod -R u+w "$APP"
@@ -701,6 +707,9 @@ find "$APP" -name '._*' -delete 2>/dev/null || true
 # Sign helper binaries if present
 if [[ -f "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
   resign "${APP}/Contents/Helpers/${CLI_EXECUTABLE_NAME}"
+fi
+if [[ -d "${APP}/Contents/Helpers/CodexBar_CodexBarCore.bundle" ]]; then
+  resign "${APP}/Contents/Helpers/CodexBar_CodexBarCore.bundle"
 fi
 if [[ -f "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}" ]]; then
   resign "${APP}/Contents/Helpers/${WATCHDOG_EXECUTABLE_NAME}"

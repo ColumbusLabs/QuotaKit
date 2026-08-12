@@ -24,29 +24,37 @@ public enum PathPurpose: Hashable, Sendable {
 public struct PathDebugSnapshot: Equatable, Sendable {
     public let codexBinary: String?
     public let claudeBinary: String?
+    public let geminiBinary: String?
     public let effectivePATH: String
     public let loginShellPATH: String?
 
     public static let empty = PathDebugSnapshot(
         codexBinary: nil,
         claudeBinary: nil,
+        geminiBinary: nil,
         effectivePATH: "",
         loginShellPATH: nil)
 
     public init(
         codexBinary: String?,
         claudeBinary: String?,
+        geminiBinary: String? = nil,
         effectivePATH: String,
         loginShellPATH: String?)
     {
         self.codexBinary = codexBinary
         self.claudeBinary = claudeBinary
+        self.geminiBinary = geminiBinary
         self.effectivePATH = effectivePATH
         self.loginShellPATH = loginShellPATH
     }
 }
 
 public enum BinaryLocator {
+    /// Test-only override so parallel Gemini suites can point at fake binaries
+    /// without mutating process-wide `GEMINI_CLI_PATH`.
+    @TaskLocal public static var geminiBinaryPathOverrideForTesting: String?
+
     public static func resolveClaudeBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
@@ -69,6 +77,31 @@ public enum BinaryLocator {
             home: home)
     }
 
+    public static func resolveArkcliBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "arkcli",
+            overrideKey: "ARKCLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: [
+                "\(home)/.local/bin/arkcli",
+                "/opt/homebrew/bin/arkcli",
+                "/usr/local/bin/arkcli",
+            ],
+            fileManager: fileManager,
+            home: home)
+    }
+
     /// Well-known installation paths for the Claude CLI binary.
     /// Covers Anthropic's native installer (`~/.local/bin`), the `claude migrate-installer`
     /// self-updating location (`~/.claude/local`), the legacy per-user installer
@@ -82,6 +115,31 @@ public enum BinaryLocator {
             "/usr/local/bin/claude",
             "/Applications/cmux.app/Contents/Resources/bin/claude",
         ]
+    }
+
+    public static func resolveAntigravityBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "agy",
+            overrideKey: "ANTIGRAVITY_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: [
+                "\(home)/.local/bin/agy",
+                "/opt/homebrew/bin/agy",
+                "/usr/local/bin/agy",
+            ],
+            fileManager: fileManager,
+            home: home)
     }
 
     public static func resolveCodexBinary(
@@ -123,6 +181,32 @@ public enum BinaryLocator {
         #endif
     }
 
+    public static func resolveGeminiBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        if let override = self.geminiBinaryPathOverrideForTesting,
+           fileManager.isExecutableFile(atPath: override)
+        {
+            return override
+        }
+        // Provider-specific by design: This named resolver supplies Gemini's actual CLI executable name.
+        return self.resolveBinary(
+            name: "gemini",
+            overrideKey: "GEMINI_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            fileManager: fileManager,
+            home: home)
+    }
+
     public static func resolveGrokBinary(
         env: [String: String] = ProcessInfo.processInfo.environment,
         loginPATH: [String]? = LoginShellPathCache.shared.current,
@@ -145,6 +229,37 @@ public enum BinaryLocator {
             home: home)
     }
 
+    public static func resolveAmpBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        // Provider-specific by design: This named resolver supplies Amp's actual CLI executable name.
+        self.resolveBinary(
+            name: "amp",
+            overrideKey: "AMP_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: self.ampWellKnownPaths(home: home),
+            fileManager: fileManager,
+            home: home)
+    }
+
+    static func ampWellKnownPaths(home: String) -> [String] {
+        [
+            "\(home)/.local/bin/amp",
+            "\(home)/.amp/bin/amp",
+            "/opt/homebrew/bin/amp",
+            "/usr/local/bin/amp",
+        ]
+    }
+
     /// Well-known install locations for the Grok Build CLI binary.
     /// Covers the installer's default (`~/.grok/bin/grok`) and the symlinks it sometimes
     /// creates into `~/.local/bin` and `/usr/local/bin`.
@@ -155,6 +270,57 @@ public enum BinaryLocator {
             "/usr/local/bin/grok",
             "/opt/homebrew/bin/grok",
         ]
+    }
+
+    public static func resolveAWSBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "aws",
+            overrideKey: "AWS_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            wellKnownPaths: self.awsWellKnownPaths(home: home),
+            fileManager: fileManager,
+            home: home)
+    }
+
+    /// Well-known install locations for the AWS CLI v2 (`aws`).
+    /// Covers Homebrew (Apple Silicon + Intel) and the per-user pip/uv install path.
+    static func awsWellKnownPaths(home: String) -> [String] {
+        [
+            "/opt/homebrew/bin/aws",
+            "/usr/local/bin/aws",
+            "\(home)/.local/bin/aws",
+        ]
+    }
+
+    public static func resolveAuggieBinary(
+        env: [String: String] = ProcessInfo.processInfo.environment,
+        loginPATH: [String]? = LoginShellPathCache.shared.current,
+        commandV: (String, String?, TimeInterval, FileManager) -> String? = ShellCommandLocator.commandV,
+        aliasResolver: (String, String?, TimeInterval, FileManager, String) -> String? = ShellCommandLocator
+            .resolveAlias,
+        fileManager: FileManager = .default,
+        home: String = NSHomeDirectory()) -> String?
+    {
+        self.resolveBinary(
+            name: "auggie",
+            overrideKey: "AUGGIE_CLI_PATH",
+            env: env,
+            loginPATH: loginPATH,
+            commandV: commandV,
+            aliasResolver: aliasResolver,
+            fileManager: fileManager,
+            home: home)
     }
 
     // swiftlint:disable function_parameter_count
@@ -961,10 +1127,12 @@ public enum PathBuilder {
             home: home)
         let codex = BinaryLocator.resolveCodexBinary(env: env, loginPATH: login, home: home)
         let claude = BinaryLocator.resolveClaudeBinary(env: env, loginPATH: login, home: home)
+        let gemini = BinaryLocator.resolveGeminiBinary(env: env, loginPATH: login, home: home)
         let loginString = login?.joined(separator: ":")
         return PathDebugSnapshot(
             codexBinary: codex,
             claudeBinary: claude,
+            geminiBinary: gemini,
             effectivePATH: effective,
             loginShellPATH: loginString)
     }

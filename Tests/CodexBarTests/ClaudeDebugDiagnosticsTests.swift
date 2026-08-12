@@ -55,7 +55,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .auto
             settings.claudeCookieSource = .manual
             settings.claudeCookieHeader = "sessionKey=sk-ant-session-token"
@@ -104,7 +105,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .auto
             settings.claudeCookieSource = .off
             settings.claudeWebExtrasEnabled = true
@@ -156,7 +158,8 @@ struct ClaudeDebugDiagnosticsTests {
                 browserDetection: BrowserDetection(cacheTTL: 0),
                 settings: SettingsStore(
                     userDefaults: UserDefaults(),
-                    configStore: testConfigStore(suiteName: "ClaudeDebugDiagnosticsTests-\(UUID().uuidString)")))
+                    configStore: testConfigStore(suiteName: "ClaudeDebugDiagnosticsTests-\(UUID().uuidString)"),
+                    zaiTokenStore: NoopZaiTokenStore()))
         }
         let text = await store.debugClaudeDump()
 
@@ -181,7 +184,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .auto
             settings.claudeCookieSource = .off
             settings.addTokenAccount(
@@ -238,7 +242,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .cli
             settings.claudeCookieSource = .off
 
@@ -312,7 +317,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .auto
             settings.claudeCookieSource = .off
 
@@ -370,7 +376,8 @@ struct ClaudeDebugDiagnosticsTests {
             let configStore = testConfigStore(suiteName: suite)
             let settings = SettingsStore(
                 userDefaults: defaults,
-                configStore: configStore)
+                configStore: configStore,
+                zaiTokenStore: NoopZaiTokenStore())
             settings.claudeUsageDataSource = .cli
             settings.claudeCookieSource = .off
 

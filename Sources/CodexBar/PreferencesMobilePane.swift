@@ -22,7 +22,7 @@ struct MobilePane: View {
 
     /// Mock provider toggle. Bound to UserDefaults key
     /// `CodexBarMockProvidersEnabled` so the same flag toggles whether
-    /// `MockProviderInjector` injects four deterministic snapshots into every
+    /// `MockProviderInjector` injects 8 synthetic snapshots into every
     /// sync cycle. Visible in Settings whenever `iCloudSyncEnabled` is
     /// on so QA can flip the switch and immediately see iPhone behavior.
     @AppStorage("CodexBarMockProvidersEnabled")
@@ -87,10 +87,11 @@ struct MobilePane: View {
 
     // MARK: - Mock Provider Data (env-var gated; invisible to normal users)
 
-    /// Reference list of the four mocks the injector emits when active.
+    /// Reference list of all 8 mocks the injector emits when active.
     /// Hardcoded here so the Settings UI can show side-by-side
     /// "what should appear on my iPhone" vs. what actually appears.
-    /// Kept in sync with `MockProviderInjector`.
+    /// Kept in sync with `MockProviderInjector` mocks (see Mac 0.23.6+
+    /// docstring there for the mix design rationale).
     private struct MockReferenceCard: Identifiable {
         let id: String
         let displayName: String
@@ -100,25 +101,45 @@ struct MobilePane: View {
 
     private static let mockReference: [MockReferenceCard] = [
         MockReferenceCard(
-            id: "codex",
-            displayName: "Codex (Mock)",
-            subtitle: "daily-mock@codex.test · 34% / 61%",
+            id: "codex|alice",
+            displayName: "Codex (Alice · Mock)",
+            subtitle: "café-mock@codex.test · 35% / 60%",
             badge: "first-class"),
         MockReferenceCard(
-            id: "claude",
-            displayName: "Claude (Mock)",
-            subtitle: "daily-mock@claude.test · 27% / 46%",
+            id: "codex|bob",
+            displayName: "Codex (Bob · Mock)",
+            subtitle: "bob-mock@codex.test · 75% / 100%",
             badge: "first-class"),
         MockReferenceCard(
-            id: "cursor",
-            displayName: "Cursor (Mock)",
-            subtitle: "daily-mock@cursor.test · total + auto + API",
+            id: "codex|carol",
+            displayName: "Codex (Carol · Mock)",
+            subtitle: "carol-mock@codex.test · 0% / 12%",
             badge: "first-class"),
         MockReferenceCard(
-            id: "grok",
-            displayName: "Grok (Mock)",
-            subtitle: "daily-mock@grok.test · consumer billing",
+            id: "claude|personal",
+            displayName: "Claude (Personal · Mock)",
+            subtitle: "personal-mock@claude.test · 5h+Sonnet+Opus",
             badge: "first-class"),
+        MockReferenceCard(
+            id: "claude|work",
+            displayName: "Claude (Work · Mock)",
+            subtitle: "work-mock@claude.test · 5h+Sonnet",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "perplexity|pro",
+            displayName: "Perplexity (Pro · Mock)",
+            subtitle: "pro-mock@perplexity.test · $410 credits",
+            badge: "first-class"),
+        MockReferenceCard(
+            id: "_mock_cursor_unknown",
+            displayName: "Cursor (Cookie expired · Mock)",
+            subtitle: "expired-mock@cursor.test · isError=true",
+            badge: "fallback"),
+        MockReferenceCard(
+            id: "_mock_synthetic_unknown",
+            displayName: "Synthetic (3-lane fallback · Mock)",
+            subtitle: "lanes-mock@synthetic.test · 30-day history",
+            badge: "fallback"),
     ]
 
     private var mockProviderSection: some View {

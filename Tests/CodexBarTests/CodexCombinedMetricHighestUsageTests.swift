@@ -293,7 +293,9 @@ struct CodexCombinedMetricHighestUsageTests {
 
     private func makeStore(suiteName: String, claudeCombined: Bool = false) -> UsageStore {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: suiteName))
+            configStore: testConfigStore(suiteName: suiteName),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.refreshFrequency = .manual
         settings.statusChecksEnabled = false
         settings.setMenuBarMetricPreference(.primaryAndSecondary, for: .codex)

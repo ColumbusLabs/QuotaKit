@@ -30,7 +30,7 @@ struct ClaudeSwapMenuPrecedenceTests {
             accountCount: 0,
             showSingleAccount: true))
         #expect(!ClaudeSwapMenuPrecedence.prefersClaudeSwap(
-            provider: .codex,
+            provider: .openai,
             accountCount: 2,
             showSingleAccount: true))
     }

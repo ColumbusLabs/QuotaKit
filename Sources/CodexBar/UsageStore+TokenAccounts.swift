@@ -942,6 +942,7 @@ extension UsageStore {
         let publicationGeneration = self.providerRefreshPublicationContexts[provider.instanceID]?.generation
         let contextConfigRevision = self.settings.providerConfigRevision(for: provider)
         let originalAccountToken = account?.token
+        let originalManualToken = provider == .stepfun ? self.settings.stepfunToken : nil
         return ProviderFetchContext(
             runtime: .app,
             sourceMode: sourceMode,
@@ -976,6 +977,22 @@ extension UsageStore {
                         provider: provider,
                         accountID: accountID,
                         token: token)
+                    self.advanceProviderRefreshConfigRevision(
+                        provider: provider,
+                        generation: publicationGeneration)
+                }
+            },
+            providerManualTokenUpdater: { [weak self] provider, token in
+                await MainActor.run {
+                    guard let self, provider == .stepfun,
+                          self.settings.stepfunToken == originalManualToken
+                    else { return }
+                    guard self.providerConfigMutationIsCurrent(
+                        provider: provider,
+                        generation: publicationGeneration,
+                        originalConfigRevision: contextConfigRevision)
+                    else { return }
+                    self.settings.stepfunToken = token
                     self.advanceProviderRefreshConfigRevision(
                         provider: provider,
                         generation: publicationGeneration)
@@ -1449,7 +1466,11 @@ extension UsageStore {
                 guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else {
                     return nil as UsageSnapshot?
                 }
-                let backfilled = labeled.backfillingResetTimes(
+                let profileStable = provider == .deepseek
+                    ? labeled.preservingDeepSeekPlatformProfiles(
+                        from: self.presentationSnapshot(for: .deepseek))
+                    : labeled
+                let backfilled = profileStable.backfillingResetTimes(
                     from: self.lastKnownResetSnapshots[provider.instanceID])
                 let warningAccountDiscriminator = Self.warningTokenAccountDiscriminator(account)
                 let predictivePaceWarningAccountDiscriminatorOverride: String? = if provider == .claude {
@@ -1472,6 +1493,9 @@ extension UsageStore {
                 self.lastKnownResetSnapshots[provider.instanceID] = backfilled
                 self.snapshots[provider.instanceID] = backfilled
                 self.widgetUsagePreservationBlockedProviders.remove(provider.instanceID)
+                if provider == .deepseek {
+                    self.clearDeepSeekProfileTransition()
+                }
                 self.publishProviderDerivedTokenSnapshot(from: backfilled, for: provider)
                 self.lastSourceLabels[provider.instanceID] = result.sourceLabel
                 self.errors[provider.instanceID] = nil
@@ -1511,6 +1535,9 @@ extension UsageStore {
                     return
                 }
                 self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
+                if provider == .deepseek {
+                    self.markDeepSeekProfileTransitionUnavailable()
+                }
                 guard let message = self.tokenAccountErrorMessage(error) else {
                     self.errors[provider.instanceID] = nil
                     return

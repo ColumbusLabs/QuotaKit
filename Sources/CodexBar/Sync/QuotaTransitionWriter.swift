@@ -70,7 +70,7 @@ final class QuotaTransitionWriter: QuotaTransitionWriting {
     /// the iPhone. The trade-off is a 5-minute delay for a legitimate
     /// oscillation-then-real-change. Shortening spams users; lengthening
     /// delays alerts past usefulness. If adjusting, validate on a real
-    /// Codex usage burst pattern and check the push-notification
+    /// Perplexity / Codex usage burst pattern and check the push-notification
     /// cadence in Settings → Notifications.
     private let debounceInterval: TimeInterval = 5 * 60
 

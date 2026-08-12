@@ -1,0 +1,57 @@
+import CodexBarCore
+import Foundation
+
+extension SettingsStore {
+    var moonshotAPIToken: String {
+        get {
+            guard let config = self.configSnapshot.providerConfig(for: .moonshot),
+                  config.sanitizedAPIKeyRegion == self.moonshotRegion.rawValue
+            else { return "" }
+            return config.sanitizedAPIKey ?? ""
+        }
+        set {
+            self.updateProviderConfig(provider: .moonshot) { entry in
+                entry.apiKey = self.normalizedConfigValue(newValue)
+                entry.apiKeyRegion = entry.apiKey == nil ? nil : self.moonshotRegion.rawValue
+            }
+            self.logSecretUpdate(provider: .moonshot, field: "apiKey", value: newValue)
+        }
+    }
+
+    var moonshotRegion: MoonshotRegion {
+        get {
+            let raw = self.configSnapshot.providerConfig(for: .moonshot)?.region
+            return MoonshotRegion(rawValue: raw ?? "") ?? .international
+        }
+        set {
+            self.updateProviderConfig(provider: .moonshot) { entry in
+                entry.region = newValue.rawValue
+            }
+        }
+    }
+
+    func ensureMoonshotAPITokenLoaded() {}
+
+    func hasMoonshotAPIToken(for region: MoonshotRegion) -> Bool {
+        guard let config = self.configSnapshot.providerConfig(for: .moonshot),
+              config.sanitizedAPIKeyRegion == region.rawValue
+        else { return false }
+        return config.sanitizedAPIKey != nil
+    }
+
+    var configuredMoonshotRegion: MoonshotRegion? {
+        guard let raw = self.configSnapshot.providerConfig(for: .moonshot)?.region?
+            .trimmingCharacters(in: .whitespacesAndNewlines),
+            !raw.isEmpty
+        else {
+            return nil
+        }
+        return MoonshotRegion(rawValue: raw)
+    }
+}
+
+extension SettingsStore {
+    func moonshotSettingsSnapshot() -> ProviderSettingsSnapshot.MoonshotProviderSettings {
+        ProviderSettingsSnapshot.MoonshotProviderSettings(region: self.configuredMoonshotRegion)
+    }
+}

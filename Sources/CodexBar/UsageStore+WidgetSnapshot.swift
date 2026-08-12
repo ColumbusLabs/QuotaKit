@@ -239,6 +239,13 @@ extension UsageStore {
             creditsRemaining = nil
             codeReviewRemaining = nil
         }
+        let providerCost: ProviderCostSnapshot? = if provider == .devin,
+                                                     self.settings.showOptionalCreditsAndExtraUsage
+        {
+            snapshot?.providerCost
+        } else {
+            nil
+        }
         let quotaOwnerKey: String? = if provider == .claude {
             snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
         } else {
@@ -256,7 +263,7 @@ extension UsageStore {
             codeReviewRemainingPercent: codeReviewRemaining,
             tokenUsage: tokenUsage,
             dailyUsage: dailyUsage,
-            providerCost: nil,
+            providerCost: providerCost,
             quotaOwnerKey: quotaOwnerKey)
     }
 
@@ -338,7 +345,9 @@ extension UsageStore {
         guard let snapshot else { return nil }
         let fallbackTokens = snapshot.daily.compactMap(\.totalTokens).reduce(0, +)
         let monthTokensValue = snapshot.last30DaysTokens ?? (fallbackTokens > 0 ? fallbackTokens : nil)
-        let sessionLabel = if provider == .codex {
+        let sessionLabel = if provider == .bedrock || provider == .mistral {
+            "Latest billing day"
+        } else if provider == .codex {
             "Today API est. · not billed"
         } else {
             "Today"
@@ -398,6 +407,20 @@ extension UsageStore {
                     window: spendLimit),
             ]
         }
+        if provider == .antigravity,
+           let rows = Self.antigravityQuotaSummaryWidgetRows(snapshot: snapshot),
+           !rows.isEmpty
+        {
+            return rows
+        }
+        if provider == .antigravity,
+           snapshot.primary == nil,
+           snapshot.secondary == nil,
+           let rows = Self.antigravityLegacyExtraWidgetRows(snapshot: snapshot),
+           !rows.isEmpty
+        {
+            return rows
+        }
         if provider == .cursor {
             return Self.cursorWidgetRows(metadata: metadata, snapshot: snapshot)
         }
@@ -406,7 +429,14 @@ extension UsageStore {
             provider: provider,
             metadata: metadata,
             snapshot: snapshot)
-        let secondaryTitle = metadata?.weeklyLabel ?? "Weekly"
+        let secondaryTitle = if provider == .amp {
+            AmpProviderDescriptor.secondaryLabel(snapshot: snapshot) ?? metadata?.weeklyLabel ?? "Weekly"
+        } else if provider == .alibabatokenplan {
+            AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot.secondary) ??
+                metadata?.weeklyLabel ?? "Weekly"
+        } else {
+            metadata?.weeklyLabel ?? "Weekly"
+        }
 
         var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = [
             WidgetSnapshot.WidgetUsageRowSnapshot(
@@ -423,6 +453,18 @@ extension UsageStore {
                 id: "tertiary",
                 title: metadata?.opusLabel ?? "Opus",
                 percentLeft: snapshot.tertiary?.remainingPercent))
+        }
+        if provider == .kimi {
+            // Keep persisted widget order stable and include only Kimi's intentional subscription lanes.
+            let kimiWindowIDs = ["kimi-monthly", "kimi-code-7d"]
+            rows.append(contentsOf: kimiWindowIDs.compactMap { id in
+                guard let window = snapshot.extraRateWindows?.first(where: { $0.id == id }), window.usageKnown
+                else { return nil }
+                return WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: window.id,
+                    title: window.title,
+                    percentLeft: window.window.remainingPercent)
+            })
         }
         if provider == .claude {
             rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
@@ -518,6 +560,57 @@ extension UsageStore {
         {
             return dyn
         }
+        if provider == .doubao,
+           let dyn = DoubaoProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
+        if provider == .amp,
+           let dyn = AmpProviderDescriptor.primaryLabel(snapshot: snapshot)
+        {
+            return dyn
+        }
+        if provider == .crof {
+            return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
+        }
+        if provider == .alibabatokenplan,
+           let dyn = AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary)
+        {
+            return dyn
+        }
         return metadata?.sessionLabel ?? "Session"
+    }
+
+    private nonisolated static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"
+    private nonisolated static let antigravityCompactFallbackWindowIDPrefix = "antigravity-compact-fallback-"
+
+    private nonisolated static func antigravityQuotaSummaryWidgetRows(
+        snapshot: UsageSnapshot) -> [WidgetSnapshot.WidgetUsageRowSnapshot]?
+    {
+        guard let windows = snapshot.extraRateWindows?.filter({
+            $0.id.hasPrefix(Self.antigravityQuotaSummaryWindowIDPrefix)
+        }), !windows.isEmpty else {
+            return nil
+        }
+        return windows.map { namedWindow in
+            WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.usageKnown ? namedWindow.window.remainingPercent : nil)
+        }
+    }
+
+    private nonisolated static func antigravityLegacyExtraWidgetRows(
+        snapshot: UsageSnapshot) -> [WidgetSnapshot.WidgetUsageRowSnapshot]?
+    {
+        let windows = snapshot.extraRateWindows?
+            .filter { $0.id.hasPrefix(Self.antigravityCompactFallbackWindowIDPrefix) && $0.usageKnown }
+        guard let windows, !windows.isEmpty else { return nil }
+        return windows.map { namedWindow in
+            WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.window.remainingPercent)
+        }
     }
 }

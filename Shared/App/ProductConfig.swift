@@ -24,8 +24,12 @@ public enum ProductConfig {
     public static let stableDeviceIDKey = "com.columbuslabs.quotakit.sync.deviceID"
     public static let kvsSnapshotKey = "com.columbuslabs.quotakit.usage.snapshot"
 
+    public static let storeKitLifetimeProductID = "com.columbuslabs.quotakit.pro.lifetime"
+    public static let launchPriceCopy = "$4.99 lifetime"
+
     public static let macSetupURL = URL(string: "https://columbus-labs.com/quotakit/mac")!
     public static let macSetupDisplayURL = "columbus-labs.com/quotakit/mac"
+    public static let remoteConfigURL = URL(string: "https://columbus-labs.com/quotakit/config/ios.json")!
 
     public static let logSubsystem = "com.columbuslabs.quotakit"
 }

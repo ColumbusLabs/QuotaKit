@@ -30,7 +30,6 @@ struct GrokWebBillingFetcherTests {
     @Test
     func `descriptor uses Credits label for primary usage window`() {
         let metadata = GrokProviderDescriptor.descriptor.metadata
-        #expect(metadata.widgetSelectable)
         #expect(metadata.sessionLabel == "Credits")
         #expect(metadata.weeklyLabel == "On-demand")
         #expect(!metadata.supportsOpus)

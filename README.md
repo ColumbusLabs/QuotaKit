@@ -1,86 +1,151 @@
 # QuotaKit
 
-QuotaKit is a private, maintainable dashboard for the four AI tools used every day:
+QuotaKit is a Columbus Labs app for tracking AI quota, usage, and spend across the tools you use. The Mac app gathers provider data locally, syncs it through iCloud, and the iPhone app turns that data into clear status views, alerts, share cards, and widgets.
 
-- Codex
-- Claude
-- Cursor
-- Grok
+This repository is the Columbus Labs QuotaKit codebase. It preserves upstream CodexBar history, but QuotaKit releases, bundle identifiers, iCloud containers, StoreKit products, and setup links are owned by Columbus Labs.
 
-The Mac app collects quota, usage, and supported cost data locally. It can sync sanitized snapshots through the user's private CloudKit database so the iPhone companion, widgets, and quota notifications stay useful away from the Mac. The bundled `quotakit` command-line tool exposes the same provider data to local scripts.
+## Get QuotaKit
 
-This repository retains inherited internal target names such as `CodexBar`, `CodexBarCore`, and `CodexBarMobile`. The product name is QuotaKit.
+- Mac setup: [columbus-labs.com/quotakit/mac](https://columbus-labs.com/quotakit/mac)
+- Mac releases: [github.com/ColumbusLabs/QuotaKit/releases/latest](https://github.com/ColumbusLabs/QuotaKit/releases/latest)
+- Source repository: [github.com/ColumbusLabs/QuotaKit](https://github.com/ColumbusLabs/QuotaKit)
 
-## What Is Included
+Install QuotaKit on your Mac first. After iCloud Sync is enabled on the Mac, the iPhone app can show synced quota data and send quota notifications.
 
-- A macOS menu bar app for Codex, Claude, Cursor, and Grok.
-- Provider quota windows, reset timing, account context, and pace projections where the provider supplies them.
-- Local usage and cost history for supported providers.
-- Private Mac-to-iPhone CloudKit sync.
-- Mac and iPhone widgets.
-- Quota depletion, restore, threshold, and predictive-pace notifications, including optional push to iPhone.
-- A macOS CLI for usage, cost, diagnostics, local hooks, and private dashboard integrations.
+## Highlights
 
-QuotaKit intentionally has a fixed four-provider scope. Retired provider entries in an existing config are left inert for migration safety; they are not fetched, displayed, synced, or offered in settings.
+- Multi-provider quota tracking for Codex, Claude, Cursor, Gemini, Grok, OpenAI, ClinePass, LongCat, Vertex AI, Mistral, Perplexity, OpenRouter, LiteLLM, ElevenLabs, Deepgram, and more.
+- iCloud sync from Mac to iPhone, including quota windows, reset timing, provider status, spend, and account metadata.
+- iPhone alerts when a provider runs out of quota or becomes available again.
+- Cost dashboards with daily spend, model mix, provider share, and renewal-cycle progress.
+- A unified Mac usage-and-spend dashboard plus optional external hooks for quota and provider-state events.
+- QuotaKit Pro widgets for Home Screen and Lock Screen status at a glance.
+- Share cards for usage and cost views.
 
-## Daily Setup
+## How It Works
 
-1. Build and launch the Mac app with `./Scripts/compile_and_run.sh`.
-2. Enable the providers you use in Settings.
-3. Turn on iCloud Sync if you want the iPhone companion, widgets, and push notifications.
-4. Install the bundled CLI from Advanced settings if local scripts need the data.
+1. Install QuotaKit on your Mac.
+2. Enable the providers you use in Mac settings.
+3. Turn on iCloud Sync.
+4. Open QuotaKit on iPhone with the same iCloud account.
 
-The Mac remains the provider-facing collector. The iPhone app reads the private synced snapshots and does not independently sign in to provider accounts.
-
-## Provider Notes
-
-- [Codex](docs/codex.md) — OAuth or local Codex CLI, with optional ChatGPT usage-dashboard enrichment.
-- [Claude](docs/claude.md) — OAuth, Admin API, Claude CLI, or claude.ai session data as configured.
-- [Cursor](docs/cursor.md) — Cursor account usage and billing windows from the configured local/web session.
-- [Grok](docs/grok.md) — Grok CLI billing data with a grok.com session fallback.
-- [Provider overview](docs/providers.md) — the authoritative four-provider data-source and capability matrix.
-- [CLI](docs/cli.md) — local command-line usage.
+The Mac app does the provider-side work. The iPhone app is a companion that reads synced data, displays it clearly, and sends notifications.
 
 ## Privacy
 
-Provider collection happens on the Mac. QuotaKit reads only the configured provider credentials, sessions, and local logs needed for these four integrations. Browser and Keychain access can require macOS permission and must not be triggered by unattended tests.
+QuotaKit is designed around local collection and private sync. Provider credentials, browser sessions, local logs, and account data are read only for the providers you enable. Synced quota data stays in your iCloud account.
 
-CloudKit sync contains normalized usage/account snapshots rather than raw provider responses or credentials. Existing CloudKit container, zone, record, and bundle identifiers are compatibility boundaries and should not be renamed during maintenance work.
+Some providers may require local permissions on macOS, such as access to browser cookies, provider CLI credentials, or Keychain items. Those permissions are used for quota collection and are not a general disk scan.
 
 ## Development
 
-Common Mac checks:
+This repo contains both the Mac app and the iOS companion app. iOS-specific work lives under `CodexBarMobile/`.
+
+Common checks:
 
 ```bash
 ./Scripts/lint.sh lint
-swift build
-make test
-```
 
-The normal local loop builds, packages, relaunches, and confirms the Mac app remains running:
-
-```bash
-./Scripts/compile_and_run.sh
-```
-
-iPhone work lives under `CodexBarMobile/`. Regenerate its project after changing `project.yml`, then run the simulator tests:
-
-```bash
-cd CodexBarMobile
-xcodegen generate
-xcodebuild -project CodexBarMobile.xcodeproj \
+xcodebuild -project CodexBarMobile/CodexBarMobile.xcodeproj \
   -scheme CodexBarMobile \
   -destination 'platform=iOS Simulator,name=iPhone 17 Pro' \
   CODE_SIGNING_ALLOWED=NO test
 ```
 
-Do not run live provider, browser-cookie, Keychain, or production CloudKit probes as routine verification. Use parser fixtures, test stores, and no-UI Keychain queries.
+Generate the iOS project after editing `CodexBarMobile/project.yml`:
+
+```bash
+cd CodexBarMobile
+xcodegen generate
+```
+
+## Documentation
+
+Provider setup notes and Mac provider internals live in [docs/providers.md](docs/providers.md).
+
+- [Codex](docs/codex.md) — OAuth API or local Codex CLI, plus optional OpenAI web dashboard extras.
+- [OpenAI](docs/openai.md) — Admin API key usage/cost graphs with legacy credit-balance fallback.
+- [Azure OpenAI](docs/azure-openai.md) — API key, endpoint, and deployment validation probe.
+- [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
+- [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
+- [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
+- [OpenCode Go](docs/opencode.md) — Browser or local SQLite data for Go usage windows.
+- [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
+- [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
+- [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.
+- [Gemini](docs/gemini.md) — OAuth-backed quota API using Gemini CLI credentials (no browser cookies).
+- [Antigravity](docs/antigravity.md) — Local language server probe, `agy` CLI HTTPS source, and Google OAuth fallback (experimental).
+- [Droid](docs/factory.md) — Browser cookies + WorkOS token flows for Factory usage + billing.
+- [Copilot](docs/copilot.md) — GitHub device flow + Copilot internal usage API.
+- [Devin](docs/devin.md) — Chrome localStorage session or manual Bearer token for daily and weekly quotas.
+- [z.ai](docs/zai.md) — API token for personal/team quota, MCP, 5-hour, and hourly usage windows.
+- [Manus](docs/manus.md) — Browser `session_id` auth for credit balance, monthly credits, and daily refresh tracking.
+- [MiniMax](docs/minimax.md) — API token, cookie header, or browser cookies for coding-plan usage.
+- [T3 Chat](docs/t3chat.md) — Browser cookies capture for Base and Overage usage buckets.
+- [ZoomMate](docs/zoommate.md) — Chrome cookie auto-import or manual cURL capture for credits usage.
+- [Kimi](docs/kimi.md) — Auth token (JWT from `kimi-auth` cookie) for weekly quota + 5‑hour rate limit.
+- [Kilo](docs/kilo.md) — API token with CLI-auth fallback for Kilo Pass usage.
+- [Kiro](docs/kiro.md) — CLI-based usage; monthly credits + bonus credits.
+- [Vertex AI](docs/vertexai.md) — Google Cloud gcloud OAuth with token cost tracking from local Claude logs.
+- [Augment](docs/augment.md) — Augment CLI or browser cookies for credits tracking and usage monitoring.
+- [Amp](docs/amp.md) — Browser cookie-based authentication with Amp Free usage tracking.
+- [Ollama](docs/ollama.md) — API key access plus browser cookies for Ollama Cloud usage windows.
+- [Synthetic](docs/synthetic.md) — API key quota endpoint for rolling five-hour, weekly token, and search-hourly usage.
+- [JetBrains AI](docs/jetbrains.md) — Local XML-based quota from JetBrains IDE configuration; monthly credits tracking.
+- [Warp](docs/warp.md) — API token for GraphQL request limits and monthly credits.
+- [ElevenLabs](docs/elevenlabs.md) — API key for character credits and voice slot usage.
+- [OpenRouter](docs/openrouter.md) — API token for credit-based usage tracking across multiple AI providers.
+- [Windsurf](docs/windsurf.md) — Browser localStorage session import or local SQLite cache for plan usage.
+- [Zed](docs/zed.md) — Zed editor Keychain session for plan, edit-prediction quota, billing cycle, and overdue invoices.
+- [Perplexity](docs/perplexity.md) — Account usage credits from Perplexity usage data.
+- [Xiaomi MiMo](docs/mimo.md) — Browser cookies for balance and token-plan usage.
+- [Doubao](docs/doubao.md) — API key for Volcengine Ark request-limit probes.
+- [Sakana AI](docs/sakana.md) — Manual Cookie header for 5-hour and weekly quota windows.
+- [Abacus AI](docs/abacus.md) — Browser cookie auth for ChatLLM/RouteLLM compute credit tracking.
+- [Mistral](docs/mistral.md) — Browser cookies for API spend, credit balance, and monthly-plan usage.
+- [Notion AI](docs/notion.md) — Browser cookies for rolling six-hour and monthly workspace allowance windows.
+- [DeepSeek](docs/deepseek.md) — API key for credit balance tracking (paid vs. granted breakdown).
+- [Moonshot / Kimi API](docs/moonshot.md) — API key for Moonshot/Kimi API account balance tracking.
+- [Venice](docs/venice.md) — API key for DIEM or USD balance tracking.
+- [Codebuff](docs/codebuff.md) — API token (or `~/.config/manicode/credentials.json`) for credit balance + weekly rate limit.
+- [Crof](docs/crof.md) — API key for dollar credit balance and optional request quota tracking.
+- [Command Code](docs/command-code.md) — Browser or manual cookies for monthly USD credits from Command Code billing.
+- [Qoder](docs/qoder.md) — Browser or manual cookies for Qoder big model credit usage.
+- [StepFun](docs/stepfun.md) — Username + password login for Step Plan rate limits (5‑hour + weekly windows) and subscription plan name.
+- [AWS Bedrock](docs/bedrock.md) — AWS access keys or a named AWS profile (SSO/assume-role via the AWS CLI) for Cost Explorer spend, monthly budgets, and optional CloudWatch Claude activity.
+- [Grok](docs/grok.md) — Grok CLI billing RPC plus grok.com browser-session fallback.
+- [GroqCloud](docs/groqcloud.md) — API key for Enterprise Prometheus request/token/cache-hit metrics.
+- [LLM Proxy](docs/llm-proxy.md) — API key + base URL for aggregate proxy quota stats and provider breakdowns.
+- [ClawRouter](docs/clawrouter.md) — API key for monthly budget, spend, requests, tokens, and routed-provider usage.
+- [Wayfinder](docs/wayfinder.md) — Local router gateway polling for health, per-route breakdown, savings, and decision latency.
+- [LiteLLM](docs/litellm.md) — Virtual key + proxy URL for personal and team budget/spend tracking.
+- [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
+- [DeepInfra](docs/deepinfra.md) — API key for prepaid balance, amount owed, and billing-cycle spend.
+- [ai&](docs/aiand.md) — API key for 30-day organization spend from request logs.
+- [Poe](docs/poe.md) — API key for current point balance and recent points history.
+- [Chutes](docs/chutes.md) — API key for subscription usage, rolling and monthly quota windows, and pay-as-you-go quotas.
+- [ClinePass](docs/providers.md) — API key usage for five-hour, weekly, and monthly plan limits.
+- [LongCat](docs/providers.md) — Browser or manual-cookie usage for LongCat plan quotas.
+- [Neuralwatt](docs/neuralwatt.md) — API key for subscription kWh usage and prepaid credit balance.
+- [ZenMux](docs/zenmux.md) — Management API key for rolling five-hour and seven-day quota windows plus PAYG balance.
+- [xAI](docs/xai.md) — Management API key + team ID for prepaid credit balance and daily platform spend.
+- Open to new providers: [provider authoring guide](docs/provider.md).
+
+## Linux desktop integration
+
+- [codexbar-cosmic-applet](https://github.com/andrew-verde/codexbar-cosmic-applet) — Native COSMIC (System76) desktop panel applet with provider tabs, pace projections, and cost/token stats, built on QuotaKit's bundled Linux CLI.
 
 ## Upstream And Credits
 
-QuotaKit is derived from [steipete/CodexBar](https://github.com/steipete/CodexBar), and Git history preserves upstream commits and contributors. QuotaKit-specific maintenance and releases belong to Columbus Labs.
+QuotaKit is derived from:
 
-See [OPEN_SOURCE_CREDITS.md](OPEN_SOURCE_CREDITS.md) for attribution guidance.
+- [steipete/CodexBar](https://github.com/steipete/CodexBar)
+
+Columbus Labs maintains QuotaKit as a product fork with its own releases, setup flow, bundle identifiers, and support surface.
+
+The Git history intentionally preserves upstream commits and contributors. That is why GitHub may show thousands of historical commits and many contributors even though Columbus Labs owns the QuotaKit product boundary.
+
+See [OPEN_SOURCE_CREDITS.md](OPEN_SOURCE_CREDITS.md) for recommended user-facing attribution copy and QuotaKit's product-boundary guidance.
 
 ## License
 

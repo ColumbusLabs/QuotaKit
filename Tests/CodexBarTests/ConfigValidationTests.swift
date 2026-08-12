@@ -55,50 +55,359 @@ struct ConfigValidationTests {
     }
 
     @Test
-    func `fresh config contains exactly the supported providers`() {
+    func `fresh config defaults Alibaba Token Plan to International`() throws {
         let config = CodexBarConfig.makeDefault()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
+        let issues = CodexBarConfigValidator.validate(config)
 
-        #expect(config.orderedProviders() == [.codex, .claude, .cursor, .grok])
-        #expect(CodexBarConfigValidator.validate(config).isEmpty)
+        #expect(provider.region == AlibabaTokenPlanAPIRegion.international.rawValue)
+        #expect(!issues.contains(where: { $0.provider == .alibabatokenplan }))
     }
 
     @Test
-    func `normalization preserves unknown provider configuration and adds supported providers`() throws {
-        let unknown = try #require(ProviderInstanceID(rawValue: "legacy-provider"))
+    func `normalization preserves legacy Alibaba Token Plan region`() throws {
         let config = CodexBarConfig(providers: [
-            ProviderConfig(id: unknown, enabled: true),
-            ProviderConfig(id: .codex, enabled: false),
+            ProviderConfig(id: .alibabatokenplan, region: nil),
         ]).normalized()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
 
-        #expect(config.orderedProviders() == [unknown, .codex, .claude, .cursor, .grok])
-        #expect(config.providerConfig(for: unknown)?.enabled == true)
-        #expect(config.providerConfig(for: .codex)?.enabled == false)
+        #expect(provider.region == nil)
     }
 
     @Test
-    func `validator warns about preserved unknown provider without rejecting config`() throws {
-        let data = Data("""
-        {"version":1,"providers":[{"id":"legacy-provider","enabled":true}]}
-        """.utf8)
-        let config = try JSONDecoder().decode(CodexBarConfig.self, from: data)
-        let issue = try #require(CodexBarConfigValidator.validate(config).first)
+    func `normalization adds missing Alibaba Token Plan as China mainland`() throws {
+        let config = CodexBarConfig(providers: [
+            ProviderConfig(id: .codex),
+        ]).normalized()
+        let provider = try #require(config.providerConfig(for: .alibabatokenplan))
 
-        #expect(config.orderedProviders().map(\.rawValue) == ["legacy-provider"])
-        #expect(issue.code == "unsupported_provider")
-        #expect(issue.severity == .warning)
-        #expect(issue.provider == nil)
-        #expect(!CodexBarConfigValidator.validate(config).contains { $0.severity == .error })
+        #expect(provider.region == AlibabaTokenPlanAPIRegion.chinaMainland.rawValue)
     }
 
     @Test
-    func `reports unsupported source for retained provider`() {
+    func `reports invalid Alibaba Token Plan region`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .alibabatokenplan, region: "nowhere"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(issues.contains(where: {
+            $0.provider == .alibabatokenplan && $0.code == "invalid_region"
+        }))
+    }
+
+    @Test
+    func `reports unsupported source`() {
         var config = CodexBarConfig.makeDefault()
         config.setProviderConfig(ProviderConfig(id: .codex, source: .api))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(issues.contains(where: { $0.code == "unsupported_source" }))
+    }
 
-        let codes = Set(CodexBarConfigValidator.validate(config).map(\.code))
+    @Test
+    func `accepts legacy factory cli source as compatibility alias`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .factory, source: .cli))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: {
+            $0.provider == .factory && $0.code == "unsupported_source"
+        }))
+        #expect(FactoryProviderDescriptor.descriptor.fetchPlan.sourceModes.contains(.cli))
+    }
 
-        #expect(codes.contains("unsupported_source"))
-        #expect(codes.contains("api_source_unsupported"))
+    @Test
+    func `reports missing API key when source API`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .zai, source: .api, apiKey: nil))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(issues.contains(where: { $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `allows credentialless Wayfinder API source`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .wayfinder,
+            source: .api,
+            enterpriseHost: "http://127.0.0.1:9191"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .wayfinder && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `sub2api token accounts satisfy API credentials`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Primary",
+                    token: "fixture",
+                    addedAt: 0,
+                    lastUsed: nil),
+            ],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .sub2api,
+            source: .api,
+            enterpriseHost: "https://sub2api.example.com",
+            tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .sub2api && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `sub2api accepts HTTPS and loopback HTTP base URLs`() {
+        for host in ["https://sub2api.example.com", "http://127.0.0.1:8080"] {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(ProviderConfig(
+                id: .sub2api,
+                source: .api,
+                apiKey: "fixture",
+                enterpriseHost: host))
+            let invalidHostIssue = CodexBarConfigValidator.validate(config).first { issue in
+                issue.provider == .sub2api && issue.code == "invalid_enterprise_host"
+            }
+
+            #expect(invalidHostIssue == nil)
+        }
+    }
+
+    @Test
+    func `sub2api rejects unsafe base URLs`() {
+        let invalidHosts = [
+            "http://sub2api.example.com",
+            "https://user:pass@sub2api.example.com",
+            "https://sub2api.example.com?token=secret",
+            "https://sub2api.example.com#fragment",
+        ]
+        for host in invalidHosts {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(ProviderConfig(
+                id: .sub2api,
+                source: .api,
+                apiKey: "fixture",
+                enterpriseHost: host))
+            let invalidHostIssue = CodexBarConfigValidator.validate(config).first { issue in
+                issue.provider == .sub2api &&
+                    issue.field == "enterpriseHost" &&
+                    issue.code == "invalid_enterprise_host"
+            }
+
+            #expect(invalidHostIssue != nil)
+        }
+    }
+
+    @Test
+    func `sub2api rejects blank token accounts as API credentials`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Blank",
+                    token: "   ",
+                    addedAt: 0,
+                    lastUsed: nil),
+            ],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .sub2api,
+            source: .api,
+            enterpriseHost: "https://sub2api.example.com",
+            tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(issues.contains(where: { $0.provider == .sub2api && $0.code == "api_key_missing" }))
+    }
+
+    @Test
+    func `reports invalid region`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .minimax, region: "nowhere"))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(issues.contains(where: { $0.code == "invalid_region" }))
+    }
+
+    @Test
+    func `warns on unsupported token accounts`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [ProviderTokenAccount(id: UUID(), label: "a", token: "t", addedAt: 0, lastUsed: nil)],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .gemini, tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(issues.contains(where: { $0.code == "token_accounts_unused" }))
+    }
+
+    @Test
+    func `allows ollama token accounts`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [ProviderTokenAccount(id: UUID(), label: "a", token: "t", addedAt: 0, lastUsed: nil)],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .ollama, tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: { $0.code == "token_accounts_unused" && $0.provider == .ollama }))
+    }
+
+    @Test
+    func `accepts kilo extras config field`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .kilo, extrasEnabled: true))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: { $0.provider == .kilo && $0.field == "extrasEnabled" }))
+    }
+
+    @Test
+    func `allows deepgram project workspace ID`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .deepgram, workspaceID: "project-123"))
+        let issues = CodexBarConfigValidator.validate(config)
+        #expect(!issues.contains(where: { $0.provider == .deepgram && $0.code == "workspace_unused" }))
+    }
+
+    @Test
+    func `allows Azure OpenAI endpoint and deployment fields`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .azureopenai,
+            workspaceID: "chat-prod",
+            enterpriseHost: "https://example-resource.openai.azure.com"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .azureopenai && $0.code == "workspace_unused" }))
+        #expect(!issues.contains(where: { $0.provider == .azureopenai && $0.code == "enterprise_host_unused" }))
+    }
+
+    @Test
+    func `allows LiteLLM endpoint`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .litellm,
+            apiKey: "sk-test",
+            enterpriseHost: "https://litellm.example.com"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .litellm && $0.code == "enterprise_host_unused" }))
+    }
+
+    @Test
+    func `allows OpenRouter endpoint`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .openrouter,
+            apiKey: "fixture",
+            enterpriseHost: "https://router.example.com/api/v1"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .openrouter && $0.code == "enterprise_host_unused" }))
+        #expect(!issues.contains(where: { $0.provider == .openrouter && $0.code == "invalid_enterprise_host" }))
+    }
+
+    @Test
+    func `unsupported enterprise host warning lists every supported provider`() throws {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .gemini, enterpriseHost: "https://example.com"))
+        let issue = try #require(CodexBarConfigValidator.validate(config).first(where: {
+            $0.provider == .gemini && $0.code == "enterprise_host_unused"
+        }))
+
+        #expect(issue.message ==
+            "enterpriseHost is set but only azureopenai, clawrouter, copilot, kimi, litellm, llmproxy, openrouter, " +
+            "sub2api, and wayfinder " +
+            "support enterpriseHost.")
+    }
+
+    @Test
+    func `allows OpenAI API project workspace ID`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .openai, workspaceID: "proj_abc"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .openai && $0.code == "workspace_unused" }))
+    }
+
+    @Test
+    func `xai management API requires key and team ID together`() {
+        let incompleteConfigs = [
+            ProviderConfig(id: .xai, source: .api, apiKey: "xai-fixture"),
+            ProviderConfig(id: .xai, source: .api, workspaceID: "team-fixture"),
+        ]
+
+        for providerConfig in incompleteConfigs {
+            var config = CodexBarConfig.makeDefault()
+            config.setProviderConfig(providerConfig)
+            let issue = CodexBarConfigValidator.validate(config).first(where: {
+                $0.provider == .xai && $0.code == "xai_management_context_missing"
+            })
+
+            #expect(issue != nil)
+        }
+
+        var completeConfig = CodexBarConfig.makeDefault()
+        completeConfig.setProviderConfig(ProviderConfig(
+            id: .xai,
+            source: .api,
+            apiKey: "xai-fixture",
+            workspaceID: "team-fixture"))
+        let completeIssues = CodexBarConfigValidator.validate(completeConfig)
+        #expect(!completeIssues.contains(where: {
+            $0.provider == .xai && $0.code == "xai_management_context_missing"
+        }))
+    }
+
+    @Test
+    func `allows doubao coding plan credential fields`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(
+            id: .doubao,
+            apiKey: "AKLT-config",
+            secretKey: "sk-config",
+            region: "cn-shanghai"))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(!issues.contains(where: { $0.provider == .doubao && $0.code == "secret_key_unused" }))
+        #expect(!issues.contains(where: { $0.provider == .doubao && $0.code == "region_unused" }))
+    }
+
+    @Test
+    func `warns when zai team token account is missing BigModel context`() {
+        let accounts = ProviderTokenAccountData(
+            version: 1,
+            accounts: [
+                ProviderTokenAccount(
+                    id: UUID(),
+                    label: "Team",
+                    token: "token",
+                    addedAt: 0,
+                    lastUsed: nil,
+                    usageScope: "team",
+                    organizationID: "org_abc"),
+            ],
+            activeIndex: 0)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .zai, tokenAccounts: accounts))
+        let issues = CodexBarConfigValidator.validate(config)
+
+        #expect(issues.contains(where: { $0.provider == .zai && $0.code == "zai_team_context_missing" }))
+    }
+
+    @Test
+    func `warns on unsupported workspace ID`() {
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .gemini, workspaceID: "workspace-123"))
+        let issues = CodexBarConfigValidator.validate(config)
+        let issue = issues.first { $0.provider == .gemini && $0.code == "workspace_unused" }
+        let expectedMessage =
+            "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, and xai " +
+            "support workspaceID."
+        #expect(issue?.message == expectedMessage)
     }
 
     @Test

@@ -4,7 +4,7 @@ import Testing
 
 struct CLIDiagnoseCommandTests {
     @Test
-    func `diagnose help describes generic safe JSON export`() {
+    func `diagnose help describes generic JSON export`() {
         let help = CodexBarCLI.diagnoseHelp(version: "0.0.0")
 
         #expect(help.contains("quotakit diagnose --provider <name|all> --format json"))
@@ -13,12 +13,50 @@ struct CLIDiagnoseCommandTests {
         #expect(help.contains("raw API tokens"))
     }
 
+    private func makeSettingsWithMiniMaxCookie(_ manualCookieHeader: String) -> ProviderSettingsSnapshot {
+        ProviderSettingsSnapshot.make(
+            minimax: ProviderSettingsSnapshot.MiniMaxProviderSettings(
+                cookieSource: .manual,
+                manualCookieHeader: manualCookieHeader,
+                apiRegion: .global))
+    }
+
     @Test
-    func `diagnose recognizes configured Claude admin API credentials`() {
+    func `diagnose auth mode uses settings-backed MiniMax manual cookie when env token is absent`() {
+        let settings = self.makeSettingsWithMiniMaxCookie("Cookie: session_id=demo-cookie")
+
         let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
-            provider: .claude,
+            provider: .minimax,
             account: nil,
-            config: ProviderConfig(id: .claude, apiKey: "sk-ant-admin-test"),
+            config: nil,
+            environment: [:],
+            settings: settings)
+
+        #expect(summary.configured)
+        #expect(summary.modes == ["cookie"])
+    }
+
+    @Test
+    func `diagnose auth mode keeps apiToken precedence over settings cookie`() {
+        let settings = self.makeSettingsWithMiniMaxCookie("Cookie: session_id=demo-cookie")
+
+        let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .minimax,
+            account: nil,
+            config: nil,
+            environment: [MiniMaxAPISettingsReader.apiTokenKey: "sk-api-demo-token"],
+            settings: settings)
+
+        #expect(summary.configured)
+        #expect(summary.modes == ["apiToken"])
+    }
+
+    @Test
+    func `generic diagnose auth summary detects provider config`() {
+        let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .openai,
+            account: nil,
+            config: ProviderConfig(id: .openai, apiKey: "sk-test"),
             environment: [:],
             settings: nil)
 
@@ -26,10 +64,118 @@ struct CLIDiagnoseCommandTests {
         #expect(summary.modes == ["api"])
     }
 
-    @Test(arguments: [UsageProvider.codex, .cursor, .grok])
-    func `diagnose does not assume ambient credentials`(provider: UsageProvider) {
+    @Test
+    func `generic diagnose auth summary detects provider environment credentials`() {
         let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
-            provider: provider,
+            provider: .openai,
+            account: nil,
+            config: nil,
+            environment: [OpenAIAPISettingsReader.apiKeyEnvironmentKey: "sk-test"],
+            settings: nil)
+
+        #expect(summary.configured)
+        #expect(summary.modes == ["api"])
+    }
+
+    @Test
+    func `generic diagnose auth summary detects Chutes environment credentials`() {
+        let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .chutes,
+            account: nil,
+            config: nil,
+            environment: [ChutesSettingsReader.apiKeyEnvironmentKey: "chutes-test"],
+            settings: nil)
+
+        #expect(summary.configured)
+        #expect(summary.modes == ["api"])
+    }
+
+    @Test
+    func `generic diagnose auth summary detects Neuralwatt environment credentials`() {
+        let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .neuralwatt,
+            account: nil,
+            config: nil,
+            environment: [NeuralWattSettingsReader.apiKeyEnvironmentKey: "sk-test"],
+            settings: nil)
+
+        #expect(summary.configured)
+        #expect(summary.modes == ["api"])
+    }
+
+    @Test
+    func `generic diagnose auth summary requires complete Bedrock credentials`() {
+        let partial = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .bedrock,
+            account: nil,
+            config: ProviderConfig(id: .bedrock, apiKey: "access-only"),
+            environment: [BedrockSettingsReader.accessKeyIDKey: "access-only"],
+            settings: nil)
+        #expect(!partial.configured)
+        #expect(partial.modes.isEmpty)
+
+        let complete = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .bedrock,
+            account: nil,
+            config: nil,
+            environment: [
+                BedrockSettingsReader.accessKeyIDKey: "access",
+                BedrockSettingsReader.secretAccessKeyKey: "secret",
+            ],
+            settings: nil)
+        #expect(complete.configured)
+        #expect(complete.modes == ["api"])
+    }
+
+    @Test
+    func `generic diagnose auth summary requires complete xai management context`() {
+        let keyOnlyEnvironment = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: nil,
+            environment: [XAISettingsReader.apiKeyEnvironmentKey: "xai-fixture"],
+            settings: nil)
+        #expect(!keyOnlyEnvironment.configured)
+        #expect(keyOnlyEnvironment.modes.isEmpty)
+
+        let completeEnvironment = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: nil,
+            environment: [
+                XAISettingsReader.apiKeyEnvironmentKey: "xai-fixture",
+                XAISettingsReader.teamIDEnvironmentKey: "team-fixture",
+            ],
+            settings: nil)
+        #expect(completeEnvironment.configured)
+        #expect(completeEnvironment.modes == ["api"])
+
+        let keyOnlyConfig = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: ProviderConfig(id: .xai, apiKey: "xai-fixture"),
+            environment: [:],
+            settings: nil)
+        #expect(!keyOnlyConfig.configured)
+        #expect(keyOnlyConfig.modes.isEmpty)
+
+        let completeConfig = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .xai,
+            account: nil,
+            config: ProviderConfig(
+                id: .xai,
+                apiKey: "xai-fixture",
+                workspaceID: "team-fixture"),
+            environment: [:],
+            settings: nil)
+        #expect(completeConfig.configured)
+        #expect(completeConfig.modes == ["api"])
+    }
+
+    @Test
+    func `generic diagnose auth summary does not assume ambient credentials`() {
+        let summary = CodexBarCLI._diagnosticAuthSummaryForTesting(
+            provider: .codex,
             account: nil,
             config: nil,
             environment: [:],

@@ -283,6 +283,7 @@ extension MenuBarMetricPreference {
         case .tertiary: .tertiary
         case .extraUsage: .extraUsage
         case .average: .average
+        case .monthlyPlan: .monthlyPlan
         }
     }
 }

@@ -13,7 +13,9 @@ struct TerminalAppTests {
         defaults.removePersistentDomain(forName: suite)
         let store = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         #expect(store.terminalApp == .terminal)
     }
 
@@ -25,7 +27,9 @@ struct TerminalAppTests {
         defaults.removePersistentDomain(forName: suite)
         let store = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         store.terminalApp = .iTerm
         #expect(store.terminalApp == .iTerm)
         #expect(defaults.string(forKey: "terminalApp") == "iTerm")
@@ -39,7 +43,9 @@ struct TerminalAppTests {
         defaults.set("nonexistent", forKey: "terminalApp")
         let store = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         #expect(store.terminalApp == .terminal)
     }
 

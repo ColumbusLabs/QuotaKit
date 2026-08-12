@@ -15,6 +15,7 @@ struct ClaudeLoginFlowTests {
                 suiteName: "ClaudeLoginFlowTests-controller-\(source.rawValue)")
             settings.statusChecksEnabled = false
             settings.refreshFrequency = .manual
+            settings.providerDetectionCompleted = true
             settings.claudeUsageDataSource = source
             settings.setProviderEnabled(provider: .claude, metadata: claudeMetadata, enabled: false)
 

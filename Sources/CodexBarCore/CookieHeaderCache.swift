@@ -160,6 +160,11 @@ public enum CookieHeaderCache {
     private static let displayUnavailableRetryInterval: TimeInterval = 1
     #if DEBUG
     @TaskLocal private static var taskLegacyBaseURLOverride: URL?
+    private static let defaultTestLegacyBaseURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent(
+            "CodexBarTests-\(getpid())-\(UUID().uuidString)",
+            isDirectory: true)
+
     @TaskLocal static var taskDisplayStalenessIntervalOverride: TimeInterval?
     @TaskLocal static var taskDisplayUnavailableRetryIntervalOverride: TimeInterval?
     @TaskLocal private static var legacyRemovalFailureOverride = false
@@ -913,6 +918,14 @@ public enum CookieHeaderCache {
 
     private static var defaultLegacyBaseURL: URL {
         let fm = FileManager.default
+        #if DEBUG
+        if KeychainTestSafety.isRunningUnderTests(
+            processName: ProcessInfo.processInfo.processName,
+            environment: ProcessInfo.processInfo.environment)
+        {
+            return self.defaultTestLegacyBaseURL
+        }
+        #endif
         let base = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory
         return base.appendingPathComponent("CodexBar", isDirectory: true)

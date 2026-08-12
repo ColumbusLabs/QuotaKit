@@ -5,57 +5,215 @@ import Testing
 
 struct CLIOutputTests {
     @Test
-    func `output preferences JSON only forces JSON`() {
+    func `output preferences json only forces JSON`() {
         let output = CLIOutputPreferences.from(argv: ["--json-only"])
-        #expect(output.jsonOnly)
+        #expect(output.jsonOnly == true)
         #expect(output.format == .json)
     }
 
     @Test
-    func `CLI error payload is a JSON array`() throws {
+    func `cli error payload is JSON array`() throws {
         let payload = CodexBarCLI.makeCLIErrorPayload(
             message: "Nope",
             code: .failure,
             kind: .args,
             pretty: false)
-        let data = try #require(payload?.data(using: .utf8))
-        let json = try #require(JSONSerialization.jsonObject(with: data) as? [Any])
-        let first = try #require(json.first as? [String: Any])
-        let error = try #require(first["error"] as? [String: Any])
-
-        #expect(first["provider"] as? String == "cli")
-        #expect(error["message"] as? String == "Nope")
+        #expect(payload != nil)
+        let data = payload?.data(using: .utf8) ?? Data()
+        let json = try JSONSerialization.jsonObject(with: data) as? [Any]
+        #expect(json?.isEmpty == false)
+        let first = json?.first as? [String: Any]
+        #expect(first?["provider"] as? String == "cli")
+        let error = first?["error"] as? [String: Any]
+        #expect(error?["message"] as? String == "Nope")
     }
 
     @Test
-    func `exit omits generic error when a command already emitted its payload`() {
+    func `exit omits generic error when command already emitted payload`() {
         #expect(!CodexBarCLI.shouldPrintExitError(code: .success, message: nil))
         #expect(!CodexBarCLI.shouldPrintExitError(code: .failure, message: nil))
         #expect(CodexBarCLI.shouldPrintExitError(code: .failure, message: "Nope"))
     }
 
     @Test
-    func `text renderer includes generic provider detail rows`() {
-        let snapshot = UsageSnapshot(
+    func `text renderer includes deepgram usage metrics`() {
+        let deepgram = UsageSnapshot(
             primary: nil,
             secondary: nil,
             details: [.makeSection(title: "Usage summary", rows: [
                 .makeRow(label: "Requests", value: "42"),
-                .makeRow(label: "Tokens", value: "150", secondaryValue: "cached 20"),
+                .makeRow(label: "Audio", value: "12.5 hours", secondaryValue: "14 billable hours"),
+                .makeRow(label: "Agent hours", value: "1.2"),
+                .makeRow(label: "Tokens", value: "150"),
+                .makeRow(label: "TTS characters", value: "1,200"),
+                .makeRow(label: "Period", value: "2026-05-10 to 2026-05-17"),
             ])],
-            updatedAt: Date(timeIntervalSince1970: 0))
+            updatedAt: Date(timeIntervalSince1970: 0),
+            identity: ProviderIdentitySnapshot(
+                providerID: .deepgram,
+                accountEmail: nil,
+                accountOrganization: nil,
+                loginMethod: "Project: project-123"))
         let text = CLIRenderer.renderText(
-            provider: .cursor,
-            snapshot: snapshot,
+            provider: .deepgram,
+            snapshot: deepgram,
             credits: nil,
             context: RenderContext(
-                header: "Cursor (web)",
+                header: "Deepgram (api)",
                 status: nil,
                 useColor: false,
                 resetStyle: .countdown))
 
         #expect(text.contains("Requests: 42"))
-        #expect(text.contains("Tokens: 150 · cached 20"))
+        #expect(text.contains("Audio: 12.5 hours · 14 billable hours"))
+        #expect(text.contains("Agent hours: 1.2"))
+        #expect(text.contains("Tokens: 150"))
+        #expect(text.contains("TTS characters: 1,200"))
+        #expect(text.contains("Period: 2026-05-10 to 2026-05-17"))
+    }
+
+    @Test
+    func `text renderer includes amp credits without free tier usage`() {
+        let snapshot = AmpUsageSnapshot(
+            freeQuota: nil,
+            freeUsed: nil,
+            hourlyReplenishment: nil,
+            windowHours: nil,
+            individualCredits: 25.64,
+            workspaceBalances: [
+                AmpWorkspaceBalance(name: "Alpha Team", remaining: 1234.56),
+            ],
+            accountEmail: "paid@example.com",
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+
+        let text = CLIRenderer.renderText(
+            provider: .amp,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Amp (cli)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(text.contains("Individual credits: $25.64"))
+        #expect(text.contains("Workspace Alpha Team: $1,234.56"))
+        #expect(text.contains("Account: paid@example.com"))
+        #expect(!text.contains("Amp Free:"))
+    }
+
+    @Test
+    func `text renderer labels amp subscription pools`() {
+        let now = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = AmpUsageSnapshot(
+            freeQuota: nil,
+            freeUsed: nil,
+            hourlyReplenishment: nil,
+            windowHours: nil,
+            updatedAt: now,
+            subscription: AmpSubscriptionUsage(
+                plan: "Megawatt",
+                otherUsedPercent: 3,
+                orbUsedPercent: 0,
+                resetsAt: now.addingTimeInterval(29 * 24 * 60 * 60),
+                resetDescription: "renews in 29 days"))
+            .toUsageSnapshot(now: now)
+
+        let text = CLIRenderer.renderText(
+            provider: .amp,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Amp (cli)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown),
+            now: now)
+
+        #expect(text.contains("Other usage:"))
+        #expect(text.contains("Orb usage:"))
+        #expect(!text.contains("Amp Free:"))
+        #expect(!text.contains("Balance:"))
+    }
+
+    @Test
+    func `text renderer shows mimo balance without quota or reset text`() {
+        let snapshot = MiMoUsageSnapshot(
+            balance: 25.51,
+            currency: "USD",
+            cashBalance: 20,
+            giftBalance: 5.51,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+
+        let text = CLIRenderer.renderText(
+            provider: .mimo,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Xiaomi MiMo (web)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(text.contains("Balance: $25.51 (Paid: $20.00 / Granted: $5.51)"))
+        #expect(!text.contains("100%"))
+        #expect(!text.contains("Resets"))
+        #expect(!text.contains("Plan: Balance"))
+    }
+
+    @Test
+    func `text renderer shows mimo token credits and balance`() {
+        let snapshot = MiMoUsageSnapshot(
+            balance: 25.51,
+            currency: "USD",
+            planCode: "standard",
+            tokenUsed: 10,
+            tokenLimit: 100,
+            tokenPercent: 0.1,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot()
+
+        let text = CLIRenderer.renderText(
+            provider: .mimo,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Xiaomi MiMo (web)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(text.contains("Credits: 90% left"))
+        #expect(text.contains("Balance: $25.51"))
+        #expect(text.contains("Plan: Standard"))
+        #expect(!text.contains("Window: 100%"))
+    }
+
+    @Test
+    func `text renderer preserves compact mimo local summary casing`() {
+        let summary = "Local · 1.5k total · 42 sessions · stale 34d"
+        let snapshot = MiMoUsageSnapshot(
+            balance: 0,
+            currency: "",
+            planCode: summary,
+            updatedAt: Date(timeIntervalSince1970: 0))
+            .toUsageSnapshot(includeBalance: false)
+
+        let text = CLIRenderer.renderText(
+            provider: .mimo,
+            snapshot: snapshot,
+            credits: nil,
+            context: RenderContext(
+                header: "Xiaomi MiMo (local)",
+                status: nil,
+                useColor: false,
+                resetStyle: .countdown))
+
+        #expect(CLIRenderer.planBadgeText(provider: .mimo, snapshot: snapshot) == summary)
+        #expect(text.contains("Plan: \(summary)"))
+        #expect(!text.contains("Stale 34D"))
     }
 
     @Test
@@ -72,6 +230,7 @@ struct CLIOutputTests {
                 balance: 100,
                 updatedAt: now),
             updatedAt: now)
+
         let text = CLIRenderer.renderText(
             provider: .claude,
             snapshot: snapshot,
@@ -99,6 +258,7 @@ struct CLIOutputTests {
                 balance: 100,
                 updatedAt: now),
             updatedAt: now)
+
         let text = CLIRenderer.renderText(
             provider: .claude,
             snapshot: snapshot,

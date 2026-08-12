@@ -2,20 +2,90 @@ import CodexBarSync
 import Foundation
 import Testing
 
-/// Regression guard for the live four-provider notification inventory and the
-/// frozen retirement inventory used by iOS subscription cleanup.
+/// Regression guard for the provider list that seeds iOS CKRecordZoneSubscriptions.
+///
+/// iOS 1.5.0 (Mac v0.23) adds Abacus AI and Mistral on top of the
+/// 1.3.0 (Mac v0.20) baseline that already included Perplexity and
+/// OpenCode Go. The provider set is the single source of truth for both:
+///   - Mac side picks the CloudKit zone to write a QuotaTransition record to
+///   - iOS side creates one CKRecordZoneSubscription per (provider, state)
+/// If the two sides drift, iOS stops receiving pushes for the orphaned provider.
+/// Tests below pin the expected set so upstream provider churn is a compile-time
+/// conversation, not a silent production miss.
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Live provider inventory is exactly the four product providers`() {
-        #expect(QuotaProviderList.providers.map(\.id) == ["codex", "claude", "cursor", "grok"])
-        #expect(QuotaProviderList.providers.map(\.displayName) == ["Codex", "Claude", "Cursor", "Grok"])
+    func `Provider list has expected count (60 after Notion AI catch-up)`() {
+        // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
+        // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
+        // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
+        // GroqCloud, ElevenLabs, Deepgram, LLM Proxy from upstream
+        // v0.27.0) → 48 in iOS 1.9.0 (Azure OpenAI, Alibaba Token Plan,
+        // T3 Chat from upstream v0.28.0+v0.29.0) → 49 in iOS 1.10.0
+        // (Sakana AI from upstream v0.36.x) → 50 after Qoder from the
+        // same upstream line → 51 after Sub2API → 52 after ZenMux →
+        // 54 after ClinePass and LongCat → 55 after Neuralwatt → 56 after
+        // DeepInfra, then 58 after Qwen Cloud and ZoomMate, 59 after xAI,
+        // and 60 after Notion AI.
+        // Must stay synced with the iOS-side test in
+        // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
+        // so it intentionally has no quota-transition subscriptions.
+        #expect(QuotaProviderList.providers.count == 60)
     }
 
     @Test
-    func `No duplicate or blank live provider fields`() {
+    func `Perplexity is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "perplexity" })
+        #expect(entry.displayName == "Perplexity")
+    }
+
+    @Test
+    func `OpenCode Go is registered and distinct from OpenCode Zen`() throws {
+        let zen = try #require(QuotaProviderList.providers.first { $0.id == "opencode" })
+        let go = try #require(QuotaProviderList.providers.first { $0.id == "opencodego" })
+        #expect(zen.displayName == "OpenCode")
+        #expect(go.displayName == "OpenCode Go")
+        #expect(zen.id != go.id)
+    }
+
+    @Test
+    func `Abacus AI is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "abacus" })
+        #expect(entry.displayName == "Abacus AI")
+    }
+
+    @Test
+    func `Mistral is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "mistral" })
+        #expect(entry.displayName == "Mistral")
+    }
+
+    @Test
+    func `Sakana AI is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "sakana" })
+        #expect(entry.displayName == "Sakana AI")
+    }
+
+    @Test
+    func `Qoder is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "qoder" })
+        #expect(entry.displayName == "Qoder")
+    }
+
+    @Test
+    func `ZenMux is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "zenmux" })
+        #expect(entry.displayName == "ZenMux")
+    }
+
+    @Test
+    func `No duplicate provider IDs`() {
         let ids = QuotaProviderList.providers.map(\.id)
         #expect(ids.count == Set(ids).count)
+    }
+
+    @Test
+    func `No blank IDs or displayNames`() {
         for provider in QuotaProviderList.providers {
             #expect(!provider.id.isEmpty)
             #expect(!provider.displayName.isEmpty)
@@ -23,27 +93,63 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `Zone-name wire format remains unchanged for live and retired IDs`() {
+    func `quotaZoneName composes (providerID, state) consistently for Mac + iOS`() {
+        // Mac writes QuotaTransition records to this exact zone name; iOS
+        // subscribes to this exact zone name. If the formula drifts the two
+        // sides lose each other.
         #expect(
-            QuotaProviderList.quotaZoneName(providerID: "codex", state: "depleted")
-                == "Quota-codex-depletedZone")
+            QuotaProviderList.quotaZoneName(providerID: "perplexity", state: "depleted")
+                == "Quota-perplexity-depletedZone")
         #expect(
-            QuotaProviderList.quotaZoneName(providerID: "perplexity", state: "warning")
-                == "Quota-perplexity-warningZone")
+            QuotaProviderList.quotaZoneName(providerID: "opencodego", state: "restored")
+                == "Quota-opencodego-restoredZone")
+        #expect(
+            QuotaProviderList.quotaZoneName(providerID: "abacus", state: "depleted")
+                == "Quota-abacus-depletedZone")
+        #expect(
+            QuotaProviderList.quotaZoneName(providerID: "mistral", state: "restored")
+                == "Quota-mistral-restoredZone")
     }
 
     @Test
-    func `Frozen retirement inventory yields exactly 168 cleanup subscription IDs`() {
-        let liveIDs = Set(QuotaProviderList.providers.map(\.id))
-        let retiredIDs = QuotaProviderList.retiredProviderIDs
+    func `iOS subscription count is 60 × 3 = 180 (depleted + restored + warning)`() {
+        // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
+        // the "warning" state for pre-depletion threshold pushes) →
+        // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
+        // 135 in iOS 1.8.0 (45 × 3 after the v0.27 catch-up: +grok,
+        // +groq, +elevenlabs, +deepgram, +llmproxy) →
+        // 144 in iOS 1.9.0 (48 × 3 after the v0.28+v0.29 catch-up:
+        // +azureopenai, +alibabatokenplan, +t3chat) →
+        // 147 in iOS 1.10.0 (49 × 3 after adding Sakana AI) →
+        // 150 after adding Qoder → 153 after adding Sub2API → 156 after adding ZenMux →
+        // 162 after adding ClinePass and LongCat, 165 after Neuralwatt,
+        // then 168 after DeepInfra and 174 after Qwen Cloud + ZoomMate.
+        // If this fails, someone either dropped
+        // a provider or changed the state
+        // matrix without updating the iOS subscription setup in
+        // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
+        let subscriptionCount = QuotaProviderList.providers.count * states.count
+        #expect(subscriptionCount == 180)
+    }
 
-        #expect(retiredIDs.count == 56)
-        #expect(Set(retiredIDs).count == retiredIDs.count)
-        #expect(Set(retiredIDs).isDisjoint(with: liveIDs))
-        #expect(Set(retiredIDs).union(liveIDs).count == 60)
-        #expect(retiredIDs.count * states.count == 168)
-        #expect(retiredIDs.contains("perplexity"))
-        #expect(retiredIDs.contains("notion"))
+    @Test
+    func `Notion AI is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "notion" })
+        #expect(entry.displayName == "Notion AI")
+    }
+
+    // MARK: - iOS 1.7.0 / Mac 0.26.2 — v0.26.0 catch-up
+
+    @Test
+    func `Moonshot / Kimi API is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "moonshot" })
+        #expect(entry.displayName == "Moonshot / Kimi API")
+    }
+
+    @Test
+    func `AWS Bedrock is registered with the Mac-side displayName`() throws {
+        let entry = try #require(QuotaProviderList.providers.first { $0.id == "bedrock" })
+        #expect(entry.displayName == "AWS Bedrock")
     }
 }

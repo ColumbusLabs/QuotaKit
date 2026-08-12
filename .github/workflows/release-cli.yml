@@ -1,0 +1,363 @@
+name: Release CLI
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag/version to package for manual artifact builds; manual runs do not publish."
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  build-cli:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: linux-x64
+            runs-on: ubuntu-24.04
+            platform: linux
+            asset-arch: x86_64
+            build-arch: ""
+            static-swift-stdlib: true
+          - name: linux-arm64
+            runs-on: ubuntu-24.04-arm
+            platform: linux
+            asset-arch: aarch64
+            build-arch: ""
+            static-swift-stdlib: true
+          - name: macos-arm64
+            runs-on: macos-15
+            platform: macos
+            asset-arch: arm64
+            build-arch: arm64
+            static-swift-stdlib: false
+          - name: macos-x86_64
+            runs-on: macos-15-intel
+            platform: macos
+            asset-arch: x86_64
+            build-arch: x86_64
+            static-swift-stdlib: false
+    runs-on: ${{ matrix.runs-on }}
+    env:
+      RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+      SWIFT_VERSION: 6.2.1
+      SWIFTLY_VERSION: 1.1.3
+      SWIFTLY_SIGNING_FINGERPRINT: E813C892820A6FA13755B268F167DF1ACF9CE069
+      SWIFT_STATIC_LINUX_SDK_URL: https://download.swift.org/swift-6.2.1-release/static-sdk/swift-6.2.1-RELEASE/swift-6.2.1-RELEASE_static-linux-0.0.1.artifactbundle.tar.gz
+      SWIFT_STATIC_LINUX_SDK_CHECKSUM: 08e1939a504e499ec871b36826569173103e4562769e12b9b8c2a50f098374ad
+      SQLITE_AMALGAMATION_VERSION: "3530300"
+      SQLITE_AMALGAMATION_SHA3_256: d45c688a8cb23f68611a894a756a12d7eb6ab6e9e2468ca70adbeab3808b5ab9
+    steps:
+      - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+
+      - name: Select Xcode 26.3 or 26.2
+        if: matrix.platform == 'macos'
+        run: |
+          set -euo pipefail
+          # Both versions are part of the official macOS 15 runner image.
+          for candidate in /Applications/Xcode_26.3.app /Applications/Xcode_26.2.app; do
+            if [[ -d "$candidate" ]]; then
+              sudo xcode-select -s "${candidate}/Contents/Developer"
+              echo "DEVELOPER_DIR=${candidate}/Contents/Developer" >> "$GITHUB_ENV"
+              break
+            fi
+          done
+          [[ "$(/usr/bin/xcodebuild -version)" == Xcode\ 26.* ]]
+          /usr/bin/xcodebuild -version
+
+      - name: Runner info
+        run: |
+          set -euo pipefail
+          uname -a
+          uname -m
+          swift --version
+
+      - name: Validate release tag
+        if: github.event_name == 'release' || inputs.tag != ''
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ -z "$RELEASE_TAG" ]]; then
+            echo "Missing release tag." >&2
+            exit 1
+          fi
+          if [[ ! "$RELEASE_TAG" =~ ^v[0-9A-Za-z._-]+$ ]]; then
+            echo "Invalid release tag: $RELEASE_TAG" >&2
+            exit 1
+          fi
+
+      - name: Install Swift ${{ env.SWIFT_VERSION }} via swiftly
+        if: matrix.platform == 'linux'
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if ! command -v gpg >/dev/null 2>&1; then
+            sudo apt-get update
+            sudo apt-get install -y ca-certificates gpg
+          fi
+
+          SWIFTLY_ARCH="$(uname -m)"
+          SWIFTLY_ARCHIVE="$RUNNER_TEMP/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz"
+          SWIFTLY_SIGNATURE="${SWIFTLY_ARCHIVE}.sig"
+          SWIFTLY_HOME_DIR="$HOME/.local/share/swiftly"
+          SWIFTLY_BIN_DIR="$HOME/.local/bin"
+          SWIFT_GNUPGHOME="$(mktemp -d)"
+          SWIFT_KEYS="$RUNNER_TEMP/swift-signing-keys.asc"
+          POST_INSTALL_SCRIPT="$(mktemp)"
+
+          mkdir -p "$SWIFTLY_BIN_DIR"
+          chmod 700 "$SWIFT_GNUPGHOME"
+          curl -fsSL "https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz" -o "$SWIFTLY_ARCHIVE"
+          curl -fsSL "https://download.swift.org/swiftly/linux/swiftly-${SWIFTLY_VERSION}-${SWIFTLY_ARCH}.tar.gz.sig" -o "$SWIFTLY_SIGNATURE"
+          curl -fsSL --compressed "https://www.swift.org/keys/all-keys.asc" -o "$SWIFT_KEYS"
+          GNUPGHOME="$SWIFT_GNUPGHOME" gpg --batch --import "$SWIFT_KEYS"
+          SIGNATURE_STATUS="$(GNUPGHOME="$SWIFT_GNUPGHOME" gpg --batch --status-fd=1 \
+            --verify "$SWIFTLY_SIGNATURE" "$SWIFTLY_ARCHIVE" 2>&1)"
+          printf '%s\n' "$SIGNATURE_STATUS"
+          grep -Fq "[GNUPG:] VALIDSIG ${SWIFTLY_SIGNING_FINGERPRINT} " <<< "$SIGNATURE_STATUS"
+          tar -xzf "$SWIFTLY_ARCHIVE" -C /tmp
+          /tmp/swiftly init --assume-yes --skip-install
+
+          . "$SWIFTLY_HOME_DIR/env.sh"
+          echo "$SWIFTLY_BIN_DIR" >> "$GITHUB_PATH"
+          echo "SWIFTLY_HOME_DIR=$SWIFTLY_HOME_DIR" >> "$GITHUB_ENV"
+          echo "SWIFTLY_BIN_DIR=$SWIFTLY_BIN_DIR" >> "$GITHUB_ENV"
+
+          swiftly install "$SWIFT_VERSION" --use --assume-yes --verify --post-install-file "$POST_INSTALL_SCRIPT"
+          if [[ -s "$POST_INSTALL_SCRIPT" ]]; then
+            sudo apt-get update
+            sudo bash "$POST_INSTALL_SCRIPT"
+          fi
+
+          hash -r
+          swift --version
+
+      - name: Build QuotaKitCLI (release)
+        id: build
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BUILD_ARGS=(swift build -c release --product CodexBarCLI)
+          if [[ -n "${{ matrix.build-arch }}" ]]; then
+            BUILD_ARGS+=(--arch "${{ matrix.build-arch }}")
+          fi
+          if [[ "${{ matrix.static-swift-stdlib }}" == "true" ]]; then
+            BUILD_ARGS+=(--static-swift-stdlib)
+          fi
+          "${BUILD_ARGS[@]}"
+
+          SHOW_BIN_ARGS=(swift build -c release --product CodexBarCLI --show-bin-path)
+          if [[ -n "${{ matrix.build-arch }}" ]]; then
+            SHOW_BIN_ARGS+=(--arch "${{ matrix.build-arch }}")
+          fi
+          if [[ "${{ matrix.static-swift-stdlib }}" == "true" ]]; then
+            SHOW_BIN_ARGS+=(--static-swift-stdlib)
+          fi
+
+          echo "bin_dir=$("${SHOW_BIN_ARGS[@]}")" >> "$GITHUB_OUTPUT"
+
+      - name: Smoke test QuotaKitCLI
+        timeout-minutes: 5
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          BIN_DIR="${{ steps.build.outputs.bin_dir }}"
+          BIN="$BIN_DIR/CodexBarCLI"
+          run_with_timeout() {
+            local output="$1"
+            shift
+            "$@" > "$output" &
+            local pid=$!
+            local run_status=
+            for _ in {1..20}; do
+              if ! kill -0 "$pid" 2>/dev/null; then
+                set +e
+                wait "$pid"
+                run_status=$?
+                set -e
+                break
+              fi
+              sleep 1
+            done
+            if [[ -z "$run_status" ]]; then
+              kill "$pid" 2>/dev/null || true
+              wait "$pid" 2>/dev/null || true
+              echo "$* timed out." >&2
+              exit 124
+            fi
+            if [[ "$run_status" -ne 0 ]]; then
+              cat "$output" >&2 || true
+              exit "$run_status"
+            fi
+          }
+
+          echo "BIN=$BIN"
+          file "$BIN"
+          if [[ "${{ matrix.platform }}" == "macos" ]]; then
+            lipo -archs "$BIN" | tr ' ' '\n' | grep -Fx "${{ matrix.asset-arch }}"
+            run_with_timeout "$RUNNER_TEMP/quotakit-cli-smoke-${{ matrix.name }}.txt" "$BIN" config validate --format json
+          else
+            run_with_timeout "$RUNNER_TEMP/quotakit-cli-help-${{ matrix.name }}.txt" "$BIN" --help
+            file "$BIN" | grep -q "${{ matrix.asset-arch }}"
+          fi
+          printf '%s\n' "${RELEASE_TAG#v}" > "$BIN_DIR/VERSION"
+          VERSION_OUTPUT="$RUNNER_TEMP/quotakit-cli-version-${{ matrix.name }}.txt"
+          run_with_timeout "$VERSION_OUTPUT" "$BIN" --version
+          grep -Fx "QuotaKit ${RELEASE_TAG#v}" "$VERSION_OUTPUT"
+          rm "$BIN_DIR/VERSION"
+
+      - name: Package
+        id: pkg
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          REF_NAME="${RELEASE_TAG}"
+          if [[ -z "$REF_NAME" ]]; then
+            echo "Missing release tag." >&2
+            exit 1
+          fi
+          SAFE_REF_NAME="${REF_NAME//\//-}"
+
+          BIN_DIR="${{ steps.build.outputs.bin_dir }}"
+          OUT_DIR="$(mktemp -d)"
+          install -m 0755 "$BIN_DIR/CodexBarCLI" "$OUT_DIR/QuotaKitCLI"
+          ln -s "QuotaKitCLI" "$OUT_DIR/quotakit"
+          printf '%s\n' "${SAFE_REF_NAME#v}" > "$OUT_DIR/VERSION"
+
+          CORE_RESOURCE_SOURCE=""
+          for candidate in \
+            "$BIN_DIR/CodexBar_CodexBarCore.bundle" \
+            "$BIN_DIR/CodexBar_CodexBarCore.resources"; do
+            if [[ -d "$candidate" ]]; then
+              CORE_RESOURCE_SOURCE="$candidate"
+              break
+            fi
+          done
+          if [[ -z "$CORE_RESOURCE_SOURCE" ]]; then
+            echo "Missing CodexBarCore resource bundle in $BIN_DIR" >&2
+            exit 1
+          fi
+          cp -R "$CORE_RESOURCE_SOURCE" "$OUT_DIR/CodexBar_CodexBarCore.bundle"
+          RESOURCE_SMOKE_OUTPUT="$RUNNER_TEMP/quotakit-cli-resource-smoke-${{ matrix.name }}.txt"
+          CODEXBAR_RESOURCE_SMOKE=1 "$OUT_DIR/QuotaKitCLI" > "$RESOURCE_SMOKE_OUTPUT"
+          grep -Fx "CODEXBAR_RESOURCE_SMOKE_OK" "$RESOURCE_SMOKE_OUTPUT"
+
+          ASSET="QuotaKitCLI-${SAFE_REF_NAME}-${{ matrix.platform }}-${{ matrix.asset-arch }}.tar.gz"
+          (cd "$OUT_DIR" && tar czf "$ASSET" \
+            QuotaKitCLI quotakit VERSION CodexBar_CodexBarCore.bundle)
+          if command -v sha256sum >/dev/null 2>&1; then
+            sha256sum "$OUT_DIR/$ASSET" > "$OUT_DIR/$ASSET.sha256"
+          else
+            shasum -a 256 "$OUT_DIR/$ASSET" > "$OUT_DIR/$ASSET.sha256"
+          fi
+
+          echo "out_dir=$OUT_DIR" >> "$GITHUB_OUTPUT"
+          echo "asset=$ASSET" >> "$GITHUB_OUTPUT"
+
+      - name: Upload release assets
+        if: github.event_name == 'release'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          TAG="${RELEASE_TAG}"
+          OUT_DIR="${{ steps.pkg.outputs.out_dir }}"
+          ASSET="${{ steps.pkg.outputs.asset }}"
+          gh release upload "$TAG" "$OUT_DIR/$ASSET" "$OUT_DIR/$ASSET.sha256" --clobber
+
+      - name: Upload workflow artifact (manual runs)
+        if: github.event_name == 'workflow_dispatch'
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: quotakit-cli-${{ matrix.name }}
+          path: |
+            ${{ steps.pkg.outputs.out_dir }}/${{ steps.pkg.outputs.asset }}
+            ${{ steps.pkg.outputs.out_dir }}/${{ steps.pkg.outputs.asset }}.sha256
+
+  update-homebrew-tap:
+    runs-on: ubuntu-24.04
+    needs: build-cli
+    if: github.event_name == 'release'
+    steps:
+      - name: Resolve release tag
+        id: release
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          tag="${RELEASE_TAG}"
+          if [[ -z "$tag" ]]; then
+            echo "Missing release tag." >&2
+            exit 1
+          fi
+          if [[ ! "$tag" =~ ^v[0-9A-Za-z._-]+$ ]]; then
+            echo "Invalid release tag: $tag" >&2
+            exit 1
+          fi
+          echo "tag=$tag" >> "$GITHUB_OUTPUT"
+          echo "request_id=quotakit-${tag}-${GITHUB_RUN_ID}" >> "$GITHUB_OUTPUT"
+
+      - name: Dispatch tap update
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          RELEASE_TAG: ${{ steps.release.outputs.tag }}
+          REQUEST_ID: ${{ steps.release.outputs.request_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -n "$GH_TOKEN"
+          for attempt in {1..6}; do
+            if gh workflow run update-formula.yml \
+              --repo steipete/homebrew-tap \
+              -f formula=quotakit \
+              -f tag="$RELEASE_TAG" \
+              -f repository=ColumbusLabs/QuotaKit \
+              -f artifact_template='QuotaKitCLI-{tag}-{target}.tar.gz' \
+              -f target_aliases='darwin_arm64=macos-arm64,darwin_amd64=macos-x86_64,linux_arm64=linux-aarch64,linux_amd64=linux-x86_64' \
+              -f cask=quotakit \
+              -f cask_artifact='QuotaKit-macos-universal-{version}.zip' \
+              -f request_id="$REQUEST_ID"; then
+              exit 0
+            fi
+            if [[ "$attempt" -eq 6 ]]; then
+              echo "Failed to dispatch tap update after ${attempt} attempts." >&2
+              exit 1
+            fi
+            sleep $((attempt * 30))
+          done
+
+      - name: Wait for tap update
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          REQUEST_ID: ${{ steps.release.outputs.request_id }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          for _ in {1..20}; do
+            run_id="$(
+              gh run list \
+                --repo steipete/homebrew-tap \
+                --workflow update-formula.yml \
+                --json databaseId,displayTitle \
+                --jq '.[] | select(.displayTitle | contains(env.REQUEST_ID)) | .databaseId' 2>/tmp/codexbar-tap-run-list.err \
+                | head -n1 || true
+            )"
+            if [[ -n "$run_id" ]]; then
+              gh run watch "$run_id" --repo steipete/homebrew-tap --exit-status
+              exit 0
+            fi
+            cat /tmp/codexbar-tap-run-list.err >&2 || true
+            sleep 5
+          done
+          echo "Timed out waiting for tap workflow to appear." >&2
+          exit 1

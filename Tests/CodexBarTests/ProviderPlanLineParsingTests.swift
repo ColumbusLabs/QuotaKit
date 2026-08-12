@@ -27,4 +27,46 @@ struct ProviderPlanLineParsingTests {
 
         #expect(identity.loginMethod == "Max")
     }
+
+    @Test
+    func `Kiro legacy plan matching does not bridge lines`() throws {
+        let output = """
+        |
+        KIRO FREE
+        ████████████████████████████████████████████████████ 25%
+        (12.50 of 50 covered in plan), resets on 01/15
+        """
+
+        let snapshot = try KiroStatusProbe().parse(output: output)
+
+        #expect(snapshot.planName == "Kiro")
+    }
+
+    @Test
+    func `Kiro estimated usage plan matching does not bridge lines`() throws {
+        let output = """
+        Estimated Usage | resets on 2026-06-01 |
+        KIRO FREE
+        ████████████████████████████████████████████████████ 25%
+        (12.50 of 50 covered in plan), resets on 01/15
+        """
+
+        let snapshot = try KiroStatusProbe().parse(output: output)
+
+        #expect(snapshot.planName == "Kiro")
+    }
+
+    @Test
+    func `Kiro labeled plan matching does not bridge lines`() throws {
+        let output = """
+        Plan:
+        Q Developer Pro
+        ████████████████████████████████████████████████████ 25%
+        (12.50 of 50 covered in plan), resets on 01/15
+        """
+
+        let snapshot = try KiroStatusProbe().parse(output: output)
+
+        #expect(snapshot.planName == "Kiro")
+    }
 }

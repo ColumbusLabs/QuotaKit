@@ -29,7 +29,9 @@ struct StatusItemAnimationTests {
     @Test
     func `known unavailable limits stop loading animation`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-known-unavailable"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-known-unavailable"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = false
@@ -59,9 +61,364 @@ struct StatusItemAnimationTests {
     }
 
     @Test
+    func `merged icon loading animation tracks selected provider only`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-merged"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let openRouterMeta = registry.metadata[.openrouter] {
+            settings.setProviderEnabled(provider: .openrouter, metadata: openRouterMeta, enabled: true)
+        }
+        settings[providerConfig: .openrouter, field: .apiKey] = "or-token"
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: false)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .codex)
+        store._setSnapshotForTesting(nil, provider: .claude)
+        store._setErrorForTesting(nil, provider: .codex)
+        store._setErrorForTesting(nil, provider: .claude)
+
+        #expect(controller.needsMenuBarIconAnimation() == false)
+    }
+
+    @Test
+    func `merged icon loading animation does not flip layout when weekly hits zero`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-weekly"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .codex
+        settings.menuBarShowsBrandIconWithPercent = false
+
+        let registry = ProviderRegistry.shared
+        if let codexMeta = registry.metadata[.codex] {
+            settings.setProviderEnabled(provider: .codex, metadata: codexMeta, enabled: true)
+        }
+        if let openRouterMeta = registry.metadata[.openrouter] {
+            settings.setProviderEnabled(provider: .openrouter, metadata: openRouterMeta, enabled: true)
+        }
+        settings[providerConfig: .openrouter, field: .apiKey] = "or-token"
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+
+        // Seed with data so init doesn't start the animation driver.
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 50, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .codex)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        // Enter loading state: no data, no stale error.
+        store._setSnapshotForTesting(nil, provider: .codex)
+        store._setSnapshotForTesting(nil, provider: .claude)
+        store._setErrorForTesting(nil, provider: .codex)
+        store._setErrorForTesting(nil, provider: .claude)
+
+        controller.animationPattern = .knightRider
+        #expect(controller.needsMenuBarIconAnimation() == true)
+
+        // At phase = π/2, the secondary bar hits 0 (weeklyRemaining == 0) due to a π offset.
+        // Regression: this used to flip IconRenderer into the "weekly exhausted" layout and cause toolbar flicker.
+        controller.applyIcon(phase: .pi / 2)
+
+        guard let image = controller.statusItem.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        guard let rep else { return }
+
+        let alpha = (rep.colorAt(x: 18, y: 12) ?? .clear).alphaComponent
+        #expect(alpha > 0.05)
+    }
+
+    @Test
+    func `warp no bonus layout is preserved in show used mode when bonus is exhausted`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-no-bonus-used"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+        settings.usageBarsShowUsed = true
+
+        let registry = ProviderRegistry.shared
+        if let warpMeta = registry.metadata[.warp] {
+            settings.setProviderEnabled(provider: .warp, metadata: warpMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        // Primary used=10%. Bonus exhausted: used=100% (remaining=0%).
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .warp)
+        store._setErrorForTesting(nil, provider: .warp)
+
+        controller.applyIcon(for: .warp, phase: nil)
+
+        guard let image = controller.statusItems[.warp]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        guard let rep else { return }
+
+        // In the Warp "no bonus/exhausted bonus" layout, the bottom bar is a dimmed track.
+        // A pixel near the right side of the bottom bar should remain subdued (not fully opaque).
+        let alpha = (rep.colorAt(x: 25, y: 9) ?? .clear).alphaComponent
+        #expect(alpha < 0.6)
+    }
+
+    @Test
+    func `warp bonus lane is preserved in show used mode when bonus is unused`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-warp-unused-bonus-used"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+        settings.usageBarsShowUsed = true
+
+        let registry = ProviderRegistry.shared
+        if let warpMeta = registry.metadata[.warp] {
+            settings.setProviderEnabled(provider: .warp, metadata: warpMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        // Bonus exists but is unused: used=0% (remaining=100%).
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 10, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 0, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+        store._setSnapshotForTesting(snapshot, provider: .warp)
+        store._setErrorForTesting(nil, provider: .warp)
+
+        controller.applyIcon(for: .warp, phase: nil)
+
+        guard let image = controller.statusItems[.warp]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        guard let rep else { return }
+
+        // When we incorrectly treat "0 used" as "no bonus", the Warp branch makes the top bar full (100%).
+        // A pixel near the right side of the top bar should remain in the track-only range for 10% usage.
+        let alpha = (rep.colorAt(x: 31, y: 25) ?? .clear).alphaComponent
+        #expect(alpha < 0.6)
+    }
+
+    @Test
+    func `open router without key limit uses meter icon when brand percent is disabled`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-openrouter-no-limit-meter"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+
+        let registry = ProviderRegistry.shared
+        if let openRouterMeta = registry.metadata[.openrouter] {
+            settings.setProviderEnabled(provider: .openrouter, metadata: openRouterMeta, enabled: true)
+        }
+        settings[providerConfig: .openrouter, field: .apiKey] = "or-token"
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let snapshot = OpenRouterUsageSnapshot(
+            totalCredits: 50,
+            totalUsage: 45,
+            balance: 5,
+            usedPercent: 90,
+            keyDataFetched: true,
+            keyLimit: nil,
+            keyUsage: nil,
+            rateLimit: nil,
+            updatedAt: Date()).toUsageSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .openrouter)
+        store._setErrorForTesting(nil, provider: .openrouter)
+
+        controller.applyIcon(for: .openrouter, phase: nil)
+
+        guard let image = controller.statusItems[.openrouter]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+
+        #expect(image.size.width == 18)
+        #expect(image.size.height == 18)
+        #expect(snapshot.detailRow(label: "API key budget")?.value == "No limit configured")
+        #expect(controller.statusItems[.openrouter]?.button?.title.isEmpty == true)
+        #expect(MenuBarDisplayText.percentText(window: snapshot.primary, showUsed: false) == nil)
+
+        // With no key limit, the primary bar has no fill — just the dim track.
+        // A brand logo would be fully opaque here; the track is not.
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        if let rep {
+            let alpha = (rep.colorAt(x: 8, y: 25) ?? .clear).alphaComponent
+            #expect(alpha < 0.5)
+        }
+    }
+
+    @Test
+    func `open router key data not fetched still uses meter icon when brand percent is disabled`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-openrouter-no-fetch-meter"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = false
+        settings.menuBarShowsBrandIconWithPercent = false
+
+        let registry = ProviderRegistry.shared
+        if let openRouterMeta = registry.metadata[.openrouter] {
+            settings.setProviderEnabled(provider: .openrouter, metadata: openRouterMeta, enabled: true)
+        }
+        settings[providerConfig: .openrouter, field: .apiKey] = "or-token"
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let snapshot = OpenRouterUsageSnapshot(
+            totalCredits: 50,
+            totalUsage: 45,
+            balance: 5,
+            usedPercent: 90,
+            keyDataFetched: false,
+            keyLimit: nil,
+            keyUsage: nil,
+            rateLimit: nil,
+            updatedAt: Date()).toUsageSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .openrouter)
+        store._setErrorForTesting(nil, provider: .openrouter)
+
+        controller.applyIcon(for: .openrouter, phase: nil)
+
+        guard let image = controller.statusItems[.openrouter]?.button?.image else {
+            #expect(Bool(false))
+            return
+        }
+
+        #expect(image.size.width == 18)
+        #expect(image.size.height == 18)
+        #expect(snapshot.detailRow(label: "API key budget")?.value == "Unavailable right now")
+
+        // Even with no key data, OpenRouter still renders a meter rather than the brand logo.
+        // A brand logo would be fully opaque here; the unfilled track is not.
+        let rep = image.representations.compactMap { $0 as? NSBitmapImageRep }.first(where: {
+            $0.pixelsWide == 36 && $0.pixelsHigh == 36
+        })
+        #expect(rep != nil)
+        if let rep {
+            let alpha = (rep.colorAt(x: 8, y: 25) ?? .clear).alphaComponent
+            #expect(alpha < 0.5)
+        }
+    }
+
+    @Test
     func `menu bar percent uses configured metric`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-metric"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-metric"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -100,7 +457,8 @@ struct StatusItemAnimationTests {
     @Test
     func `combined codex menu bar metric window uses most constrained visible lane`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-combined-window"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-combined-window"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -138,9 +496,129 @@ struct StatusItemAnimationTests {
     }
 
     @Test
+    func `menu bar percent automatic prefers rate limit for kimi`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-kimi-automatic"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .kimi
+        settings.setMenuBarMetricPreference(.automatic, for: .kimi)
+
+        let registry = ProviderRegistry.shared
+        if let kimiMeta = registry.metadata[.kimi] {
+            settings.setProviderEnabled(provider: .kimi, metadata: kimiMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 12, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 42, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .kimi)
+        store._setErrorForTesting(nil, provider: .kimi)
+
+        let window = controller.menuBarMetricWindow(for: .kimi, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 42)
+    }
+
+    @Test
+    func `menu bar percent uses average for gemini`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-average"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .gemini
+        settings.setMenuBarMetricPreference(.average, for: .gemini)
+
+        let registry = ProviderRegistry.shared
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 60, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .gemini)
+        store._setErrorForTesting(nil, provider: .gemini)
+
+        let window = controller.menuBarMetricWindow(for: .gemini, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 40)
+    }
+
+    @Test
+    func `menu bar percent automatic keeps gemini primary over higher tertiary`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-gemini-automatic-primary"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .gemini
+        settings.setMenuBarMetricPreference(.automatic, for: .gemini)
+
+        let registry = ProviderRegistry.shared
+        if let geminiMeta = registry.metadata[.gemini] {
+            settings.setProviderEnabled(provider: .gemini, metadata: geminiMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 40, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 95, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .gemini)
+        store._setErrorForTesting(nil, provider: .gemini)
+
+        let window = controller.menuBarMetricWindow(for: .gemini, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 20)
+    }
+
+    @Test
     func `menu bar percent automatic picks highest cursor lane including api`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-automatic-api"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-automatic-api"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -177,9 +655,213 @@ struct StatusItemAnimationTests {
     }
 
     @Test
+    func `menu bar percent automatic falls back to purchased perplexity lane when bonus is exhausted`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-perplexity-automatic-purchased"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .perplexity
+        settings.setMenuBarMetricPreference(.automatic, for: .perplexity)
+
+        let registry = ProviderRegistry.shared
+        if let perplexityMeta = registry.metadata[.perplexity] {
+            settings.setProviderEnabled(provider: .perplexity, metadata: perplexityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .perplexity)
+        store._setErrorForTesting(nil, provider: .perplexity)
+
+        let window = controller.menuBarMetricWindow(for: .perplexity, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 20)
+    }
+
+    @Test
+    func `menu bar percent automatic falls through after recurring perplexity credits are exhausted`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(
+                suiteName: "StatusItemAnimationTests-perplexity-automatic-recurring-exhausted"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .perplexity
+        settings.setMenuBarMetricPreference(.automatic, for: .perplexity)
+
+        let registry = ProviderRegistry.shared
+        if let perplexityMeta = registry.metadata[.perplexity] {
+            settings.setProviderEnabled(provider: .perplexity, metadata: perplexityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 32, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .perplexity)
+        store._setErrorForTesting(nil, provider: .perplexity)
+
+        let window = controller.menuBarMetricWindow(for: .perplexity, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 32)
+    }
+
+    @Test
+    func `menu bar percent automatic prefers purchased perplexity credits before bonus`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(
+                suiteName: "StatusItemAnimationTests-perplexity-automatic-purchased-before-bonus"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .perplexity
+        settings.setMenuBarMetricPreference(.automatic, for: .perplexity)
+
+        let registry = ProviderRegistry.shared
+        if let perplexityMeta = registry.metadata[.perplexity] {
+            settings.setProviderEnabled(provider: .perplexity, metadata: perplexityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 20, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 45, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .perplexity)
+        store._setErrorForTesting(nil, provider: .perplexity)
+
+        let window = controller.menuBarMetricWindow(for: .perplexity, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 45)
+    }
+
+    @Test
+    func `menu bar percent primary preference stays on recurring perplexity credits`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(
+                suiteName: "StatusItemAnimationTests-perplexity-primary-recurring-exhausted"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .perplexity
+        settings.setMenuBarMetricPreference(.primary, for: .perplexity)
+
+        let registry = ProviderRegistry.shared
+        if let perplexityMeta = registry.metadata[.perplexity] {
+            settings.setProviderEnabled(provider: .perplexity, metadata: perplexityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 32, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .perplexity)
+        store._setErrorForTesting(nil, provider: .perplexity)
+
+        let window = controller.menuBarMetricWindow(for: .perplexity, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 100)
+    }
+
+    @Test
+    func `menu bar percent tertiary preference uses purchased perplexity lane`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-perplexity-tertiary-pref"),
+            zaiTokenStore: NoopZaiTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .perplexity
+        settings.setMenuBarMetricPreference(.tertiary, for: .perplexity)
+
+        let registry = ProviderRegistry.shared
+        if let perplexityMeta = registry.metadata[.perplexity] {
+            settings.setProviderEnabled(provider: .perplexity, metadata: perplexityMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: RateWindow(usedPercent: 100, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 28, windowMinutes: nil, resetsAt: nil, resetDescription: nil),
+            updatedAt: Date())
+
+        store._setSnapshotForTesting(snapshot, provider: .perplexity)
+        store._setErrorForTesting(nil, provider: .perplexity)
+
+        let window = controller.menuBarMetricWindow(for: .perplexity, snapshot: snapshot)
+
+        #expect(window?.usedPercent == 28)
+    }
+
+    @Test
     func `menu bar percent secondary preference uses api lane for cursor`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-secondary-pref"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-secondary-pref"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -218,7 +900,8 @@ struct StatusItemAnimationTests {
     @Test
     func `menu bar tertiary preference falls back to automatic for cursor`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-tertiary-fallback"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-cursor-tertiary-fallback"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -366,7 +1049,9 @@ struct StatusItemAnimationTests {
     @Test
     func `claude primary menu bar metric computes pace from selected session window`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-primary-pace"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-primary-pace"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -415,7 +1100,9 @@ struct StatusItemAnimationTests {
     @Test
     func `claude combined menu bar metric shows session and weekly lanes`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -468,7 +1155,9 @@ struct StatusItemAnimationTests {
         // window in BOTH `primary` and `secondary`. The combined metric must not relabel the
         // weekly window as a session lane (e.g. "168h 42% · W 42%") — it should show weekly only.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-no-session"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-no-session"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -511,7 +1200,9 @@ struct StatusItemAnimationTests {
     @Test
     func `claude combined menu bar metric paces the weekly lane in both mode`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-pace"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-pace"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -568,7 +1259,9 @@ struct StatusItemAnimationTests {
         // WEEKLY pace. Previously the usage component came from the most-constrained lane, so when the
         // weekly lane was busier than the session lane it showed weekly usage + weekly pace.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-session-pace"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-session-pace"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -624,7 +1317,9 @@ struct StatusItemAnimationTests {
         // projection. The session usage must headline the pace/both readout there too — not the busier
         // weekly lane that drives the icon/bar.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-combined-session-pace"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-combined-session-pace"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -678,7 +1373,9 @@ struct StatusItemAnimationTests {
         // When the weekly lane is exhausted it is the binding cap and has no pace, so the combined metric
         // must surface it instead of a roomy session number that would hide the spent weekly limit.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-weekly-exhausted"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-weekly-exhausted"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -734,7 +1431,9 @@ struct StatusItemAnimationTests {
         // session lane exists. The pace/both usage component must land on the weekly lane, not collapse to
         // nil.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-no-session-both"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-no-session-both"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -781,7 +1480,9 @@ struct StatusItemAnimationTests {
         // session/weekly lanes (here a 0% 5h placeholder + a spend limit). With Session + Weekly selected,
         // it must surface the spend-limit usage, not the meaningless "5h 0%" placeholder lane.
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-spend-limit"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-claude-combined-spend-limit"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -835,7 +1536,9 @@ struct StatusItemAnimationTests {
     @Test
     func `codex menu bar pace does not fall back to session when weekly projection is unavailable`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-no-weekly-pace"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-codex-no-weekly-pace"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -880,7 +1583,8 @@ struct StatusItemAnimationTests {
     @Test
     func `menu bar display text uses credits when codex weekly is exhausted`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -925,7 +1629,8 @@ struct StatusItemAnimationTests {
     @Test
     func `menu bar display text uses credits when codex session is exhausted`() {
         let settings = SettingsStore(
-            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback-session"))
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-credits-fallback-session"),
+            zaiTokenStore: NoopZaiTokenStore())
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
@@ -965,6 +1670,52 @@ struct StatusItemAnimationTests {
             .replacingOccurrences(of: " left", with: "")
 
         #expect(displayText == expected)
+    }
+
+    @Test
+    func `menu bar display text shows zero percent for kilo zero total edge`() {
+        let settings = SettingsStore(
+            configStore: testConfigStore(suiteName: "StatusItemAnimationTests-kilo-zero-edge"),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        settings.refreshFrequency = .manual
+        settings.mergeIcons = true
+        settings.selectedMenuProvider = .kilo
+        settings.menuBarDisplayMode = .percent
+        settings.usageBarsShowUsed = false
+        settings.setMenuBarMetricPreference(.primary, for: .kilo)
+
+        let registry = ProviderRegistry.shared
+        if let kiloMeta = registry.metadata[.kilo] {
+            settings.setProviderEnabled(provider: .kilo, metadata: kiloMeta, enabled: true)
+        }
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: self.makeStatusBarForTesting())
+
+        let snapshot = KiloUsageSnapshot(
+            creditsUsed: 0,
+            creditsTotal: 0,
+            creditsRemaining: 0,
+            planName: "Kilo Pass Pro",
+            autoTopUpEnabled: true,
+            autoTopUpMethod: "visa",
+            updatedAt: Date()).toUsageSnapshot()
+
+        store._setSnapshotForTesting(snapshot, provider: .kilo)
+        store._setErrorForTesting(nil, provider: .kilo)
+
+        let displayText = controller.menuBarDisplayText(for: .kilo, snapshot: snapshot)
+
+        #expect(displayText == "0%")
     }
 
     @Test

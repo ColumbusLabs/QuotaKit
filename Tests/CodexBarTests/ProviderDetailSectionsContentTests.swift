@@ -42,7 +42,7 @@ struct ProviderDetailSectionsContentTests {
     }
 
     private static func input(details: [ProviderDetailSection]) -> UsageMenuCardView.Model.Input {
-        let provider: UsageProvider = .grok
+        let provider: UsageProvider = .synthetic
         return UsageMenuCardView.Model.Input(
             provider: provider,
             metadata: ProviderDescriptorRegistry.descriptor(for: provider).metadata,

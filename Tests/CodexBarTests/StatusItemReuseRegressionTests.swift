@@ -14,6 +14,7 @@ struct StatusItemReuseRegressionTests {
         settings.statusChecksEnabled = false
         settings.refreshFrequency = .manual
         settings.mergeIcons = true
+        settings.providerDetectionCompleted = true
         settings.menuBarShowsBrandIconWithPercent = true
         settings.menuBarDisplayMode = .percent
 

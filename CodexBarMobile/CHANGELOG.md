@@ -5,24 +5,20 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
-## Unreleased — Four-provider core
+## [1.11.3 (177)] — 2026-08-11 — Recovery
 
-### Changed
+### Restored
 
-- The iPhone app, widgets, cost history, and quota alerts now surface only
-  Codex, Claude, Cursor, and Grok. Historical records for retired providers are
-  ignored locally without deleting production CloudKit data.
-- StoreKit entitlement gates and remote configuration have been removed. All
-  retained companion features are available directly, and the fixed Columbus
-  Labs Mac setup URL is bundled with the app.
-- The mobile app is English-only; the string catalog and generated Xcode
-  project retain Base/en resources.
+- Restored the full provider surface synced from QuotaKit Mac after build 176
+  reduced the iPhone experience to four providers.
+- Restored QuotaKit Pro lifetime purchase and access, with safer entitlement
+  revalidation that preserves valid production access during TestFlight checks.
+- Restored quota alert subscriptions for the full supported provider set.
 
-### Migration
+### Retained
 
-- On first subscription reconciliation after upgrade, the app explicitly
-  removes the 168 transition-subscription IDs belonging to the 56 retired
-  providers while preserving the 12 live provider subscriptions.
+- Kept the model-token dashboard improvements and background-sync reliability
+  fixes already included in the 1.11.3 release line.
 
 ## [1.11.3 (175)] — 2026-08-04 — Model token usage
 

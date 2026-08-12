@@ -595,6 +595,7 @@ struct ProvidersPane: View {
             showOptionalCreditsAndExtraUsage: self.settings.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: self.settings.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: self.settings.codexSparkUsageVisible,
+            copilotBudgetExtrasEnabled: self.settings.copilotBudgetExtrasEnabled,
             hidePersonalInfo: self.settings.hidePersonalInfo,
             weeklyPace: weeklyPace,
             quotaWarningThresholds: [

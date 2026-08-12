@@ -2,7 +2,8 @@
 //
 // `type_body_length` bumped past the 800-line default in iOS 1.8.0
 // build 134 when 5 v0.27 existing-provider mappers were added
-// (Claude Admin, Claude extra usage, and Codex workspace). Static provider mappers now live in
+// (claude admin + claude extra + opencodego zen + minimax billing +
+// codex workspace). Static provider mappers now live in
 // `SyncCoordinator+ProviderMappers.swift`, but the coordinator still
 // carries the CloudKit push, diff, and multi-account orchestration.
 // Scoped suppression matches the same pattern already used in
@@ -495,16 +496,66 @@ final class SyncCoordinator {
         return String(parts[1])
     }
 
-    /// Retained token-account providers whose account snapshots are already
-    /// co-resident in `UsageStore`. Codex uses its managed-account cache path;
-    /// Grok currently has no corresponding multi-account source.
-    private static let tokenBasedMultiAccountProviders: [UsageProvider] = [
-        .claude, .cursor,
-    ]
+    /// Token-based providers that share `UsageStore.accountSnapshots` for
+    /// multi-account data. When `showAllTokenAccountsInMenu` is on **and**
+    /// the user has 2+ token accounts configured, each provider's
+    /// `accountSnapshots[provider]` array is populated with every account's
+    /// usage; SyncCoordinator emits one CKRecord per entry.
+    ///
+    /// Identical pattern to Codex (R1) but with one important difference:
+    /// for token providers the per-account data is **co-resident in memory**
+    /// once the user enables "Show all" — unlike Codex which only ever
+    /// retains the active account's snapshot. As a result we don't need
+    /// observation-cache cold-start mitigation here; we read the live list
+    /// and emit immediately.
+    ///
+    /// **Source of truth** is `TokenAccountSupportCatalog.allProviders`
+    /// (Phase G fix — previously this list was hardcoded and drifted
+    /// behind upstream catalog updates by 7 providers: openai, deepseek,
+    /// antigravity, manus, copilot, venice, stepfun). Reading the catalog
+    /// directly means any future upstream-added token provider is
+    /// automatically picked up; `TokenAccountSyncCoverageTests` enforces
+    /// the equality so a drift fails the build.
+    private static var tokenBasedMultiAccountProviders: [UsageProvider] {
+        TokenAccountSupportCatalog.allProviders
+    }
+
+    /// Testing-only mirror of `tokenBasedMultiAccountProviders` — same
+    /// value, package-internal access for `TokenAccountSyncCoverageTests`.
+    /// Production code should use the private accessor above.
+    static var tokenBasedMultiAccountProvidersForTesting: [UsageProvider] {
+        tokenBasedMultiAccountProviders
+    }
 
     // swiftlint:disable function_parameter_count
-    /// Builds the shared provider envelope plus the retained Codex, Claude,
-    /// Cursor, and Grok extensions.
+    /// Builds a `ProviderUsageSnapshot` from a `UsageSnapshot` plus shared
+    /// per-provider data (cost / utilization). Pure function over inputs —
+    /// used by both the active-account main loop and the multi-account
+    /// expansion path. Extraction made multi-account expansion possible
+    /// without code duplication; see R2 in
+    /// `Research/020-multi-account-comprehensive.md`.
+    /// Threads the Antigravity Google-OAuth account list into the wire envelope
+    /// (gap B). iOS already ships the `AntigravityAccountSwitcher` renderer
+    /// (gated on > 1 account); this populates the field the construction-site
+    /// TODO left as nil since iOS 1.7.0. Built from the configured token
+    /// accounts — `label` is the display email, and `ProviderTokenAccount`
+    /// carries no token-expiry so `expiresAt` is nil. Emitted only for > 1
+    /// account, matching the iOS switcher's display condition.
+    private func mapAntigravityAccounts(provider: UsageProvider) -> SyncMultiAccountList? {
+        guard provider == .antigravity,
+              let data = self.settings.tokenAccountsData(for: .antigravity),
+              data.accounts.count > 1
+        else { return nil }
+        let activeIndex = data.clampedActiveIndex()
+        let entries = data.accounts.enumerated().map { index, account in
+            SyncMultiAccountEntry(
+                email: account.label,
+                isActive: index == activeIndex,
+                expiresAt: nil)
+        }
+        return SyncMultiAccountList(accounts: entries, activeIndex: activeIndex)
+    }
+
     private func buildProviderUsageSnapshot(
         for provider: UsageProvider,
         snapshot: UsageSnapshot?,
@@ -514,79 +565,237 @@ final class SyncCoordinator {
         sharedCostSummary: SyncCostSummary?,
         sharedUtilizationHistory: [SyncUtilizationSeries]?) -> ProviderUsageSnapshot
     {
-        let now = Date()
+        // Build dynamic rate windows array with labels from metadata.
+        let paceNow = Date()
         var rateWindows: [SyncRateWindow] = []
         let labels = Self.syncRateWindowLabels(provider: provider, metadata: metadata, snapshot: snapshot)
         let codexProjection = provider == .codex
-            ? self.store.codexConsumerProjection(surface: .widget, snapshotOverride: snapshot, now: now)
+            ? self.store.codexConsumerProjection(surface: .widget, snapshotOverride: snapshot, now: paceNow)
             : nil
-
-        if let primary = snapshot?.primary {
+        if let p = snapshot?.primary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.primary,
-                window: codexProjection?.rateWindow(for: .session) ?? primary,
+                window: codexProjection?.rateWindow(for: .session) ?? p,
                 role: provider == .cursor ? .weekly : .session,
-                now: now))
+                now: paceNow))
         }
-        if let secondary = snapshot?.secondary {
+        if let s = snapshot?.secondary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.secondary,
-                window: codexProjection?.rateWindow(for: .weekly) ?? secondary,
+                window: codexProjection?.rateWindow(for: .weekly) ?? s,
                 role: .weekly,
-                now: now))
+                now: paceNow))
         }
-        if let metadata, metadata.supportsOpus, let tertiary = snapshot?.tertiary {
+        if let metadata, metadata.supportsOpus, let t = snapshot?.tertiary {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: labels.tertiary,
-                window: tertiary,
+                window: t,
                 role: .other,
-                now: now))
+                now: paceNow))
         }
+        // Extra (named) rate windows from upstream — Claude Designs / Daily
+        // Routines / Web Sonnet, Cursor Extra usage, etc.
         for extra in self.visibleExtraRateWindows(provider: provider, snapshot: snapshot) {
             rateWindows.append(self.syncRateWindow(
                 provider: provider,
                 label: extra.title,
                 window: extra.window,
                 role: .other,
-                now: now))
+                now: paceNow))
         }
 
+        // Legacy primary/secondary for backward compat with older iOS builds.
+        let primaryWindow = rateWindows.first
+        let secondaryWindow = rateWindows.count > 1 ? rateWindows[1] : nil
+
+        // Provider budget / spend (per-account when snapshot.providerCost is
+        // set per-account by upstream; otherwise shared with active).
         let providerCost = snapshot?.providerCost
+        let budgetSnap = Self.syncBudgetSnapshot(provider: provider, providerCost: providerCost)
+
+        // Perplexity rich structured credit breakdown (only for Perplexity).
+        let perplexityCredits: SyncPerplexityCreditSummary? = {
+            guard provider == .perplexity,
+                  let p = snapshot?.perplexityUsage
+            else { return nil }
+            return SyncPerplexityCreditSummary(
+                recurringTotalCents: p.recurringTotal > 0 ? p.recurringTotal : nil,
+                recurringUsedCents: p.recurringTotal > 0 ? p.recurringUsed : nil,
+                promoTotalCents: p.promoTotal > 0 ? p.promoTotal : nil,
+                promoUsedCents: p.promoTotal > 0 ? p.promoUsed : nil,
+                promoExpiresAt: p.promoExpiration,
+                purchasedTotalCents: p.purchasedTotal > 0 ? p.purchasedTotal : nil,
+                purchasedUsedCents: p.purchasedTotal > 0 ? p.purchasedUsed : nil,
+                renewalAt: p.renewalDate,
+                planName: p.planName,
+                balanceCents: p.balanceCents)
+        }()
+
+        // Per-account stable identifier set for cross-Mac union-find merging.
+        // See `Research/019-account-identity-multi-version-merge.md`.
+        let accountIdentities = AccountIdentityComputer.compute(
+            provider: provider,
+            identity: snapshot?.identity)
+
+        // iOS 1.7.0 / Mac 0.26.2 — v0.26 envelope extensions. Populated
+        // only for the relevant providerID so iOS can dispatch via
+        // `let dashboard = snapshot.openAIAPIDashboard { ... }`.
+        let openAIAPIDashboard = Self.mapOpenAIAPIDashboard(provider: provider, snapshot: snapshot)
+        let zaiHourlyUsage = Self.mapZaiHourlyUsage(provider: provider, snapshot: snapshot)
+        let kiroCredits = Self.mapKiroCredits(provider: provider, snapshot: snapshot)
+        // Bedrock region lives in `SettingsStore.bedrockRegion`, NOT in
+        // the upstream `UsageSnapshot` (the BedrockUsageSnapshot.region
+        // field is dropped when toUsageSnapshot() flattens it). Read
+        // settings directly so iOS gets the actual AWS region, not the
+        // composite display string in `loginMethod`.
+        let bedrockRegion: String? = provider == .bedrock ? {
+            let value = self.settings.bedrockRegion
+            return value.isEmpty ? nil : value
+        }() : nil
+        let bedrockCost = Self.mapBedrockCost(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost,
+            region: bedrockRegion)
+        let moonshotBalance = Self.mapMoonshotBalance(
+            provider: provider,
+            snapshot: snapshot,
+            primaryWindow: primaryWindow)
+
+        // iOS 1.8.0 / Mac 0.27.0 — v0.27 envelope extensions. Populated
+        // only for the matching provider so iOS can dispatch via
+        // `if let billing = snapshot.grokBilling { ... }` etc.
+        let grokBilling = Self.mapGrokBilling(provider: provider, snapshot: snapshot)
+        let elevenLabsCredits = Self.mapElevenLabsCredits(provider: provider, snapshot: snapshot)
+        let deepgramUsage = Self.mapDeepgramUsage(provider: provider, snapshot: snapshot)
+        let groqMetrics = Self.mapGroqMetrics(provider: provider, snapshot: snapshot)
+        let llmProxyStats = Self.mapLLMProxyStats(provider: provider, snapshot: snapshot)
+
+        // iOS 1.8.0 build 134 — v0.27 existing-provider extensions.
+        // `mapClaudeAdminUsage` covers Anthropic Admin API spend tile.
+        // `mapClaudeExtraUsage` heuristically detects Web spend-limit
+        // accounts; OAuth flows still surface via primary RateWindow.
+        // `mapOpenCodeGoZenBalance` parses Zen workspace balance from
+        // the existing providerCost lane. `mapMiniMaxBilling` ships
+        // the 30-day chart from `MiniMaxUsageSnapshot.billingSummary`.
+        // `mapCodexWorkspace` reads active-account workspace metadata
+        // from `SettingsStore.codexAccountReconciliationSnapshot` and
+        // computes weekly pace via `UsagePace.weekly(window:)`.
+        let claudeAdminUsage = Self.mapClaudeAdminUsage(provider: provider, snapshot: snapshot)
+        let claudeExtraUsage = Self.mapClaudeExtraUsage(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost)
+        let openCodeGoWorkspaceID: String? = provider == .opencodego ? {
+            let value = self.settings.opencodegoWorkspaceID
+            return value.isEmpty ? nil : value
+        }() : nil
+        let openCodeGoZenBalance = Self.mapOpenCodeGoZenBalance(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost,
+            workspaceID: openCodeGoWorkspaceID)
+        let minimaxBilling = Self.mapMiniMaxBilling(provider: provider, snapshot: snapshot)
+        let codexWorkspace = self.mapCodexWorkspace(provider: provider, snapshot: snapshot)
+        let codexResetCredits = Self.mapCodexResetCredits(provider: provider, snapshot: snapshot)
+        let codexCreditLimit = Self.mapCodexCreditLimit(provider: provider, credits: codexCredits)
+        let syncedStatusMessage = Self.syncedStatusMessage(
+            provider: provider,
+            snapshot: snapshot,
+            providerCost: providerCost,
+            error: error,
+            rateWindows: rateWindows)
+
         return ProviderUsageSnapshot(
             providerID: provider.rawValue,
             providerName: metadata?.displayName ?? provider.rawValue.capitalized,
-            primary: rateWindows.first,
-            secondary: rateWindows.count > 1 ? rateWindows[1] : nil,
+            primary: primaryWindow,
+            secondary: secondaryWindow,
             accountEmail: snapshot?.identity?.accountEmail,
             loginMethod: snapshot?.identity?.loginMethod,
-            statusMessage: error,
+            statusMessage: syncedStatusMessage,
             isError: error != nil,
-            lastUpdated: snapshot?.updatedAt ?? now,
-            costSummary: sharedCostSummary,
-            budget: Self.syncBudgetSnapshot(provider: provider, providerCost: providerCost),
+            lastUpdated: snapshot?.updatedAt ?? Date(),
+            costSummary: sharedCostSummary
+                ?? Self.mapMistralCostSummary(provider: provider, snapshot: snapshot)
+                ?? Self.mapXAICostSummary(provider: provider, snapshot: snapshot),
+            budget: budgetSnap,
             rateWindows: rateWindows,
             utilizationHistory: sharedUtilizationHistory,
-            codexResetCredits: Self.mapCodexResetCredits(provider: provider, snapshot: snapshot),
-            codexCreditLimit: Self.mapCodexCreditLimit(provider: provider, credits: codexCredits),
-            accountIdentities: AccountIdentityComputer.compute(
-                provider: provider,
-                identity: snapshot?.identity),
-            grokBilling: Self.mapGrokBilling(provider: provider, snapshot: snapshot),
-            claudeAdminUsage: Self.mapClaudeAdminUsage(provider: provider, snapshot: snapshot),
-            claudeExtraUsage: Self.mapClaudeExtraUsage(
-                provider: provider,
-                snapshot: snapshot,
-                providerCost: providerCost),
-            codexWorkspace: self.mapCodexWorkspace(provider: provider, snapshot: snapshot))
+            perplexityCredits: perplexityCredits,
+            codexResetCredits: codexResetCredits,
+            codexCreditLimit: codexCreditLimit,
+            accountIdentities: accountIdentities,
+            openAIAPIDashboard: openAIAPIDashboard,
+            zaiHourlyUsage: zaiHourlyUsage,
+            kiroCredits: kiroCredits,
+            bedrockCost: bedrockCost,
+            moonshotBalance: moonshotBalance,
+            // gap B: thread the Antigravity Google-OAuth account list so the
+            // iOS AntigravityAccountSwitcher (shipped since 1.7.0) lights up.
+            // Resolves the long-standing nil TODO. See mapAntigravityAccounts.
+            antigravityAccounts: self.mapAntigravityAccounts(provider: provider),
+            grokBilling: grokBilling,
+            elevenLabsCredits: elevenLabsCredits,
+            deepgramUsage: deepgramUsage,
+            groqMetrics: groqMetrics,
+            llmProxyStats: llmProxyStats,
+            claudeAdminUsage: claudeAdminUsage,
+            claudeExtraUsage: claudeExtraUsage,
+            openCodeGoZenBalance: openCodeGoZenBalance,
+            minimaxBilling: minimaxBilling,
+            codexWorkspace: codexWorkspace,
+            openRouterStats: Self.mapOpenRouter(provider: provider, snapshot: snapshot),
+            azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
+            alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
+            deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
+            crossModelUsage: nil)
+    }
+
+    private static func syncedStatusMessage(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?,
+        providerCost: ProviderCostSnapshot?,
+        error: String?,
+        rateWindows: [SyncRateWindow]) -> String?
+    {
+        if let error { return error }
+        if provider == .aiand, let providerCost {
+            let amount = String(format: "%.2f", providerCost.used)
+            let period = providerCost.period ?? "Last 30 days"
+            return "\(period) spend: \(providerCost.currencyCode) \(amount)"
+        }
+        if provider == .xai, let xaiUsage = snapshot?.xaiUsage {
+            let amount = String(format: "%.2f", xaiUsage.balanceUSD)
+            return "Prepaid credits: USD \(amount)"
+        }
+        guard provider == .copilot,
+              rateWindows.isEmpty,
+              let plan = snapshot?.identity?.loginMethod?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !plan.isEmpty
+        else { return nil }
+        // Unlimited and token-billed Copilot plans intentionally have no metered windows. Keep a
+        // meaningful signal on the wire so QuotaKit's Mac/iOS ghost filters retain the provider.
+        return "Plan: \(plan)"
     }
 
     static func syncBudgetSnapshot(
         provider: UsageProvider,
         providerCost: ProviderCostSnapshot?) -> SyncBudgetSnapshot?
     {
+        // ZenMux, Neuralwatt, and xAI report remaining balances through
+        // ProviderCostSnapshot with a zero limit. Those are not used/limit
+        // budgets and would render on iOS as the false statement "$balance / $0".
+        guard provider != .zenmux,
+              provider != .neuralwatt,
+              provider != .aiand,
+              provider != .xai
+        else {
+            return nil
+        }
         if provider == .claude,
            let providerCost,
            providerCost.limit <= 0,
@@ -673,6 +882,27 @@ final class SyncCoordinator {
         metadata: ProviderMetadata?,
         snapshot: UsageSnapshot?) -> (primary: String?, secondary: String?, tertiary: String)
     {
+        if provider == .amp {
+            return (
+                snapshot.flatMap { AmpProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
+                snapshot.flatMap { AmpProviderDescriptor.secondaryLabel(snapshot: $0) } ?? metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .alibabatokenplan {
+            return (
+                AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot?.primary) ?? metadata?.sessionLabel,
+                AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot?.secondary) ??
+                    metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .qwencloud,
+           snapshot?.primary?.windowMinutes == 30 * 24 * 60
+        {
+            return ("30-day", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
+        }
+
         if provider == .cursor {
             // Cursor's legacy projection stored Auto/API in primary/secondary,
             // while the current projection uses Total/Auto/API across all
@@ -785,6 +1015,14 @@ final class SyncCoordinator {
     {
         switch role {
         case .session:
+            if provider == .abacus {
+                if let pace = self.store.weeklyPace(provider: provider, window: window, now: now) {
+                    return Self.syncUsagePace(
+                        from: pace,
+                        detail: UsagePaceText.weeklyDetail(provider: provider, pace: pace, now: now))
+                }
+                return self.syncResetWindowUsagePace(provider: provider, window: window, now: now)
+            }
             if let pace = UsagePaceText.sessionPace(provider: provider, window: window, now: now),
                let detail = UsagePaceText.sessionDetail(provider: provider, window: window, now: now)
             {
@@ -902,9 +1140,11 @@ final class SyncCoordinator {
 
     // swiftlint:enable function_parameter_count
 
-    /// Expands the retained providers into one companion record per account.
-    /// Codex uses its managed-account observation cache; Claude and Cursor
-    /// expose co-resident token-account snapshots directly from UsageStore.
+    /// For multi-account providers (Codex via observation-cache + token-based
+    /// providers via direct read of `accountSnapshots`), records each account's
+    /// snapshot into `multiAccountCache`, then appends cached / live non-active
+    /// snapshots to `providerSnapshots`. Also purges cache entries for accounts
+    /// the user has removed from Mac since the last push.
     ///
     /// **Why this works.** Mac's `UsageStore.snapshots[.codex]` only ever
     /// holds one account's data (whichever is active). On switch, the
@@ -922,39 +1162,66 @@ final class SyncCoordinator {
         into providerSnapshots: inout [ProviderUsageSnapshot],
         enabledSet: Set<UsageProvider>)
     {
+        // Codex (R1) — observation-based cache. Self-contained block so its
+        // early-exits don't bypass the token-provider loop below.
         if enabledSet.contains(.codex) {
             self.expandCodexMultiAccount(into: &providerSnapshots)
         } else {
+            // Codex disabled — purge cache to avoid emitting stale
+            // multi-account records if the user later re-enables Codex
+            // (R3 P1: disabled-provider leak guard, see Research/020 H5).
             self.multiAccountCache.purgeStaleAccounts(
                 providerID: UsageProvider.codex.rawValue,
                 livingAccountIDs: [])
         }
 
-        for provider in Self.tokenBasedMultiAccountProviders {
-            guard enabledSet.contains(provider) else {
+        // Token-based multi-account providers (R2). Phase G: now reads
+        // `TokenAccountSupportCatalog.allProviders` so every catalog
+        // entry (18 today; auto-grows as upstream adds new token
+        // providers) shares
+        // `UsageStore.accountSnapshots: [UsageProvider: [TokenAccountUsageSnapshot]]`
+        // when the user has enabled "Show all token accounts in menu" AND
+        // configured 2+ accounts. Unlike Codex, the data is co-resident in
+        // memory so we read live and emit per-account immediately. Cache is
+        // populated alongside for future resilience (e.g., if user toggles
+        // "Show all" off later mid-session — though current cache lookup
+        // path doesn't yet read from cache for token providers; that's an
+        // R3 hardening item).
+        for tokenProvider in Self.tokenBasedMultiAccountProviders {
+            guard enabledSet.contains(tokenProvider) else {
+                // Provider disabled — purge any cached entries so a
+                // re-enable starts clean (R3 P1: disabled-provider
+                // leak guard, see Research/020 H5).
                 self.multiAccountCache.purgeStaleAccounts(
-                    providerID: provider.rawValue,
+                    providerID: tokenProvider.rawValue,
                     livingAccountIDs: [])
                 continue
             }
-            guard let entries = self.store.accountSnapshots[provider.instanceID],
+            guard let entries = self.store.accountSnapshots[tokenProvider.instanceID],
                   entries.count >= 2
             else { continue }
 
-            let providerID = provider.rawValue
-            let metadata = self.store.providerMetadata[provider]
-            let sharedCostSummary = self.makeCostSummary(for: provider)
-            let sharedUtilizationHistory = self.makeUtilizationHistory(for: provider)
-            let livingAccountIDs = Set(entries.map(\.account.id.uuidString))
+            let providerID = tokenProvider.rawValue
+            let meta = self.store.providerMetadata[tokenProvider]
+            let sharedCostSummary = self.makeCostSummary(for: tokenProvider)
+            let sharedUtilizationHistory = self.makeUtilizationHistory(
+                for: tokenProvider)
+            let livingIDs = Set(entries.map(\.account.id.uuidString))
 
+            // Remove the active-only entry that the main loop appended for
+            // this provider — we replace it with the full per-account list
+            // built from `accountSnapshots`. The active account is included
+            // via its corresponding entry in `entries`, so we don't lose
+            // any data.
             providerSnapshots.removeAll { $0.providerID == providerID }
+
             for entry in entries {
                 let perAccount = self.buildProviderUsageSnapshot(
-                    for: provider,
+                    for: tokenProvider,
                     snapshot: entry.snapshot,
                     codexCredits: nil,
                     error: entry.error,
-                    metadata: metadata,
+                    metadata: meta,
                     sharedCostSummary: sharedCostSummary,
                     sharedUtilizationHistory: sharedUtilizationHistory)
                 self.multiAccountCache.record(
@@ -963,12 +1230,20 @@ final class SyncCoordinator {
                     accountID: entry.account.id.uuidString)
                 providerSnapshots.append(perAccount)
             }
+
+            // Drop cache entries for accounts the user removed since last push.
             self.multiAccountCache.purgeStaleAccounts(
                 providerID: providerID,
-                livingAccountIDs: livingAccountIDs)
+                livingAccountIDs: livingIDs)
         }
     }
 
+    /// Codex multi-account expansion (R1). Captures the active managed
+    /// account's freshly-built snapshot into `multiAccountCache`, then
+    /// appends every cached non-active snapshot so the push covers all
+    /// known managed accounts. Pure side-effect on the in/out
+    /// `providerSnapshots` and the cache; safe to call even when no Codex
+    /// multi-account configuration exists (early-exits without mutation).
     private func expandCodexMultiAccount(
         into providerSnapshots: inout [ProviderUsageSnapshot])
     {
@@ -1156,10 +1431,7 @@ final class SyncCoordinator {
             && provider.budget == nil
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.codexCreditLimit == nil
-            && provider.codexWorkspace == nil
-            && provider.claudeAdminUsage == nil
-            && provider.claudeExtraUsage == nil
-            && provider.grokBilling == nil
+            && provider.crossModelUsage == nil
             && !provider.isError
             && provider.statusMessage == nil
     }
@@ -1253,6 +1525,34 @@ final class SyncCoordinator {
             currencyCode: tokenSnapshot?.currencyCode)
     }
 
+    static func mapXAICostSummary(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncCostSummary?
+    {
+        guard provider == .xai,
+              let usage = snapshot?.xaiUsage,
+              let projected = usage.costHistorySnapshot()
+        else {
+            return nil
+        }
+        let isEstimated = usage.limitReached ? true : nil
+        return SyncCostSummary(
+            sessionCostUSD: projected.sessionCostUSD,
+            sessionTokens: nil,
+            last30DaysCostUSD: projected.last30DaysCostUSD,
+            last30DaysTokens: nil,
+            daily: projected.daily.map { entry in
+                SyncDailyPoint(
+                    dayKey: entry.date,
+                    costUSD: entry.costUSD ?? 0,
+                    totalTokens: 0,
+                    isEstimated: isEstimated)
+            },
+            isEstimated: isEstimated,
+            historyDays: projected.historyDays,
+            currencyCode: projected.currencyCode)
+    }
+
     private func modelBreakdowns(
         from entry: CostUsageDailyReport.Entry?,
         provider: UsageProvider) -> [SyncCostBreakdown]
@@ -1288,13 +1588,45 @@ final class SyncCoordinator {
     /// so iOS can render the estimated badge (P5).
     private static func isModelEstimated(modelName: String, provider: UsageProvider) -> Bool {
         switch provider {
-        case .claude:
+        case .claude, .vertexai:
             !ModelFallbackPricing.isClaudeModelKnown(modelName)
         case .codex:
             !ModelFallbackPricing.isCodexModelKnown(modelName)
         case .cursor:
+            // Cursor's daily cost is an API/list-price estimate. The separate
+            // metered total is not yet part of the mobile sync wire format.
             true
-        case .grok:
+        case .zai, .gemini, .antigravity, .opencode, .opencodego, .alibaba, .factory, .copilot,
+             .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
+             .openrouter, .warp, .perplexity, .abacus, .mistral,
+             // Upstream 0.24–0.25.1 providers — pre-computed costs from
+             // their own APIs, never go through the local Codex/Claude
+             // pricing tables, so never "estimated".
+             .openai, .manus, .windsurf, .mimo, .doubao, .deepseek,
+             .codebuff, .crof, .venice, .commandcode, .stepfun,
+             // Upstream v0.26.0 new providers. Moonshot/Kimi API balance
+             // and Bedrock Cost Explorer numbers come from their own APIs,
+             // never via the local pricing tables.
+             .moonshot, .bedrock,
+             // Upstream v0.27.0 new providers. Grok (web billing + CLI),
+             // GroqCloud (Prometheus), ElevenLabs (API key), Deepgram
+             // (project API), LLM Proxy (quota stats) all surface
+             // pre-computed numbers from their own APIs — never via the
+             // local Codex/Claude pricing tables.
+             .grok, .groq, .elevenlabs, .deepgram, .llmproxy, .litellm,
+             // Upstream v0.28.0–v0.29.0 new providers. Azure OpenAI
+             // (deployment validation), Alibaba Token Plan (Bailian quota),
+             // and T3 Chat (web session) all surface pre-computed numbers
+             // from their own APIs — never via the local pricing tables.
+             .azureopenai, .alibabatokenplan, .t3chat,
+             // Upstream 0.33+ new providers. These quota numbers come
+             // from their own APIs/local sessions — never via the local
+             // pricing tables.
+             .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
+             .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion:
+            // These providers never reach the local pricing table — their
+            // costs come pre-computed from upstream APIs (or don't exist).
+            // No fallback applies, so they are never "estimated".
             false
         }
     }

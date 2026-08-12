@@ -19,6 +19,12 @@ extension UsageStore {
         self.enabledProvidersForBackgroundWork().compactMap(\.firstPartyProvider)
     }
 
+    struct DeepSeekProfileTransition {
+        var snapshot: UsageSnapshot
+        let accountID: UUID?
+        let hasSyntheticBalance: Bool
+    }
+
     func version(for provider: UsageProvider) -> String? {
         self.versions[provider.instanceID]
     }
@@ -34,7 +40,13 @@ extension UsageStore {
     }
 
     func presentationSnapshot(for provider: UsageProvider) -> UsageSnapshot? {
-        // Provider-specific by design: the Codex dashboard can overlay subscription metadata on live state.
+        // Provider-specific by design: DeepSeek profile transitions and Codex dashboard attachment overlay live state.
+        if provider == .deepseek,
+           let transition = self.deepseekProfileTransition,
+           transition.accountID == self.settings.selectedTokenAccount(for: .deepseek)?.id
+        {
+            return transition.snapshot
+        }
         if let snapshot = self.snapshots[provider.instanceID] {
             if provider == .codex {
                 if self.openAIDashboardAttachmentAuthorized,
@@ -60,7 +72,50 @@ extension UsageStore {
             }
             return snapshot
         }
-        return nil
+        guard provider == .deepseek, self.refreshingProviders.contains(provider.instanceID) else { return nil }
+        return self.lastKnownResetSnapshots[provider.instanceID]
+    }
+
+    func beginDeepSeekProfileTransition(preservingBalance: Bool = true) {
+        guard self.deepseekProfileTransition == nil,
+              let snapshot = self.snapshots[.deepseek] ?? self.lastKnownResetSnapshots[.deepseek]
+        else { return }
+        var transitionSnapshot = snapshot.withoutDeepSeekDetailedUsage()
+        if !preservingBalance {
+            transitionSnapshot = transitionSnapshot.with(
+                primary: RateWindow(
+                    usedPercent: 0,
+                    windowMinutes: nil,
+                    resetsAt: nil,
+                    resetDescription: L("Refreshing")),
+                secondary: nil)
+        }
+        self.deepseekProfileTransition = DeepSeekProfileTransition(
+            snapshot: transitionSnapshot,
+            accountID: self.settings.selectedTokenAccount(for: .deepseek)?.id,
+            hasSyntheticBalance: !preservingBalance)
+    }
+
+    func markDeepSeekProfileTransitionUnavailable() {
+        guard var transition = self.deepseekProfileTransition,
+              transition.hasSyntheticBalance
+        else { return }
+        transition.snapshot = transition.snapshot.with(
+            primary: RateWindow(
+                usedPercent: 0,
+                windowMinutes: nil,
+                resetsAt: nil,
+                resetDescription: L("Unavailable")),
+            secondary: nil)
+        self.deepseekProfileTransition = transition
+    }
+
+    func clearDeepSeekProfileTransition() {
+        self.deepseekProfileTransition = nil
+    }
+
+    var deepseekProfileTransitionSnapshot: UsageSnapshot? {
+        self.deepseekProfileTransition?.snapshot
     }
 
     var lastCodexError: String? {
@@ -98,7 +153,9 @@ extension UsageStore {
             switch provider {
             case .codex:
                 return CodexUIErrorMapper.userFacingMessage(raw)
-            case .claude, .cursor, .grok:
+            case .ollama:
+                return OllamaUIErrorMapper.userFacingMessage(raw)
+            default:
                 return raw
             }
         }

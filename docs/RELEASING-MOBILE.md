@@ -47,13 +47,34 @@ archive:
 ./Scripts/ios_testflight_xcode.sh --preflight-only
 ```
 
-The preflight prints the selected Xcode build, developer directory, system and
-shell `rsync` versions, verifies all three App Store Connect key inputs, and
-proves the installed Apple Distribution private key by signing a disposable
-binary. If the signing probe reports a locked Keychain, run the exact
-`security unlock-keychain ...` command it prints in Terminal and retry. Opening
-Xcode is appropriate only when the distribution certificate/private-key pair
-is genuinely absent.
+The lane requires exactly XcodeGen 2.45.4 because later generators reorder the
+checked-in project. Put that version first on `PATH`; both preflight and release
+stop before signing or project generation when another version is active.
+Use the same SHA-verified official archive as CI in the shell that will run the
+release lane:
+
+```bash
+xcodegen_version="2.45.4"
+xcodegen_sha256="090ec29491aad50aec10631bf6e62253fed733c50f3aab0f5ffc86bc170bdbef"
+xcodegen_root=$(mktemp -d "${TMPDIR:-/tmp}/quotakit-xcodegen.XXXXXX")
+xcodegen_archive="$xcodegen_root/xcodegen.zip"
+
+curl -fsSL \
+  "https://github.com/yonaskolb/XcodeGen/releases/download/$xcodegen_version/xcodegen.zip" \
+  -o "$xcodegen_archive"
+echo "$xcodegen_sha256  $xcodegen_archive" | shasum -a 256 -c -
+unzip -q "$xcodegen_archive" -d "$xcodegen_root"
+export PATH="$xcodegen_root/xcodegen/bin:$PATH"
+xcodegen --version
+```
+
+The preflight prints the selected Xcode and XcodeGen versions, developer
+directory, system and shell `rsync` versions, verifies all three App Store
+Connect key inputs, and proves the installed Apple Distribution private key by
+signing a disposable binary. If the signing probe reports a locked Keychain,
+run the exact `security unlock-keychain ...` command it prints in Terminal and
+retry. Opening Xcode is appropriate only when the distribution
+certificate/private-key pair is genuinely absent.
 
 A locked or unavailable paired iPhone is non-blocking for a generic iOS
 archive. Messages such as `The device is passcode protected` or failures to
@@ -64,6 +85,20 @@ them. The archive target remains `generic/platform=iOS`.
 The export step intentionally pins `PATH=/usr/bin:/bin:/usr/sbin:/sbin` so
 Xcode cannot mix Apple's `/usr/bin/rsync` with an incompatible Homebrew rsync
 server.
+
+After archiving, the lane fails closed before upload unless the main app, push
+extension, and widget have their expected bundle IDs, marketing version, and
+project build number, and no unexpected app extension is embedded. It verifies
+each code signature and embedded provisioning profile, binds each app and
+extension's leaf signing certificate to a `DeveloperCertificates` entry in its
+profile, and requires exact signed and profile application identifiers and the
+Columbus Labs signing team. It recursively verifies the app signature, then
+individually verifies every embedded framework and dynamic library and requires
+the containing app or extension's leaf certificate. It also checks the App
+Group on the app and widget, the Production CloudKit container and environment
+on the app and push extension, and the production APNs entitlement on the main
+app. The generated ExportOptions plist must pass `plutil` validation before
+export begins.
 
 ### Retest the clang workaround after Xcode upgrades
 

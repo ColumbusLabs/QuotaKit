@@ -292,7 +292,21 @@ extension HistoricalUsagePaceTests {
         defaults.removePersistentDomain(forName: suite)
         let settings = SettingsStore(
             userDefaults: defaults,
-            configStore: testConfigStore(suiteName: suite))
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore(),
+            codexCookieStore: InMemoryCookieHeaderStore(),
+            claudeCookieStore: InMemoryCookieHeaderStore(),
+            cursorCookieStore: InMemoryCookieHeaderStore(),
+            opencodeCookieStore: InMemoryCookieHeaderStore(),
+            factoryCookieStore: InMemoryCookieHeaderStore(),
+            minimaxCookieStore: InMemoryMiniMaxCookieStore(),
+            minimaxAPITokenStore: InMemoryMiniMaxAPITokenStore(),
+            kimiTokenStore: InMemoryKimiTokenStore(),
+            augmentCookieStore: InMemoryCookieHeaderStore(),
+            ampCookieStore: InMemoryCookieHeaderStore(),
+            copilotTokenStore: InMemoryCopilotTokenStore(),
+            tokenAccountStore: InMemoryTokenAccountStore())
         settings.historicalTrackingEnabled = true
         settings.weeklyProgressWorkDays = nil
 
@@ -453,7 +467,7 @@ extension HistoricalUsagePaceTests {
             resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
             resetDescription: nil)
 
-        let pace = store.weeklyPace(provider: .grok, window: window, now: now)
+        let pace = store.weeklyPace(provider: .zai, window: window, now: now)
 
         #expect(pace != nil)
         #expect(abs((pace?.deltaPercent ?? 0) - (40 - (3.0 / 7.0 * 100.0))) < 0.001)
@@ -486,10 +500,10 @@ extension HistoricalUsagePaceTests {
             resetsAt: now.addingTimeInterval(7 * 24 * 60 * 60 - 60 * 60),
             resetDescription: nil)
 
-        #expect(store.menuBarLayoutPaceText(provider: .grok, window: deficit, now: now) == "+17%")
-        #expect(store.menuBarLayoutPaceText(provider: .grok, window: reserve, now: now) == "-13%")
-        #expect(store.menuBarLayoutPaceText(provider: .grok, window: tooEarly, now: now) == nil)
-        #expect(store.menuBarLayoutPaceText(provider: .grok, window: nil, now: now) == nil)
+        #expect(store.menuBarLayoutPaceText(provider: .zai, window: deficit, now: now) == "+17%")
+        #expect(store.menuBarLayoutPaceText(provider: .zai, window: reserve, now: now) == "-13%")
+        #expect(store.menuBarLayoutPaceText(provider: .zai, window: tooEarly, now: now) == nil)
+        #expect(store.menuBarLayoutPaceText(provider: .zai, window: nil, now: now) == nil)
     }
 
     @MainActor
@@ -521,7 +535,7 @@ extension HistoricalUsagePaceTests {
             resetsAt: resetsAt,
             resetDescription: nil)
 
-        let pace = try #require(store.weeklyPace(provider: .grok, window: window, now: now))
+        let pace = try #require(store.weeklyPace(provider: .zai, window: window, now: now))
 
         #expect(abs(pace.expectedUsedPercent - 60) < 0.001)
         #expect(abs(pace.deltaPercent) < 0.001)
@@ -542,7 +556,7 @@ extension HistoricalUsagePaceTests {
             resetsAt: now.addingTimeInterval(4 * 24 * 60 * 60),
             resetDescription: nil)
 
-        let pace = store.weeklyPace(provider: .grok, window: window, now: now)
+        let pace = store.weeklyPace(provider: .factory, window: window, now: now)
 
         #expect(pace == nil)
     }
