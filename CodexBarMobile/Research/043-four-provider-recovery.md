@@ -90,7 +90,8 @@ recovery until the internal candidate passes every gate above.
 - On the build 177 launch, CloudKit fetched the four provider records actually
   present for the configured Mac, reported zero deletions, applied four
   per-provider upserts, and refreshed widget timelines. Notification
-  authorization completed with `didGrant: 1` and no error.
+  authorization completed with `didGrant: 1` and no error. Zach confirmed the
+  four live Usage/history cards and the placed widget rendered normally.
 - The device completed the full subscription modify operation and its
   verification fetch without a CloudKit error. Release builds intentionally do
   not expose the DEBUG subscription diagnostic, so the exact 180 managed-ID
