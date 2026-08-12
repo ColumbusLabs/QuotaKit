@@ -1,6 +1,6 @@
 # Four-Provider Teardown Recovery
 
-**Status:** `in-progress`
+**Status:** `done`
 **Date:** 2026-08-11
 
 ## Goal
@@ -76,3 +76,26 @@ app container, CloudKit data, or lifetime purchase.
 
 Public App Store or Mac release publication is intentionally outside this
 recovery until the internal candidate passes every gate above.
+
+## Completion evidence
+
+- Recovery build 177 was archived from the reviewed source, passed the real
+  provisioning/signature/entitlement verifier, uploaded successfully, reached
+  App Store Connect state `VALID`, and entered internal TestFlight testing.
+- Zach upgraded the affected iPhone from build 176 to 177 in place. The app
+  container and app-group preferences were preserved; the lifetime entitlement
+  cache migrated from its legacy production-compatible form to explicit
+  `production` provenance after StoreKit verification. Zach then confirmed the
+  Pro UI remained unlocked.
+- On the build 177 launch, CloudKit fetched the four provider records actually
+  present for the configured Mac, reported zero deletions, applied four
+  per-provider upserts, and refreshed widget timelines. Notification
+  authorization completed with `didGrant: 1` and no error.
+- The device completed the full subscription modify operation and its
+  verification fetch without a CloudKit error. Release builds intentionally do
+  not expose the DEBUG subscription diagnostic, so the exact 180 managed-ID
+  postcondition remains proven by the injected build-176 fixture rather than a
+  production UI count.
+- Fresh hosted CI ran on the recovery head before the documentation-only
+  closeout. External TestFlight submission and public App Store publication
+  remained disabled throughout the recovery.
