@@ -27,6 +27,7 @@ extension UsageStore {
         let tokenAccount: ProviderTokenAccount?
         let priorTokenAccountSnapshot: TokenAccountUsageSnapshot?
         let codexLimitResetOwnerKey: CodexLimitResetOwnerKey?
+        let codexSuppressesWeeklyResetCelebration: Bool
         let claudeOAuthHistoryPersistentRefHash: String?
         let claudeOAuthActiveAccountObservation: ClaudeOAuthActiveAccountObservation
 
@@ -428,6 +429,7 @@ extension UsageStore {
             }
         }
         let outcome: ProviderFetchOutcome
+        let codexSuppressesWeeklyResetCelebration: Bool
         if provider == .codex {
             if case let .success(result) = initialOutcome.result,
                let codexExpectedGuard,
@@ -440,7 +442,7 @@ extension UsageStore {
                     generation: generation)
                 return nil
             }
-            guard let admittedOutcome = await Self.codexOutcomeAdmittedForPublication(
+            guard let admission = await Self.codexOutcomeAdmittedForPublication(
                 initialOutcome: initialOutcome,
                 previousSnapshot: previousCodexSnapshot,
                 missingWindowBackfillSnapshot: codexMissingWindowBackfillSnapshot,
@@ -453,7 +455,7 @@ extension UsageStore {
                 }
                 return nil
             }
-            if case let .success(result) = admittedOutcome.result,
+            if case let .success(result) = admission.outcome.result,
                let codexExpectedGuard,
                !self.shouldApplyCodexUsageResult(
                    expectedGuard: codexExpectedGuard,
@@ -464,9 +466,11 @@ extension UsageStore {
                     generation: generation)
                 return nil
             }
-            outcome = admittedOutcome
+            outcome = admission.outcome
+            codexSuppressesWeeklyResetCelebration = admission.suppressesWeeklyResetCelebration
         } else {
             outcome = initialOutcome
+            codexSuppressesWeeklyResetCelebration = false
         }
         let claudeReconciliation = await self.reconcileClaudeRefreshAfterFetch(input: .init(
             provider: provider,
@@ -484,6 +488,7 @@ extension UsageStore {
             tokenAccount: tokenAccount,
             priorTokenAccountSnapshot: priorTokenAccountSnapshot,
             codexLimitResetOwnerKey: codexLimitResetOwnerKey,
+            codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration,
             claudeOAuthHistoryPersistentRefHash: claudeReconciliation.oauthHistoryPersistentRefHash,
             claudeOAuthActiveAccountObservation: claudeReconciliation.oauthActiveAccountObservation)
         return await self.completeProviderRefreshPass(
@@ -770,14 +775,10 @@ extension UsageStore {
         guard let backfilled else { return }
         let isClaudeOAuthSample = provider == .claude
             && result.strategyKind == .oauth
-        let claudeOAuthPersistentRefHash: String? = if isClaudeOAuthSample,
-                                                       result.claudeOAuthKeychainPersistentRefHash == context
-                                                           .claudeOAuthHistoryPersistentRefHash
-        {
-            result.claudeOAuthKeychainPersistentRefHash
-        } else {
-            nil
-        }
+        let claudeOAuthPersistentRefHash = Self.verifiedClaudeOAuthPersistentRefHash(
+            isClaudeOAuthSample: isClaudeOAuthSample,
+            result: result,
+            context: context)
         await self.recordPlanUtilizationHistorySample(
             provider: provider,
             snapshot: backfilled,
@@ -795,7 +796,8 @@ extension UsageStore {
                         && claudeOAuthPersistentRefHash == nil)),
             claudeOAuthActiveAccountObservation: context.claudeOAuthActiveAccountObservation,
             isClaudeOAuthSample: isClaudeOAuthSample,
-            codexLimitResetOwnerKey: context.codexLimitResetOwnerKey)
+            codexLimitResetOwnerKey: context.codexLimitResetOwnerKey,
+            codexSuppressesWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration)
         guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else { return }
         if let runtime = self.providerRuntimes[provider.instanceID] {
             let runtimeContext = ProviderRuntimeContext(
@@ -805,6 +807,19 @@ extension UsageStore {
         if provider == .codex {
             self.recordCodexHistoricalSampleIfNeeded(snapshot: backfilled)
         }
+    }
+
+    private nonisolated static func verifiedClaudeOAuthPersistentRefHash(
+        isClaudeOAuthSample: Bool,
+        result: ProviderFetchResult,
+        context: ProviderRefreshOutcomeContext) -> String?
+    {
+        guard isClaudeOAuthSample,
+              result.claudeOAuthKeychainPersistentRefHash == context.claudeOAuthHistoryPersistentRefHash
+        else {
+            return nil
+        }
+        return result.claudeOAuthKeychainPersistentRefHash
     }
 
     private func applyProviderRefreshFailure(

@@ -369,7 +369,7 @@ extension CodexAccountScopedRefreshTests {
     }
 
     @Test
-    func `matching weekly lows before the prior reset remain private`() async throws {
+    func `matching weekly lows before the prior reset publish without a reset event`() async throws {
         let suite = "CodexWeeklyResetPublicationTests-early-rolling-boundary"
         let email = "early-rolling-boundary@example.com"
         let settings = self.makeSettingsStore(suite: suite)
@@ -380,11 +380,11 @@ extension CodexAccountScopedRefreshTests {
             identity: .providerAccount(id: "acct-early-rolling-boundary"))
         defer { settings._test_liveSystemCodexAccount = nil }
 
-        let formatter = ISO8601DateFormatter()
-        let previousCapturedAt = try #require(formatter.date(from: "2026-07-28T03:09:20Z"))
-        let previousReset = try #require(formatter.date(from: "2026-08-02T10:17:56Z"))
-        let initialCapturedAt = try #require(formatter.date(from: "2026-07-28T03:59:23Z"))
-        let initialReset = try #require(formatter.date(from: "2026-08-04T03:59:21Z"))
+        let now = Date()
+        let previousCapturedAt = now.addingTimeInterval(-60)
+        let previousReset = now.addingTimeInterval(3 * 24 * 60 * 60)
+        let initialCapturedAt = now.addingTimeInterval(-40)
+        let initialReset = previousReset.addingTimeInterval(7 * 24 * 60 * 60)
         let prior = self.codexWeeklySnapshot(
             email: email,
             weeklyUsedPercent: 100,
@@ -404,7 +404,11 @@ extension CodexAccountScopedRefreshTests {
             .success(initialLow),
             .success(confirmedLow),
         ])
-        let store = self.makeCodexWeeklyPublicationStore(settings: settings, suite: suite)
+        let snapshotStore = RecordingCodexAccountUsageSnapshotStore(initialSnapshots: [])
+        let store = self.makeCodexWeeklyPublicationStore(
+            settings: settings,
+            suite: suite,
+            snapshotStore: snapshotStore)
         let priorRevision = await self.seedCodexWeeklyPublicationState(
             store: store,
             settings: settings,
@@ -416,16 +420,18 @@ extension CodexAccountScopedRefreshTests {
         await store.refreshProvider(.codex, allowDisabled: true)
 
         #expect(await loader.callCount == 2)
-        #expect(store.snapshots[.codex]?.updatedAt == prior.updatedAt)
-        #expect(store.snapshots[.codex]?.secondary?.usedPercent == 100)
-        #expect(store.lastKnownResetSnapshots[.codex]?.updatedAt == prior.updatedAt)
-        #expect(store.lastKnownResetSnapshots[.codex]?.secondary?.usedPercent == 100)
-        #expect(store.errors[.codex] == "prior error")
-        #expect(store.lastSourceLabels[.codex] == "prior-source")
+        #expect(store.snapshots[.codex]?.updatedAt == confirmedLow.updatedAt)
+        #expect(store.snapshots[.codex]?.secondary?.usedPercent == 0)
+        #expect(store.lastKnownResetSnapshots[.codex]?.updatedAt == confirmedLow.updatedAt)
+        #expect(store.lastKnownResetSnapshots[.codex]?.secondary?.usedPercent == 0)
+        #expect(store.errors[.codex] == nil)
+        #expect(store.lastSourceLabels[.codex] == "test-codex")
         #expect(store.lastFetchAttempts[.codex]?.count == 1)
-        #expect(store.lastFetchAttempts[.codex]?.first?.strategyID == "prior-strategy")
-        #expect(store.lastFetchAttempts[.codex]?.first?.errorDescription == "prior diagnostic")
-        #expect(store.planUtilizationHistoryRevision == priorRevision)
+        #expect(store.lastFetchAttempts[.codex]?.first?.strategyID == "contextual-test-codex")
+        #expect(store.planUtilizationHistoryRevision > priorRevision)
+        let persisted = try #require(snapshotStore.storedSnapshots.first)
+        #expect(persisted.snapshot?.updatedAt == confirmedLow.updatedAt)
+        #expect(persisted.snapshot?.secondary?.usedPercent == 0)
         #expect(recorder.usedPercents.isEmpty)
     }
 

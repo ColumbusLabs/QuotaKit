@@ -6,6 +6,70 @@ import Testing
 extension UsageStorePlanUtilizationTests {
     @MainActor
     @Test
+    func `Codex weekly celebration waits for a premature rolling boundary`() async throws {
+        let store = Self.makeStore()
+        let accountLabel = "codex-weekly-premature-rolling-boundary@example.com"
+        let ownerKey = try #require(CodexLimitResetOwnerKey(
+            identity: .providerAccount(id: "fixture-codex-weekly-premature-rolling-boundary"),
+            accountEmail: accountLabel))
+        let recorder = WeeklyLimitResetEventRecorder(provider: .codex, accountLabel: accountLabel)
+        defer { recorder.invalidate() }
+
+        func snapshot(usedPercent: Double, resetsAt: Date, updatedAt: Date) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: usedPercent,
+                    windowMinutes: 10080,
+                    resetsAt: resetsAt,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 14,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                updatedAt: updatedAt,
+                identity: ProviderIdentitySnapshot(
+                    providerID: .codex,
+                    accountEmail: accountLabel,
+                    accountOrganization: nil,
+                    loginMethod: "test"))
+        }
+
+        let firstObservedAt = Date(timeIntervalSince1970: 1_705_000_000)
+        let priorBoundary = firstObservedAt.addingTimeInterval(3 * 24 * 3600)
+        let advancedBoundary = priorBoundary.addingTimeInterval(7 * 24 * 3600)
+        let high = snapshot(usedPercent: 86, resetsAt: priorBoundary, updatedAt: firstObservedAt)
+        let earlyLow = snapshot(
+            usedPercent: 0,
+            resetsAt: advancedBoundary,
+            updatedAt: firstObservedAt.addingTimeInterval(60))
+        let resetDue = snapshot(usedPercent: 0, resetsAt: advancedBoundary, updatedAt: priorBoundary)
+
+        await store.recordPlanUtilizationHistorySample(
+            provider: .codex,
+            snapshot: high,
+            codexLimitResetOwnerKey: ownerKey,
+            now: high.updatedAt)
+        await store.recordPlanUtilizationHistorySample(
+            provider: .codex,
+            snapshot: earlyLow,
+            codexLimitResetOwnerKey: ownerKey,
+            codexSuppressesWeeklyResetCelebration: true,
+            now: earlyLow.updatedAt)
+        #expect(recorder.events.isEmpty)
+
+        await store.recordPlanUtilizationHistorySample(
+            provider: .codex,
+            snapshot: resetDue,
+            codexLimitResetOwnerKey: ownerKey,
+            now: resetDue.updatedAt)
+
+        #expect(recorder.events.count == 1)
+        #expect(recorder.events.first?.usedPercent == 0)
+    }
+
+    @MainActor
+    @Test
     func `identity-less Claude reset celebrations require a second low sample`() async throws {
         let store = Self.makeStore()
         let sessionRecorder = SessionLimitResetEventRecorder(provider: .claude, accountLabel: nil)

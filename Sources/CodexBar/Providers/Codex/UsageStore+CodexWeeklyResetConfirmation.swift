@@ -3,13 +3,23 @@ import CodexBarCore
 extension UsageStore {
     typealias CodexWeeklyConfirmationFetch = @Sendable () async -> ProviderFetchOutcome
 
+    struct CodexWeeklyPublicationAdmission: Sendable {
+        let outcome: ProviderFetchOutcome
+        /// Keeps a confirmed early rolling window from emitting a premature weekly-reset event.
+        let suppressesWeeklyResetCelebration: Bool
+    }
+
     nonisolated static func codexOutcomeAdmittedForPublication(
         initialOutcome: ProviderFetchOutcome,
         previousSnapshot: UsageSnapshot?,
         missingWindowBackfillSnapshot: UsageSnapshot?,
-        fetchConfirmation: @escaping CodexWeeklyConfirmationFetch) async -> ProviderFetchOutcome?
+        fetchConfirmation: @escaping CodexWeeklyConfirmationFetch) async -> CodexWeeklyPublicationAdmission?
     {
-        guard case let .success(rawInitialResult) = initialOutcome.result else { return initialOutcome }
+        guard case let .success(rawInitialResult) = initialOutcome.result else {
+            return CodexWeeklyPublicationAdmission(
+                outcome: initialOutcome,
+                suppressesWeeklyResetCelebration: false)
+        }
         let rawInitialSnapshot = rawInitialResult.usage.scoped(to: .codex)
         let publicationBaseline = [previousSnapshot, missingWindowBackfillSnapshot]
             .compactMap(\.self)
@@ -43,7 +53,9 @@ extension UsageStore {
             {
                 return nil
             }
-            return publicationInitialOutcome
+            return CodexWeeklyPublicationAdmission(
+                outcome: publicationInitialOutcome,
+                suppressesWeeklyResetCelebration: false)
         }
 
         switch CodexWeeklyResetConfirmation.initialDecision(
@@ -51,7 +63,9 @@ extension UsageStore {
             initial: rawInitialSnapshot)
         {
         case .publishInitial:
-            return publicationInitialOutcome
+            return CodexWeeklyPublicationAdmission(
+                outcome: publicationInitialOutcome,
+                suppressesWeeklyResetCelebration: false)
         case .preservePrevious:
             return nil
         case .requiresConfirmation:
@@ -77,12 +91,46 @@ extension UsageStore {
             confirmation: confirmationSnapshot)
         {
         case .publishConfirmation:
-            if let missingWindowBackfillSnapshot {
-                return confirmationOutcome.replacingUsage(Self.codexBackfillingResetWindows(
+            let outcome = if let missingWindowBackfillSnapshot {
+                confirmationOutcome.replacingUsage(Self.codexBackfillingResetWindows(
                     confirmationSnapshot,
                     from: missingWindowBackfillSnapshot))
+            } else {
+                confirmationOutcome
             }
-            return confirmationOutcome
+            return CodexWeeklyPublicationAdmission(
+                outcome: outcome,
+                suppressesWeeklyResetCelebration: false)
+        case .publishRollingWindowConfirmation:
+            let outcome = if let missingWindowBackfillSnapshot {
+                confirmationOutcome.replacingUsage(Self.codexBackfillingResetWindows(
+                    confirmationSnapshot,
+                    from: missingWindowBackfillSnapshot))
+            } else {
+                confirmationOutcome
+            }
+            CodexBarLog.logger(LogCategories.codexRPC).debug(
+                "Publishing confirmed Codex rolling-window usage without a reset event",
+                metadata: [
+                    "initialObservedAt": String(format: "%.0f", rawInitialSnapshot.updatedAt.timeIntervalSince1970),
+                    "confirmationObservedAt": String(
+                        format: "%.0f",
+                        confirmationSnapshot.updatedAt.timeIntervalSince1970),
+                ])
+            return CodexWeeklyPublicationAdmission(
+                outcome: outcome,
+                suppressesWeeklyResetCelebration: true)
+        case .publishManualResetConfirmation:
+            let outcome = if let missingWindowBackfillSnapshot {
+                confirmationOutcome.replacingUsage(Self.codexBackfillingResetWindows(
+                    confirmationSnapshot,
+                    from: missingWindowBackfillSnapshot))
+            } else {
+                confirmationOutcome
+            }
+            return CodexWeeklyPublicationAdmission(
+                outcome: outcome,
+                suppressesWeeklyResetCelebration: false)
         case .preservePrevious:
             return nil
         }

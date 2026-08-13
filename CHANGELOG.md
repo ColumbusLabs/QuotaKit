@@ -5,7 +5,11 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.18 / iOS 1.11.3 — Unreleased
+## 0.32.4.18 / iOS 1.11.3 — 2026-08-13
+
+### Fixed
+
+- Codex: confirmed quota refreshes now publish immediately when the service advances a rolling weekly boundary, without emitting a false early weekly-reset notification.
 
 ## 0.32.4.17 / iOS 1.11.3 — 2026-08-13
 

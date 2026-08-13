@@ -240,7 +240,7 @@ struct CodexWeeklyResetConfirmationTests {
     }
 
     @Test
-    func `matching rolling boundary before prior reset preserves the previous snapshot`() throws {
+    func `matching rolling boundary before prior reset publishes without early reset evidence`() throws {
         let formatter = ISO8601DateFormatter()
         let previousCapturedAt = try #require(formatter.date(from: "2026-07-28T03:09:20Z"))
         let previousReset = try #require(formatter.date(from: "2026-08-02T10:17:56Z"))
@@ -267,7 +267,7 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: confirmation)
-                == .preservePrevious)
+                == .publishRollingWindowConfirmation)
     }
 
     @Test
@@ -308,7 +308,7 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: confirmation)
-                == .publishConfirmation)
+                == .publishManualResetConfirmation)
     }
 
     @Test
@@ -345,11 +345,11 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: confirmation)
-                == .publishConfirmation)
+                == .publishManualResetConfirmation)
     }
 
     @Test
-    func `one missing reset credit inventory does not confirm an early manual weekly reset`() throws {
+    func `one missing reset credit inventory publishes without early manual reset evidence`() throws {
         let formatter = ISO8601DateFormatter()
         let previousCapturedAt = try #require(formatter.date(from: "2026-08-06T09:28:18Z"))
         let previousReset = try #require(formatter.date(from: "2026-08-10T01:00:26Z"))
@@ -380,11 +380,11 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: confirmation)
-                == .preservePrevious)
+                == .publishRollingWindowConfirmation)
     }
 
     @Test
-    func `expired omitted reset credit does not confirm an early manual weekly reset`() throws {
+    func `expired omitted reset credit publishes without early manual reset evidence`() throws {
         let formatter = ISO8601DateFormatter()
         let previousCapturedAt = try #require(formatter.date(from: "2026-08-06T09:28:18Z"))
         let previousReset = try #require(formatter.date(from: "2026-08-10T01:00:26Z"))
@@ -420,12 +420,12 @@ struct CodexWeeklyResetConfirmationTests {
                     previous: previous,
                     initial: initial,
                     confirmation: confirmation)
-                    == .preservePrevious)
+                    == .publishRollingWindowConfirmation)
         }
     }
 
     @Test
-    func `prior boundary due tolerance includes the exact two minute edge`() {
+    func `early confirmations publish with a rolling-window reset policy`() {
         let previousBoundary = self.resetAt
         let nextBoundary = previousBoundary.addingTimeInterval(7 * 24 * 60 * 60)
         let previous = self.snapshot(
@@ -456,7 +456,7 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: justBeforeToleranceEdge)
-                == .preservePrevious)
+                == .publishRollingWindowConfirmation)
     }
 
     @Test

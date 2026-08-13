@@ -11,6 +11,8 @@ extension UsageStore {
         let sourceRawValue: String?
         var resetBoundary: Date?
         var recoveryAboveThresholdCount: Int?
+        /// A confirmed Codex rolling window moved before the previous boundary elapsed.
+        var codexEarlyWeeklyResetPending: Bool
         /// Identity-less Claude CLI samples share one detector key and can be transient.
         /// Require a second low sample before celebrating an apparent reset from that key.
         var pendingLowConfirmation: Bool
@@ -21,6 +23,7 @@ extension UsageStore {
             sourceRawValue: String?,
             resetBoundary: Date? = nil,
             recoveryAboveThresholdCount: Int? = nil,
+            codexEarlyWeeklyResetPending: Bool = false,
             pendingLowConfirmation: Bool = false)
         {
             self.wasAboveThreshold = wasAboveThreshold
@@ -28,6 +31,7 @@ extension UsageStore {
             self.sourceRawValue = sourceRawValue
             self.resetBoundary = resetBoundary
             self.recoveryAboveThresholdCount = recoveryAboveThresholdCount
+            self.codexEarlyWeeklyResetPending = codexEarlyWeeklyResetPending
             self.pendingLowConfirmation = pendingLowConfirmation
         }
 
@@ -37,6 +41,7 @@ extension UsageStore {
             case sourceRawValue
             case resetBoundary
             case recoveryAboveThresholdCount
+            case codexEarlyWeeklyResetPending
             case pendingLowConfirmation
         }
 
@@ -49,6 +54,9 @@ extension UsageStore {
             self.recoveryAboveThresholdCount = try container.decodeIfPresent(
                 Int.self,
                 forKey: .recoveryAboveThresholdCount)
+            self.codexEarlyWeeklyResetPending = try container.decodeIfPresent(
+                Bool.self,
+                forKey: .codexEarlyWeeklyResetPending) ?? false
             self.pendingLowConfirmation = try container.decodeIfPresent(
                 Bool.self,
                 forKey: .pendingLowConfirmation) ?? false
@@ -62,6 +70,7 @@ extension UsageStore {
         let accountKey: String?
         let capturedAt: Date
         let codexLimitResetOwnerKey: CodexLimitResetOwnerKey?
+        let codexSuppressesWeeklyResetCelebration: Bool
     }
 
     struct LimitResetObservation {
@@ -109,9 +118,9 @@ extension UsageStore {
         }
 
         let previousState = states[detectorKey]
-        let isClaudeWeekly = context.provider == .claude && descriptor.seriesName == .weekly
-        let claudeWeeklyRecoveryPending = isClaudeWeekly
-            && previousState?.recoveryAboveThresholdCount != nil
+        let isCodexWeekly = context.provider == .codex && descriptor.seriesName == .weekly
+        let codexEarlyWeeklyResetPending = previousState?.codexEarlyWeeklyResetPending ?? false
+        let claudeWeeklyRecoveryPending = Self.hasClaudeWeeklyRecoveryPending(context, descriptor, previousState)
         let sourceRawValue = observation.source?.rawValue
         let sourceChanged = descriptor.seriesName == .session && previousState?.sourceRawValue != nil
             && previousState?.sourceRawValue != sourceRawValue
@@ -120,10 +129,12 @@ extension UsageStore {
                 previous: previousState?.resetBoundary,
                 current: observation.resetBoundary)
         } else if context.provider == .codex, descriptor.seriesName == .weekly {
-            Self.limitResetBoundaryAdvanced(
+            Self.codexWeeklyResetBoundaryAllowsPost(
                 previous: previousState?.resetBoundary,
                 current: observation.resetBoundary,
-                requiresPreviousBoundary: true)
+                observedAt: currentObservedAt,
+                suppressesWeeklyResetCelebration: context.codexSuppressesWeeklyResetCelebration,
+                hasPendingEarlyRollingWindow: codexEarlyWeeklyResetPending)
         } else {
             true
         }
@@ -140,8 +151,8 @@ extension UsageStore {
             && !confirmingLowSample
             && resetBoundaryAllowsPost
             && !claudeWeeklyRecoveryPending
-        // Sessions retain the last non-regressed boundary on every guarded sample. Codex weekly crossings
-        // adopt a newly appearing boundary so a later genuine advance can still trigger once.
+        // Sessions and premature Codex rolling-window observations retain the last known boundary so a
+        // genuine reset can still trigger once after the prior boundary has elapsed.
         let shouldPreserveBoundary = !sourceChanged && !resetBoundaryAllowsPost
             && (descriptor.seriesName == .session || previousState?.resetBoundary != nil)
         let shouldPreserveBaseline = suppressedGuardedCrossing
@@ -167,6 +178,10 @@ extension UsageStore {
         } else {
             nil
         }
+        let nextCodexEarlyWeeklyResetPending = isCodexWeekly && !shouldPost
+            && (context.codexSuppressesWeeklyResetCelebration
+                || (codexEarlyWeeklyResetPending
+                    && !(previousState?.resetBoundary.map { currentObservedAt >= $0 } ?? false)))
         states[detectorKey] = LimitResetDetectorState(
             // A transient zero must not erase the baseline needed to recognize the real reset that follows.
             wasAboveThreshold: nextWasAboveThreshold,
@@ -174,6 +189,7 @@ extension UsageStore {
             sourceRawValue: sourceRawValue,
             resetBoundary: shouldPreserveBoundary ? previousState?.resetBoundary : observation.resetBoundary,
             recoveryAboveThresholdCount: persistedRecoveryCount,
+            codexEarlyWeeklyResetPending: nextCodexEarlyWeeklyResetPending,
             pendingLowConfirmation: shouldAwaitLowConfirmation)
         self.persistLimitResetDetectorStates(
             states,
@@ -234,5 +250,34 @@ extension UsageStore {
         default:
             return
         }
+    }
+
+    private nonisolated static func codexWeeklyResetBoundaryAllowsPost(
+        previous: Date?,
+        current: Date?,
+        observedAt: Date,
+        suppressesWeeklyResetCelebration: Bool,
+        hasPendingEarlyRollingWindow: Bool) -> Bool
+    {
+        guard limitResetBoundaryAdvanced(
+            previous: previous,
+            current: current,
+            requiresPreviousBoundary: true),
+            !suppressesWeeklyResetCelebration
+        else {
+            return false
+        }
+        guard hasPendingEarlyRollingWindow else { return true }
+        return previous.map { observedAt >= $0 } ?? false
+    }
+
+    private nonisolated static func hasClaudeWeeklyRecoveryPending(
+        _ context: LimitResetDetectionContext,
+        _ descriptor: LimitResetDetectionDescriptor,
+        _ state: LimitResetDetectorState?) -> Bool
+    {
+        context.provider == .claude
+            && descriptor.seriesName == .weekly
+            && state?.recoveryAboveThresholdCount != nil
     }
 }

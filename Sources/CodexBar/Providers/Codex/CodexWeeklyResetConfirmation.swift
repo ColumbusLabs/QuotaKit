@@ -10,6 +10,10 @@ struct CodexWeeklyResetConfirmation: Sendable {
 
     enum ConfirmationDecision: Equatable, Sendable {
         case publishConfirmation
+        /// The provider confirmed a new rolling window before the previous boundary elapsed.
+        case publishRollingWindowConfirmation
+        /// The reset-credit inventory corroborates a user-initiated reset before the prior window elapsed.
+        case publishManualResetConfirmation
         case preservePrevious
     }
 
@@ -137,28 +141,35 @@ struct CodexWeeklyResetConfirmation: Sendable {
         else {
             return .preservePrevious
         }
+        let confirmsManualReset = if let previous {
+            Self.confirmsManualResetCreditConsumption(
+                previous: previous,
+                initial: initial,
+                confirmation: confirmation)
+        } else {
+            false
+        }
         if let previous,
            let previousWeekly,
            let previousBoundary = Self.validResetBoundary(
                previousWeekly,
                capturedAt: previous.updatedAt)
         {
-            let confirmsManualReset = Self.confirmsManualResetCreditConsumption(
-                previous: previous,
-                initial: initial,
-                confirmation: confirmation)
-            if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60),
-               !confirmsManualReset
-            {
-                return .preservePrevious
-            }
             guard initialBoundary.timeIntervalSince(previousBoundary) >= Self.resetEquivalenceToleranceSeconds,
                   confirmationBoundary.timeIntervalSince(previousBoundary) >= Self.resetEquivalenceToleranceSeconds
             else {
                 return .preservePrevious
             }
+            if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60),
+               confirmsManualReset
+            {
+                return .publishManualResetConfirmation
+            }
+            if confirmation.updatedAt < previousBoundary.addingTimeInterval(-2 * 60) {
+                return .publishRollingWindowConfirmation
+            }
         }
-        return .publishConfirmation
+        return confirmsManualReset ? .publishManualResetConfirmation : .publishConfirmation
     }
 
     private static func confirmsManualResetCreditConsumption(

@@ -216,6 +216,7 @@ extension UsageStore {
         shouldUpdatePreferredAccountKey: Bool = true,
         shouldAdoptUnscopedHistory: Bool = true,
         codexLimitResetOwnerKey: CodexLimitResetOwnerKey? = nil,
+        codexSuppressesWeeklyResetCelebration: Bool = false,
         now: Date = Date())
         async
     {
@@ -261,7 +262,8 @@ extension UsageStore {
             snapshot: snapshot,
             accountKey: detectorAccountKey,
             capturedAt: now,
-            codexLimitResetOwnerKey: codexLimitResetOwnerKey)
+            codexLimitResetOwnerKey: codexLimitResetOwnerKey,
+            codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration)
         await MainActor.run {
             self.postLimitResetCelebrationsIfNeeded(
                 context: detectorContext,

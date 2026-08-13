@@ -173,6 +173,7 @@ private struct CodexAccountFetchResult {
     let account: CodexVisibleAccount
     let outcome: ProviderFetchOutcome?
     let limitResetOwnerKey: CodexLimitResetOwnerKey?
+    let suppressesWeeklyResetCelebration: Bool
 }
 
 private struct CodexAccountFetchRequest {
@@ -260,6 +261,7 @@ extension UsageStore {
         var selectedSnapshot: UsageSnapshot?
         var selectedSourceLabel: String?
         var selectedLimitResetOwnerKey: CodexLimitResetOwnerKey?
+        var selectedSuppressesWeeklyResetCelebration = false
 
         let results = await self.fetchCodexVisibleAccountOutcomes(
             accounts,
@@ -300,6 +302,7 @@ extension UsageStore {
                 selectedSnapshot = resolved.usage
                 selectedSourceLabel = resolved.sourceLabel
                 selectedLimitResetOwnerKey = result.limitResetOwnerKey
+                selectedSuppressesWeeklyResetCelebration = result.suppressesWeeklyResetCelebration
             }
         }
 
@@ -377,6 +380,7 @@ extension UsageStore {
                     snapshot: currentSelectedSnapshot,
                     sourceLabel: selectedSourceLabel,
                     limitResetOwnerKey: selectedLimitResetOwnerKey,
+                    suppressesWeeklyResetCelebration: selectedSuppressesWeeklyResetCelebration,
                     generation: generation)
             }
         } else {
@@ -880,7 +884,7 @@ extension UsageStore {
                             fetcher: resetCreditsFetcher)
                     }
                     let initialOutcome = await fetchOutcome()
-                    let outcome: ProviderFetchOutcome? = if Self.codexUsageOutcomeMatchesVisibleAccount(
+                    let admission: CodexWeeklyPublicationAdmission? = if Self.codexUsageOutcomeMatchesVisibleAccount(
                         initialOutcome,
                         account: request.account)
                     {
@@ -889,7 +893,7 @@ extension UsageStore {
                             previousSnapshot: request.previousSnapshot,
                             missingWindowBackfillSnapshot: request.missingWindowBackfillSnapshot,
                             fetchConfirmation: fetchOutcome),
-                            Self.codexUsageOutcomeMatchesVisibleAccount(admitted, account: request.account)
+                            Self.codexUsageOutcomeMatchesVisibleAccount(admitted.outcome, account: request.account)
                         {
                             admitted
                         } else {
@@ -901,8 +905,9 @@ extension UsageStore {
                     return CodexAccountFetchResult(
                         index: request.index,
                         account: request.account,
-                        outcome: outcome,
-                        limitResetOwnerKey: request.limitResetOwnerKey)
+                        outcome: admission?.outcome,
+                        limitResetOwnerKey: request.limitResetOwnerKey,
+                        suppressesWeeklyResetCelebration: admission?.suppressesWeeklyResetCelebration ?? false)
                 }
             }
 
@@ -1383,6 +1388,7 @@ extension UsageStore {
         snapshot: UsageSnapshot?,
         sourceLabel: String?,
         limitResetOwnerKey: CodexLimitResetOwnerKey?,
+        suppressesWeeklyResetCelebration: Bool = false,
         generation: UInt64? = nil) async
     {
         guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
@@ -1416,7 +1422,8 @@ extension UsageStore {
             await self.recordPlanUtilizationHistorySample(
                 provider: .codex,
                 snapshot: snapshot,
-                codexLimitResetOwnerKey: limitResetOwnerKey)
+                codexLimitResetOwnerKey: limitResetOwnerKey,
+                codexSuppressesWeeklyResetCelebration: suppressesWeeklyResetCelebration)
             guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
             self.recordCodexHistoricalSampleIfNeeded(snapshot: snapshot)
         case let .failure(error):
