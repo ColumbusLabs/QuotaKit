@@ -988,6 +988,96 @@ struct CostUsagePerformanceGateTests {
     }
 
     @Test
+    func `priority metadata rebuild automatically retains complete report until bounded scan converges`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso = env.isoString(for: day)
+        let model = "gpt-5.5"
+        let sessionBody = [
+            #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"priority-rebuild"}}"#,
+            #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"\#(model)"}}"#,
+            #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"ignored","padding":""#
+                + String(repeating: "x", count: 4096) + #""}}"#,
+            #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"task_started","turn_id":"priority-turn"}}"#,
+            #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
+                + #"{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"#
+                + #""model":"\#(model)"}}}"#,
+        ].joined(separator: "\n") + "\n"
+        _ = try env.writeCodexSessionFile(
+            day: day,
+            filename: "priority-rebuild.jsonl",
+            contents: sessionBody)
+
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL,
+            maxCodexSessionFileBytes: 0,
+            maxCodexScanBytesPerRefresh: 0)
+        options.refreshMinIntervalSeconds = 0
+        let complete = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        // CostUsage total tokens are input + output; cached input is a priced
+        // subset of input, not an additional token bucket.
+        #expect(complete.summary?.totalTokens == 110)
+
+        try CostUsageScannerCodexPriorityTests.insertTestLog(
+            dbURL: dbURL,
+            timestamp: iso,
+            body: "thread_id=thread turn.id=priority-turn websocket request: "
+                + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#)
+        options.maxCodexSessionFileBytes = 1024
+        options.maxCodexScanBytesPerRefresh = 1024
+
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: day,
+            until: day,
+            calendar: options.calendar)
+        var report = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: options)
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let incomplete = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
+
+        #expect(cache.codexScanCatchUpPending == true)
+        #expect(cache.codexPreviousReport != nil)
+        #expect(incomplete.summary?.totalTokens != complete.summary?.totalTokens)
+        #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
+        #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
+
+        for pass in 2...16 where cache.codexScanCatchUpPending == true {
+            report = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(TimeInterval(pass)),
+                options: options)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if cache.codexScanCatchUpPending == true {
+                #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
+                #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
+            }
+        }
+
+        #expect(cache.codexScanCatchUpPending == false)
+        #expect(cache.codexPreviousReport == nil)
+        #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
+        #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
+        #expect(report.data.first?.modelBreakdowns?.first?.priorityTokens == 110)
+    }
+
+    @Test
     func `single oversized jsonl record resumes without stalling`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

@@ -115,9 +115,39 @@ struct SyncCoordinatorTests {
         #expect(summary.historyDays == 30)
         #expect(summary.currencyCode == "USD")
         #expect(summary.isEstimated == true)
+        #expect(summary.historyCoverageIsEstablished == nil)
         #expect(summary.daily.map(\.dayKey) == ["2027-01-14", "2027-01-15"])
         #expect(summary.daily.map(\.costUSD) == [1.25, 2.75])
         #expect(summary.daily.allSatisfy { $0.isEstimated == true })
+    }
+
+    @Test
+    func `Codex cost summary maps history coverage from token snapshot`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-history-coverage")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 30,
+                sessionCostUSD: 3,
+                last30DaysTokens: 30,
+                last30DaysCostUSD: 3,
+                historyCoverageIsEstablished: false,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let codex = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "codex" })
+        #expect(codex.costSummary?.historyCoverageIsEstablished == false)
     }
 
     @Test

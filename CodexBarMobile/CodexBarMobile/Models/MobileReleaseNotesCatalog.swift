@@ -49,6 +49,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Model Mix in the Cost dashboard can now switch between per-model cost and token usage."),
                         String(
                             localized: "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail."),
+                        String(
+                            localized: "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."),
                     ]),
             ]),
         ReleaseNotesVersion(

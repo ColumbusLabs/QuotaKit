@@ -22,6 +22,11 @@ current Columbus Labs product surface and recent release history.
 - Extended the restored provider presentation, brand assets, and synced-card support
   to Fireworks and IBM Bob, plus quota-alert coverage for IBM Bob, without changing the release build.
 
+### Fixed
+
+- Daily Spend now retains the last complete cost and model breakdown while the
+  Mac is rebuilding Codex history, instead of temporarily showing a reduced total.
+
 ## [1.11.3 (175)] — 2026-08-04 — Model token usage
 
 ### Added

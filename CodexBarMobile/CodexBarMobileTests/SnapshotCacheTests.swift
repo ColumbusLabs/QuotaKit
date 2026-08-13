@@ -16,7 +16,8 @@ struct SnapshotCacheTests {
         id: String,
         name: String? = nil,
         email: String? = nil,
-        lastUpdated: Date) -> ProviderUsageSnapshot
+        lastUpdated: Date,
+        costSummary: SyncCostSummary? = nil) -> ProviderUsageSnapshot
     {
         // Include a non-empty primary rate window so the provider does NOT
         // trip the ghost filter — test fixtures represent real providers.
@@ -33,7 +34,31 @@ struct SnapshotCacheTests {
             loginMethod: nil,
             statusMessage: nil,
             isError: false,
-            lastUpdated: lastUpdated)
+            lastUpdated: lastUpdated,
+            costSummary: costSummary)
+    }
+
+    private func costSummary(
+        cost: Double,
+        tokens: Int,
+        coverage: Bool?,
+        model: String = "gpt-5.5") -> SyncCostSummary
+    {
+        SyncCostSummary(
+            sessionCostUSD: cost,
+            sessionTokens: tokens,
+            last30DaysCostUSD: cost,
+            last30DaysTokens: tokens,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: "2026-08-12",
+                    costUSD: cost,
+                    totalTokens: tokens,
+                    modelBreakdowns: [
+                        SyncCostBreakdown(label: model, costUSD: cost, totalTokens: tokens),
+                    ]),
+            ],
+            historyCoverageIsEstablished: coverage)
     }
 
     private func snapshot(
@@ -92,6 +117,123 @@ struct SnapshotCacheTests {
         #expect(cache.perProviderByDevice["mac-A"]?.count == 1)
         #expect(cache.legacyByDevice.isEmpty) // untouched
         #expect(cache.deviceMetadata["mac-A"]?.deviceName == "Mac A")
+    }
+
+    @Test
+    func `Delta cannot replace complete cost history with a newer partial scan`() throws {
+        var cache = SnapshotCache()
+        let complete = self.provider(
+            id: "codex",
+            lastUpdated: self.t1,
+            costSummary: self.costSummary(cost: 10, tokens: 1000, coverage: true))
+        let partial = self.provider(
+            id: "codex",
+            lastUpdated: self.t2,
+            costSummary: self.costSummary(cost: 3, tokens: 300, coverage: false, model: "gpt-5.6-terra"))
+
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [complete],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+        cache.applyDelta(
+            upserted: [ProviderUsageEnvelope(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                appVersion: "0.32.4",
+                mobileVersion: "1.11.3",
+                syncTimestamp: self.t2,
+                notificationPushEnabled: true,
+                provider: partial)],
+            deletedRecordNames: [])
+
+        let provider = try #require(cache.buildDeviceSnapshots().first?.providers.first)
+        let cost = try #require(provider.costSummary)
+        #expect(provider.lastUpdated == self.t2)
+        #expect(cost.last30DaysCostUSD == 10)
+        #expect(cost.daily.first?.modelBreakdowns.first?.label == "gpt-5.5")
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Completed cost scan replaces the retained complete history`() throws {
+        var cache = SnapshotCache()
+        let old = self.provider(
+            id: "codex",
+            lastUpdated: self.t1,
+            costSummary: self.costSummary(cost: 10, tokens: 1000, coverage: true))
+        let updated = self.provider(
+            id: "codex",
+            lastUpdated: self.t2,
+            costSummary: self.costSummary(cost: 12, tokens: 1200, coverage: true, model: "gpt-5.6-sol"))
+
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [old], timestamp: self.t1)],
+            legacySnapshots: [])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [updated], timestamp: self.t2)],
+            legacySnapshots: [])
+
+        let cost = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 12)
+        #expect(cost.daily.first?.modelBreakdowns.first?.label == "gpt-5.6-sol")
+    }
+
+    @Test
+    func `First per-provider refresh cannot downgrade cold-start legacy history`() throws {
+        var cache = SnapshotCache()
+        let complete = self.provider(
+            id: "codex",
+            lastUpdated: self.t1,
+            costSummary: self.costSummary(cost: 10, tokens: 1000, coverage: true))
+        let partial = self.provider(
+            id: "codex",
+            lastUpdated: self.t2,
+            costSummary: self.costSummary(cost: 3, tokens: 300, coverage: false, model: "gpt-5.6-terra"))
+
+        cache.seedFromColdStart([self.snapshot(
+            deviceID: "mac-A", deviceName: "Mac A", providers: [complete], timestamp: self.t1)])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [partial], timestamp: self.t2)],
+            legacySnapshots: nil)
+
+        let provider = try #require(cache.buildDeviceSnapshots().first?.providers.first)
+        let cost = try #require(provider.costSummary)
+        #expect(provider.lastUpdated == self.t2)
+        #expect(cost.last30DaysCostUSD == 10)
+        #expect(cost.daily.first?.modelBreakdowns.first?.label == "gpt-5.5")
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Same full fetch reconciles partial per-provider against complete legacy history`() throws {
+        var cache = SnapshotCache()
+        let complete = self.provider(
+            id: "codex",
+            lastUpdated: self.t1,
+            costSummary: self.costSummary(cost: 10, tokens: 1000, coverage: true))
+        let partial = self.provider(
+            id: "codex",
+            lastUpdated: self.t2,
+            costSummary: self.costSummary(cost: 3, tokens: 300, coverage: false, model: "gpt-5.6-terra"))
+
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [partial], timestamp: self.t2)],
+            legacySnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [complete], timestamp: self.t1)])
+
+        let provider = try #require(cache.buildDeviceSnapshots().first?.providers.first)
+        let cost = try #require(provider.costSummary)
+        #expect(provider.lastUpdated == self.t2)
+        #expect(cost.last30DaysCostUSD == 10)
+        #expect(cost.daily.first?.modelBreakdowns.first?.label == "gpt-5.5")
+        #expect(cost.historyCoverageIsEstablished == true)
     }
 
     @Test

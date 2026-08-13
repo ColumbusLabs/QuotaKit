@@ -14,6 +14,7 @@ struct CloudKitMergeTests {
         email: String? = nil,
         lastUpdated: Date,
         usedPercent: Double = 50.0,
+        costSummary: SyncCostSummary? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
@@ -30,6 +31,7 @@ struct CloudKitMergeTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: lastUpdated,
+            costSummary: costSummary,
             codexResetCredits: codexResetCredits)
     }
 
@@ -47,6 +49,33 @@ struct CloudKitMergeTests {
     }
 
     // MARK: - Single device (degenerate case)
+
+    @Test
+    func `Local cost merge marks history partial when any Mac is still indexing`() throws {
+        func summary(cost: Double, coverage: Bool?) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: 100,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: cost, totalTokens: 100)],
+                historyCoverageIsEstablished: coverage)
+        }
+        let complete = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: self.olderDate, costSummary: summary(cost: 10, coverage: true))
+        let partial = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: self.newerDate, costSummary: summary(cost: 3, coverage: false))
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [complete]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [partial]),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 13)
+        #expect(cost.historyCoverageIsEstablished == false)
+    }
 
     @Test
     func `Single device returns its data unchanged`() throws {

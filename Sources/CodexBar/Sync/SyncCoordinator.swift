@@ -762,7 +762,9 @@ final class SyncCoordinator {
         error: String?,
         rateWindows: [SyncRateWindow]) -> String?
     {
-        if let error { return error }
+        if let error {
+            return error
+        }
         if provider == .aiand || provider == .fireworks, let providerCost {
             let amount = String(format: "%.2f", providerCost.used)
             let period = providerCost.period ?? "Last 30 days"
@@ -1521,6 +1523,7 @@ final class SyncCoordinator {
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
             historyDays: tokenSnapshot?.historyDays,
+            historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
             currencyCode: tokenSnapshot?.currencyCode)

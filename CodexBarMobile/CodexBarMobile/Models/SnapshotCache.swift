@@ -85,7 +85,18 @@ struct SnapshotCache: Sendable {
         perProviderSnapshots: [SyncedUsageSnapshot]?,
         legacySnapshots: [SyncedUsageSnapshot]?)
     {
+        let previousLegacyByDevice = self.legacyByDevice
+        var incomingLegacyByDevice: [String: SyncedUsageSnapshot] = [:]
+        if let legacySnapshots {
+            for snapshot in legacySnapshots {
+                let deviceID = snapshot.deviceID ?? Self.syntheticDeviceID(from: snapshot)
+                incomingLegacyByDevice[deviceID] = Self.reconcileCostHistory(
+                    incoming: snapshot,
+                    previous: previousLegacyByDevice[deviceID])
+            }
+        }
         if let perProviderSnapshots {
+            let previousByDevice = self.perProviderByDevice
             self.perProviderByDevice.removeAll(keepingCapacity: true)
 
             // Populate per-provider bucket. Each snapshot represents one device's
@@ -96,7 +107,12 @@ struct SnapshotCache: Sendable {
                 guard let deviceID = snapshot.deviceID else { continue }
                 var byComposite: [String: ProviderUsageSnapshot] = [:]
                 for provider in snapshot.providers where !Self.isGhost(provider) {
-                    byComposite[Self.compositeKey(for: provider)] = provider
+                    let key = Self.compositeKey(for: provider)
+                    byComposite[key] = Self.reconcileCostHistory(
+                        incoming: provider,
+                        previous: previousByDevice[deviceID]?[key]
+                            ?? Self.provider(in: incomingLegacyByDevice[deviceID], matching: key)
+                            ?? Self.provider(in: previousLegacyByDevice[deviceID], matching: key))
                 }
                 guard !byComposite.isEmpty else { continue }
                 self.perProviderByDevice[deviceID] = byComposite
@@ -116,7 +132,7 @@ struct SnapshotCache: Sendable {
             // per-provider bucket) its metadata comes from here instead.
             for snapshot in legacySnapshots {
                 let deviceID = snapshot.deviceID ?? Self.syntheticDeviceID(from: snapshot)
-                self.legacyByDevice[deviceID] = snapshot
+                self.legacyByDevice[deviceID] = incomingLegacyByDevice[deviceID]
                 if self.deviceMetadata[deviceID] == nil {
                     self.deviceMetadata[deviceID] = Metadata(
                         deviceName: snapshot.deviceName,
@@ -138,7 +154,11 @@ struct SnapshotCache: Sendable {
     {
         for envelope in upserted where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
-            byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
+            let key = Self.compositeKey(for: envelope.provider)
+            byComposite[key] = Self.reconcileCostHistory(
+                incoming: envelope.provider,
+                previous: byComposite[key]
+                    ?? Self.provider(in: self.legacyByDevice[envelope.deviceID], matching: key))
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
             self.deviceMetadata[envelope.deviceID] = Metadata(
@@ -173,10 +193,15 @@ struct SnapshotCache: Sendable {
     /// records it SHOULD cover; safest to rebuild from scratch using the
     /// replay's envelopes.
     mutating func replacePerProviderFromReplay(_ envelopes: [ProviderUsageEnvelope]) {
+        let previousByDevice = self.perProviderByDevice
         self.perProviderByDevice.removeAll(keepingCapacity: true)
         for envelope in envelopes where !Self.isGhost(envelope.provider) {
             var byComposite = self.perProviderByDevice[envelope.deviceID] ?? [:]
-            byComposite[Self.compositeKey(for: envelope.provider)] = envelope.provider
+            let key = Self.compositeKey(for: envelope.provider)
+            byComposite[key] = Self.reconcileCostHistory(
+                incoming: envelope.provider,
+                previous: previousByDevice[envelope.deviceID]?[key]
+                    ?? Self.provider(in: self.legacyByDevice[envelope.deviceID], matching: key))
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
             self.deviceMetadata[envelope.deviceID] = Metadata(
@@ -195,7 +220,9 @@ struct SnapshotCache: Sendable {
     mutating func seedFromColdStart(_ snapshots: [SyncedUsageSnapshot]) {
         for snapshot in snapshots {
             let deviceID = snapshot.deviceID ?? Self.syntheticDeviceID(from: snapshot)
-            self.legacyByDevice[deviceID] = snapshot
+            self.legacyByDevice[deviceID] = Self.reconcileCostHistory(
+                incoming: snapshot,
+                previous: self.legacyByDevice[deviceID])
             self.deviceMetadata[deviceID] = Metadata(
                 deviceName: snapshot.deviceName,
                 appVersion: snapshot.appVersion,
@@ -428,6 +455,49 @@ struct SnapshotCache: Sendable {
     /// doesn't participate in this cross-layer contract.)
     static func compositeKey(for provider: ProviderUsageSnapshot) -> String {
         "\(provider.providerID)|\(provider.accountEmail ?? "_")"
+    }
+
+    /// Keeps a previously established cost window from being erased by a
+    /// newer provider refresh whose local history scan is still catching up.
+    /// Rate windows and all non-cost fields always come from the incoming
+    /// provider; only the cost history is reconciled.
+    private static func reconcileCostHistory(
+        incoming: ProviderUsageSnapshot,
+        previous: ProviderUsageSnapshot?) -> ProviderUsageSnapshot
+    {
+        guard let incomingCost = incoming.costSummary else { return incoming }
+        var result = incoming
+        result.costSummary = incomingCost.reconcilingHistory(with: previous?.costSummary)
+        return result
+    }
+
+    private static func provider(
+        in snapshot: SyncedUsageSnapshot?,
+        matching compositeKey: String) -> ProviderUsageSnapshot?
+    {
+        snapshot?.providers.first { Self.compositeKey(for: $0) == compositeKey }
+    }
+
+    private static func reconcileCostHistory(
+        incoming: SyncedUsageSnapshot,
+        previous: SyncedUsageSnapshot?) -> SyncedUsageSnapshot
+    {
+        guard let previous else { return incoming }
+        let previousByKey = Dictionary(
+            uniqueKeysWithValues: previous.providers.map { (Self.compositeKey(for: $0), $0) })
+        let providers = incoming.providers.map { provider in
+            Self.reconcileCostHistory(
+                incoming: provider,
+                previous: previousByKey[Self.compositeKey(for: provider)])
+        }
+        return SyncedUsageSnapshot(
+            providers: providers,
+            syncTimestamp: incoming.syncTimestamp,
+            deviceName: incoming.deviceName,
+            deviceID: incoming.deviceID,
+            appVersion: incoming.appVersion,
+            mobileVersion: incoming.mobileVersion,
+            notificationPushEnabled: incoming.notificationPushEnabled)
     }
 
     /// Parses a CloudKit recordName of the form

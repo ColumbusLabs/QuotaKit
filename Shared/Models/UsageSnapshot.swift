@@ -142,7 +142,9 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
     /// payloads send `totalTokens`; Mac 0.29+ Codex payloads are recovered
     /// from their already-synced standard/priority counts.
     public var modelTokens: Int? {
-        if let totalTokens { return totalTokens }
+        if let totalTokens {
+            return totalTokens
+        }
         guard self.standardTokens != nil || self.priorityTokens != nil else { return nil }
         return (self.standardTokens ?? 0) + (self.priorityTokens ?? 0)
     }
@@ -212,6 +214,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// 7- or 365-day total (gap F). Optional — nil for pre-0.29 payloads; iOS
     /// treats nil as 30 (the historical default).
     public let historyDays: Int?
+    /// Whether the producer established complete coverage for its configured
+    /// history window. Optional for wire compatibility: `nil` identifies a
+    /// legacy producer that predates explicit completeness metadata.
+    public let historyCoverageIsEstablished: Bool?
     /// iOS 1.10.0 / Mac 0.31.0 (025) — upstream #1163: request counts +
     /// currency for the shared cost cards. Optional; nil for pre-0.31
     /// payloads. iOS shows "N requests" + the right currency symbol.
@@ -227,6 +233,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         daily: [SyncDailyPoint],
         isEstimated: Bool? = nil,
         historyDays: Int? = nil,
+        historyCoverageIsEstablished: Bool? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
         currencyCode: String? = nil)
@@ -238,9 +245,71 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.daily = daily
         self.isEstimated = isEstimated
         self.historyDays = historyDays
+        self.historyCoverageIsEstablished = historyCoverageIsEstablished
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode
+    }
+
+    /// Reconciles an incoming summary (`self`) with the previously retained
+    /// summary without allowing a lower-confidence history scan to erase
+    /// higher-confidence daily history.
+    ///
+    /// Completeness precedence is: established (`true`) > legacy (`nil`) >
+    /// known partial (`false`). An incoming summary of equal or higher quality
+    /// is authoritative. A lower-quality summary keeps previous values for
+    /// overlapping days, retains previous missing days, and may add new days.
+    public func reconcilingHistory(with previous: SyncCostSummary?) -> SyncCostSummary {
+        guard let previous,
+              Self.historyCoverageRank(self.historyCoverageIsEstablished)
+              < Self.historyCoverageRank(previous.historyCoverageIsEstablished)
+        else {
+            return self
+        }
+
+        var dailyByDayKey: [String: SyncDailyPoint] = [:]
+        for point in self.daily {
+            dailyByDayKey[point.dayKey] = point
+        }
+        for point in previous.daily {
+            dailyByDayKey[point.dayKey] = point
+        }
+        let reconciledDaily = dailyByDayKey.values.sorted { $0.dayKey < $1.dayKey }
+        let reconciledCost = reconciledDaily.reduce(0) { $0 + $1.costUSD }
+        let reconciledTokens = reconciledDaily.reduce(0) { $0 + $1.totalTokens }
+
+        let reconciledIsEstimated: Bool? = if self.isEstimated == true
+            || previous.isEstimated == true
+            || reconciledDaily.contains(where: { $0.isEstimated == true })
+        {
+            true
+        } else {
+            self.isEstimated ?? previous.isEstimated
+        }
+
+        return SyncCostSummary(
+            sessionCostUSD: self.sessionCostUSD,
+            sessionTokens: self.sessionTokens,
+            last30DaysCostUSD: reconciledDaily.isEmpty ? previous.last30DaysCostUSD : reconciledCost,
+            last30DaysTokens: reconciledDaily.isEmpty ? previous.last30DaysTokens : reconciledTokens,
+            daily: reconciledDaily,
+            isEstimated: reconciledIsEstimated,
+            historyDays: previous.historyDays ?? self.historyDays,
+            historyCoverageIsEstablished: previous.historyCoverageIsEstablished,
+            sessionRequests: self.sessionRequests,
+            // Daily points do not carry request counts, so a mixed history
+            // cannot safely derive this aggregate. Retain the higher-quality
+            // value rather than publishing an inconsistent incoming total.
+            last30DaysRequests: previous.last30DaysRequests,
+            currencyCode: self.currencyCode ?? previous.currencyCode)
+    }
+
+    private static func historyCoverageRank(_ value: Bool?) -> Int {
+        switch value {
+        case true: 2
+        case nil: 1
+        case false: 0
+        }
     }
 }
 
@@ -341,7 +410,9 @@ public struct SyncCodexResetCredits: Codable, Sendable, Equatable {
             .sorted { lhs, rhs in
                 switch (lhs.expiresAt, rhs.expiresAt) {
                 case let (lhsDate?, rhsDate?):
-                    if lhsDate != rhsDate { return lhsDate < rhsDate }
+                    if lhsDate != rhsDate {
+                        return lhsDate < rhsDate
+                    }
                 case (_?, nil):
                     return true
                 case (nil, _?):
@@ -492,7 +563,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     public let statusMessage: String?
     public let isError: Bool
     public let lastUpdated: Date
-    public let costSummary: SyncCostSummary?
+    public var costSummary: SyncCostSummary?
     public let budget: SyncBudgetSnapshot?
     /// Subscription utilization history (session/weekly/opus) for chart display.
     public let utilizationHistory: [SyncUtilizationSeries]?
@@ -705,14 +776,18 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
 
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
-        if !self.rateWindows.isEmpty { return self.rateWindows }
+        if !self.rateWindows.isEmpty {
+            return self.rateWindows
+        }
         return [self.primary, self.secondary].compactMap(\.self)
     }
 
     /// Windows iOS/widget surfaces should render in compact list contexts.
     public var displayRateWindows: [SyncRateWindow] {
         let windows = self.allRateWindows
-        if !windows.isEmpty { return windows }
+        if !windows.isEmpty {
+            return windows
+        }
         guard self.providerID == "codex", let codexCreditLimit else { return [] }
         return [codexCreditLimit.rateWindow]
     }

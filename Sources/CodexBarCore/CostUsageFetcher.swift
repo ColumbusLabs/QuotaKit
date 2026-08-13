@@ -1099,8 +1099,10 @@ public struct CostUsageFetcher: Sendable {
         else { return configuredDuration }
 
         // UsageStore refreshes set bypassScannerDebounce. Bound that first app scan too,
-        // so it can publish a partial snapshot and hand remaining work to the persistent
+        // so it can publish scan progress and hand remaining work to the persistent
         // catch-up loop instead of consuming the whole 512 MiB byte budget continuously.
+        // When a prior complete report exists, the scanner keeps that report visible until
+        // catch-up converges rather than exposing a partially rebuilt cost history.
         return self.codexAutomaticScanDurationPerRefresh
     }
 

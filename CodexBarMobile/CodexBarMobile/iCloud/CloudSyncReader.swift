@@ -362,7 +362,9 @@ final class CloudSyncReader: @unchecked Sendable {
             let l = i < lhsParts.count ? lhsParts[i] : "0"
             let r = i < rhsParts.count ? rhsParts[i] : "0"
             if let li = Int(l), let ri = Int(r) {
-                if li != ri { return li < ri }
+                if li != ri {
+                    return li < ri
+                }
             } else if l != r {
                 return l < r
             }
@@ -594,7 +596,9 @@ final class CloudSyncReader: @unchecked Sendable {
     /// Daily points are merged by dayKey (costs summed), then totals are recalculated.
     private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {
         guard !summaries.isEmpty else { return nil }
-        if summaries.count == 1 { return summaries[0] }
+        if summaries.count == 1 {
+            return summaries[0]
+        }
 
         // Merge daily points by dayKey, summing costs and tokens
         var dailyByKey: [String: (
@@ -664,6 +668,15 @@ final class CloudSyncReader: @unchecked Sendable {
         for point in mergedDaily {
             mergedIsEstimated = self.mergeEstimatedFlags(mergedIsEstimated, point.isEstimated)
         }
+        let mergedHistoryCoverage: Bool? = if summaries.contains(where: {
+            $0.historyCoverageIsEstablished == false
+        }) {
+            false
+        } else if summaries.allSatisfy({ $0.historyCoverageIsEstablished == true }) {
+            true
+        } else {
+            nil
+        }
 
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
@@ -671,7 +684,8 @@ final class CloudSyncReader: @unchecked Sendable {
             last30DaysCostUSD: mergedDaily.isEmpty ? nil : totalCost,
             last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
-            isEstimated: mergedIsEstimated)
+            isEstimated: mergedIsEstimated,
+            historyCoverageIsEstablished: mergedHistoryCoverage)
     }
 
     // MARK: - Utilization History Merge + Hourly Dedup

@@ -4364,6 +4364,34 @@
         }
       }
     },
+    "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac が Codex 履歴を再構築している間も、日別支出には最後の完全なコストとモデル内訳が保持されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 重建 Codex 历史记录时，每日支出会保留上一次完整的成本和模型明细。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Mac 重建 Codex 歷史記錄時，每日支出會保留上一次完整的成本與模型明細。"
+          }
+        }
+      }
+    },
     "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail.": {
       "localizations": {
         "en": {

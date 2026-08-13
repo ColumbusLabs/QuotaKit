@@ -4475,8 +4475,8 @@ enum CostUsageScanner {
             return previous
         }
 
-        let sourceCache: CostUsageCache? = if !currentScanIsPending,
-                                              options.forceRescan,
+        let sourceCache: CostUsageCache? = if plan.shouldRefresh,
+                                              !currentScanIsPending,
                                               !cache.days.isEmpty
         {
             cache

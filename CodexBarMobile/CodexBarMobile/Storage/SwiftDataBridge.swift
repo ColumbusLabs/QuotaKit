@@ -150,6 +150,7 @@ enum SwiftDataBridge {
             accountEmail: provider.accountEmail)
         let descriptor = FetchDescriptor<ProviderSnapshotModel>(
             predicate: #Predicate { $0.compositeKey == compositeKey })
+        let existing = try context.fetch(descriptor).first
 
         // Encode opaque blobs via the project-wide factory so date strategy
         // stays in lockstep with the decoder in `readAllDeviceSnapshots` and
@@ -157,15 +158,23 @@ enum SwiftDataBridge {
         // rolled `JSONEncoder()` defaulted to `.deferredToDate` and dropped
         // every Date through the round-trip.
         let encoder = CloudSyncConstants.makeJSONEncoder()
+        let decoder = CloudSyncConstants.makeJSONDecoder()
+        var persistedProvider = provider
+        if let incomingCost = provider.costSummary {
+            let previousCost = existing?.costSummaryData.flatMap {
+                try? decoder.decode(SyncCostSummary.self, from: $0)
+            }
+            persistedProvider.costSummary = incomingCost.reconcilingHistory(with: previousCost)
+        }
         let rateWindowsData = (try? encoder.encode(provider.allRateWindows)) ?? Data("[]".utf8)
-        let costSummaryData = provider.costSummary.flatMap { try? encoder.encode($0) }
+        let costSummaryData = persistedProvider.costSummary.flatMap { try? encoder.encode($0) }
         let budgetData = provider.budget.flatMap { try? encoder.encode($0) }
         let perplexityCreditsData = provider.perplexityCredits.flatMap { try? encoder.encode($0) }
         let codexResetCreditsData = provider.codexResetCredits.flatMap { try? encoder.encode($0) }
         let crossModelUsageData = provider.crossModelUsage.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
-        if let existing = try context.fetch(descriptor).first {
+        if let existing {
             existing.providerName = provider.providerName
             existing.loginMethod = provider.loginMethod
             existing.statusMessage = provider.statusMessage
@@ -212,7 +221,7 @@ enum SwiftDataBridge {
         // longer rolling history).
         if CostLedgerService.isEnabled() {
             try CostLedgerService.upsertFromSnapshot(
-                provider, deviceID: deviceID, in: context)
+                persistedProvider, deviceID: deviceID, in: context)
         }
     }
 

@@ -25,6 +25,22 @@ import Testing
 ///
 /// See `Research/020-multi-account-comprehensive.md` R5 §B.
 struct SyncWireFormatRoundTripTests {
+    private func costSummary(
+        coverage: Bool?,
+        days: [(String, Double, Int)],
+        sessionCost: Double? = nil) -> SyncCostSummary
+    {
+        SyncCostSummary(
+            sessionCostUSD: sessionCost,
+            sessionTokens: nil,
+            last30DaysCostUSD: days.reduce(0) { $0 + $1.1 },
+            last30DaysTokens: days.reduce(0) { $0 + $1.2 },
+            daily: days.map {
+                SyncDailyPoint(dayKey: $0.0, costUSD: $0.1, totalTokens: $0.2)
+            },
+            historyCoverageIsEstablished: coverage)
+    }
+
     private func makeRichSnapshot(
         providerID: String = "codex",
         accountEmail: String? = "alice@example.com",
@@ -134,6 +150,93 @@ struct SyncWireFormatRoundTripTests {
     }
 
     // MARK: - 1. Round-trip stability
+
+    @Test
+    func `cost summary missing history coverage decodes as legacy nil`() throws {
+        let json = Data("""
+        {
+            "sessionCostUSD": null, "sessionTokens": null,
+            "last30DaysCostUSD": 1, "last30DaysTokens": 10,
+            "daily": []
+        }
+        """.utf8)
+
+        let decoded = try JSONDecoder().decode(SyncCostSummary.self, from: json)
+
+        #expect(decoded.historyCoverageIsEstablished == nil)
+    }
+
+    @Test(arguments: [true, false])
+    func `cost summary history coverage round-trips`(coverage: Bool) throws {
+        let original = self.costSummary(coverage: coverage, days: [])
+
+        let decoded = try JSONDecoder().decode(
+            SyncCostSummary.self,
+            from: JSONEncoder().encode(original))
+
+        #expect(decoded.historyCoverageIsEstablished == coverage)
+    }
+
+    @Test
+    func `partial history preserves complete daily values and recomputes totals`() {
+        let complete = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 10, 100)])
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-10", 3, 30)],
+            sessionCost: 3)
+
+        let reconciled = partial.reconcilingHistory(with: complete)
+
+        #expect(reconciled.daily.map(\.costUSD) == [10])
+        #expect(reconciled.last30DaysCostUSD == 10)
+        #expect(reconciled.last30DaysTokens == 100)
+        #expect(reconciled.sessionCostUSD == 3)
+        #expect(reconciled.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `partial history adds absent days without replacing complete days`() {
+        let complete = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 10, 100)])
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-10", 3, 30), ("2026-08-11", 4, 40)])
+
+        let reconciled = partial.reconcilingHistory(with: complete)
+
+        #expect(reconciled.daily.map(\.dayKey) == ["2026-08-10", "2026-08-11"])
+        #expect(reconciled.daily.map(\.costUSD) == [10, 4])
+        #expect(reconciled.last30DaysCostUSD == 14)
+        #expect(reconciled.last30DaysTokens == 140)
+    }
+
+    @Test
+    func `later complete history is authoritative over retained partial history`() {
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-10", 3, 30), ("2026-08-11", 4, 40)])
+        let complete = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 12, 120)])
+
+        let reconciled = complete.reconcilingHistory(with: partial)
+
+        #expect(reconciled == complete)
+    }
+
+    @Test
+    func `legacy history outranks partial but yields to established history`() {
+        let legacy = self.costSummary(coverage: nil, days: [("2026-08-10", 8, 80)])
+        let partial = self.costSummary(coverage: false, days: [("2026-08-10", 3, 30)])
+        let complete = self.costSummary(coverage: true, days: [("2026-08-10", 10, 100)])
+
+        #expect(partial.reconcilingHistory(with: legacy).daily.map(\.costUSD) == [8])
+        #expect(legacy.reconcilingHistory(with: partial) == legacy)
+        #expect(complete.reconcilingHistory(with: legacy) == complete)
+    }
 
     @Test
     func `R5 B1: ProviderUsageSnapshot round-trip is byte-stable for fully-populated snapshot`() throws {

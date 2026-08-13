@@ -31,7 +31,8 @@ struct SwiftDataBridgeTests {
         email: String? = "user@example.com",
         lastUpdated: Date,
         utilization: [SyncUtilizationSeries]? = nil,
-        codexResetCredits: SyncCodexResetCredits? = nil) -> ProviderUsageSnapshot
+        codexResetCredits: SyncCodexResetCredits? = nil,
+        costSummary: SyncCostSummary? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -43,9 +44,33 @@ struct SwiftDataBridgeTests {
             statusMessage: nil,
             isError: false,
             lastUpdated: lastUpdated,
+            costSummary: costSummary,
             rateWindows: [],
             utilizationHistory: utilization,
             codexResetCredits: codexResetCredits)
+    }
+
+    private func makeCostSummary(
+        cost: Double,
+        tokens: Int,
+        coverage: Bool?,
+        model: String) -> SyncCostSummary
+    {
+        SyncCostSummary(
+            sessionCostUSD: cost,
+            sessionTokens: tokens,
+            last30DaysCostUSD: cost,
+            last30DaysTokens: tokens,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: "2026-08-12",
+                    costUSD: cost,
+                    totalTokens: tokens,
+                    modelBreakdowns: [
+                        SyncCostBreakdown(label: model, costUSD: cost, totalTokens: tokens),
+                    ]),
+            ],
+            historyCoverageIsEstablished: coverage)
     }
 
     private func makeSnapshot(
@@ -242,6 +267,64 @@ struct SwiftDataBridgeTests {
             let snapshot = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
             #expect(snapshot.providers.first?.codexResetCredits == resetCredits)
         }
+    }
+
+    @Test
+    func `Partial cost refresh preserves persisted complete history until completion`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let complete = self.makeSnapshot(
+            deviceID: "device-cost",
+            providers: [self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                lastUpdated: self.ts1,
+                costSummary: self.makeCostSummary(
+                    cost: 10,
+                    tokens: 1000,
+                    coverage: true,
+                    model: "gpt-5.5"))],
+            timestamp: self.ts1)
+        let partial = self.makeSnapshot(
+            deviceID: "device-cost",
+            providers: [self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                lastUpdated: self.ts2,
+                costSummary: self.makeCostSummary(
+                    cost: 3,
+                    tokens: 300,
+                    coverage: false,
+                    model: "gpt-5.6-terra"))],
+            timestamp: self.ts2)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [complete], into: context)
+        try SwiftDataBridge.upsert(deviceSnapshots: [partial], into: context)
+
+        let retained = try #require(
+            SwiftDataBridge.readAllDeviceSnapshots(from: context).first?.providers.first?.costSummary)
+        #expect(retained.last30DaysCostUSD == 10)
+        #expect(retained.daily.first?.modelBreakdowns.first?.label == "gpt-5.5")
+        #expect(retained.historyCoverageIsEstablished == true)
+
+        let converged = self.makeSnapshot(
+            deviceID: "device-cost",
+            providers: [self.makeProvider(
+                id: "codex",
+                name: "Codex",
+                lastUpdated: self.ts2,
+                costSummary: self.makeCostSummary(
+                    cost: 12,
+                    tokens: 1200,
+                    coverage: true,
+                    model: "gpt-5.6-sol"))],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [converged], into: context)
+
+        let replaced = try #require(
+            SwiftDataBridge.readAllDeviceSnapshots(from: context).first?.providers.first?.costSummary)
+        #expect(replaced.last30DaysCostUSD == 12)
+        #expect(replaced.daily.first?.modelBreakdowns.first?.label == "gpt-5.6-sol")
     }
 
     @Test
