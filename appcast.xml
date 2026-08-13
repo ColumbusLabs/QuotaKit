@@ -5,6 +5,22 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.18</title>
+            <pubDate>Thu, 13 Aug 2026 07:19:14 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.18.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.18</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.18 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: confirmed quota refreshes now publish immediately when the service advances a rolling weekly boundary, without emitting a false early weekly-reset notification.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.18/QuotaKit-macos-universal-0.32.4.18.zip" length="72881237" type="application/octet-stream" sparkle:edSignature="dEpkoSDj9zdrHYQykL1f3bgld26pk6IqU2TA9oHVeT11InSoT6rHdijcIxEkIKtgpldrP1x0LVxmxMR/MkXcCA=="/>
+        </item>
+        <item>
             <title>0.32.4.17</title>
             <pubDate>Thu, 13 Aug 2026 06:01:36 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -109,31 +125,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.16/QuotaKit-macos-universal-0.32.4.16.zip" length="72810581" type="application/octet-stream" sparkle:edSignature="jGVl66vi6lIHHqqD8Ch/K1Yhp5xP0luUrUDBxtm3ighF9MwlEy3Xyz81nipj78+t1BSkNWnGbbZPwzmcYXsWAA=="/>
-        </item>
-        <item>
-            <title>0.32.4.15</title>
-            <pubDate>Sun, 02 Aug 2026 21:35:39 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.15.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.15</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.15 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Cursor: label modern Auto and API quota lanes correctly in the Mac menu, matching the iPhone app.</li>
-<li>Menu: provider tab switches no longer blank out card rows mid-switch. Cached tab content is replanted into the attached hosting views (SwiftUI payload swap) instead of detaching <code>item.view</code>, which made Tahoe's NSMenu paint fallback "NSMenuItem" placeholder rows for a few frames; residual structural churn now renders blank instead of placeholder text. Verified frame-by-frame via 120fps screen recordings driven by the self-probe.</li>
-<li>OpenCode Go: read idle WAL-mode local history without creating SQLite sidecars (#2544). Thanks @Astro-Han for the report!</li>
-<li>Keychain: stop "QuotaKit Cache" login-keychain password prompts from dev and test tooling. Unbundled processes (<code>swift build</code> binaries, dev CLI runs) now use a process-local cache instead of the shared keychain item, never freeze a broken trusted-app ACL onto it, and test-blocked processes disable legacy keychain interaction process-wide and export the suppression flag to spawned child binaries.</li>
-<li>MiMo/StepFun: feed monthly token-plan windows into usage history, pace, and forecasts (#2526, part of #2431). Thanks @LeoLin990405!</li>
-<li>Menu: switching provider tabs no longer flashes. The sibling-tab warmup now runs off a tracking-safe timer (the previous Task-based warmup never fired while the menu was open, which is the only time it matters), and provider tabs share one stable menu height via an invisible spacer, so a switch is a single-frame content swap with no window resize. Verified frame-by-frame with a new env-gated self-probe (<code>CODEXBAR_FLICKER_PROBE_DIR</code>).</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Synced upstream CodexBar changes through <code>41bc0141e</code>, adding stable provider-tab swaps and height, non-interactive development caches, monthly MiMo/StepFun pacing, idle OpenCode WAL fallback, and cross-platform process fixes while preserving QuotaKit release ownership, public URLs, config paths, CloudKit setup, and all build numbers.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.15/QuotaKit-macos-universal-0.32.4.15.zip" length="60901735" type="application/octet-stream" sparkle:edSignature="an9CcvzEWAil/rvJ5Pud/Aghf1b5etoP6S003kIcknsmHFpjw1oeoA6TfUdkDSAUv2FlLSE3QVN+wM1DKzXyAw=="/>
         </item>
     </channel>
 </rss>
