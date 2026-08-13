@@ -5,6 +5,22 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.17</title>
+            <pubDate>Thu, 13 Aug 2026 06:01:36 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.17.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.17</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.17 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Usage & Spend: preserve complete Daily Spend totals and model breakdowns on iPhone while a Mac's local Codex history is catching up, then replace them once the complete refresh finishes.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.17/QuotaKit-macos-universal-0.32.4.17.zip" length="72818927" type="application/octet-stream" sparkle:edSignature="1dH5rWKlx7F798QObGkByT/XO/ypkOue19QBUYdKXem1HuECoJfbMgRJp1LznQVg3PykQacoXsuo/mKUKkysAQ=="/>
+        </item>
+        <item>
             <title>0.32.4.16</title>
             <pubDate>Wed, 12 Aug 2026 16:26:53 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -118,22 +134,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.15/QuotaKit-macos-universal-0.32.4.15.zip" length="60901735" type="application/octet-stream" sparkle:edSignature="an9CcvzEWAil/rvJ5Pud/Aghf1b5etoP6S003kIcknsmHFpjw1oeoA6TfUdkDSAUv2FlLSE3QVN+wM1DKzXyAw=="/>
-        </item>
-        <item>
-            <title>0.32.4.14</title>
-            <pubDate>Sat, 01 Aug 2026 01:11:40 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.14.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.14</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.14 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>iPhone Spend dashboard: sync each model's actual token total from Mac so the Model Mix Tokens view shows Sol, Terra, Luna, and other model usage instead of an empty state.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.14/QuotaKit-macos-universal-0.32.4.14.zip" length="60676280" type="application/octet-stream" sparkle:edSignature="U2yZ8ylW+9ZA+KJG7MwixSM2jS4Ltwo+zalIC2IpkEJl7FLSxX623pYsi1ECteg3qP8/5U1NT2YQHqOsLfWWAQ=="/>
         </item>
     </channel>
 </rss>
