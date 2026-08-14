@@ -359,12 +359,14 @@ final class UsageStore {
     @ObservationIgnored var codexCostCatchUpMode: CodexCostCatchUpMode = .automatic
     @ObservationIgnored var codexCostCatchUpStopRequested = false
     @ObservationIgnored var codexCostCatchUpPassIsRunning = false
+    @ObservationIgnored var codexCostCatchUpRestartRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpToken: UUID?
     @ObservationIgnored var spendDashboardCodexCostCatchUpScopeSignature: String?
     @ObservationIgnored var spendDashboardCodexCostCatchUpMode: CodexCostCatchUpMode = .automatic
     @ObservationIgnored var spendDashboardCodexCostCatchUpStopRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpPassIsRunning = false
+    @ObservationIgnored var spendDashboardCodexCostCatchUpRestartRequested = false
     @ObservationIgnored var forcedRefreshEnrichmentTask: Task<Void, Never>?
     @ObservationIgnored var forcedRefreshEnrichmentToken: UUID?
     @ObservationIgnored var pendingForcedRefreshEnrichmentTask: Task<Void, Never>?

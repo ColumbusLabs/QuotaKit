@@ -1015,6 +1015,7 @@ extension CostUsageStoreTests {
             "98da5914d2f6a9cd",
             "43609cc56f76a003",
             "b975eb705f905b9a",
+            "47144baa8daccf52",
         ])
         let predecessorHash = "3d2771687ba0133f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -1124,6 +1125,31 @@ extension CostUsageStoreTests {
 
         #expect(await store.fetchMetadata() == .empty)
         #expect(await store.rebuildCount == 1)
+    }
+
+    @Test
+    func `v0_49_2 parser hash upgrades without rebuilding completed files`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let previousParserHash = "b975eb705f905b9a"
+        let previousSchemaVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: previousParserHash)
+        let previousStore = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: previousSchemaVersion,
+            parserHash: previousParserHash)
+        let file = Self.file(path: "/rollouts/completed.jsonl", day: "2026-08-01")
+        #expect(await previousStore.upsertFile(file))
+
+        let upgradedStore = CostUsageStore(cacheRoot: fixture.root)
+
+        #expect(await upgradedStore.fetchFile(path: file.path) == file)
+        #expect(await upgradedStore.rebuildCount == 0)
+        #expect(await upgradedStore.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
     @Test
@@ -2025,6 +2051,7 @@ extension CostUsageStoreTests {
             totalBytes: 200,
             completedFiles: 2,
             totalFiles: 4,
+            scanInventoryPaths: ["/root/2026/08/01/session.jsonl"],
             rootMtimes: ["/root": 123],
             previousReportPayload: Data([2, 4, 6]),
             priorityTurnStatePayload: Data([1, 3, 5]),

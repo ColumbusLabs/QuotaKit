@@ -412,6 +412,7 @@ extension CostUsageStore {
             table: "scan_metadata") ?? .empty
         metadata.catchUpPending = true
         metadata.lastScanUnixMs = 0
+        metadata.scanInventoryPaths = nil
         try self.writeSingleton(metadata, database: database, table: "scan_metadata")
     }
 
