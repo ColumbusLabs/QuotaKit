@@ -77,15 +77,6 @@ extension CostUsageStore {
                cache: cache,
                calendar: calendar)
         {
-            // Retention owns the safety boundary: even a semantically unchanged scanner result
-            // must honor newly tightened row/file budgets before it can return.
-            let result = self.enforceBudgets(
-                maxRows: rowBudget,
-                maxFileBytes: fileBudgetBytes,
-                requestedSinceDay: budgetProtectionWindow.sinceKey,
-                requestedUntilDay: budgetProtectionWindow.untilKey,
-                calendar: calendar)
-            guard !result.catchUpRequired else { return result }
             Self.identicalContentPreLockCheckpointForTesting?(self.databaseURL)
             guard self.beginSaveTransaction() else {
                 return CostUsageStoreBudgetResult(
@@ -117,8 +108,8 @@ extension CostUsageStore {
             let result = self.enforceBudgets(
                 maxRows: rowBudget,
                 maxFileBytes: fileBudgetBytes,
-                requestedSinceDay: requestedScanWindow.sinceKey,
-                requestedUntilDay: requestedScanWindow.untilKey,
+                requestedSinceDay: budgetProtectionWindow.sinceKey,
+                requestedUntilDay: budgetProtectionWindow.untilKey,
                 calendar: calendar)
             if result.catchUpRequired {
                 guard self.endSaveTransaction() else {
