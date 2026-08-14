@@ -148,6 +148,7 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
     /// Supplies the billing cadence the grok.com payload omits. Injectable so tests exercise the
     /// mapping without touching the real Application Support file.
     var cadenceStore: GrokBillingCadenceStore = .init()
+    typealias ProxyBillingFetch = @Sendable (GrokCredentials) async throws -> GrokWebBillingSnapshot
     typealias WebBillingFetch = @Sendable () async throws -> (
         snapshot: GrokWebBillingSnapshot,
         sourceLabel: String,
@@ -230,16 +231,64 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
             sourceLabel: sourceLabel)
     }
 
-    private func fetchWebBilling(context: ProviderFetchContext) async throws -> (
-        snapshot: GrokWebBillingSnapshot,
-        sourceLabel: String,
-        authenticatedByAuthFile: Bool)
+    func fetchWebBilling(
+        context: ProviderFetchContext,
+        proxyBilling: ProxyBillingFetch = { try await GrokCreditsProxyFetcher.fetch(credentials: $0) }) async throws
+        -> (
+            snapshot: GrokWebBillingSnapshot,
+            sourceLabel: String,
+            authenticatedByAuthFile: Bool)
     {
         let credentialsResult: Result<GrokCredentials, Error> = Result {
             try GrokCredentialsStore.load(env: context.env)
         }
         let browserCredentials = try? credentialsResult.get()
 
+        return try await Self.fetchProxyFirst(
+            credentials: browserCredentials,
+            proxyBilling: proxyBilling)
+        { [self] in
+            try await self.fetchLegacyWebBilling(
+                context: context,
+                credentialsResult: credentialsResult,
+                browserCredentials: browserCredentials)
+        }
+    }
+
+    static func fetchProxyFirst(
+        credentials: GrokCredentials?,
+        proxyBilling: ProxyBillingFetch,
+        legacyBilling: () async throws -> (
+            snapshot: GrokWebBillingSnapshot,
+            sourceLabel: String,
+            authenticatedByAuthFile: Bool)) async throws -> (
+        snapshot: GrokWebBillingSnapshot,
+        sourceLabel: String,
+        authenticatedByAuthFile: Bool)
+    {
+        if let credentials, !credentials.isExpired {
+            do {
+                let snapshot = try await proxyBilling(credentials)
+                return (snapshot, "grok-cli-proxy", true)
+            } catch is CancellationError {
+                throw CancellationError()
+            } catch let error as URLError where error.code == .cancelled {
+                throw error
+            } catch {
+                // The legacy cookie and bearer paths remain available when the CLI proxy fails.
+            }
+        }
+        return try await legacyBilling()
+    }
+
+    private func fetchLegacyWebBilling(
+        context: ProviderFetchContext,
+        credentialsResult: Result<GrokCredentials, Error>,
+        browserCredentials: GrokCredentials?) async throws -> (
+        snapshot: GrokWebBillingSnapshot,
+        sourceLabel: String,
+        authenticatedByAuthFile: Bool)
+    {
         #if os(macOS)
         var cacheObservation = CookieHeaderCache.observeForConditionalMutation(provider: .grok)
         var lastCookieError: Error?
