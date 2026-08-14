@@ -388,10 +388,12 @@ final class MenuBarLayoutRenderer {
                     ?? data.automatic?.resetDescription,
                 unavailableLabel: L("Reset time unavailable"),
                 attributes: style.attributes)
-        case .runsOut:
+        case .runsOut, .runsOutCompact:
+            let isCompact = item == .runsOutCompact
             return self.optionalTextToken(
-                data.runsOut,
+                isCompact ? data.runsOut.map(self.compactRunsOutText) : data.runsOut,
                 unavailableLabel: L("Run-out estimate unavailable"),
+                accessibilityText: isCompact ? data.runsOut : nil,
                 attributes: style.attributes)
         case .balance:
             return self.optionalTextToken(
@@ -417,6 +419,27 @@ final class MenuBarLayoutRenderer {
 
     private static func iconAccessibilityText(data: MenuBarLayoutRenderData) -> String {
         L("%@ icon", data.providerName ?? L("Provider"))
+    }
+
+    private static func compactRunsOutText(_ text: String) -> String {
+        let nowLabel = L("Runs out now")
+        if text.hasPrefix(nowLabel) {
+            return "now" + text.dropFirst(nowLabel.count)
+        }
+
+        let marker = "\u{F8FF}"
+        let localizedTemplate = L("Runs out in %@", marker)
+        guard let markerRange = localizedTemplate.range(of: marker) else { return text }
+
+        let prefix = localizedTemplate[..<markerRange.lowerBound]
+        let suffix = localizedTemplate[markerRange.upperBound...]
+        guard text.hasPrefix(prefix) else { return text }
+
+        let withoutPrefix = text.dropFirst(prefix.count)
+        guard !suffix.isEmpty,
+              let suffixRange = withoutPrefix.range(of: suffix)
+        else { return String(withoutPrefix) }
+        return String(withoutPrefix[..<suffixRange.lowerBound]) + String(withoutPrefix[suffixRange.upperBound...])
     }
 
     private static func offsetLeadingIcon(_ image: NSImage, adjustment: Int) -> NSImage {
@@ -475,14 +498,15 @@ final class MenuBarLayoutRenderer {
         _ value: String?,
         unavailableLabel: String,
         accessibilityPrefix: String? = nil,
+        accessibilityText: String? = nil,
         attributes: [NSAttributedString.Key: Any])
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         guard let value, !value.isEmpty else {
             return self.textToken(self.missingValue, accessibilityText: unavailableLabel, attributes: attributes)
         }
-        let accessibilityText = accessibilityPrefix.map { "\($0) \(value)" } ?? value
-        return self.textToken(value, accessibilityText: accessibilityText, attributes: attributes)
+        let resolvedAccessibilityText = accessibilityText ?? accessibilityPrefix.map { "\($0) \(value)" } ?? value
+        return self.textToken(value, accessibilityText: resolvedAccessibilityText, attributes: attributes)
     }
 
     private static func textToken(
