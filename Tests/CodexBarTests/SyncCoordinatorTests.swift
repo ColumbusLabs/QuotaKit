@@ -90,7 +90,27 @@ struct SyncCoordinatorTests {
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .neuralwatt, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .fireworks, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .xai, providerCost: balance) == nil)
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: balance) == nil)
         #expect(SyncCoordinator.syncBudgetSnapshot(provider: .cursor, providerCost: balance) != nil)
+    }
+
+    @Test
+    func `OpenCode pay as you go syncs spend and balance without a false zero limit budget`() {
+        let cost = ProviderCostSnapshot(
+            used: 15,
+            limit: 0,
+            currencyCode: "USD",
+            period: "Monthly",
+            balance: 12.50,
+            updatedAt: Date())
+
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .opencode, providerCost: cost) == nil)
+        #expect(SyncCoordinator.syncedStatusMessage(
+            provider: .opencode,
+            snapshot: nil,
+            providerCost: cost,
+            error: nil,
+            rateWindows: []) == "Monthly spend: USD 15.00 · Balance: USD 12.50")
     }
 
     @Test
