@@ -2013,12 +2013,18 @@ enum CostUsageScanner {
 
     static func codexSessionsRoots(options: Options) -> [URL] {
         let root = self.defaultCodexSessionsRoot(options: options)
-        if let archived = self.codexArchivedSessionsRoot(sessionsRoot: root),
-           FileManager.default.fileExists(atPath: archived.path)
-        {
-            return [root, archived]
+        var candidates = [root]
+        if let archived = self.codexArchivedSessionsRoot(sessionsRoot: root) {
+            candidates.append(archived)
         }
-        return [root]
+        return candidates.filter(Self.codexSessionRootExistsOrIsUnavailable)
+    }
+
+    private static func codexSessionRootExistsOrIsUnavailable(_ root: URL) -> Bool {
+        let descriptor = open(root.path, O_RDONLY | O_DIRECTORY)
+        guard descriptor >= 0 else { return errno != ENOENT }
+        close(descriptor)
+        return true
     }
 
     private static func codexArchivedSessionsRoot(sessionsRoot: URL) -> URL? {

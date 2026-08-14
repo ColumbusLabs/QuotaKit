@@ -6,6 +6,28 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
     @Test
+    func `bounded catch up completes before a fresh Codex home creates session roots`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let freshCodexHome = env.root.appendingPathComponent("fresh-codex-home", isDirectory: true)
+        try FileManager.default.createDirectory(at: freshCodexHome, withIntermediateDirectories: true)
+
+        var options = Self.boundedOptions(env: env)
+        options.codexSessionsRoot = freshCodexHome.appendingPathComponent("sessions", isDirectory: true)
+        #expect(CostUsageScanner.codexSessionsRoots(options: options).isEmpty)
+
+        let converged = try Self.finishBoundedCatchUp(
+            env: env,
+            day: day,
+            options: &options,
+            startingAt: 0)
+        #expect(converged.files.isEmpty)
+        #expect(converged.codexActiveLookbackState == nil)
+        #expect(converged.codexScanCatchUpPending == false)
+    }
+
+    @Test
     func `bounded catch up completes without an optional archived sessions directory`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
