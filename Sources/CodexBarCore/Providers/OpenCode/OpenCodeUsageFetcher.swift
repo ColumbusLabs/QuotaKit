@@ -129,6 +129,9 @@ public struct OpenCodeUsageFetcher: Sendable {
             } catch OpenCodeUsageError.invalidCredentials {
                 throw OpenCodeUsageError.invalidCredentials
             } catch {
+                if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                    throw CancellationError()
+                }
                 Self.log.error("OpenCode billing fallback failed: \(error.localizedDescription)")
             }
             throw error
@@ -647,7 +650,9 @@ extension OpenCodeUsageFetcher {
         depth: Int,
         inheritedRenewsAt: Date?) -> OpenCodeUsageSnapshot?
     {
-        if depth > 3 { return nil }
+        if depth > 3 {
+            return nil
+        }
         let renewsAt = self.dateValue(from: self.value(from: dict, keys: self.renewAtKeys)) ?? inheritedRenewsAt
         var rolling: [String: Any]?
         var weekly: [String: Any]?
@@ -664,7 +669,9 @@ extension OpenCodeUsageFetcher {
 
         if let rolling, let weekly {
             let snapshot = self.buildSnapshot(rolling: rolling, weekly: weekly, now: now, renewsAt: renewsAt)
-            if let snapshot { return snapshot }
+            if let snapshot {
+                return snapshot
+            }
         }
 
         for value in dict.values {
@@ -787,10 +794,14 @@ extension OpenCodeUsageFetcher {
         guard !candidates.isEmpty else { return nil }
         let comparator: (WindowCandidate, WindowCandidate) -> Bool = { lhs, rhs in
             if pickShorter {
-                if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
+                if lhs.resetInSec == rhs.resetInSec {
+                    return lhs.percent > rhs.percent
+                }
                 return lhs.resetInSec < rhs.resetInSec
             }
-            if lhs.resetInSec == rhs.resetInSec { return lhs.percent > rhs.percent }
+            if lhs.resetInSec == rhs.resetInSec {
+                return lhs.percent > rhs.percent
+            }
             return lhs.resetInSec > rhs.resetInSec
         }
         return candidates.min(by: comparator)
@@ -902,7 +913,9 @@ extension OpenCodeUsageFetcher {
     private static func resetInterval(from resetAt: Date, now: Date) -> Int? {
         let interval = resetAt.timeIntervalSince(now)
         guard interval.isFinite else { return nil }
-        if interval <= 0 { return 0 }
+        if interval <= 0 {
+            return 0
+        }
         guard interval < Double(Int.max) else { return nil }
         return Int(interval)
     }
@@ -934,7 +947,9 @@ extension OpenCodeUsageFetcher {
     }
 
     private static func summarizeJSON(object: Any, depth: Int) -> String {
-        if depth > 3 { return "" }
+        if depth > 3 {
+            return ""
+        }
         if let dict = object as? [String: Any] {
             let keys = dict.keys.sorted()
             var parts: [String] = []

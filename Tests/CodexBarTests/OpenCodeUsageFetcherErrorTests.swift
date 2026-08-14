@@ -161,6 +161,31 @@ struct OpenCodeUsageFetcherErrorTests {
     }
 
     @Test
+    func `billing fallback propagates cancellation`() async {
+        defer { OpenCodeStubURLProtocol.handler = nil }
+
+        OpenCodeStubURLProtocol.handler = { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if request.value(forHTTPHeaderField: "X-Server-Id") == Self.billingServerID {
+                throw URLError(.cancelled)
+            }
+            return Self.makeResponse(
+                url: url,
+                body: Self.nullServerFunctionPayload,
+                statusCode: 200,
+                contentType: "text/javascript")
+        }
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await OpenCodeUsageFetcher.fetchUsage(
+                cookieHeader: "auth=test",
+                timeout: 2,
+                workspaceIDOverride: "wrk_TEST123",
+                session: self.makeSession())
+        }
+    }
+
+    @Test
     func `subscription post failure falls back to billing usage`() async throws {
         defer {
             OpenCodeStubURLProtocol.handler = nil

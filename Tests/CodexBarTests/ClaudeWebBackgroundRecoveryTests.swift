@@ -107,6 +107,38 @@ struct ClaudeWebBackgroundRecoveryTests {
         }
     }
 
+    @Test
+    func `browser recovery cancellation is not replaced by the stale auth error`() async {
+        await self.withIsolatedCookieCache {
+            CookieHeaderCache.store(
+                provider: .claude,
+                cookieHeader: "sessionKey=sk-ant-stale-token",
+                sourceLabel: "Chrome")
+            defer { CookieHeaderCache.clear(provider: .claude) }
+            let imported = ClaudeWebAPIFetcher.SessionKeyInfo(
+                key: "sk-ant-imported-token",
+                sourceLabel: "Safari",
+                cookieCount: 1)
+
+            await #expect(throws: CancellationError.self) {
+                try await ClaudeWebSessionKeyImport.$overrideForTesting.withValue(imported) {
+                    try await self.withClaudeWebStub { request in
+                        let isStale = request.value(forHTTPHeaderField: "Cookie") ==
+                            "sessionKey=sk-ant-stale-token"
+                        if request.url?.path == "/api/organizations", isStale {
+                            let url = try #require(request.url)
+                            return Self.jsonResponse(url: url, body: "{}", statusCode: 401, setCookie: nil)
+                        }
+                        throw CancellationError()
+                    } operation: {
+                        _ = try await ClaudeWebAPIFetcher.fetchUsage(
+                            browserDetection: BrowserDetection(cacheTTL: 0))
+                    }
+                }
+            }
+        }
+    }
+
     // MARK: - Helpers (mirrors ClaudeWebCookieRenewalTests' stub/cache isolation)
 
     private func withIsolatedCookieCache<T>(_ operation: () async throws -> T) async rethrows -> T {

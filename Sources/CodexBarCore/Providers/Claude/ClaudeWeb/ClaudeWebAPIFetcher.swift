@@ -1435,6 +1435,9 @@ extension ClaudeWebAPIFetcher {
                     expectedObservation: cacheObservation,
                     persistInitialSessionKey: true))
         } catch {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                throw CancellationError()
+            }
             if let invalidatedCacheError {
                 throw invalidatedCacheError
             }

@@ -490,6 +490,8 @@ extension UsageMenuCardView.Model {
             Sub2APIProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
         } else if input.provider == .amp {
             AmpProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
+        } else if input.provider == .opencode {
+            OpenCodeProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
         } else if input.provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else {
@@ -556,7 +558,9 @@ extension UsageMenuCardView.Model {
                     guard let requests = section.rows.first(where: { $0.label == period.requests }),
                           let tokens = section.rows.first(where: { $0.label == period.tokens }) else { continue }
                     var secondaryParts = ["\(tokens.value) \(L("tokens"))"]
-                    if let cost = tokens.secondaryValue { secondaryParts.append("\(L("Cost")): \(cost)") }
+                    if let cost = tokens.secondaryValue {
+                        secondaryParts.append("\(L("Cost")): \(cost)")
+                    }
                     try rows.append(ProviderDetailSection.Row(
                         label: L(period.label),
                         value: "\(requests.value) \(L("requests"))",

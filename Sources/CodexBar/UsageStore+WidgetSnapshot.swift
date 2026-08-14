@@ -574,6 +574,11 @@ extension UsageStore {
         {
             return dyn
         }
+        if provider == .opencode,
+           let dyn = OpenCodeProviderDescriptor.primaryLabel(snapshot: snapshot)
+        {
+            return dyn
+        }
         if provider == .crof {
             return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
         }

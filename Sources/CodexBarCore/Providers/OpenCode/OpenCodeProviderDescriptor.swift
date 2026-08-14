@@ -11,6 +11,13 @@ public enum OpenCodeProviderDescriptor {
         requiresManualCookieSource: true,
         cookieName: nil))
 
+    public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
+        guard snapshot.providerCost?.period == "Monthly",
+              snapshot.primary?.windowMinutes == 30 * 24 * 60
+        else { return nil }
+        return "Monthly"
+    }
+
     /// Auto stays Chrome-only by default, with Dia as the bounded exception for a confirmed reporter need.
     private static var browserCookieOrder: BrowserCookieImportOrder? {
         #if os(macOS)

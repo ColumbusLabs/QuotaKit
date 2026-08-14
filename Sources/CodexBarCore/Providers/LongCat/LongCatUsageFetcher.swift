@@ -101,6 +101,9 @@ public struct LongCatUsageFetcher: Sendable {
                 tokenPackSummary = object
             }
         } catch {
+            if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
+                throw CancellationError()
+            }
             Self.log.error("LongCat token-packs summary probe failed: \(error.localizedDescription)")
         }
 

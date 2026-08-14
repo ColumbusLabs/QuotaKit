@@ -432,6 +432,18 @@ struct LongCatProviderTests {
     }
 
     @Test
+    func `token pack summary cancellation is not treated as a soft failure`() async {
+        let transport = LongCatScriptedTransport(results: [
+            .body(#"{"code":0,"data":{"name":"Leo"}}"#),
+            .cancelled,
+        ])
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await LongCatUsageFetcher.fetchUsage(cookieHeader: "session=x", transport: transport)
+        }
+    }
+
+    @Test
     func `token pack summary auth failure falls back to legacy token usage`() async throws {
         let transport = LongCatScriptedTransport(results: [
             .body(#"{"code":0,"data":{"name":"Leo"}}"#),
@@ -511,6 +523,7 @@ private actor LongCatScriptedTransport: ProviderHTTPTransport {
     enum Result {
         case status(Int)
         case body(String)
+        case cancelled
     }
 
     private var results: [Result]
@@ -536,6 +549,8 @@ private actor LongCatScriptedTransport: ProviderHTTPTransport {
         case let .body(text):
             statusCode = 200
             body = text
+        case .cancelled:
+            throw URLError(.cancelled)
         }
         let response = HTTPURLResponse(
             url: request.url!,

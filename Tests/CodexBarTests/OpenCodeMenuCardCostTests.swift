@@ -39,6 +39,7 @@ struct OpenCodeMenuCardCostTests {
 
         #expect(model.providerCost?.spendLine == "Monthly: $15.00 / $20.00")
         #expect(model.providerCost?.percentUsed == 75)
+        #expect(model.metrics.first?.title == "Monthly")
     }
 
     @Test

@@ -257,6 +257,23 @@ struct OllamaUsageFetcherRetryMappingTests {
             OllamaUsageError.invalidCredentials))
     }
 
+    @Test(arguments: [CancellationError() as any Error, URLError(.cancelled) as any Error])
+    func `automatic web recovery preserves cancellation`(error: any Error) async {
+        let cached = CookieHeaderCache.Entry(
+            cookieHeader: "session=expired",
+            storedAt: Date(timeIntervalSince1970: 100),
+            sourceLabel: "Chrome")
+
+        await #expect(throws: CancellationError.self) {
+            _ = try await OllamaStatusFetchStrategy.fetchAutomatic(
+                cached: cached,
+                fetchCached: { _ in throw OllamaUsageError.invalidCredentials },
+                fetchBrowser: { throw error },
+                clearCached: { _ in },
+                storeResolved: { _ in })
+        }
+    }
+
     @Test
     func `automatic web fetch surfaces an actionable browser access error on a user initiated refresh`() async {
         // A user-initiated refresh is the explicit-retry path: if the browser recovery attempt fails with a

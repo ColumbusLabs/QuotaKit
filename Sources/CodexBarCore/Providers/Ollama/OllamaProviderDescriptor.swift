@@ -213,6 +213,10 @@ struct OllamaStatusFetchStrategy: ProviderFetchStrategy {
             let resolved = try await fetchBrowser()
             storeResolved(resolved)
             return resolved.snapshot
+        } catch let error
+            where error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled
+        {
+            throw CancellationError()
         } catch let browserError where self.isActionableBrowserAccessError(browserError) {
             throw browserError
         } catch {

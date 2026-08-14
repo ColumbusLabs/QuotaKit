@@ -834,6 +834,10 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?) -> [NamedRateWindow]
     {
         guard let extraRateWindows = snapshot?.extraRateWindows else { return [] }
+        if provider == .antigravity, let snapshot {
+            let idleIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: snapshot)
+            return idleIDs.isEmpty ? extraRateWindows : extraRateWindows.filter { !idleIDs.contains($0.id) }
+        }
         guard provider == .codex else { return extraRateWindows }
         guard self.settings.showOptionalCreditsAndExtraUsage else { return [] }
         guard self.settings.codexSparkUsageVisible else {
@@ -901,6 +905,13 @@ final class SyncCoordinator {
             return (
                 snapshot.flatMap { AmpProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
                 snapshot.flatMap { AmpProviderDescriptor.secondaryLabel(snapshot: $0) } ?? metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .opencode {
+            return (
+                snapshot.flatMap { OpenCodeProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
+                metadata?.weeklyLabel,
                 metadata?.opusLabel ?? "Sonnet")
         }
 
