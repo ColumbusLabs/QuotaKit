@@ -755,7 +755,7 @@ final class SyncCoordinator {
             crossModelUsage: nil)
     }
 
-    private static func syncedStatusMessage(
+    static func syncedStatusMessage(
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
         providerCost: ProviderCostSnapshot?,
@@ -769,6 +769,15 @@ final class SyncCoordinator {
             let amount = String(format: "%.2f", providerCost.used)
             let period = providerCost.period ?? "Last 30 days"
             return "\(period) spend: \(providerCost.currencyCode) \(amount)"
+        }
+        if provider == .opencode, let providerCost, providerCost.limit <= 0 {
+            let spend = String(format: "%.2f", providerCost.used)
+            let period = providerCost.period ?? "Monthly"
+            if let balance = providerCost.balance {
+                return "\(period) spend: \(providerCost.currencyCode) \(spend) · Balance: " +
+                    "\(providerCost.currencyCode) \(String(format: "%.2f", balance))"
+            }
+            return "\(period) spend: \(providerCost.currencyCode) \(spend)"
         }
         if provider == .xai, let xaiUsage = snapshot?.xaiUsage {
             let amount = String(format: "%.2f", xaiUsage.balanceUSD)
@@ -806,6 +815,9 @@ final class SyncCoordinator {
         {
             return nil
         }
+        if provider == .opencode, let providerCost, providerCost.limit <= 0 {
+            return nil
+        }
         return providerCost.map { pc in
             SyncBudgetSnapshot(
                 usedAmount: pc.used,
@@ -822,6 +834,10 @@ final class SyncCoordinator {
         snapshot: UsageSnapshot?) -> [NamedRateWindow]
     {
         guard let extraRateWindows = snapshot?.extraRateWindows else { return [] }
+        if provider == .antigravity, let snapshot {
+            let idleIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: snapshot)
+            return idleIDs.isEmpty ? extraRateWindows : extraRateWindows.filter { !idleIDs.contains($0.id) }
+        }
         guard provider == .codex else { return extraRateWindows }
         guard self.settings.showOptionalCreditsAndExtraUsage else { return [] }
         guard self.settings.codexSparkUsageVisible else {
@@ -889,6 +905,13 @@ final class SyncCoordinator {
             return (
                 snapshot.flatMap { AmpProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
                 snapshot.flatMap { AmpProviderDescriptor.secondaryLabel(snapshot: $0) } ?? metadata?.weeklyLabel,
+                metadata?.opusLabel ?? "Sonnet")
+        }
+
+        if provider == .opencode {
+            return (
+                snapshot.flatMap { OpenCodeProviderDescriptor.primaryLabel(snapshot: $0) } ?? metadata?.sessionLabel,
+                metadata?.weeklyLabel,
                 metadata?.opusLabel ?? "Sonnet")
         }
 

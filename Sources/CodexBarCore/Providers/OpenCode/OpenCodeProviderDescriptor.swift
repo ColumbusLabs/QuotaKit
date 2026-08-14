@@ -11,6 +11,13 @@ public enum OpenCodeProviderDescriptor {
         requiresManualCookieSource: true,
         cookieName: nil))
 
+    public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
+        guard snapshot.providerCost?.period == "Monthly",
+              snapshot.primary?.windowMinutes == 30 * 24 * 60
+        else { return nil }
+        return "Monthly"
+    }
+
     /// Auto stays Chrome-only by default, with Dia as the bounded exception for a confirmed reporter need.
     private static var browserCookieOrder: BrowserCookieImportOrder? {
         #if os(macOS)
@@ -70,6 +77,14 @@ public enum OpenCodeProviderDescriptor {
                 supportsTokenCost: false,
                 noDataMessage: { "OpenCode cost summary is not supported." }),
             pace: ProviderPaceCapability(secondary: .weekly),
+            presentation: ProviderUsagePresentation(costPresenter: { snapshot in
+                // A pay-as-you-go workspace with no configured limit has no percentage to show,
+                // so it renders spend and remaining balance instead of the generic budget bar.
+                let style: ProviderCostMenuCardStyle = (snapshot.providerCost?.limit ?? 1) <= 0
+                    ? .payAsYouGoSpend
+                    : .generic
+                return ProviderCostPresentation(menuCardStyle: style)
+            }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web],
                 pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [OpenCodeUsageFetchStrategy()] })),

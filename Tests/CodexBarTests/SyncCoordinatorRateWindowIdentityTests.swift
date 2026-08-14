@@ -63,6 +63,14 @@ extension SyncCoordinatorTests {
                     windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
                     resetsAt: now,
                     resetDescription: nil),
+                extraRateWindows: [NamedRateWindow(
+                    id: "amp-free",
+                    title: "Amp Free",
+                    window: RateWindow(
+                        usedPercent: 40,
+                        windowMinutes: 24 * 60,
+                        resetsAt: now,
+                        resetDescription: "resets daily"))],
                 ampUsage: AmpUsageDetails(
                     individualCredits: nil,
                     workspaceBalances: [],
@@ -70,7 +78,53 @@ extension SyncCoordinatorTests {
                 updatedAt: now),
             suite: "SyncCoord-amp-dynamic-window-labels")
 
-        #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage"])
+        #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage", "Amp Free"])
+    }
+
+    @Test
+    func `antigravity sync hides an untouched family when another family is active`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let provider = try await self.syncedProvider(
+            .antigravity,
+            snapshot: UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: "antigravity-quota-summary-gemini-5h",
+                        title: "Gemini 5-hour",
+                        window: RateWindow(
+                            usedPercent: 25,
+                            windowMinutes: 5 * 60,
+                            resetsAt: now,
+                            resetDescription: nil)),
+                    NamedRateWindow(
+                        id: "antigravity-quota-summary-3p-5h",
+                        title: "Claude/GPT 5-hour",
+                        window: RateWindow(
+                            usedPercent: 0,
+                            windowMinutes: 5 * 60,
+                            resetsAt: now,
+                            resetDescription: nil)),
+                ],
+                updatedAt: now),
+            suite: "SyncCoord-antigravity-idle-family")
+
+        #expect(provider.rateWindows.map(\.label) == ["Gemini 5-hour"])
+    }
+
+    @Test
+    func `opencode pay as you go sync labels its limit as monthly`() async throws {
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = OpenCodeUsageSnapshot.payAsYouGo(
+            .init(monthlyUsageUSD: 15, monthlyLimitUSD: 20, balanceUSD: 12.5),
+            updatedAt: now).toUsageSnapshot()
+        let provider = try await self.syncedProvider(
+            .opencode,
+            snapshot: snapshot,
+            suite: "SyncCoord-opencode-payg-monthly")
+
+        #expect(provider.rateWindows.map(\.label) == ["Monthly"])
     }
 
     @Test

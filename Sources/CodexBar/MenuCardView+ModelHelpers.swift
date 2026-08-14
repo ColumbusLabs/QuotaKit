@@ -490,6 +490,8 @@ extension UsageMenuCardView.Model {
             Sub2APIProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
         } else if input.provider == .amp {
             AmpProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
+        } else if input.provider == .opencode {
+            OpenCodeProviderDescriptor.primaryLabel(snapshot: snapshot) ?? input.metadata.sessionLabel
         } else if input.provider == .alibabatokenplan {
             AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? input.metadata.sessionLabel
         } else {
@@ -556,7 +558,9 @@ extension UsageMenuCardView.Model {
                     guard let requests = section.rows.first(where: { $0.label == period.requests }),
                           let tokens = section.rows.first(where: { $0.label == period.tokens }) else { continue }
                     var secondaryParts = ["\(tokens.value) \(L("tokens"))"]
-                    if let cost = tokens.secondaryValue { secondaryParts.append("\(L("Cost")): \(cost)") }
+                    if let cost = tokens.secondaryValue {
+                        secondaryParts.append("\(L("Cost")): \(cost)")
+                    }
                     try rows.append(ProviderDetailSection.Row(
                         label: L(period.label),
                         value: "\(requests.value) \(L("requests"))",
@@ -803,10 +807,13 @@ extension UsageMenuCardView.Model {
     static func antigravityMetrics(input: Input, snapshot: UsageSnapshot) -> [Metric] {
         let percentStyle: PercentStyle = input.usageBarsShowUsed ? .used : .left
         if Self.hasAntigravityQuotaSummaryWindows(snapshot) {
-            return Self.extraRateWindowMetrics(
+            let metrics = Self.extraRateWindowMetrics(
                 snapshot: snapshot,
                 input: input,
                 percentStyle: percentStyle)
+            guard !input.showsAllUsageLanes else { return metrics }
+            let idleIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: snapshot)
+            return idleIDs.isEmpty ? metrics : metrics.filter { !idleIDs.contains($0.id) }
         }
 
         var metrics: [Metric] = []

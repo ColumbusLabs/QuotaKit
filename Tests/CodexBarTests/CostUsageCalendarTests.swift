@@ -95,7 +95,7 @@ struct CostUsageCalendarTests {
 
         #expect(secondReport.data.map(\.date) == ["2026-07-23"])
         #expect(secondReport.data.first?.totalTokens == 20)
-        #expect(cache.scanSinceKey == "2026-07-21")
+        #expect(cache.scanSinceKey == "2026-07-22")
         #expect(cache.scanUntilKey == "2026-07-24")
         #expect(Set(cache.files.keys.map { URL(fileURLWithPath: $0).standardizedFileURL.path }) == Set([
             firstURL.standardizedFileURL.path,

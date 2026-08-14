@@ -77,10 +77,15 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "238791b3f1229c6b", // Stable equal-mtime scan ordering changes no persisted parser rows.
+        "f3c7abf13e841047", // ENOENT root filtering changes discovery only; persisted parser rows remain compatible.
+        "1a8e14e8e822301c", // Optional-root discovery fix; persisted parser rows remain compatible.
+        "b5ecfaed30e652cd", // Pre-cursor-v3 scheduling and retention bookkeeping; persisted rows are compatible.
         "3d2771687ba0133f", // Shipped QuotaKit SQLite producer; persisted row shape is compatible.
         "98da5914d2f6a9cd", // Pushed PR producer before retry signaling; persisted rows unchanged.
         "43609cc56f76a003", // 0.49.3 request-tier pricing; persisted row shape unchanged.
         "b975eb705f905b9a", // 0.49.0-0.49.2 SQLite producer with compatible rows.
+        "47144baa8daccf52", // This branch changes only scan scheduling, discovery, and persistence bookkeeping.
     ]
 
     nonisolated static func defaultCacheRoot() -> URL {
@@ -94,6 +99,9 @@ actor CostUsageStore {
     nonisolated(unsafe) static var saveCycleCheckpointForTesting: ((Int) -> Void)?
     /// Test-only interleaving point after optimistic identity succeeds and before its writer lock.
     nonisolated(unsafe) static var identicalContentPreLockCheckpointForTesting: ((URL) -> Void)?
+
+    /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
+    nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
 
     /// Process-wide serialization keeps every writable store connection on the same queue.
     /// This matches the scan pipeline's single-writer contract without multiplying executor

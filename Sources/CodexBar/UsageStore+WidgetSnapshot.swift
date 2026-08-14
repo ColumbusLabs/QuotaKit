@@ -574,6 +574,11 @@ extension UsageStore {
         {
             return dyn
         }
+        if provider == .opencode,
+           let dyn = OpenCodeProviderDescriptor.primaryLabel(snapshot: snapshot)
+        {
+            return dyn
+        }
         if provider == .crof {
             return CrofProviderDescriptor.primaryLabel(snapshot: snapshot)
         }
@@ -596,7 +601,9 @@ extension UsageStore {
         }), !windows.isEmpty else {
             return nil
         }
-        return windows.map { namedWindow in
+        // Match the menu card and drop model families the account never touches.
+        let idleIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: snapshot)
+        return windows.filter { !idleIDs.contains($0.id) }.map { namedWindow in
             WidgetSnapshot.WidgetUsageRowSnapshot(
                 id: namedWindow.id,
                 title: namedWindow.title,
