@@ -489,6 +489,7 @@ extension StatusItemController {
             currencyCode: displayConversion.currencyCode,
             costMultiplier: displayConversion.multiplier,
             historyDays: tokenSnapshot.historyDays,
+            historyCoverageIsEstablished: tokenSnapshot.historyCoverageIsEstablished,
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],
             sessions: provider == .codex ? tokenSnapshot.sessions : [],
