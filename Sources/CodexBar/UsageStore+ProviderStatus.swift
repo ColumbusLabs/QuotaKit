@@ -32,16 +32,8 @@ extension UsageStore {
         } catch {
             guard self.statusRefreshPublicationIsCurrent(publicationRevision, for: provider) else { return }
             self.recordStartupConnectivityRetryableFailure(error)
-            // Keep the previous status to avoid flapping when the API hiccups — and keep
-            // nothing when there is no previous status. Seeding the transport error here
-            // made `MenuDescriptor.statusLine` pin the raw error text ("A TLS error caused
-            // the secure connection to fail.") to the bottom of the menu, with no source or
-            // timestamp, until a status fetch first succeeded. An app launched while the
-            // status endpoint is unreachable (observed live 2026-08-14, status.claude.com
-            // serving the bare `*.statuspage.io` certificate) showed it for hours of
-            // otherwise-healthy refreshes, reading as a live provider fault. An unreachable
-            // status page is an absence of status information, not a provider status; the
-            // bounded startup-connectivity retry above is the recovery path.
+            // A failed fetch provides no new status information. Preserve a last good status
+            // to avoid flapping, or leave it unset until the first successful fetch.
         }
     }
 
