@@ -1070,12 +1070,12 @@ public struct CostUsageFetcher: Sendable {
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
         let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
         let last30DaysCostUSD = totalFromSummary
-            ?? (totalFromEntries > 0 || (allEntriesCarryCost && totalFromEntries == 0) ? totalFromEntries : nil)
+            ?? (allEntriesCarryCost ? totalFromEntries : nil)
         let totalTokensFromSummary = daily.summary?.totalTokens
         let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
         let allEntriesCarryTokens = !daily.data.isEmpty && daily.data.allSatisfy { $0.totalTokens != nil }
         let last30DaysTokens = totalTokensFromSummary
-            ?? (totalTokensFromEntries > 0 || (allEntriesCarryTokens && totalTokensFromEntries == 0)
+            ?? (allEntriesCarryTokens
                 ? totalTokensFromEntries
                 : nil)
 

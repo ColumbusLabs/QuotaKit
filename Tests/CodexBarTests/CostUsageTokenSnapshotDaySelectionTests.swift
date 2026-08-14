@@ -192,6 +192,66 @@ struct CostUsageTokenSnapshotDaySelectionTests {
     }
 
     @Test
+    func `token snapshot does not report a partial cost from mixed present and missing rows`() throws {
+        let now = try Self.localNoon(year: 2026, month: 5, day: 18)
+        let report = CostUsageDailyReport(
+            data: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-05-17",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+                CostUsageDailyReport.Entry(
+                    date: "2026-05-18",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 20,
+                    costUSD: nil,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            summary: nil)
+
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: now)
+
+        #expect(snapshot.last30DaysCostUSD == nil)
+        #expect(snapshot.last30DaysTokens == 30)
+    }
+
+    @Test
+    func `token snapshot does not report partial tokens from mixed present and missing rows`() throws {
+        let now = try Self.localNoon(year: 2026, month: 5, day: 18)
+        let report = CostUsageDailyReport(
+            data: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-05-17",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+                CostUsageDailyReport.Entry(
+                    date: "2026-05-18",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: nil,
+                    costUSD: 2,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ],
+            summary: nil)
+
+        let snapshot = CostUsageFetcher.tokenSnapshot(from: report, now: now)
+
+        #expect(snapshot.last30DaysCostUSD == 3)
+        #expect(snapshot.last30DaysTokens == nil)
+    }
+
+    @Test
     func `token snapshot keeps zero cost and unavailable tokens distinct`() throws {
         let now = try Self.localNoon(year: 2026, month: 5, day: 18)
         let report = CostUsageDailyReport(
