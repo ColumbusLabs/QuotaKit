@@ -981,8 +981,10 @@ extension UsageStoreCoverageTests {
 
         #expect(scheduled.map(\.attempt) == [1])
         #expect(scheduled.map(\.delay) == [15])
-        #expect(store.statuses[.codex]?.indicator == .unknown)
-        #expect(store.statuses[.codex]?.description?.isEmpty == false)
+        // No pseudo-status is seeded from the transport error: an unreachable status
+        // endpoint must not surface its raw error text as a provider status (it rendered
+        // verbatim at the bottom of the menu until a status fetch first succeeded).
+        #expect(store.statuses[.codex] == nil)
     }
 
     @Test
