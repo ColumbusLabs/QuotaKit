@@ -63,6 +63,14 @@ extension SyncCoordinatorTests {
                     windowMinutes: ProviderPaceCapability.monthlyWindowSentinelMinutes,
                     resetsAt: now,
                     resetDescription: nil),
+                extraRateWindows: [NamedRateWindow(
+                    id: "amp-free",
+                    title: "Amp Free",
+                    window: RateWindow(
+                        usedPercent: 40,
+                        windowMinutes: 24 * 60,
+                        resetsAt: now,
+                        resetDescription: "resets daily"))],
                 ampUsage: AmpUsageDetails(
                     individualCredits: nil,
                     workspaceBalances: [],
@@ -70,7 +78,8 @@ extension SyncCoordinatorTests {
                 updatedAt: now),
             suite: "SyncCoord-amp-dynamic-window-labels")
 
-        #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage"])
+        #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage", "Amp Free"])
+        #expect(provider.ampUsage?.subscriptionPlan == "Power")
     }
 
     @Test
