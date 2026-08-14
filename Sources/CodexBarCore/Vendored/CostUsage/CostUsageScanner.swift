@@ -6333,10 +6333,18 @@ enum CostUsageScanner {
                 || refreshSelection.exhaustedVisitBudget
                 || cache.codexActiveLookbackState != nil
                 || fileIndex.hasPendingDiscovery
+            // Active/archive overlap can intentionally collapse multiple physical files into one
+            // canonical cache row. Once unbounded work is complete, validate that post-dedupe
+            // inventory; bounded passes remain conservative about every discovered candidate.
+            let progressInventoryPaths = hasKnownBoundedWork
+                ? filePathsInScan
+                : filePathsInScan.intersection(Set(cache.files.keys.map {
+                    Self.codexPathKey(URL(fileURLWithPath: $0))
+                }))
             let progressUpdate = Self.updateCodexScanProgress(
                 cache: &cache,
                 context: CodexScanProgressUpdateContext(
-                    inventoryPaths: filePathsInScan,
+                    inventoryPaths: progressInventoryPaths,
                     hasKnownBoundedWork: hasKnownBoundedWork,
                     canReuseApproximateProgress: canReuseApproximateProgress,
                     pendingQueuePathCount: cache.codexActiveLookbackState?.pendingFilePaths.count,
@@ -6665,7 +6673,7 @@ enum CostUsageScanner {
                 return left.mtimeUnixMs > right.mtimeUnixMs
             }
             if left.size != right.size {
-                return left.size < right.size
+                return left.size > right.size
             }
             return lhs.path < rhs.path
         }

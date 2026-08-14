@@ -3484,7 +3484,7 @@ struct CostUsageScannerBreakdownTests {
             model: model,
             last: (input: 5, cached: 50, output: 2))
 
-        _ = try env.writeCodexSessionFile(
+        let activeURL = try env.writeCodexSessionFile(
             day: day,
             filename: "active-warm-cache.jsonl",
             contents: env.jsonl([
@@ -3523,7 +3523,7 @@ struct CostUsageScannerBreakdownTests {
             ]))
 
         let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
-        _ = try env.writeCodexArchivedSessionFile(
+        let archiveURL = try env.writeCodexArchivedSessionFile(
             filename: "rollout-\(dayKey)T12-00-00-warm-cache.jsonl",
             contents: env.jsonl([
                 sessionMeta,
@@ -3535,6 +3535,9 @@ struct CostUsageScannerBreakdownTests {
                 thirdTurn,
                 thirdUsage,
             ]))
+        try FileManager.default.setAttributes([.modificationDate: day], ofItemAtPath: activeURL.path)
+        try FileManager.default.setAttributes([.modificationDate: day], ofItemAtPath: archiveURL.path)
+        #expect(CostUsageScanner.sortedCodexSessionFilesNewestFirst([activeURL, archiveURL]).first == archiveURL)
 
         let second = CostUsageScanner.loadDailyReport(
             provider: .codex,
@@ -3542,12 +3545,15 @@ struct CostUsageScannerBreakdownTests {
             until: day,
             now: day.addingTimeInterval(1),
             options: options)
+        let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
 
         #expect(second.data.count == 1)
         #expect(second.data[0].inputTokens == 35)
         #expect(second.data[0].cacheReadTokens == 650)
         #expect(second.data[0].outputTokens == 8)
         #expect(second.data[0].totalTokens == 43)
+        #expect(secondCache.codexScanCatchUpPending == false)
+        #expect(secondCache.codexActiveLookbackState == nil)
 
         var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         for path in cache.files.keys where cache.files[path]?.sessionId == "sess-warm-cache-active-archive" {
