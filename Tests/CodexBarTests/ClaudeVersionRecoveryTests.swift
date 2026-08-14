@@ -67,62 +67,58 @@ struct ClaudeVersionRecoveryTests {
 
     @Test
     func `later version detection publish preserves recovered Claude version`() async throws {
-        try await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            try await self.withMissingCredentialsFile {
-                let binaryPath = "/mock/bin/claude-\(UUID().uuidString)"
-                let recoveryProbe = ProbeState()
-                self.configureVersionProbe(recoveryProbe, binaryPath: binaryPath)
-                defer { ProviderVersionDetector.resetHooksAndCache() }
+        try await self.withMissingCredentialsFile {
+            let binaryPath = "/mock/bin/claude-\(UUID().uuidString)"
+            let recoveryProbe = ProbeState()
+            self.configureVersionProbe(recoveryProbe, binaryPath: binaryPath)
+            defer { ProviderVersionDetector.resetHooksAndCache() }
 
-                let fixture = try await MainActor.run {
-                    try self.makeFixture(strategyKind: .cli)
-                }
-                await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                    await fixture.store.refreshProvider(.claude)
-                }
-                await fixture.store.claudeVersionRefreshTask?.value
-                #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
-
-                ProviderVersionDetector.resetHooksAndCache()
-                let backgroundProbe = ProbeState()
-                self.configureVersionProbe(backgroundProbe, binaryPath: binaryPath)
-                await ProviderInteractionContext.$current.withValue(.background) {
-                    await fixture.store.detectVersions()
-                    await fixture.store.versionDetectionTask?.value
-                }
-
-                #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
-                #expect(backgroundProbe.callCount == 0)
+            let fixture = try await MainActor.run {
+                try self.makeFixture(strategyKind: .cli)
             }
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await fixture.store.refreshProvider(.claude)
+            }
+            await fixture.store.claudeVersionRefreshTask?.value
+            #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
+
+            ProviderVersionDetector.resetHooksAndCache()
+            let backgroundProbe = ProbeState()
+            self.configureVersionProbe(backgroundProbe, binaryPath: binaryPath)
+            await ProviderInteractionContext.$current.withValue(.background) {
+                await fixture.store.detectVersions()
+                await fixture.store.versionDetectionTask?.value
+            }
+
+            #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
+            #expect(backgroundProbe.callCount == 0)
         }
     }
 
     @Test
     func `removed Claude binary clears the recovered version on the next detection run`() async throws {
-        try await ClaudeCLIBackgroundAvailability.withIsolatedStoreForTesting {
-            try await self.withMissingCredentialsFile {
-                let recoveryProbe = ProbeState()
-                self.configureVersionProbe(recoveryProbe)
-                defer { ProviderVersionDetector.resetHooksAndCache() }
+        try await self.withMissingCredentialsFile {
+            let recoveryProbe = ProbeState()
+            self.configureVersionProbe(recoveryProbe)
+            defer { ProviderVersionDetector.resetHooksAndCache() }
 
-                let fixture = try await MainActor.run {
-                    try self.makeFixture(strategyKind: .cli)
-                }
-                await ProviderInteractionContext.$current.withValue(.userInitiated) {
-                    await fixture.store.refreshProvider(.claude)
-                }
-                await fixture.store.claudeVersionRefreshTask?.value
-                #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
-
-                ProviderVersionDetector.resetHooksAndCache()
-                ProviderVersionDetector.whichHook = { _ in nil }
-                await ProviderInteractionContext.$current.withValue(.background) {
-                    await fixture.store.detectVersions()
-                    await fixture.store.versionDetectionTask?.value
-                }
-
-                #expect(await fixture.store.version(for: .claude) == nil)
+            let fixture = try await MainActor.run {
+                try self.makeFixture(strategyKind: .cli)
             }
+            await ProviderInteractionContext.$current.withValue(.userInitiated) {
+                await fixture.store.refreshProvider(.claude)
+            }
+            await fixture.store.claudeVersionRefreshTask?.value
+            #expect(await fixture.store.version(for: .claude) == "2.1.229 (Claude Code)")
+
+            ProviderVersionDetector.resetHooksAndCache()
+            ProviderVersionDetector.whichHook = { _ in nil }
+            await ProviderInteractionContext.$current.withValue(.background) {
+                await fixture.store.detectVersions()
+                await fixture.store.versionDetectionTask?.value
+            }
+
+            #expect(await fixture.store.version(for: .claude) == nil)
         }
     }
 
