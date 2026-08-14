@@ -202,18 +202,11 @@ struct CostUsageCacheWideMigrationTests {
         #expect(secondCache.codexScanTotalFiles == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
-        let exactRecorder = CostUsageScanner.CodexScanWorkRecorder()
-        options.codexScanWorkRecorderForTesting = exactRecorder
-        _ = CostUsageScanner.loadDailyReport(
-            provider: .codex,
-            since: day,
-            until: day,
-            now: day.addingTimeInterval(3),
-            options: options)
-        let exactCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        #expect(exactRecorder.snapshot().codexCandidateSelectionVisits == 0)
-        #expect(exactRecorder.snapshot().codexFileScanAttempts == 0)
-        #expect(exactRecorder.snapshot().codexProgressAccountingVisits == corpusSize)
+        let exactCache = try Self.finishBoundedCatchUp(
+            env: env,
+            day: day,
+            options: &options,
+            startingAt: 3)
         #expect(exactCache.codexActiveLookbackState == nil)
         #expect(exactCache.codexScanCompletedFiles == corpusSize)
         #expect(exactCache.codexScanTotalFiles == corpusSize)
@@ -231,7 +224,7 @@ struct CostUsageCacheWideMigrationTests {
             provider: .codex,
             since: day,
             until: day,
-            now: day.addingTimeInterval(4),
+            now: day.addingTimeInterval(12),
             options: options)
         let warmMetrics = warmRecorder.snapshot()
         let warmCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
@@ -273,6 +266,34 @@ struct CostUsageCacheWideMigrationTests {
             maxCodexScanDurationPerRefresh: 60)
         options.refreshMinIntervalSeconds = 0
         return options
+    }
+
+    private static func finishBoundedCatchUp(
+        env: CostUsageTestEnvironment,
+        day: Date,
+        options: inout CostUsageScanner.Options,
+        startingAt offset: Int) throws -> CostUsageCache
+    {
+        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        for pass in 0..<8 {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(TimeInterval(offset + pass)),
+                options: options)
+            let metrics = recorder.snapshot()
+            #expect(metrics.codexDiscoveryVisits + metrics.codexProgressAccountingVisits
+                <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if cache.codexScanCatchUpPending == false {
+                return cache
+            }
+        }
+        Issue.record("bounded cache-wide migration did not complete within 8 persisted pages")
+        return cache
     }
 
     private static func writeSyntheticCorpus(

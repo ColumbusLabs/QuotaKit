@@ -80,8 +80,8 @@ struct CostUsagePerformanceGateTests {
                 + "attempts=\(relaunchedMetrics.codexFileScanAttempts)")
 
         #expect(relaunchedMetrics.codexDiscoveryVisits == candidateLimit)
-        #expect(relaunchedMetrics.codexFileScanAttempts == 0)
-        #expect(relaunchedCache.files.count == candidateLimit)
+        #expect(relaunchedMetrics.codexFileScanAttempts == candidateLimit)
+        #expect(relaunchedCache.files.count == candidateLimit * 2)
         #expect(relaunchedCache.codexScanCatchUpPending == true)
 
         let secondRecorder = CostUsageScanner.CodexScanWorkRecorder()
@@ -101,11 +101,12 @@ struct CostUsagePerformanceGateTests {
                 + "attempts=\(secondMetrics.codexFileScanAttempts), "
                 + "accounting=\(secondMetrics.codexProgressAccountingVisits)")
 
-        #expect(secondMetrics.codexDiscoveryVisits == candidateLimit)
-        #expect(secondMetrics.codexCandidateSelectionVisits == candidateLimit)
-        #expect(secondMetrics.codexFileScanAttempts == candidateLimit)
+        // The final file slice also advances the flat-root cursor across the two date ancestors.
+        #expect(secondMetrics.codexDiscoveryVisits == corpusSize - candidateLimit * 2 + 2)
+        #expect(secondMetrics.codexCandidateSelectionVisits == corpusSize - candidateLimit * 2)
+        #expect(secondMetrics.codexFileScanAttempts == corpusSize - candidateLimit * 2)
         #expect(secondMetrics.codexProgressAccountingVisits == 0)
-        #expect(secondCache.files.count == candidateLimit * 2)
+        #expect(secondCache.files.count == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
     }
 

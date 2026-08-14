@@ -155,6 +155,20 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var completedCurrentWindowRootPaths: [String]?
     var currentWindowFlatDirectoryOffsetByRoot: [String: Int64]?
     var completedCurrentWindowFlatRootPaths: [String]?
+    var legacyRecursiveDirectoryPathsByRoot: [String: [String]]?
+    var legacyRecursiveDirectoryOffsetByPath: [String: Int64]?
+    var exactInventoryPendingRootPaths: [String]?
+    var exactInventoryDirectoryPathsByRoot: [String: [String]]?
+    var exactInventoryDirectoryOffsetByPath: [String: Int64]?
+    var exactInventoryVisitedDirectoryPaths: [String]?
+    var exactValidationPaths: [String]?
+    var exactValidationNextIndex: Int?
+    var exactValidationProcessedBytes: Int64?
+    var exactValidationTotalBytes: Int64?
+    var exactValidationCompletedFiles: Int?
+    var exactValidationTotalFiles: Int?
+    var exactValidationSeenIdentities: [String]?
+    var exactValidationInventoryPaths: [String]?
     var cacheWideMigrationQueueActive: Bool?
 }
 

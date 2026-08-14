@@ -1432,6 +1432,46 @@ extension CostUsageFetcher {
             progressHasher.combine("completed-current-window-flat-roots")
             progressHasher.combine(lookback.completedCurrentWindowFlatRootPaths == nil)
             progressHasher.combine((lookback.completedCurrentWindowFlatRootPaths ?? []).sorted())
+            progressHasher.combine("legacy-recursive-directories")
+            for (root, paths) in (lookback.legacyRecursiveDirectoryPathsByRoot ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(root)
+                progressHasher.combine(paths)
+            }
+            progressHasher.combine("legacy-recursive-offsets")
+            for (path, offset) in (lookback.legacyRecursiveDirectoryOffsetByPath ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(path)
+                progressHasher.combine(offset)
+            }
+            progressHasher.combine("exact-inventory-roots")
+            progressHasher.combine(lookback.exactInventoryPendingRootPaths)
+            progressHasher.combine("exact-inventory-directories")
+            for (root, paths) in (lookback.exactInventoryDirectoryPathsByRoot ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(root)
+                progressHasher.combine(paths)
+            }
+            progressHasher.combine("exact-inventory-offsets")
+            for (path, offset) in (lookback.exactInventoryDirectoryOffsetByPath ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(path)
+                progressHasher.combine(offset)
+            }
+            progressHasher.combine(lookback.exactInventoryVisitedDirectoryPaths?.count)
+            progressHasher.combine("exact-validation")
+            progressHasher.combine(lookback.exactValidationPaths?.count)
+            progressHasher.combine(lookback.exactValidationNextIndex)
+            progressHasher.combine(lookback.exactValidationProcessedBytes)
+            progressHasher.combine(lookback.exactValidationTotalBytes)
+            progressHasher.combine(lookback.exactValidationCompletedFiles)
+            progressHasher.combine(lookback.exactValidationTotalFiles)
+            progressHasher.combine(lookback.exactValidationSeenIdentities?.count)
+            progressHasher.combine(lookback.exactValidationInventoryPaths?.count)
             progressHasher.combine(lookback.cacheWideMigrationQueueActive)
         } else {
             progressHasher.combine("no-lookback")

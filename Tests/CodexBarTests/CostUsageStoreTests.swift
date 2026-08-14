@@ -832,7 +832,21 @@ extension CostUsageStoreTests {
             nextDayByRoot: ["/root": "2026-07-10"],
             completedRootPaths: [],
             pendingFilePaths: ["/pending"],
-            legacyRecursivePendingRootPaths: ["/legacy"])
+            legacyRecursivePendingRootPaths: ["/legacy"],
+            legacyRecursiveDirectoryPathsByRoot: ["/root": ["/root/legacy"]],
+            legacyRecursiveDirectoryOffsetByPath: ["/root/legacy": 12],
+            exactInventoryPendingRootPaths: ["/root"],
+            exactInventoryDirectoryPathsByRoot: ["/root": ["/root/current"]],
+            exactInventoryDirectoryOffsetByPath: ["/root/current": 24],
+            exactInventoryVisitedDirectoryPaths: ["/root/visited"],
+            exactValidationPaths: ["/root/a.jsonl", "/root/b.jsonl"],
+            exactValidationNextIndex: 1,
+            exactValidationProcessedBytes: 100,
+            exactValidationTotalBytes: 200,
+            exactValidationCompletedFiles: 1,
+            exactValidationTotalFiles: 2,
+            exactValidationSeenIdentities: ["identity"],
+            exactValidationInventoryPaths: ["/root/a.jsonl"])
 
         #expect(await store.setLookbackState(state))
         #expect(await store.fetchLookbackState() == state)

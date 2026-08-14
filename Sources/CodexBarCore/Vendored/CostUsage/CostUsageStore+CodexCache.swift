@@ -1092,6 +1092,20 @@ extension CostUsageStore {
                 completedCurrentWindowRootPaths: $0.completedCurrentWindowRootPaths,
                 currentWindowFlatDirectoryOffsetByRoot: $0.currentWindowFlatDirectoryOffsetByRoot,
                 completedCurrentWindowFlatRootPaths: $0.completedCurrentWindowFlatRootPaths,
+                legacyRecursiveDirectoryPathsByRoot: $0.legacyRecursiveDirectoryPathsByRoot,
+                legacyRecursiveDirectoryOffsetByPath: $0.legacyRecursiveDirectoryOffsetByPath,
+                exactInventoryPendingRootPaths: $0.exactInventoryPendingRootPaths,
+                exactInventoryDirectoryPathsByRoot: $0.exactInventoryDirectoryPathsByRoot,
+                exactInventoryDirectoryOffsetByPath: $0.exactInventoryDirectoryOffsetByPath,
+                exactInventoryVisitedDirectoryPaths: $0.exactInventoryVisitedDirectoryPaths,
+                exactValidationPaths: $0.exactValidationPaths,
+                exactValidationNextIndex: $0.exactValidationNextIndex,
+                exactValidationProcessedBytes: $0.exactValidationProcessedBytes,
+                exactValidationTotalBytes: $0.exactValidationTotalBytes,
+                exactValidationCompletedFiles: $0.exactValidationCompletedFiles,
+                exactValidationTotalFiles: $0.exactValidationTotalFiles,
+                exactValidationSeenIdentities: $0.exactValidationSeenIdentities,
+                exactValidationInventoryPaths: $0.exactValidationInventoryPaths,
                 cacheWideMigrationQueueActive: $0.cacheWideMigrationQueueActive)
         }
     }
@@ -1110,6 +1124,20 @@ extension CostUsageStore {
             completedCurrentWindowRootPaths: value.completedCurrentWindowRootPaths,
             currentWindowFlatDirectoryOffsetByRoot: value.currentWindowFlatDirectoryOffsetByRoot,
             completedCurrentWindowFlatRootPaths: value.completedCurrentWindowFlatRootPaths,
+            legacyRecursiveDirectoryPathsByRoot: value.legacyRecursiveDirectoryPathsByRoot,
+            legacyRecursiveDirectoryOffsetByPath: value.legacyRecursiveDirectoryOffsetByPath,
+            exactInventoryPendingRootPaths: value.exactInventoryPendingRootPaths,
+            exactInventoryDirectoryPathsByRoot: value.exactInventoryDirectoryPathsByRoot,
+            exactInventoryDirectoryOffsetByPath: value.exactInventoryDirectoryOffsetByPath,
+            exactInventoryVisitedDirectoryPaths: value.exactInventoryVisitedDirectoryPaths,
+            exactValidationPaths: value.exactValidationPaths,
+            exactValidationNextIndex: value.exactValidationNextIndex,
+            exactValidationProcessedBytes: value.exactValidationProcessedBytes,
+            exactValidationTotalBytes: value.exactValidationTotalBytes,
+            exactValidationCompletedFiles: value.exactValidationCompletedFiles,
+            exactValidationTotalFiles: value.exactValidationTotalFiles,
+            exactValidationSeenIdentities: value.exactValidationSeenIdentities,
+            exactValidationInventoryPaths: value.exactValidationInventoryPaths,
             cacheWideMigrationQueueActive: value.cacheWideMigrationQueueActive)
     }
 
