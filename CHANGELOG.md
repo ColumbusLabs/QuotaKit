@@ -17,11 +17,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced reviewed CodexBar development through `1f5abbc7d`, adopting provider, persistence, performance, and Mac reliability work while preserving QuotaKit identity, Columbus Labs release ownership, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
+- Synced reviewed CodexBar development through `1fedc66eb`, adopting provider, persistence, performance, and Mac reliability work while preserving QuotaKit identity, Columbus Labs release ownership, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
 - Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
 
 ### Fixed
 
+- Provider status: keep transport errors out of menus until a real status fetch succeeds while preserving the last successful provider status through later fetch failures.
 - Usage & Spend: preserve complete requested and retained Codex history under byte pressure, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
 - OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.
 - Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.

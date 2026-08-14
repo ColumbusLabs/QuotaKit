@@ -981,8 +981,37 @@ extension UsageStoreCoverageTests {
 
         #expect(scheduled.map(\.attempt) == [1])
         #expect(scheduled.map(\.delay) == [15])
-        #expect(store.statuses[.codex]?.indicator == .unknown)
-        #expect(store.statuses[.codex]?.description?.isEmpty == false)
+        #expect(store.statuses[.codex] == nil)
+    }
+
+    @Test
+    func `status transport failure preserves last successful provider status`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-status-failure-preserves-success")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = true
+        try Self.enableOnly(.codex, settings: settings)
+
+        let store = Self.makeUsageStore(settings: settings)
+        let updatedAt = Date(timeIntervalSince1970: 1_750_000_000)
+        store.statuses[.codex] = ProviderStatus(
+            indicator: .major,
+            description: "Service disruption",
+            updatedAt: updatedAt)
+        store._test_providerStatusFetchOverride = { _ in
+            throw URLError(.timedOut)
+        }
+        defer {
+            store._test_providerStatusFetchOverride = nil
+            store.startupConnectivityRetryTask?.cancel()
+            store.startupConnectivityRetryTask = nil
+        }
+
+        await store.refreshProviderStatus(.codex)
+
+        let status = try #require(store.statuses[.codex])
+        #expect(status.indicator == .major)
+        #expect(status.description == "Service disruption")
+        #expect(status.updatedAt == updatedAt)
     }
 
     @Test
