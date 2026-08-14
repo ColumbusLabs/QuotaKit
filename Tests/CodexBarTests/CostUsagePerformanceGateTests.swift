@@ -64,6 +64,7 @@ struct CostUsagePerformanceGateTests {
         #expect(firstCache.codexScanCatchUpPending == true)
 
         CostUsageScanner.resetCodexDirectoryCursorsForTesting()
+        options.maxCodexScanDurationPerRefresh = 1
         let relaunchedRecorder = CostUsageScanner.CodexScanWorkRecorder()
         options.codexScanWorkRecorderForTesting = relaunchedRecorder
         _ = CostUsageScanner.loadDailyReport(
@@ -80,8 +81,11 @@ struct CostUsagePerformanceGateTests {
                 + "attempts=\(relaunchedMetrics.codexFileScanAttempts)")
 
         #expect(relaunchedMetrics.codexDiscoveryVisits == candidateLimit)
+        #expect(relaunchedMetrics.codexDirectoryEntryReads <= candidateLimit + 2)
         #expect(relaunchedMetrics.codexFileScanAttempts == candidateLimit)
         #expect(relaunchedCache.files.count == candidateLimit * 2)
+        #expect((relaunchedCache.codexActiveLookbackState?.directoryPendingNamesByCursor?.values
+                .reduce(0) { $0 + $1.count } ?? 0) <= 512)
         #expect(relaunchedCache.codexScanCatchUpPending == true)
 
         let secondRecorder = CostUsageScanner.CodexScanWorkRecorder()

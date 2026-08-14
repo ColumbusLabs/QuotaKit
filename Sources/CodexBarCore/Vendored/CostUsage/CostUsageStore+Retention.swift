@@ -13,7 +13,8 @@ extension CostUsageStore {
     func retainDayWindow(
         sinceDay: String,
         untilDay: String,
-        calendar: Calendar = .current) -> CostUsageStoreRetentionResult
+        calendar: Calendar = .current,
+        updateMetadata: Bool = true) -> CostUsageStoreRetentionResult
     {
         guard sinceDay <= untilDay else {
             return CostUsageStoreRetentionResult(
@@ -28,7 +29,12 @@ extension CostUsageStore {
             deletedFileDayAggregates: 0,
             deletedDayAggregates: 0)
         return self.withDatabase(default: fallback) { database in
-            try Self.prune(database, sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
+            try Self.prune(
+                database,
+                sinceDay: sinceDay,
+                untilDay: untilDay,
+                calendar: calendar,
+                updateMetadata: updateMetadata)
         }
     }
 
@@ -47,7 +53,8 @@ extension CostUsageStore {
         _ database: OpaquePointer,
         sinceDay: String,
         untilDay: String,
-        calendar: Calendar) throws -> CostUsageStoreRetentionResult
+        calendar: Calendar,
+        updateMetadata: Bool = true) throws -> CostUsageStoreRetentionResult
     {
         try self.inTransaction(database) {
             let beforeFiles = try self.scalarInt(database, "SELECT COUNT(*) FROM files")
@@ -95,13 +102,15 @@ extension CostUsageStore {
             try self.stepDone(deleteAggregates, database: database)
 
             try self.pruneDiscovery(database, candidates: candidates)
-            var metadata = try self.readSingleton(
-                CostUsageStoreMetadata.self,
-                database: database,
-                table: "scan_metadata") ?? .empty
-            metadata.scanSinceDay = sinceDay
-            metadata.scanUntilDay = untilDay
-            try self.writeSingleton(metadata, database: database, table: "scan_metadata")
+            if updateMetadata {
+                var metadata = try self.readSingleton(
+                    CostUsageStoreMetadata.self,
+                    database: database,
+                    table: "scan_metadata") ?? .empty
+                metadata.scanSinceDay = sinceDay
+                metadata.scanUntilDay = untilDay
+                try self.writeSingleton(metadata, database: database, table: "scan_metadata")
+            }
 
             let afterFiles = try self.scalarInt(database, "SELECT COUNT(*) FROM files")
             let afterSnapshots = try self.scalarInt(database, "SELECT COUNT(*) FROM token_snapshots")

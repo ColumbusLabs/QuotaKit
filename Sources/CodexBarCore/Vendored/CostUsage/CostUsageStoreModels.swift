@@ -25,6 +25,7 @@ struct CostUsageStoreScanState: Codable, Equatable, Sendable {
     var lastTurnID: String?
     var fileIdentity: String?
     var detailsPayload: Data?
+    var inventoryValidationGeneration: String?
 }
 
 struct CostUsageStoreFile: Codable, Equatable, Sendable {
@@ -155,6 +156,8 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var completedCurrentWindowRootPaths: [String]?
     var currentWindowFlatDirectoryOffsetByRoot: [String: Int64]?
     var completedCurrentWindowFlatRootPaths: [String]?
+    var directoryCursorVersion: Int?
+    var directoryPendingNamesByCursor: [String: [String]]?
     var legacyRecursiveDirectoryPathsByRoot: [String: [String]]?
     var legacyRecursiveDirectoryOffsetByPath: [String: Int64]?
     var exactInventoryPendingRootPaths: [String]?
@@ -169,6 +172,15 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var exactValidationTotalFiles: Int?
     var exactValidationSeenIdentities: [String]?
     var exactValidationInventoryPaths: [String]?
+    var exactInventoryGeneration: String?
+    var exactInventoryScanSinceDay: String?
+    var exactInventoryScanUntilDay: String?
+    var exactInventoryNextDayByRoot: [String: String]?
+    var exactInventoryDirectoryOffsetByRoot: [String: Int64]?
+    var exactInventoryCompletedRootPaths: [String]?
+    var exactInventoryFlatDirectoryOffsetByRoot: [String: Int64]?
+    var exactInventoryCompletedFlatRootPaths: [String]?
+    var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
 }
 
@@ -189,6 +201,7 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
     var lastScanUnixMs: Int64
     var scanSinceDay: String?
     var scanUntilDay: String?
+    var retainedLookbackDays: Int?
     var timeZoneIdentifier: String?
     var pricingKey: String?
     var priorityMetadataKey: String?
@@ -207,6 +220,7 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
         lastScanUnixMs: 0,
         scanSinceDay: nil,
         scanUntilDay: nil,
+        retainedLookbackDays: nil,
         timeZoneIdentifier: nil,
         pricingKey: nil,
         priorityMetadataKey: nil,

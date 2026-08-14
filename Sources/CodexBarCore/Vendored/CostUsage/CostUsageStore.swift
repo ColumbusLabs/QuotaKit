@@ -77,6 +77,7 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "b5ecfaed30e652cd", // Pre-cursor-v3 scheduling and retention bookkeeping; persisted rows are compatible.
         "3d2771687ba0133f", // Shipped QuotaKit SQLite producer; persisted row shape is compatible.
         "98da5914d2f6a9cd", // Pushed PR producer before retry signaling; persisted rows unchanged.
         "43609cc56f76a003", // 0.49.3 request-tier pricing; persisted row shape unchanged.

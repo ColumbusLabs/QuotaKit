@@ -1343,6 +1343,7 @@ public struct CostUsageFetcher: Sendable {
 }
 
 extension CostUsageFetcher {
+    // swiftlint:disable:next function_body_length
     static func codexScanProgressKey(
         cache: CostUsageCache,
         scopedFiles: [String: CostUsageFileUsage]) -> String
@@ -1432,6 +1433,13 @@ extension CostUsageFetcher {
             progressHasher.combine("completed-current-window-flat-roots")
             progressHasher.combine(lookback.completedCurrentWindowFlatRootPaths == nil)
             progressHasher.combine((lookback.completedCurrentWindowFlatRootPaths ?? []).sorted())
+            progressHasher.combine(lookback.directoryCursorVersion)
+            for (cursor, names) in (lookback.directoryPendingNamesByCursor ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(cursor)
+                progressHasher.combine(names)
+            }
             progressHasher.combine("legacy-recursive-directories")
             for (root, paths) in (lookback.legacyRecursiveDirectoryPathsByRoot ?? [:])
                 .sorted(by: { $0.key < $1.key })
@@ -1472,6 +1480,28 @@ extension CostUsageFetcher {
             progressHasher.combine(lookback.exactValidationTotalFiles)
             progressHasher.combine(lookback.exactValidationSeenIdentities?.count)
             progressHasher.combine(lookback.exactValidationInventoryPaths?.count)
+            progressHasher.combine(lookback.exactInventoryGeneration)
+            progressHasher.combine(lookback.exactInventoryScanSinceKey)
+            progressHasher.combine(lookback.exactInventoryScanUntilKey)
+            for (root, day) in (lookback.exactInventoryNextDayKeyByRoot ?? [:]).sorted(by: { $0.key < $1.key }) {
+                progressHasher.combine(root)
+                progressHasher.combine(day)
+            }
+            for (root, offset) in (lookback.exactInventoryDirectoryOffsetByRoot ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(root)
+                progressHasher.combine(offset)
+            }
+            progressHasher.combine(lookback.exactInventoryCompletedRootPaths)
+            for (root, offset) in (lookback.exactInventoryFlatDirectoryOffsetByRoot ?? [:])
+                .sorted(by: { $0.key < $1.key })
+            {
+                progressHasher.combine(root)
+                progressHasher.combine(offset)
+            }
+            progressHasher.combine(lookback.exactInventoryCompletedFlatRootPaths)
+            progressHasher.combine(lookback.exactCachedValidationLastPath)
             progressHasher.combine(lookback.cacheWideMigrationQueueActive)
         } else {
             progressHasher.combine("no-lookback")

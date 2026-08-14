@@ -833,6 +833,8 @@ extension CostUsageStoreTests {
             completedRootPaths: [],
             pendingFilePaths: ["/pending"],
             legacyRecursivePendingRootPaths: ["/legacy"],
+            directoryCursorVersion: 3,
+            directoryPendingNamesByCursor: ["current:/root": ["next.jsonl"]],
             legacyRecursiveDirectoryPathsByRoot: ["/root": ["/root/legacy"]],
             legacyRecursiveDirectoryOffsetByPath: ["/root/legacy": 12],
             exactInventoryPendingRootPaths: ["/root"],
@@ -846,7 +848,16 @@ extension CostUsageStoreTests {
             exactValidationCompletedFiles: 1,
             exactValidationTotalFiles: 2,
             exactValidationSeenIdentities: ["identity"],
-            exactValidationInventoryPaths: ["/root/a.jsonl"])
+            exactValidationInventoryPaths: ["/root/a.jsonl"],
+            exactInventoryGeneration: "generation",
+            exactInventoryScanSinceDay: "2026-07-01",
+            exactInventoryScanUntilDay: "2026-07-31",
+            exactInventoryNextDayByRoot: ["/root": "2026-07-10"],
+            exactInventoryDirectoryOffsetByRoot: ["/root": 44],
+            exactInventoryCompletedRootPaths: [],
+            exactInventoryFlatDirectoryOffsetByRoot: ["/root": 55],
+            exactInventoryCompletedFlatRootPaths: [],
+            exactCachedValidationLastPath: "/root/a.jsonl")
 
         #expect(await store.setLookbackState(state))
         #expect(await store.fetchLookbackState() == state)
@@ -2018,7 +2029,8 @@ extension CostUsageStoreTests {
                 lastModel: "gpt-5.6-sol",
                 lastTurnID: "turn-1",
                 fileIdentity: "1:42",
-                detailsPayload: Data([4, 5, 6])),
+                detailsPayload: Data([4, 5, 6]),
+                inventoryValidationGeneration: "inventory-v1"),
             sessionID: "session-\(path)",
             coverageSinceDay: day,
             coverageUntilDay: day,
@@ -2125,6 +2137,7 @@ extension CostUsageStoreTests {
             lastScanUnixMs: 100,
             scanSinceDay: "2026-08-01",
             scanUntilDay: "2026-08-03",
+            retainedLookbackDays: 30,
             timeZoneIdentifier: "UTC",
             pricingKey: "pricing-v1",
             priorityMetadataKey: "priority-v1",

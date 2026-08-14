@@ -11,6 +11,15 @@ import Darwin
 import Glibc
 #endif
 
+#if os(macOS)
+@_silgen_name("__getdirentries64")
+private func codexGetDirectoryEntries64(
+    _ descriptor: Int32,
+    _ buffer: UnsafeMutableRawPointer,
+    _ bufferSize: Int,
+    _ basePosition: UnsafeMutablePointer<Int64>) -> Int
+#endif
+
 // swiftlint:disable type_body_length file_length
 enum CostUsageScanner {
     static let codexProjectMetadataVersion = 1
@@ -26,6 +35,10 @@ enum CostUsageScanner {
 
     static func resetCodexDirectoryCursorsForTesting() {
         self.codexDirectoryCursorRegistry.reset()
+    }
+
+    static func setUnavailableCodexDirectoriesForTesting(_ paths: Set<String>) {
+        self.codexDirectoryCursorRegistry.setUnavailablePathsForTesting(paths)
     }
 
     final class CodexSessionHeadParseObserverStore: @unchecked Sendable {
@@ -61,6 +74,7 @@ enum CostUsageScanner {
         var cacheAliasCandidatesVisited: Int
         var activeLookbackCompletionCandidates: Int
         var codexDiscoveryVisits: Int
+        var codexDirectoryEntryReads: Int
         var codexCandidateSelectionVisits: Int
         var codexFileScanAttempts: Int
         var codexProgressAccountingVisits: Int
@@ -75,6 +89,7 @@ enum CostUsageScanner {
         private var cacheAliasCandidatesVisited = 0
         private var activeLookbackCompletionCandidates = 0
         private var codexDiscoveryVisits = 0
+        private var codexDirectoryEntryReads = 0
         private var codexCandidateSelectionVisits = 0
         private var codexFileScanAttempts = 0
         private var codexFileScanAttemptPaths: Set<String> = []
@@ -112,6 +127,12 @@ enum CostUsageScanner {
             self.lock.unlock()
         }
 
+        func recordCodexDirectoryEntryRead() {
+            self.lock.lock()
+            self.codexDirectoryEntryReads += 1
+            self.lock.unlock()
+        }
+
         func recordCodexCandidateSelectionVisit() {
             self.lock.lock()
             self.codexCandidateSelectionVisits += 1
@@ -146,6 +167,7 @@ enum CostUsageScanner {
                 cacheAliasCandidatesVisited: self.cacheAliasCandidatesVisited,
                 activeLookbackCompletionCandidates: self.activeLookbackCompletionCandidates,
                 codexDiscoveryVisits: self.codexDiscoveryVisits,
+                codexDirectoryEntryReads: self.codexDirectoryEntryReads,
                 codexCandidateSelectionVisits: self.codexCandidateSelectionVisits,
                 codexFileScanAttempts: self.codexFileScanAttempts,
                 codexProgressAccountingVisits: self.codexProgressAccountingVisits)
@@ -2409,21 +2431,27 @@ enum CostUsageScanner {
     private struct CodexDirectoryPage {
         let files: [URL]
         let nextOffset: Int64?
+        let pendingNames: [String]
         let visits: Int
+        let isUnavailable: Bool
     }
 
     private struct CodexPartitionPage {
         let files: [URL]
         let nextDayKey: String?
         let nextDirectoryOffset: Int64?
+        let pendingNames: [String]
         let visits: Int
+        let isUnavailable: Bool
 
         var isComplete: Bool {
-            self.nextDayKey == nil && self.nextDirectoryOffset == nil
+            !self.isUnavailable && self.nextDayKey == nil && self.nextDirectoryOffset == nil
         }
     }
 
-    #if os(Linux)
+    #if os(macOS)
+    private typealias CodexDirectoryHandle = Int32
+    #elseif os(Linux)
     private typealias CodexDirectoryHandle = OpaquePointer
     #else
     private typealias CodexDirectoryHandle = UnsafeMutablePointer<DIR>
@@ -2431,27 +2459,34 @@ enum CostUsageScanner {
 
     private final class CodexDirectoryCursor: @unchecked Sendable {
         let directory: CodexDirectoryHandle
-        var logicalOffset: Int64
+        var position: Int64
 
-        init(directory: CodexDirectoryHandle, logicalOffset: Int64 = 0) {
+        init(directory: CodexDirectoryHandle, position: Int64 = 0) {
             self.directory = directory
-            self.logicalOffset = logicalOffset
+            self.position = position
         }
 
         deinit {
+            #if os(macOS)
+            close(self.directory)
+            #else
             closedir(self.directory)
+            #endif
         }
     }
 
     private final class CodexDirectoryCursorRegistry: @unchecked Sendable {
         private let lock = NSLock()
         private var cursors: [String: CodexDirectoryCursor] = [:]
+        private var unavailablePathsForTesting: Set<String> = []
 
         // swiftlint:disable:next function_parameter_count
         func page(
             directoryURL: URL,
             resumeOffset: Int64,
             visitLimit: Int,
+            resumePendingNames: [String],
+            missingIsUnavailable: Bool,
             filter: (String) -> Bool,
             shouldStop: (() -> Bool)?,
             workRecorder: CodexScanWorkRecorder?) -> CodexDirectoryPage
@@ -2461,42 +2496,118 @@ enum CostUsageScanner {
 
             let path = directoryURL.path
             let resumeOffset = max(0, resumeOffset)
-            if resumeOffset == 0 || (self.cursors[path]?.logicalOffset ?? 0) > resumeOffset {
+            if self.unavailablePathsForTesting.contains(path) {
+                self.cursors.removeValue(forKey: path)
+                return CodexDirectoryPage(
+                    files: [],
+                    nextOffset: resumeOffset,
+                    pendingNames: resumePendingNames,
+                    visits: 0,
+                    isUnavailable: true)
+            }
+            if resumeOffset == 0 || self.cursors[path]?.position != resumeOffset {
                 self.cursors.removeValue(forKey: path)
             }
             if self.cursors[path] == nil {
-                guard let directory = opendir(path) else {
-                    return CodexDirectoryPage(files: [], nextOffset: nil, visits: 0)
+                #if os(macOS)
+                let directory = open(path, O_RDONLY | O_DIRECTORY)
+                guard directory >= 0 else {
+                    let unavailable = missingIsUnavailable || errno != ENOENT
+                    return CodexDirectoryPage(
+                        files: [],
+                        nextOffset: unavailable ? resumeOffset : nil,
+                        pendingNames: resumePendingNames,
+                        visits: 0,
+                        isUnavailable: unavailable)
                 }
-                self.cursors[path] = CodexDirectoryCursor(directory: directory)
+                if resumeOffset > 0, lseek(directory, off_t(resumeOffset), SEEK_SET) < 0 {
+                    close(directory)
+                    return CodexDirectoryPage(
+                        files: [],
+                        nextOffset: resumeOffset,
+                        pendingNames: resumePendingNames,
+                        visits: 0,
+                        isUnavailable: true)
+                }
+                #else
+                guard let directory = opendir(path) else {
+                    let unavailable = missingIsUnavailable || errno != ENOENT
+                    return CodexDirectoryPage(
+                        files: [],
+                        nextOffset: unavailable ? resumeOffset : nil,
+                        pendingNames: resumePendingNames,
+                        visits: 0,
+                        isUnavailable: unavailable)
+                }
+                if resumeOffset > 0 {
+                    seekdir(directory, Int(resumeOffset))
+                }
+                #endif
+                self.cursors[path] = CodexDirectoryCursor(directory: directory, position: resumeOffset)
             }
             guard let cursor = self.cursors[path] else {
-                return CodexDirectoryPage(files: [], nextOffset: nil, visits: 0)
+                return CodexDirectoryPage(
+                    files: [],
+                    nextOffset: resumeOffset,
+                    pendingNames: resumePendingNames,
+                    visits: 0,
+                    isUnavailable: true)
             }
 
             var files: [URL] = []
             var visits = 0
+            var pendingNames = resumePendingNames
             while visits < visitLimit {
                 if shouldStop?() == true {
                     return CodexDirectoryPage(
                         files: files,
-                        nextOffset: max(resumeOffset, cursor.logicalOffset),
-                        visits: visits)
+                        nextOffset: cursor.position,
+                        pendingNames: pendingNames,
+                        visits: visits,
+                        isUnavailable: false)
                 }
+                #if os(macOS)
+                if pendingNames.isEmpty {
+                    do {
+                        pendingNames = try Self.readDirectoryNames(descriptor: cursor.directory)
+                        cursor.position = Int64(lseek(cursor.directory, 0, SEEK_CUR))
+                    } catch {
+                        self.cursors.removeValue(forKey: path)
+                        return CodexDirectoryPage(
+                            files: files,
+                            nextOffset: cursor.position,
+                            pendingNames: pendingNames,
+                            visits: visits,
+                            isUnavailable: true)
+                    }
+                    if pendingNames.isEmpty {
+                        self.cursors.removeValue(forKey: path)
+                        return CodexDirectoryPage(
+                            files: files,
+                            nextOffset: nil,
+                            pendingNames: [],
+                            visits: visits,
+                            isUnavailable: false)
+                    }
+                }
+                let name = pendingNames.removeFirst()
+                #else
                 guard let entry = readdir(cursor.directory) else {
                     self.cursors.removeValue(forKey: path)
-                    return CodexDirectoryPage(files: files, nextOffset: nil, visits: visits)
+                    return CodexDirectoryPage(
+                        files: files,
+                        nextOffset: nil,
+                        pendingNames: [],
+                        visits: visits,
+                        isUnavailable: false)
                 }
+                workRecorder?.recordCodexDirectoryEntryRead()
                 let name = withUnsafePointer(to: entry.pointee.d_name) { pointer in
                     pointer.withMemoryRebound(to: CChar.self, capacity: 1024) { String(cString: $0) }
                 }
+                cursor.position = Int64(telldir(cursor.directory))
+                #endif
                 guard name != ".", name != ".." else { continue }
-                cursor.logicalOffset += 1
-                // A persisted logical offset must be replayed after process restart because the
-                // DIR handle itself is process-local. Replaying already-accounted entries is not
-                // new discovery work and must not consume the next bounded page, otherwise a
-                // 512-entry cursor can return the same offset forever after every relaunch.
-                guard cursor.logicalOffset > resumeOffset else { continue }
                 visits += 1
                 workRecorder?.recordCodexDiscoveryVisit()
                 guard filter(name) else { continue }
@@ -2504,13 +2615,53 @@ enum CostUsageScanner {
             }
             return CodexDirectoryPage(
                 files: files,
-                nextOffset: max(resumeOffset, cursor.logicalOffset),
-                visits: visits)
+                nextOffset: cursor.position,
+                pendingNames: pendingNames,
+                visits: visits,
+                isUnavailable: false)
         }
+
+        #if os(macOS)
+        private static func readDirectoryNames(descriptor: Int32) throws -> [String] {
+            var buffer = [UInt8](repeating: 0, count: 16 * 1024)
+            var basePosition: Int64 = 0
+            let byteCount = buffer.withUnsafeMutableBytes { rawBuffer in
+                codexGetDirectoryEntries64(
+                    descriptor,
+                    rawBuffer.baseAddress!,
+                    rawBuffer.count,
+                    &basePosition)
+            }
+            guard byteCount >= 0 else { throw CocoaError(.fileReadUnknown) }
+            guard byteCount > 0 else { return [] }
+            return buffer.withUnsafeBytes { rawBuffer in
+                var names: [String] = []
+                var entryOffset = 0
+                while entryOffset < byteCount, let baseAddress = rawBuffer.baseAddress {
+                    let entry = baseAddress.advanced(by: entryOffset).assumingMemoryBound(to: dirent.self)
+                    let entryLength = Int(entry.pointee.d_reclen)
+                    guard entryLength > 0, entryOffset + entryLength <= byteCount else { break }
+                    let name = withUnsafePointer(to: entry.pointee.d_name) { pointer in
+                        pointer.withMemoryRebound(to: CChar.self, capacity: 1024) { String(cString: $0) }
+                    }
+                    names.append(name)
+                    entryOffset += entryLength
+                }
+                return names
+            }
+        }
+        #endif
 
         func reset() {
             self.lock.lock()
             self.cursors.removeAll()
+            self.lock.unlock()
+        }
+
+        func setUnavailablePathsForTesting(_ paths: Set<String>) {
+            self.lock.lock()
+            self.unavailablePathsForTesting = paths
+            self.cursors = self.cursors.filter { !paths.contains($0.key) }
             self.lock.unlock()
         }
     }
@@ -2521,17 +2672,26 @@ enum CostUsageScanner {
         directoryURL: URL,
         resumeOffset: Int64,
         visitLimit: Int,
+        resumePendingNames: [String] = [],
+        missingIsUnavailable: Bool = true,
         filter: (String) -> Bool,
         shouldStop: (() -> Bool)? = nil,
         workRecorder: CodexScanWorkRecorder?) -> CodexDirectoryPage
     {
         guard visitLimit > 0 else {
-            return CodexDirectoryPage(files: [], nextOffset: max(0, resumeOffset), visits: 0)
+            return CodexDirectoryPage(
+                files: [],
+                nextOffset: max(0, resumeOffset),
+                pendingNames: resumePendingNames,
+                visits: 0,
+                isUnavailable: false)
         }
         return self.codexDirectoryCursorRegistry.page(
             directoryURL: directoryURL,
             resumeOffset: resumeOffset,
             visitLimit: visitLimit,
+            resumePendingNames: resumePendingNames,
+            missingIsUnavailable: missingIsUnavailable,
             filter: filter,
             shouldStop: shouldStop,
             workRecorder: workRecorder)
@@ -2544,13 +2704,21 @@ enum CostUsageScanner {
         scanUntilKey: String,
         resumeDayKey: String?,
         resumeDirectoryOffset: Int64,
+        resumePendingNames: [String] = [],
         visitLimit: Int,
         preferNewest: Bool,
         calendar: Calendar,
+        shouldStop: (() -> Bool)? = nil,
         workRecorder: CodexScanWorkRecorder?) -> CodexPartitionPage
     {
         guard FileManager.default.fileExists(atPath: root.path) else {
-            return CodexPartitionPage(files: [], nextDayKey: nil, nextDirectoryOffset: nil, visits: 0)
+            return CodexPartitionPage(
+                files: [],
+                nextDayKey: nil,
+                nextDirectoryOffset: nil,
+                pendingNames: resumePendingNames,
+                visits: 0,
+                isUnavailable: false)
         }
         let calendar = CostUsageDayRange.localGregorianCalendar(matching: calendar)
         let sinceDate = Self.parseDayKey(scanSinceKey, calendar: calendar) ?? Date()
@@ -2562,6 +2730,7 @@ enum CostUsageScanner {
             preferNewest ? untilDate : sinceDate
         }
         var directoryOffset = max(0, resumeDirectoryOffset)
+        var pendingNames = resumePendingNames
         var remainingVisits = max(0, visitLimit)
         var totalVisits = 0
         var files: [URL] = []
@@ -2572,7 +2741,9 @@ enum CostUsageScanner {
                     files: files,
                     nextDayKey: CostUsageDayRange.dayKey(from: date, calendar: calendar),
                     nextDirectoryOffset: directoryOffset,
-                    visits: totalVisits)
+                    pendingNames: pendingNames,
+                    visits: totalVisits,
+                    isUnavailable: false)
             }
             let comps = calendar.dateComponents([.year, .month, .day], from: date)
             let dayDirectory = root
@@ -2583,25 +2754,46 @@ enum CostUsageScanner {
                 directoryURL: dayDirectory,
                 resumeOffset: directoryOffset,
                 visitLimit: remainingVisits,
+                resumePendingNames: pendingNames,
+                missingIsUnavailable: false,
                 filter: { $0.lowercased().hasSuffix(".jsonl") },
+                shouldStop: shouldStop,
                 workRecorder: workRecorder)
             files.append(contentsOf: page.files)
             totalVisits += page.visits
             remainingVisits -= page.visits
+            if page.isUnavailable {
+                return CodexPartitionPage(
+                    files: files,
+                    nextDayKey: CostUsageDayRange.dayKey(from: date, calendar: calendar),
+                    nextDirectoryOffset: directoryOffset,
+                    pendingNames: page.pendingNames,
+                    visits: totalVisits,
+                    isUnavailable: true)
+            }
             if let nextOffset = page.nextOffset {
                 return CodexPartitionPage(
                     files: files,
                     nextDayKey: CostUsageDayRange.dayKey(from: date, calendar: calendar),
                     nextDirectoryOffset: nextOffset,
-                    visits: totalVisits)
+                    pendingNames: page.pendingNames,
+                    visits: totalVisits,
+                    isUnavailable: false)
             }
             directoryOffset = 0
+            pendingNames = []
             guard let nextDate = calendar.date(byAdding: .day, value: preferNewest ? -1 : 1, to: date) else {
                 break
             }
             date = nextDate
         }
-        return CodexPartitionPage(files: files, nextDayKey: nil, nextDirectoryOffset: nil, visits: totalVisits)
+        return CodexPartitionPage(
+            files: files,
+            nextDayKey: nil,
+            nextDirectoryOffset: nil,
+            pendingNames: [],
+            visits: totalVisits,
+            isUnavailable: false)
     }
 
     private static func listCodexSessionFilesByDatePartition(
@@ -2673,10 +2865,12 @@ enum CostUsageScanner {
         scanSinceKey: String,
         includeLegacyRecursiveScan: Bool) -> CostUsageCodexActiveLookbackState
     {
+        let directoryCursorVersion = 3
         let rootPaths = roots.map(Self.codexResolvedPath).sorted()
         if let cached = cache.codexActiveLookbackState,
            cached.scanSinceKey == scanSinceKey,
-           cached.rootPaths == rootPaths
+           cached.rootPaths == rootPaths,
+           cached.directoryCursorVersion == directoryCursorVersion
         {
             return cached
         }
@@ -2687,7 +2881,8 @@ enum CostUsageScanner {
             scanSinceKey: scanSinceKey,
             rootPaths: rootPaths,
             pendingFilePaths: retainedPendingFilePaths,
-            legacyRecursivePendingRootPaths: includeLegacyRecursiveScan ? rootPaths : [])
+            legacyRecursivePendingRootPaths: includeLegacyRecursiveScan ? rootPaths : [],
+            directoryCursorVersion: directoryCursorVersion)
     }
 
     private static func codexBoundedDiscoveryIsComplete(
@@ -2712,6 +2907,9 @@ enum CostUsageScanner {
         state: inout CostUsageCodexActiveLookbackState)
     {
         let rootPath = Self.codexResolvedPath(root)
+        let partitionCursorKey = "current-partition:\(rootPath)"
+        let flatCursorKey = "current-flat:\(rootPath)"
+        state.directoryPendingNamesByCursor = state.directoryPendingNamesByCursor ?? [:]
         state.currentWindowNextDayKeyByRoot = state.currentWindowNextDayKeyByRoot ?? [:]
         state.currentWindowDirectoryOffsetByRoot = state.currentWindowDirectoryOffsetByRoot ?? [:]
         state.currentWindowFlatDirectoryOffsetByRoot = state.currentWindowFlatDirectoryOffsetByRoot ?? [:]
@@ -2726,6 +2924,7 @@ enum CostUsageScanner {
                 scanUntilKey: range.scanUntilKey,
                 resumeDayKey: state.currentWindowNextDayKeyByRoot?[rootPath],
                 resumeDirectoryOffset: state.currentWindowDirectoryOffsetByRoot?[rootPath] ?? 0,
+                resumePendingNames: state.directoryPendingNamesByCursor?[partitionCursorKey] ?? [],
                 visitLimit: remainingDiscoveryVisits,
                 preferNewest: preferNewest,
                 calendar: range.calendar,
@@ -2741,9 +2940,11 @@ enum CostUsageScanner {
                 completedPartitionRoots.insert(rootPath)
                 state.currentWindowNextDayKeyByRoot?.removeValue(forKey: rootPath)
                 state.currentWindowDirectoryOffsetByRoot?.removeValue(forKey: rootPath)
+                state.directoryPendingNamesByCursor?.removeValue(forKey: partitionCursorKey)
             } else {
                 state.currentWindowNextDayKeyByRoot?[rootPath] = page.nextDayKey
                 state.currentWindowDirectoryOffsetByRoot?[rootPath] = page.nextDirectoryOffset
+                state.directoryPendingNamesByCursor?[partitionCursorKey] = page.pendingNames
             }
         }
 
@@ -2755,6 +2956,7 @@ enum CostUsageScanner {
                 directoryURL: root,
                 resumeOffset: state.currentWindowFlatDirectoryOffsetByRoot?[rootPath] ?? 0,
                 visitLimit: remainingDiscoveryVisits,
+                resumePendingNames: state.directoryPendingNamesByCursor?[flatCursorKey] ?? [],
                 filter: { name in
                     guard name.lowercased().hasSuffix(".jsonl") else { return false }
                     guard let dayKey = Self.dayKeyFromFilename(name) else { return true }
@@ -2773,9 +2975,11 @@ enum CostUsageScanner {
             })
             if let nextOffset = page.nextOffset {
                 state.currentWindowFlatDirectoryOffsetByRoot?[rootPath] = nextOffset
+                state.directoryPendingNamesByCursor?[flatCursorKey] = page.pendingNames
             } else {
                 completedFlatRoots.insert(rootPath)
                 state.currentWindowFlatDirectoryOffsetByRoot?.removeValue(forKey: rootPath)
+                state.directoryPendingNamesByCursor?.removeValue(forKey: flatCursorKey)
             }
         }
 
@@ -2839,6 +3043,8 @@ enum CostUsageScanner {
         state: inout CostUsageCodexActiveLookbackState)
     {
         let rootPath = Self.codexResolvedPath(root)
+        let cursorKey = "active-partition:\(rootPath)"
+        state.directoryPendingNamesByCursor = state.directoryPendingNamesByCursor ?? [:]
         var completedRootPaths = Set(state.completedRootPaths)
         guard !completedRootPaths.contains(rootPath), remainingDiscoveryVisits > 0 else { return }
         state.nextDirectoryOffsetByRoot = state.nextDirectoryOffsetByRoot ?? [:]
@@ -2856,6 +3062,7 @@ enum CostUsageScanner {
             scanUntilKey: lookbackUntilKey,
             resumeDayKey: state.nextDayKeyByRoot[rootPath],
             resumeDirectoryOffset: state.nextDirectoryOffsetByRoot?[rootPath] ?? 0,
+            resumePendingNames: state.directoryPendingNamesByCursor?[cursorKey] ?? [],
             visitLimit: remainingDiscoveryVisits,
             preferNewest: preferNewest,
             calendar: range.calendar,
@@ -2878,9 +3085,11 @@ enum CostUsageScanner {
             completedRootPaths.insert(rootPath)
             state.nextDayKeyByRoot.removeValue(forKey: rootPath)
             state.nextDirectoryOffsetByRoot?.removeValue(forKey: rootPath)
+            state.directoryPendingNamesByCursor?.removeValue(forKey: cursorKey)
         } else {
             state.nextDayKeyByRoot[rootPath] = page.nextDayKey
             state.nextDirectoryOffsetByRoot?[rootPath] = page.nextDirectoryOffset
+            state.directoryPendingNamesByCursor?[cursorKey] = page.pendingNames
         }
         state.completedRootPaths = completedRootPaths.sorted()
     }
@@ -2905,10 +3114,13 @@ enum CostUsageScanner {
 
         while let directoryPath = directories.first, remainingDiscoveryVisits > 0 {
             let directoryURL = URL(fileURLWithPath: directoryPath, isDirectory: true)
+            let cursorKey = "legacy:\(directoryPath)"
+            state.directoryPendingNamesByCursor = state.directoryPendingNamesByCursor ?? [:]
             let page = Self.listCodexDirectoryPage(
                 directoryURL: directoryURL,
                 resumeOffset: state.legacyRecursiveDirectoryOffsetByPath?[directoryPath] ?? 0,
                 visitLimit: remainingDiscoveryVisits,
+                resumePendingNames: state.directoryPendingNamesByCursor?[cursorKey] ?? [],
                 filter: { !$0.hasPrefix(".") },
                 workRecorder: workRecorder)
             remainingDiscoveryVisits -= page.visits
@@ -2938,10 +3150,12 @@ enum CostUsageScanner {
 
             if let nextOffset = page.nextOffset {
                 state.legacyRecursiveDirectoryOffsetByPath?[directoryPath] = nextOffset
+                state.directoryPendingNamesByCursor?[cursorKey] = page.pendingNames
                 break
             }
             directories.removeFirst()
             state.legacyRecursiveDirectoryOffsetByPath?.removeValue(forKey: directoryPath)
+            state.directoryPendingNamesByCursor?.removeValue(forKey: cursorKey)
         }
 
         Self.appendCodexActiveLookbackPaths(discoveredFiles, state: &state)
@@ -5345,216 +5559,323 @@ enum CostUsageScanner {
         state.exactValidationTotalFiles = nil
         state.exactValidationSeenIdentities = nil
         state.exactValidationInventoryPaths = nil
+        state.exactInventoryGeneration = nil
+        state.exactInventoryScanSinceKey = nil
+        state.exactInventoryScanUntilKey = nil
+        state.exactInventoryNextDayKeyByRoot = nil
+        state.exactInventoryDirectoryOffsetByRoot = nil
+        state.exactInventoryCompletedRootPaths = nil
+        state.exactInventoryFlatDirectoryOffsetByRoot = nil
+        state.exactInventoryCompletedFlatRootPaths = nil
+        state.exactCachedValidationLastPath = nil
+        state.directoryPendingNamesByCursor = state.directoryPendingNamesByCursor?.filter {
+            !$0.key.hasPrefix("exact-")
+        }
     }
 
-    private static func advanceCodexExactInventoryPage(
-        roots: [URL],
-        remainingWorkVisits: inout Int,
-        scanBudget: CodexScanBudget,
-        workRecorder: CodexScanWorkRecorder?,
-        state: inout CostUsageCodexActiveLookbackState)
+    private static func codexUsageTouchesWindow(
+        _ usage: CostUsageFileUsage,
+        sinceKey: String,
+        untilKey: String) -> Bool
     {
-        let rootsByPath = Dictionary(uniqueKeysWithValues: roots.map { (Self.codexResolvedPath($0), $0) })
-        let rootPaths = rootsByPath.keys.sorted()
-        if state.exactInventoryPendingRootPaths == nil {
-            state.exactInventoryPendingRootPaths = rootPaths
-            state.exactInventoryDirectoryPathsByRoot = [:]
-            state.exactInventoryDirectoryOffsetByPath = [:]
-            state.exactInventoryVisitedDirectoryPaths = []
-            state.exactValidationPaths = []
+        usage.days.keys.contains {
+            CostUsageDayRange.isInRange(dayKey: $0, since: sinceKey, until: untilKey)
         }
-
-        var pendingRoots = state.exactInventoryPendingRootPaths ?? []
-        var visitedDirectories = Set(state.exactInventoryVisitedDirectoryPaths ?? [])
-        var inventoryPaths = Set(state.exactValidationPaths ?? [])
-        for rootPath in rootPaths
-            where pendingRoots.contains(rootPath)
-            && remainingWorkVisits > 0
-            && !scanBudget.shouldStopBeforeNextFile()
-        {
-            guard let root = rootsByPath[rootPath] else { continue }
-            var directories = state.exactInventoryDirectoryPathsByRoot?[rootPath] ?? [rootPath]
-            var knownDirectories = visitedDirectories.union(directories)
-            while let directoryPath = directories.first,
-                  remainingWorkVisits > 0,
-                  !scanBudget.shouldStopBeforeNextFile()
-            {
-                let page = Self.listCodexDirectoryPage(
-                    directoryURL: URL(fileURLWithPath: directoryPath, isDirectory: true),
-                    resumeOffset: state.exactInventoryDirectoryOffsetByPath?[directoryPath] ?? 0,
-                    visitLimit: remainingWorkVisits,
-                    filter: { !$0.hasPrefix(".") },
-                    shouldStop: { scanBudget.shouldStopBeforeNextFile() },
-                    workRecorder: workRecorder)
-                remainingWorkVisits -= page.visits
-
-                for itemURL in page.files {
-                    let values = try? itemURL.resourceValues(
-                        forKeys: [.isDirectoryKey, .isRegularFileKey, .isSymbolicLinkKey])
-                    if values?.isDirectory == true, values?.isSymbolicLink != true {
-                        let resolvedDirectory = Self.codexResolvedPath(itemURL)
-                        guard Self.isWithinCodexRoots(
-                            fileURL: URL(fileURLWithPath: resolvedDirectory, isDirectory: true),
-                            roots: [root]),
-                            knownDirectories.insert(resolvedDirectory).inserted
-                        else { continue }
-                        directories.append(resolvedDirectory)
-                    } else if values?.isRegularFile == true,
-                              itemURL.pathExtension.lowercased() == "jsonl",
-                              Self.isWithinCodexRoots(fileURL: itemURL, roots: [root])
-                    {
-                        inventoryPaths.insert(Self.codexPathKey(itemURL))
-                    }
-                }
-
-                if let nextOffset = page.nextOffset {
-                    state.exactInventoryDirectoryOffsetByPath?[directoryPath] = nextOffset
-                    break
-                }
-                directories.removeFirst()
-                visitedDirectories.insert(directoryPath)
-                state.exactInventoryDirectoryOffsetByPath?.removeValue(forKey: directoryPath)
-            }
-
-            if directories.isEmpty {
-                pendingRoots.removeAll { $0 == rootPath }
-                state.exactInventoryDirectoryPathsByRoot?.removeValue(forKey: rootPath)
-            } else {
-                state.exactInventoryDirectoryPathsByRoot?[rootPath] = directories
-            }
-        }
-        state.exactInventoryPendingRootPaths = pendingRoots
-        state.exactInventoryVisitedDirectoryPaths = visitedDirectories.sorted()
-        state.exactValidationPaths = inventoryPaths.sorted()
     }
 
-    // swiftlint:disable:next function_parameter_count
+    private static func codexExactValidationSummary(
+        cache: CostUsageCache,
+        generation: String,
+        sinceKey: String,
+        untilKey: String,
+        roots: [URL]) -> CodexScanProgressSummary
+    {
+        var identities: Set<String> = []
+        var totalBytes: Int64 = 0
+        for (path, usage) in cache.files
+            where usage.codexInventoryValidationGeneration == generation
+            && Self.codexUsageTouchesWindow(usage, sinceKey: sinceKey, untilKey: untilKey)
+            && Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
+        {
+            guard let identity = usage.codexScanFileId, identities.insert(identity).inserted else { continue }
+            totalBytes += max(0, usage.size)
+        }
+        return CodexScanProgressSummary(
+            processedBytes: totalBytes,
+            totalBytes: totalBytes,
+            completedFiles: identities.count,
+            totalFiles: identities.count)
+    }
+
+    private static func validateCodexExactFile(
+        _ fileURL: URL,
+        generation: String,
+        cache: inout CostUsageCache,
+        state: inout CostUsageCodexActiveLookbackState) -> Bool
+    {
+        let path = Self.codexResolvedPath(fileURL)
+        let metadata = Self.codexFileMetadata(fileURL: URL(fileURLWithPath: path))
+        guard let identity = metadata.fileId else {
+            if !FileManager.default.fileExists(atPath: path), let removed = cache.files.removeValue(forKey: path) {
+                Self.applyFileDays(cache: &cache, fileDays: removed.days, sign: -1)
+            }
+            return true
+        }
+        guard var usage = cache.files[path],
+              usage.codexScanComplete != false,
+              !usage.hasBufferedCodexForkRetryLines,
+              usage.codexScanFileId == identity,
+              usage.mtimeUnixMs == metadata.mtimeUnixMs,
+              usage.size == metadata.size
+        else {
+            var pendingPaths = Set(state.pendingFilePaths)
+            pendingPaths.insert(path)
+            state.pendingFilePaths = pendingPaths.sorted()
+            Self.resetCodexExactValidation(&state)
+            return false
+        }
+        usage.codexInventoryValidationGeneration = generation
+        cache.files[path] = usage
+        return true
+    }
+
+    // swiftlint:disable:next function_body_length function_parameter_count
     private static func advanceCodexExactValidation(
         cache: inout CostUsageCache,
         roots: [URL],
+        scanSinceKey: String,
+        scanUntilKey: String,
+        calendar: Calendar,
         scanBudget: CodexScanBudget,
         checkCancellation: CancellationCheck?,
         workRecorder: CodexScanWorkRecorder?,
         state: inout CostUsageCodexActiveLookbackState) throws -> CodexExactValidationResult
     {
+        if state.exactInventoryGeneration == nil
+            || state.exactInventoryScanSinceKey != scanSinceKey
+            || state.exactInventoryScanUntilKey != scanUntilKey
+        {
+            self.resetCodexExactValidation(&state)
+            state.exactInventoryGeneration = UUID().uuidString
+            state.exactInventoryScanSinceKey = scanSinceKey
+            state.exactInventoryScanUntilKey = scanUntilKey
+            state.exactInventoryNextDayKeyByRoot = [:]
+            state.exactInventoryDirectoryOffsetByRoot = [:]
+            state.exactInventoryCompletedRootPaths = []
+            state.exactInventoryFlatDirectoryOffsetByRoot = [:]
+            state.exactInventoryCompletedFlatRootPaths = []
+        }
+        let generation = state.exactInventoryGeneration ?? UUID().uuidString
         var remainingWorkVisits = Self.codexCatchUpScanCandidateLimit
-        Self.advanceCodexExactInventoryPage(
-            roots: roots,
-            remainingWorkVisits: &remainingWorkVisits,
-            scanBudget: scanBudget,
-            workRecorder: workRecorder,
-            state: &state)
-        guard state.exactInventoryPendingRootPaths?.isEmpty == true else {
+        var completedRoots = Set(state.exactInventoryCompletedRootPaths ?? [])
+        var completedFlatRoots = Set(state.exactInventoryCompletedFlatRootPaths ?? [])
+        let retainedSince = Self.localStartOfDay(scanSinceKey, calendar: calendar) ?? .distantPast
+        for root in roots where remainingWorkVisits > 0 && !scanBudget.shouldStopBeforeNextFile() {
+            try checkCancellation?()
+            let rootPath = Self.codexResolvedPath(root)
+            guard FileManager.default.fileExists(atPath: root.path) else { continue }
+            let partitionCursorKey = "exact-partition:\(rootPath)"
+            let flatCursorKey = "exact-flat:\(rootPath)"
+            state.directoryPendingNamesByCursor = state.directoryPendingNamesByCursor ?? [:]
+            if !completedRoots.contains(rootPath) {
+                let page = Self.listCodexSessionFilesByDatePartitionPage(
+                    root: root,
+                    scanSinceKey: scanSinceKey,
+                    scanUntilKey: scanUntilKey,
+                    resumeDayKey: state.exactInventoryNextDayKeyByRoot?[rootPath],
+                    resumeDirectoryOffset: state.exactInventoryDirectoryOffsetByRoot?[rootPath] ?? 0,
+                    resumePendingNames: state.directoryPendingNamesByCursor?[partitionCursorKey] ?? [],
+                    visitLimit: remainingWorkVisits,
+                    preferNewest: false,
+                    calendar: calendar,
+                    shouldStop: { scanBudget.shouldStopBeforeNextFile() },
+                    workRecorder: workRecorder)
+                remainingWorkVisits -= page.visits
+                for fileURL in page.files {
+                    guard Self.validateCodexExactFile(
+                        fileURL,
+                        generation: generation,
+                        cache: &cache,
+                        state: &state)
+                    else {
+                        return CodexExactValidationResult(
+                            summary: Self.codexExactValidationSummary(
+                                cache: cache,
+                                generation: generation,
+                                sinceKey: scanSinceKey,
+                                untilKey: scanUntilKey,
+                                roots: roots),
+                            isComplete: false)
+                    }
+                }
+                if page.isComplete {
+                    completedRoots.insert(rootPath)
+                    state.exactInventoryNextDayKeyByRoot?.removeValue(forKey: rootPath)
+                    state.exactInventoryDirectoryOffsetByRoot?.removeValue(forKey: rootPath)
+                    state.directoryPendingNamesByCursor?.removeValue(forKey: partitionCursorKey)
+                } else {
+                    state.exactInventoryNextDayKeyByRoot?[rootPath] = page.nextDayKey
+                    state.exactInventoryDirectoryOffsetByRoot?[rootPath] = page.nextDirectoryOffset
+                    state.directoryPendingNamesByCursor?[partitionCursorKey] = page.pendingNames
+                }
+            }
+            if completedRoots.contains(rootPath),
+               !completedFlatRoots.contains(rootPath),
+               remainingWorkVisits > 0,
+               !scanBudget.shouldStopBeforeNextFile()
+            {
+                let page = Self.listCodexDirectoryPage(
+                    directoryURL: root,
+                    resumeOffset: state.exactInventoryFlatDirectoryOffsetByRoot?[rootPath] ?? 0,
+                    visitLimit: remainingWorkVisits,
+                    resumePendingNames: state.directoryPendingNamesByCursor?[flatCursorKey] ?? [],
+                    filter: { name in
+                        guard name.lowercased().hasSuffix(".jsonl") else { return false }
+                        guard let dayKey = Self.dayKeyFromFilename(name) else { return true }
+                        return CostUsageDayRange.isInRange(
+                            dayKey: dayKey,
+                            since: scanSinceKey,
+                            until: scanUntilKey)
+                    },
+                    shouldStop: { scanBudget.shouldStopBeforeNextFile() },
+                    workRecorder: workRecorder)
+                remainingWorkVisits -= page.visits
+                for fileURL in page.files {
+                    let path = Self.codexResolvedPath(fileURL)
+                    let hasActiveCachedUsage = cache.files[path].map {
+                        Self.codexUsageTouchesWindow($0, sinceKey: scanSinceKey, untilKey: scanUntilKey)
+                    } ?? false
+                    let modifiedAt = (try? fileURL.resourceValues(forKeys: [.contentModificationDateKey]))?
+                        .contentModificationDate
+                    guard Self.dayKeyFromFilename(fileURL.lastPathComponent) != nil
+                        || hasActiveCachedUsage
+                        || (modifiedAt ?? .distantPast) >= retainedSince
+                    else { continue }
+                    guard Self.validateCodexExactFile(
+                        fileURL,
+                        generation: generation,
+                        cache: &cache,
+                        state: &state)
+                    else {
+                        return CodexExactValidationResult(
+                            summary: Self.codexExactValidationSummary(
+                                cache: cache,
+                                generation: generation,
+                                sinceKey: scanSinceKey,
+                                untilKey: scanUntilKey,
+                                roots: roots),
+                            isComplete: false)
+                    }
+                }
+                if page.isUnavailable {
+                    state.exactInventoryFlatDirectoryOffsetByRoot?[rootPath] = page.nextOffset
+                    state.directoryPendingNamesByCursor?[flatCursorKey] = page.pendingNames
+                } else if let nextOffset = page.nextOffset {
+                    state.exactInventoryFlatDirectoryOffsetByRoot?[rootPath] = nextOffset
+                    state.directoryPendingNamesByCursor?[flatCursorKey] = page.pendingNames
+                } else {
+                    completedFlatRoots.insert(rootPath)
+                    state.exactInventoryFlatDirectoryOffsetByRoot?.removeValue(forKey: rootPath)
+                    state.directoryPendingNamesByCursor?.removeValue(forKey: flatCursorKey)
+                }
+            }
+        }
+        state.exactInventoryCompletedRootPaths = completedRoots.sorted()
+        state.exactInventoryCompletedFlatRootPaths = completedFlatRoots.sorted()
+        let rootPaths = Set(roots.map(Self.codexResolvedPath))
+        guard completedRoots == rootPaths, completedFlatRoots == rootPaths else {
             return CodexExactValidationResult(
-                summary: CodexScanProgressSummary(
-                    processedBytes: cache.codexScanProcessedBytes ?? 0,
-                    totalBytes: cache.codexScanTotalBytes ?? 0,
-                    completedFiles: cache.codexScanCompletedFiles ?? 0,
-                    totalFiles: cache.codexScanTotalFiles ?? cache.files.count),
+                summary: Self.codexExactValidationSummary(
+                    cache: cache,
+                    generation: generation,
+                    sinceKey: scanSinceKey,
+                    untilKey: scanUntilKey,
+                    roots: roots),
                 isComplete: false)
         }
 
-        if state.exactValidationNextIndex == nil {
-            state.exactValidationNextIndex = 0
-            state.exactValidationProcessedBytes = 0
-            state.exactValidationTotalBytes = 0
-            state.exactValidationCompletedFiles = 0
-            state.exactValidationTotalFiles = 0
-            state.exactValidationSeenIdentities = []
-            state.exactValidationInventoryPaths = []
-        }
-
-        let paths = state.exactValidationPaths ?? []
-        var nextIndex = min(max(0, state.exactValidationNextIndex ?? 0), paths.count)
-        var processedBytes = max(0, state.exactValidationProcessedBytes ?? 0)
-        var totalBytes = max(0, state.exactValidationTotalBytes ?? 0)
-        var completedFiles = max(0, state.exactValidationCompletedFiles ?? 0)
-        var totalFiles = max(0, state.exactValidationTotalFiles ?? 0)
-        var seenIdentities = Set(state.exactValidationSeenIdentities ?? [])
-        var inventoryPaths = state.exactValidationInventoryPaths ?? []
-        let endIndex = min(paths.count, nextIndex + remainingWorkVisits)
-
-        while nextIndex < endIndex, !scanBudget.shouldStopBeforeNextFile() {
+        let lastPath = state.exactCachedValidationLastPath
+        let candidates = cache.files.keys.filter { path in
+            guard lastPath.map({ path > $0 }) ?? true else { return false }
+            guard let usage = cache.files[path] else { return false }
+            return Self.codexUsageTouchesWindow(usage, sinceKey: scanSinceKey, untilKey: scanUntilKey)
+                && Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
+        }.sorted().prefix(remainingWorkVisits)
+        for path in candidates where !scanBudget.shouldStopBeforeNextFile() {
             try checkCancellation?()
-            let path = paths[nextIndex]
-            nextIndex += 1
             workRecorder?.recordCodexProgressAccountingVisit()
-            let fileURL = URL(fileURLWithPath: path)
-            let metadata = Self.codexFileMetadata(fileURL: fileURL)
-            guard let identity = metadata.fileId else {
-                if !FileManager.default.fileExists(atPath: path), let removed = cache.files.removeValue(forKey: path) {
-                    Self.applyFileDays(cache: &cache, fileDays: removed.days, sign: -1)
-                }
-                continue
-            }
-            guard seenIdentities.insert(identity).inserted else { continue }
-            guard let usage = cache.files[path],
-                  usage.codexScanComplete != false,
-                  !usage.hasBufferedCodexForkRetryLines,
-                  usage.codexScanFileId == identity,
-                  usage.mtimeUnixMs == metadata.mtimeUnixMs,
-                  usage.size == metadata.size
+            remainingWorkVisits -= 1
+            state.exactCachedValidationLastPath = path
+            guard Self.validateCodexExactFile(
+                URL(fileURLWithPath: path),
+                generation: generation,
+                cache: &cache,
+                state: &state)
             else {
-                var pendingPaths = Set(state.pendingFilePaths)
-                pendingPaths.insert(Self.codexResolvedPath(fileURL))
-                state.pendingFilePaths = pendingPaths.sorted()
-                Self.resetCodexExactValidation(&state)
                 return CodexExactValidationResult(
-                    summary: CodexScanProgressSummary(
-                        processedBytes: processedBytes,
-                        totalBytes: totalBytes,
-                        completedFiles: completedFiles,
-                        totalFiles: max(totalFiles + 1, paths.count)),
+                    summary: Self.codexExactValidationSummary(
+                        cache: cache,
+                        generation: generation,
+                        sinceKey: scanSinceKey,
+                        untilKey: scanUntilKey,
+                        roots: roots),
                     isComplete: false)
             }
-            let fileBytes = max(0, metadata.size)
-            processedBytes += fileBytes
-            totalBytes += fileBytes
-            completedFiles += 1
-            totalFiles += 1
-            inventoryPaths.append(path)
         }
-
-        state.exactValidationNextIndex = nextIndex
-        state.exactValidationProcessedBytes = processedBytes
-        state.exactValidationTotalBytes = totalBytes
-        state.exactValidationCompletedFiles = completedFiles
-        state.exactValidationTotalFiles = totalFiles
-        state.exactValidationSeenIdentities = seenIdentities.sorted()
-        state.exactValidationInventoryPaths = inventoryPaths
-        let isComplete = nextIndex == paths.count
+        let hasRemainingCachedValidation = cache.files.contains { path, usage in
+            (state.exactCachedValidationLastPath.map { path > $0 } ?? true)
+                && Self.codexUsageTouchesWindow(usage, sinceKey: scanSinceKey, untilKey: scanUntilKey)
+                && Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
+        }
+        let summary = Self.codexExactValidationSummary(
+            cache: cache,
+            generation: generation,
+            sinceKey: scanSinceKey,
+            untilKey: scanUntilKey,
+            roots: roots)
         return CodexExactValidationResult(
-            summary: CodexScanProgressSummary(
-                processedBytes: processedBytes,
-                totalBytes: totalBytes,
-                completedFiles: completedFiles,
-                totalFiles: isComplete ? totalFiles : max(totalFiles, paths.count)),
-            isComplete: isComplete)
+            summary: summary,
+            isComplete: !hasRemainingCachedValidation)
     }
 
+    // swiftlint:disable:next function_parameter_count
     private static func rollingCodexRetentionWindow(
         cachedSinceKey: String?,
         cachedUntilKey: String?,
+        cachedRetainedLookbackDays: Int?,
         requestedSinceKey: String,
         requestedUntilKey: String,
-        calendar: Calendar) -> (sinceKey: String, untilKey: String)
+        calendar: Calendar) -> (sinceKey: String, untilKey: String, rememberedLookbackDays: Int)
     {
+        let maximumRememberedLookbackDays = 365
         let calendar = CostUsageDayRange.localGregorianCalendar(matching: calendar)
+        guard let requestedSince = Self.parseDayKey(requestedSinceKey, calendar: calendar),
+              let requestedUntil = Self.parseDayKey(requestedUntilKey, calendar: calendar),
+              requestedSince <= requestedUntil
+        else { return (requestedSinceKey, requestedUntilKey, 1) }
+        let requestedDays = max(
+            1,
+            (calendar.dateComponents([.day], from: requestedSince, to: requestedUntil).day ?? 0) + 1)
         guard let cachedSinceKey,
               let cachedUntilKey,
               let cachedSince = Self.parseDayKey(cachedSinceKey, calendar: calendar),
               let cachedUntil = Self.parseDayKey(cachedUntilKey, calendar: calendar),
-              let requestedSince = Self.parseDayKey(requestedSinceKey, calendar: calendar),
-              let requestedUntil = Self.parseDayKey(requestedUntilKey, calendar: calendar),
-              cachedSince <= cachedUntil,
-              requestedSince <= requestedUntil
-        else { return (requestedSinceKey, requestedUntilKey) }
+              cachedSince <= cachedUntil
+        else {
+            return (
+                requestedSinceKey,
+                requestedUntilKey,
+                min(requestedDays, maximumRememberedLookbackDays))
+        }
 
         let cachedDays = max(1, (calendar.dateComponents([.day], from: cachedSince, to: cachedUntil).day ?? 0) + 1)
-        let requestedDays = max(
-            1,
-            (calendar.dateComponents([.day], from: requestedSince, to: requestedUntil).day ?? 0) + 1)
-        let retainedDays = max(cachedDays, requestedDays)
+        let rememberedCachedDays = min(
+            max(1, cachedRetainedLookbackDays ?? cachedDays),
+            maximumRememberedLookbackDays)
+        let retainedDays = max(rememberedCachedDays, requestedDays)
+        let rememberedLookbackDays = min(
+            max(rememberedCachedDays, requestedDays),
+            maximumRememberedLookbackDays)
         let retainedUntil = requestedUntil
         let rollingSince = calendar.date(
             byAdding: .day,
@@ -5562,7 +5883,8 @@ enum CostUsageScanner {
             to: retainedUntil) ?? requestedSince
         return (
             CostUsageDayRange.dayKey(from: rollingSince, calendar: calendar),
-            CostUsageDayRange.dayKey(from: retainedUntil, calendar: calendar))
+            CostUsageDayRange.dayKey(from: retainedUntil, calendar: calendar),
+            rememberedLookbackDays)
     }
 
     // swiftlint:disable:next cyclomatic_complexity function_body_length
@@ -5611,37 +5933,54 @@ enum CostUsageScanner {
                 && Self.codexBoundedDiscoveryIsComplete(activeLookbackState)
                 && !plan.requiresCacheWideFileReprocessing
             if isExactInventoryProofPass {
+                let retainedWindow = Self.rollingCodexRetentionWindow(
+                    cachedSinceKey: cachedSinceKey,
+                    cachedUntilKey: cachedUntilKey,
+                    cachedRetainedLookbackDays: cache.codexRetainedLookbackDays,
+                    requestedSinceKey: range.scanSinceKey,
+                    requestedUntilKey: range.scanUntilKey,
+                    calendar: range.calendar)
                 let exact = try Self.advanceCodexExactValidation(
                     cache: &cache,
                     roots: plan.roots,
+                    scanSinceKey: retainedWindow.sinceKey,
+                    scanUntilKey: retainedWindow.untilKey,
+                    calendar: range.calendar,
                     scanBudget: scanBudget,
                     checkCancellation: checkCancellation,
                     workRecorder: options.codexScanWorkRecorderForTesting,
                     state: &activeLookbackState)
                 if exact.isComplete {
-                    let exactPaths = Set(activeLookbackState.exactValidationPaths ?? [])
-                    for path in cache.files.keys
-                        where !exactPaths.contains(Self.codexPathKey(URL(fileURLWithPath: path)))
-                    {
-                        guard let old = cache.files[path], old.touchesCodexScanWindow(
-                            sinceKey: range.scanSinceKey,
-                            untilKey: range.scanUntilKey)
+                    let generation = activeLookbackState.exactInventoryGeneration
+                    for path in cache.files.keys {
+                        guard let old = cache.files[path],
+                              Self.codexUsageTouchesWindow(
+                                  old,
+                                  sinceKey: retainedWindow.sinceKey,
+                                  untilKey: retainedWindow.untilKey),
+                              Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: plan.roots),
+                              old.codexInventoryValidationGeneration != generation
                         else { continue }
                         Self.applyFileDays(cache: &cache, fileDays: old.days, sign: -1)
                         cache.files.removeValue(forKey: path)
                     }
-                    cache.codexScanInventoryPaths = activeLookbackState.exactValidationInventoryPaths ?? []
+                    let activeInventoryPaths: [String] = cache.files.compactMap { entry in
+                        let (path, usage) = entry
+                        guard usage.codexInventoryValidationGeneration == generation,
+                              Self.codexUsageTouchesWindow(
+                                  usage,
+                                  sinceKey: retainedWindow.sinceKey,
+                                  untilKey: retainedWindow.untilKey)
+                        else { return nil }
+                        return path
+                    }
+                    cache.codexScanInventoryPaths = activeInventoryPaths.count
+                        <= Self.codexCatchUpScanCandidateLimit ? activeInventoryPaths.sorted() : nil
                     cache.codexActiveLookbackState = nil
                 } else {
                     cache.codexScanInventoryPaths = nil
                     cache.codexActiveLookbackState = activeLookbackState
                 }
-                let retainedWindow = Self.rollingCodexRetentionWindow(
-                    cachedSinceKey: cachedSinceKey,
-                    cachedUntilKey: cachedUntilKey,
-                    requestedSinceKey: range.scanSinceKey,
-                    requestedUntilKey: range.scanUntilKey,
-                    calendar: range.calendar)
                 Self.pruneDays(
                     cache: &cache,
                     sinceKey: retainedWindow.sinceKey,
@@ -5649,6 +5988,7 @@ enum CostUsageScanner {
                 cache.roots = plan.rootsFingerprint
                 cache.scanSinceKey = retainedWindow.sinceKey
                 cache.scanUntilKey = retainedWindow.untilKey
+                cache.codexRetainedLookbackDays = retainedWindow.rememberedLookbackDays
                 cache.codexPricingKey = plan.codexPricingKey
                 cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
                 cache.codexProjectMetadataVersion = Self.codexProjectMetadataVersion
@@ -5955,16 +6295,15 @@ enum CostUsageScanner {
 
             let shouldRetainWiderWindow = !options.forceRescan && !plan
                 .priorityMetadataChanged && !plan.needsTurnIDCacheMigration && !plan.needsProjectMetadataMigration
-            let retainedWindow = shouldRetainWiderWindow
-                ? Self.rollingCodexRetentionWindow(
-                    cachedSinceKey: cachedSinceKey,
-                    cachedUntilKey: cachedUntilKey,
-                    requestedSinceKey: range.scanSinceKey,
-                    requestedUntilKey: range.scanUntilKey,
-                    calendar: range.calendar)
-                : (range.scanSinceKey, range.scanUntilKey)
-            let retainedSinceKey = retainedWindow.0
-            let retainedUntilKey = retainedWindow.1
+            let retainedWindow = Self.rollingCodexRetentionWindow(
+                cachedSinceKey: shouldRetainWiderWindow ? cachedSinceKey : nil,
+                cachedUntilKey: shouldRetainWiderWindow ? cachedUntilKey : nil,
+                cachedRetainedLookbackDays: shouldRetainWiderWindow ? cache.codexRetainedLookbackDays : nil,
+                requestedSinceKey: range.scanSinceKey,
+                requestedUntilKey: range.scanUntilKey,
+                calendar: range.calendar)
+            let retainedSinceKey = retainedWindow.sinceKey
+            let retainedUntilKey = retainedWindow.untilKey
             let canReuseApproximateProgress = !options.forceRescan
                 && !plan.rootsChanged
                 && !plan.windowExpanded
@@ -5976,6 +6315,7 @@ enum CostUsageScanner {
             cache.roots = plan.rootsFingerprint
             cache.scanSinceKey = retainedSinceKey
             cache.scanUntilKey = retainedUntilKey
+            cache.codexRetainedLookbackDays = retainedWindow.rememberedLookbackDays
             cache.codexPricingKey = plan.codexPricingKey
             cache.codexPriorityMetadataKey = plan.codexPriorityMetadataKey
             cache.codexProjectMetadataVersion = Self.codexProjectMetadataVersion

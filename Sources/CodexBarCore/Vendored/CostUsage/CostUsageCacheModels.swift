@@ -7,6 +7,7 @@ struct CostUsageCache: Codable, Equatable, @unchecked Sendable {
     var lastScanUnixMs: Int64 = 0
     var scanSinceKey: String?
     var scanUntilKey: String?
+    var codexRetainedLookbackDays: Int?
     var timeZoneIdentifier: String?
     var codexPricingKey: String?
     var codexPriorityMetadataKey: String?
@@ -40,6 +41,8 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var completedCurrentWindowRootPaths: [String]?
     var currentWindowFlatDirectoryOffsetByRoot: [String: Int64]?
     var completedCurrentWindowFlatRootPaths: [String]?
+    var directoryCursorVersion: Int?
+    var directoryPendingNamesByCursor: [String: [String]]?
     var legacyRecursiveDirectoryPathsByRoot: [String: [String]]?
     var legacyRecursiveDirectoryOffsetByPath: [String: Int64]?
     var exactInventoryPendingRootPaths: [String]?
@@ -54,6 +57,15 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var exactValidationTotalFiles: Int?
     var exactValidationSeenIdentities: [String]?
     var exactValidationInventoryPaths: [String]?
+    var exactInventoryGeneration: String?
+    var exactInventoryScanSinceKey: String?
+    var exactInventoryScanUntilKey: String?
+    var exactInventoryNextDayKeyByRoot: [String: String]?
+    var exactInventoryDirectoryOffsetByRoot: [String: Int64]?
+    var exactInventoryCompletedRootPaths: [String]?
+    var exactInventoryFlatDirectoryOffsetByRoot: [String: Int64]?
+    var exactInventoryCompletedFlatRootPaths: [String]?
+    var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
 }
 
@@ -275,6 +287,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexScanFileId: String?
     var codexScanTargetSize: Int64?
     var codexScanComplete: Bool?
+    var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?

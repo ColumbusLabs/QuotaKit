@@ -105,6 +105,11 @@ extension CostUsageStore {
 
             // Retention mutates the store, so run it only after the locked revalidation.
             // This prevents a stale scanner from pruning content committed by another process.
+            _ = self.retainDayWindow(
+                sinceDay: budgetProtectionWindow.sinceKey,
+                untilDay: budgetProtectionWindow.untilKey,
+                calendar: calendar,
+                updateMetadata: false)
             let result = self.enforceBudgets(
                 maxRows: rowBudget,
                 maxFileBytes: fileBudgetBytes,
@@ -153,6 +158,11 @@ extension CostUsageStore {
             _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
+            _ = self.retainDayWindow(
+                sinceDay: budgetProtectionWindow.sinceKey,
+                untilDay: budgetProtectionWindow.untilKey,
+                calendar: calendar,
+                updateMetadata: false)
             return true
         }
         guard saved else {
@@ -282,6 +292,7 @@ extension CostUsageStore {
         cache.lastScanUnixMs = metadata.lastScanUnixMs
         cache.scanSinceKey = metadata.scanSinceDay
         cache.scanUntilKey = metadata.scanUntilDay
+        cache.codexRetainedLookbackDays = metadata.retainedLookbackDays
         cache.timeZoneIdentifier = metadata.timeZoneIdentifier
         cache.codexPricingKey = metadata.pricingKey
         cache.codexPriorityMetadataKey = metadata.priorityMetadataKey
@@ -403,6 +414,7 @@ extension CostUsageStore {
                 codexScanFileId: restoredScanState.identity,
                 codexScanTargetSize: file.scanState.targetSize,
                 codexScanComplete: restoredScanState.isComplete,
+                codexInventoryValidationGeneration: file.scanState.inventoryValidationGeneration,
                 codexJSONLResumeState: file.scanState.resumePayload.flatMap {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
                 },
@@ -759,7 +771,8 @@ extension CostUsageStore {
                 lastModel: usage.lastModel,
                 lastTurnID: usage.lastCodexTurnID,
                 fileIdentity: usage.codexScanFileId,
-                detailsPayload: try? JSONEncoder().encode(details)),
+                detailsPayload: try? JSONEncoder().encode(details),
+                inventoryValidationGeneration: usage.codexInventoryValidationGeneration),
             sessionID: usage.sessionId,
             coverageSinceDay: usage.days.keys.min(),
             coverageUntilDay: usage.days.keys.max(),
@@ -843,6 +856,7 @@ extension CostUsageStore {
             lastScanUnixMs: cache.lastScanUnixMs,
             scanSinceDay: cache.scanSinceKey,
             scanUntilDay: cache.scanUntilKey,
+            retainedLookbackDays: cache.codexRetainedLookbackDays,
             timeZoneIdentifier: calendar.timeZone.identifier,
             pricingKey: cache.codexPricingKey,
             priorityMetadataKey: cache.codexPriorityMetadataKey,
@@ -1092,6 +1106,8 @@ extension CostUsageStore {
                 completedCurrentWindowRootPaths: $0.completedCurrentWindowRootPaths,
                 currentWindowFlatDirectoryOffsetByRoot: $0.currentWindowFlatDirectoryOffsetByRoot,
                 completedCurrentWindowFlatRootPaths: $0.completedCurrentWindowFlatRootPaths,
+                directoryCursorVersion: $0.directoryCursorVersion,
+                directoryPendingNamesByCursor: $0.directoryPendingNamesByCursor,
                 legacyRecursiveDirectoryPathsByRoot: $0.legacyRecursiveDirectoryPathsByRoot,
                 legacyRecursiveDirectoryOffsetByPath: $0.legacyRecursiveDirectoryOffsetByPath,
                 exactInventoryPendingRootPaths: $0.exactInventoryPendingRootPaths,
@@ -1106,6 +1122,15 @@ extension CostUsageStore {
                 exactValidationTotalFiles: $0.exactValidationTotalFiles,
                 exactValidationSeenIdentities: $0.exactValidationSeenIdentities,
                 exactValidationInventoryPaths: $0.exactValidationInventoryPaths,
+                exactInventoryGeneration: $0.exactInventoryGeneration,
+                exactInventoryScanSinceDay: $0.exactInventoryScanSinceKey,
+                exactInventoryScanUntilDay: $0.exactInventoryScanUntilKey,
+                exactInventoryNextDayByRoot: $0.exactInventoryNextDayKeyByRoot,
+                exactInventoryDirectoryOffsetByRoot: $0.exactInventoryDirectoryOffsetByRoot,
+                exactInventoryCompletedRootPaths: $0.exactInventoryCompletedRootPaths,
+                exactInventoryFlatDirectoryOffsetByRoot: $0.exactInventoryFlatDirectoryOffsetByRoot,
+                exactInventoryCompletedFlatRootPaths: $0.exactInventoryCompletedFlatRootPaths,
+                exactCachedValidationLastPath: $0.exactCachedValidationLastPath,
                 cacheWideMigrationQueueActive: $0.cacheWideMigrationQueueActive)
         }
     }
@@ -1124,6 +1149,8 @@ extension CostUsageStore {
             completedCurrentWindowRootPaths: value.completedCurrentWindowRootPaths,
             currentWindowFlatDirectoryOffsetByRoot: value.currentWindowFlatDirectoryOffsetByRoot,
             completedCurrentWindowFlatRootPaths: value.completedCurrentWindowFlatRootPaths,
+            directoryCursorVersion: value.directoryCursorVersion,
+            directoryPendingNamesByCursor: value.directoryPendingNamesByCursor,
             legacyRecursiveDirectoryPathsByRoot: value.legacyRecursiveDirectoryPathsByRoot,
             legacyRecursiveDirectoryOffsetByPath: value.legacyRecursiveDirectoryOffsetByPath,
             exactInventoryPendingRootPaths: value.exactInventoryPendingRootPaths,
@@ -1138,6 +1165,15 @@ extension CostUsageStore {
             exactValidationTotalFiles: value.exactValidationTotalFiles,
             exactValidationSeenIdentities: value.exactValidationSeenIdentities,
             exactValidationInventoryPaths: value.exactValidationInventoryPaths,
+            exactInventoryGeneration: value.exactInventoryGeneration,
+            exactInventoryScanSinceKey: value.exactInventoryScanSinceDay,
+            exactInventoryScanUntilKey: value.exactInventoryScanUntilDay,
+            exactInventoryNextDayKeyByRoot: value.exactInventoryNextDayByRoot,
+            exactInventoryDirectoryOffsetByRoot: value.exactInventoryDirectoryOffsetByRoot,
+            exactInventoryCompletedRootPaths: value.exactInventoryCompletedRootPaths,
+            exactInventoryFlatDirectoryOffsetByRoot: value.exactInventoryFlatDirectoryOffsetByRoot,
+            exactInventoryCompletedFlatRootPaths: value.exactInventoryCompletedFlatRootPaths,
+            exactCachedValidationLastPath: value.exactCachedValidationLastPath,
             cacheWideMigrationQueueActive: value.cacheWideMigrationQueueActive)
     }
 
