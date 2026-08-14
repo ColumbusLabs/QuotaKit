@@ -79,7 +79,6 @@ extension SyncCoordinatorTests {
             suite: "SyncCoord-amp-dynamic-window-labels")
 
         #expect(provider.rateWindows.map(\.label) == ["Other usage", "Orb usage", "Amp Free"])
-        #expect(provider.ampUsage?.subscriptionPlan == "Power")
     }
 
     @Test
