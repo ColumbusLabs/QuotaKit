@@ -1063,13 +1063,21 @@ public struct CostUsageFetcher: Sendable {
         } else {
             nil
         }
-        // Prefer summary totals when present; fall back to summing daily entries.
+        // Prefer summary totals when present; fall back to summing daily entries. A non-empty
+        // row set where every row carries an explicit value is a known total even when it sums
+        // to zero; keep nil only for genuinely missing values.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
-        let last30DaysCostUSD = totalFromSummary ?? (totalFromEntries > 0 ? totalFromEntries : nil)
+        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
+        let last30DaysCostUSD = totalFromSummary
+            ?? (totalFromEntries > 0 || (allEntriesCarryCost && totalFromEntries == 0) ? totalFromEntries : nil)
         let totalTokensFromSummary = daily.summary?.totalTokens
         let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
-        let last30DaysTokens = totalTokensFromSummary ?? (totalTokensFromEntries > 0 ? totalTokensFromEntries : nil)
+        let allEntriesCarryTokens = !daily.data.isEmpty && daily.data.allSatisfy { $0.totalTokens != nil }
+        let last30DaysTokens = totalTokensFromSummary
+            ?? (totalTokensFromEntries > 0 || (allEntriesCarryTokens && totalTokensFromEntries == 0)
+                ? totalTokensFromEntries
+                : nil)
 
         return CostUsageTokenSnapshot(
             sessionTokens: sessionTokens,
