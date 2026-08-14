@@ -702,10 +702,16 @@ public struct OpenAIDashboardFetcher {
             guard status >= 200, status < 300 else { return nil }
             let decoded = try JSONDecoder().decode(CodexUsageResponse.self, from: data)
             let result = self.dashboardAPIData(from: decoded)
-            if result.hasUsageData {
+            let enrichedResult = await self.fetchSpendControlsMonthlyUsageIfNeeded(
+                result,
+                response: decoded,
+                cookieHeader: cookieHeader,
+                deadline: deadline,
+                logger: logger)
+            if enrichedResult.hasUsageData {
                 logger("usage api supplied language-independent rate/credit data")
             }
-            return result
+            return enrichedResult
         } catch {
             logger("usage api unavailable: \(error.localizedDescription)")
             return nil
@@ -957,6 +963,54 @@ extension OpenAIDashboardFetcher {
 }
 
 extension OpenAIDashboardFetcher {
+    private static func fetchSpendControlsMonthlyUsageIfNeeded(
+        _ result: DashboardAPIData,
+        response: CodexUsageResponse,
+        cookieHeader: String,
+        deadline: Date?,
+        logger: @escaping (String) -> Void) async -> DashboardAPIData
+    {
+        guard CodexSpendControlsMonthlyUsageGate.shouldFetch(response: response),
+              let accountId = response.accountId?.trimmingCharacters(in: .whitespacesAndNewlines),
+              !accountId.isEmpty
+        else { return result }
+
+        let remaining = deadline.map { self.remainingTimeout(until: $0) } ?? 4
+        guard remaining > 0 else {
+            logger("spend controls monthly usage api unavailable: request deadline expired")
+            return result
+        }
+        guard let request = self.dashboardSpendControlsMonthlyUsageAPIRequest(
+            accountId: accountId,
+            cookieHeader: cookieHeader,
+            timeout: min(4, remaining))
+        else {
+            logger("spend controls monthly usage api unavailable: invalid account id")
+            return result
+        }
+
+        do {
+            let (data, response) = try await CodexAuthenticatedHTTPTransport.current.data(for: request)
+            let status = (response as? HTTPURLResponse)?.statusCode ?? -1
+            guard status >= 200, status < 300 else {
+                logger("spend controls monthly usage api unavailable: status=\(status)")
+                return result
+            }
+            let decoded = try JSONDecoder().decode(CodexSpendControlsMonthlyUsageResponse.self, from: data)
+            guard let limit = decoded.codexCreditLimitSnapshot(updatedAt: Date()) else { return result }
+            return DashboardAPIData(
+                primaryLimit: result.primaryLimit,
+                secondaryLimit: result.secondaryLimit,
+                extraRateWindows: result.extraRateWindows,
+                creditsRemaining: result.creditsRemaining,
+                codexCreditLimit: limit,
+                accountPlan: result.accountPlan)
+        } catch {
+            logger("spend controls monthly usage api unavailable: \(error.localizedDescription)")
+            return result
+        }
+    }
+
     nonisolated static func requiredRemainingTimeout(
         until deadline: Date,
         now: Date = Date()) throws -> TimeInterval
@@ -979,6 +1033,36 @@ extension OpenAIDashboardFetcher {
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
         request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
+        return request
+    }
+
+    nonisolated static func dashboardSpendControlsMonthlyUsageAPIURL(accountId: String) -> URL? {
+        var allowedCharacters = CharacterSet.urlPathAllowed
+        allowedCharacters.subtract(CharacterSet(charactersIn: "/?#%"))
+        guard let encodedAccountId = accountId.addingPercentEncoding(withAllowedCharacters: allowedCharacters),
+              !encodedAccountId.isEmpty
+        else { return nil }
+        return URL(string: "https://chatgpt.com/backend-api/accounts/\(encodedAccountId)" +
+            "/spend-controls/current-user/monthly-usage")
+    }
+
+    nonisolated static func dashboardSpendControlsMonthlyUsageAPIRequest(
+        accountId: String,
+        cookieHeader: String,
+        timeout: TimeInterval = 4) -> URLRequest?
+    {
+        guard let url = self.dashboardSpendControlsMonthlyUsageAPIURL(accountId: accountId) else {
+            return nil
+        }
+        var request = URLRequest(
+            url: url,
+            cachePolicy: .reloadIgnoringLocalCacheData,
+            timeoutInterval: timeout)
+        request.httpMethod = "GET"
+        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
+        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
+        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
         return request
     }
 
