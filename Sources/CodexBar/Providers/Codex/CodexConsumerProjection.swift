@@ -254,7 +254,9 @@ struct CodexConsumerProjection {
         let dashboardVisibility = self.dashboardVisibility(surface: surface, context: context)
         let dashboard = allowsLiveAdjuncts && dashboardVisibility != .hidden ? context.liveDashboard : nil
 
-        let rateWindowsByLane = self.rateWindowsByLane(snapshot: context.snapshot)
+        let rateWindowsByLane = self.rateWindowsByLane(
+            snapshot: context.snapshot,
+            monthlyCreditLimit: surface == .menuBar ? context.liveCredits?.codexCreditLimit : nil)
         let visibleRateLanes = self.visibleRateLanes(from: rateWindowsByLane, snapshot: context.snapshot)
         let planUtilizationLanes = self.planUtilizationLanes(from: rateWindowsByLane)
 
@@ -380,7 +382,7 @@ struct CodexConsumerProjection {
             case .weekly:
                 L(weeklyLabel)
             case .monthly:
-                L("Monthly")
+                L("Monthly credit limit")
             }
         }
     }
@@ -423,18 +425,30 @@ struct CodexConsumerProjection {
         return context.dashboardAttachmentAuthorized ? .attached : .displayOnly
     }
 
-    private static func rateWindowsByLane(snapshot: UsageSnapshot?) -> [RateLane: RateWindow] {
-        guard let snapshot else { return [:] }
-
+    private static func rateWindowsByLane(
+        snapshot: UsageSnapshot?,
+        monthlyCreditLimit: CodexCreditLimitSnapshot? = nil) -> [RateLane: RateWindow]
+    {
         var windowsByLane: [RateLane: RateWindow] = [:]
-        let slottedWindows: [(RateLane, RateWindow)] = [
-            self.classifyRateWindow(snapshot.primary, slot: .primary),
-            self.classifyRateWindow(snapshot.secondary, slot: .secondary),
-        ].compactMap(\.self)
+        if let snapshot {
+            let slottedWindows: [(RateLane, RateWindow)] = [
+                self.classifyRateWindow(snapshot.primary, slot: .primary),
+                self.classifyRateWindow(snapshot.secondary, slot: .secondary),
+            ].compactMap(\.self)
 
-        for (lane, window) in slottedWindows {
-            windowsByLane[lane] = window
+            for (lane, window) in slottedWindows {
+                windowsByLane[lane] = window
+            }
+            guard windowsByLane.isEmpty, !snapshot.hasRateLimitWindows else {
+                return windowsByLane
+            }
         }
+        guard let monthlyCreditLimit else { return windowsByLane }
+        windowsByLane[.monthly] = RateWindow(
+            usedPercent: monthlyCreditLimit.usedPercent,
+            windowMinutes: nil,
+            resetsAt: monthlyCreditLimit.resetsAt,
+            resetDescription: nil)
         return windowsByLane
     }
 
@@ -442,7 +456,9 @@ struct CodexConsumerProjection {
         from rateWindowsByLane: [RateLane: RateWindow],
         snapshot: UsageSnapshot?) -> [RateLane]
     {
-        guard let snapshot else { return [] }
+        guard let snapshot else {
+            return rateWindowsByLane[.monthly] == nil ? [] : [.monthly]
+        }
 
         let slottedLanes = [
             self.classifyRateWindow(snapshot.primary, slot: .primary)?.0,
@@ -452,6 +468,9 @@ struct CodexConsumerProjection {
         var visible: [RateLane] = []
         for lane in slottedLanes where rateWindowsByLane[lane] != nil && !visible.contains(lane) {
             visible.append(lane)
+        }
+        if visible.isEmpty, rateWindowsByLane[.monthly] != nil, !snapshot.hasRateLimitWindows {
+            visible.append(.monthly)
         }
         return visible
     }
