@@ -1611,7 +1611,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Azure OpenAI's deployment REST route requires this fixed service path component."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCore/Providers/Gemini/GeminiStatusProbe.swift",
-            line: 143,
+            line: 146,
             anchor: "if normalized.contains(\"migrate\"), normalized.contains(\"antigravity\"), normalized.contains(\"gemini\") {",
             expectedProviderIDs: ["antigravity"],
             reason: "Gemini's upstream deprecation response names the Antigravity migration destination."),
