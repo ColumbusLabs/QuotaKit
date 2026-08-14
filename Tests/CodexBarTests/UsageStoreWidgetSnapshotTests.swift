@@ -4,6 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
+// swiftlint:disable:next type_body_length
 struct UsageStoreWidgetSnapshotTests {
     @Test
     func `widget snapshot preserves raw Codex windows for timeline projection`() async throws {

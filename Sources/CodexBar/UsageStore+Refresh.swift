@@ -1,6 +1,8 @@
 import CodexBarCore
 import Foundation
 
+// swiftlint:disable file_length
+
 extension UsageStore {
     nonisolated static func codexSessionQuotaOwnerKey(
         for refreshGuard: CodexAccountScopedRefreshGuard?) -> CodexSessionQuotaOwnerKey?
