@@ -379,7 +379,7 @@ struct CodexWeeklyResetConfirmationTests {
                 previous: previous,
                 initial: initial,
                 confirmation: confirmation)
-                == .publishConfirmation)
+                == .publishRollingWindowConfirmation)
     }
 
     @Test
