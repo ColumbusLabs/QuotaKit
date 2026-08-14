@@ -199,6 +199,8 @@ final class UsageStore {
     var openAIDashboardCookieImportDebugLog: String?
     var versions: [ProviderInstanceID: String] = [:]
     @ObservationIgnored var versionDetectionProviders: Set<ProviderInstanceID> = []
+    @ObservationIgnored private(set) var versionDetectionTask: Task<Void, Never>?
+    @ObservationIgnored var claudeVersionRefreshTask: Task<Void, Never>?
     var isRefreshing = false
     var hasForcedRefreshEnrichmentInFlight = false
     var refreshingProviders: Set<ProviderInstanceID> = []
@@ -1338,9 +1340,13 @@ extension UsageStore {
         self.versionDetectionProviders = enabled
         let implementations = Self.versionDetectionImplementations(
             enabled: Set(enabled.compactMap(\.firstPartyProvider)))
+        // Provider-specific by design: only Claude's version probe is background-gated and needs recovery handling.
+        let probesClaude = implementations.contains { $0.id == .claude }
         let browserDetection = self.browserDetection
-        Task { @MainActor [weak self] in
-            let resolved = await Task.detached { () -> [UsageProvider: String] in
+        self.versionDetectionTask = Task { @MainActor [weak self] in
+            let detection = await Task.detached { () -> (
+                resolved: [UsageProvider: String],
+                claudeBinaryResolvable: Bool) in
                 var resolved: [UsageProvider: String] = [:]
                 await withTaskGroup(of: (UsageProvider, String?).self) { group in
                     for implementation in implementations {
@@ -1356,9 +1362,27 @@ extension UsageStore {
                         resolved[provider] = version
                     }
                 }
-                return resolved
+                // Provider-specific by design: disabled providers must not be probed (#2267), so the
+                // Claude binary resolves only when Claude was in this run and its probe returned nil.
+                let claudeBinaryResolvable = probesClaude
+                    && resolved[.claude] == nil
+                    && ProviderVersionDetector.claudeBinaryResolvable()
+                return (resolved, claudeBinaryResolvable)
             }.value
-            self?.versions = Dictionary(uniqueKeysWithValues: resolved.map { ($0.key.instanceID, $0.value) })
+            guard let self else { return }
+            let resolved = detection.resolved
+            var versions = Dictionary(uniqueKeysWithValues: resolved.map { ($0.key.instanceID, $0.value) })
+            let claudeID = UsageProvider.claude.instanceID
+            // A gated or failed Claude probe preserves a user-initiated recovery while the binary still resolves.
+            // A missing/uninstalled binary clears the version so stale data does not survive CLI removal.
+            if probesClaude,
+               resolved[.claude] == nil,
+               detection.claudeBinaryResolvable,
+               let recoveredClaudeVersion = self.versions[claudeID]
+            {
+                versions[claudeID] = recoveredClaudeVersion
+            }
+            self.versions = versions
         }
     }
 

@@ -773,6 +773,7 @@ extension UsageStore {
             return backfilled
         }
         guard let backfilled else { return }
+        self.refreshClaudeVersionAfterUserInitiatedCLIFetch(provider: provider, strategyKind: result.strategyKind)
         let isClaudeOAuthSample = provider == .claude
             && result.strategyKind == .oauth
         let claudeOAuthPersistentRefHash = Self.verifiedClaudeOAuthPersistentRefHash(
