@@ -19,7 +19,7 @@ struct GrokCreditsProxyFetcherTests {
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer token-123")
             #expect(request.value(forHTTPHeaderField: "x-xai-token-auth") == "xai-grok-cli")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
-            #expect(request.value(forHTTPHeaderField: "User-Agent") == "CodexBar")
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "QuotaKit")
             #expect(request.timeoutInterval == 15)
             return try Self.response(
                 for: request,

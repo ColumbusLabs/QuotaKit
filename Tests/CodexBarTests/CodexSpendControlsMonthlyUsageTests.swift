@@ -352,7 +352,7 @@ struct CodexSpendControlsMonthlyUsageTests {
             #expect(request.timeoutInterval == 3)
             #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer access")
             #expect(request.value(forHTTPHeaderField: "ChatGPT-Account-Id") == "acct-123")
-            #expect(request.value(forHTTPHeaderField: "User-Agent") == "CodexBar")
+            #expect(request.value(forHTTPHeaderField: "User-Agent") == "QuotaKit")
             #expect(request.value(forHTTPHeaderField: "Accept") == "application/json")
             let url = try #require(request.url)
             let response = try #require(HTTPURLResponse(
