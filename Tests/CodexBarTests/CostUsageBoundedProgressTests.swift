@@ -6,6 +6,31 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CostUsageBoundedProgressTests {
     @Test
+    func `bounded catch up completes without an optional archived sessions directory`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        try FileManager.default.removeItem(at: env.codexArchivedSessionsRoot)
+        try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 1)
+        let archivedRoot = env.codexArchivedSessionsRoot
+        #expect(!FileManager.default.fileExists(atPath: archivedRoot.path))
+
+        var options = Self.boundedOptions(env: env)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+        #expect(roots.map(\.standardizedFileURL.path) == [env.codexSessionsRoot.standardizedFileURL.path])
+
+        let converged = try Self.finishBoundedCatchUp(
+            env: env,
+            day: day,
+            options: &options,
+            startingAt: 0)
+        #expect(converged.files.count == 1)
+        #expect(converged.files.values.allSatisfy { $0.codexInventoryValidationGeneration != nil })
+        #expect(converged.codexActiveLookbackState == nil)
+        #expect(converged.codexScanCatchUpPending == false)
+    }
+
+    @Test
     func `bounded progress accumulates while retaining a wider scan window`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

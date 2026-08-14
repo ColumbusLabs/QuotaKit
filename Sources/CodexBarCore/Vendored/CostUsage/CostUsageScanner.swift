@@ -2013,7 +2013,9 @@ enum CostUsageScanner {
 
     static func codexSessionsRoots(options: Options) -> [URL] {
         let root = self.defaultCodexSessionsRoot(options: options)
-        if let archived = self.codexArchivedSessionsRoot(sessionsRoot: root) {
+        if let archived = self.codexArchivedSessionsRoot(sessionsRoot: root),
+           FileManager.default.fileExists(atPath: archived.path)
+        {
             return [root, archived]
         }
         return [root]
