@@ -1062,7 +1062,7 @@ extension OpenAIDashboardFetcher {
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
         return request
     }
 
@@ -1095,7 +1095,7 @@ extension OpenAIDashboardFetcher {
         request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(Self.dashboardAcceptLanguage, forHTTPHeaderField: "Accept-Language")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
         return request
     }
 

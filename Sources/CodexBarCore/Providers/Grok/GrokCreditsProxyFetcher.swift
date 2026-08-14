@@ -24,7 +24,7 @@ public enum GrokCreditsProxyFetcher {
         request.setValue("Bearer \(credentials.accessToken)", forHTTPHeaderField: "Authorization")
         request.setValue("xai-grok-cli", forHTTPHeaderField: "x-xai-token-auth")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
 
         let response: ProviderHTTPResponse
         do {

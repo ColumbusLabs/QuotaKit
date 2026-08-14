@@ -54,7 +54,7 @@ public enum GrokWebBillingError: LocalizedError, Sendable {
     private static let reauthMessage =
         "Grok web billing rejected credentials. Sign in to grok.com in Chrome or run `grok login` to refresh xAI auth."
     private static let webKeyExchangeReauthMessage =
-        "grok.com billing no longer accepts browser-cookie sign-in for this endpoint. Run `grok login` so CodexBar " +
+        "grok.com billing no longer accepts browser-cookie sign-in for this endpoint. Run `grok login` so QuotaKit " +
         "can read usage via the Grok CLI token."
 
     static func isWebKeyExchangeCredentialRejection(status: Int, message: String) -> Bool {

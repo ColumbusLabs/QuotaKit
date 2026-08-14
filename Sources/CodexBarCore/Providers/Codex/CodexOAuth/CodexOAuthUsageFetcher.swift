@@ -499,7 +499,7 @@ public enum CodexOAuthUsageFetcher {
             timeoutInterval: timeout)
         request.httpMethod = "GET"
         request.setValue("Bearer \(accessToken)", forHTTPHeaderField: "Authorization")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
         request.setValue(accountId, forHTTPHeaderField: "ChatGPT-Account-Id")
 
