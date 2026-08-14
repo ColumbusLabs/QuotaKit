@@ -7,6 +7,27 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## 0.32.4.19 / iOS 1.11.3 — Unreleased
 
+### Added
+
+- OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false `$used / $0` budget.
+- Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.
+- Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.
+- Grok and LongCat: read current billing credits and live token-pack usage from their provider-owned endpoints.
+- Menu bar: add accessible vertical icon adjustment, system dimming, Ghostty terminal selection, draggable layout fixes, and preferred-currency cost-history charts with CZK support.
+
+### Changed
+
+- Synced reviewed CodexBar development through `1f5abbc7d`, adopting provider, persistence, performance, and Mac reliability work while preserving QuotaKit identity, Columbus Labs release ownership, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
+- Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
+
+### Fixed
+
+- Usage & Spend: preserve complete requested and retained Codex history under byte pressure, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
+- OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.
+- Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.
+- Process handling: bound PTY hard-stop cleanup, resolve helper resources through CLI symlinks, and escalate orphaned RPC children through a bounded teardown path.
+- Codex and Ollama: confirm zero-credit server resets correctly and recover browser-backed usage without spurious background sign-in errors.
+
 ## 0.32.4.18 / iOS 1.11.3 — 2026-08-13
 
 ### Fixed
