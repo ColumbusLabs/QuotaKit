@@ -1467,7 +1467,7 @@ public struct UsageFetcher: Sendable {
                     credits: credits,
                     identity: usage?.identity)
             }
-            throw error
+            throw CodexCLIBackendRateLimitError.classify(error, environment: self.environment) ?? error
         }
     }
 

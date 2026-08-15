@@ -109,6 +109,7 @@ struct CodexUIErrorMapper {
             || lower.contains("codex credits are still loading")
             || lower.contains("codex account changed; importing browser cookies")
             || lower.contains("codex cli is not signed in.")
+            || lower.contains("chatgpt rate limits are unavailable.")
             || lower.contains("codex session expired. sign in again.")
             || lower.contains("openai web refresh timed out. refresh openai cookies and try again.")
             || lower.contains(
