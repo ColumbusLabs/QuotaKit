@@ -1085,6 +1085,13 @@ extension UsageMenuCardView.Model {
         if let email = snapshot?.accountEmail(for: provider), !email.isEmpty {
             return email
         }
+        // Provider-specific by design: Cursor app auth can expose only a subject ID, so its card needs this fallback.
+        if provider == .cursor,
+           let accountID = snapshot?.identity(for: .cursor)?.accountID?.trimmingCharacters(in: .whitespacesAndNewlines),
+           !accountID.isEmpty
+        {
+            return accountID.split(separator: "|", omittingEmptySubsequences: true).last.map(String.init) ?? accountID
+        }
         if metadata.usesAccountFallback || accountIsAuthoritative,
            let email = account.email, !email.isEmpty
         {
