@@ -443,6 +443,10 @@ extension CodexBarCLI {
         self.decodeFormat(from: values)
     }
 
+    static func _decodeCostGroupByForTesting(from values: ParsedValues) -> CostGroupBy {
+        self.decodeCostGroupBy(from: values)
+    }
+
     static func _decodeWebTimeoutForTesting(from values: ParsedValues) throws -> TimeInterval? {
         try self.decodeWebTimeout(from: values)
     }
