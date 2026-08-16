@@ -758,7 +758,10 @@ struct UsageStoreWidgetSnapshotTests {
         #expect(abs((row.percentLeft ?? 0) - 14.8479) < 0.0001)
         #expect(row.window?.isSyntheticPlaceholder == false)
     }
+}
 
+@MainActor
+struct UsageStoreWidgetSnapshotVisibilityTests {
     @Test(arguments: [true, false])
     func `widget snapshot respects extra usage visibility for Devin`(_ showsExtraUsage: Bool) async throws {
         let suite = "UsageStoreWidgetSnapshotTests-devin-extra-usage-\(showsExtraUsage)"
