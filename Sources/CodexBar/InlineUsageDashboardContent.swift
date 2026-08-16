@@ -41,7 +41,7 @@ extension UsageMenuCardView.Model {
         switch menuCard.usageNotes(context: ProviderUsageNotesContext(
             snapshot: input.snapshot,
             isRefreshing: input.isRefreshing,
-            tokenCostInlineDashboardEnabled: input.tokenCostInlineDashboardEnabled,
+            costSummaryInlineEnabled: input.costSummaryInlineEnabled,
             showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
         {
         case let .openAIAPI(usage):
@@ -94,6 +94,7 @@ extension UsageMenuCardView.Model {
     private static func resolveInlineUsageDashboard(input: Input) -> InlineUsageDashboardModel? {
         let menuCard = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.menuCard
         if menuCard.usesProviderCostHistoryAsPrimaryDashboard,
+           input.costSummaryInlineEnabled,
            let tokenSnapshot = primaryCostHistorySnapshot(input: input),
            !tokenSnapshot.daily.isEmpty
         {
@@ -104,7 +105,7 @@ extension UsageMenuCardView.Model {
                 preferredCurrencyCode: input.preferredCurrencyCode)
         }
         if menuCard.supportsInlineTokenCostDashboard,
-           input.tokenCostInlineDashboardEnabled,
+           input.costSummaryInlineEnabled,
            let tokenSnapshot = input.tokenSnapshot,
            !tokenSnapshot.daily.isEmpty || tokenSnapshot.meteredCostUSD != nil
         {

@@ -975,7 +975,13 @@ extension UsageMenuCardView.Model {
         let providerCostStyle = input.snapshot.map {
             presentation.cost(snapshot: $0).menuCardStyle
         } ?? .generic
-        let providerCost: ProviderCostSection? = if !showsProviderCost {
+        let providerCostFollowsSummaryStyle = Self.providerCostFollowsSummaryStyle(
+            cost: input.snapshot?.providerCost,
+            style: providerCostStyle,
+            isClaudeAdminAPI: isClaudeAdminAPI)
+        let providerCost: ProviderCostSection? = if !showsProviderCost ||
+            (providerCostFollowsSummaryStyle && !input.costSummaryInlineEnabled)
+        {
             nil
         } else {
             Self.providerCostSection(
@@ -1038,7 +1044,6 @@ extension UsageMenuCardView.Model {
             }
         }
         if !input.showOptionalCreditsAndExtraUsage {
-            let policy = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.optionalDetails
             if policy.hidesAllWithoutOptionalUsage {
                 details = []
             } else if !policy.hiddenTitlesWithoutOptionalUsage.isEmpty {

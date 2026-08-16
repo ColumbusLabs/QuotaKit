@@ -185,7 +185,7 @@ struct OpenCodeGoMenuCardModelTests {
     @Test
     func `inline dashboard falls back to inline chart when cost row is unavailable`() throws {
         // "Inline only" cost display style: tokenCostMenuSectionEnabled is false (no Cost row),
-        // but tokenCostInlineDashboardEnabled is true. OpenCode Go should behave like
+        // but costSummaryInlineEnabled is true. OpenCode Go should behave like
         // Codex/Claude/Cursor here and still surface its cost history via the inline chart.
         let now = Date()
         let snapshot = UsageSnapshot(
@@ -229,7 +229,7 @@ struct OpenCodeGoMenuCardModelTests {
             usageBarsShowUsed: true,
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: true,
-            tokenCostInlineDashboardEnabled: true,
+            costSummaryInlineEnabled: true,
             tokenCostMenuSectionEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
             hidePersonalInfo: false,
@@ -285,7 +285,7 @@ struct OpenCodeGoMenuCardModelTests {
             usageBarsShowUsed: true,
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: true,
-            tokenCostInlineDashboardEnabled: true,
+            costSummaryInlineEnabled: true,
             tokenCostMenuSectionEnabled: true,
             showOptionalCreditsAndExtraUsage: true,
             hidePersonalInfo: false,

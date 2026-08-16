@@ -128,7 +128,7 @@ extension StatusItemController {
             tokenCostUsageEnabled: self.settings.isCostUsageEffectivelyEnabled(for: target),
             tokenCostIsRefreshing: self.store.tokenCostRefreshIsActive(for: target),
             codexLocalSessionCostLedgerEnabled: self.settings.codexLocalSessionCostLedgerEnabled,
-            tokenCostInlineDashboardEnabled: self.settings.costSummaryShowsInlineDashboard(for: target),
+            costSummaryInlineEnabled: self.settings.costSummaryShowsInline(for: target),
             // openai/mistral's cost history always surfaces via the inline dashboard or a
             // dedicated top-pane submenu (see `makeUsageSubmenu`), so they skip the generic
             // "Cost" row. This must stay an explicit provider check rather than reusing
