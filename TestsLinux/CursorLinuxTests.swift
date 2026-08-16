@@ -20,6 +20,14 @@ struct CursorLinuxTests {
     }
 
     @Test
+    func `Cursor usage split labels match Cursor and Third Party`() {
+        let metadata = CursorProviderDescriptor.descriptor.metadata
+        #expect(metadata.sessionLabel == "Total")
+        #expect(metadata.weeklyLabel == "Cursor")
+        #expect(metadata.opusLabel == "Third Party")
+    }
+
+    @Test
     func `Cursor manual cookie does not require macOS web support`() {
         #expect(!CodexBarCLI.sourceModeRequiresWebSupport(
             .web,

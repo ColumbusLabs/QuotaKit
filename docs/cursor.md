@@ -116,8 +116,8 @@ Caching: the app holds the snapshot for an in-memory hourly TTL, keyed by the hi
 
 ## Snapshot mapping
 - Primary: plan usage percent (included plan).
-- Secondary: Auto + Composer usage percent.
-- Tertiary: API (named model) usage percent.
+- Secondary: Cursor (Cursor models) usage percent.
+- Tertiary: Third Party usage percent.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
 - Reset: billing cycle end date.
 

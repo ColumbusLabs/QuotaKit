@@ -933,7 +933,7 @@ struct UsageStoreWidgetSnapshotTests {
         await store.widgetSnapshotPersistTask?.value
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
-        #expect(entry.usageRows?.map(\.title) == ["Total", "Auto", "API"])
+        #expect(entry.usageRows?.map(\.title) == ["Total", "Cursor", "Third Party"])
     }
 }
 

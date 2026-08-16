@@ -133,7 +133,7 @@ struct CursorMenuCardModelTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.metrics.map(\.title) == ["Total", "Auto", "API"])
+        #expect(model.metrics.map(\.title) == ["Total", "Cursor", "Third Party"])
         for metric in model.metrics {
             #expect(metric.percentLabel == "10% left")
             #expect(metric.detailLeftText == "10% in deficit")
@@ -180,7 +180,7 @@ struct CursorMenuCardModelTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.metrics.map(\.title) == ["Total", "Auto", "API"])
+        #expect(model.metrics.map(\.title) == ["Total", "Cursor", "Third Party"])
         for metric in model.metrics {
             #expect(metric.percentLabel == "0% left")
             #expect(metric.detailLeftText == nil)
