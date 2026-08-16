@@ -71,7 +71,7 @@ networks, and remember that `--output` publishes snapshots with mode `0644`.
 Transport is **plain HTTP**. There is no TLS in `quotakit serve`, which means:
 
 - The bearer token crosses the network **in cleartext on every request**. Anyone who can observe the path (same Wi-Fi, ARP spoofing, a compromised switch, your ISP on a routed path) can capture the token and replay it until the server restarts with a new one.
-- The response bodies — plan labels, usage percentages, cost figures, and full account emails by default — cross the network in cleartext too. On non-loopback binds, use `--identity redacted` to hide email local parts unless clients need full identity.
+- The response bodies — plan labels, usage percentages, cost figures, and account emails — cross the network in cleartext too. On non-loopback binds, pass `--identity redacted` to hide email local parts unless clients need full identity. Pin the flag rather than relying on the app's privacy setting, which a later GUI change can flip back.
 - Because non-loopback binds gate `/usage`, `/cost`, and `/dashboard/v1/snapshot` behind the same token, a passive observer sees your account data but an active client without the token gets `401` on every data route. Only the account-free static UI at `/` and `/health` are unauthenticated off-loopback.
 
 Deployments, from safest to least safe:
