@@ -275,6 +275,11 @@ extension UsageMenuCardView.Model {
             return [L("Usage via Claude CLI (limited detail)")] + subscriptionNotes
         }
 
+        // Provider-specific by design: OpenCode Go local quota windows need an explicit authority warning.
+        if input.provider == .opencodego, input.snapshot?.dataConfidence == .estimated {
+            return [L("Quota estimated from local usage history")] + subscriptionNotes
+        }
+
         if let notes = self.apiProviderUsageNotes(input: input) {
             return notes + subscriptionNotes
         }

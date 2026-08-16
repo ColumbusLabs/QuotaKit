@@ -5,6 +5,41 @@ import Testing
 
 struct OpenCodeGoMenuCardModelTests {
     @Test
+    func `local quota estimates are disclosed in the menu card`() throws {
+        let now = Date(timeIntervalSince1970: 10_368_000)
+        let snapshot = UsageSnapshot(
+            primary: RateWindow(usedPercent: 25, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: RateWindow(usedPercent: 45, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+            tertiary: RateWindow(usedPercent: 0, windowMinutes: 43200, resetsAt: nil, resetDescription: nil),
+            updatedAt: now,
+            identity: nil,
+            dataConfidence: .estimated)
+        let metadata = try #require(ProviderDefaults.metadata[.opencodego])
+
+        let model = UsageMenuCardView.Model.make(.init(
+            provider: .opencodego,
+            metadata: metadata,
+            snapshot: snapshot,
+            credits: nil,
+            creditsError: nil,
+            dashboard: nil,
+            dashboardError: nil,
+            tokenSnapshot: nil,
+            tokenError: nil,
+            account: AccountInfo(email: nil, plan: nil),
+            isRefreshing: false,
+            lastError: nil,
+            usageBarsShowUsed: true,
+            resetTimeDisplayStyle: .countdown,
+            tokenCostUsageEnabled: false,
+            showOptionalCreditsAndExtraUsage: true,
+            hidePersonalInfo: false,
+            now: now))
+
+        #expect(model.usageNotes == [L("Quota estimated from local usage history")])
+    }
+
+    @Test
     func `monthly quota shows deficit and run out details`() throws {
         let now = Date(timeIntervalSince1970: 10_368_000) // 1970-05-01T00:00:00Z
         let reset = now.addingTimeInterval(6 * 24 * 3600)
