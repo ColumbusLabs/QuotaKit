@@ -49,6 +49,7 @@ struct ProviderSettingsDescriptorTests {
         var seenToggleIDs: Set<String> = []
         var seenActionIDs: Set<String> = []
         var seenPickerIDs: Set<String> = []
+        var seenSettingsActionGroupIDs: Set<String> = []
 
         for provider in UsageProvider.allCases {
             let context = fixture.settingsContext(provider: provider)
@@ -69,7 +70,48 @@ struct ProviderSettingsDescriptorTests {
                 #expect(!seenPickerIDs.contains(picker.id))
                 seenPickerIDs.insert(picker.id)
             }
+
+            let actionGroups = impl.settingsActions(context: context)
+            for actionGroup in actionGroups {
+                #expect(!seenSettingsActionGroupIDs.contains(actionGroup.id))
+                seenSettingsActionGroupIDs.insert(actionGroup.id)
+
+                for action in actionGroup.actions {
+                    #expect(!seenActionIDs.contains(action.id))
+                    seenActionIDs.insert(action.id)
+                }
+            }
         }
+    }
+
+    @Test
+    func `kiro reauthentication waits for the explicit settings action`() async throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-kiro-login")
+        var loginCount = 0
+        let context = fixture.settingsContext(provider: .kiro) {
+            loginCount += 1
+        }
+
+        let groups = KiroProviderImplementation().settingsActions(context: context)
+        let group = try #require(groups.first(where: { $0.id == "kiro-cli-login" }))
+        let action = try #require(group.actions.first(where: { $0.id == "kiro-cli-login-reauthenticate" }))
+
+        #expect(loginCount == 0)
+        #expect(group.title.contains("Kiro"))
+        #expect(group.subtitle.contains("kiro-cli"))
+        #expect(action.title == "Re-authenticate")
+
+        await action.perform()
+
+        #expect(loginCount == 1)
+    }
+
+    @Test
+    func `codex reauthentication remains account scoped`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-codex-login-scope")
+        let context = fixture.settingsContext(provider: .codex)
+
+        #expect(CodexProviderImplementation().settingsActions(context: context).isEmpty)
     }
 
     @Test
@@ -1274,7 +1316,10 @@ extension ProviderSettingsDescriptorTests {
         private let state = ProviderSettingsContextState()
 
         @MainActor
-        func settingsContext(provider: UsageProvider) -> ProviderSettingsContext {
+        func settingsContext(
+            provider: UsageProvider,
+            runLoginFlow: @escaping () async -> Void = {}) -> ProviderSettingsContext
+        {
             let settings = self.settings
             let store = self.store
             let state = self.state
@@ -1309,7 +1354,7 @@ extension ProviderSettingsDescriptorTests {
                     }
                 },
                 requestConfirmation: { _ in },
-                runLoginFlow: {})
+                runLoginFlow: runLoginFlow)
         }
 
         @MainActor

@@ -667,6 +667,15 @@
 "keychain_access_caption" = "قم بتعطيل جميع Keychain القراءة والكتابة. استخدم هذا إذا استمر macOS في طلب 'Chrome/Brave/Edge التخزين الآمن' حتى بعد الضغط على 'دائما السماح'. استيراد ملفات تعريف الارتباط من المتصفح غير متاح أثناء تفعيله؛ الصق رؤوس الكوكيز يدويا في المزودين. Claude/Codex OAuth عبر CLI لا يزال يعمل.";
 "disable_keychain_access_title" = "تعطيل Keychain الوصول";
 "disable_keychain_access_subtitle" = "يمنع أي وصول Keychain أثناء التفعيل.";
+"Re-authenticate" = "إعادة المصادقة";
+"kiro_reauthenticate_title" = "تسجيل الدخول إلى Kiro CLI";
+"kiro_reauthenticate_subtitle" = "يشغّل «kiro-cli login» لتجديد جلستك عند انتهاء صلاحيتها.";
+"Kiro CLI not found" = "لم يتم العثور على Kiro CLI";
+"Install kiro-cli and try again." = "ثبّت kiro-cli ثم حاول مرة أخرى.";
+"Could not start kiro-cli login" = "تعذر بدء kiro-cli login";
+"Kiro login timed out" = "انتهت مهلة تسجيل الدخول إلى Kiro";
+"kiro-cli login exited with status %d." = "خرج kiro-cli login بالحالة %d.";
+"Kiro login failed" = "فشل تسجيل الدخول إلى Kiro";
 
 /* About Pane */
 "about_tagline" = "عسى أن لا تنفد رموزك أبدا—حافظ على حدود الوكلاء في مرآه.";

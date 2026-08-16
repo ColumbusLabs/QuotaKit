@@ -667,6 +667,15 @@
 "keychain_access_caption" = "ปิดใช้งานการอ่านและเขียน Keychain ทั้งหมด ใช้ตัวเลือกนี้หาก macOS ยังคงแจ้งให้ 'Chrome/Brave/Edge ที่เก็บข้อมูลที่ปลอดภัย' แม้ว่าจะคลิกอนุญาตเสมอแล้วก็ตาม การนําเข้าคุกกี้ของเบราว์เซอร์ไม่พร้อมใช้งานในขณะที่เปิดใช้งาน วางส่วนหัวของคุกกี้ด้วยตนเองในผู้ให้บริการ Claude/Codex OAuth ผ่าน CLI ยังคงใช้งานได้";
 "disable_keychain_access_title" = "ปิดใช้งานการเข้าถึง Keychain";
 "disable_keychain_access_subtitle" = "ป้องกันการเข้าถึง Keychain ใดๆ ขณะเปิดใช้งาน";
+"Re-authenticate" = "ยืนยันตัวตนอีกครั้ง";
+"kiro_reauthenticate_title" = "เข้าสู่ระบบ Kiro CLI";
+"kiro_reauthenticate_subtitle" = "เรียกใช้ “kiro-cli login” เพื่อต่ออายุเซสชันเมื่อหมดอายุ";
+"Kiro CLI not found" = "ไม่พบ Kiro CLI";
+"Install kiro-cli and try again." = "ติดตั้ง kiro-cli แล้วลองอีกครั้ง";
+"Could not start kiro-cli login" = "ไม่สามารถเริ่ม kiro-cli login ได้";
+"Kiro login timed out" = "การเข้าสู่ระบบ Kiro หมดเวลา";
+"kiro-cli login exited with status %d." = "kiro-cli login สิ้นสุดด้วยสถานะ %d";
+"Kiro login failed" = "การเข้าสู่ระบบ Kiro ล้มเหลว";
 
 /* About Pane */
 "about_tagline" = "ขอให้โทเค็นของคุณไม่มีวันหมด ให้คํานึงถึงขีดจํากัดของเจ้าหน้าที่";

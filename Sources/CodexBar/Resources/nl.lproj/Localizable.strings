@@ -661,6 +661,15 @@
 "keychain_access_caption" = "Schakel alle lees- en schrijfbewerkingen van de sleutelhanger uit. Gebruik dit als macOS blijft vragen om 'Chrome/Brave/Edge Safe Storage', zelfs nadat u op Altijd toestaan ​​hebt geklikt. Browsercookie-import is niet beschikbaar als deze is ingeschakeld; plak Cookie-headers handmatig in Providers. Claude/Codex OAuth via de CLI werkt nog steeds.";
 "disable_keychain_access_title" = "Schakel sleutelhangertoegang uit";
 "disable_keychain_access_subtitle" = "Voorkomt elke sleutelhangertoegang indien ingeschakeld.";
+"Re-authenticate" = "Opnieuw authenticeren";
+"kiro_reauthenticate_title" = "Aanmelden bij Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Voert 'kiro-cli login' uit om je sessie te vernieuwen wanneer deze is verlopen.";
+"Kiro CLI not found" = "Kiro CLI niet gevonden";
+"Install kiro-cli and try again." = "Installeer kiro-cli en probeer het opnieuw.";
+"Could not start kiro-cli login" = "Kan kiro-cli login niet starten";
+"Kiro login timed out" = "Time-out bij aanmelden bij Kiro";
+"kiro-cli login exited with status %d." = "kiro-cli login is afgesloten met status %d.";
+"Kiro login failed" = "Aanmelden bij Kiro mislukt";
 
 /* About Pane */
 "about_tagline" = "Moge uw tokens nooit opraken: houd de limieten van agenten in het oog.";

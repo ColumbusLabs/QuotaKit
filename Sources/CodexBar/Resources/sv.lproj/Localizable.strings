@@ -660,6 +660,15 @@
 "keychain_access_caption" = "Inaktivera all läsning och skrivning i Nyckelring. Använd detta om macOS fortsätter fråga om 'Chrome/Brave/Edge Safe Storage' även efter att du klickat på Tillåt alltid. Import av webbläsarcookies är inte tillgänglig när detta är aktiverat. Klistra in Cookie-headers manuellt under Leverantörer. Claude/Codex OAuth via CLI fungerar fortfarande.";
 "disable_keychain_access_title" = "Inaktivera åtkomst till Nyckelring";
 "disable_keychain_access_subtitle" = "Förhindrar all åtkomst till Nyckelring när det är aktiverat.";
+"Re-authenticate" = "Autentisera igen";
+"kiro_reauthenticate_title" = "Kiro CLI-inloggning";
+"kiro_reauthenticate_subtitle" = "Kör ”kiro-cli login” för att förnya sessionen när den har löpt ut.";
+"Kiro CLI not found" = "Kiro CLI hittades inte";
+"Install kiro-cli and try again." = "Installera kiro-cli och försök igen.";
+"Could not start kiro-cli login" = "Det gick inte att starta kiro-cli login";
+"Kiro login timed out" = "Tidsgränsen för Kiro-inloggningen överskreds";
+"kiro-cli login exited with status %d." = "kiro-cli login avslutades med status %d.";
+"Kiro login failed" = "Kiro-inloggningen misslyckades";
 
 /* About Pane */
 "about_tagline" = "Må dina token aldrig ta slut – håll agentgränserna synliga.";

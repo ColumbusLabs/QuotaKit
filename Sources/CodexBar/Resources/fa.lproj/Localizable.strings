@@ -667,6 +667,15 @@
 "keychain_access_caption" = "تمام قابلیت های خواندن و نوشتن Keychain را غیرفعال کنید. اگر macOS حتی بعد از کلیک روی همیشه اجازه مدام درخواست «ذخیره سازی امن» Chrome/Brave/Edge کند، از این گزینه استفاده کنید. وارد کردن کوکی مرورگر در حالت فعال بودن در دسترس نیست؛ هدرهای کوکی را به صورت دستی در Providers پیست کنید. Claude/Codex OAuth از طریق CLI هنوز کار می کند.";
 "disable_keychain_access_title" = "غیرفعال کردن دسترسی Keychain";
 "disable_keychain_access_subtitle" = "در حالت فعال بودن از هرگونه دسترسی Keychain جلوگیری می کند.";
+"Re-authenticate" = "احراز هویت مجدد";
+"kiro_reauthenticate_title" = "ورود به Kiro CLI";
+"kiro_reauthenticate_subtitle" = "برای تازه‌سازی نشست منقضی‌شده، «kiro-cli login» را اجرا می‌کند.";
+"Kiro CLI not found" = "Kiro CLI پیدا نشد";
+"Install kiro-cli and try again." = "kiro-cli را نصب کنید و دوباره تلاش کنید.";
+"Could not start kiro-cli login" = "شروع kiro-cli login ممکن نشد";
+"Kiro login timed out" = "مهلت ورود به Kiro به پایان رسید";
+"kiro-cli login exited with status %d." = "kiro-cli login با وضعیت %d خارج شد.";
+"Kiro login failed" = "ورود به Kiro ناموفق بود";
 
 /* About Pane */
 "about_tagline" = "امیدوارم توکن های شما هرگز تمام نشوند—محدودیت های عامل را در نظر داشته باشید.";

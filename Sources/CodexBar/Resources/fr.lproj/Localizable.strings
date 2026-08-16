@@ -661,6 +661,15 @@
 "keychain_access_caption" = "Désactivez toutes les lectures et écritures du Trousseau. Utilisez-le si macOS continue de demander « Chrome/Brave/Edge Safe Storage » même après avoir cliqué sur Toujours autoriser. L'importation des cookies du navigateur n'est pas disponible lorsqu'elle est activée ; collez manuellement les en-têtes de cookies dans les fournisseurs. Claude/Codex OAuth via la CLI fonctionne toujours.";
 "disable_keychain_access_title" = "Désactiver l'accès au Trousseau";
 "disable_keychain_access_subtitle" = "Empêche tout accès au Trousseau lorsqu'il est activé.";
+"Re-authenticate" = "Se réauthentifier";
+"kiro_reauthenticate_title" = "Connexion à Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Exécute « kiro-cli login » pour renouveler votre session lorsqu’elle a expiré.";
+"Kiro CLI not found" = "Kiro CLI introuvable";
+"Install kiro-cli and try again." = "Installez kiro-cli, puis réessayez.";
+"Could not start kiro-cli login" = "Impossible de lancer kiro-cli login";
+"Kiro login timed out" = "Délai d’attente dépassé pour la connexion à Kiro";
+"kiro-cli login exited with status %d." = "kiro-cli login s’est terminé avec l’état %d.";
+"Kiro login failed" = "Échec de la connexion à Kiro";
 
 /* About Pane */
 "about_tagline" = "Que vos jetons ne soient jamais épuisés : gardez un œil sur les limites des agents.";

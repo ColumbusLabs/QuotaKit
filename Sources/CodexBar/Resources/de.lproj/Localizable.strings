@@ -659,6 +659,15 @@
 "keychain_access_caption" = "Deaktivieren Sie alle Lese- und Schreibvorgänge im Schlüsselbund. Verwenden Sie diese Option, wenn macOS weiterhin nach \"Chrome/Brave/Edge Safe Storage\" fragt, auch nachdem Sie auf \"Immer zulassen\" geklickt haben. Der Browser-Cookie-Import ist nicht verfügbar, solange er aktiviert ist. Fügen Sie Cookie-Header manuell in Provider ein. Claude/Codex OAuth über die CLI funktioniert weiterhin.";
 "disable_keychain_access_title" = "Deaktivieren Sie den Schlüsselbundzugriff";
 "disable_keychain_access_subtitle" = "Verhindert jeglichen Zugriff auf den Schlüsselbund, solange diese Option aktiviert ist.";
+"Re-authenticate" = "Erneut authentifizieren";
+"kiro_reauthenticate_title" = "Kiro-CLI-Anmeldung";
+"kiro_reauthenticate_subtitle" = "Führt „kiro-cli login“ aus, um deine Sitzung zu erneuern, wenn sie abgelaufen ist.";
+"Kiro CLI not found" = "Kiro CLI nicht gefunden";
+"Install kiro-cli and try again." = "Installiere kiro-cli und versuche es erneut.";
+"Could not start kiro-cli login" = "kiro-cli login konnte nicht gestartet werden";
+"Kiro login timed out" = "Zeitüberschreitung bei der Kiro-Anmeldung";
+"kiro-cli login exited with status %d." = "kiro-cli login wurde mit Status %d beendet.";
+"Kiro login failed" = "Kiro-Anmeldung fehlgeschlagen";
 
 /* About Pane */
 "about_tagline" = "Mögen Ihre Token nie ausgehen – behalten Sie die Agentenlimits im Blick.";

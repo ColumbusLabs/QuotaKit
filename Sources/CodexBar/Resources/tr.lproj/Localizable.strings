@@ -667,6 +667,15 @@
 "keychain_access_caption" = "Tüm Anahtarlık okuma ve yazmalarını devre dışı bırakın. macOS 'Chrome/Brave/Edge Güvenli Depolama' için sürekli istem gösteriyorsa ve Her Zaman İzin Ver'e tıkladıktan sonra bile devam ediyorsa bunu kullanın. Etkinleştirildiğinde tarayıcı çerez içe aktarımı kullanılamaz; Sağlayıcılar bölümünden Çerez başlıklarını el ile yapıştırın. CLI üzerinden Claude/Codex OAuth hâlâ çalışır.";
 "disable_keychain_access_title" = "Anahtarlık erişimini devre dışı bırak";
 "disable_keychain_access_subtitle" = "Etkinleştirildiğinde tüm Anahtarlık erişimini engeller.";
+"Re-authenticate" = "Yeniden kimlik doğrula";
+"kiro_reauthenticate_title" = "Kiro CLI oturumu";
+"kiro_reauthenticate_subtitle" = "Süreniz dolduğunda oturumu yenilemek için 'kiro-cli login' komutunu çalıştırır.";
+"Kiro CLI not found" = "Kiro CLI bulunamadı";
+"Install kiro-cli and try again." = "kiro-cli'yi yükleyip tekrar deneyin.";
+"Could not start kiro-cli login" = "kiro-cli login başlatılamadı";
+"Kiro login timed out" = "Kiro oturum açma zaman aşımına uğradı";
+"kiro-cli login exited with status %d." = "kiro-cli login %d durumuyla sonlandı.";
+"Kiro login failed" = "Kiro oturumu açılamadı";
 
 /* About Pane */
 "about_tagline" = "Jetonlarınız hiç bitmesin—ajan limitlerini göz önünde bulundurun.";

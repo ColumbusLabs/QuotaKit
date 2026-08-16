@@ -662,6 +662,15 @@
 "keychain_access_caption" = "Отключает все операции чтения и записи Keychain. Используйте это, если macOS продолжает запрашивать «Chrome/Brave/Edge Safe Storage» даже после нажатия «Всегда разрешать». Импорт cookie браузера недоступен, пока настройка включена; вставьте заголовки Cookie вручную в разделе «Провайдеры». Claude/Codex OAuth через CLI по-прежнему работает.";
 "disable_keychain_access_title" = "Отключить доступ к Keychain";
 "disable_keychain_access_subtitle" = "Блокирует любой доступ к Keychain, пока настройка включена.";
+"Re-authenticate" = "Повторно пройти аутентификацию";
+"kiro_reauthenticate_title" = "Вход в Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Запускает «kiro-cli login», чтобы обновить истёкший сеанс.";
+"Kiro CLI not found" = "Kiro CLI не найден";
+"Install kiro-cli and try again." = "Установите kiro-cli и повторите попытку.";
+"Could not start kiro-cli login" = "Не удалось запустить kiro-cli login";
+"Kiro login timed out" = "Время ожидания входа в Kiro истекло";
+"kiro-cli login exited with status %d." = "kiro-cli login завершился со статусом %d.";
+"Kiro login failed" = "Не удалось войти в Kiro";
 
 /* About Pane */
 "about_tagline" = "Пусть ваши токены никогда не закончатся — помните об ограничениях агентов.";

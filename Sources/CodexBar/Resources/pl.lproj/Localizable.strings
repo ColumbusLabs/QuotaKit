@@ -669,6 +669,15 @@
 "keychain_access_caption" = "Wyłącz wszystkie odczyty i zapisy pęku kluczy. Użyj tego, jeśli macOS nadal pyta o „Chrome/Brave/Edge Safe Storage” nawet po kliknięciu Zawsze zezwalaj. Import plików cookie przeglądarki będzie niedostępny, gdy opcja jest włączona; wklejaj nagłówki Cookie ręcznie w Dostawcach. OAuth Claude/Codex przez CLI nadal działa.";
 "disable_keychain_access_title" = "Wyłącz dostęp do pęku kluczy";
 "disable_keychain_access_subtitle" = "Blokuje wszelki dostęp do pęku kluczy, gdy opcja jest włączona.";
+"Re-authenticate" = "Uwierzytelnij ponownie";
+"kiro_reauthenticate_title" = "Logowanie do Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Uruchamia „kiro-cli login”, aby odnowić sesję po jej wygaśnięciu.";
+"Kiro CLI not found" = "Nie znaleziono Kiro CLI";
+"Install kiro-cli and try again." = "Zainstaluj kiro-cli i spróbuj ponownie.";
+"Could not start kiro-cli login" = "Nie można uruchomić kiro-cli login";
+"Kiro login timed out" = "Przekroczono limit czasu logowania do Kiro";
+"kiro-cli login exited with status %d." = "kiro-cli login zakończyło się ze stanem %d.";
+"Kiro login failed" = "Logowanie do Kiro nie powiodło się";
 
 /* About Pane */
 "about_tagline" = "Niech twoje tokeny nigdy się nie skończą — miej limity agentów zawsze na oku.";

@@ -634,6 +634,15 @@
 "keychain_access_caption" = "禁用所有钥匙串读写。浏览器 Cookie 导入不可用；请在“提供商”中手动粘贴 Cookie 标头。";
 "disable_keychain_access_title" = "禁用钥匙串访问";
 "disable_keychain_access_subtitle" = "启用时阻止任何钥匙串访问。";
+"Re-authenticate" = "重新认证";
+"kiro_reauthenticate_title" = "Kiro CLI 登录";
+"kiro_reauthenticate_subtitle" = "会在会话过期时运行“kiro-cli login”以续期。";
+"Kiro CLI not found" = "未找到 Kiro CLI";
+"Install kiro-cli and try again." = "请安装 kiro-cli，然后重试。";
+"Could not start kiro-cli login" = "无法启动 kiro-cli login";
+"Kiro login timed out" = "Kiro 登录超时";
+"kiro-cli login exited with status %d." = "kiro-cli login 已退出，状态为 %d。";
+"Kiro login failed" = "Kiro 登录失败";
 "about_tagline" = "愿你的 token 永不耗尽——随时关注智能体额度。";
 "link_github" = "GitHub";
 "link_website" = "网站";

@@ -640,6 +640,15 @@
 "keychain_access_caption" = "Desactiva todas as lecturas e escrituras do Chaveiro. A importación de cookies do navegador non estará dispoñible; pega as cabeceiras de Cookie manualmente en Provedores.";
 "disable_keychain_access_title" = "Desactivar o acceso ao Chaveiro";
 "disable_keychain_access_subtitle" = "Evita calquera acceso ao Chaveiro mentres estea activado.";
+"Re-authenticate" = "Volver autenticar";
+"kiro_reauthenticate_title" = "Inicio de sesión de Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Executa «kiro-cli login» para renovar a sesión cando caduque.";
+"Kiro CLI not found" = "Non se atopou Kiro CLI";
+"Install kiro-cli and try again." = "Instala kiro-cli e téntao de novo.";
+"Could not start kiro-cli login" = "Non se puido iniciar kiro-cli login";
+"Kiro login timed out" = "Esgotouse o tempo de inicio de sesión de Kiro";
+"kiro-cli login exited with status %d." = "kiro-cli login rematou co estado %d.";
+"Kiro login failed" = "Fallou o inicio de sesión de Kiro";
 
 /* About Pane */
 "about_tagline" = "Que os teus tokens nunca se esgoten: mantén á vista os límites dos teus axentes.";

@@ -669,6 +669,15 @@
 "keychain_access_caption" = "Nonaktifkan semua pembacaan dan penulisan Keychain. Gunakan ini jika macOS terus meminta 'Chrome/Brave/Edge Safe Storage' meskipun sudah mengklik Always Allow. Impor cookie browser tidak tersedia saat diaktifkan; tempel header Cookie secara manual di Penyedia. OAuth Claude/Codex via CLI masih berfungsi.";
 "disable_keychain_access_title" = "Nonaktifkan akses Keychain";
 "disable_keychain_access_subtitle" = "Mencegah semua akses Keychain saat diaktifkan.";
+"Re-authenticate" = "Autentikasi ulang";
+"kiro_reauthenticate_title" = "Login Kiro CLI";
+"kiro_reauthenticate_subtitle" = "Menjalankan 'kiro-cli login' untuk memperbarui sesi saat kedaluwarsa.";
+"Kiro CLI not found" = "Kiro CLI tidak ditemukan";
+"Install kiro-cli and try again." = "Instal kiro-cli lalu coba lagi.";
+"Could not start kiro-cli login" = "Tidak dapat memulai kiro-cli login";
+"Kiro login timed out" = "Waktu login Kiro habis";
+"kiro-cli login exited with status %d." = "kiro-cli login keluar dengan status %d.";
+"Kiro login failed" = "Login Kiro gagal";
 
 /* About Pane */
 "about_tagline" = "Semoga token Anda tidak pernah habis—pantau batas agen Anda.";

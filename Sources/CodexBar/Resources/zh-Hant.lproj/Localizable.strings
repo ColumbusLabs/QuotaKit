@@ -660,6 +660,15 @@
 "keychain_access_caption" = "停用所有鑰匙圈讀寫。如果 macOS 在你按下一律允許後仍持續要求存取「Chrome/Brave/Edge Safe Storage」，可使用此選項。啟用時無法匯入瀏覽器 Cookie；請在「提供者」中手動貼上 Cookie 標頭。透過 CLI 的 Claude/Codex OAuth 仍可使用。";
 "disable_keychain_access_title" = "停用鑰匙圈存取";
 "disable_keychain_access_subtitle" = "啟用時封鎖任何鑰匙圈存取。";
+"Re-authenticate" = "重新驗證";
+"kiro_reauthenticate_title" = "Kiro CLI 登入";
+"kiro_reauthenticate_subtitle" = "會在工作階段過期時執行「kiro-cli login」以續期。";
+"Kiro CLI not found" = "找不到 Kiro CLI";
+"Install kiro-cli and try again." = "請安裝 kiro-cli，然後再試一次。";
+"Could not start kiro-cli login" = "無法啟動 kiro-cli login";
+"Kiro login timed out" = "Kiro 登入逾時";
+"kiro-cli login exited with status %d." = "kiro-cli login 已結束，狀態為 %d。";
+"Kiro login failed" = "Kiro 登入失敗";
 "about_tagline" = "願你的 token 永不用完，隨時掌握 Agent 限制。";
 "link_github" = "GitHub";
 "link_website" = "網站";
