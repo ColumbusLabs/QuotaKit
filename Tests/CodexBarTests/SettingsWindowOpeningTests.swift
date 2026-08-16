@@ -25,7 +25,9 @@ struct SettingsWindowOpeningTests {
             backing: .buffered,
             defer: false)
         var presentedWindow: NSWindow?
+        var prepareCount = 0
         let opener = SettingsWindowOpener(
+            prepare: { prepareCount += 1 },
             notification: { false },
             appKit: {
                 presentedWindow = settingsWindow
@@ -35,6 +37,7 @@ struct SettingsWindowOpeningTests {
         let outcome = opener.open(preferred: .notification)
 
         #expect(outcome == .fallback)
+        #expect(prepareCount == 1)
         #expect(presentedWindow === settingsWindow)
     }
 }

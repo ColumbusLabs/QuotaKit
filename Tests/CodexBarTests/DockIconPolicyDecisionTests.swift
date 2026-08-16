@@ -6,8 +6,10 @@ struct DockIconPolicyDecisionTests {
     func `settings window requires regular activation policy`() {
         let settings = self.window(identifier: "com_apple_SwiftUI_Settings_window")
         let hostedSettings = self.window(identifier: "future-settings-identifier", isKnownSettingsWindow: true)
+        let miniaturizedSettings = self.window(isVisible: false, isMiniaturized: true, isKnownSettingsWindow: true)
 
         #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [settings]))
+        #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [miniaturizedSettings]))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(settings))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(hostedSettings))
     }

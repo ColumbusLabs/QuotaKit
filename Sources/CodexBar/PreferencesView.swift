@@ -351,6 +351,9 @@ final class SettingsWindowAppearanceView: NSView {
         if !window.styleMask.contains(.resizable) {
             window.styleMask.insert(.resizable)
         }
+        if !window.styleMask.contains(.miniaturizable) {
+            window.styleMask.insert(.miniaturizable)
+        }
         if !window.titlebarAppearsTransparent {
             window.titlebarAppearsTransparent = true
         }
