@@ -546,6 +546,76 @@ struct CostUsageBoundedProgressTests {
     }
 
     @Test
+    func `bounded queue restores an omitted cached partial file before selecting candidates`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let fileURLs = try Self.writeSyntheticCorpus(env: env, day: day, fileCount: 2)
+
+        var options = Self.boundedOptions(env: env)
+        options.maxCodexScanDurationPerRefresh = nil
+        options.preferNewestCodexSessionsFirst = false
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+
+        var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let baselineDays = pendingCache.days
+        let partialURL = fileURLs[0]
+        let queuedURL = fileURLs[1]
+        let partialPath = try #require(pendingCache.files.keys.first {
+            $0.hasSuffix(partialURL.lastPathComponent)
+        })
+        let queuedPath = try #require(pendingCache.files.keys.first {
+            $0.hasSuffix(queuedURL.lastPathComponent)
+        })
+        #expect(pendingCache.codexSessionDiscovery != nil)
+        pendingCache.files[partialPath]?.codexScanComplete = false
+        pendingCache.files[partialPath]?.parsedBytes = 0
+        pendingCache.files[partialPath]?.codexTokenIndexAnchor = nil
+        pendingCache.codexActiveLookbackState = try Self.completedLookbackState(
+            cache: pendingCache,
+            options: options,
+            pendingFilePaths: [
+                queuedPath.resolvingTemporaryPath,
+                queuedPath.resolvingTemporaryPath,
+            ])
+        pendingCache.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: pendingCache)
+
+        options.maxCodexScanDurationPerRefresh = 60
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanWorkRecorderForTesting = recorder
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: options)
+
+        let metrics = recorder.snapshot()
+        let repairedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(metrics.codexCandidateSelectionVisits == 2)
+        #expect(metrics.codexFileScanAttempts == 2)
+        #expect(metrics.codexCandidateSelectionVisits <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+        #expect(repairedCache.files[partialPath]?.codexScanComplete == true)
+        #expect(repairedCache.files[partialPath]?.parsedBytes == repairedCache.files[partialPath]?.size)
+        #expect(repairedCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
+        #expect(repairedCache.days == baselineDays)
+
+        let finalCache = try Self.finishBoundedCatchUp(
+            env: env,
+            day: day,
+            options: &options,
+            startingAt: 2)
+        #expect(finalCache.codexScanCatchUpPending == false)
+        #expect(finalCache.days == baselineDays)
+    }
+
+    @Test
     func `bounded queue rescans an appended cached complete path outside the first slice`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

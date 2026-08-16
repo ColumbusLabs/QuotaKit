@@ -304,25 +304,38 @@ public struct CostUsageFetcher: Sendable {
     {
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-        let cache = CostUsageStoreAccess.read(
+        let projection = CostUsageStoreAccess.readCodexCatchUpProjection(
             cacheRoot: options.cacheRoot,
             calendar: options.calendar)
-        guard cache.roots == rootsFingerprint else {
+        guard projection.rootMtimes == rootsFingerprint else {
             return CodexScanCatchUpStatus(pending: false, progressKey: "scope-mismatch")
         }
 
-        let scoped = CostUsageScanner.codexCache(cache, scopedTo: roots)
-        let progressKey = self.codexScanProgressKey(cache: cache, scopedFiles: scoped.files)
-        let hasIncompleteFile = scoped.files.values.contains { $0.codexScanComplete == false }
-        let pending = cache.codexScanCatchUpPending == true || hasIncompleteFile
+        let scopedFiles = projection.files.filter {
+            CostUsageScanner.isWithinCodexRoots(
+                fileURL: URL(fileURLWithPath: $0.path),
+                roots: roots)
+        }
+        let progressKey = self.codexScanProgressKey(
+            projection: projection,
+            scopedFiles: scopedFiles)
+        let hasIncompleteFile = scopedFiles.contains { !$0.scanComplete }
+        let needsIdentityValidation = CostUsageStore.codexCatchUpProjectionNeedsIdentityValidation(
+            files: scopedFiles,
+            rootMtimes: projection.rootMtimes)
+        let pending = projection.catchUpPending || hasIncompleteFile || needsIdentityValidation
+        let staleSnapshotUpdatedAt = projection.previousReportUpdatedAtUnixMs.flatMap { timestamp -> Date? in
+            guard timestamp > 0 else { return nil }
+            return Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
+        }
         return CodexScanCatchUpStatus(
             pending: pending,
             progressKey: progressKey,
-            processedBytes: cache.codexScanProcessedBytes ?? 0,
-            totalBytes: cache.codexScanTotalBytes ?? 0,
-            completedFiles: cache.codexScanCompletedFiles ?? 0,
-            totalFiles: cache.codexScanTotalFiles ?? 0,
-            staleSnapshotUpdatedAt: pending ? cache.codexPreviousReport?.updatedAt : nil)
+            processedBytes: projection.processedBytes ?? 0,
+            totalBytes: projection.totalBytes ?? 0,
+            completedFiles: projection.completedFiles ?? 0,
+            totalFiles: projection.totalFiles ?? 0,
+            staleSnapshotUpdatedAt: pending ? staleSnapshotUpdatedAt : nil)
     }
 
     private static func codexHistoryCoverageIsEstablished(

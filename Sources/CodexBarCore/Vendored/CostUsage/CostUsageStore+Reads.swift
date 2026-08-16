@@ -97,8 +97,44 @@ extension CostUsageStore {
         }
     }
 
+    func readCodexCatchUpProjection(calendar: Calendar) -> CostUsageStoreCatchUpProjection {
+        self.withDatabase(default: .empty) { database in
+            try Self.inReadTransaction(database) {
+                let metadata = try Self.readCodexCatchUpMetadata(database)
+                guard metadata.timeZoneIdentifier == nil
+                    || metadata.timeZoneIdentifier == calendar.timeZone.identifier
+                else { return .empty }
+
+                let files = try Self.readCodexCatchUpFiles(database)
+                let discoveryState = try Self.readSingleton(
+                    CostUsageStoreDiscoveryState.self,
+                    database: database,
+                    table: "discovery_state")
+                let lookbackState = try Self.readSingleton(
+                    CostUsageStoreLookbackState.self,
+                    database: database,
+                    table: "lookback_state")
+                return CostUsageStoreCatchUpProjection(
+                    rootMtimes: metadata.rootMtimes,
+                    catchUpPending: metadata.catchUpPending,
+                    processedBytes: metadata.processedBytes,
+                    totalBytes: metadata.totalBytes,
+                    completedFiles: metadata.completedFiles,
+                    totalFiles: metadata.totalFiles,
+                    scanInventoryPaths: metadata.scanInventoryPaths,
+                    previousReportUpdatedAtUnixMs: metadata.previousReportUpdatedAtUnixMs,
+                    files: files,
+                    discoveryState: discoveryState,
+                    lookbackState: lookbackState)
+            }
+        }
+    }
+
     func readSnapshot() -> CostUsageStoreSnapshot {
-        self.withDatabase(default: Self.emptySnapshot) { database in
+        #if DEBUG
+        Self.snapshotReadForTesting?(self.databaseURL)
+        #endif
+        return self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.inReadTransaction(database) {
                 try Self.readSnapshot(database)
             }
@@ -175,6 +211,41 @@ extension CostUsageStore {
 // MARK: - Read implementations
 
 extension CostUsageStore {
+    private struct CatchUpMetadata {
+        var timeZoneIdentifier: String?
+        var rootMtimes: [String: Int64]?
+        var catchUpPending: Bool
+        var processedBytes: Int64?
+        var totalBytes: Int64?
+        var completedFiles: Int?
+        var totalFiles: Int?
+        var scanInventoryPaths: [String]?
+        var previousReportUpdatedAtUnixMs: Int64?
+
+        static let empty = Self(
+            timeZoneIdentifier: nil,
+            rootMtimes: nil,
+            catchUpPending: false,
+            processedBytes: nil,
+            totalBytes: nil,
+            completedFiles: nil,
+            totalFiles: nil,
+            scanInventoryPaths: nil,
+            previousReportUpdatedAtUnixMs: nil)
+    }
+
+    private struct CatchUpScanState: Decodable {
+        var resumePayload: Data?
+    }
+
+    private struct CatchUpResumeState: Decodable {
+        var offset: Int64
+    }
+
+    private struct PreviousReportTimestamp: Decodable {
+        var updatedAtUnixMs: Int64
+    }
+
     private static var emptySnapshot: CostUsageStoreSnapshot {
         CostUsageStoreSnapshot(
             metadata: .empty,
@@ -220,6 +291,101 @@ extension CostUsageStore {
            scan_complete, session_id, coverage_since_day, coverage_until_day, updated_at_ms
     FROM files
     """
+
+    private static func readCodexCatchUpFiles(
+        _ database: OpaquePointer) throws -> [CostUsageStoreCatchUpFile]
+    {
+        let statement = try self.prepare(database, """
+        SELECT f.path, f.inode, f.mtime_ms, f.size,
+               json_extract(f.scan_state, '$.fileIdentity'),
+               f.parsed_bytes, f.scan_target_size,
+               CASE WHEN f.scan_complete = 0 THEN f.scan_state ELSE NULL END,
+               f.scan_complete, l.forked_from_id, l.dependency_key,
+               EXISTS (
+                   SELECT 1 FROM buffered_lines b
+                   WHERE b.file_id = f.id AND b.kind = 'subagent'
+               ),
+               EXISTS (
+                   SELECT 1 FROM buffered_lines b
+                   WHERE b.file_id = f.id AND b.kind = 'unresolvedFork'
+               )
+        FROM files f
+        LEFT JOIN fork_lineage l ON l.file_id = f.id
+        ORDER BY f.path
+        """)
+        defer { sqlite3_finalize(statement) }
+        var values: [CostUsageStoreCatchUpFile] = []
+        var result = sqlite3_step(statement)
+        while result == SQLITE_ROW {
+            guard let path = self.columnText(statement, at: 0) else {
+                throw StoreError.invalidData
+            }
+            let resumeOffset = self.columnData(statement, at: 7).flatMap { data in
+                try? JSONDecoder().decode(CatchUpScanState.self, from: data)
+            }?.resumePayload.flatMap { data in
+                try? JSONDecoder().decode(CatchUpResumeState.self, from: data).offset
+            }
+            values.append(CostUsageStoreCatchUpFile(
+                path: path,
+                inode: self.columnInt64(statement, at: 1),
+                mtimeUnixMs: sqlite3_column_int64(statement, 2),
+                size: sqlite3_column_int64(statement, 3),
+                fileIdentity: self.columnText(statement, at: 4),
+                parsedBytes: self.columnInt64(statement, at: 5),
+                scanTargetSize: self.columnInt64(statement, at: 6),
+                resumeOffset: resumeOffset,
+                scanComplete: sqlite3_column_int(statement, 8) == 1,
+                forkedFromID: self.columnText(statement, at: 9),
+                forkBaselineDependencyKey: self.columnText(statement, at: 10),
+                hasBufferedSubagentLines: sqlite3_column_int(statement, 11) == 1,
+                hasBufferedUnresolvedForkLines: sqlite3_column_int(statement, 12) == 1))
+            result = sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+        return values
+    }
+
+    private static func readCodexCatchUpMetadata(
+        _ database: OpaquePointer) throws -> CatchUpMetadata
+    {
+        let statement = try self.prepare(database, """
+        SELECT json_extract(payload, '$.timeZoneIdentifier'),
+               json_extract(payload, '$.rootMtimes'),
+               COALESCE(json_extract(payload, '$.catchUpPending'), 0),
+               json_extract(payload, '$.processedBytes'),
+               json_extract(payload, '$.totalBytes'),
+               json_extract(payload, '$.completedFiles'),
+               json_extract(payload, '$.totalFiles'),
+               json_extract(payload, '$.scanInventoryPaths'),
+               json_extract(payload, '$.previousReportPayload')
+        FROM scan_metadata
+        WHERE id = 1
+        """)
+        defer { sqlite3_finalize(statement) }
+        let result = sqlite3_step(statement)
+        if result == SQLITE_DONE { return .empty }
+        guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
+
+        let rootMtimes = self.columnText(statement, at: 1).flatMap { json in
+            try? JSONDecoder().decode([String: Int64].self, from: Data(json.utf8))
+        }
+        let scanInventoryPaths = self.columnText(statement, at: 7).flatMap { json in
+            try? JSONDecoder().decode([String].self, from: Data(json.utf8))
+        }
+        let previousReportUpdatedAtUnixMs = self.columnText(statement, at: 8)
+            .flatMap { Data(base64Encoded: $0) }
+            .flatMap { try? JSONDecoder().decode(PreviousReportTimestamp.self, from: $0).updatedAtUnixMs }
+        return CatchUpMetadata(
+            timeZoneIdentifier: self.columnText(statement, at: 0),
+            rootMtimes: rootMtimes,
+            catchUpPending: sqlite3_column_int(statement, 2) == 1,
+            processedBytes: self.columnInt64(statement, at: 3),
+            totalBytes: self.columnInt64(statement, at: 4),
+            completedFiles: self.columnInt64(statement, at: 5).flatMap(Int.init(exactly:)),
+            totalFiles: self.columnInt64(statement, at: 6).flatMap(Int.init(exactly:)),
+            scanInventoryPaths: scanInventoryPaths,
+            previousReportUpdatedAtUnixMs: previousReportUpdatedAtUnixMs)
+    }
 
     static func readFiles(_ database: OpaquePointer) throws -> [CostUsageStoreFile] {
         let statement = try self.prepare(database, self.fileSelectSQL + " ORDER BY path")

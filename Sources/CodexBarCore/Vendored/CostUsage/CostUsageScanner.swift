@@ -3200,6 +3200,33 @@ enum CostUsageScanner {
         }
     }
 
+    private static func reconcileCachedCodexPendingPaths(
+        cache: CostUsageCache,
+        roots: [URL],
+        state: inout CostUsageCodexActiveLookbackState) -> Int
+    {
+        var queuedPaths: Set<String> = []
+        state.pendingFilePaths = state.pendingFilePaths.compactMap { path in
+            let resolvedPath = Self.codexResolvedPath(URL(fileURLWithPath: path))
+            return queuedPaths.insert(resolvedPath).inserted ? resolvedPath : nil
+        }
+
+        let cachedPendingPaths = cache.files.compactMap { path, usage -> String? in
+            guard usage.codexScanComplete == false || usage.hasBufferedCodexForkRetryLines else { return nil }
+            let fileURL = URL(fileURLWithPath: path)
+            guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { return nil }
+            return Self.codexResolvedPath(fileURL)
+        }.sorted()
+
+        var recoveredCount = 0
+        for resolvedPath in cachedPendingPaths {
+            guard queuedPaths.insert(resolvedPath).inserted else { continue }
+            state.pendingFilePaths.append(resolvedPath)
+            recoveredCount += 1
+        }
+        return recoveredCount
+    }
+
     private struct CodexActiveLookbackQueueUpdateContext {
         let seedFiles: [URL]
         let migrationSeedPathKeys: [String]?
@@ -6115,6 +6142,18 @@ enum CostUsageScanner {
                 }
             }
             let discoveredFiles = files
+
+            let recoveredPendingPathCount = shouldBoundCatchUp
+                ? Self.reconcileCachedCodexPendingPaths(
+                    cache: cache,
+                    roots: plan.roots,
+                    state: &activeLookbackState)
+                : 0
+            if recoveredPendingPathCount > 0 {
+                Self.log.info(
+                    "Codex cost scan restored omitted pending files",
+                    metadata: ["recoveredFiles": "\(recoveredPendingPathCount)"])
+            }
 
             let materializedPendingPathCount = Self.appendPendingCodexActiveLookbackFiles(
                 state: &activeLookbackState,

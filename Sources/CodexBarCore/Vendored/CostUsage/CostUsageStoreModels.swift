@@ -241,6 +241,55 @@ struct CostUsageStoreReport: Equatable, Sendable {
     var aggregates: [CostUsageStoreDayAggregate]
 }
 
+/// The small persisted surface needed to report bounded Codex scan progress.
+/// Keep this separate from `CostUsageStoreSnapshot`: status polling must not retain usage ledgers.
+struct CostUsageStoreCatchUpFile: Equatable, Sendable {
+    var path: String
+    var inode: Int64?
+    var mtimeUnixMs: Int64
+    var size: Int64
+    var fileIdentity: String?
+    var parsedBytes: Int64?
+    var scanTargetSize: Int64?
+    var resumeOffset: Int64?
+    var scanComplete: Bool
+    var forkedFromID: String?
+    var forkBaselineDependencyKey: String?
+    var hasBufferedSubagentLines: Bool
+    var hasBufferedUnresolvedForkLines: Bool
+
+    var hasBufferedForkRetryLines: Bool {
+        self.hasBufferedSubagentLines || self.hasBufferedUnresolvedForkLines
+    }
+}
+
+struct CostUsageStoreCatchUpProjection: Equatable, Sendable {
+    var rootMtimes: [String: Int64]?
+    var catchUpPending: Bool
+    var processedBytes: Int64?
+    var totalBytes: Int64?
+    var completedFiles: Int?
+    var totalFiles: Int?
+    var scanInventoryPaths: [String]?
+    var previousReportUpdatedAtUnixMs: Int64?
+    var files: [CostUsageStoreCatchUpFile]
+    var discoveryState: CostUsageStoreDiscoveryState?
+    var lookbackState: CostUsageStoreLookbackState?
+
+    static let empty = Self(
+        rootMtimes: nil,
+        catchUpPending: false,
+        processedBytes: nil,
+        totalBytes: nil,
+        completedFiles: nil,
+        totalFiles: nil,
+        scanInventoryPaths: nil,
+        previousReportUpdatedAtUnixMs: nil,
+        files: [],
+        discoveryState: nil,
+        lookbackState: nil)
+}
+
 struct CostUsageStoreSnapshot: Equatable, Sendable {
     var metadata: CostUsageStoreMetadata
     var files: [CostUsageStoreFile]

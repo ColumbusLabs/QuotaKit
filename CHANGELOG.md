@@ -23,7 +23,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Fixed
 
 - Provider status: keep transport errors out of menus until a real status fetch succeeds while preserving the last successful provider status through later fetch failures.
-- Usage & Spend: preserve complete requested and retained Codex history under byte pressure, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
+- Usage & Spend: preserve complete requested and retained Codex history under byte pressure, recover orphaned resumable catch-up work, reduce catch-up status memory use, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
 - OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.
 - Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.
 - Process handling: bound PTY hard-stop cleanup, resolve helper resources through CLI symlinks, and escalate orphaned RPC children through a bounded teardown path.

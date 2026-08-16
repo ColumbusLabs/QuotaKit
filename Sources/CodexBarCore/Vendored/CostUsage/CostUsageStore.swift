@@ -77,6 +77,7 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "295616a4e7dcfc3f", // Catch-up queue/status scheduling only; persisted parser rows remain compatible.
         "238791b3f1229c6b", // Stable equal-mtime scan ordering changes no persisted parser rows.
         "f3c7abf13e841047", // ENOENT root filtering changes discovery only; persisted parser rows remain compatible.
         "1a8e14e8e822301c", // Optional-root discovery fix; persisted parser rows remain compatible.
@@ -102,6 +103,11 @@ actor CostUsageStore {
 
     /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
     nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
+
+    #if DEBUG
+    /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
+    nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
+    #endif
 
     /// Process-wide serialization keeps every writable store connection on the same queue.
     /// This matches the scan pipeline's single-writer contract without multiplying executor
@@ -165,6 +171,14 @@ extension CostUsageStore {
     nonisolated func syncLoadCodexCache(calendar: Calendar) -> CostUsageCache {
         self.syncWithStoreIsolation { store in
             store.loadCodexCache(calendar: calendar)
+        }
+    }
+
+    nonisolated func syncReadCodexCatchUpProjection(
+        calendar: Calendar) -> CostUsageStoreCatchUpProjection
+    {
+        self.syncWithStoreIsolation { store in
+            store.readCodexCatchUpProjection(calendar: calendar)
         }
     }
 

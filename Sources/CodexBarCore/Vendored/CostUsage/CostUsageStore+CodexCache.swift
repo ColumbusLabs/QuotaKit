@@ -492,13 +492,26 @@ extension CostUsageStore {
         file: CostUsageStoreFile,
         currentRootDevices: [CurrentCodexRootDevice]) -> String?
     {
-        guard let identity = file.scanState.fileIdentity,
+        self.normalizedCodexFileIdentity(
+            path: file.path,
+            identity: file.scanState.fileIdentity,
+            persistedInode: file.inode,
+            currentRootDevices: currentRootDevices)
+    }
+
+    private static func normalizedCodexFileIdentity(
+        path: String,
+        identity: String?,
+        persistedInode: Int64?,
+        currentRootDevices: [CurrentCodexRootDevice]) -> String?
+    {
+        guard let identity,
               let inode = Self.inode(from: identity)
-        else { return file.scanState.fileIdentity }
-        if let persistedInode = file.inode, persistedInode != inode {
+        else { return identity }
+        if let persistedInode, persistedInode != inode {
             return identity
         }
-        let filePath = Self.normalizedCodexPath(file.path)
+        let filePath = Self.normalizedCodexPath(path)
         guard let root = currentRootDevices.first(where: { root in
             if filePath == root.path {
                 return true
@@ -507,6 +520,32 @@ extension CostUsageStore {
             return filePath.hasPrefix(prefix)
         }) else { return identity }
         return "\(root.device):\(inode)"
+    }
+
+    static func codexCatchUpProjectionNeedsIdentityValidation(
+        files: [CostUsageStoreCatchUpFile],
+        rootMtimes: [String: Int64]?) -> Bool
+    {
+        let currentRootDevices = Self.currentCodexRootDevices(rootMtimes: rootMtimes)
+        var remainingValidationVisits = CostUsageScanner.codexCatchUpScanCandidateLimit
+        for file in files where file.scanComplete {
+            let normalizedIdentity = Self.normalizedCodexFileIdentity(
+                path: file.path,
+                identity: file.fileIdentity,
+                persistedInode: file.inode,
+                currentRootDevices: currentRootDevices)
+            guard normalizedIdentity != file.fileIdentity else { continue }
+            guard remainingValidationVisits > 0 else { return true }
+            remainingValidationVisits -= 1
+            Self.codexCatchUpReconciliationVisitForTesting?()
+
+            let metadata = CostUsageScanner.codexFileMetadata(fileURL: URL(fileURLWithPath: file.path))
+            guard normalizedIdentity == metadata.fileId,
+                  file.mtimeUnixMs == metadata.mtimeUnixMs,
+                  file.size == metadata.size
+            else { return true }
+        }
+        return false
     }
 
     private static func restoredCodexScanState(
@@ -1295,6 +1334,13 @@ enum CostUsageStoreAccess {
 
     static func read(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
         self.load(cacheRoot: cacheRoot, calendar: calendar).cache
+    }
+
+    static func readCodexCatchUpProjection(
+        cacheRoot: URL?,
+        calendar: Calendar = .current) -> CostUsageStoreCatchUpProjection
+    {
+        CostUsageStore(cacheRoot: cacheRoot).syncReadCodexCatchUpProjection(calendar: calendar)
     }
 
     /// Test and maintenance mutation seam for metadata-only edits. Scanner writes should keep

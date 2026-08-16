@@ -1036,6 +1036,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "295616a4e7dcfc3f",
             "238791b3f1229c6b",
             "f3c7abf13e841047",
             "1a8e14e8e822301c",
@@ -1046,7 +1047,7 @@ extension CostUsageStoreTests {
             "b975eb705f905b9a",
             "47144baa8daccf52",
         ])
-        let predecessorHash = "3d2771687ba0133f"
+        let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: predecessorHash)
@@ -1054,12 +1055,14 @@ extension CostUsageStoreTests {
             cacheRoot: fixture.root,
             schemaVersion: predecessorVersion,
             parserHash: predecessorHash)
-        let file = Self.file(path: "/rollouts/compatible.jsonl", day: "2026-08-01")
+        var file = Self.file(path: "/rollouts/compatible.jsonl", day: "2026-08-01")
+        file.scanState.isComplete = false
         let token = Self.snapshot(path: file.path, eventIndex: 0)
         let usageRow = CostUsageStoreUsageRow(path: file.path, rowIndex: 0, payload: Data([8, 9, 10]))
         let aggregate = Self.aggregate(day: "2026-08-01", model: "gpt-5.6-sol", scale: 1)
         let lineage = Self.lineage(path: file.path)
         let line = Self.bufferedLine(path: file.path, kind: .subagent, index: 0)
+        let unresolvedLine = Self.bufferedLine(path: file.path, kind: .unresolvedFork, index: 1)
         let discovery = Self.discoveryState(paths: [file.path])
         let lookback = CostUsageStoreLookbackState(
             scanSinceDay: "2026-08-01",
@@ -1077,6 +1080,10 @@ extension CostUsageStoreTests {
         #expect(await predecessor.mergeDayAggregates([aggregate]))
         #expect(await predecessor.upsertForkLineage(lineage))
         #expect(await predecessor.replaceBufferedLines(path: file.path, kind: .subagent, lines: [line]))
+        #expect(await predecessor.replaceBufferedLines(
+            path: file.path,
+            kind: .unresolvedFork,
+            lines: [unresolvedLine]))
         #expect(await predecessor.setDiscoveryState(discovery))
         #expect(await predecessor.setLookbackState(lookback))
         #expect(await predecessor.upsertAccumulator(accumulator))
