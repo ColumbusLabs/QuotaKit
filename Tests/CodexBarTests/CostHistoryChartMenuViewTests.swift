@@ -349,10 +349,6 @@ struct CostHistoryChartMenuViewTests {
         #expect(cal.component(.day, from: dates[0]) == 21)
         #expect(cal.component(.month, from: dates[1]) == 6)
         #expect(cal.component(.day, from: dates[1]) == 17)
-        #expect(
-            CostHistoryChartMenuView._axisLabelPlacementForTesting(
-                provider: .codex,
-                daily: daily) == .edges)
     }
 
     @Test
@@ -370,10 +366,6 @@ struct CostHistoryChartMenuViewTests {
         ]
         let dates = CostHistoryChartMenuView._axisDatesForTesting(provider: .codex, daily: daily)
         #expect(dates.count == 1)
-        #expect(
-            CostHistoryChartMenuView._axisLabelPlacementForTesting(
-                provider: .codex,
-                daily: daily) == .centered)
     }
 
     @Test
@@ -391,10 +383,6 @@ struct CostHistoryChartMenuViewTests {
         ]
         let dates = CostHistoryChartMenuView._axisDatesForTesting(provider: .codex, daily: daily)
         #expect(dates.isEmpty)
-        #expect(
-            CostHistoryChartMenuView._axisLabelPlacementForTesting(
-                provider: .codex,
-                daily: daily) == .hidden)
     }
 
     @Test

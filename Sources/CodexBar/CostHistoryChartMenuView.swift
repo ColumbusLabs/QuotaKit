@@ -7,12 +7,6 @@ import SwiftUI
 struct CostHistoryChartMenuView: View {
     typealias DailyEntry = CostUsageDailyReport.Entry
 
-    enum AxisLabelPlacement: Equatable {
-        case hidden
-        case centered
-        case edges
-    }
-
     enum ChartMetric: CaseIterable, Hashable {
         case tokens
         case cost
@@ -187,7 +181,7 @@ struct CostHistoryChartMenuView: View {
                         AxisGridLine().foregroundStyle(Color.clear)
                         AxisTick().foregroundStyle(Color.clear)
                         if let date = value.as(Date.self) {
-                            AxisValueLabel(anchor: Self.xAxisLabelAnchor(for: date, axisDates: model.axisDates)) {
+                            AxisValueLabel(anchor: ChartAxisLabelLayout.barCenteredAnchor) {
                                 Text(date, format: .dateTime.month(.abbreviated).day())
                                     .font(.caption2)
                                     .foregroundStyle(Color(nsColor: .tertiaryLabelColor))
@@ -612,29 +606,6 @@ struct CostHistoryChartMenuView: View {
             detailViewportRowCount: detailLayout.viewportRowCount,
             hasDetailOverflow: detailLayout.hasOverflow,
             detailRowHeight: detailLayout.rowHeight)
-    }
-
-    private static func axisLabelPlacement(for dates: [Date]) -> AxisLabelPlacement {
-        switch dates.count {
-        case 0: .hidden
-        case 1: .centered
-        default: .edges
-        }
-    }
-
-    private static func xAxisLabelAnchor(for date: Date, axisDates: [Date]) -> UnitPoint {
-        switch self.axisLabelPlacement(for: axisDates) {
-        case .hidden, .centered:
-            .top
-        case .edges:
-            if let first = axisDates.first, Calendar.current.isDate(date, inSameDayAs: first) {
-                .topLeading
-            } else if let last = axisDates.last, Calendar.current.isDate(date, inSameDayAs: last) {
-                .topTrailing
-            } else {
-                .top
-            }
-        }
     }
 
     private static func barColor(for provider: UsageProvider) -> Color {
@@ -1235,16 +1206,6 @@ extension CostHistoryChartMenuView {
             provider: provider,
             daily: daily,
             metric: self.defaultMetric(provider: provider, daily: daily)).axisDates
-    }
-
-    static func _axisLabelPlacementForTesting(
-        provider: UsageProvider,
-        daily: [DailyEntry]) -> AxisLabelPlacement
-    {
-        self.axisLabelPlacement(for: self.makeModel(
-            provider: provider,
-            daily: daily,
-            metric: self.defaultMetric(provider: provider, daily: daily)).axisDates)
     }
 
     static func _yAxisTickValuesForTesting(maxCostUSD: Double) -> [Double] {
