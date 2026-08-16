@@ -407,7 +407,7 @@ extension UsageStore {
             : nil
         let priorTokenAccountSnapshot = self.tokenAccountSnapshot(provider: provider, account: tokenAccount)
         let descriptor = spec.descriptor
-        let codexResetCreditsFetcher = self.codexResetCreditsFetcher()
+        let codexResetCreditsFetcher = self.codexResetCreditsFetcher(workspaceAccountID: fetchContext.codexWorkspaceID)
         let previousCodexSnapshot = codexPreparation?.previousSnapshot
         let codexMissingWindowBackfillSnapshot = codexPreparation?.missingWindowBackfillSnapshot
         let fetchOutcome: @Sendable () async -> ProviderFetchOutcome = {

@@ -63,6 +63,7 @@ struct SettingsDefaultsState {
     var showOptionalCreditsAndExtraUsage: Bool
     var claudeDailyRoutinesUsageVisible: Bool
     var codexSparkUsageVisible: Bool
+    var codexExternalOAuthSourcesAllowed: Bool
     var openAIWebAccessEnabled: Bool
     var openAIWebBatterySaverEnabled: Bool
     var backgroundWorkLowPowerModeEnabled: Bool

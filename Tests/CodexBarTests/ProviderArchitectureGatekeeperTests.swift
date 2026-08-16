@@ -3529,7 +3529,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared provider integration dispatches a capability owned by the provider descriptor or adapter."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Providers/ProviderFetchPlan.swift",
-            line: 194,
+            line: 200,
             anchor: "if provider == .kiro {",
             expectedProviderIDs: ["kiro"],
             expectedReferenceCount: 1,

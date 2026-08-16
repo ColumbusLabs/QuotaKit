@@ -745,6 +745,15 @@ extension SettingsStore {
         }
     }
 
+    var codexExternalOAuthSourcesAllowed: Bool {
+        get { self.defaultsState.codexExternalOAuthSourcesAllowed }
+        set {
+            self.defaultsState.codexExternalOAuthSourcesAllowed = newValue
+            self.userDefaults.set(newValue, forKey: "codexExternalOAuthSourcesAllowed")
+            self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
     var openAIWebAccessEnabled: Bool {
         get { self.defaultsState.openAIWebAccessEnabled }
         set {

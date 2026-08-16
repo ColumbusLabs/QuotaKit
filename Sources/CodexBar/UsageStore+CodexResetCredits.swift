@@ -5,12 +5,14 @@ extension UsageStore {
     typealias CodexResetCreditsFetcher = @Sendable ([String: String]) async throws
         -> CodexRateLimitResetCreditsSnapshot?
 
-    func codexResetCreditsFetcher() -> CodexResetCreditsFetcher {
+    func codexResetCreditsFetcher(workspaceAccountID: String? = nil) -> CodexResetCreditsFetcher {
         if let override = self._test_codexResetCreditsFetcherOverride {
             return override
         }
         return { env in
-            try await Self.fetchCodexResetCredits(env: env)
+            try await Self.fetchCodexResetCredits(
+                env: env,
+                workspaceAccountID: workspaceAccountID)
         }
     }
 
@@ -38,6 +40,14 @@ extension UsageStore {
                embeddedResetCredits,
                at: result.usage.updatedAt)
         {
+            return outcome
+        }
+        if result.codexResetCreditsAttempted {
+            // OAuth already tried the winning in-memory credential snapshot. Never reload
+            // auth.json here: a concurrent CLI login could attach another account's credits.
+            if requiresResetCreditRescue {
+                return outcome.replacingResult(with: .failure(UsageError.noRateLimitsFound))
+            }
             return outcome
         }
 
@@ -103,13 +113,15 @@ extension UsageStore {
     }
 
     nonisolated static func fetchCodexResetCredits(
-        env: [String: String]) async throws -> CodexRateLimitResetCreditsSnapshot?
+        env: [String: String],
+        workspaceAccountID: String? = nil) async throws -> CodexRateLimitResetCreditsSnapshot?
     {
         try Task.checkCancellation()
         let credentials = try CodexOAuthCredentialsStore.loadOAuthTokens(env: env)
         return try await Self.fetchCodexResetCredits(
             credentials: credentials,
             env: env,
+            workspaceAccountID: workspaceAccountID,
             request: { accessToken, accountId, requestEnvironment in
                 try await CodexOAuthUsageFetcher.fetchRateLimitResetCredits(
                     accessToken: accessToken,
@@ -121,6 +133,7 @@ extension UsageStore {
     private nonisolated static func fetchCodexResetCredits(
         credentials: CodexOAuthCredentials,
         env: [String: String],
+        workspaceAccountID: String? = nil,
         request: @escaping @Sendable (String, String?, [String: String]) async throws
             -> CodexRateLimitResetCreditsSnapshot?) async throws -> CodexRateLimitResetCreditsSnapshot?
     {
@@ -128,16 +141,21 @@ extension UsageStore {
         // Supplemental inventory is strictly read-only. The main OAuth usage strategy owns token refreshes;
         // CLI/web winners with stale credentials simply skip this best-effort GET.
         guard !credentials.needsRefresh else { return nil }
-        return try await request(credentials.accessToken, credentials.accountId, env)
+        return try await request(credentials.accessToken, workspaceAccountID ?? credentials.accountId, env)
     }
 
     nonisolated static func _fetchCodexResetCreditsForTesting(
         credentials: CodexOAuthCredentials,
         env: [String: String] = [:],
+        workspaceAccountID: String? = nil,
         request: @escaping @Sendable (String, String?, [String: String]) async throws
             -> CodexRateLimitResetCreditsSnapshot?) async throws -> CodexRateLimitResetCreditsSnapshot?
     {
-        try await self.fetchCodexResetCredits(credentials: credentials, env: env, request: request)
+        try await self.fetchCodexResetCredits(
+            credentials: credentials,
+            env: env,
+            workspaceAccountID: workspaceAccountID,
+            request: request)
     }
 }
 
@@ -152,6 +170,7 @@ extension ProviderFetchOutcome {
                 sourceLabel: result.sourceLabel,
                 strategyID: result.strategyID,
                 strategyKind: result.strategyKind,
+                codexResetCreditsAttempted: result.codexResetCreditsAttempted,
                 diagnostic: result.diagnostic,
                 claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
                 claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,
