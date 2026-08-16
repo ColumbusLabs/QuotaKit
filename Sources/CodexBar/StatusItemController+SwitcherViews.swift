@@ -654,6 +654,12 @@ final class ProviderSwitcherView: NSView {
                             remainingPercent: remaining,
                             selection: segment.selection)
                         self.quotaIndicators[key] = indicator
+                    } else {
+                        // The switcher view outlives a menu update, so refresh the color even when the
+                        // ratio holds. A new accent color must not wait for usage to move.
+                        indicator.fill.layer?.backgroundColor = Self.quotaIndicatorColor(
+                            for: segment.selection,
+                            remainingPercent: remaining).cgColor
                     }
                 } else {
                     self.addQuotaIndicator(to: button, selection: segment.selection, remainingPercent: remaining)
@@ -1156,7 +1162,7 @@ extension ProviderSwitcherView {
         switch selection {
         case let .provider(instanceID):
             guard let provider = instanceID.firstPartyProvider else { return NSColor.secondaryLabelColor }
-            let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+            let color = ProviderAccentPalette.color(for: provider)
             return NSColor(deviceRed: color.red, green: color.green, blue: color.blue, alpha: 1)
         case .overview:
             return NSColor.secondaryLabelColor

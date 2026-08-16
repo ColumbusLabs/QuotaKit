@@ -313,7 +313,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
 
         let pointsByID = Dictionary(uniqueKeysWithValues: points.map { ($0.id, $0) })
         let pointsByIndex = Dictionary(uniqueKeysWithValues: points.map { ($0.index, $0) })
-        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        let color = ProviderAccentPalette.color(for: provider)
         let barColor = Color(red: color.red, green: color.green, blue: color.blue)
         let trackColor = MenuHighlightStyle.progressTrack(false)
 
@@ -328,7 +328,7 @@ struct PlanUtilizationHistoryChartMenuView: View {
     }
 
     private nonisolated static func emptyModel(provider: UsageProvider) -> Model {
-        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        let color = ProviderAccentPalette.color(for: provider)
         let barColor = Color(red: color.red, green: color.green, blue: color.blue)
         let trackColor = MenuHighlightStyle.progressTrack(false)
         return Model(

@@ -485,6 +485,10 @@
 "quota_depleted_title" = "اتمام و بازیابی سهمیه";
 "quota_warning_notifications_subtitle" = "هشدار می دهد وقتی سهمیه نشست یا هفتگی باقی مانده از آستانه های پیکربندی شده عبور کند.";
 "threshold_warnings_title" = "هشدارهای آستانه";
+"provider_accent_color_title" = "رنگ تأکید";
+"provider_accent_color_footer" = "رنگ نوارهای مصرف، نمودارها و زبانه جابه‌جایی این ارائه‌دهنده را تعیین می‌کند.";
+"provider_accent_color_hex_label" = "مقدار رنگ هگزادسیمال";
+"provider_accent_color_reset" = "استفاده از پیش‌فرض";
 "quota_warnings_title" = "هشدارهای سهمیه";
 "quota_warning_session" = "جلسه";
 "quota_warning_session_capitalized" = "جلسه";

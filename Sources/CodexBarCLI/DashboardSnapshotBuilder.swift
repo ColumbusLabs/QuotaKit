@@ -160,12 +160,15 @@ enum DashboardSnapshotBuilder {
         let enabledProviders = Set(config.enabledProviders().compactMap(\.firstPartyProvider))
         let sortKey = config.orderedProviders().firstIndex { $0.rawValue == id }.map { $0 * 10 }
             ?? fallbackSortKey
+        let accentOverride = ProviderInstanceID(rawValue: id)
+            .flatMap { config.providerConfig(for: $0)?.accentColor }
+            .flatMap { ProviderColor(hexString: $0) }
         return ProviderPresentation(
             id: id,
             name: descriptor?.metadata.displayName ?? id,
             enabled: provider.map { enabledProviders.contains($0) } ?? true,
             display: DashboardDisplayPayload(
-                accentColor: self.hexColor(descriptor?.branding.color),
+                accentColor: self.hexColor(accentOverride ?? descriptor?.branding.color),
                 sortKey: sortKey,
                 priority: "normal"))
     }

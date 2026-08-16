@@ -501,6 +501,10 @@
 "quota_depleted_title" = "Исчерпание и восстановление квоты";
 "quota_warning_notifications_subtitle" = "Предупреждает, когда остаток сессионной или недельной квоты пересекает заданные пороги.";
 "threshold_warnings_title" = "Предупреждения о порогах";
+"provider_accent_color_title" = "Акцентный цвет";
+"provider_accent_color_footer" = "Задаёт цвет полос использования, графиков и вкладки переключателя этого провайдера.";
+"provider_accent_color_hex_label" = "Шестнадцатеричное значение цвета";
+"provider_accent_color_reset" = "Использовать по умолчанию";
 "quota_warnings_title" = "Предупреждения о квотах";
 "quota_warning_session" = "сеанс";
 "quota_warning_session_capitalized" = "Сеанс";

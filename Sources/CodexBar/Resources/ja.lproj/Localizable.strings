@@ -497,6 +497,10 @@
 "quota_depleted_title" = "クォータの枯渇と回復";
 "quota_warning_notifications_subtitle" = "セッションまたは週間クォータの残量が設定したしきい値を下回ったときに警告します。";
 "threshold_warnings_title" = "しきい値警告";
+"provider_accent_color_title" = "アクセントカラー";
+"provider_accent_color_footer" = "このプロバイダの使用量バー、グラフ、切り替えタブの色を設定します。";
+"provider_accent_color_hex_label" = "16 進カラー値";
+"provider_accent_color_reset" = "デフォルトを使用";
 "quota_warnings_title" = "クォータ警告";
 "quota_warning_session" = "セッション";
 "quota_warning_session_capitalized" = "セッション";

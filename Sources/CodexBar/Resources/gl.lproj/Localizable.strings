@@ -479,6 +479,10 @@
 "quota_depleted_title" = "Cota esgotada e restaurada";
 "quota_warning_notifications_subtitle" = "Avisa cando a cota restante de sesión ou semanal supera os limiares configurados.";
 "threshold_warnings_title" = "Avisos de limiar";
+"provider_accent_color_title" = "Cor de acento";
+"provider_accent_color_footer" = "Establece a cor das barras de uso, das gráficas e da lapela do selector deste provedor.";
+"provider_accent_color_hex_label" = "Valor de cor hexadecimal";
+"provider_accent_color_reset" = "Usar o predeterminado";
 "quota_warnings_title" = "Avisos de cota";
 "quota_warning_session" = "sesión";
 "quota_warning_session_capitalized" = "Sesión";

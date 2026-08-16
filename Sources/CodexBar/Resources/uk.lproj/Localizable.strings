@@ -500,6 +500,10 @@
 "quota_depleted_title" = "Вичерпання та відновлення квоти";
 "quota_warning_notifications_subtitle" = "Попереджає, коли залишок сеансу або тижневої квоти перевищує налаштовані порогові значення.";
 "threshold_warnings_title" = "Попередження про порогові значення";
+"provider_accent_color_title" = "Акцентний колір";
+"provider_accent_color_footer" = "Задає колір смуг використання, графіків і вкладки перемикача цього провайдера.";
+"provider_accent_color_hex_label" = "Шістнадцяткове значення кольору";
+"provider_accent_color_reset" = "Використовувати типовий";
 "quota_warnings_title" = "Попередження про квоту";
 "quota_warning_session" = "сесії";
 "quota_warning_session_capitalized" = "Сесія";

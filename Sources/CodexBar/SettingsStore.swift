@@ -2,6 +2,9 @@ import AppKit
 import CodexBarCore
 import Observation
 import ServiceManagement
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 enum RefreshFrequency: String, CaseIterable, Identifiable {
     case manual
@@ -994,12 +997,24 @@ extension SettingsStore {
             enablement[instanceID] = isEnabled
         }
         self.providerEnablement = enablement
+        // Every config path crosses this method, so the accent palette refreshes from a settings edit,
+        // an external edit to the config file, and an inbound iCloud sync alike.
+        if ProviderAccentPalette.apply(config: config) {
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
+        }
     }
 
     private static func providerConfigFingerprint(_ config: ProviderConfig) -> Data {
+        // This fingerprint gates provider refresh publication, so it must cover only fields a fetch
+        // depends on. A purely cosmetic field would otherwise discard an in-flight probe result, and
+        // a cosmetic edit schedules no replacement fetch.
+        var fetchRelevant = config
+        fetchRelevant.accentColor = nil
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        return (try? encoder.encode(config)) ?? Data()
+        return (try? encoder.encode(fetchRelevant)) ?? Data()
     }
 
     func providerEnablementRevision(for provider: UsageProvider) -> UInt64 {

@@ -485,6 +485,10 @@
 "quota_depleted_title" = "โควต้าหมดและกลับมาใช้งานได้";
 "quota_warning_notifications_subtitle" = "เตือนเมื่อเซสชันหรือโควต้ารายสัปดาห์ที่เหลืออยู่ข้ามเกณฑ์ที่กําหนดค่าไว้";
 "threshold_warnings_title" = "คำเตือนตามเกณฑ์";
+"provider_accent_color_title" = "สีเน้น";
+"provider_accent_color_footer" = "กำหนดสีของแถบการใช้งาน แผนภูมิ และแท็บสลับของผู้ให้บริการนี้";
+"provider_accent_color_hex_label" = "ค่าสีฐานสิบหก";
+"provider_accent_color_reset" = "ใช้ค่าเริ่มต้น";
 "quota_warnings_title" = "คําเตือนโควต้า";
 "quota_warning_session" = "เซสชั่น";
 "quota_warning_session_capitalized" = "เซสชั่น";

@@ -508,6 +508,10 @@
 "quota_depleted_title" = "配额耗尽与恢复";
 "quota_warning_notifications_subtitle" = "当会话或每周剩余配额低于设置的阈值时提醒。";
 "threshold_warnings_title" = "阈值预警";
+"provider_accent_color_title" = "强调色";
+"provider_accent_color_footer" = "设置该提供商的用量条、图表和切换标签的颜色。";
+"provider_accent_color_hex_label" = "十六进制颜色值";
+"provider_accent_color_reset" = "使用默认值";
 "quota_warnings_title" = "配额预警";
 "quota_warning_session" = "会话";
 "quota_warning_session_capitalized" = "会话";

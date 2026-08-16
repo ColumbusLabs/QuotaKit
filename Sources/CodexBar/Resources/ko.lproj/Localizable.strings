@@ -495,6 +495,10 @@
 "quota_depleted_title" = "할당량 소진 및 복원";
 "quota_warning_notifications_subtitle" = "세션 또는 주간 할당량 잔여량이 설정된 임곗값을 넘으면 경고합니다.";
 "threshold_warnings_title" = "임곗값 경고";
+"provider_accent_color_title" = "강조 색상";
+"provider_accent_color_footer" = "이 제공자의 사용량 막대, 차트, 전환 탭 색상을 설정합니다.";
+"provider_accent_color_hex_label" = "16진수 색상 값";
+"provider_accent_color_reset" = "기본값 사용";
 "quota_warnings_title" = "할당량 경고";
 "quota_warning_session" = "세션";
 "quota_warning_session_capitalized" = "세션";

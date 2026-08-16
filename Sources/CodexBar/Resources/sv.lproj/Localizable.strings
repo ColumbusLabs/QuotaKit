@@ -500,6 +500,10 @@
 "quota_depleted_title" = "Kvoten tar slut och återställs";
 "quota_warning_notifications_subtitle" = "Varnar när återstående sessions- eller veckokvot passerar inställda trösklar.";
 "threshold_warnings_title" = "Tröskelvarningar";
+"provider_accent_color_title" = "Accentfärg";
+"provider_accent_color_footer" = "Anger färgen på användningsstaplarna, diagrammen och växlarfliken för den här leverantören.";
+"provider_accent_color_hex_label" = "Hexadecimalt färgvärde";
+"provider_accent_color_reset" = "Använd standard";
 "quota_warnings_title" = "Kvotvarningar";
 "quota_warning_session" = "session";
 "quota_warning_session_capitalized" = "Session";

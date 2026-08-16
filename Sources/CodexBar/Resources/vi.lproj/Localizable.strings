@@ -496,6 +496,10 @@
 "quota_depleted_title" = "Hạn mức đã cạn & được khôi phục";
 "quota_warning_notifications_subtitle" = "Cảnh báo khi phiên hoặc Hạn mức còn lại hàng tuần vượt qua ngưỡng được định cấu hình.";
 "threshold_warnings_title" = "Cảnh báo ngưỡng";
+"provider_accent_color_title" = "Màu nhấn";
+"provider_accent_color_footer" = "Đặt màu cho thanh mức dùng, biểu đồ và thẻ chuyển đổi của nhà cung cấp này.";
+"provider_accent_color_hex_label" = "Giá trị màu thập lục phân";
+"provider_accent_color_reset" = "Dùng mặc định";
 "quota_warnings_title" = "Hạn mức cảnh báo";
 "quota_warning_session" = "phiên";
 "quota_warning_session_capitalized" = "Phiên";

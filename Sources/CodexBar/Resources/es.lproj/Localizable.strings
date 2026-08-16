@@ -501,6 +501,10 @@
 "quota_depleted_title" = "Cuota agotada y restaurada";
 "quota_warning_notifications_subtitle" = "Avisa cuando la cuota restante de sesión o semanal cruza los umbrales configurados.";
 "threshold_warnings_title" = "Avisos de umbral";
+"provider_accent_color_title" = "Color de acento";
+"provider_accent_color_footer" = "Establece el color de las barras de uso, los gráficos y la pestaña del selector de este proveedor.";
+"provider_accent_color_hex_label" = "Valor de color hexadecimal";
+"provider_accent_color_reset" = "Usar predeterminado";
 "quota_warnings_title" = "Avisos de cuota";
 "quota_warning_session" = "sesión";
 "quota_warning_session_capitalized" = "Sesión";

@@ -487,6 +487,10 @@
 "quota_depleted_title" = "Wyczerpanie i przywrócenie limitu";
 "quota_warning_notifications_subtitle" = "Ostrzega, gdy pozostały limit sesji lub tygodnia przekroczy skonfigurowane progi.";
 "threshold_warnings_title" = "Ostrzeżenia progowe";
+"provider_accent_color_title" = "Kolor akcentu";
+"provider_accent_color_footer" = "Ustawia kolor pasków użycia, wykresów i karty przełącznika tego dostawcy.";
+"provider_accent_color_hex_label" = "Szesnastkowa wartość koloru";
+"provider_accent_color_reset" = "Użyj domyślnego";
 "quota_warnings_title" = "Ostrzeżenia limitu";
 "quota_warning_session" = "sesja";
 "quota_warning_session_capitalized" = "Sesja";

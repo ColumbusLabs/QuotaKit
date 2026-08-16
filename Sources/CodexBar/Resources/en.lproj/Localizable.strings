@@ -462,6 +462,10 @@
 "quota_depleted_title" = "Quota depleted & restored";
 "quota_warning_notifications_subtitle" = "Warns when session or weekly quota remaining crosses configured thresholds.";
 "threshold_warnings_title" = "Threshold warnings";
+"provider_accent_color_title" = "Accent color";
+"provider_accent_color_footer" = "Sets the color of this provider's usage bars, charts, and switcher tab.";
+"provider_accent_color_hex_label" = "Hex color value";
+"provider_accent_color_reset" = "Use default";
 "quota_warnings_title" = "Quota warnings";
 "quota_warning_session" = "session";
 "quota_warning_session_capitalized" = "Session";

@@ -500,6 +500,10 @@
 "quota_depleted_title" = "Quotum uitgeput en hersteld";
 "quota_warning_notifications_subtitle" = "Waarschuwt wanneer het resterende sessie- of wekelijkse quotum de geconfigureerde drempels overschrijdt.";
 "threshold_warnings_title" = "Drempelwaarschuwingen";
+"provider_accent_color_title" = "Accentkleur";
+"provider_accent_color_footer" = "Stelt de kleur in van de gebruiksbalken, grafieken en schakeltab van deze aanbieder.";
+"provider_accent_color_hex_label" = "Hexadecimale kleurwaarde";
+"provider_accent_color_reset" = "Standaard gebruiken";
 "quota_warnings_title" = "Quotumwaarschuwingen";
 "quota_warning_session" = "sessie";
 "quota_warning_session_capitalized" = "Sessie";

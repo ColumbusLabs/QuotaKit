@@ -487,6 +487,10 @@
 "quota_depleted_title" = "Quota esaurita e ripristinata";
 "quota_warning_notifications_subtitle" = "Avvisa quando la quota residua di sessione o settimanale scende sotto le soglie configurate.";
 "threshold_warnings_title" = "Avvisi di soglia";
+"provider_accent_color_title" = "Colore accento";
+"provider_accent_color_footer" = "Imposta il colore delle barre di utilizzo, dei grafici e della scheda del selettore di questo provider.";
+"provider_accent_color_hex_label" = "Valore colore esadecimale";
+"provider_accent_color_reset" = "Usa predefinito";
 "quota_warnings_title" = "Avvisi quota";
 "quota_warning_session" = "sessione";
 "quota_warning_session_capitalized" = "Sessione";

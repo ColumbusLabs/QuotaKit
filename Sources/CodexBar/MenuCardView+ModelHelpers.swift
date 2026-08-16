@@ -462,7 +462,7 @@ extension UsageMenuCardView.Model {
             return Color(nsColor: .labelColor)
         }
 
-        let color = branding.color
+        let color = ProviderAccentPalette.color(for: provider)
         return Color(red: color.red, green: color.green, blue: color.blue)
     }
 

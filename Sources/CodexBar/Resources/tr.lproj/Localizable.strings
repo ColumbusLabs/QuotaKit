@@ -485,6 +485,10 @@
 "quota_depleted_title" = "Kota tükenmesi ve yenilenmesi";
 "quota_warning_notifications_subtitle" = "Oturum veya haftalık kalan kota yapılandırılan eşikleri geçtiğinde uyarır.";
 "threshold_warnings_title" = "Eşik uyarıları";
+"provider_accent_color_title" = "Vurgu rengi";
+"provider_accent_color_footer" = "Bu sağlayıcının kullanım çubuklarının, grafiklerinin ve geçiş sekmesinin rengini belirler.";
+"provider_accent_color_hex_label" = "Onaltılık renk değeri";
+"provider_accent_color_reset" = "Varsayılanı kullan";
 "quota_warnings_title" = "Kota uyarıları";
 "quota_warning_session" = "oturum";
 "quota_warning_session_capitalized" = "Oturum";

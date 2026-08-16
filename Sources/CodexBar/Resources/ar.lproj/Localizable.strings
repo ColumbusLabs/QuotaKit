@@ -485,6 +485,10 @@
 "quota_depleted_title" = "نفاد الحصة واستعادتها";
 "quota_warning_notifications_subtitle" = "يحذر عندما يتجاوز الحصة المتبقية من الجلسة أو الحصة الأسبوعية العتبات المكونة.";
 "threshold_warnings_title" = "تحذيرات العتبة";
+"provider_accent_color_title" = "لون التمييز";
+"provider_accent_color_footer" = "يحدد لون أشرطة الاستخدام والرسوم البيانية وعلامة التبديل لهذا المزود.";
+"provider_accent_color_hex_label" = "قيمة اللون السداسية";
+"provider_accent_color_reset" = "استخدام الافتراضي";
 "quota_warnings_title" = "تحذيرات الحصص";
 "quota_warning_session" = "الجلسة";
 "quota_warning_session_capitalized" = "الجلسة";

@@ -483,6 +483,10 @@
 "quota_depleted_title" = "Quota esgotada i restablerta";
 "quota_warning_notifications_subtitle" = "Avisa quan la quota restant de sessió o setmanal baixa per sota dels llindars configurats.";
 "threshold_warnings_title" = "Avisos de llindar";
+"provider_accent_color_title" = "Color d'accent";
+"provider_accent_color_footer" = "Estableix el color de les barres d'ús, els gràfics i la pestanya del selector d'aquest proveïdor.";
+"provider_accent_color_hex_label" = "Valor de color hexadecimal";
+"provider_accent_color_reset" = "Usa el valor predeterminat";
 "quota_warnings_title" = "Avisos de quota";
 "quota_warning_session" = "sessió";
 "quota_warning_session_capitalized" = "Sessió";

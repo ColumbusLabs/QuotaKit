@@ -487,6 +487,10 @@
 "quota_depleted_title" = "Kuota habis & tersedia kembali";
 "quota_warning_notifications_subtitle" = "Memperingatkan saat sisa kuota sesi atau mingguan melewati ambang batas yang dikonfigurasi.";
 "threshold_warnings_title" = "Peringatan ambang batas";
+"provider_accent_color_title" = "Warna aksen";
+"provider_accent_color_footer" = "Menetapkan warna bilah penggunaan, bagan, dan tab pengalih penyedia ini.";
+"provider_accent_color_hex_label" = "Nilai warna heksadesimal";
+"provider_accent_color_reset" = "Gunakan bawaan";
 "quota_warnings_title" = "Peringatan kuota";
 "quota_warning_session" = "sesi";
 "quota_warning_session_capitalized" = "Sesi";

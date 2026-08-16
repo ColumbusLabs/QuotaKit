@@ -506,6 +506,10 @@
 "quota_depleted_title" = "配額用完與恢復";
 "quota_warning_notifications_subtitle" = "當工作階段或每週剩餘配額達到設定門檻時提醒。";
 "threshold_warnings_title" = "門檻提醒";
+"provider_accent_color_title" = "強調色";
+"provider_accent_color_footer" = "設定此供應商的用量列、圖表與切換標籤的顏色。";
+"provider_accent_color_hex_label" = "十六進位顏色值";
+"provider_accent_color_reset" = "使用預設值";
 "quota_warnings_title" = "配額提醒";
 "quota_warning_session" = "工作階段";
 "quota_warning_session_capitalized" = "工作階段";

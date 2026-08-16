@@ -498,6 +498,10 @@
 "quota_depleted_title" = "Kontingent erschöpft und wiederhergestellt";
 "quota_warning_notifications_subtitle" = "Warnt, wenn verbleibende Sitzungs- oder Wochenquote die konfigurierten Schwellenwerte unterschreitet.";
 "threshold_warnings_title" = "Schwellenwertwarnungen";
+"provider_accent_color_title" = "Akzentfarbe";
+"provider_accent_color_footer" = "Legt die Farbe der Nutzungsbalken, Diagramme und des Umschalter-Tabs dieses Anbieters fest.";
+"provider_accent_color_hex_label" = "Hexadezimaler Farbwert";
+"provider_accent_color_reset" = "Standard verwenden";
 "quota_warnings_title" = "Kontingentwarnungen";
 "quota_warning_session" = "Sitzung";
 "quota_warning_session_capitalized" = "Sitzung";
