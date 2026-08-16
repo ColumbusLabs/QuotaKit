@@ -57,6 +57,31 @@ struct CostUsageFetcherTests {
 
 extension CostUsageFetcherTests {
     @Test
+    func `completed empty codex scan publishes known zero totals`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: day,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        #expect(snapshot.historyCoverageIsEstablished)
+        #expect(snapshot.sessionTokens == 0)
+        #expect(snapshot.sessionCostUSD == 0)
+        #expect(snapshot.last30DaysTokens == 0)
+        #expect(snapshot.last30DaysCostUSD == 0)
+    }
+
+    @Test
     func `codex history coverage follows pending catch up`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

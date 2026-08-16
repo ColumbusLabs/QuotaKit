@@ -5,6 +5,35 @@ import Testing
 
 struct SpendDashboardPartialCostTests {
     @Test
+    func `established empty Codex history renders zero spend`() throws {
+        let snapshot = Self.snapshot(
+            entries: [],
+            last30DaysTokens: 0,
+            last30DaysCostUSD: 0)
+        let group = try Self.group(snapshot)
+
+        #expect(group.totalCost == 0)
+        #expect(group.totalTokens == 0)
+        #expect(group.coveredDayCount == 2)
+        #expect(group.dailyPoints.isEmpty)
+    }
+
+    @Test
+    func `unestablished empty Codex history keeps spend unavailable`() throws {
+        let snapshot = Self.snapshot(
+            entries: [],
+            historyCoverageIsEstablished: false,
+            last30DaysTokens: 0,
+            last30DaysCostUSD: 0)
+        let group = try Self.group(snapshot)
+
+        #expect(group.totalCost == nil)
+        #expect(group.totalTokens == nil)
+        #expect(group.coveredDayCount == 0)
+        #expect(group.dailyPoints.isEmpty)
+    }
+
+    @Test
     func `established Codex history retains priced spend beside an unresolved long context day`() throws {
         let snapshot = Self.snapshot(
             entries: [

@@ -345,6 +345,25 @@ public struct CostUsageFetcher: Sendable {
         return !status.pending && status.progressKey != "scope-mismatch"
     }
 
+    private static let establishedEmptyCodexDailyReport = CostUsageDailyReport(data: [], summary: nil)
+
+    private static func codexCachedHistoryCoverageIsEstablished(
+        cache: CostUsageCache,
+        range: CostUsageScanner.CostUsageDayRange,
+        rootsFingerprint: [String: Int64]) -> Bool
+    {
+        guard cache.lastScanUnixMs > 0,
+              cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+              cache.roots == rootsFingerprint,
+              cache.codexScanCatchUpPending != true,
+              !cache.files.values.contains(where: {
+                  $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
+              }),
+              !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
+        else { return false }
+        return true
+    }
+
     private static func resolvedScannerOptions(
         _ override: CostUsageScanner.Options?,
         provider: UsageProvider,
@@ -749,7 +768,9 @@ public struct CostUsageFetcher: Sendable {
             guard cache.timeZoneIdentifier == options.calendar.timeZone.identifier,
                   cache.roots == rootsFingerprint,
                   cache.codexScanCatchUpPending != true,
-                  !cache.files.values.contains(where: { $0.codexScanComplete == false }),
+                  !cache.files.values.contains(where: {
+                      $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
+                  }),
                   let cachedSince = cache.scanSinceKey,
                   let cachedUntil = cache.scanUntilKey
             else { return nil }
@@ -835,6 +856,10 @@ public struct CostUsageFetcher: Sendable {
             var scanTimes: [Date] = []
             var piMerged = false
             var staleSnapshotUpdatedAt: Date?
+            let nativeHistoryCoverageIsEstablished = Self.codexCachedHistoryCoverageIsEstablished(
+                cache: cache,
+                range: range,
+                rootsFingerprint: rootsFingerprint)
 
             if let previous = CostUsageScanner.codexPreviousReport(
                 cache: cache,
@@ -875,6 +900,18 @@ public struct CostUsageFetcher: Sendable {
                                 modelsDevCacheRoot: options.cacheRoot))
                         }
                     }
+                }
+            }
+
+            // A completed scan can legitimately have no rows (a fresh account or a quiet
+            // window). Keep that established-empty state across app restarts instead of
+            // collapsing it back to "unavailable" merely because the cache has no day map.
+            if reports.isEmpty, nativeHistoryCoverageIsEstablished {
+                reports.append(Self.establishedEmptyCodexDailyReport)
+                if cache.lastScanUnixMs > 0 {
+                    let scanAt = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
+                    nativeScanAt = scanAt
+                    scanTimes.append(scanAt)
                 }
             }
 
@@ -1068,9 +1105,12 @@ public struct CostUsageFetcher: Sendable {
             ? CostUsageTokenSnapshot.entry(in: daily.data, forLocalDayContaining: now, calendar: calendar)
             : CostUsageTokenSnapshot.latestEntry(in: daily.data)
         let hasHistoricalRows = !daily.data.isEmpty
+        let establishedEmptyHistory = historyCoverageIsEstablished && daily.data.isEmpty
         let sessionTokens: Int? = if let sessionEntry {
             sessionEntry.totalTokens
         } else if hasHistoricalRows {
+            0
+        } else if establishedEmptyHistory {
             0
         } else {
             nil
@@ -1078,6 +1118,8 @@ public struct CostUsageFetcher: Sendable {
         let sessionCostUSD: Double? = if let sessionEntry {
             sessionEntry.costUSD
         } else if hasHistoricalRows {
+            0
+        } else if establishedEmptyHistory {
             0
         } else {
             nil
@@ -1089,14 +1131,16 @@ public struct CostUsageFetcher: Sendable {
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
         let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
         let last30DaysCostUSD = totalFromSummary
-            ?? (allEntriesCarryCost ? totalFromEntries : nil)
+            ?? (allEntriesCarryCost
+                ? totalFromEntries
+                : establishedEmptyHistory ? 0 : nil)
         let totalTokensFromSummary = daily.summary?.totalTokens
         let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
         let allEntriesCarryTokens = !daily.data.isEmpty && daily.data.allSatisfy { $0.totalTokens != nil }
         let last30DaysTokens = totalTokensFromSummary
             ?? (allEntriesCarryTokens
                 ? totalTokensFromEntries
-                : nil)
+                : establishedEmptyHistory ? 0 : nil)
 
         return CostUsageTokenSnapshot(
             sessionTokens: sessionTokens,
