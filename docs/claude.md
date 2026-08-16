@@ -91,6 +91,12 @@ Admin API key setup:
   snapshot persisted. It does not change fetching, the menu, history, notifications, hooks, or CLI output.
 - Successful OAuth login enables Claude and preserves the selected usage source. With the default Auto source, OAuth
   remains preferred when readable, while CLI/Web fallback stays available when OAuth credentials are not usable.
+- Claude Code periodically rotates its `Claude Code-credentials` Keychain item and can replace the ACL grant that
+  allowed CodexBar to read it. Auto treats that as a failed OAuth source, reuses a recent successful CLI result or
+  continues to CLI/Web, and does not misreport the existing credentials as missing. A manual Refresh can re-grant
+  Keychain access; selecting CLI or Web avoids the foreign-Keychain dependency.
+- When every live Auto source fails, CodexBar keeps the last captured session/weekly percentages from
+  `history/claude.json` visible as stale data and shows their capture age instead of blanking the quota bars.
 - Plan inference: `subscriptionType` is preferred when present; `rate_limit_tier` falls back to
   Max/Pro/Team/Enterprise. When a Max `rate_limit_tier` carries a usage multiplier
   (`default_claude_max_5x` / `default_claude_max_20x`), it is surfaced in the label as "Max 5x" / "Max 20x".

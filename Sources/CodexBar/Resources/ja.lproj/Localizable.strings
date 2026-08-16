@@ -1459,3 +1459,5 @@
 "5-hour usage" = "5時間の使用量";
 "7-day usage" = "7日間の使用量";
 "Total usage" = "合計使用量";
+"claude_oauth_keychain_access_revoked" = "Claude Code のトークン更新により、Claude キーチェーンへのアクセスが取り消されました。「更新」をクリックしてアクセスを再許可するか、Claude の使用量の取得元を CLI/Web に切り替えてください。";
+"claude_showing_last_known_usage" = "最後に取得した既知の使用量を表示しています（取得: %@）。";

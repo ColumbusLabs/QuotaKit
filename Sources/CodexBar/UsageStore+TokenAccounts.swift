@@ -1564,3 +1564,14 @@ extension UsageStore {
         }
     }
 }
+
+extension UsageStore {
+    func tokenAccountRefreshPreparation(for provider: UsageProvider)
+        -> (accounts: [ProviderTokenAccount], removesAccountAuthority: Bool)
+    {
+        let accounts = self.tokenAccounts(for: provider)
+        let removesAccountAuthority = self.tokenAccountLiveStateProviders.contains(provider.instanceID) &&
+            self.settings.effectiveSelectedTokenAccount(for: provider) == nil
+        return (accounts, removesAccountAuthority)
+    }
+}

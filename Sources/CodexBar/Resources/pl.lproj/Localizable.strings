@@ -1462,3 +1462,5 @@
 "5-hour usage" = "Użycie 5-godzinne";
 "7-day usage" = "Użycie 7-dniowe";
 "Total usage" = "Łączne użycie";
+"claude_oauth_keychain_access_revoked" = "Dostęp do pęku kluczy Claude został cofnięty wskutek rotacji tokenu przez Claude Code. Kliknij Odśwież, aby ponownie przyznać dostęp, albo przełącz źródło użycia Claude na CLI/Web.";
+"claude_showing_last_known_usage" = "Wyświetlane jest ostatnie znane użycie zarejestrowane %@.";

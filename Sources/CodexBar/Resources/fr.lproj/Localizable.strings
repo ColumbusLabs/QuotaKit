@@ -1458,3 +1458,5 @@
 "5-hour usage" = "Utilisation sur 5 heures";
 "7-day usage" = "Utilisation sur 7 jours";
 "Total usage" = "Utilisation totale";
+"claude_oauth_keychain_access_revoked" = "L’accès au trousseau Claude a été révoqué par la rotation du jeton de Claude Code. Cliquez sur Actualiser pour accorder à nouveau l’accès, ou définissez la source d’utilisation de Claude sur CLI/Web.";
+"claude_showing_last_known_usage" = "Affichage de la dernière utilisation connue, capturée %@.";

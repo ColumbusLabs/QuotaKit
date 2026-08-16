@@ -1460,3 +1460,5 @@
 "5-hour usage" = "5 saatlik kullanım";
 "7-day usage" = "7 günlük kullanım";
 "Total usage" = "Toplam kullanım";
+"claude_oauth_keychain_access_revoked" = "Claude Anahtar Zinciri erişimi, Claude Code'un belirteç yenilemesi nedeniyle iptal edildi. Erişimi yeniden vermek için Yenile'ye tıklayın veya Claude Kullanım kaynağını CLI/Web olarak değiştirin.";
+"claude_showing_last_known_usage" = "Bilinen son kullanım gösteriliyor (yakalanma zamanı: %@).";

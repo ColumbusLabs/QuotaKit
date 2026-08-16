@@ -1457,3 +1457,5 @@
 "5-hour usage" = "5-timmarsanvändning";
 "7-day usage" = "7-dagarsanvändning";
 "Total usage" = "Total användning";
+"claude_oauth_keychain_access_revoked" = "Åtkomsten till Claudes nyckelring återkallades när Claude Code roterade token. Klicka på Uppdatera för att ge åtkomst igen, eller byt Claudes användningskälla till CLI/Web.";
+"claude_showing_last_known_usage" = "Visar senast kända användning, registrerad %@.";

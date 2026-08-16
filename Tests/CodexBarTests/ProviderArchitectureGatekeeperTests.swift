@@ -2568,9 +2568,9 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBar/UsageStore+Accessors.swift",
             line: 154,
             anchor: "case .codex:",
-            expectedProviderIDs: ["codex", "ollama"],
-            expectedReferenceCount: 2,
-            expectedReferenceFingerprint: ["codex@0", "ollama@2"],
+            expectedProviderIDs: ["claude", "codex", "ollama"],
+            expectedReferenceCount: 3,
+            expectedReferenceFingerprint: ["codex@0", "claude@2", "ollama@6"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+CodexCostCatchUp.swift",
@@ -2875,7 +2875,7 @@ struct ProviderArchitectureGatekeeperTests {
             anchor: "if provider == .claude,",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 5,
-            expectedReferenceFingerprint: ["claude@0", "claude@11", "claude@18", "claude@26", "claude@35"],
+            expectedReferenceFingerprint: ["claude@0", "claude@11", "claude@18", "claude@27", "claude@36"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+Refresh.swift",

@@ -1462,3 +1462,5 @@
 "5-hour usage" = "Penggunaan 5 jam";
 "7-day usage" = "Penggunaan 7 hari";
 "Total usage" = "Total penggunaan";
+"claude_oauth_keychain_access_revoked" = "Akses Rantai Kunci Claude dicabut akibat rotasi token Claude Code. Klik Segarkan untuk memberikan akses lagi, atau ubah sumber penggunaan Claude ke CLI/Web.";
+"claude_showing_last_known_usage" = "Menampilkan penggunaan terakhir yang diketahui, diambil %@.";
