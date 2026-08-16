@@ -134,5 +134,18 @@ struct KeychainNoUIQueryTests {
             processName: "swiftpm-testing-helper",
             environment: [KeychainTestSafety.allowAccessEnvironmentKey: "1"]) == false)
     }
+
+    @Test
+    func `item operation policy distinguishes the user gate from test suppression`() {
+        #expect(KeychainSecurity.itemOperationBlockReason(
+            keychainAccessDisabled: true,
+            testSafetyBlocked: false) == .keychainAccessDisabled)
+        #expect(KeychainSecurity.itemOperationBlockReason(
+            keychainAccessDisabled: false,
+            testSafetyBlocked: true) == .testSafetySuppressed)
+        #expect(KeychainSecurity.itemOperationBlockReason(
+            keychainAccessDisabled: false,
+            testSafetyBlocked: false) == nil)
+    }
 }
 #endif

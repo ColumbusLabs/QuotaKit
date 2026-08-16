@@ -1,23 +1,20 @@
 ---
-summary: "Current keychain behavior: legacy migration, Claude OAuth keychain bootstrap, and prompt mitigation."
+summary: "Current and historical engineering notes for CodexBar Keychain prompt containment."
 read_when:
-  - Investigating Keychain prompts
-  - Auditing Claude OAuth keychain behavior
-  - Comparing legacy keychain docs vs current architecture
+  - Auditing Keychain access boundaries
+  - Investigating legacy secret migration
+  - Comparing old startup-migration guidance with the current architecture
 ---
 
-# Keychain Fix: Current State
+# Keychain prompt containment: engineering note
 
-## Scope change from the original doc
-The original fix (migrating legacy CodexBar keychain items to `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`) is
-still in place, but the architecture has changed:
+The current design treats Keychain access as an interaction boundary, not as a property that can be fixed by changing
+an item's accessibility class. Background work should fail closed, user-initiated work may acknowledge deliberate
+interactive access, and all first-party Security.framework item operations route through `KeychainSecurity`.
 
-- Provider settings and manual secrets are now persisted in `~/.codexbar/config.json`.
-- Legacy keychain stores are still present mainly to migrate old installs, then clear old items.
-- Keychain is still used for runtime cache entries (for example `com.steipete.codexbar.cache`) and Claude OAuth
-  bootstrap reads from Claude CLI keychain (`Claude Code-credentials`).
+User-facing behavior and troubleshooting live in [Keychain prompts](keychain-prompts.md).
 
-## Then vs now
+## Current boundaries
 
 | Previous statement in this doc | Current behavior |
 | --- | --- |
@@ -27,18 +24,19 @@ still in place, but the architecture has changed:
 | Post-migration prompts should be zero in all Claude paths | Legacy-store migration uses no-UI reads; Claude OAuth launch/background refresh never prompts. Promptable Claude CLI keychain reads are limited to explicit user actions. |
 | Log category is `KeychainMigration` | Category is `keychain-migration` (kebab-case). |
 
-## Current keychain surfaces for Claude
+## Unified legacy migration
 
-### 1. Legacy CodexBar keychain migration (V1)
-`Sources/CodexBar/KeychainMigration.swift` migrates legacy `com.steipete.CodexBar` items (for example
-`claude-cookie`) to `AfterFirstUnlockThisDeviceOnly`.
+`CodexBarConfigMigrator` is the single migration owner for retired token, cookie, MiniMax, Kimi, OpenCode, and token-
+account stores. It reads every legacy source before cleanup, persists successfully read values idempotently, and only
+clears legacy stores after config persistence succeeds and every loader was readable. A loader failure records the
+provider/store identity without secret data, blocks all cleanup for that launch, and leaves
+`codexbar.legacySecretsMigrationCompleted` unset so the next launch retries.
 
-- Gate key: `KeychainMigrationV1Completed`
-- Runs once unless flag is reset.
-- Covers legacy CodexBar-managed accounts only (not Claude CLI's own keychain service).
+This ordering matters: “not found” is a successful read with no value, while “unreadable” is a migration failure. The
+latter must never be collapsed into absence because doing so could mark migration complete or clear another store
+whose value was recovered successfully.
 
-### 2. Claude OAuth bootstrap path
-`Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials.swift`
+## Retired accessibility migration
 
 Load order for credentials:
 1. Environment override (`CODEXBAR_CLAUDE_OAUTH_TOKEN`, scopes env key).
@@ -65,73 +63,16 @@ That user-action flow can perform up to two interactive reads:
 1. Interactive read of the newest discovered keychain candidate.
 2. If that does not return usable data, interactive legacy service-level fallback read.
 
-On some macOS keychain/ACL states, pressing **Allow** (session-only) for the first read does not grant enough access
-for the second read shape, so macOS prompts again. Pressing **Always Allow** usually authorizes both query shapes for
-the app identity and avoids the immediate second prompt.
+Routine tests run with `CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS=1` through `Scripts/test.sh`. Tests use task overrides,
+query construction checks, source audits, and store doubles. No test source except the audit itself may contain a
+direct Security item API call, and routine verification must not query the real Keychain, import browser cookies, or
+launch live provider probes.
 
-The prompt copy differs because Security.framework is authorizing different operations:
-- one path is a direct secret-data read for the key item,
-- the fallback path is a key/service access query.
+Relevant implementation files:
 
-This is OS/keychain ACL behavior, not a `ThisDeviceOnly` migration issue.
-
-### 3. Claude web cookie cache
-`Sources/CodexBarCore/CookieHeaderCache.swift` and `Sources/CodexBarCore/KeychainCacheStore.swift`
-
-- Browser-imported Claude session cookies are cached in keychain service `com.steipete.codexbar.cache`.
-- Account key is `cookie.claude`.
-- Cache writes use `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
-- Users can clear browser-cookie cache entries from **Preferences → Debug → Caches** or with
-  `codexbar cache clear --cookies`. `--provider <id>` scopes cookie clearing to one provider and includes scoped
-  Codex managed-account cookie keys.
-
-## What still uses `ThisDeviceOnly`
-
-- Legacy store implementations (`CookieHeaderStore`, token stores, MiniMax stores) still write using
-  `kSecAttrAccessibleAfterFirstUnlockThisDeviceOnly`.
-- Keychain cache store (`com.steipete.codexbar.cache`) also writes with `ThisDeviceOnly`.
-
-## Disable keychain access behavior
-
-`Advanced -> Disable Keychain access` sets `debugDisableKeychainAccess` and flips `KeychainAccessGate.isDisabled`.
-
-Effects:
-- Blocks keychain reads/writes in legacy stores and Claude CLI keychain bootstrap.
-- Disables Chromium cookie auto-import paths that require Safe Storage keychain decryption (Safari/Firefox remain eligible).
-- Keeps an in-process memory fallback only for `KeychainCacheStore` cookie session caches so Cursor (and other cookie providers) can still reconcile sessions without Keychain persistence. OAuth credential cache entries are never retained by this fallback.
-- Clears that in-process fallback whenever Keychain access is toggled, so disabled-mode cookies cannot resurface after re-enabling Keychain.
-- Allows Claude Auto **background** CLI when Keychain access is disabled only after a successful user-initiated CLI refresh establishes availability for the current app process. Background Auto never launches `claude auth status --json`; before foreground establishment it falls through without starting any Claude child process. When Keychain remains enabled, background Auto also requires prompt mode **Always**.
-
-## Verification
-
-### Check legacy migration flag
-```bash
-defaults read com.steipete.codexbar KeychainMigrationV1Completed
-```
-
-### Check Claude OAuth keychain cooldown
-```bash
-defaults read com.steipete.codexbar claudeOAuthKeychainDeniedUntil
-```
-
-### Inspect keychain-related logs
-```bash
-log show --predicate 'subsystem == "com.steipete.codexbar" && (category == "keychain-migration" || category == "keychain-preflight" || category == "keychain-prompt" || category == "keychain-cache" || category == "claude-usage" || category == "cookie-cache")' --last 10m
-```
-
-### Reset migration for local testing
-```bash
-defaults delete com.steipete.codexbar KeychainMigrationV1Completed
-./Scripts/compile_and_run.sh
-```
-
-## Key files (current)
-
-- `Sources/CodexBar/KeychainMigration.swift`
-- `Sources/CodexBar/HiddenWindowView.swift`
-- `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials.swift`
-- `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthKeychainAccessGate.swift`
-- `Sources/CodexBarCore/KeychainAccessPreflight.swift`
+- `Sources/CodexBarCore/KeychainSecurity.swift`
+- `Sources/CodexBarCore/KeychainAccessGate.swift`
 - `Sources/CodexBarCore/KeychainNoUIQuery.swift`
-- `Sources/CodexBarCore/KeychainCacheStore.swift`
-- `Sources/CodexBarCore/CookieHeaderCache.swift`
+- `Sources/CodexBarCore/BrowserCookieAccessGate.swift`
+- `Sources/CodexBar/Config/CodexBarConfigMigrator.swift`
+- `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/ClaudeOAuthCredentials.swift`
