@@ -70,6 +70,7 @@ extension StatusItemController {
         let costStrings = self.menuBarLayoutCostStrings(provider: provider, now: now)
         let providerName = L(self.store.metadata(for: provider).displayName)
         let accountLabel = self.menuBarLayoutAccountLabel(provider: provider, snapshot: snapshot)
+        let automatic = MenuBarLayoutRenderWindow(windows.automatic)
 
         return MenuBarLayoutRenderData(
             iconKey: "\(provider.rawValue):\(warningFlash ? "warning" : "normal")",
@@ -146,8 +147,12 @@ extension StatusItemController {
         let semanticWindows = MenuBarLayoutSemanticWindowResolver.windows(
             provider: provider,
             snapshot: snapshot)
+        // Provider-specific by design: Mistral's automatic lane can explicitly select its Monthly Plan window.
+        let automaticPreference = provider == .mistral
+            ? self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+            : .automatic
         let automatic = MenuBarMetricWindowResolver.rateWindow(
-            preference: .automatic,
+            preference: automaticPreference,
             provider: provider,
             snapshot: snapshot,
             supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),

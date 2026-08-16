@@ -32,6 +32,8 @@ struct MenuBarLayoutRenderData: Hashable {
     /// `.scopedWeekly` token with the real model rather than assuming Fable.
     let scopedWeeklyTitle: String?
     let automatic: MenuBarLayoutRenderWindow?
+    /// Provider-specific text used by the automatic percent token when no percentage window exists.
+    let automaticText: String?
     /// Signed pace deltas per window, already formatted (`+11%`, `-8%`, `0%`). Pace needs the store's
     /// historical dataset and work-day setting, so it is resolved upstream like `runsOut` rather than
     /// derived from the render windows here.
@@ -333,8 +335,11 @@ final class MenuBarLayoutRenderer {
                 attributes: style.attributes)
         case let .percent(window):
             let rateWindow = Self.window(window, data: data)
-            let percent = rateWindow.map { options.showUsed ? $0.usedPercent : $0.remainingPercent }
-            let value = percent.map(UsageFormatter.percentString) ?? Self.missingValue
+            let resolvedValue = Self.percentValue(
+                window: window,
+                rateWindow: rateWindow,
+                automaticText: data.automaticText,
+                showUsed: options.showUsed)
             let prefix: String
             let accessibilityPrefix: String
             switch window {
@@ -351,10 +356,10 @@ final class MenuBarLayoutRenderer {
                 prefix = ""
                 accessibilityPrefix = L("Usage")
             }
-            let display = prefix.isEmpty ? value : "\(prefix) \(value)"
-            let accessibility = percent == nil
-                ? L("%@ unavailable", accessibilityPrefix)
-                : L("%@ %@", accessibilityPrefix, value)
+            let display = prefix.isEmpty ? resolvedValue.text : "\(prefix) \(resolvedValue.text)"
+            let accessibility = resolvedValue.isAvailable
+                ? L("%@ %@", accessibilityPrefix, resolvedValue.text)
+                : L("%@ unavailable", accessibilityPrefix)
             return self.textToken(display, accessibilityText: accessibility, attributes: style.attributes)
         case let .pace(window):
             return self.optionalTextToken(
@@ -419,6 +424,23 @@ final class MenuBarLayoutRenderer {
 
     private static func iconAccessibilityText(data: MenuBarLayoutRenderData) -> String {
         L("%@ icon", data.providerName ?? L("Provider"))
+    }
+
+    private static func percentValue(
+        window: PercentWindow,
+        rateWindow: MenuBarLayoutRenderWindow?,
+        automaticText: String?,
+        showUsed: Bool)
+        -> (text: String, isAvailable: Bool)
+    {
+        if let rateWindow {
+            let percent = showUsed ? rateWindow.usedPercent : rateWindow.remainingPercent
+            return (UsageFormatter.percentString(percent), true)
+        }
+        if window == .automatic, let automaticText {
+            return (automaticText, true)
+        }
+        return (Self.missingValue, false)
     }
 
     private static func compactRunsOutText(_ text: String) -> String {

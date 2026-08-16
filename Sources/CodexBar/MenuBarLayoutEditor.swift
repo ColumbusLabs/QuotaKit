@@ -693,8 +693,12 @@ struct MenuBarLayoutPreview: View {
                 snapshot: snapshot)
             session = semanticWindows.session
             weekly = semanticWindows.weekly
+            // Provider-specific by design: Mistral's automatic lane can explicitly select its Monthly Plan window.
+            let automaticPreference = provider == .mistral
+                ? self.settings.menuBarMetricPreference(for: provider, snapshot: snapshot)
+                : .automatic
             rawAutomatic = MenuBarMetricWindowResolver.rateWindow(
-                preference: .automatic,
+                preference: automaticPreference,
                 provider: provider,
                 snapshot: snapshot,
                 supportsAverage: self.settings.menuBarMetricSupportsAverage(for: provider),
@@ -712,6 +716,7 @@ struct MenuBarLayoutPreview: View {
             .flatMap { UsagePaceText.weeklyDetail(provider: provider, pace: $0, now: now).rightLabel }
         let cost = self.store.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let costToday = MenuBarLayoutCostResolver.todayCostUSD(snapshot: cost, now: now)
+        let automaticRenderWindow = MenuBarLayoutRenderWindow(automatic)
         return MenuBarLayoutRenderData(
             iconKey: provider.rawValue,
             providerName: L(self.store.metadata(for: provider).displayName),
@@ -765,6 +770,7 @@ struct MenuBarLayoutPreview: View {
             scopedWeekly: MenuBarLayoutRenderWindow(scopedWeekly),
             scopedWeeklyTitle: "Fable only",
             automatic: MenuBarLayoutRenderWindow(session),
+            automaticText: nil,
             sessionPace: samplePace(session),
             weeklyPace: samplePace(weekly),
             automaticPace: samplePace(session),
