@@ -1,7 +1,13 @@
 /* Arabic localization for CodexBar */
 
 /* iCloud Sync */
+"+ %d more" = "+ %d أخرى";
+"Conversations (%@)" = "المحادثات (%@)";
+"Fast" = "سريع";
 "iCloud Sync" = "iCloud Sync";
+"Projects" = "المشاريع";
+"Session %@" = "الجلسة %@";
+"Std" = "قياسي";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

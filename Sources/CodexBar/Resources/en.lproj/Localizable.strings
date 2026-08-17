@@ -109,6 +109,9 @@
 "Could not switch system account" = "Could not switch system account";
 "Credits" = "Credits";
 "Individual credits" = "Individual credits";
+"Projects" = "Projects";
+"Session %@" = "Session %@";
+"Std" = "Std";
 "Workspace" = "Workspace";
 "Credits history" = "Credits history";
 "Cursor login failed" = "Cursor login failed";

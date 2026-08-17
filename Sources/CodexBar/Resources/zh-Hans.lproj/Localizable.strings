@@ -1,7 +1,13 @@
 /* Chinese (Simplified) localization for CodexBar */
 
 /* iCloud Sync */
+"+ %d more" = "还有 %d 个";
+"Conversations (%@)" = "会话（%@）";
+"Fast" = "高速";
 "iCloud Sync" = "iCloud Sync";
+"Projects" = "项目";
+"Session %@" = "会话 %@";
+"Std" = "标准";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

@@ -420,7 +420,7 @@ struct CostHistoryChartMenuView: View {
         let visibleCount = min(self.sessions.count, Self.maxVisibleSessionRows)
         return VStack(alignment: .leading, spacing: Self.sessionRowSpacing) {
             HStack {
-                Text("Conversations (\(self.windowLabel ?? Self.windowLabel(days: self.historyDays)))")
+                Text(L("Conversations (%@)", self.windowLabel ?? Self.windowLabel(days: self.historyDays)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -454,7 +454,7 @@ struct CostHistoryChartMenuView: View {
     private func sessionRow(_ session: CostUsageSessionBreakdown) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text("Session \(Self.shortSessionID(session.sessionID))")
+                Text(L("Session %@", Self.shortSessionID(session.sessionID)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -990,14 +990,14 @@ struct CostHistoryChartMenuView: View {
     private func modelBreakdownModeSubtitle(_ item: CostUsageDailyReport.ModelBreakdown) -> String? {
         var parts: [String] = []
         if let standardCost = item.standardCostUSD {
-            var standardPart = "Std \(self.costString(standardCost))"
+            var standardPart = "\(L("Std")) \(self.costString(standardCost))"
             if let standardTokens = item.standardTokens {
                 standardPart += " · \(UsageFormatter.tokenCountString(standardTokens))"
             }
             parts.append(standardPart)
         }
         if let priorityCost = item.priorityCostUSD {
-            var priorityPart = "Fast \(self.costString(priorityCost))"
+            var priorityPart = "\(L("Fast")) \(self.costString(priorityCost))"
             if let priorityTokens = item.priorityTokens {
                 priorityPart += " · \(UsageFormatter.tokenCountString(priorityTokens))"
             }

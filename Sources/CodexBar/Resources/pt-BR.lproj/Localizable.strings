@@ -1,7 +1,13 @@
 /* Brazilian Portuguese localization for CodexBar */
 
 /* iCloud Sync */
+"+ %d more" = "+ %d mais";
+"Conversations (%@)" = "Conversas (%@)";
+"Fast" = "Rápido";
 "iCloud Sync" = "iCloud Sync";
+"Projects" = "Projetos";
+"Session %@" = "Sessão %@";
+"Std" = "Padrão";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

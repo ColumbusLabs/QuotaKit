@@ -1,7 +1,13 @@
 /* Korean (한국어) localization for CodexBar */
 
 /* iCloud Sync */
+"+ %d more" = "+ %d개 더";
+"Conversations (%@)" = "대화 (%@)";
+"Fast" = "빠름";
 "iCloud Sync" = "iCloud Sync";
+"Projects" = "프로젝트";
+"Session %@" = "세션 %@";
+"Std" = "표준";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";
