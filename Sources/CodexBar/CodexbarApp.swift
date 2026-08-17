@@ -91,10 +91,12 @@ struct CodexBarApp: App {
         self.preferencesSelection = preferencesSelection
         _settings = State(wrappedValue: settings)
         _store = State(wrappedValue: store)
-        _syncCoordinator = State(wrappedValue: SyncCoordinator(
+        let syncCoordinator = SyncCoordinator(
             store: store,
             settings: settings,
-            mockInjector: { @MainActor in MockProviderInjector.injectedSnapshots() }))
+            mockInjector: { @MainActor in MockProviderInjector.injectedSnapshots() })
+        syncCoordinator.startObserving()
+        _syncCoordinator = State(wrappedValue: syncCoordinator)
         _managedCodexAccountCoordinator = State(wrappedValue: managedCodexAccountCoordinator)
         _codexAccountPromotionCoordinator = State(wrappedValue: codexAccountPromotionCoordinator)
         self.account = account
@@ -110,15 +112,6 @@ struct CodexBarApp: App {
 
     @SceneBuilder
     var body: some Scene {
-        // Hidden 1×1 window to keep SwiftUI's lifecycle alive so `Settings` scene
-        // shows the native toolbar tabs even though the UI is AppKit-based.
-        WindowGroup("CodexBarLifecycleKeepalive") {
-            HiddenWindowView()
-                .modifier(CloudSyncModifier(coordinator: self.syncCoordinator))
-        }
-        .defaultSize(width: 20, height: 20)
-        .windowStyle(.hiddenTitleBar)
-
         Settings {
             PreferencesView(
                 settings: self.settings,
@@ -135,23 +128,6 @@ struct CodexBarApp: App {
         }
         .defaultSize(width: SettingsPane.windowWidth, height: SettingsPane.windowHeight)
         .windowResizability(.contentMinSize)
-    }
-
-    private func openSettings(pane: SettingsPane) {
-        self.preferencesSelection.pane = pane
-        DockIconController.shared.promote()
-        NSApp.activate(ignoringOtherApps: true)
-        let outcome = SettingsWindowOpener.live().open(preferred: .appKit)
-        let logger = CodexBarLog.logger(LogCategories.app)
-        switch outcome {
-        case .preferred:
-            break
-        case .fallback:
-            logger.warning("Settings AppKit action was not handled; used notification fallback")
-        case .failed:
-            DockIconController.shared.presentationFailed()
-            logger.error("Failed to open Settings; AppKit action and notification fallback unavailable")
-        }
     }
 
     private static func applyLanguagePreference(from settings: SettingsStore) {
@@ -434,6 +410,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         self.dockIconController.start()
         self.memoryPressureMonitor.start()
+        Task.detached(priority: .utility) {
+            _ = KeychainMigration.migrateIfNeeded()
+        }
         #if DEBUG
         self.installDebugMemoryPressureObserverIfNeeded()
         #endif

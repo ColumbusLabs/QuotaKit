@@ -617,14 +617,14 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                 self.preferencesSelection.pane = pane
             }
             NSApp.activate(ignoringOtherApps: true)
-            let outcome = SettingsWindowOpener.live().open(preferred: .notification)
+            let outcome = SettingsWindowOpener.live().open()
             switch outcome {
-            case .preferred:
+            case .settingsSelector:
                 break
-            case .fallback:
-                self.menuLogger.warning("Settings notification relay unavailable; used AppKit fallback")
+            case .preferencesSelector:
+                self.menuLogger.warning("Modern Settings action was not handled; used legacy Preferences action")
             case .failed:
-                self.menuLogger.error("Failed to open Settings; notification relay and AppKit fallback unavailable")
+                self.menuLogger.error("Failed to open Settings; AppKit actions were not handled")
             }
         }
     }

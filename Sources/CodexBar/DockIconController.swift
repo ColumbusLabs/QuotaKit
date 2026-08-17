@@ -27,15 +27,12 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
     var isRealWindow: Bool {
         guard self.isVisible, !self.isMiniaturized, self.canBecomeKey else { return false }
-        guard !self.isKeepaliveWindow, !self.isStatusBarWindow else { return false }
+        guard !self.isTinyWindow, !self.isStatusBarWindow else { return false }
         return true
     }
 
-    private var isKeepaliveWindow: Bool {
-        if self.identifier == "CodexBarLifecycleKeepalive" || self.title == "CodexBarLifecycleKeepalive" {
-            return true
-        }
-        return self.width <= 20 && self.height <= 20
+    private var isTinyWindow: Bool {
+        self.width <= 20 && self.height <= 20
     }
 
     private var isStatusBarWindow: Bool {
