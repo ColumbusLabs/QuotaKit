@@ -32,6 +32,8 @@ struct MenuBarLayoutRenderData: Hashable {
     /// `.scopedWeekly` token with the real model rather than assuming Fable.
     let scopedWeeklyTitle: String?
     let automatic: MenuBarLayoutRenderWindow?
+    /// Provider-specific text used by the automatic percent token when no percentage window exists.
+    let automaticText: String?
     /// Signed pace deltas per window, already formatted (`+11%`, `-8%`, `0%`). Pace needs the store's
     /// historical dataset and work-day setting, so it is resolved upstream like `runsOut` rather than
     /// derived from the render windows here.
@@ -333,8 +335,11 @@ final class MenuBarLayoutRenderer {
                 attributes: style.attributes)
         case let .percent(window):
             let rateWindow = Self.window(window, data: data)
-            let percent = rateWindow.map { options.showUsed ? $0.usedPercent : $0.remainingPercent }
-            let value = percent.map(UsageFormatter.percentString) ?? Self.missingValue
+            let resolvedValue = Self.percentValue(
+                window: window,
+                rateWindow: rateWindow,
+                automaticText: data.automaticText,
+                showUsed: options.showUsed)
             let prefix: String
             let accessibilityPrefix: String
             switch window {
@@ -351,10 +356,10 @@ final class MenuBarLayoutRenderer {
                 prefix = ""
                 accessibilityPrefix = L("Usage")
             }
-            let display = prefix.isEmpty ? value : "\(prefix) \(value)"
-            let accessibility = percent == nil
-                ? L("%@ unavailable", accessibilityPrefix)
-                : L("%@ %@", accessibilityPrefix, value)
+            let display = prefix.isEmpty ? resolvedValue.text : "\(prefix) \(resolvedValue.text)"
+            let accessibility = resolvedValue.isAvailable
+                ? L("%@ %@", accessibilityPrefix, resolvedValue.text)
+                : L("%@ unavailable", accessibilityPrefix)
             return self.textToken(display, accessibilityText: accessibility, attributes: style.attributes)
         case let .pace(window):
             return self.optionalTextToken(
@@ -388,10 +393,12 @@ final class MenuBarLayoutRenderer {
                     ?? data.automatic?.resetDescription,
                 unavailableLabel: L("Reset time unavailable"),
                 attributes: style.attributes)
-        case .runsOut:
+        case .runsOut, .runsOutCompact:
+            let isCompact = item == .runsOutCompact
             return self.optionalTextToken(
-                data.runsOut,
+                isCompact ? data.runsOut.map(self.compactRunsOutText) : data.runsOut,
                 unavailableLabel: L("Run-out estimate unavailable"),
+                accessibilityText: isCompact ? data.runsOut : nil,
                 attributes: style.attributes)
         case .balance:
             return self.optionalTextToken(
@@ -417,6 +424,44 @@ final class MenuBarLayoutRenderer {
 
     private static func iconAccessibilityText(data: MenuBarLayoutRenderData) -> String {
         L("%@ icon", data.providerName ?? L("Provider"))
+    }
+
+    private static func percentValue(
+        window: PercentWindow,
+        rateWindow: MenuBarLayoutRenderWindow?,
+        automaticText: String?,
+        showUsed: Bool)
+        -> (text: String, isAvailable: Bool)
+    {
+        if let rateWindow {
+            let percent = showUsed ? rateWindow.usedPercent : rateWindow.remainingPercent
+            return (UsageFormatter.percentString(percent), true)
+        }
+        if window == .automatic, let automaticText {
+            return (automaticText, true)
+        }
+        return (Self.missingValue, false)
+    }
+
+    private static func compactRunsOutText(_ text: String) -> String {
+        let nowLabel = L("Runs out now")
+        if text.hasPrefix(nowLabel) {
+            return "now" + text.dropFirst(nowLabel.count)
+        }
+
+        let marker = "\u{F8FF}"
+        let localizedTemplate = L("Runs out in %@", marker)
+        guard let markerRange = localizedTemplate.range(of: marker) else { return text }
+
+        let prefix = localizedTemplate[..<markerRange.lowerBound]
+        let suffix = localizedTemplate[markerRange.upperBound...]
+        guard text.hasPrefix(prefix) else { return text }
+
+        let withoutPrefix = text.dropFirst(prefix.count)
+        guard !suffix.isEmpty,
+              let suffixRange = withoutPrefix.range(of: suffix)
+        else { return String(withoutPrefix) }
+        return String(withoutPrefix[..<suffixRange.lowerBound]) + String(withoutPrefix[suffixRange.upperBound...])
     }
 
     private static func offsetLeadingIcon(_ image: NSImage, adjustment: Int) -> NSImage {
@@ -475,14 +520,15 @@ final class MenuBarLayoutRenderer {
         _ value: String?,
         unavailableLabel: String,
         accessibilityPrefix: String? = nil,
+        accessibilityText: String? = nil,
         attributes: [NSAttributedString.Key: Any])
         -> (value: NSAttributedString, accessibilityText: String?)
     {
         guard let value, !value.isEmpty else {
             return self.textToken(self.missingValue, accessibilityText: unavailableLabel, attributes: attributes)
         }
-        let accessibilityText = accessibilityPrefix.map { "\($0) \(value)" } ?? value
-        return self.textToken(value, accessibilityText: accessibilityText, attributes: attributes)
+        let resolvedAccessibilityText = accessibilityText ?? accessibilityPrefix.map { "\($0) \(value)" } ?? value
+        return self.textToken(value, accessibilityText: resolvedAccessibilityText, attributes: attributes)
     }
 
     private static func textToken(

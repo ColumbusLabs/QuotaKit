@@ -1493,13 +1493,13 @@ extension StatusItemController {
             return self.makeUsageBreakdownSubmenu(width: width)
         }
         // Provider-specific by design: OpenAI and Mistral attach cost history to their provider usage row.
-        if provider == .openai {
+        if provider == .openai, self.settings.costSummaryShowsSubmenu(for: provider) {
             return self.makeOpenAIAPIUsageSubmenu(provider: provider, width: width)
         }
-        // Mistral's top usage pane has no rate-limit bars of its own, so its cost history always hangs
-        // off this row. Providers whose cards render an inline cost dashboard also gain cost history
-        // on the top card when the Cost Summary style permits it; Both still keeps the dedicated Cost row.
-        if provider == .mistral {
+        // Mistral's top usage pane has no rate-limit bars of its own, so its cost history hangs off this row
+        // when the Cost Summary style permits it. Other inline cost dashboards follow the same submenu policy;
+        // Both still keeps the dedicated Cost row.
+        if provider == .mistral, self.settings.costSummaryShowsSubmenu(for: provider) {
             return self.makeCostHistorySubmenu(provider: provider, width: width)
         }
         if hasInlineCostDashboard, self.settings.costSummaryShowsSubmenu(for: provider) {

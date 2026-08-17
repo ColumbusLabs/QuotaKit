@@ -116,13 +116,11 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `tests do not call Security item APIs except no UI query coverage`() throws {
+    func `tests do not call Security item APIs outside this source audit`() throws {
         let securityItemCalls = ["SecItemCopyMatching", "SecItemUpdate", "SecItemAdd", "SecItemDelete"]
-        let offenders = try Self.swiftTestFiles().filter { file in
+        let offenders = try Self.swiftTestFiles(excludingSelf: true).filter { file in
             let text = try Self.readFile(file)
             return securityItemCalls.contains(where: text.contains)
-                && !file.path.hasSuffix("Tests/CodexBarTests/KeychainNoUIQueryTests.swift")
-                && !file.path.hasSuffix("Tests/CodexBarTests/KeychainPromptSafetyAuditTests.swift")
         }
 
         #expect(offenders.isEmpty, "Unexpected direct Security item access in tests: \(offenders.map(\.path))")

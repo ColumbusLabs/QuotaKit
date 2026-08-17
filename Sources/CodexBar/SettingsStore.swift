@@ -2,6 +2,9 @@ import AppKit
 import CodexBarCore
 import Observation
 import ServiceManagement
+#if canImport(WidgetKit)
+import WidgetKit
+#endif
 
 enum RefreshFrequency: String, CaseIterable, Identifiable {
     case manual
@@ -127,6 +130,24 @@ enum MultiAccountMenuLayout: String, CaseIterable, Identifiable {
         switch self {
         case .segmented: L("multi_account_layout_segmented")
         case .stacked: L("multi_account_layout_stacked")
+        }
+    }
+}
+
+enum WorkdayTickAppearance: String, CaseIterable, Identifiable {
+    case hidden
+    case subtle
+    case highContrast
+
+    var id: String {
+        self.rawValue
+    }
+
+    var label: String {
+        switch self {
+        case .hidden: L("workday_tick_appearance_hidden")
+        case .subtle: L("workday_tick_appearance_subtle")
+        case .highContrast: L("workday_tick_appearance_high_contrast")
         }
     }
 }
@@ -456,6 +477,8 @@ extension SettingsStore {
             userDefaults.set(true, forKey: "quotaWarningMarkersVisible")
         }
         let weeklyProgressWorkDays = userDefaults.object(forKey: "weeklyProgressWorkDays") as? Int
+        let workdayTickAppearanceRaw = userDefaults.string(forKey: "workdayTickAppearance")
+            ?? WorkdayTickAppearance.subtle.rawValue
         let usageBarsShowUsed = userDefaults.object(forKey: "usageBarsShowUsed") as? Bool ?? false
         let resetTimesShowAbsolute = userDefaults.object(forKey: "resetTimesShowAbsolute") as? Bool ?? false
         let providerChangelogLinksEnabled = userDefaults.object(
@@ -508,6 +531,11 @@ extension SettingsStore {
             forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey) as? Bool ?? false
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let optionalCreditsDefaults = Self.loadOptionalCreditsDefaults(userDefaults: userDefaults)
+        let codexExternalOAuthSourcesAllowed = userDefaults.object(
+            forKey: "codexExternalOAuthSourcesAllowed") as? Bool ?? false
+        if Self.isRunningTests, userDefaults.object(forKey: "codexExternalOAuthSourcesAllowed") == nil {
+            userDefaults.set(false, forKey: "codexExternalOAuthSourcesAllowed")
+        }
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let backgroundWorkLowPowerModeEnabled =
             userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
@@ -569,6 +597,7 @@ extension SettingsStore {
             quotaWarningOnScreenAlertEnabled: quotaWarnings.onScreenAlertEnabled,
             quotaWarningMarkersVisible: quotaWarningMarkersVisible,
             weeklyProgressWorkDays: weeklyProgressWorkDays,
+            workdayTickAppearanceRaw: workdayTickAppearanceRaw,
             usageBarsShowUsed: usageBarsShowUsed,
             resetTimesShowAbsolute: resetTimesShowAbsolute,
             providerChangelogLinksEnabled: providerChangelogLinksEnabled,
@@ -607,6 +636,7 @@ extension SettingsStore {
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
+            codexExternalOAuthSourcesAllowed: codexExternalOAuthSourcesAllowed,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
             backgroundWorkLowPowerModeEnabled: backgroundWorkLowPowerModeEnabled,
@@ -973,12 +1003,24 @@ extension SettingsStore {
             enablement[instanceID] = isEnabled
         }
         self.providerEnablement = enablement
+        // Every config path crosses this method, so the accent palette refreshes from a settings edit,
+        // an external edit to the config file, and an inbound iCloud sync alike.
+        if ProviderAccentPalette.apply(config: config) {
+            #if canImport(WidgetKit)
+            WidgetCenter.shared.reloadAllTimelines()
+            #endif
+        }
     }
 
     private static func providerConfigFingerprint(_ config: ProviderConfig) -> Data {
+        // This fingerprint gates provider refresh publication, so it must cover only fields a fetch
+        // depends on. A purely cosmetic field would otherwise discard an in-flight probe result, and
+        // a cosmetic edit schedules no replacement fetch.
+        var fetchRelevant = config
+        fetchRelevant.accentColor = nil
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        return (try? encoder.encode(config)) ?? Data()
+        return (try? encoder.encode(fetchRelevant)) ?? Data()
     }
 
     func providerEnablementRevision(for provider: UsageProvider) -> UInt64 {

@@ -116,7 +116,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-color] [--pretty] [--refresh] [--provider-native-only]
-                       [--days <days>] [--group-by project]
+                       [--days <days>] [--group-by project|session]
 
         Description:
           Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.

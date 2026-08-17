@@ -400,6 +400,11 @@ final class UsageStore {
     @ObservationIgnored var codexHistoricalDataset: CodexHistoricalDataset?
     @ObservationIgnored var codexHistoricalDatasetAccountKey: String?
     @ObservationIgnored var lastKnownResetSnapshots: [ProviderInstanceID: UsageSnapshot] = [:]
+    /// A stable ambient Auto refresh failed after every live Claude source was exhausted, so persisted
+    /// plan-utilization history may safely supply a stale presentation snapshot for the same profile.
+    @ObservationIgnored var claudeHistoryFallbackEligible = false
+    @ObservationIgnored var claudeHistoryFallbackActiveAccountObservation:
+        ClaudeOAuthActiveAccountObservation = .changed
     @ObservationIgnored var sessionQuotaTransitionStates: [SessionQuotaStateKey: SessionQuotaTransitionState] = [:]
     @ObservationIgnored var deepseekProfileTransition: DeepSeekProfileTransition?
     @ObservationIgnored var codexSessionQuotaBaselineRequirement: CodexSessionQuotaBaselineRequirement?

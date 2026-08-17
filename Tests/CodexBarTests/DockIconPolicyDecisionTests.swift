@@ -6,8 +6,10 @@ struct DockIconPolicyDecisionTests {
     func `settings window requires regular activation policy`() {
         let settings = self.window(identifier: "com_apple_SwiftUI_Settings_window")
         let hostedSettings = self.window(identifier: "future-settings-identifier", isKnownSettingsWindow: true)
+        let miniaturizedSettings = self.window(isVisible: false, isMiniaturized: true, isKnownSettingsWindow: true)
 
         #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [settings]))
+        #expect(DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: [miniaturizedSettings]))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(settings))
         #expect(DockIconPolicyDecision.shouldPromoteForPresentedWindow(hostedSettings))
     }
@@ -37,13 +39,7 @@ struct DockIconPolicyDecisionTests {
     }
 
     @Test
-    func `ignored windows allow accessory activation policy`() {
-        let keepalive = self.window(
-            identifier: "CodexBarLifecycleKeepalive",
-            title: "CodexBarLifecycleKeepalive",
-            width: 1,
-            height: 1,
-            canBecomeKey: false)
+    func `status bar and non-key windows allow accessory activation policy`() {
         let statusBar = self.window(
             classNames: ["NSStatusBarWindow"],
             width: 300,
@@ -53,7 +49,7 @@ struct DockIconPolicyDecisionTests {
             canBecomeKey: false)
 
         #expect(!DockIconPolicyDecision.shouldUseRegularActivationPolicy(
-            windows: [keepalive, statusBar, borderlessPanel]))
+            windows: [statusBar, borderlessPanel]))
     }
 
     @Test

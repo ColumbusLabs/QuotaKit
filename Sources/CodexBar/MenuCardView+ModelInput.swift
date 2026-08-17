@@ -24,7 +24,7 @@ extension UsageMenuCardView.Model {
         let tokenCostUsageEnabled: Bool
         let tokenCostIsRefreshing: Bool
         let codexLocalSessionCostLedgerEnabled: Bool
-        let tokenCostInlineDashboardEnabled: Bool
+        let costSummaryInlineEnabled: Bool
         let tokenCostMenuSectionEnabled: Bool
         let costComparisonPeriodsEnabled: Bool
         let showOptionalCreditsAndExtraUsage: Bool
@@ -42,6 +42,7 @@ extension UsageMenuCardView.Model {
         let sessionEquivalentForecast: SessionEquivalentForecast?
         let quotaWarningThresholds: [QuotaWarningWindow: [Int]]
         let workDaysPerWeek: Int?
+        let workdayTickAppearance: WorkdayTickAppearance
         let usesLiveSubtitle: Bool
         let preferredCurrencyCode: String
         let now: Date
@@ -68,7 +69,7 @@ extension UsageMenuCardView.Model {
             tokenCostUsageEnabled: Bool,
             tokenCostIsRefreshing: Bool = false,
             codexLocalSessionCostLedgerEnabled: Bool = false,
-            tokenCostInlineDashboardEnabled: Bool? = nil,
+            costSummaryInlineEnabled: Bool? = nil,
             tokenCostMenuSectionEnabled: Bool? = nil,
             costComparisonPeriodsEnabled: Bool = false,
             showOptionalCreditsAndExtraUsage: Bool,
@@ -84,6 +85,7 @@ extension UsageMenuCardView.Model {
             sessionEquivalentForecast: SessionEquivalentForecast? = nil,
             quotaWarningThresholds: [QuotaWarningWindow: [Int]] = [:],
             workDaysPerWeek: Int? = nil,
+            workdayTickAppearance: WorkdayTickAppearance = .subtle,
             usesLiveSubtitle: Bool = false,
             preferredCurrencyCode: String = "auto",
             now: Date)
@@ -109,7 +111,7 @@ extension UsageMenuCardView.Model {
             self.tokenCostUsageEnabled = tokenCostUsageEnabled
             self.tokenCostIsRefreshing = tokenCostIsRefreshing
             self.codexLocalSessionCostLedgerEnabled = codexLocalSessionCostLedgerEnabled
-            self.tokenCostInlineDashboardEnabled = tokenCostInlineDashboardEnabled ?? tokenCostUsageEnabled
+            self.costSummaryInlineEnabled = costSummaryInlineEnabled ?? tokenCostUsageEnabled
             self.tokenCostMenuSectionEnabled = tokenCostMenuSectionEnabled ?? tokenCostUsageEnabled
             self.costComparisonPeriodsEnabled = costComparisonPeriodsEnabled
             self.showOptionalCreditsAndExtraUsage = showOptionalCreditsAndExtraUsage
@@ -125,6 +127,7 @@ extension UsageMenuCardView.Model {
             self.sessionEquivalentForecast = sessionEquivalentForecast
             self.quotaWarningThresholds = quotaWarningThresholds
             self.workDaysPerWeek = workDaysPerWeek
+            self.workdayTickAppearance = workdayTickAppearance
             self.usesLiveSubtitle = usesLiveSubtitle
             self.preferredCurrencyCode = preferredCurrencyCode
             self.now = now

@@ -27,15 +27,12 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
     var isRealWindow: Bool {
         guard self.isVisible, !self.isMiniaturized, self.canBecomeKey else { return false }
-        guard !self.isKeepaliveWindow, !self.isStatusBarWindow else { return false }
+        guard !self.isTinyWindow, !self.isStatusBarWindow else { return false }
         return true
     }
 
-    private var isKeepaliveWindow: Bool {
-        if self.identifier == "CodexBarLifecycleKeepalive" || self.title == "CodexBarLifecycleKeepalive" {
-            return true
-        }
-        return self.width <= 20 && self.height <= 20
+    private var isTinyWindow: Bool {
+        self.width <= 20 && self.height <= 20
     }
 
     private var isStatusBarWindow: Bool {
@@ -45,7 +42,9 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
 
 enum DockIconPolicyDecision {
     static func shouldUseRegularActivationPolicy(windows: [DockIconWindowDescriptor]) -> Bool {
-        windows.contains(where: \.isRealWindow)
+        windows.contains { window in
+            window.isRealWindow || (window.isSettingsWindow && window.isMiniaturized)
+        }
     }
 
     static func shouldPromoteForPresentedWindow(_ window: DockIconWindowDescriptor) -> Bool {
@@ -110,6 +109,13 @@ final class DockIconController: NSObject {
         self.promotionGeneration += 1
         self.isAwaitingPresentedWindow = false
         self.reevaluatePolicy()
+    }
+
+    func prepareToOpenSettings() {
+        self.promote()
+        if let settingsWindow, settingsWindow.isMiniaturized {
+            SettingsWindowStageBehavior.present(settingsWindow)
+        }
     }
 
     func registerSettingsWindow(_ window: NSWindow) {

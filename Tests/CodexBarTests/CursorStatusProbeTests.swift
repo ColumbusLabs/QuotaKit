@@ -591,199 +591,6 @@ struct CursorStatusProbeTests {
         #expect(snapshot.requestsLimit == 500)
     }
 
-    // MARK: - Imported Session Scanning
-
-    @Test
-    func `imported session scan continues after non auth failure until later success`() async {
-        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
-        let expected = CursorStatusSnapshot(
-            planPercentUsed: 0.441025641025641,
-            autoPercentUsed: 0.36,
-            apiPercentUsed: 0.7111111111111111,
-            planUsedUSD: 0.86,
-            planLimitUSD: 20.0,
-            onDemandUsedUSD: 0,
-            onDemandLimitUSD: nil,
-            teamOnDemandUsedUSD: nil,
-            teamOnDemandLimitUSD: nil,
-            billingCycleEnd: nil,
-            membershipType: "pro",
-            accountEmail: nil,
-            accountName: nil,
-            rawJSON: nil)
-
-        let result = await probe.scanImportedSessions([
-            Self.makeSessionInfo(sourceLabel: "Chrome"),
-            Self.makeSessionInfo(sourceLabel: "Safari"),
-        ]) { session in
-            switch session.sourceLabel {
-            case "Chrome":
-                .failed(.networkError("HTTP 500"))
-            case "Safari":
-                .succeeded(expected)
-            default:
-                .tryNextBrowser
-            }
-        }
-
-        switch result {
-        case let .succeeded(snapshot):
-            #expect(snapshot.planPercentUsed == expected.planPercentUsed)
-            #expect(snapshot.autoPercentUsed == expected.autoPercentUsed)
-            #expect(snapshot.apiPercentUsed == expected.apiPercentUsed)
-        case .exhausted:
-            Issue.record("Expected scan to continue to the later successful browser session")
-        }
-    }
-
-    @Test
-    func `imported session scan preserves first non auth failure after exhausting sessions`() async {
-        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
-
-        let result = await probe.scanImportedSessions([
-            Self.makeSessionInfo(sourceLabel: "Chrome"),
-            Self.makeSessionInfo(sourceLabel: "Safari"),
-            Self.makeSessionInfo(sourceLabel: "Arc"),
-        ]) { session in
-            switch session.sourceLabel {
-            case "Chrome":
-                .failed(.networkError("HTTP 500"))
-            case "Safari":
-                .tryNextBrowser
-            case "Arc":
-                .failed(.parseFailed("bad payload"))
-            default:
-                .tryNextBrowser
-            }
-        }
-
-        switch result {
-        case .succeeded:
-            Issue.record("Expected scan to report the first recoverable error after exhausting sessions")
-        case let .exhausted(error):
-            guard let error else {
-                Issue.record("Expected first recoverable error to be preserved")
-                return
-            }
-            guard case let .networkError(message) = error else {
-                Issue.record("Expected first recoverable error to be the Chrome network failure")
-                return
-            }
-            #expect(message == "HTTP 500")
-        }
-    }
-
-    @Test
-    func `browser scan stops importing after later browser succeeds`() async {
-        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
-        let expected = CursorStatusSnapshot(
-            planPercentUsed: 42,
-            autoPercentUsed: 12,
-            apiPercentUsed: 85,
-            planUsedUSD: 8.4,
-            planLimitUSD: 20,
-            onDemandUsedUSD: 0,
-            onDemandLimitUSD: nil,
-            teamOnDemandUsedUSD: nil,
-            teamOnDemandLimitUSD: nil,
-            billingCycleEnd: nil,
-            membershipType: "pro",
-            accountEmail: nil,
-            accountName: nil,
-            rawJSON: nil)
-        var importedLabels: [String] = []
-
-        let result = await probe.scanBrowsers(
-            [.chrome, .safari, .chromeBeta],
-            importSessions: { browser in
-                importedLabels.append(browser.displayName)
-                switch browser {
-                case .chrome:
-                    return [Self.makeSessionInfo(sourceLabel: "Chrome")]
-                case .safari:
-                    return [Self.makeSessionInfo(sourceLabel: "Safari")]
-                case .chromeBeta:
-                    return [Self.makeSessionInfo(sourceLabel: "Chrome Beta")]
-                default:
-                    return []
-                }
-            },
-            attemptFetch: { session in
-                switch session.sourceLabel {
-                case "Chrome":
-                    .failed(.networkError("HTTP 500"))
-                case "Safari":
-                    .succeeded(expected)
-                default:
-                    .tryNextBrowser
-                }
-            })
-
-        switch result {
-        case let .succeeded(snapshot):
-            #expect(snapshot.planPercentUsed == expected.planPercentUsed)
-            #expect(importedLabels == ["Chrome", "Safari"])
-        case .exhausted:
-            Issue.record("Expected browser scan to stop after the later successful browser")
-        }
-    }
-
-    @Test
-    func `browser scan keeps trying later sources within the same browser`() async {
-        let probe = CursorStatusProbe(browserDetection: BrowserDetection(cacheTTL: 0))
-        let expected = CursorStatusSnapshot(
-            planPercentUsed: 12,
-            autoPercentUsed: 3,
-            apiPercentUsed: 45,
-            planUsedUSD: 2.4,
-            planLimitUSD: 20,
-            onDemandUsedUSD: 0,
-            onDemandLimitUSD: nil,
-            teamOnDemandUsedUSD: nil,
-            teamOnDemandLimitUSD: nil,
-            billingCycleEnd: nil,
-            membershipType: "pro",
-            accountEmail: nil,
-            accountName: nil,
-            rawJSON: nil)
-        var attemptedSources: [String] = []
-
-        let result = await probe.scanBrowsers(
-            [.chrome, .safari],
-            importSessions: { browser in
-                switch browser {
-                case .chrome:
-                    [
-                        Self.makeSessionInfo(sourceLabel: "Chrome Profile 1"),
-                        Self.makeSessionInfo(sourceLabel: "Chrome Profile 2 (domain cookies)"),
-                    ]
-                case .safari:
-                    [Self.makeSessionInfo(sourceLabel: "Safari")]
-                default:
-                    []
-                }
-            },
-            attemptFetch: { session in
-                attemptedSources.append(session.sourceLabel)
-                switch session.sourceLabel {
-                case "Chrome Profile 1":
-                    return CursorStatusProbe.ImportedSessionFetchOutcome.failed(.networkError("HTTP 500"))
-                case "Chrome Profile 2 (domain cookies)":
-                    return CursorStatusProbe.ImportedSessionFetchOutcome.succeeded(expected)
-                default:
-                    return CursorStatusProbe.ImportedSessionFetchOutcome.tryNextBrowser
-                }
-            })
-
-        switch result {
-        case let .succeeded(snapshot):
-            #expect(snapshot.planPercentUsed == expected.planPercentUsed)
-            #expect(attemptedSources == ["Chrome Profile 1", "Chrome Profile 2 (domain cookies)"])
-        case .exhausted:
-            Issue.record("Expected browser scan to continue to later sources within the same browser")
-        }
-    }
-
     @Test
     func `detects non legacy plan`() {
         let snapshot = CursorStatusSnapshot(
@@ -902,19 +709,6 @@ struct CursorStatusProbeTests {
 
         await store.clearCookies()
     }
-
-    private static func makeSessionInfo(sourceLabel: String) -> CursorCookieImporter.SessionInfo {
-        let cookieProps: [HTTPCookiePropertyKey: Any] = [
-            .name: "WorkosCursorSessionToken",
-            .value: sourceLabel.lowercased(),
-            .domain: "cursor.com",
-            .path: "/",
-            .secure: true,
-        ]
-
-        let cookie = HTTPCookie(properties: cookieProps)!
-        return CursorCookieImporter.SessionInfo(cookies: [cookie], sourceLabel: sourceLabel)
-    }
 }
 
 private final class CursorStatusProbeTestSession {
@@ -982,6 +776,37 @@ extension CursorStatusProbeTests {
 
         let session = try #require(try CursorAppAuthStore(dbPath: dbURL.path).loadSession())
         #expect(session == CursorAppAuthSession(accessToken: "app-token"))
+    }
+
+    @Test
+    func `app auth store reads idle WAL database without creating sidecars`() throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-app-auth-wal-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let dbURL = directory.appendingPathComponent("state.vscdb")
+        var db: OpaquePointer?
+        try #require(sqlite3_open(dbURL.path, &db) == SQLITE_OK)
+        let sql = """
+        CREATE TABLE ItemTable(key TEXT PRIMARY KEY, value BLOB);
+        INSERT INTO ItemTable VALUES('cursorAuth/accessToken', 'wal-token');
+        PRAGMA journal_mode = WAL;
+        PRAGMA wal_checkpoint(TRUNCATE);
+        """
+        try #require(sqlite3_exec(db, sql, nil, nil, nil) == SQLITE_OK)
+        try #require(sqlite3_close(db) == SQLITE_OK)
+
+        let walURL = URL(fileURLWithPath: dbURL.path + "-wal")
+        let sharedMemoryURL = URL(fileURLWithPath: dbURL.path + "-shm")
+        for url in [walURL, sharedMemoryURL] where FileManager.default.fileExists(atPath: url.path) {
+            try FileManager.default.removeItem(at: url)
+        }
+
+        let session = try #require(try CursorAppAuthStore(dbPath: dbURL.path).loadSession())
+        #expect(session.accessToken == "wal-token")
+        #expect(!FileManager.default.fileExists(atPath: walURL.path))
+        #expect(!FileManager.default.fileExists(atPath: sharedMemoryURL.path))
     }
 
     @Test
@@ -1077,6 +902,7 @@ extension CursorStatusProbeTests {
     @Test
     func `fetch uses Cursor app local auth when browser cookies are unavailable`() async throws {
         let accessToken = try makeCursorAppAuthToken()
+        let persistence = CursorAppSessionRecorder()
         let expectedCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
         let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
@@ -1110,7 +936,7 @@ extension CursorStatusProbeTests {
             case "/api/auth/me":
                 return makeCursorStatusProbeResponse(
                     url: requestURL,
-                    body: #"{"email":"user@example.com","name":"Test User"}"#,
+                    body: #"{"email":"user@example.com","name":"Test User","sub":"auth0|user_test"}"#,
                     statusCode: 200)
             case "/api/usage":
                 return makeCursorStatusProbeResponse(
@@ -1131,7 +957,9 @@ extension CursorStatusProbeTests {
             browserCookieImportOrder: [],
             urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
-                accessToken: accessToken))).fetch(allowCachedSessions: false)
+                accessToken: accessToken)),
+            persistAppAuthSession: { session in persistence.record(session) })
+            .fetch(allowCachedSessions: false)
 
         #expect(abs(snapshot.planPercentUsed - 19.4) < 0.0001)
         #expect(snapshot.planUsedUSD == 3.88)
@@ -1139,6 +967,7 @@ extension CursorStatusProbeTests {
         #expect(snapshot.onDemandUsedUSD == 4.5)
         #expect(snapshot.onDemandLimitUSD == 10.0)
         #expect(snapshot.membershipType == "pro")
+        #expect(snapshot.accountID == "auth0|user_test")
         #expect(snapshot.accountEmail == "user@example.com")
         #expect(snapshot.accountName == "Test User")
         #expect(testSession.requestPaths.sorted() == [
@@ -1146,6 +975,102 @@ extension CursorStatusProbeTests {
             "/api/usage",
             "/api/usage-summary",
         ])
+        #expect(persistence.snapshot() == [CursorAppAuthSession(accessToken: accessToken)])
+    }
+
+    @Test
+    func `automatic auth uses cookies when app session is absent`() async throws {
+        await CursorSessionStore.shared.clearCookies()
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+        CookieHeaderCache.store(
+            provider: .cursor,
+            cookieHeader: "WorkosCursorSessionToken=browser-session",
+            sourceLabel: "Chrome")
+
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil))
+        let header = try await probe.resolveSession { cookieHeader, _ in cookieHeader }
+
+        #expect(header == "WorkosCursorSessionToken=browser-session")
+    }
+
+    @Test
+    func `automatic auth keeps app session when cookie identity matches`() async throws {
+        await CursorSessionStore.shared.clearCookies()
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+        let appToken = try makeCursorAppAuthToken(subject: "auth0|same-user", email: "same@example.com")
+        let browserToken = try makeCursorAppAuthToken(subject: "workos|same-user", email: "same@example.com")
+        CookieHeaderCache.store(
+            provider: .cursor,
+            cookieHeader: "WorkosCursorSessionToken=same-user%3A%3A\(browserToken)",
+            sourceLabel: "Chrome")
+        let logs = CursorStringRecorder()
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(accessToken: appToken)))
+
+        let label = try await probe.resolveSession(logger: { logs.record($0) }, perform: { _, identity in
+            identity?.displayLabel ?? "browser"
+        })
+
+        #expect(label == "same@example.com")
+        #expect(!logs.snapshot().contains(where: { $0.contains("differs from browser session") }))
+    }
+
+    @Test
+    func `automatic auth logs mismatched cookie identity and exposes chosen app account`() async throws {
+        await CursorSessionStore.shared.clearCookies()
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+        let appToken = try makeCursorAppAuthToken(subject: "auth0|app-user", email: "app@example.com")
+        let browserToken = try makeCursorAppAuthToken(subject: "workos|browser-user", email: "web@example.com")
+        CookieHeaderCache.store(
+            provider: .cursor,
+            cookieHeader: "WorkosCursorSessionToken=browser-user%3A%3A\(browserToken)",
+            sourceLabel: "Chrome")
+        let logs = CursorStringRecorder()
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(accessToken: appToken)))
+
+        let label = try await probe.resolveSession(logger: { logs.record($0) }, perform: { _, identity in
+            identity?.displayLabel ?? "browser"
+        })
+
+        #expect(label == "app@example.com")
+        #expect(logs.snapshot().contains(where: {
+            $0.contains("Cursor.app account app@example.com differs from browser session web@example.com")
+        }))
+    }
+
+    @Test
+    func `automatic auth falls back to cookies when app session is expired`() async throws {
+        await CursorSessionStore.shared.clearCookies()
+        CookieHeaderCache.clear(provider: .cursor)
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+        CookieHeaderCache.store(
+            provider: .cursor,
+            cookieHeader: "WorkosCursorSessionToken=browser-session",
+            sourceLabel: "Chrome")
+        let expiredToken = try makeCursorAppAuthToken(expiration: Date(timeIntervalSinceNow: -60))
+        let logs = CursorStringRecorder()
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(accessToken: expiredToken)))
+
+        let header = try await probe.resolveSession(
+            logger: { logs.record($0) },
+            perform: { cookieHeader, _ in cookieHeader })
+
+        #expect(header == "WorkosCursorSessionToken=browser-session")
+        #expect(logs.snapshot().contains(where: { $0.contains("expired or invalid") }))
     }
 
     @Test
@@ -1174,12 +1099,30 @@ extension CursorStatusProbeTests {
     }
 
     @Test
-    func `fetch prefers stored session cookies before Cursor app auth fallback`() async throws {
+    func `explicit web resolution skips a persisted Cursor app session`() async throws {
         let store = CursorSessionStore.shared
         await store.clearCookies()
-        defer {
-            Task { await store.clearCookies() }
+        CookieHeaderCache.clear(provider: .cursor)
+        let token = try makeCursorAppAuthToken()
+        await store.persistAppSession(CursorAppAuthSession(accessToken: token))
+
+        let probe = CursorStatusProbe(
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil))
+        await #expect(throws: CursorStatusProbeError.self) {
+            _ = try await probe.resolveSession(allowAppAuthFallback: false) { _, _ in
+                Issue.record("Explicit web resolution unexpectedly consumed the persisted app session")
+                return "unexpected"
+            }
         }
+        await store.clearCookies()
+    }
+
+    @Test
+    func `fetch prefers Cursor app auth before stored session cookies`() async throws {
+        let store = CursorSessionStore.shared
+        await store.clearCookies()
 
         guard let cookie = HTTPCookie(properties: [
             .name: "WorkosCursorSessionToken",
@@ -1193,10 +1136,12 @@ extension CursorStatusProbeTests {
         }
         await store.setCookies([cookie])
 
+        let accessToken = try makeCursorAppAuthToken()
         let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
-            #expect(request.value(forHTTPHeaderField: "Cookie") == "WorkosCursorSessionToken=stored-session")
+            let expectedCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
+            #expect(request.value(forHTTPHeaderField: "Cookie") == expectedCookie)
 
             switch requestURL.path {
             case "/api/usage-summary":
@@ -1218,10 +1163,15 @@ extension CursorStatusProbeTests {
             case "/api/auth/me":
                 return makeCursorStatusProbeResponse(
                     url: requestURL,
-                    body: #"{"email":"stored@example.com","name":"Stored User"}"#,
+                    body: #"{"email":"app@example.com","name":"App User","sub":"auth0|user_test"}"#,
+                    statusCode: 200)
+            case "/api/usage":
+                return makeCursorStatusProbeResponse(
+                    url: requestURL,
+                    body: #"{"gpt-4":{}}"#,
                     statusCode: 200)
             default:
-                Issue.record("Stored-session precedence test unexpectedly requested \(requestURL.path)")
+                Issue.record("App-session precedence test unexpectedly requested \(requestURL.path)")
                 throw URLError(.badURL)
             }
         }
@@ -1229,7 +1179,6 @@ extension CursorStatusProbeTests {
         CookieHeaderCache.clear(provider: .cursor)
         defer { CookieHeaderCache.clear(provider: .cursor) }
         let baseURL = try #require(URL(string: "https://cursor.test"))
-        let accessToken = try makeCursorAppAuthToken()
         let snapshot = try await CursorStatusProbe(
             baseURL: baseURL,
             browserDetection: BrowserDetection(cacheTTL: 0),
@@ -1239,11 +1188,13 @@ extension CursorStatusProbeTests {
                 accessToken: accessToken))).fetch()
 
         #expect(snapshot.planPercentUsed == 30.0)
-        #expect(snapshot.accountEmail == "stored@example.com")
+        #expect(snapshot.accountEmail == "app@example.com")
         #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
+            "/api/usage",
             "/api/usage-summary",
         ])
+        await store.clearCookies()
     }
 
     @Test
@@ -1378,8 +1329,6 @@ extension CursorStatusProbeTests {
             CookieHeaderCache.clear(provider: .cursor)
         }
 
-        let accessToken = try makeCursorAppAuthToken()
-        let appCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
         let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
             let cookie = request.value(forHTTPHeaderField: "Cookie")
@@ -1389,9 +1338,6 @@ extension CursorStatusProbeTests {
                     url: requestURL,
                     body: #"{"error":"temporary"}"#,
                     statusCode: 500)
-            case _ where cookie == appCookie:
-                Issue.record("Transient cached-session failure unexpectedly switched to Cursor.app auth")
-                throw URLError(.userAuthenticationRequired)
             default:
                 throw URLError(.badURL)
             }
@@ -1403,27 +1349,152 @@ extension CursorStatusProbeTests {
             browserDetection: BrowserDetection(cacheTTL: 0),
             browserCookieImportOrder: [],
             urlSession: testSession.urlSession,
-            appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
-                accessToken: accessToken)))
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil))
 
         await #expect(throws: CursorStatusProbeError.self) {
             _ = try await probe.fetch()
         }
         #expect(testSession.requestCookies.contains("cached=bad"))
-        #expect(!testSession.requestCookies.contains(appCookie))
+    }
+
+    @Test
+    func `rejected selected session does not fall back to another account`() async throws {
+        let selectedSession = CursorStatusProbe.BrowserLoginSession(
+            cookieHeader: "selected=expired",
+            sourceLabel: "Selected browser")
+        #expect(CursorStatusProbe.commitBrowserLoginSession(selectedSession))
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+
+        let testSession = CursorStatusProbeTestSession { request in
+            let requestURL = try #require(request.url)
+            return makeCursorStatusProbeResponse(
+                url: requestURL,
+                body: #"{"error":"unauthorized"}"#,
+                statusCode: 401)
+        }
+
+        let baseURL = try #require(URL(string: "https://cursor-web.test"))
+        let probe = CursorStatusProbe(
+            baseURL: baseURL,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            urlSession: testSession.urlSession,
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil))
+
+        await #expect(throws: CursorStatusProbeError.self) {
+            _ = try await probe.fetch()
+        }
+        await #expect(throws: CursorStatusProbeError.self) {
+            _ = try await probe.fetch()
+        }
+        #expect(testSession.requestCookies.contains("selected=expired"))
+        #expect(CookieHeaderCache.load(provider: .cursor)?.authenticationFailurePolicy == .stopFallback)
+    }
+
+    @Test
+    func `rejected stale request retries a concurrently selected session`() async throws {
+        let staleSession = CursorStatusProbe.BrowserLoginSession(
+            cookieHeader: "selected=stale",
+            sourceLabel: "Stale browser")
+        let replacementSession = CursorStatusProbe.BrowserLoginSession(
+            cookieHeader: "selected=replacement",
+            sourceLabel: "Replacement browser")
+        #expect(CursorStatusProbe.commitBrowserLoginSession(staleSession))
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+
+        let testSession = CursorStatusProbeTestSession { request in
+            let requestURL = try #require(request.url)
+            let cookie = request.value(forHTTPHeaderField: "Cookie")
+            if cookie == staleSession.cookieHeader {
+                #expect(CursorStatusProbe.commitBrowserLoginSession(replacementSession))
+                return makeCursorStatusProbeResponse(
+                    url: requestURL,
+                    body: #"{"error":"unauthorized"}"#,
+                    statusCode: 401)
+            }
+            #expect(cookie == replacementSession.cookieHeader)
+            switch requestURL.path {
+            case "/api/usage-summary":
+                return makeCursorStatusProbeResponse(
+                    url: requestURL,
+                    body: #"{"membershipType":"pro","individualUsage":{}}"#,
+                    statusCode: 200)
+            case "/api/auth/me":
+                return makeCursorStatusProbeResponse(
+                    url: requestURL,
+                    body: #"{"email":"replacement@example.com","sub":"auth0|replacement"}"#,
+                    statusCode: 200)
+            default:
+                throw URLError(.badURL)
+            }
+        }
+
+        let baseURL = try #require(URL(string: "https://cursor-web.test"))
+        let snapshot = try await CursorStatusProbe(
+            baseURL: baseURL,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            urlSession: testSession.urlSession,
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil)).fetch()
+
+        #expect(snapshot.accountEmail == "replacement@example.com")
+        #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == replacementSession.cookieHeader)
+        #expect(CookieHeaderCache.load(provider: .cursor)?.authenticationFailurePolicy == .stopFallback)
+    }
+
+    @Test
+    func `rejected selected session ignores an unselected cache replacement`() async throws {
+        let selectedSession = CursorStatusProbe.BrowserLoginSession(
+            cookieHeader: "selected=stale",
+            sourceLabel: "Selected browser")
+        #expect(CursorStatusProbe.commitBrowserLoginSession(selectedSession))
+        defer { CookieHeaderCache.clear(provider: .cursor) }
+
+        let testSession = CursorStatusProbeTestSession { request in
+            let requestURL = try #require(request.url)
+            let cookie = request.value(forHTTPHeaderField: "Cookie")
+            if cookie == selectedSession.cookieHeader {
+                #expect(!CookieHeaderCache.storeResult(
+                    provider: .cursor,
+                    cookieHeader: "background=replacement",
+                    sourceLabel: "Background refresh"))
+            } else {
+                Issue.record("Rejected selected session unexpectedly switched to \(cookie ?? "<none>")")
+            }
+            return makeCursorStatusProbeResponse(
+                url: requestURL,
+                body: #"{"error":"unauthorized"}"#,
+                statusCode: 401)
+        }
+
+        let baseURL = try #require(URL(string: "https://cursor-web.test"))
+        let probe = CursorStatusProbe(
+            baseURL: baseURL,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            browserCookieImportOrder: [],
+            urlSession: testSession.urlSession,
+            appAuthStore: CursorAppAuthSessionProviderStub(session: nil))
+
+        await #expect(throws: CursorStatusProbeError.self) {
+            _ = try await probe.fetch()
+        }
+        #expect(!testSession.requestCookies.contains("background=replacement"))
+        #expect(CookieHeaderCache.load(provider: .cursor)?.cookieHeader == selectedSession.cookieHeader)
+        #expect(CookieHeaderCache.load(provider: .cursor)?.authenticationFailurePolicy == .stopFallback)
     }
 }
 
-private func makeCursorAppAuthToken(
+func makeCursorAppAuthToken(
     subject: String = "auth0|user_test",
+    email: String? = nil,
     expiration: Date = Date(timeIntervalSinceNow: 3600)) throws -> String
 {
-    let payload = try JSONSerialization.data(
-        withJSONObject: [
-            "exp": Int(expiration.timeIntervalSince1970),
-            "sub": subject,
-        ],
-        options: [.sortedKeys])
+    var claims: [String: Any] = [
+        "exp": Int(expiration.timeIntervalSince1970),
+        "sub": subject,
+    ]
+    claims["email"] = email
+    let payload = try JSONSerialization.data(withJSONObject: claims, options: [.sortedKeys])
     let encodedPayload = payload.base64EncodedString()
         .replacingOccurrences(of: "+", with: "-")
         .replacingOccurrences(of: "/", with: "_")
@@ -1431,7 +1502,41 @@ private func makeCursorAppAuthToken(
     return "header.\(encodedPayload).signature"
 }
 
-private struct CursorAppAuthSessionProviderStub: CursorAppAuthSessionProviding {
+private final class CursorStringRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [String] = []
+
+    func record(_ value: String) {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.values.append(value)
+    }
+
+    func snapshot() -> [String] {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.values
+    }
+}
+
+final class CursorAppSessionRecorder: @unchecked Sendable {
+    private let lock = NSLock()
+    private var values: [CursorAppAuthSession] = []
+
+    func record(_ value: CursorAppAuthSession) {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        self.values.append(value)
+    }
+
+    func snapshot() -> [CursorAppAuthSession] {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.values
+    }
+}
+
+struct CursorAppAuthSessionProviderStub: CursorAppAuthSessionProviding {
     let session: CursorAppAuthSession?
 
     func loadSession() throws -> CursorAppAuthSession? {

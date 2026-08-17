@@ -118,8 +118,14 @@ extension CodexBarCLI {
     static func usageTextNotes(
         provider: UsageProvider,
         sourceMode: ProviderSourceMode,
-        resolvedSourceLabel: String) -> [String]
+        resolvedSourceLabel: String,
+        dataConfidence: UsageDataConfidence = .unknown) -> [String]
     {
+        // Provider-specific by design: OpenCode Go local quota windows need an explicit authority warning.
+        if provider == .opencodego, dataConfidence == .estimated {
+            return ["Quota estimated from local usage history"]
+        }
+
         // Provider-specific by design: Kilo automatic mode reports when its CLI fallback won strategy selection.
         guard provider == .kilo,
               sourceMode == .auto,
@@ -425,6 +431,10 @@ extension CodexBarCLI {
 
     static func _decodeFormatForTesting(from values: ParsedValues) -> OutputFormat {
         self.decodeFormat(from: values)
+    }
+
+    static func _decodeCostGroupByForTesting(from values: ParsedValues) -> CostGroupBy {
+        self.decodeCostGroupBy(from: values)
     }
 
     static func _decodeWebTimeoutForTesting(from values: ParsedValues) throws -> TimeInterval? {

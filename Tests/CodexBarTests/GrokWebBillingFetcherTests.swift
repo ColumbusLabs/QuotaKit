@@ -384,13 +384,78 @@ struct GrokWebBillingFetcherTests {
 
         let result = try await GrokWebFetchStrategy().fetch(context) {
             throw GrokWebBillingError.teamUsageUnsupported
+        } settingsTier: { _ in
+            "SuperGrok Heavy"
         }
 
         #expect(result.sourceLabel == "grok-web")
         #expect(result.diagnostic == GrokStatusProbe.teamUsageUnavailableMessage)
         #expect(result.usage.primary == nil)
+        #expect(result.usage.loginMethod(for: .grok) == "SuperGrok Heavy")
         #expect(result.usage.accountEmail(for: .grok) == "team@example.com")
         #expect(result.usage.accountOrganization(for: .grok) == "team-123")
+    }
+
+    @Test
+    func `web strategy does not attach auth-file settings tier to cookie billing`() async throws {
+        let asked = LockIsolated(false)
+        let result = try await GrokWebFetchStrategy().fetch(
+            Self.webContext(grokHome: nil),
+            webBilling: {
+                (
+                    GrokWebBillingSnapshot(
+                        usedPercent: 0,
+                        resetsAt: Date(timeIntervalSince1970: 1_800_000_003)),
+                    "Chrome",
+                    false)
+            },
+            settingsTier: { _ in
+                asked.setValue(true)
+                return "SuperGrok Heavy"
+            })
+
+        #expect(result.sourceLabel == "Chrome")
+        #expect(asked.value == false)
+        #expect(result.usage.loginMethod(for: .grok) == nil)
+        #expect(result.usage.primary?.usedPercent == 0)
+    }
+
+    @Test
+    func `web strategy applies settings tier when billing used the auth file`() async throws {
+        let result = try await GrokWebFetchStrategy().fetch(
+            Self.webContext(grokHome: nil),
+            webBilling: {
+                (
+                    GrokWebBillingSnapshot(
+                        usedPercent: 0,
+                        resetsAt: Date(timeIntervalSince1970: 1_800_000_003)),
+                    "grok-cli-proxy",
+                    true)
+            },
+            settingsTier: { _ in "SuperGrok Heavy" })
+
+        #expect(result.sourceLabel == "grok-cli-proxy")
+        #expect(result.usage.loginMethod(for: .grok) == "SuperGrok Heavy")
+        #expect(result.usage.primary?.usedPercent == 0)
+    }
+
+    @Test
+    func `web strategy keeps credits when settings enrichment fails`() async throws {
+        let result = try await GrokWebFetchStrategy().fetch(
+            Self.webContext(grokHome: nil),
+            webBilling: {
+                (
+                    GrokWebBillingSnapshot(
+                        usedPercent: 18,
+                        resetsAt: Date(timeIntervalSince1970: 1_800_000_003)),
+                    "grok-cli-proxy",
+                    true)
+            },
+            settingsTier: { _ in nil })
+
+        #expect(result.sourceLabel == "grok-cli-proxy")
+        #expect(result.usage.primary?.usedPercent == 18)
+        #expect(result.usage.loginMethod(for: .grok) == nil)
     }
 
     @Test
@@ -995,6 +1060,28 @@ extension GrokWebBillingFetcherTests {
             .name: name,
             .value: value,
         ])
+    }
+
+    private static func webContext(grokHome: URL?) -> ProviderFetchContext {
+        let home = grokHome ?? FileManager.default.temporaryDirectory
+            .appendingPathComponent("CodexBar-GrokWebContext-\(UUID().uuidString)", isDirectory: true)
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        return ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: .web,
+            includeCredits: true,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: [
+                "GROK_HOME": home.path,
+                "GROK_CLI_PATH": home.appendingPathComponent("missing-grok").path,
+                "PATH": home.path,
+            ],
+            settings: nil,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
     }
 
     private static func data(hexString: String) -> Data? {

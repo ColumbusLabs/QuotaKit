@@ -695,13 +695,16 @@ extension CodexBarCLI {
 
         let bindHost = CLIServeSecurity.bindHost(host)
         let allowPlainHTTP = Self.decodeServeAllowPlainHTTP(from: values)
-        guard let dashboardIdentityMode = Self.decodeDashboardIdentityMode(from: values) else {
+        guard let decodedIdentityMode = Self.decodeDashboardIdentityMode(from: values) else {
             Self.exit(
                 code: .failure,
                 message: "--identity must be redacted or full.",
                 output: output,
                 kind: .args)
         }
+        // Serve keeps QuotaKit's privacy-preserving default. Only an explicit
+        // `--identity full` opt-in may expose account identities.
+        let dashboardIdentityMode = decodedIdentityMode
         if let startupError = Self.validateServeStartup(
             host: bindHost,
             hasConfiguredBearer: dashboardBearer != nil,
@@ -957,62 +960,89 @@ extension CodexBarCLI {
                                 providerOperations: runtime.costOperations)))
                 }))
         case let .dashboardSnapshot(provider, rawDetail):
-            // Auth comes first: an unauthenticated request must not warm, read, or
-            // deduplicate against the response cache.
-            guard runtime.dashboardAuth.authorize(request) else {
-                return Self.serveUnauthorizedResponse()
-            }
-            let snapshot: CLIServeConfigSnapshot
-            let operationKey: String
-            let detail: DashboardSnapshotDetail
-            let providers: [UsageProvider]?
-            do {
-                snapshot = try Self.loadServeConfigSnapshot(configStore: runtime.configStore)
-                operationKey = try Self.serveOperationKey(kind: "dashboard", provider: provider)
-                detail = try Self.dashboardSnapshotDetail(rawDetail)
-                providers = try Self.dashboardSnapshotProviders(provider)
-            } catch {
-                let status: CLIHTTPStatus = error is CLIServeArgumentError ? .badRequest : .internalServerError
-                return Self.addingNoStore(Self.serveError(status: status, message: error.localizedDescription))
-            }
-            if detail == .shell {
-                return Self.addingNoStore(Self.serveDashboardShell(
-                    config: snapshot.config,
-                    providers: providers,
-                    runtime: runtime))
-            }
-            return await Self.addingNoStore(Self.cachedServeResponse(
-                request: ServeResponseRequest(
-                    key: operationKey,
-                    configFingerprint: snapshot.cacheToken,
-                    refreshInterval: runtime.refreshInterval,
-                    deadline: requestDeadline,
-                    allowsStaleWhileRevalidate: true),
-                cache: runtime.cache,
-                makeResponse: {
-                    await Self.serveDashboardSnapshot(
-                        context: DashboardSnapshotContext(
-                            config: snapshot.config,
-                            usage: ServeUsageContext(
-                                config: snapshot.config,
-                                configFingerprint: snapshot.cacheToken,
-                                refreshInterval: runtime.refreshInterval,
-                                providerTimeout: providerTimeout,
-                                providerDeadline: providerDeadline,
-                                providerOperations: runtime.providerOperations,
-                                includeAllCodexAccounts: false),
-                            costCollection: ServeCostCollectionContext(
-                                configFingerprint: snapshot.cacheToken,
-                                providerTimeout: providerTimeout,
-                                requestDeadline: requestDeadline,
-                                now: { ContinuousClock().now },
-                                providerOperations: runtime.costOperations),
-                            costRefreshesPricingInBackground: Self.serveCostRefreshesPricingInBackground,
-                            codexBarVersion: runtime.healthVersion),
-                        identityMode: runtime.dashboardIdentityMode,
-                        providers: providers)
-                }))
+            return await Self.serveDashboardSnapshotRoute(
+                request,
+                provider: provider,
+                rawDetail: rawDetail,
+                runtime: runtime,
+                startedAt: startedAt)
         }
+    }
+
+    /// Handles `/dashboard/v1/snapshot`. Split out of ``handleServeRequest`` so the route's
+    /// auth, argument, shell, and cached-snapshot phases stay readable in one place.
+    private static func serveDashboardSnapshotRoute(
+        _ request: CLILocalHTTPRequest,
+        provider: String?,
+        rawDetail: String?,
+        runtime: ServeRuntime,
+        startedAt: ContinuousClock.Instant) async -> CLILocalHTTPResponse
+    {
+        let requestDeadline = Self.serveRequestDeadline(
+            startedAt: startedAt,
+            requestTimeout: runtime.requestTimeout)
+        let providerTimeout = Self.serveProviderTimeout(requestTimeout: runtime.requestTimeout)
+        let providerDeadline = Self.serveProviderDeadline(
+            startedAt: startedAt,
+            requestTimeout: runtime.requestTimeout)
+        // Auth comes first: an unauthenticated request must not warm, read, or
+        // deduplicate against the response cache.
+        guard runtime.dashboardAuth.authorize(request) else {
+            return Self.serveUnauthorizedResponse()
+        }
+        let identityMode = runtime.dashboardIdentityMode
+        let snapshot: CLIServeConfigSnapshot
+        let operationKey: String
+        let detail: DashboardSnapshotDetail
+        let providers: [UsageProvider]?
+        do {
+            snapshot = try Self.loadServeConfigSnapshot(configStore: runtime.configStore)
+            operationKey = try Self.serveOperationKey(
+                kind: "dashboard-\(identityMode.rawValue)",
+                provider: provider)
+            detail = try Self.dashboardSnapshotDetail(rawDetail)
+            providers = try Self.dashboardSnapshotProviders(provider)
+        } catch {
+            let status: CLIHTTPStatus = error is CLIServeArgumentError ? .badRequest : .internalServerError
+            return Self.addingNoStore(Self.serveError(status: status, message: error.localizedDescription))
+        }
+        if detail == .shell {
+            return Self.addingNoStore(Self.serveDashboardShell(
+                config: snapshot.config,
+                providers: providers,
+                runtime: runtime))
+        }
+        return await Self.addingNoStore(Self.cachedServeResponse(
+            request: ServeResponseRequest(
+                key: operationKey,
+                configFingerprint: snapshot.cacheToken,
+                refreshInterval: runtime.refreshInterval,
+                deadline: requestDeadline,
+                allowsStaleWhileRevalidate: true),
+            cache: runtime.cache,
+            makeResponse: {
+                await Self.serveDashboardSnapshot(
+                    context: DashboardSnapshotContext(
+                        config: snapshot.config,
+                        usage: ServeUsageContext(
+                            config: snapshot.config,
+                            configFingerprint: snapshot.cacheToken,
+                            refreshInterval: runtime.refreshInterval,
+                            providerTimeout: providerTimeout,
+                            providerDeadline: providerDeadline,
+                            providerOperations: runtime.providerOperations,
+                            includeAllCodexAccounts: false),
+                        costCollection: ServeCostCollectionContext(
+                            configFingerprint: snapshot.cacheToken,
+                            providerTimeout: providerTimeout,
+                            requestDeadline: requestDeadline,
+                            now: { ContinuousClock().now },
+                            providerOperations: runtime.costOperations),
+                        costRefreshesPricingInBackground: Self.serveCostRefreshesPricingInBackground,
+                        codexBarVersion: runtime.healthVersion),
+                    identityMode: identityMode,
+                    providers: providers)
+            }))
     }
 
     private static func dashboardSnapshotDetail(_ rawDetail: String?) throws -> DashboardSnapshotDetail {

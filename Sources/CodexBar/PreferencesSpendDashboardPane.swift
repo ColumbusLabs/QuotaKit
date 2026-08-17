@@ -601,6 +601,9 @@ private struct SpendProviderPanel: View {
 private struct SpendModelPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
     @Binding var metric: SpendDashboardModelMetric
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
 
     var body: some View {
         SpendDashboardPanel {
@@ -636,7 +639,7 @@ private struct SpendModelPanel: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 6)
                     }
-                    ForEach(spendDashboardModelRows(self.group.models, metric: self.metric).prefix(8)) { row in
+                    ForEach(self.visibleRows) { row in
                         if row.rank > 1 {
                             Divider()
                         }
@@ -666,8 +669,87 @@ private struct SpendModelPanel: View {
                         }
                         .padding(.vertical, 9)
                     }
+                    SpendPanelExpandButton(
+                        rowCount: self.group.models.count,
+                        collapsedRowCount: Self.collapsedRowCount,
+                        showsAllRows: self.$showsAllRows)
                 }
             }
+        }
+    }
+
+    private var visibleRows: ArraySlice<SpendDashboardModel.ModelRow> {
+        let rows = spendDashboardModelRows(self.group.models, metric: self.metric)
+        return rows.prefix(self.showsAllRows ? rows.count : Self.collapsedRowCount)
+    }
+}
+
+private struct SpendProjectPanel: View {
+    let group: SpendDashboardModel.CurrencyGroup
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
+
+    var body: some View {
+        SpendDashboardPanel {
+            VStack(alignment: .leading, spacing: 0) {
+                Text(L("Projects")).font(.headline).padding(.bottom, 8)
+                ForEach(self.visibleRows) { row in
+                    if row.rank > 1 {
+                        Divider()
+                    }
+                    HStack(spacing: 10) {
+                        Text(spendDashboardRankText(row.rank))
+                            .font(.caption.monospacedDigit())
+                            .foregroundStyle(.tertiary)
+                            .frame(width: 26, alignment: .leading)
+                        Image(systemName: "folder")
+                            .font(.caption)
+                            .foregroundStyle(.tertiary)
+                        VStack(alignment: .leading, spacing: 2) {
+                            Text(row.projectName).lineLimit(1)
+                            Text(row.providerName).font(.caption).foregroundStyle(.secondary)
+                        }
+                        Spacer()
+                        Text(row.totalCost.map {
+                            UsageFormatter.currencyString($0, currencyCode: self.group.currencyCode)
+                        } ?? "—")
+                            .monospacedDigit()
+                    }
+                    .padding(.vertical, 9)
+                }
+                SpendPanelExpandButton(
+                    rowCount: self.group.projects.count,
+                    collapsedRowCount: Self.collapsedRowCount,
+                    showsAllRows: self.$showsAllRows)
+            }
+        }
+    }
+
+    private var visibleRows: ArraySlice<SpendDashboardModel.ProjectRow> {
+        self.group.projects.prefix(
+            self.showsAllRows ? self.group.projects.count : Self.collapsedRowCount)
+    }
+}
+
+private struct SpendPanelExpandButton: View {
+    let rowCount: Int
+    let collapsedRowCount: Int
+    @Binding var showsAllRows: Bool
+
+    var body: some View {
+        if self.rowCount > self.collapsedRowCount {
+            Button {
+                self.showsAllRows.toggle()
+            } label: {
+                Text(
+                    self.showsAllRows
+                        ? L("Show less")
+                        : L("Show all (%d)", self.rowCount))
+                    .font(.caption)
+            }
+            .buttonStyle(.borderless)
+            .padding(.top, 6)
         }
     }
 }
@@ -761,7 +843,7 @@ private struct SpendDailyChart: View {
     }
 
     private func providerColor(_ provider: UsageProvider) -> Color {
-        let color = ProviderDescriptorRegistry.descriptor(for: provider).branding.color
+        let color = ProviderAccentPalette.color(for: provider)
         return Color(red: color.red, green: color.green, blue: color.blue)
     }
 }

@@ -14,4 +14,19 @@ public enum GeminiConsumerTierMigration {
     June 2026 Gemini CLI shutdown should use QuotaKit's Antigravity provider instead. \
     Workspace and education accounts should keep using Gemini.
     """
+
+    public static let localAntigravityHandoffError = """
+    Could not refresh Gemini OAuth credentials from Gemini CLI. Enable QuotaKit's Antigravity \
+    provider, sign in to Antigravity or run `agy`, then refresh.
+    """
+
+    static func isAntigravityAvailable() -> Bool {
+        if BinaryLocator.resolveAntigravityBinary() != nil {
+            return true
+        }
+
+        return AntigravityOAuthConfig.candidateOAuthClientArtifactURLs().contains {
+            FileManager.default.fileExists(atPath: $0.path)
+        }
+    }
 }

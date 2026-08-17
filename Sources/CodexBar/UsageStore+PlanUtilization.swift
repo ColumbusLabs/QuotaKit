@@ -96,6 +96,34 @@ extension UsageStore {
             histories: providerBuckets.histories(for: accountKey))
     }
 
+    /// History fallback is intentionally stricter than ordinary chart selection. A sticky preferred
+    /// OAuth bucket is useful for presentation, but it is not proof that the currently selected Claude
+    /// profile still owns that history after a failed refresh.
+    func claudeHistoryFallbackSelection(
+        activeAccountObservation: ClaudeOAuthActiveAccountObservation) -> PlanUtilizationHistorySelection
+    {
+        guard case let .stable(currentAccountIdentity) = activeAccountObservation else {
+            return .unavailable
+        }
+        // Provider-specific by design: Claude history fallback must prove ownership against the active OAuth account.
+        let selection = self.planUtilizationHistorySelection(for: .claude)
+        guard let accountKey = selection.accountKey else {
+            // Legacy unscoped history is safe only when no active Claude account is observable.
+            return currentAccountIdentity == nil ? selection : .unavailable
+        }
+        guard Self.isClaudeOAuthPlanUtilizationAccountKey(accountKey),
+              let currentAccountIdentity
+        else {
+            return .unavailable
+        }
+        let accountMap = Self.loadClaudeOAuthAccountUuidMap(from: self.settings.userDefaults)
+        let ownsSelection = accountMap.contains { owner, identity in
+            identity == currentAccountIdentity
+                && Self.claudeOAuthPlanUtilizationAccountKey(historyOwnerIdentifier: owner) == accountKey
+        }
+        return ownsSelection ? selection : .unavailable
+    }
+
     func planUtilizationHistorySelection(
         for provider: UsageProvider,
         account: ProviderTokenAccount) -> PlanUtilizationHistorySelection

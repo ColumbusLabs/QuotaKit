@@ -10,6 +10,7 @@ struct AppDelegateTests {
         let appDelegate = AppDelegate()
         var factoryCalls = 0
         var ttyShutdowns = 0
+        var keychainMigrations = 0
         let dummyStatusController = DummyStatusController()
         let managedCodexAccountCoordinator = ManagedCodexAccountCoordinator()
 
@@ -26,6 +27,9 @@ struct AppDelegateTests {
             managedAccountCoordinator: managedCodexAccountCoordinator)
         appDelegate.terminateActiveProcessesForAppShutdown = {
             ttyShutdowns += 1
+        }
+        appDelegate.startKeychainMigration = {
+            keychainMigrations += 1
         }
 
         // Install a test factory that records invocations without touching NSStatusBar.
@@ -50,10 +54,12 @@ struct AppDelegateTests {
         // construction happens once after launch
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(factoryCalls == 1)
+        #expect(keychainMigrations == 1)
 
         // idempotent on subsequent calls
         appDelegate.applicationDidFinishLaunching(Notification(name: NSApplication.didFinishLaunchingNotification))
         #expect(factoryCalls == 1)
+        #expect(keychainMigrations == 1)
 
         // production termination should ask the status controller to detach AppKit status/menu state
         appDelegate.applicationWillTerminate(Notification(name: NSApplication.willTerminateNotification))

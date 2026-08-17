@@ -1192,6 +1192,115 @@ extension ClaudeResilienceTests {
     }
 
     @Test
+    func `Auto restores matching Claude quota history but refuses it after an account switch`() async throws {
+        let tempDir = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codexbar-claude-history-fallback-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: tempDir) }
+        try Data(#"{"oauthAccount":{"accountUuid":"account-a"}}"#.utf8)
+            .write(to: tempDir.appendingPathComponent(".config.json"), options: .atomic)
+        let missingCredentialsURL = tempDir.appendingPathComponent("missing-credentials.json")
+        let historyOwner = String(repeating: "a", count: 64)
+        let sessionCapturedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let weeklyCapturedAt = sessionCapturedAt.addingTimeInterval(60)
+
+        try await ClaudeOAuthCredentialsStore.withIsolatedCredentialsFileTrackingForTesting {
+            try await ClaudeOAuthCredentialsStore.withCredentialsURLOverrideForTesting(missingCredentialsURL) {
+                let store = try await MainActor.run {
+                    let settings = Self.makeSettingsStore(suite: "ClaudeResilienceTests-history-fallback")
+                    settings.refreshFrequency = .manual
+                    settings.statusChecksEnabled = false
+                    settings.claudeUsageDataSource = .auto
+
+                    let metadata = ProviderRegistry.shared.metadata
+                    for provider in UsageProvider.allCases {
+                        try settings.setProviderEnabled(
+                            provider: provider,
+                            metadata: #require(metadata[provider]),
+                            enabled: provider == .claude)
+                    }
+
+                    let environment = ["CLAUDE_CONFIG_DIR": tempDir.path]
+                    let store = UsageStore(
+                        fetcher: UsageFetcher(environment: environment),
+                        browserDetection: BrowserDetection(cacheTTL: 0),
+                        settings: settings,
+                        startupBehavior: .testing,
+                        environmentBase: environment)
+                    store.planUtilizationHistoryLoaded = true
+                    let accountIdentity = UsageStore.claudeAccountIdentity(
+                        "account-a",
+                        environment: environment)
+                    store.persistClaudeOAuthAccountUuidMap([historyOwner: accountIdentity])
+                    let accountKey = try #require(
+                        UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
+                            historyOwnerIdentifier: historyOwner))
+                    let histories = [
+                        PlanUtilizationSeriesHistory(
+                            name: .session,
+                            windowMinutes: 300,
+                            entries: [PlanUtilizationHistoryEntry(
+                                capturedAt: sessionCapturedAt,
+                                usedPercent: 21,
+                                resetsAt: nil)]),
+                        PlanUtilizationSeriesHistory(
+                            name: .weekly,
+                            windowMinutes: 10080,
+                            entries: [PlanUtilizationHistoryEntry(
+                                capturedAt: weeklyCapturedAt,
+                                usedPercent: 42,
+                                resetsAt: nil)]),
+                    ]
+                    store.planUtilizationHistory[.claude] = PlanUtilizationHistoryBuckets(
+                        preferredAccountKey: accountKey,
+                        accounts: [accountKey: histories])
+
+                    let baseSpec = try #require(store.providerSpecs[.claude])
+                    let descriptor = ProviderDescriptor(
+                        id: .claude,
+                        metadata: baseSpec.descriptor.metadata,
+                        branding: baseSpec.descriptor.branding,
+                        tokenCost: baseSpec.descriptor.tokenCost,
+                        fetchPlan: ProviderFetchPlan(
+                            sourceModes: [.auto],
+                            pipeline: ProviderFetchPipeline { _ in [AllClaudeSourcesFailureStrategy()] }),
+                        cli: baseSpec.descriptor.cli)
+                    store.providerSpecs[.claude] = ProviderSpec(
+                        style: baseSpec.style,
+                        isEnabled: baseSpec.isEnabled,
+                        descriptor: descriptor,
+                        makeFetchContext: baseSpec.makeFetchContext)
+                    return store
+                }
+
+                await store.refreshProvider(.claude)
+                let result = await MainActor.run {
+                    (
+                        primary: store.snapshot(for: .claude)?.primary?.usedPercent,
+                        secondary: store.snapshot(for: .claude)?.secondary?.usedPercent)
+                }
+
+                #expect(result.primary == 21)
+                #expect(result.secondary == 42)
+
+                let switchedIdentity = UsageStore.claudeAccountIdentity(
+                    "account-b",
+                    environment: ["CLAUDE_CONFIG_DIR": tempDir.path])
+                let restoredAfterSwitch = await MainActor.run {
+                    store._setSnapshotForTesting(nil, provider: .claude)
+                    return store.prepareClaudeHistoryFallback(
+                        provider: .claude,
+                        usesConsumerAutoPipeline: true,
+                        activeAccountObservation: .stable(identity: switchedIdentity))
+                }
+                #expect(!restoredAfterSwitch)
+                let switchedSnapshot = await MainActor.run { store.snapshot(for: .claude) }
+                #expect(switchedSnapshot == nil)
+            }
+        }
+    }
+
+    @Test
     func `credentials change during successful Claude fetch applies fresh snapshot without stale reset`() async throws {
         try await KeychainCacheStore.withServiceOverrideForTesting("com.steipete.codexbar.cache.tests.\(UUID())") {
             KeychainCacheStore.setTestStoreForTesting(true)
@@ -1315,6 +1424,23 @@ private struct TimeoutFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
         throw ClaudeStatusProbeError.timedOut
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
+}
+
+private struct AllClaudeSourcesFailureStrategy: ProviderFetchStrategy {
+    let id = "test.all-claude-sources-failed"
+    let kind = ProviderFetchKind.oauth
+
+    func isAvailable(_: ProviderFetchContext) async -> Bool {
+        true
+    }
+
+    func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
+        throw ClaudeOAuthCredentialsError.keychainAccessRevoked
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
