@@ -8,6 +8,8 @@
 "Projects" = "Projecten";
 "Session %@" = "Sessie %@";
 "Std" = "Std";
+"Show all (%d)" = "Alles tonen (%d)";
+"Show less" = "Minder tonen";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

@@ -8,6 +8,8 @@
 "Projects" = "项目";
 "Session %@" = "会话 %@";
 "Std" = "标准";
+"Show all (%d)" = "显示全部（%d）";
+"Show less" = "收起";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

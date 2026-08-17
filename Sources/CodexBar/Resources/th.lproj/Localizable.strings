@@ -8,6 +8,8 @@
 "Projects" = "โปรเจกต์";
 "Session %@" = "เซสชัน %@";
 "Std" = "มาตรฐาน";
+"Show all (%d)" = "แสดงทั้งหมด (%d)";
+"Show less" = "แสดงน้อยลง";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";

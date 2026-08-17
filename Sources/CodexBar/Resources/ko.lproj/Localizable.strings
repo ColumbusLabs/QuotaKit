@@ -8,6 +8,8 @@
 "Projects" = "프로젝트";
 "Session %@" = "세션 %@";
 "Std" = "표준";
+"Show all (%d)" = "모두 보기(%d)";
+"Show less" = "간략히 보기";
 "Sync settings and providers across your Macs via iCloud" = "Sync settings and providers across your Macs via iCloud";
 "Include API keys, cookies, and tokens" = "Include API keys, cookies, and tokens";
 "Sync usage snapshots" = "Sync usage snapshots";
