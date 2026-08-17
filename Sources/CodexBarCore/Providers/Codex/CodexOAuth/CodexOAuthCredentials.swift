@@ -79,7 +79,7 @@ public enum CodexOAuthCredentialsError: LocalizedError, Sendable {
         case .missingTokens:
             "Codex auth.json exists but contains no tokens."
         case .nativeRefreshRequired:
-            "Codex auth.json needs refresh. CodexBar will retry through the Codex CLI; "
+            "Codex auth.json needs refresh. QuotaKit will retry through the Codex CLI; "
                 + "run `codex login` if recovery fails."
         case .readOnlySource:
             "This external Codex credential source is stale and read-only. "

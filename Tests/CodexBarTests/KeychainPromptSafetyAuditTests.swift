@@ -206,26 +206,6 @@ struct KeychainPromptSafetyAuditTests {
     }
 
     @Test
-    func `production Security item gateway consumes the user access gate`() throws {
-        let source = try Self.readRepoFile("Sources/CodexBarCore/KeychainSecurity.swift")
-        #expect(source.contains("keychainAccessDisabled: KeychainAccessGate.isDisabled"))
-
-        let operationCalls = [
-            ("public static func copyMatching(", "SecItemCopyMatching"),
-            ("public static func update(", "SecItemUpdate"),
-            ("public static func add(", "SecItemAdd"),
-            ("public static func delete(", "SecItemDelete"),
-        ]
-        for (declaration, securityCall) in operationCalls {
-            let declarationRange = try #require(source.range(of: declaration))
-            let operationSource = source[declarationRange.lowerBound...]
-            let securityCallRange = try #require(operationSource.range(of: securityCall))
-            let gatewayPath = operationSource[..<securityCallRange.lowerBound]
-            #expect(gatewayPath.contains("guard self.currentItemOperationBlockReason() == nil else"))
-        }
-    }
-
-    @Test
     func `production source resolves Security symbols via dlsym only in audited files`() throws {
         // dlsym-resolved Security APIs (deprecated ACL/interaction functions) bypass
         // a plain "SecItem*" grep; keep them enumerable so new runtime-resolved

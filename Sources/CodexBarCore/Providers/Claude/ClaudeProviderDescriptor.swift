@@ -1023,17 +1023,6 @@ struct ClaudeCLIFetchStrategy: ProviderFetchStrategy {
             sourceLabel: "claude")
     }
 
-    private func throttleKey(
-        binary: String,
-        context: ProviderFetchContext) -> ClaudeCLIUsageSpawnThrottle.Key?
-    {
-        ClaudeCLIUsageSpawnThrottle.key(
-            binary: binary,
-            environment: context.env,
-            useWebExtras: self.useWebExtras,
-            includePrepaidBalance: self.includePrepaidBalance && context.includeOptionalUsage)
-    }
-
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.runtime == .app, context.sourceMode == .auto else { return false }
         guard !ClaudeStatusProbe.isSubscriptionQuotaUnavailableDescription(error.localizedDescription) else {

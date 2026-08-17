@@ -308,8 +308,7 @@ extension UsageStore {
 
     private nonisolated static func preservedClaudeWidgetUsage(
         from entry: WidgetSnapshot.ProviderEntry?,
-        expectedQuotaOwnerKey: String?,
-        includesModelScopedWeeklyRows: Bool) -> PreservedClaudeWidgetUsage?
+        expectedQuotaOwnerKey: String?) -> PreservedClaudeWidgetUsage?
     {
         guard let entry, entry.provider == .claude else { return nil }
         guard let expectedQuotaOwnerKey,
@@ -324,13 +323,6 @@ extension UsageStore {
         let tertiary = entry.tertiary?.isSyntheticPlaceholder == true ? nil : entry.tertiary
         let usageRows = entry.usageRows?.filter { row in
             guard row.window?.isSyntheticPlaceholder != true else { return false }
-            // Rows persisted while the setting was on must not outlive it: without a live snapshot
-            // this preserved list is what widgets render, so re-apply the visibility filter here.
-            guard includesModelScopedWeeklyRows ||
-                !row.id.hasPrefix(Self.claudeModelScopedWeeklyWindowIDPrefix)
-            else {
-                return false
-            }
             return switch row.id {
             case "primary": primary != nil
             case "secondary": secondary != nil
@@ -465,20 +457,6 @@ extension UsageStore {
                 id: "tertiary",
                 title: metadata?.opusLabel ?? "Opus",
                 percentLeft: snapshot.tertiary?.remainingPercent))
-        }
-        if provider == .claude, self.settings.claudeModelScopedWeeklyUsageVisible {
-            // Claude fetchers place model-scoped weekly quotas (for example, Fable) in extraRateWindows.
-            // Keep the widget projection generic so newly surfaced Claude model quotas appear without UI changes.
-            rows.append(contentsOf: (snapshot.extraRateWindows ?? []).compactMap { namedWindow in
-                guard namedWindow.id.hasPrefix(Self.claudeModelScopedWeeklyWindowIDPrefix),
-                      namedWindow.usageKnown
-                else { return nil }
-                return WidgetSnapshot.WidgetUsageRowSnapshot(
-                    id: namedWindow.id,
-                    title: namedWindow.title,
-                    percentLeft: namedWindow.window.remainingPercent,
-                    window: namedWindow.window)
-            })
         }
         if provider == .kimi {
             // Keep persisted widget order stable and include only Kimi's intentional subscription lanes.

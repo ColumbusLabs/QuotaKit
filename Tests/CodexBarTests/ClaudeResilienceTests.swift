@@ -1192,7 +1192,7 @@ extension ClaudeResilienceTests {
     }
 
     @Test
-    func `Auto restores stale Claude quota bars for a configured account when every source fails`() async throws {
+    func `Auto restores matching Claude quota history but refuses it after an account switch`() async throws {
         let tempDir = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-claude-history-fallback-\(UUID().uuidString)", isDirectory: true)
         try FileManager.default.createDirectory(at: tempDir, withIntermediateDirectories: true)
@@ -1200,6 +1200,7 @@ extension ClaudeResilienceTests {
         try Data(#"{"oauthAccount":{"accountUuid":"account-a"}}"#.utf8)
             .write(to: tempDir.appendingPathComponent(".config.json"), options: .atomic)
         let missingCredentialsURL = tempDir.appendingPathComponent("missing-credentials.json")
+        let historyOwner = String(repeating: "a", count: 64)
         let sessionCapturedAt = Date(timeIntervalSince1970: 1_800_000_000)
         let weeklyCapturedAt = sessionCapturedAt.addingTimeInterval(60)
 
@@ -1227,7 +1228,14 @@ extension ClaudeResilienceTests {
                         startupBehavior: .testing,
                         environmentBase: environment)
                     store.planUtilizationHistoryLoaded = true
-                    store.planUtilizationHistory[.claude] = PlanUtilizationHistoryBuckets(unscoped: [
+                    let accountIdentity = UsageStore.claudeAccountIdentity(
+                        "account-a",
+                        environment: environment)
+                    store.persistClaudeOAuthAccountUuidMap([historyOwner: accountIdentity])
+                    let accountKey = try #require(
+                        UsageStore._claudeOAuthPlanUtilizationAccountKeyForTesting(
+                            historyOwnerIdentifier: historyOwner))
+                    let histories = [
                         PlanUtilizationSeriesHistory(
                             name: .session,
                             windowMinutes: 300,
@@ -1242,7 +1250,10 @@ extension ClaudeResilienceTests {
                                 capturedAt: weeklyCapturedAt,
                                 usedPercent: 42,
                                 resetsAt: nil)]),
-                    ])
+                    ]
+                    store.planUtilizationHistory[.claude] = PlanUtilizationHistoryBuckets(
+                        preferredAccountKey: accountKey,
+                        accounts: [accountKey: histories])
 
                     let baseSpec = try #require(store.providerSpecs[.claude])
                     let descriptor = ProviderDescriptor(
@@ -1266,17 +1277,25 @@ extension ClaudeResilienceTests {
                 let result = await MainActor.run {
                     (
                         primary: store.snapshot(for: .claude)?.primary?.usedPercent,
-                        secondary: store.snapshot(for: .claude)?.secondary?.usedPercent,
-                        updatedAt: store.snapshot(for: .claude)?.updatedAt,
-                        rawError: store.error(for: .claude),
-                        userFacingError: store.userFacingError(for: .claude))
+                        secondary: store.snapshot(for: .claude)?.secondary?.usedPercent)
                 }
 
                 #expect(result.primary == 21)
                 #expect(result.secondary == 42)
-                #expect(result.updatedAt == weeklyCapturedAt)
-                #expect(result.rawError == ClaudeOAuthCredentialsError.keychainAccessRevoked.localizedDescription)
-                #expect(result.userFacingError?.contains("Showing last-known usage captured") == true)
+
+                let switchedIdentity = UsageStore.claudeAccountIdentity(
+                    "account-b",
+                    environment: ["CLAUDE_CONFIG_DIR": tempDir.path])
+                let restoredAfterSwitch = await MainActor.run {
+                    store._setSnapshotForTesting(nil, provider: .claude)
+                    return store.prepareClaudeHistoryFallback(
+                        provider: .claude,
+                        usesConsumerAutoPipeline: true,
+                        activeAccountObservation: .stable(identity: switchedIdentity))
+                }
+                #expect(!restoredAfterSwitch)
+                let switchedSnapshot = await MainActor.run { store.snapshot(for: .claude) }
+                #expect(switchedSnapshot == nil)
             }
         }
     }

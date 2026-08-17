@@ -1,8 +1,6 @@
 import CodexBarCore
 import Foundation
 
-// swiftlint:disable file_length
-
 extension UsageStore {
     nonisolated static func codexSessionQuotaOwnerKey(
         for refreshGuard: CodexAccountScopedRefreshGuard?) -> CodexSessionQuotaOwnerKey?
@@ -333,6 +331,7 @@ extension UsageStore {
             missingWindowBackfillSnapshot: missingWindowBackfillSnapshot)
     }
 
+    // swiftlint:disable function_body_length
     /// Runs one provider fetch pass. A nonnil result keeps the retry inside the current coordinator request, so
     /// callers (including `runRefresh`) remain suspended until the account-stable replacement pass completes.
     private func refreshProviderPass(
@@ -506,6 +505,8 @@ extension UsageStore {
             reconciliation: claudeReconciliation,
             context: outcomeContext)
     }
+
+    // swiftlint:enable function_body_length
 
     private func completeProviderRefreshPass(
         provider: UsageProvider,
@@ -1329,6 +1330,7 @@ extension UsageStore {
         self.knownLimitsAvailabilityByProvider.removeValue(forKey: .claude)
         self.lastSourceLabels.removeValue(forKey: .claude)
         self.claudeHistoryFallbackEligible = false
+        self.claudeHistoryFallbackActiveAccountObservation = .changed
         self.clearTokenSnapshot(for: .claude)
         self.tokenErrors[.claude] = nil
         self.failureGates[.claude]?.reset()
@@ -1351,7 +1353,7 @@ extension UsageStore {
             let restoredClaudeHistory = self.prepareClaudeHistoryFallback(
                 provider: provider,
                 usesConsumerAutoPipeline: context.claudeUsesConsumerAutoPipeline,
-                accountStateWasStable: context.claudeOAuthActiveAccountObservation != .changed)
+                activeAccountObservation: context.claudeOAuthActiveAccountObservation)
             if provider == .gemini, Self.isGeminiConsumerTierDeprecationError(error) {
                 // This is a durable provider migration signal, not a transient fetch failure.
                 // Surface it immediately so a cached snapshot cannot hide the required handoff.

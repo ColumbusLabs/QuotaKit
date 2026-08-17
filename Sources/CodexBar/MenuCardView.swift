@@ -1037,6 +1037,12 @@ extension UsageMenuCardView.Model {
 
     private static func visibleProviderDetails(input: Input) -> [ProviderDetailSection] {
         var details = input.snapshot?.details ?? []
+        let policy = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.optionalDetails
+        if !input.costSummaryInlineEnabled, !policy.costSummaryTitles.isEmpty {
+            details.removeAll { section in
+                section.title.map(policy.costSummaryTitles.contains) == true
+            }
+        }
         if input.provider == .xai, input.snapshot?.xaiUsage != nil {
             details = details.compactMap { section in
                 guard let chart = section.chart else { return nil }

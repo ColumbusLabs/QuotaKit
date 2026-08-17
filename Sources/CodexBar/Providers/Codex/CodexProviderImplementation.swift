@@ -138,7 +138,7 @@ struct CodexProviderImplementation: ProviderImplementation {
                 title: "External Codex OAuth sources",
                 subtitle: [
                     "Explicitly allow read-only fallback to legacy Codex and OpenCode OAuth files.",
-                    "CodexBar never refreshes or writes those external credentials.",
+                    "QuotaKit never refreshes or writes those external credentials.",
                     "Off by default because this shares another app's OAuth session with Codex usage requests.",
                 ].joined(separator: " "),
                 binding: context.boolBinding(\.codexExternalOAuthSourcesAllowed),

@@ -379,7 +379,7 @@ public struct CursorUserInfo: Codable, Sendable {
 // MARK: - Cursor Status Snapshot
 
 public struct CursorStatusSnapshot: Sendable {
-    /// Percentage of included plan usage (0-100) from Cursor's combined plan payload
+    /// Percentage of included plan usage (0-100) — the "Total" headline number from Cursor's UI
     public let planPercentUsed: Double
     /// Auto + Composer usage percent (0-100), nil when not available
     public let autoPercentUsed: Double?
@@ -495,10 +495,8 @@ public struct CursorStatusSnapshot: Sendable {
             return billingCycleWindow(usedPercent: self.planPercentUsed)
         }()
 
-        // Modern Cursor plans expose Auto and API as independent quotas; legacy
-        // request-based plans keep their single request quota. Some enterprise
-        // payloads expose only an overall/pooled plan value, so keep a visible
-        // fallback Plan lane instead of dropping quota data.
+        // Preserve QuotaKit's explicit Cursor lane contract: modern plans expose Auto/API independently,
+        // legacy plans expose requests, and enterprise-only payloads keep a visible plan fallback.
         let primary: RateWindow?
         let secondary: RateWindow?
         let cursorRateWindowLayout: CursorRateWindowLayout?
@@ -648,8 +646,8 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
             #if os(macOS)
             "Not logged in to Cursor. Please log in via the QuotaKit menu."
             #else
-            "Not logged in to Cursor. Sign in to the Cursor app on this machine or paste a Cookie header copied "
-                + "from cursor.com into ~/.config/quotakit/config.json (legacy: ~/.quotakit/config.json)."
+            "Not logged in to Cursor. Paste a Cookie header copied from cursor.com into "
+                + "~/.config/quotakit/config.json (legacy: ~/.quotakit/config.json)."
             #endif
         case let .networkError(msg):
             "Cursor API error: \(msg)"
@@ -661,8 +659,8 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
                 + "Please log in to cursor.com in \(cursorCookieImportOrder.loginHint). "
                 + "You can also sign in to Cursor from the QuotaKit menu (Add / switch account)."
             #else
-            "No Cursor session found. Sign in to the Cursor app on this machine or paste a Cookie header copied "
-                + "from cursor.com into ~/.config/quotakit/config.json (legacy: ~/.quotakit/config.json)."
+            "No Cursor session found. Paste a Cookie header copied from cursor.com into "
+                + "~/.config/quotakit/config.json (legacy: ~/.quotakit/config.json)."
             #endif
         }
     }
@@ -673,20 +671,80 @@ public enum CursorStatusProbeError: LocalizedError, Sendable {
 public actor CursorSessionStore {
     public static let shared = CursorSessionStore()
 
+    #if DEBUG
+    private static let defaultTestFileURL = FileManager.default.temporaryDirectory
+        .appendingPathComponent("CursorSessionStoreTests-\(getpid())-\(UUID().uuidString)", isDirectory: true)
+        .appendingPathComponent("cursor-session.json")
+    #endif
+
     private var sessionCookies: [HTTPCookie] = []
     private var hasLoadedFromDisk = false
     private let fileURL: URL
 
     private init() {
         let fm = FileManager.default
+        #if DEBUG
+        if KeychainTestSafety.shouldIsolateUserStateUnderTests() {
+            self.fileURL = Self.defaultTestFileURL
+            Self.prepareStorage(fileURL: self.fileURL, legacyFileURL: nil)
+            Task { await self.loadFromDiskIfNeeded() }
+            return
+        }
+        #endif
         let appSupport = fm.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
             ?? fm.temporaryDirectory
-        let dir = appSupport.appendingPathComponent("CodexBar", isDirectory: true)
-        try? fm.createDirectory(at: dir, withIntermediateDirectories: true)
-        self.fileURL = dir.appendingPathComponent("cursor-session.json")
+        self.fileURL = appSupport
+            .appendingPathComponent("QuotaKit", isDirectory: true)
+            .appendingPathComponent("cursor-session.json")
+        let legacyFileURL = appSupport
+            .appendingPathComponent("CodexBar", isDirectory: true)
+            .appendingPathComponent("cursor-session.json")
+        Self.prepareStorage(fileURL: self.fileURL, legacyFileURL: legacyFileURL)
 
         // Load saved cookies on init
         Task { await self.loadFromDiskIfNeeded() }
+    }
+
+    init(fileURL: URL, legacyFileURL: URL? = nil) {
+        self.fileURL = fileURL
+        Self.prepareStorage(fileURL: fileURL, legacyFileURL: legacyFileURL)
+
+        // Load saved cookies on init
+        Task { await self.loadFromDiskIfNeeded() }
+    }
+
+    private nonisolated static func prepareStorage(fileURL: URL, legacyFileURL: URL?) {
+        let fm = FileManager.default
+        try? fm.createDirectory(
+            at: fileURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        guard let legacyFileURL, fm.fileExists(atPath: legacyFileURL.path) else { return }
+        let migrationMarkerURL = self.legacyMigrationMarkerURL(for: fileURL)
+        if fm.fileExists(atPath: migrationMarkerURL.path) {
+            return
+        }
+        var createdPrimary = false
+        do {
+            if !fm.fileExists(atPath: fileURL.path) {
+                let legacyData = try Data(contentsOf: legacyFileURL)
+                try CredentialFileWriter.writePrivate(legacyData, to: fileURL)
+                createdPrimary = true
+            }
+            // The durable marker makes migration one-shot even if legacy cleanup is denied. It intentionally
+            // survives logout/clear so an old CodexBar credential can never be resurrected later.
+            try CredentialFileWriter.writePrivate(Data(), to: migrationMarkerURL)
+            try? fm.removeItem(at: legacyFileURL)
+        } catch {
+            // Do not leave a migrated credential without its one-shot marker. The legacy source remains intact
+            // and a later launch can retry the migration safely.
+            if createdPrimary {
+                try? fm.removeItem(at: fileURL)
+            }
+        }
+    }
+
+    private nonisolated static func legacyMigrationMarkerURL(for fileURL: URL) -> URL {
+        fileURL.appendingPathExtension("legacy-migrated")
     }
 
     public func setCookies(_ cookies: [HTTPCookie]) {
@@ -721,6 +779,10 @@ public actor CursorSessionStore {
     }
 
     #if DEBUG
+    func fileURLForTesting() -> URL {
+        self.fileURL
+    }
+
     func resetForTesting(clearDisk: Bool = true) {
         self.hasLoadedFromDisk = false
         self.sessionCookies = []
@@ -851,6 +913,9 @@ public struct CursorStatusProbe: Sendable {
     private let urlSession: any ProviderHTTPTransport
     #if os(macOS)
     let appAuthStore: any CursorAppAuthSessionProviding
+    let persistAppAuthSession: @Sendable (CursorAppAuthSession) async -> Void
+    #endif
+    let conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator
 
     public init(
         baseURL: URL = URL(string: "https://cursor.com")!,
@@ -865,7 +930,50 @@ public struct CursorStatusProbe: Sendable {
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
             urlSession: urlSession,
-            appAuthStore: CursorAppAuthStore())
+            appAuthStore: CursorAppAuthStore(),
+            persistAppAuthSession: { session in
+                await CursorSessionStore.shared.persistAppSession(session)
+            },
+            conditionalMutationCoordinator: .shared)
+        #else
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
+            urlSession: urlSession,
+            conditionalMutationCoordinator: .shared)
+        #endif
+    }
+
+    package init(
+        baseURL: URL = URL(string: "https://cursor.com")!,
+        timeout: TimeInterval = 15.0,
+        browserDetection: BrowserDetection,
+        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator)
+    {
+        #if os(macOS)
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
+            urlSession: urlSession,
+            appAuthStore: CursorAppAuthStore(),
+            persistAppAuthSession: { session in
+                await CursorSessionStore.shared.persistAppSession(session)
+            },
+            conditionalMutationCoordinator: conditionalMutationCoordinator)
+        #else
+        self.init(
+            baseURL: baseURL,
+            timeout: timeout,
+            browserDetection: browserDetection,
+            browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
+            urlSession: urlSession,
+            conditionalMutationCoordinator: conditionalMutationCoordinator)
+        #endif
     }
 
     #if os(macOS)
@@ -875,7 +983,9 @@ public struct CursorStatusProbe: Sendable {
         browserDetection: BrowserDetection,
         browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
         urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
-        appAuthStore: any CursorAppAuthSessionProviding)
+        appAuthStore: any CursorAppAuthSessionProviding,
+        persistAppAuthSession: @escaping @Sendable (CursorAppAuthSession) async -> Void = { _ in },
+        conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
     {
         self.baseURL = baseURL
         self.timeout = timeout
@@ -883,6 +993,8 @@ public struct CursorStatusProbe: Sendable {
         self.browserCookieImportOrder = browserCookieImportOrder
         self.urlSession = urlSession
         self.appAuthStore = appAuthStore
+        self.persistAppAuthSession = persistAppAuthSession
+        self.conditionalMutationCoordinator = conditionalMutationCoordinator
     }
 
     /// Fetch Cursor usage using a first-party web session derived from Cursor.app's access token.

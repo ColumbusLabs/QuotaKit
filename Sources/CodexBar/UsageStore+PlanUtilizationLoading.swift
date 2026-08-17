@@ -32,7 +32,8 @@ extension UsageStore {
             self.planUtilizationHistory = loaded
             self.planUtilizationHistoryLoaded = true
             self.planUtilizationHistoryRevision &+= 1
-            _ = self.restoreClaudeHistorySnapshotIfNeeded()
+            _ = self.restoreClaudeHistorySnapshotIfNeeded(
+                activeAccountObservation: self.claudeHistoryFallbackActiveAccountObservation)
         }
     }
 }

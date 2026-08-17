@@ -18,6 +18,7 @@ extension UsageStore {
         // Provider-specific by design: only Claude owns the persisted quota-history fallback state.
         guard provider == .claude else { return }
         self.claudeHistoryFallbackEligible = false
+        self.claudeHistoryFallbackActiveAccountObservation = .changed
     }
 
     func recordProviderFetchSuccessErrorState(provider: UsageProvider) {
@@ -29,13 +30,15 @@ extension UsageStore {
     func prepareClaudeHistoryFallback(
         provider: UsageProvider,
         usesConsumerAutoPipeline: Bool,
-        accountStateWasStable: Bool) -> Bool
+        activeAccountObservation: ClaudeOAuthActiveAccountObservation) -> Bool
     {
         // Provider-specific by design: only a stable Claude refresh may arm the Claude history fallback.
         guard provider == .claude else { return false }
-        let eligible = usesConsumerAutoPipeline && accountStateWasStable
+        let eligible = usesConsumerAutoPipeline && activeAccountObservation != .changed
         self.claudeHistoryFallbackEligible = eligible
-        return eligible && self.restoreClaudeHistorySnapshotIfNeeded()
+        self.claudeHistoryFallbackActiveAccountObservation = activeAccountObservation
+        return eligible && self.restoreClaudeHistorySnapshotIfNeeded(
+            activeAccountObservation: activeAccountObservation)
     }
 
     nonisolated static func shouldPreservePriorSnapshot(after error: Error, hadPriorData: Bool) -> Bool {
@@ -78,7 +81,9 @@ extension UsageStore {
     /// Rebuilds only Claude's quota bars from persisted captures. Identity and source authority intentionally stay
     /// unset: history proves the percentages and capture time, but it must never impersonate a live account fetch.
     @discardableResult
-    func restoreClaudeHistorySnapshotIfNeeded() -> Bool {
+    func restoreClaudeHistorySnapshotIfNeeded(
+        activeAccountObservation: ClaudeOAuthActiveAccountObservation) -> Bool
+    {
         // Provider-specific by design: this reconstructs only Claude quota bars in Claude's isolated state lanes.
         guard self.claudeHistoryFallbackEligible,
               self.planUtilizationHistoryLoaded,
@@ -89,7 +94,8 @@ extension UsageStore {
             return false
         }
 
-        let histories = self.planUtilizationHistorySelection(for: .claude).histories
+        let histories = self.claudeHistoryFallbackSelection(
+            activeAccountObservation: activeAccountObservation).histories
         let session = Self.latestClaudeHistoryEntry(
             named: .session,
             preferredWindowMinutes: Self.sessionWindowMinutes,

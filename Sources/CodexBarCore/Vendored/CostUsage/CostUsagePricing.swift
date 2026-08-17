@@ -1,5 +1,7 @@
 import Foundation
 
+// The pricing table intentionally stays centralized so model aliases and multipliers share one authority.
+// swiftlint:disable:next type_body_length
 enum CostUsagePricing {
     private static let codexPriorityInputTokenLimit = 272_000
     static let codexUnattributedModel = "unknown"
@@ -599,6 +601,7 @@ enum CostUsagePricing {
             model: model,
             catalog: modelsDevCatalog,
             cacheRoot: modelsDevCacheRoot)
+        // Provider-specific by design: Codex pricing may combine a routed models.dev result with bundled fallback data.
         if let lookup = modelsDevLookup {
             let bundled = lookup.pricing.providerID == self.codexModelsDevProviderID ? self.codex[key] : nil
             // A missing catalog context block means models.dev has no long-context opinion, so use

@@ -30,10 +30,6 @@ browser session when the CLI surface does not expose billing.
      fallback, while a team principal degrades to identity-only with an explicit
      unsupported-team-usage diagnostic. When xAI exposes billing on the agent
      protocol, no code change is required.
-   - After a successful RPC billing result (or the identity-only team fallback),
-     CodexBar still GETs `/v1/settings` for `subscription_tier_display` so the
-     billed plan is not lost just because the CLI route succeeded first. The
-     settings lookup is optional enrichment with a 2-second budget.
    - One non-obvious quirk: grok's ACP parser does not unescape `\/` in method
      names. `Foundation.JSONSerialization.data` defaults to escaping forward
      slashes, so payloads must be re-encoded with `\/` → `/` before being
@@ -152,10 +148,7 @@ weekly cycle.
 - **Identity**:
   - `accountEmail` from credential `email`.
   - `accountOrganization` from credential `team_id`.
-  - `loginMethod` = CLI settings `subscription_tier_display` when present
-    (`SuperGrok Heavy` or `SuperGrok`), on both the CLI RPC route and the
-    CLI-proxy web route. Otherwise "SuperGrok" for OIDC and the raw `auth_mode`
-    for other login modes.
+  - `loginMethod` = "SuperGrok" for OIDC, otherwise the raw `auth_mode`.
 
 ## Local fallback (`~/.grok/sessions/`)
 

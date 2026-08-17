@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.
+- Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.
+- Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.
 - OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false `$used / $0` budget.
 - Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.
 - Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.
@@ -17,11 +20,14 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced reviewed CodexBar development through `1fedc66eb`, adopting provider, persistence, performance, and Mac reliability work while preserving QuotaKit identity, Columbus Labs release ownership, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
+- Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
 - Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
 
 ### Fixed
 
+- Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.
+- Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.
+- Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.
 - Provider status: keep transport errors out of menus until a real status fetch succeeds while preserving the last successful provider status through later fetch failures.
 - Usage & Spend: preserve complete requested and retained Codex history under byte pressure, recover orphaned resumable catch-up work, reduce catch-up status memory use, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
 - OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.

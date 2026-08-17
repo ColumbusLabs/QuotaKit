@@ -4,7 +4,6 @@ import Testing
 @testable import CodexBar
 
 @MainActor
-// swiftlint:disable:next type_body_length
 struct UsageStoreWidgetSnapshotTests {
     @Test
     func `widget snapshot preserves raw Codex windows for timeline projection`() async throws {
@@ -904,7 +903,7 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
     }
 
     @Test
-    func `widget snapshot keeps Cursor Total label for token based plans`() async throws {
+    func `widget snapshot keeps Cursor Auto and API labels for token based plans`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-cursor-total-label"
         let defaults = try #require(UserDefaults(suiteName: suite))
         defaults.removePersistentDomain(forName: suite)
@@ -936,7 +935,7 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
         await store.widgetSnapshotPersistTask?.value
 
         let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
-        #expect(entry.usageRows?.map(\.title) == ["Total", "Cursor", "Third Party"])
+        #expect(entry.usageRows?.map(\.title) == ["Total", "Auto", "API"])
     }
 }
 

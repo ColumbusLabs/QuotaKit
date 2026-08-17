@@ -62,7 +62,6 @@ struct SettingsDefaultsState {
     var claudeWebExtrasEnabledRaw: Bool
     var showOptionalCreditsAndExtraUsage: Bool
     var claudeDailyRoutinesUsageVisible: Bool
-    var claudeModelScopedWeeklyUsageVisible: Bool
     var codexSparkUsageVisible: Bool
     var codexExternalOAuthSourcesAllowed: Bool
     var openAIWebAccessEnabled: Bool

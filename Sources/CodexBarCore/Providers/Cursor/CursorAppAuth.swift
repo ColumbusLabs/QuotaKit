@@ -104,7 +104,7 @@ struct CursorSessionIdentity: Equatable, Sendable {
 
 #if os(macOS)
 struct CursorAppAuthSession: Equatable, Sendable {
-    static let persistedCookieMarker = "CodexBar Cursor.app local auth"
+    static let persistedCookieMarker = "QuotaKit Cursor.app local auth"
 
     let accessToken: String
 

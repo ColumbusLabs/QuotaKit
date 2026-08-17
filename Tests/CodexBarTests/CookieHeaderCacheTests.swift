@@ -19,7 +19,7 @@ struct CookieHeaderCacheTests {
             .appendingPathComponent("CodexBar", isDirectory: true)
             .standardizedFileURL
 
-        #expect(legacyURL.standardizedFileURL.path.hasPrefix(productionBase.path) == false)
+        #expect(!legacyURL.standardizedFileURL.path.hasPrefix(productionBase.path))
         #expect(legacyURL.path.contains("CodexBarTests-\(getpid())-"))
     }
 

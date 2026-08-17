@@ -95,6 +95,8 @@ struct CodexBarApp: App {
             store: store,
             settings: settings,
             mockInjector: { @MainActor in MockProviderInjector.injectedSnapshots() })
+        // Sync used to be owned by an invisible SwiftUI window. Keep it process-scoped so
+        // closing or miniaturizing Settings cannot stop Mac-to-iPhone updates.
         syncCoordinator.startObserving()
         _syncCoordinator = State(wrappedValue: syncCoordinator)
         _managedCodexAccountCoordinator = State(wrappedValue: managedCodexAccountCoordinator)
@@ -386,11 +388,18 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     private var codexAccountPromotionCoordinator: CodexAccountPromotionCoordinator?
     private var cloudSyncCoordinator: CloudSyncCoordinator?
     private var hasInstalledLimitResetObservers = false
+    private var hasStartedKeychainMigration = false
     #if DEBUG
     private var debugMemoryPressureObserver: NSObjectProtocol?
     #endif
     var terminateActiveProcessesForAppShutdown: () -> Void = {
         TTYCommandRunner.terminateActiveProcessesForAppShutdown()
+    }
+
+    var startKeychainMigration: () -> Void = {
+        Task.detached(priority: .utility) {
+            _ = KeychainMigration.migrateIfNeeded()
+        }
     }
 
     func configure(_ dependencies: Dependencies) {
@@ -410,8 +419,9 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
     func applicationDidFinishLaunching(_ notification: Notification) {
         self.dockIconController.start()
         self.memoryPressureMonitor.start()
-        Task.detached(priority: .utility) {
-            _ = KeychainMigration.migrateIfNeeded()
+        if !self.hasStartedKeychainMigration {
+            self.hasStartedKeychainMigration = true
+            self.startKeychainMigration()
         }
         #if DEBUG
         self.installDebugMemoryPressureObserverIfNeeded()

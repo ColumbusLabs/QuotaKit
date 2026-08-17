@@ -51,7 +51,33 @@ extension CursorStatusProbe {
         }
 
         // A browser fallback started by this refresh must not overwrite a concurrently committed login.
-        var cacheObservation = CookieHeaderCache.observeForConditionalMutation(provider: .cursor)
+        var cacheObservation = CookieHeaderCache.observeForConditionalMutation(
+            provider: .cursor,
+            coordinator: self.conditionalMutationCoordinator)
+        let cachedEntry = allowCachedSessions ? CookieHeaderCache.load(provider: .cursor) : nil
+        var storedCookies = allowCachedSessions ? await CursorSessionStore.shared.getCookies() : []
+        #if os(macOS)
+        if !allowAppAuthFallback {
+            storedCookies.removeAll(where: CursorAppAuthSession.isPersistedCookie)
+        }
+
+        let hasExplicitBrowserSelection = cachedEntry?.sourceLabel != Self.appAuthSourceLabel &&
+            cachedEntry?.authenticationFailurePolicy == .stopFallback
+        if allowAppAuthFallback, !hasExplicitBrowserSelection {
+            let context = AppSessionFetchContext(
+                cachedEntry: cachedEntry,
+                storedCookies: storedCookies,
+                cacheObservation: cacheObservation,
+                perform: perform,
+                log: log)
+            switch try await self.fetchPreferredAppSession(context: context) {
+            case let .succeeded(value):
+                return value
+            case let .resumeFallback(updatedStoredCookies):
+                storedCookies = updatedStoredCookies
+            }
+        }
+        #endif
 
         if allowCachedSessions,
            let cached = cachedEntry,

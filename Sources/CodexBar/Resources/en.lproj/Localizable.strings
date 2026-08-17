@@ -646,9 +646,9 @@
 "show_provider_storage_usage_title" = "Show provider storage usage";
 "show_provider_storage_usage_subtitle" = "Show local disk usage in menus. Scans known provider-owned paths in the background.";
 "section_keychain_access" = "Keychain access";
-"keychain_access_caption" = "Blocks CodexBar's Security.framework reads and writes and Chromium Safe Storage decryption. Provider-owned CLIs launched for usage may still access credentials under their own policy. Use manual cookies, API keys, or files where supported.";
+"keychain_access_caption" = "Blocks QuotaKit's Security.framework reads and writes and Chromium Safe Storage decryption. Provider-owned CLIs launched for usage may still access credentials under their own policy. Use manual cookies, API keys, or files where supported.";
 "disable_keychain_access_title" = "Disable Keychain access";
-"disable_keychain_access_subtitle" = "Blocks CodexBar-owned Keychain access and browser-cookie decryption.";
+"disable_keychain_access_subtitle" = "Blocks QuotaKit-owned Keychain access and browser-cookie decryption.";
 "Re-authenticate" = "Re-authenticate";
 "kiro_reauthenticate_title" = "Kiro CLI login";
 "kiro_reauthenticate_subtitle" = "Runs 'kiro-cli login' to refresh your session when it has expired.";
@@ -1468,3 +1468,8 @@
 "5-hour usage" = "5-hour usage";
 "7-day usage" = "7-day usage";
 "Total usage" = "Total usage";
+"+ %d more" = "+ %d more";
+"Conversations (%@)" = "Conversations (%@)";
+"Fast" = "Fast";
+"claude_oauth_keychain_access_revoked" = "Claude Keychain access was revoked by Claude Code's token rotation. Click Refresh to re-grant access, or switch Claude Usage source to CLI/Web.";
+"claude_showing_last_known_usage" = "Showing last-known usage captured %@.";

@@ -6,9 +6,21 @@ import Testing
 @Suite(.serialized)
 struct CursorAppAuthRegressionTests {
     @Test
+    func `shared session store is isolated from production application support under tests`() async throws {
+        let fileURL = await CursorSessionStore.shared.fileURLForTesting()
+        let applicationSupport = try #require(
+            FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first)
+        #expect(!fileURL.standardizedFileURL.path.hasPrefix(applicationSupport.standardizedFileURL.path))
+        #expect(fileURL.path.contains("CursorSessionStoreTests-\(getpid())-"))
+    }
+
+    @Test
     func `session store replaces app auth accounts and keeps the file owner only`() async throws {
-        let store = CursorSessionStore.shared
-        await store.clearCookies()
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-session-store-\(UUID().uuidString)", isDirectory: true)
+        let fileURL = directory.appendingPathComponent("cursor-session.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+        let store = CursorSessionStore(fileURL: fileURL)
         let firstToken = try makeCursorAppAuthToken(
             subject: "auth0|first-account",
             expiration: Date(timeIntervalSinceNow: 3600))
@@ -28,15 +40,63 @@ struct CursorAppAuthRegressionTests {
         #expect(CursorAppAuthSession.isPersistedCookie(cookie))
         #expect(cookie.expiresDate != nil)
 
-        let appSupport = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first
-            ?? FileManager.default.temporaryDirectory
-        let fileURL = appSupport
-            .appendingPathComponent("CodexBar", isDirectory: true)
-            .appendingPathComponent("cursor-session.json")
         let attributes = try FileManager.default.attributesOfItem(atPath: fileURL.path)
         let permissions = try #require(attributes[.posixPermissions] as? NSNumber)
         #expect(permissions.intValue & 0o077 == 0)
         await store.clearCookies()
+    }
+
+    @Test
+    func `clearing a migrated legacy session cannot restore it on next initialization`() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-session-migration-\(UUID().uuidString)", isDirectory: true)
+        let primaryURL = directory.appendingPathComponent("QuotaKit/cursor-session.json")
+        let legacyURL = directory.appendingPathComponent("CodexBar/cursor-session.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let legacyStore = CursorSessionStore(fileURL: legacyURL)
+        let token = try makeCursorAppAuthToken(subject: "auth0|legacy-account")
+        await legacyStore.persistAppSession(CursorAppAuthSession(accessToken: token))
+
+        let migratedStore = CursorSessionStore(fileURL: primaryURL, legacyFileURL: legacyURL)
+        #expect(await migratedStore.getCookies().count == 1)
+        #expect(!FileManager.default.fileExists(atPath: legacyURL.path))
+        let markerURL = primaryURL.appendingPathExtension("legacy-migrated")
+        let markerAttributes = try FileManager.default.attributesOfItem(atPath: markerURL.path)
+        let markerPermissions = try #require(markerAttributes[.posixPermissions] as? NSNumber)
+        #expect(markerPermissions.intValue & 0o077 == 0)
+
+        await migratedStore.clearCookies()
+        // Even if an undeletable or externally restored legacy file remains, the durable marker blocks reimport.
+        await legacyStore.persistAppSession(CursorAppAuthSession(accessToken: token))
+        let reinitializedStore = CursorSessionStore(fileURL: primaryURL, legacyFileURL: legacyURL)
+        #expect(await reinitializedStore.getCookies().isEmpty)
+    }
+
+    @Test
+    func `failed migration marker write never deletes an existing QuotaKit session`() async throws {
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-session-marker-failure-\(UUID().uuidString)", isDirectory: true)
+        let primaryURL = directory.appendingPathComponent("QuotaKit/cursor-session.json")
+        let legacyURL = directory.appendingPathComponent("CodexBar/cursor-session.json")
+        defer { try? FileManager.default.removeItem(at: directory) }
+
+        let primaryStore = CursorSessionStore(fileURL: primaryURL)
+        let primaryToken = try makeCursorAppAuthToken(subject: "auth0|primary-account")
+        await primaryStore.persistAppSession(CursorAppAuthSession(accessToken: primaryToken))
+        let primaryBytes = try Data(contentsOf: primaryURL)
+
+        let legacyStore = CursorSessionStore(fileURL: legacyURL)
+        let legacyToken = try makeCursorAppAuthToken(subject: "auth0|legacy-account")
+        await legacyStore.persistAppSession(CursorAppAuthSession(accessToken: legacyToken))
+        let primaryDirectory = primaryURL.deletingLastPathComponent()
+        try FileManager.default.setAttributes([.posixPermissions: 0o500], ofItemAtPath: primaryDirectory.path)
+        defer {
+            try? FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: primaryDirectory.path)
+        }
+
+        _ = CursorSessionStore(fileURL: primaryURL, legacyFileURL: legacyURL)
+        #expect(try Data(contentsOf: primaryURL) == primaryBytes)
     }
 
     @Test

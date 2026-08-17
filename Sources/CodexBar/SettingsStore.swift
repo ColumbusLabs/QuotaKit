@@ -531,6 +531,11 @@ extension SettingsStore {
             forKey: ClaudeOAuthDirectKeychainReadConsent.userDefaultsKey) as? Bool ?? false
         let claudeWebExtrasEnabledRaw = userDefaults.object(forKey: "claudeWebExtrasEnabled") as? Bool ?? false
         let optionalCreditsDefaults = Self.loadOptionalCreditsDefaults(userDefaults: userDefaults)
+        let codexExternalOAuthSourcesAllowed = userDefaults.object(
+            forKey: "codexExternalOAuthSourcesAllowed") as? Bool ?? false
+        if Self.isRunningTests, userDefaults.object(forKey: "codexExternalOAuthSourcesAllowed") == nil {
+            userDefaults.set(false, forKey: "codexExternalOAuthSourcesAllowed")
+        }
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let backgroundWorkLowPowerModeEnabled =
             userDefaults.object(forKey: "backgroundWorkLowPowerModeEnabled") as? Bool ?? false
@@ -631,6 +636,7 @@ extension SettingsStore {
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
+            codexExternalOAuthSourcesAllowed: codexExternalOAuthSourcesAllowed,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
             openAIWebBatterySaverEnabled: openAIWebDefaults.batterySaverEnabled,
             backgroundWorkLowPowerModeEnabled: backgroundWorkLowPowerModeEnabled,

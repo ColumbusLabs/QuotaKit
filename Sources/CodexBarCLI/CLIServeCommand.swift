@@ -702,11 +702,9 @@ extension CodexBarCLI {
                 output: output,
                 kind: .args)
         }
-        // An absent flag stays unresolved so each request can read the app's privacy
-        // setting; an explicit flag is captured once and never second-guessed.
-        let dashboardIdentityMode = Self.dashboardIdentityFlagPresent(in: values)
-            ? decodedIdentityMode
-            : nil
+        // Serve keeps QuotaKit's privacy-preserving default. Only an explicit
+        // `--identity full` opt-in may expose account identities.
+        let dashboardIdentityMode = decodedIdentityMode
         if let startupError = Self.validateServeStartup(
             host: bindHost,
             hasConfiguredBearer: dashboardBearer != nil,
@@ -992,12 +990,7 @@ extension CodexBarCLI {
         guard runtime.dashboardAuth.authorize(request) else {
             return Self.serveUnauthorizedResponse()
         }
-        // Resolved per request, not at startup: the app's "Hide personal information"
-        // toggle can flip while serve runs. The resolved mode joins the operation key so
-        // a body cached before the flip can never be replayed after it.
-        let identityMode = Self.resolveDashboardIdentityMode(
-            configured: runtime.dashboardIdentityMode,
-            hidesPersonalInfo: Self.hidePersonalInfoFromDefaults())
+        let identityMode = runtime.dashboardIdentityMode
         let snapshot: CLIServeConfigSnapshot
         let operationKey: String
         let detail: DashboardSnapshotDetail

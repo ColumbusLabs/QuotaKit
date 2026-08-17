@@ -4,6 +4,7 @@ import Testing
 @testable import CodexBar
 
 @MainActor
+// swiftlint:disable:next type_body_length
 struct SettingsStoreCoverageTests {
     @Test
     func `agent sessions default to opt in disabled`() {

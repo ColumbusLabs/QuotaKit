@@ -16,7 +16,7 @@ public enum GeminiConsumerTierMigration {
     """
 
     public static let localAntigravityHandoffError = """
-    Could not refresh Gemini OAuth credentials from Gemini CLI. Enable CodexBar's Antigravity \
+    Could not refresh Gemini OAuth credentials from Gemini CLI. Enable QuotaKit's Antigravity \
     provider, sign in to Antigravity or run `agy`, then refresh.
     """
 

@@ -601,6 +601,9 @@ private struct SpendProviderPanel: View {
 private struct SpendModelPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
     @Binding var metric: SpendDashboardModelMetric
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
 
     var body: some View {
         SpendDashboardPanel {
@@ -636,7 +639,7 @@ private struct SpendModelPanel: View {
                             .foregroundStyle(.secondary)
                             .padding(.bottom, 6)
                     }
-                    ForEach(spendDashboardModelRows(self.group.models, metric: self.metric).prefix(8)) { row in
+                    ForEach(self.visibleRows) { row in
                         if row.rank > 1 {
                             Divider()
                         }
@@ -676,8 +679,8 @@ private struct SpendModelPanel: View {
     }
 
     private var visibleRows: ArraySlice<SpendDashboardModel.ModelRow> {
-        self.group.models.prefix(
-            self.showsAllRows ? self.group.models.count : Self.collapsedRowCount)
+        let rows = spendDashboardModelRows(self.group.models, metric: self.metric)
+        return rows.prefix(self.showsAllRows ? rows.count : Self.collapsedRowCount)
     }
 }
 
