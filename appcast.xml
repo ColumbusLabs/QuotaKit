@@ -5,6 +5,46 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.19</title>
+            <pubDate>Wed, 19 Aug 2026 08:03:16 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.19.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.19</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.19 Mobile 1.11.3</h2>
+<h3>Added</h3>
+<ul>
+<li>Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.</li>
+<li>Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.</li>
+<li>Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.</li>
+<li>OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false <code>$used / $0</code> budget.</li>
+<li>Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.</li>
+<li>Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.</li>
+<li>Grok and LongCat: read current billing credits and live token-pack usage from their provider-owned endpoints.</li>
+<li>Menu bar: add accessible vertical icon adjustment, system dimming, Ghostty terminal selection, draggable layout fixes, and preferred-currency cost-history charts with CZK support.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced reviewed CodexBar development through <code>7c64d280f</code>, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.</li>
+<li>Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.</li>
+<li>Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.</li>
+<li>Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.</li>
+<li>Provider status: keep transport errors out of menus until a real status fetch succeeds while preserving the last successful provider status through later fetch failures.</li>
+<li>Usage & Spend: preserve complete requested and retained Codex history under byte pressure, recover orphaned resumable catch-up work, reduce catch-up status memory use, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.</li>
+<li>OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.</li>
+<li>Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.</li>
+<li>Process handling: bound PTY hard-stop cleanup, resolve helper resources through CLI symlinks, and escalate orphaned RPC children through a bounded teardown path.</li>
+<li>Codex and Ollama: confirm zero-credit server resets correctly and recover browser-backed usage without spurious background sign-in errors.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.19/QuotaKit-macos-universal-0.32.4.19.zip" length="75867339" type="application/octet-stream" sparkle:edSignature="887f36oJ/de+KencqrXMM/pVzTrVsAakxKIEB3dXuvzHtBGuEBa9LH/GWqEIWhbUq/YtMlB4iopS64e9Xt7IAA=="/>
+        </item>
+        <item>
             <title>0.32.4.18</title>
             <pubDate>Thu, 13 Aug 2026 07:19:14 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -35,96 +75,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.17/QuotaKit-macos-universal-0.32.4.17.zip" length="72818927" type="application/octet-stream" sparkle:edSignature="1dH5rWKlx7F798QObGkByT/XO/ypkOue19QBUYdKXem1HuECoJfbMgRJp1LznQVg3PykQacoXsuo/mKUKkysAQ=="/>
-        </item>
-        <item>
-            <title>0.32.4.16</title>
-            <pubDate>Wed, 12 Aug 2026 16:26:53 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.16.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.16</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.16 Mobile 1.11.3</h2>
-<h3>Added</h3>
-<ul>
-<li>CLI: add a built-in auto-refreshing QuotaKit web dashboard at <code>/</code>, including provider brand icons, grouped multi-account cards, spend charts, and a status display that stays hidden when no provider status exists.</li>
-<li>CLI: add <code>quotakit dashboard --output <path></code> for atomic snapshot publication and <code>--identity full</code> for explicit real-email output on trusted private surfaces; the default remains redacted.</li>
-<li>Dashboard v1: include claude-swap account windows, pace, active state, and identity under the Claude provider row when that integration is enabled.</li>
-<li>Currency: add Korean won (KRW) to the preferred-currency picker with zero-decimal formatting.</li>
-<li>Command Code: recognize the Individual GOAT plan and its monthly credits.</li>
-<li>Notion AI: track Business and Enterprise workspace allowances for rolling and billing-period windows, with calendar-aware pace estimates.</li>
-<li>Provider plugins: support local JavaScript or TypeScript providers with manifest-driven settings, approval-bound network and cookie access, and generic detail rows and charts.</li>
-<li>Sessions: discover live pi and OMP sessions alongside Codex and Claude Code, including mixed-version local and remote CLI support.</li>
-<li>CLI: expose Codex cost-history completeness in JSON and add an experimental provider-native-only scan mode (#2520). Thanks @NickGuAI!</li>
-<li>Usage & Spend: add an accessible daily, weekly, and cumulative token-activity heatmap backed by the existing persistent cost scan cache (#2548). Thanks @Yuxin-Qiao!</li>
-<li>Settings: the sidebar is now resizable — drag the divider between 200–380pt; the width persists across launches.</li>
-<li>z.ai/GLM: route BigModel aliases and relay-file keys only to China endpoints, reject canonical cross-region overrides before bearer auth, and keep Kimi browser import disabled when Cookie Source is Off (#2351). Thanks @Leehow!</li>
-<li>Kimi: enrich Code API and CLI usage with the monthly membership pool from a signed-in Kimi Desktop session, using WAL-safe read-only cookie access (#2351). Thanks @Leehow!</li>
-<li>Sessions: discover live pi and OMP sessions through one Pi-family scanner, with dialect-aware metadata, PID-only startup rows, and mixed-version CLI/remote support (#2529). Thanks @wdmitchelluk!</li>
-<li>Kimi/GLM: distinguish Kimi Code from the regional Open Platform, bind China and international keys to their issuing hosts, and show GLM Coding Plan's 5-hour window as primary with MCP separate (#2351). Thanks @Leehow!</li>
-<li>Provider plugins: declarative detail rows/charts plus bundled JavaScript conversions for OpenAI, z.ai, OpenRouter, Poe, and ClawRouter behind <code>CODEXBAR_JS_PROVIDERS=1</code>.</li>
-<li>Provider plugins: install local JavaScript or TypeScript providers with manifest-driven settings and generic menu cards, approval-bound network/cookie access, and sandboxed Sucrase transpilation.</li>
-<li>OpenCode Go: per-model cost and request breakdowns by day in the shared cost history chart, resolved from the local session database (#2649). Thanks @kentoku24!</li>
-<li>Copilot: decode the AI credits counter for token-billed seats and expose it in <code>quotakit diagnose</code>, so Business seats with zero-entitlement quotas are no longer blank at the data layer (#2613, refs #2593). Thanks @Yuxin-Qiao, and @KSEGIT for the discovery!</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Claude: retire the Always allow Keychain prompt policy; existing selections migrate to Only on user action, and background refreshes no longer launch Claude Code, <code>claude-swap</code>, or credential-reading helpers.</li>
-<li>Synced reviewed CodexBar development through <code>a90dfed5c</code>, adding Fireworks and IBM Bob to QuotaKit's complete Mac/iPhone provider catalog, safer Codex cost-cache persistence, quota presentation improvements, and Mac reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit and App Group contracts, and all build numbers.</li>
-<li>Cost history: add the upstream SQLite <code>CostUsageStore</code> foundation and fixture coverage without switching QuotaKit's production cache or iCloud/iPhone summary contract yet.</li>
-<li>Provider plugins: import the latest Synthetic, Poe, xAI, and z.ai JavaScript parity and sandbox support while retaining QuotaKit's native-default fetchers and typed compatibility payloads for iCloud and iPhone.</li>
-<li>Provider plugins: add a portable QuickJS engine for Linux and explicit local engine testing while keeping QuotaKit's native provider fetchers as the default where typed compatibility data feeds iCloud and iPhone.</li>
-<li>CLI dashboard: paint a cached shell immediately and stream provider rows as they finish, while retaining redacted account identity by default and QuotaKit-owned browser storage keys.</li>
-<li>Provider plugins: add golden-tested JavaScript implementations for OpenRouter, ClawRouter, Deepgram, and sub2api. QuotaKit keeps their native fetchers as the default so typed usage remains available to iCloud and iOS, while Crof and Venice continue using bundled JavaScript by default on macOS.</li>
-<li>Settings: refresh the Plugins pane to match the other panes — labeled install and directory rows with a Show in Finder affordance, a tilde-abbreviated path, a properly sized empty state, and consistent section footers.</li>
-<li>Settings: localize every Plugins pane control, status, approval prompt, and alert across all complete app locales.</li>
-<li><strong>Breaking JSON change:</strong> provider-specific usage payload keys are being removed from <code>quotakit usage --format json</code>, <code>serve /usage</code>, and synced snapshots in favor of the generic Codable <code>usage.details</code> sections. The app and text CLI now render those same declarative rows and charts.</li>
-<li>Menu: move each usage window's used percentage and reset time into its title row, with all pace detail on one line (#2182). Thanks @jack24254029!</li>
-<li>Codex: define Fast cost as estimated API Fast USD, resolve it models.dev-first with model-specific API ratios, and refresh GPT-5.6 Terra/Luna fallback rates (refs #2175). Thanks @iam-brain!</li>
-<li>Synced upstream CodexBar changes through <code>98c286dbe</code>, adding the built-in serve dashboard, atomic dashboard snapshots, optional full identity, claude-swap dashboard accounts, KRW, and quota/runtime reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all Mac/iOS build numbers.</li>
-<li>Synced upstream CodexBar changes through <code>a1fd8c5a9</code>, adding richer CLI JSON and native-only scans, token-activity heatmaps, resizable settings, plugin refinements, and provider correctness and reliability fixes while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.</li>
-<li>Synced upstream CodexBar changes through <code>a82f509ea</code>, including Notion AI, provider plugins, Pi-family sessions, quota and regional-auth fixes, and refreshed menu-bar pacing while preserving QuotaKit identity, Columbus Labs release ownership, CloudKit configuration, config paths, and all build numbers.</li>
-<li>Synced upstream CodexBar changes through <code>cee0fd074</code>, adding portable QuickJS plugins, packaged-resource smoke coverage, progressive dashboards, active claude-swap menu-bar usage, and quota fixes while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.</li>
-<li>Synced upstream CodexBar changes through <code>b39714de3</code>, adding standalone CLI resource packaging, omitted-reset-credit handling, Kimi duplicate-lane suppression, and exact-clock menu countdowns while preserving QuotaKit identity, Columbus Labs release ownership, native-default sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.</li>
-<li>Synced upstream CodexBar changes through <code>56a763eaa</code>, adding the SQLite cost-store foundation, wrapped menu metric rows, provider-plugin parity updates, and opt-in Claude statusLine guidance while preserving QuotaKit identity, Columbus Labs release ownership, native-default typed sync providers, CloudKit configuration, privacy defaults, and all Mac/iOS build numbers.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Menu: allow long metric reset and pace details to wrap to two lines and include their content in the cached-height fingerprint so translated text is not clipped.</li>
-<li>CLI packaging: ship the CodexBarCore SwiftPM resource bundle beside <code>QuotaKitCLI</code>, include it in release archives, and smoke-test standalone resource loading without the build checkout.</li>
-<li>Codex: confirm a redeemed manual reset when the provider omits the consumed credit from the next inventory only after both usage samples corroborate the reset.</li>
-<li>Kimi: use the official usage-lane labels and hide the Code 7-day row only when its percentage and reset match the primary weekly quota.</li>
-<li>Menu bar: keep custom reset countdown tokens aligned with the opened menu by using the exact display clock rather than a rounded wall minute.</li>
-<li>Packaging: resolve the CodexBarCore SwiftPM resource bundle from <code>QuotaKit.app/Contents/Resources</code> and smoke-test the bundle's declared executable without relying on the build checkout.</li>
-<li>Claude: render the menu-bar indicator from the active claude-swap account and treat that presentation snapshot as loaded without suppressing ambient refresh retries.</li>
-<li>Codex and z.ai/GLM: decode monthly spend-control credit limits and credit-based Coding Plan windows, including the 5-hour primary reset, while retaining QuotaKit's MCP cadence semantics.</li>
-<li>Menu: make percentage labels follow the Usage bars fill setting.</li>
-<li>CLI serve: bound the full request head against slow-trickle holds, keep slow provider work running after a request deadline, and deliver completed late results to cache and already-waiting requests.</li>
-<li>Codex: apply redeemed manual resets immediately without waiting for the previous weekly-boundary confirmation window.</li>
-<li>Antigravity: wait for a cold-started signed-in <code>agy</code> server to become quota-ready before falling back.</li>
-<li>Cost cache: keep save-time overshoot aligned with the documented load cap so an accepted cache cannot immediately rewrite itself above the read limit.</li>
-<li>Grok: keep the usage label and pace estimate through the whole billing cycle instead of dropping to a bare "Credits" bar once fewer than about 3.5 days remain.</li>
-<li>Kimi and z.ai/GLM: keep regional credentials bound to their issuing hosts, add Kimi Desktop membership usage, and preserve safe cookie-source behavior.</li>
-<li>Command Code: parse rolling 5-hour and weekly limits alongside monthly credits.</li>
-<li>Usage & Spend: retain validated Codex totals while the local scanner refreshes.</li>
-<li>ZoomMate: preserve browser-cookie scope across the provider's API hosts.</li>
-<li>Overview: stop the infinite menu flicker when hovering between provider chart submenus with Agent Sessions enabled — no-op session rescans no longer invalidate menus, submenu hovers no longer trigger rescans, and session updates defer tracked-parent rebuilds like other data refreshes (#2652). Thanks @qazi0!</li>
-<li>Widgets: bound widget-snapshot file I/O with a defensive timeout and skip further container access once it wedges, so a blocked macOS 26 app-group open() can no longer beachball the app or hang the widget (#2267 follow-up).</li>
-<li>Command Code: parse and display 5-hour and weekly rolling limits alongside monthly credits and reset times (#2466). Thanks @derekszen!</li>
-<li>OpenCode Go: include Zen balance in CLI usage reads without waiting beyond five seconds (#2583). Thanks @Yuxin-Qiao!</li>
-<li>Usage & Spend: keep validated Codex totals visible while the local scanner catches up, with refresh indicators in the dashboard and menu cost rows (#2397). Thanks @hhh2210!</li>
-<li>ZoomMate: preserve browser cookie scope so parent-domain sessions reach both API hosts without leaking host-only cookies (fixes #2507). Thanks @weddle!</li>
-<li>Sync: propagate provider configuration edits made by the CLI or directly in <code>config.json</code> to the iCloud fleet without echoing remotely applied writes.</li>
-<li>Codex: classify rate windows by duration, so a 30-day window renders as Monthly with its real reset countdown instead of masquerading as the Session card — consistently across the provider card, widgets, and submenu (#2600, fixes #2592). Thanks @Yuxin-Qiao!</li>
-<li>Codex: bound the persisted cost-usage cache with entry/byte budgets, window-aware pruning, and a load-refusal cap, so the main process no longer grows without limit on large session corpora (#2646, refs #2637). Thanks @Yuxin-Qiao!</li>
-<li>Codex: resume fork catch-up from a validated cached offset when a rollout is appended, charging only the appended suffix against scan budgets instead of restarting the bounded full scan (#2648). Thanks @xx205!</li>
-<li>Claude: report a provably unreadable OAuth delegated refresh as terminal with a long cooldown, instead of looping "run claude login, then retry" and relaunching the CLI every poll cycle (#2650, refs #2634). Thanks @kes02!</li>
-<li>Usage & Spend: keep priced Codex model rows visible when the history also contains unpriced Auto Review routing rows, labeled as a partial breakdown with ranking removed (#2643). Thanks @akshayprabhu200!</li>
-<li>Perplexity: pin the promo expiry date to English formatting regardless of system locale, matching the rest of the string and the JS plugin (#2651). Thanks @kes02!</li>
-<li>OpenRouter: use the server-reported current-period remaining for the key-limit meter and "left" text instead of deriving both from cumulative lifetime usage (#2612, fixes #2605). Thanks @Yuxin-Qiao!</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.16/QuotaKit-macos-universal-0.32.4.16.zip" length="72810581" type="application/octet-stream" sparkle:edSignature="jGVl66vi6lIHHqqD8Ch/K1Yhp5xP0luUrUDBxtm3ighF9MwlEy3Xyz81nipj78+t1BSkNWnGbbZPwzmcYXsWAA=="/>
         </item>
     </channel>
 </rss>
