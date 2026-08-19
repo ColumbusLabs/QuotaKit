@@ -1,7 +1,7 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 struct SpendDashboardModelTests {
     @Test
@@ -19,6 +19,7 @@ struct SpendDashboardModelTests {
             #expect(codexBarLocalizedInteger(12) == "۱۲")
             #expect(spendDashboardDayRangeText(7) == "۷ روز")
             #expect(spendDashboardDayRangeText(30) == "۳۰ روز")
+            #expect(spendDashboardDayRangeText(SpendDashboardSource.scanDays) == "همه")
             #expect(spendDashboardRankText(1234) == "#۱٬۲۳۴")
             #expect(spendDashboardRefreshFailureText(2) == "\(L("Refresh failures")): ۲")
             #expect(spendDashboardCoverageText(covered: 3, requested: 30) == "پوشش: ۳ / ۳۰")
@@ -68,7 +69,17 @@ struct SpendDashboardModelTests {
         let providers = Set(ProviderDescriptorRegistry.all
             .filter(\.tokenCost.supportsTokenCost)
             .map(\.id))
-        #expect(providers == [.codex, .claude, .vertexai, .openai, .mistral, .bedrock, .cursor, .opencodego])
+        #expect(providers == [
+            .codex,
+            .claude,
+            .vertexai,
+            .openai,
+            .mistral,
+            .bedrock,
+            .cursor,
+            .opencodego,
+            .openrouter,
+        ])
     }
 
     @Test
@@ -127,6 +138,34 @@ struct SpendDashboardModelTests {
             calendar: Self.calendar)
         #expect(thirtyDays.groups.first?.totalCost == 7)
         #expect(thirtyDays.groups.first?.coveredDayCount == 30)
+
+        let cumulativeSnapshot = Self.snapshot(
+            currency: "USD",
+            entries: [
+                Self.entry(day: "2026-07-16", cost: 1),
+                Self.entry(day: "2026-07-09", cost: 2),
+                Self.entry(day: "2026-07-08", cost: 4),
+                Self.entry(day: "2026-06-06", cost: 8),
+                Self.entry(day: "2026-08-01", cost: 100),
+            ],
+            historyDays: SpendDashboardSource.scanDays)
+        let cumulativeInput = SpendDashboardModel.ProviderInput(
+            provider: .claude,
+            displayName: "Claude",
+            snapshot: cumulativeSnapshot)
+        #expect(SpendDashboardModel.build(
+            inputs: [cumulativeInput],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar).groups.first?.totalCost == 7)
+        let allTime = SpendDashboardModel.build(
+            inputs: [cumulativeInput],
+            requestedDays: SpendDashboardSource.scanDays,
+            now: Self.now,
+            calendar: Self.calendar)
+        #expect(allTime.requestedDays == SpendDashboardSource.scanDays)
+        #expect(allTime.groups.first?.totalCost == 15)
+        #expect(allTime.groups.first?.coveredDayCount == SpendDashboardSource.scanDays)
 
         let futureSnapshot = Self.snapshot(
             currency: "USD",
@@ -260,13 +299,20 @@ struct SpendDashboardModelTests {
             now: Self.now,
             calendar: Self.calendar).groups.first)
 
-        #expect(group.totalCost == nil)
-        #expect(group.totalTokens == nil)
+        #expect(group.totalCost == 4)
+        #expect(group.totalTokens == 10)
+        #expect(group.hasPartialCost)
+        #expect(group.hasPartialTokens)
+        #expect(group.pricedProviderCount == 1)
         #expect(group.modelHistoryCompleteness == .incomplete)
         #expect(group.models.map(\.provider) == [.claude])
         #expect(group.models.map(\.modelName) == ["test-model"])
         #expect(group.models.map(\.totalCost) == [4])
         #expect(spendDashboardModelHistoryPresentation(group) == .partial)
+        CodexBarLocalizationOverride.$appLanguage.withValue("en") {
+            #expect(spendDashboardGroupTokenText(group).hasPrefix("~"))
+            #expect(spendDashboardHistoryCaption(group, requestedDays: 7).contains("Partial estimate"))
+        }
     }
 
     @Test
@@ -395,7 +441,8 @@ struct SpendDashboardModelTests {
 
         #expect(group.providers.first(where: { $0.id == "invalid" })?.totalCost == nil)
         #expect(group.totalCost == nil)
-        #expect(group.totalTokens == nil)
+        #expect(group.totalTokens == 20)
+        #expect(group.hasPartialTokens)
         #expect(group.dailyPoints.isEmpty)
     }
 
@@ -513,7 +560,8 @@ struct SpendDashboardModelTests {
         #expect(group.providers.first(where: { $0.id == "nonfinite" })?.totalTokens == 2)
         #expect(group.providers.filter { $0.id != "nonfinite" }.allSatisfy { $0.totalTokens == nil })
         #expect(group.totalCost == nil)
-        #expect(group.totalTokens == nil)
+        #expect(group.totalTokens == 2)
+        #expect(group.hasPartialTokens)
     }
 
     @Test
@@ -707,7 +755,7 @@ struct SpendDashboardModelTests {
     }
 
     @Test
-    func `unpriced history stays unavailable instead of becoming zero`() throws {
+    func `unpriced history keeps spend unavailable and lists named models`() throws {
         let snapshot = Self.snapshot(
             currency: "CAD",
             entries: [Self.entry(day: "2026-07-16", cost: nil, tokens: 12)])
@@ -721,6 +769,9 @@ struct SpendDashboardModelTests {
         #expect(group.totalCost == nil)
         #expect(group.totalTokens == 12)
         #expect(group.providers.first?.totalCost == nil)
+        #expect(group.models.map(\.modelName) == ["test-model"])
+        #expect(group.models.map(\.totalCost) == [nil])
+        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
     }
 
     @Test
@@ -753,7 +804,8 @@ struct SpendDashboardModelTests {
         #expect(!request.authFileWasReadable)
         #expect(request.displayName == "Codex · #2")
         #expect(request.cacheIdentity.count == 64)
-        #expect(SpendDashboardSource.scanDays == 30)
+        #expect(SpendDashboardSource.scanDays == SpendDashboardSource.activityDays)
+        #expect(SpendDashboardSource.scanDays == 365)
         #expect(SpendDashboardSource.codexRequest(
             account: account,
             homePath: "relative/path",
@@ -796,193 +848,6 @@ struct SpendDashboardModelTests {
         #expect(exact.authFingerprint == CodexAuthFingerprint.fingerprint(data: authData))
         #expect(exact.authFileWasReadable)
         #expect(exact.cacheIdentity != request.cacheIdentity)
-    }
-}
-
-extension SpendDashboardModelTests {
-    @Test
-    func `model metric changes value ordering ranks and formatting`() {
-        let rows = [
-            SpendDashboardModel.ModelRow(
-                rank: 1,
-                provider: .codex,
-                providerName: "Codex",
-                modelName: "example-cost-heavy-model",
-                totalTokens: 1000,
-                totalCost: 4),
-            SpendDashboardModel.ModelRow(
-                rank: 2,
-                provider: .codex,
-                providerName: "Codex",
-                modelName: "example-token-heavy-model",
-                totalTokens: 9000,
-                totalCost: 2),
-            SpendDashboardModel.ModelRow(
-                rank: 3,
-                provider: .codex,
-                providerName: "Codex",
-                modelName: "example-unavailable-model",
-                totalTokens: nil,
-                totalCost: nil),
-        ]
-
-        let costRows = spendDashboardModelRows(rows, metric: .cost)
-        #expect(costRows.map(\.modelName) == [
-            "example-cost-heavy-model",
-            "example-token-heavy-model",
-            "example-unavailable-model",
-        ])
-        #expect(costRows.map(\.rank) == [1, 2, 3])
-
-        let tokenRows = spendDashboardModelRows(rows, metric: .tokens)
-        #expect(tokenRows.map(\.modelName) == [
-            "example-token-heavy-model",
-            "example-cost-heavy-model",
-            "example-unavailable-model",
-        ])
-        #expect(tokenRows.map(\.rank) == [1, 2, 3])
-        #expect(spendDashboardModelValueText(tokenRows[0], metric: .tokens, currencyCode: "USD") == "9K")
-        #expect(spendDashboardModelValueText(tokenRows[2], metric: .tokens, currencyCode: "USD") == "—")
-        #expect(
-            spendDashboardModelValueText(costRows[0], metric: .cost, currencyCode: "USD")
-                == UsageFormatter.currencyString(4, currencyCode: "USD"))
-    }
-
-    @Test
-    func `token metric reports partial and unavailable model coverage`() throws {
-        let complete = Self.input(id: "complete", provider: .codex, currency: "USD", cost: 4)
-        let missing = SpendDashboardModel.ProviderInput(
-            id: "missing",
-            provider: .claude,
-            displayName: "Claude",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [Self.entry(day: "2026-07-16", cost: 2, tokens: nil, model: "claude-model")]))
-        let partial = try #require(SpendDashboardModel.build(
-            inputs: [complete, missing],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(spendDashboardModelHistoryPresentation(partial, metric: .cost) == .complete)
-        #expect(spendDashboardModelHistoryPresentation(partial, metric: .tokens) == .partial)
-
-        let unavailable = try #require(SpendDashboardModel.build(
-            inputs: [missing],
-            requestedDays: 30,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-        #expect(spendDashboardModelHistoryPresentation(unavailable, metric: .tokens) == .unavailable)
-    }
-
-    @Test
-    func `partially attributed Codex history retains its priced model rows`() throws {
-        let codex = SpendDashboardModel.ProviderInput(
-            provider: .codex,
-            displayName: "Codex",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [
-                    Self.entry(day: "2026-07-15", cost: 2, model: "gpt-5.2-codex"),
-                    Self.entry(day: "2026-07-16", cost: 3, model: nil),
-                ]))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(group.totalCost == 5)
-        #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(group.models.map(\.modelName) == ["gpt-5.2-codex"])
-        #expect(group.models.map(\.totalCost) == [2])
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
-    }
-
-    @Test
-    func `unpriced Codex routing row retains priced model rows as partial`() throws {
-        let codex = SpendDashboardModel.ProviderInput(
-            provider: .codex,
-            displayName: "Codex",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [
-                    Self.entryWithBreakdowns(
-                        day: "2026-07-15",
-                        totalCost: 2,
-                        totalTokens: 100,
-                        breakdowns: [
-                            .init(modelName: "example-priced-codex-model", costUSD: 2, totalTokens: 40),
-                            .init(modelName: "example-unpriced-routing-model", costUSD: nil, totalTokens: 60),
-                        ]),
-                ]))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(group.totalCost == 2)
-        #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(group.models.first(where: { $0.modelName == "example-priced-codex-model" })?.totalCost == 2)
-        #expect(group.models.first(where: { $0.modelName == "example-unpriced-routing-model" })?.totalCost == nil)
-        #expect(spendDashboardModelHistoryPresentation(group) == .partial)
-    }
-
-    @Test
-    func `Codex history with only unpriced routing rows stays unavailable`() throws {
-        let codex = SpendDashboardModel.ProviderInput(
-            provider: .codex,
-            displayName: "Codex",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [
-                    Self.entryWithBreakdowns(
-                        day: "2026-07-15",
-                        totalCost: 2,
-                        totalTokens: 100,
-                        breakdowns: [
-                            .init(modelName: "example-unpriced-routing-model", costUSD: nil, totalTokens: 100),
-                        ]),
-                ]))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(group.totalCost == 2)
-        #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(group.models.isEmpty)
-        #expect(spendDashboardModelHistoryPresentation(group) == .unavailable)
-    }
-
-    @Test
-    func `partial Codex model history rejects a malformed named cost`() throws {
-        let codex = SpendDashboardModel.ProviderInput(
-            provider: .codex,
-            displayName: "Codex",
-            snapshot: Self.snapshot(
-                currency: "USD",
-                entries: [
-                    Self.entryWithBreakdowns(
-                        day: "2026-07-15",
-                        totalCost: 2,
-                        totalTokens: 100,
-                        breakdowns: [
-                            .init(modelName: "example-priced-codex-model", costUSD: 2, totalTokens: 40),
-                            .init(modelName: "example-invalid-codex-model", costUSD: -1, totalTokens: 60),
-                        ]),
-                ]))
-        let group = try #require(SpendDashboardModel.build(
-            inputs: [codex],
-            requestedDays: 7,
-            now: Self.now,
-            calendar: Self.calendar).groups.first)
-
-        #expect(group.totalCost == 2)
-        #expect(group.modelHistoryCompleteness == .incomplete)
-        #expect(group.models.isEmpty)
     }
 }
 
@@ -1197,7 +1062,7 @@ extension SpendDashboardModelTests {
 
 extension SpendDashboardModelTests {
     /// Shared fixture helpers for dashboard model tests.
-    private static func input(
+    static func input(
         id: String,
         provider: UsageProvider,
         currency: String,
@@ -1210,7 +1075,7 @@ extension SpendDashboardModelTests {
             snapshot: self.snapshot(currency: currency, entries: [self.entry(day: "2026-07-16", cost: cost)]))
     }
 
-    private static func snapshot(
+    static func snapshot(
         currency: String,
         entries: [CostUsageDailyReport.Entry],
         historyDays: Int = 30,
@@ -1229,7 +1094,7 @@ extension SpendDashboardModelTests {
             updatedAt: updatedAt)
     }
 
-    private static func entry(
+    static func entry(
         day: String,
         cost: Double?,
         tokens: Int? = 10,
@@ -1247,7 +1112,7 @@ extension SpendDashboardModelTests {
             })
     }
 
-    private static func entryWithBreakdowns(
+    static func entryWithBreakdowns(
         day: String,
         totalCost: Double = 0,
         totalTokens: Int = 0,
@@ -1263,8 +1128,8 @@ extension SpendDashboardModelTests {
             modelBreakdowns: breakdowns)
     }
 
-    private static let now = Date(timeIntervalSince1970: 1_784_179_200) // 2026-07-16 00:00:00 UTC
-    private static var calendar: Calendar {
+    static let now = Date(timeIntervalSince1970: 1_784_179_200) // 2026-07-16 00:00:00 UTC
+    static var calendar: Calendar {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = TimeZone(secondsFromGMT: 0)!
         return calendar

@@ -1,4 +1,5 @@
 import AppKit
+import CodexBarCore
 
 struct DockIconWindowDescriptor: Equatable, Sendable {
     let identifier: String?
@@ -16,7 +17,8 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
             return true
         }
         guard let identifier else { return false }
-        return identifier.contains("com_apple_SwiftUI_Settings")
+        return identifier == SettingsWindowIdentity.identifier
+            || identifier.contains("com_apple_SwiftUI_Settings")
     }
 
     var isSparkleWindow: Bool {
@@ -31,12 +33,37 @@ struct DockIconWindowDescriptor: Equatable, Sendable {
         return true
     }
 
-    private var isTinyWindow: Bool {
+    var isTinyWindow: Bool {
         self.width <= 20 && self.height <= 20
     }
 
-    private var isStatusBarWindow: Bool {
+    var isStatusBarWindow: Bool {
         self.classNames.contains { $0.contains("NSStatusBarWindow") }
+    }
+
+    @MainActor
+    static func describe(_ window: NSWindow, isKnownSettingsWindow: Bool) -> Self {
+        var classNames = [NSStringFromClass(type(of: window))]
+        if let windowController = window.windowController {
+            classNames.append(NSStringFromClass(type(of: windowController)))
+        }
+        if let contentViewController = window.contentViewController {
+            classNames.append(NSStringFromClass(type(of: contentViewController)))
+        }
+        if let delegate = window.delegate {
+            classNames.append(NSStringFromClass(type(of: delegate)))
+        }
+
+        return Self(
+            identifier: window.identifier?.rawValue,
+            title: window.title,
+            classNames: classNames,
+            width: window.frame.width,
+            height: window.frame.height,
+            isVisible: window.isVisible,
+            isMiniaturized: window.isMiniaturized,
+            canBecomeKey: window.canBecomeKey,
+            isKnownSettingsWindow: isKnownSettingsWindow)
     }
 }
 
@@ -50,18 +77,96 @@ enum DockIconPolicyDecision {
     static func shouldPromoteForPresentedWindow(_ window: DockIconWindowDescriptor) -> Bool {
         window.isVisible && (window.isSettingsWindow || window.isSparkleWindow)
     }
+
+    /// Windows that became eligible for Dock promotion since the last evaluation.
+    static func newlyPresentedWindowIDs(
+        current: Set<ObjectIdentifier>,
+        previous: Set<ObjectIdentifier>)
+        -> Set<ObjectIdentifier>
+    {
+        current.subtracting(previous)
+    }
+}
+
+enum DockIconPresentationAttemptDecision: Equatable {
+    case inactive
+    case awaiting
+    case presented
+    case timedOut
+
+    static func resolve(
+        isAwaiting: Bool,
+        hasPresentedWindow: Bool,
+        deadlineExpired: Bool)
+        -> Self
+    {
+        guard isAwaiting else { return .inactive }
+        if hasPresentedWindow {
+            return .presented
+        }
+        return deadlineExpired ? .timedOut : .awaiting
+    }
+}
+
+struct DockIconPresentationAttemptID: Equatable, Sendable {
+    fileprivate let rawValue: UInt64
+}
+
+struct DockIconPresentationAttemptTracker: Equatable {
+    private(set) var activeID: DockIconPresentationAttemptID?
+    private var nextRawID: UInt64 = 0
+
+    var isAwaiting: Bool {
+        self.activeID != nil
+    }
+
+    mutating func begin() -> DockIconPresentationAttemptID {
+        self.nextRawID &+= 1
+        let id = DockIconPresentationAttemptID(rawValue: self.nextRawID)
+        self.activeID = id
+        return id
+    }
+
+    mutating func finish(_ id: DockIconPresentationAttemptID) -> Bool {
+        guard self.activeID == id else { return false }
+        self.activeID = nil
+        return true
+    }
+
+    mutating func resolve(
+        hasPresentedWindow: Bool,
+        deadlineExpiredFor deadlineID: DockIconPresentationAttemptID?)
+        -> DockIconPresentationAttemptDecision
+    {
+        guard let activeID else { return .inactive }
+        if let deadlineID, deadlineID != activeID {
+            return .awaiting
+        }
+
+        let decision = DockIconPresentationAttemptDecision.resolve(
+            isAwaiting: true,
+            hasPresentedWindow: hasPresentedWindow,
+            deadlineExpired: deadlineID != nil)
+        if decision == .presented || decision == .timedOut {
+            self.activeID = nil
+        }
+        return decision
+    }
 }
 
 @MainActor
 final class DockIconController: NSObject {
     static let shared = DockIconController()
+    private static let settingsPresentationTimeout: Duration = .seconds(2)
 
     private var isStarted = false
     private var isManagingRegularPolicy = false
-    private var isAwaitingPresentedWindow = false
-    private var promotionGeneration = 0
+    private var presentationAttemptTracker = DockIconPresentationAttemptTracker()
+    private var settingsPresentationAttemptID: DockIconPresentationAttemptID?
     private var presentedWindowIDs: Set<ObjectIdentifier> = []
     private weak var settingsWindow: NSWindow?
+    private var presentationTimeoutTask: Task<Void, Never>?
+    private let logger = CodexBarLog.logger(LogCategories.app)
 
     func start() {
         guard !self.isStarted else { return }
@@ -92,35 +197,48 @@ final class DockIconController: NSObject {
             object: nil)
     }
 
-    func promote() {
-        self.promotionGeneration += 1
-        let generation = self.promotionGeneration
-        self.isAwaitingPresentedWindow = true
+    @discardableResult
+    func promote(presentationTimeout: Duration) -> DockIconPresentationAttemptID {
+        self.presentationTimeoutTask?.cancel()
+        let attemptID = self.presentationAttemptTracker.begin()
         self.ensureRegularPolicy(activate: true)
-        Task { @MainActor [weak self] in
-            try? await Task.sleep(for: .seconds(2))
-            guard let self, self.promotionGeneration == generation, self.isAwaitingPresentedWindow else { return }
-            self.isAwaitingPresentedWindow = false
-            self.reevaluatePolicy()
+        self.presentationTimeoutTask = Task { @MainActor [weak self] in
+            do {
+                try await Task.sleep(for: presentationTimeout)
+            } catch {
+                return
+            }
+            self?.reevaluatePolicy(presentationDeadlineExpiredFor: attemptID)
         }
-    }
-
-    func presentationFailed() {
-        self.promotionGeneration += 1
-        self.isAwaitingPresentedWindow = false
-        self.reevaluatePolicy()
+        return attemptID
     }
 
     func prepareToOpenSettings() {
-        self.promote()
-        if let settingsWindow, settingsWindow.isMiniaturized {
-            SettingsWindowStageBehavior.present(settingsWindow)
-        }
+        self.settingsPresentationAttemptID = self.promote(
+            presentationTimeout: Self.settingsPresentationTimeout)
     }
 
     func registerSettingsWindow(_ window: NSWindow) {
-        guard self.settingsWindow !== window else { return }
+        SettingsWindowStageBehavior.applyCollectionBehavior(window)
         self.settingsWindow = window
+    }
+
+    func settingsWindowDidPresent(_ window: NSWindow) {
+        guard self.settingsWindow === window else { return }
+        self.reevaluatePolicy()
+        self.settingsPresentationAttemptID = nil
+    }
+
+    func settingsWindowPresentationFailed() {
+        guard let settingsPresentationAttemptID else { return }
+        self.settingsPresentationAttemptID = nil
+        self.finishPresentationAttempt(settingsPresentationAttemptID)
+    }
+
+    func finishPresentationAttempt(_ attemptID: DockIconPresentationAttemptID) {
+        guard self.presentationAttemptTracker.finish(attemptID) else { return }
+        self.presentationTimeoutTask?.cancel()
+        self.presentationTimeoutTask = nil
         self.reevaluatePolicy()
     }
 
@@ -137,25 +255,57 @@ final class DockIconController: NSObject {
         }
     }
 
-    private func reevaluatePolicy() {
+    private func reevaluatePolicy(
+        presentationDeadlineExpiredFor attemptID: DockIconPresentationAttemptID? = nil)
+    {
         let describedWindows = NSApp.windows.map { window in
-            (window: window, descriptor: Self.describe(window, isKnownSettingsWindow: window === self.settingsWindow))
+            (
+                window: window,
+                descriptor: DockIconWindowDescriptor.describe(
+                    window,
+                    isKnownSettingsWindow: window === self.settingsWindow))
         }
         let presentedWindowIDs = Set(describedWindows.compactMap { item in
             DockIconPolicyDecision.shouldPromoteForPresentedWindow(item.descriptor)
                 ? ObjectIdentifier(item.window)
                 : nil
         })
-        let hasNewPresentedWindow = !presentedWindowIDs.subtracting(self.presentedWindowIDs).isEmpty
+        // Capture the delta before updating stored state so we only key newly presented
+        // dialogs. Fronting every eligible window can re-key Settings over a Sparkle alert.
+        let newlyPresentedWindowIDs = DockIconPolicyDecision.newlyPresentedWindowIDs(
+            current: presentedWindowIDs,
+            previous: self.presentedWindowIDs)
+        let hasNewPresentedWindow = !newlyPresentedWindowIDs.isEmpty
         self.presentedWindowIDs = presentedWindowIDs
 
-        if !presentedWindowIDs.isEmpty {
-            self.promotionGeneration += 1
-            self.isAwaitingPresentedWindow = false
-            self.ensureRegularPolicy(activate: hasNewPresentedWindow)
+        let presentationDecision = self.presentationAttemptTracker.resolve(
+            hasPresentedWindow: !presentedWindowIDs.isEmpty,
+            deadlineExpiredFor: attemptID)
+        switch presentationDecision {
+        case .presented:
+            self.presentationTimeoutTask?.cancel()
+            self.presentationTimeoutTask = nil
+        case .timedOut:
+            self.presentationTimeoutTask = nil
+            self.logger.error("Timed out waiting for a presented window; restoring accessory activation policy")
+        case .inactive, .awaiting:
+            break
         }
 
-        guard self.isManagingRegularPolicy, !self.isAwaitingPresentedWindow else { return }
+        if !presentedWindowIDs.isEmpty {
+            self.ensureRegularPolicy(activate: hasNewPresentedWindow)
+            if hasNewPresentedWindow {
+                for item in describedWindows where newlyPresentedWindowIDs.contains(ObjectIdentifier(item.window)) {
+                    if item.descriptor.isSettingsWindow {
+                        SettingsWindowStageBehavior.present(item.window)
+                    } else {
+                        item.window.makeKeyAndOrderFront(nil)
+                    }
+                }
+            }
+        }
+
+        guard self.isManagingRegularPolicy, !self.presentationAttemptTracker.isAwaiting else { return }
         let windows = describedWindows.map(\.descriptor)
         guard !DockIconPolicyDecision.shouldUseRegularActivationPolicy(windows: windows) else { return }
 
@@ -173,31 +323,8 @@ final class DockIconController: NSObject {
         }
     }
 
-    private static func describe(_ window: NSWindow, isKnownSettingsWindow: Bool) -> DockIconWindowDescriptor {
-        var classNames = [NSStringFromClass(type(of: window))]
-        if let windowController = window.windowController {
-            classNames.append(NSStringFromClass(type(of: windowController)))
-        }
-        if let contentViewController = window.contentViewController {
-            classNames.append(NSStringFromClass(type(of: contentViewController)))
-        }
-        if let delegate = window.delegate {
-            classNames.append(NSStringFromClass(type(of: delegate)))
-        }
-
-        return DockIconWindowDescriptor(
-            identifier: window.identifier?.rawValue,
-            title: window.title,
-            classNames: classNames,
-            width: window.frame.width,
-            height: window.frame.height,
-            isVisible: window.isVisible,
-            isMiniaturized: window.isMiniaturized,
-            canBecomeKey: window.canBecomeKey,
-            isKnownSettingsWindow: isKnownSettingsWindow)
-    }
-
     deinit {
+        self.presentationTimeoutTask?.cancel()
         NotificationCenter.default.removeObserver(self)
     }
 }

@@ -5,7 +5,8 @@ extension CostUsageScanner {
         for row: CodexUsageRow,
         priorityTurns: [String: CodexPriorityTurnMetadata] = [:],
         modelsDevCatalog: ModelsDevCatalog?,
-        modelsDevCacheRoot: URL?) -> Double?
+        modelsDevCacheRoot: URL?,
+        customPricing: CostUsageCustomPricing? = nil) -> Double?
     {
         if let authoritativeCostNanos = row.knownCostNanos {
             return Double(authoritativeCostNanos) / self.costScale
@@ -15,21 +16,27 @@ extension CostUsageScanner {
         let pricedModel = priorityMetadata.map { self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
             ?? row.pricingModel
             ?? row.model
+        let overlay = customPricing ?? .empty
+        let pricingDate = row.timestampUnixMs.map { Date(timeIntervalSince1970: Double($0) / 1000) }
         let baseCost = CostUsagePricing.codexCostUSD(
             model: pricedModel,
             inputTokens: row.input,
             cachedInputTokens: row.cached,
             outputTokens: row.output,
+            pricingDate: pricingDate,
             modelsDevCatalog: modelsDevCatalog,
-            modelsDevCacheRoot: modelsDevCacheRoot)
+            modelsDevCacheRoot: modelsDevCacheRoot,
+            customPricing: overlay)
         guard isPriority else { return baseCost }
         guard let priorityCost = CostUsagePricing.codexPriorityCostUSD(
             model: pricedModel,
             inputTokens: row.input,
             cachedInputTokens: row.cached,
             outputTokens: row.output,
+            pricingDate: pricingDate,
             modelsDevCatalog: modelsDevCatalog,
-            modelsDevCacheRoot: modelsDevCacheRoot)
+            modelsDevCacheRoot: modelsDevCacheRoot,
+            customPricing: overlay)
         else { return baseCost }
         return max(priorityCost, baseCost ?? priorityCost)
     }
@@ -38,13 +45,15 @@ extension CostUsageScanner {
         for row: CodexUsageRow,
         priorityTurns: [String: CodexPriorityTurnMetadata] = [:],
         modelsDevCatalog: ModelsDevCatalog?,
-        modelsDevCacheRoot: URL?) -> Int64?
+        modelsDevCacheRoot: URL?,
+        customPricing: CostUsageCustomPricing? = nil) -> Int64?
     {
         guard let cost = self.codexResolvedCostUSD(
             for: row,
             priorityTurns: priorityTurns,
             modelsDevCatalog: modelsDevCatalog,
-            modelsDevCacheRoot: modelsDevCacheRoot)
+            modelsDevCacheRoot: modelsDevCacheRoot,
+            customPricing: customPricing)
         else { return nil }
         let nanos = cost * self.costScale
         guard nanos.isFinite, nanos >= Double(Int64.min), nanos <= Double(Int64.max) else { return nil }

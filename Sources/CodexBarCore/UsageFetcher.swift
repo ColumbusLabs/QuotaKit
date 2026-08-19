@@ -149,6 +149,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let tertiary: RateWindow?
     public let extraRateWindows: [NamedRateWindow]?
     public let providerCost: ProviderCostSnapshot?
+    /// Live provider-reported cost history supplied through the generic plugin contract.
+    public let costUsage: CostUsageTokenSnapshot?
     public let details: [ProviderDetailSection]
     public let kiroUsage: KiroUsageDetails?
     public let ampUsage: AmpUsageDetails?
@@ -250,6 +252,7 @@ public struct UsageSnapshot: Codable, Sendable {
         kiroUsage: KiroUsageDetails? = nil,
         ampUsage: AmpUsageDetails? = nil,
         providerCost: ProviderCostSnapshot? = nil,
+        costUsage: CostUsageTokenSnapshot? = nil,
         details: [ProviderDetailSection] = [],
         zaiUsage: ZaiUsageSnapshot? = nil,
         zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot? = nil,
@@ -301,6 +304,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.kiroUsage = kiroUsage
         self.ampUsage = ampUsage
         self.providerCost = providerCost
+        self.costUsage = costUsage
         self.details = details
         self.zaiUsage = zaiUsage
         self.zoommateCreditsHistory = zoommateCreditsHistory
@@ -374,6 +378,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.tertiary = try container.decodeIfPresent(RateWindow.self, forKey: .tertiary)
         self.extraRateWindows = try container.decodeIfPresent([NamedRateWindow].self, forKey: .extraRateWindows)
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
+        self.costUsage = nil // Live-only provider history; refresh from the authoritative source.
         self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
         try ProviderDetailSection.validateSections(self.details)
         // Rich provider payloads are additive. Ignore legacy or foreign shapes rather than
@@ -656,6 +661,7 @@ public struct UsageSnapshot: Codable, Sendable {
             kiroUsage: self.kiroUsage,
             ampUsage: self.ampUsage,
             providerCost: self.providerCost,
+            costUsage: self.costUsage,
             details: details.resolving(self.details),
             zaiUsage: self.zaiUsage,
             zoommateCreditsHistory: self.zoommateCreditsHistory,
@@ -1089,6 +1095,11 @@ enum RPCWireError: Error, LocalizedError {
     }
 }
 
+private enum RPCRequestRaceResult<Value: Sendable>: Sendable {
+    case value(Value)
+    case timedOut
+}
+
 /// RPC helper used on background tasks; safe because we confine it to the owning task.
 private final class CodexRPCClient: @unchecked Sendable {
     // Provider-specific by design: Codex RPC owns its dedicated subprocess log category.
@@ -1265,24 +1276,29 @@ private final class CodexRPCClient: @unchecked Sendable {
         method: String,
         body: @escaping @Sendable () async throws -> T) async throws -> T
     {
-        try await withThrowingTaskGroup(of: T.self) { group in
+        try await withThrowingTaskGroup(of: RPCRequestRaceResult<T>.self) { group in
             group.addTask {
-                try await body()
+                try await .value(body())
             }
-            group.addTask { [weak self] in
+            group.addTask {
                 try await Task.sleep(for: .seconds(seconds))
-                self?.terminateProcessForTimeout(method: method)
+                return .timedOut
+            }
+
+            guard let result = try await group.next() else {
+                group.cancelAll()
                 throw RPCWireError.timeout(method: method)
             }
-            do {
-                guard let result = try await group.next() else {
-                    throw RPCWireError.timeout(method: method)
-                }
-                group.cancelAll()
-                return result
-            } catch {
-                group.cancelAll()
-                throw error
+            group.cancelAll()
+
+            switch result {
+            case let .value(value):
+                return value
+            case .timedOut:
+                // Terminating the process closes stdout. Classify that expected EOF as a
+                // timeout by selecting the timer before requesting process termination.
+                self.terminateProcessForTimeout(method: method)
+                throw RPCWireError.timeout(method: method)
             }
         }
     }

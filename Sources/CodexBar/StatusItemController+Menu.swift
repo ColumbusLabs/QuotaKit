@@ -588,6 +588,32 @@ extension StatusItemController {
         let t0 = CACurrentMediaTime()
         defer { self.logChartRenderDurationIfSlow("addOverviewRows(\(rows.count))", startedAt: t0) }
 
+        let spendProviders = overviewProviders.filter { self.settings.costSummaryShowsInline(for: $0) }
+        let spendModel = self.overviewSpendDashboardModel(providers: spendProviders)
+        if !spendModel.groups.isEmpty {
+            let spendSummary = OverviewSpendSummary(
+                model: spendModel,
+                providerCount: spendProviders.count)
+            let summaryItem = self.makeMenuCardItem(
+                OverviewSpendSummaryCardView(
+                    summary: spendSummary,
+                    days: spendModel.requestedDays,
+                    width: menuWidth),
+                id: "overviewSpendSummary",
+                width: menuWidth,
+                heightCacheScope: "overviewSpendSummary",
+                heightCacheFingerprint: [
+                    spendSummary.primarySpendText,
+                    spendSummary.providerCoverageText,
+                    spendSummary.tokenText ?? "",
+                    spendSummary.historyCoverageText,
+                    spendSummary.pricingCoverageText,
+                    spendSummary.provenanceText,
+                ].joined(separator: "|"))
+            menu.addItem(summaryItem)
+            menu.addItem(.separator())
+        }
+
         for (index, row) in rows.enumerated() {
             let identifier = "\(Self.overviewRowIdentifierPrefix)\(row.provider.rawValue)"
             let storageText = self.store.storageFootprintText(for: row.provider)

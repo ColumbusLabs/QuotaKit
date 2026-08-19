@@ -185,7 +185,8 @@ struct ProviderInlineDashboardModelTests {
 
         #expect(model.inlineUsageDashboard == nil)
         #expect(model.providerDetails.first?.rows.first?.value == "$60.00")
-        #expect(model.providerDetails.last?.chart?.points.map(\.label) == ["Today", "This week", "This month"])
+        #expect(model.providerDetails.first { $0.title == "API key" }?.chart?.points.map(\.label) ==
+            ["Today", "This week", "This month"])
         #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "Rate limit" }?.value ==
             "100 requests / 10s")
     }

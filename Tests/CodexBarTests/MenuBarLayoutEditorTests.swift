@@ -168,6 +168,6 @@ struct MenuBarLayoutEditorTests {
 
         #expect(MenuBarLayoutBalanceResolver.balance(provider: .openrouter, snapshot: snapshot) == "$12.34")
         #expect(MenuBarLayoutBalanceResolver.balance(provider: .codex, snapshot: snapshot) == nil)
-        #expect(MenuBarLayoutToken.balance.editorLabel == L("Balance"))
+        #expect(MenuBarLayoutToken.balance.editorLabel(provider: nil) == L("Balance"))
     }
 }

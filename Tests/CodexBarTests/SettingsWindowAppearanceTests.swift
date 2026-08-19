@@ -150,6 +150,33 @@ struct SettingsWindowAppearanceTests {
     }
 
     @Test
+    func `settings window joins the active Space for Stage Manager`() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: 400, height: 300),
+            styleMask: [.titled],
+            backing: .buffered,
+            defer: false)
+        window.collectionBehavior = [.canJoinAllSpaces, .fullScreenPrimary]
+
+        SettingsWindowStageBehavior.applyCollectionBehavior(window)
+
+        #expect(window.collectionBehavior == SettingsWindowStageBehavior.collectionBehavior)
+        #expect(window.collectionBehavior.contains(.moveToActiveSpace))
+        #expect(window.collectionBehavior.contains(.fullScreenAuxiliary))
+        #expect(!window.collectionBehavior.contains(.canJoinAllSpaces))
+        #expect(!window.collectionBehavior.contains(.fullScreenPrimary))
+    }
+
+    @Test
+    func `presenting settings restores a miniaturized window`() {
+        let window = MiniaturizedWindowSpy()
+
+        SettingsWindowStageBehavior.present(window)
+
+        #expect(window.wasDeminiaturized)
+    }
+
+    @Test
     func `settings window style remains resizable`() {
         let bridge = SettingsWindowAppearanceView()
         let window = NSWindow(

@@ -82,7 +82,8 @@ struct OpenCodeGoWebOverlayTests {
 
     private func makeContext(
         includeOptionalUsage: Bool = true,
-        settings: ProviderSettingsSnapshot? = nil) -> ProviderFetchContext
+        settings: ProviderSettingsSnapshot? = nil,
+        selectedTokenAccountID: UUID? = nil) -> ProviderFetchContext
     {
         ProviderFetchContext(
             runtime: .app,
@@ -96,7 +97,8 @@ struct OpenCodeGoWebOverlayTests {
             settings: settings,
             fetcher: UsageFetcher(environment: [:]),
             claudeFetcher: StubClaudeFetcher(),
-            browserDetection: BrowserDetection(cacheTTL: 0))
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            selectedTokenAccountID: selectedTokenAccountID)
     }
 
     private func makeManualCookieSettings() -> ProviderSettingsSnapshot {
@@ -195,6 +197,53 @@ struct OpenCodeGoWebOverlayTests {
         #expect(result.usage.opencodegoUsage?.daily.count == 1)
         #expect(result.usage.providerCost?.used == 42.5)
         #expect(result.usage.dataConfidence != .estimated)
+    }
+
+    @Test
+    func `selected token account credential reaches the authoritative overlay`() async throws {
+        let account = ProviderTokenAccount(
+            id: UUID(),
+            label: "Selected",
+            token: "auth=selected",
+            addedAt: 0,
+            lastUsed: nil)
+        let descriptor = OpenCodeGoProviderDescriptor.makeDescriptor()
+        let contribution = try #require(descriptor.settingsSection.credentialContribution(
+            context: ProviderCredentialSettingsContext(config: nil, account: account)))
+        let settings = ProviderSettingsSnapshot(contributions: [contribution])
+        let observedCookies = Recorder<String>()
+        let strategy = OpenCodeGoLocalUsageFetchStrategy(
+            localSnapshotLoader: { _ in Self.localEstimate() },
+            webUsageOverlayFetcher: { _, cookieHeader in
+                observedCookies.append(cookieHeader)
+                return Self.webUsage()
+            })
+
+        let result = try await strategy.fetch(self.makeContext(
+            settings: settings,
+            selectedTokenAccountID: account.id))
+
+        #expect(settings.opencodego?.cookieSource == .manual)
+        #expect(observedCookies.values == ["auth=selected"])
+        #expect(result.sourceLabel == "local+web")
+        #expect(result.usage.tertiary?.usedPercent == 64)
+        #expect(result.usage.dataConfidence != .estimated)
+    }
+
+    @Test
+    func `manual token authentication failure is surfaced instead of returning local estimate`() async {
+        let strategy = OpenCodeGoLocalUsageFetchStrategy(
+            localSnapshotLoader: { _ in Self.localEstimate() },
+            webUsageOverlayFetcher: { _, _ in throw OpenCodeGoUsageError.invalidCredentials })
+
+        do {
+            _ = try await strategy.fetch(self.makeContext(settings: self.makeManualCookieSettings()))
+            Issue.record("Expected the invalid manual session to fail")
+        } catch OpenCodeGoUsageError.invalidCredentials {
+            // Expected: an explicit account credential must not degrade to account-agnostic local usage.
+        } catch {
+            Issue.record("Expected invalidCredentials, got \(error)")
+        }
     }
 
     @Test

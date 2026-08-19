@@ -10,8 +10,17 @@ read_when:
 
 Grok uses xAI's official Grok Build CLI (`grok`, released 2026-05-14). Usage data is
 fetched via the ACP JSON-RPC `x.ai/billing` extension method over `grok agent stdio`
-when available, then via grok.com's billing gRPC-web endpoint using the signed-in
-browser session when the CLI surface does not expose billing.
+when available, then via the Grok CLI billing REST API using the local login token.
+The grok.com billing gRPC-web endpoint remains a best-effort fallback.
+
+## Settings source picker
+
+- **Auto**: Grok CLI, then SuperGrok OAuth CLI-proxy, then browser cookies, then bearer gRPC.
+- **Grok CLI**: `grok agent stdio` only.
+- **SuperGrok OAuth**: `~/.grok/auth.json` or a pasted bearer / `GROK_OAUTH_TOKEN`. CLI-proxy credits, then bearer gRPC. No cookies.
+- **Browser cookies**: grok.com Cookie header / Chrome import only. No OAuth bearer.
+- Token accounts classify at fetch time: bearer → OAuth, `Cookie:` / `name=value` → cookies, `xai-` management keys rejected.
+- Selecting a SuperGrok token account remaps Auto to OAuth or Web so it cannot hit an empty `.oauth` pipeline.
 
 ## Data sources + fallback order
 
@@ -35,7 +44,28 @@ browser session when the CLI surface does not expose billing.
      slashes, so payloads must be re-encoded with `\/` → `/` before being
      written to stdin or grok will silently drop them (12s client-side
      timeout instead of the expected error response).
-3) **grok.com billing gRPC-web fallback** (best-effort)
+3) **Grok CLI-proxy billing REST API** (primary web-path attempt)
+   - When a non-expired `~/.grok/auth.json` token exists, GETs
+     `https://cli-chat-proxy.grok.com/v1/billing?format=credits` with
+     `Authorization: Bearer <token>`, `x-xai-token-auth: xai-grok-cli`, and
+     `Accept: application/json`.
+   - Reads `config.creditUsagePercent`, falling back to
+     `onDemandUsed.val / onDemandCap.val * 100`. A parseable current period
+     without either value represents zero usage. The reset timestamp comes from
+     `config.currentPeriod.end`, then `config.billingPeriodEnd`.
+   - Plan name does not come from the credits payload. After a successful
+     auth-file or SuperGrok OAuth web billing result (CLI-proxy) or the team
+      identity-only path, QuotaKit GETs `https://cli-chat-proxy.grok.com/v1/settings`
+     with the same bearer headers and reads `subscription_tier_display`
+     (`SuperGrok Heavy` vs `SuperGrok`). Cookie mode does not call the proxy.
+     If the proxy fails, OAuth retries the grok.com bearer gRPC path, still
+     without cookies. Cookie/gRPC fallbacks are a different browser session and
+     do not reuse the auth-file settings tier. The request uses a 2-second timeout
+     and `BoundedTaskJoin`, so a stuck settings call cannot delay already-fetched
+     usage by 15 seconds. Settings timeouts, request failures, and 200 responses
+     that omit `subscription_tier_display` all drop the plan overlay and fall
+     back to the OIDC SuperGrok label. There is no process-lifetime tier cache.
+4) **grok.com billing gRPC-web fallback** (best-effort)
    - POSTs an empty gRPC-web protobuf request to
      `https://grok.com/grok_api_v2.GrokBuildBilling/GetGrokCreditsConfig`.
    - Uses grok.com browser session cookies. When a non-expired
@@ -88,15 +118,24 @@ weekly cycle.
 
 ## OAuth credentials
 
-- File: `~/.grok/auth.json` (path overridable via `GROK_HOME`).
-- Top-level keys are OIDC scope URLs. QuotaKit prefers entries under
+- File: `~/.grok/auth.json` (path overridable via `GROK_HOME`). This remains
+  the preferred identity source when `grok login` has written a non-expired token.
+ - Top-level keys are OIDC scope URLs. QuotaKit prefers entries under
   `https://auth.x.ai::<client-id>` (SuperGrok), falling back to
   `https://accounts.x.ai/sign-in` (legacy session).
 - Required fields per entry: `key` (bearer token), `refresh_token`, `expires_at`,
   `auth_mode`, `email`, `team_id`, `user_id`, `first_name`/`last_name`.
   `principal_type` is optional because older auth files do not include it.
 - Tokens are issued by `grok login` and expire after ~7 days; refresh is handled by
-  the CLI itself (QuotaKit does not refresh; it just reads the cached credential).
+   the CLI itself (QuotaKit does not refresh; it just reads the cached credential).
+- If `auth.json` is missing or expired, paste a SuperGrok bearer into Grok token
+  accounts or set `GROK_OAUTH_TOKEN`. Cookie-shaped values and `xai-` management
+  keys are rejected. The pasted token uses the same CLI-proxy credits URL.
+- Settings also expose a cookie source (Auto / Manual / Off). Manual accepts a
+  grok.com Cookie header when Chrome Safe Storage is denied. Auto still imports
+  Chrome only.
+- Credits `subscriptionTier` maps SuperGrok vs SuperGrok Heavy on the plan badge.
+  SuperGrok Heavy with no `creditUsagePercent` is unknown usage, not 0%.
 
 ## JSON-RPC contract
 
