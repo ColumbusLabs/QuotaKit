@@ -288,6 +288,12 @@ extension OpenRouterUsageSnapshot {
                 .makeRow(label: "API key budget", value: "Unavailable right now"),
             ]))
         }
+        details.append(.makeSection(title: "Spend history", rows: [
+            .makeRow(
+                label: "Last 30 days",
+                value: "Unavailable right now",
+                secondaryValue: "Management API key not configured"),
+        ]))
 
         return UsageSnapshot(
             primary: primary,

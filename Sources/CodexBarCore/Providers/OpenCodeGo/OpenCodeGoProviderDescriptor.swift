@@ -213,9 +213,12 @@ struct OpenCodeGoLocalUsageFetchStrategy: ProviderFetchStrategy {
             #if os(macOS)
             if let cached = cookie.cachedEntry {
                 _ = CookieHeaderCache.clearIfCurrent(provider: .opencodego, expected: cached)
+                return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
             }
             #endif
-            return SnapshotResult(snapshot: snapshot, webUsageApplied: false, quotaIsAuthoritative: false)
+            // A manually configured credential is an explicit account selection. Do not hide its
+            // authentication failure behind an unrelated local estimate.
+            throw OpenCodeGoUsageError.invalidCredentials
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
@@ -359,6 +362,13 @@ struct OpenCodeGoUsageFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
+        // Manual cookies include selected token accounts. Their authentication failures must be
+        // surfaced instead of silently falling through to an account-agnostic local estimate.
+        guard context.settings?.opencodego?.cookieSource != .manual,
+              context.selectedTokenAccountID == nil
+        else {
+            return false
+        }
         return switch error {
         case OpenCodeGoSettingsError.missingCookie,
              OpenCodeGoSettingsError.invalidCookie,

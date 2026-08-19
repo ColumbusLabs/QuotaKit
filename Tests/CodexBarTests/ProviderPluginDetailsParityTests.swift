@@ -11,7 +11,9 @@ struct ProviderPluginDetailsParityTests {
         let fixtures: [(UsageProvider, [String], [String])] = [
             (.openai, ["openai.api.balance"], ["openai.js", "openai.api.balance"]),
             (.zai, ["zai.api"], ["zai.js", "zai.api"]),
-            (.openrouter, ["openrouter.api"], ["openrouter.js", "openrouter.api"]),
+            // OpenRouter's management credential is intentionally confined to the built-in plugin,
+            // so this provider is fully cut over instead of using the prototype prepend path.
+            (.openrouter, ["openrouter.js"], ["openrouter.js"]),
             (.poe, ["poe.api"], ["poe.js", "poe.api"]),
             (.clawrouter, ["clawrouter.api"], ["clawrouter.js", "clawrouter.api"]),
             (.deepgram, ["deepgram.api"], ["deepgram.js", "deepgram.api"]),
@@ -94,7 +96,43 @@ struct ProviderPluginDetailsParityTests {
                 chart: Self.chart("Key spend", unit: "USD", points: [
                     ("Today", 1), ("This week", 2), ("This month", 4),
                 ])),
+            Self.section("Spend history", rows: [
+                Self.row(
+                    "Last 30 days",
+                    "Unavailable right now",
+                    "Management API key not configured"),
+            ]),
         ])
+    }
+
+    @Test
+    func `OpenRouter optional key timeout is an observable degradation`() async throws {
+        let transport = ProviderHTTPTransportHandler { request in
+            let isKeyRequest = request.url?.path == "/api/v1/key"
+            if isKeyRequest {
+                try await Task.sleep(for: .milliseconds(1500))
+            }
+            let response = try #require(HTTPURLResponse(
+                url: request.url!,
+                statusCode: 200,
+                httpVersion: nil,
+                headerFields: ["Content-Type": "application/json"]))
+            let body = isKeyRequest ? Self.openRouterKey : Self.openRouterCredits
+            return (Data(body.utf8), response)
+        }
+
+        let script = try await ProviderPluginRuntime(bundledPlugin: "openrouter", transport: transport)
+            .fetchUsage(secrets: ["OPENROUTER_API_KEY": "fixture-key"])
+
+        #expect(script.primary == nil)
+        #expect(script.details.count == 3)
+        #expect(script.details[0].rows.map(\.label) == ["Remaining", "Used", "Total added"])
+        let degradation = try #require(script.detailRow(label: "API key budget"))
+        #expect(degradation.value == "Unavailable right now")
+        #expect(degradation.secondaryValue == "Request timed out")
+        let spendDegradation = try #require(script.detailRow(label: "Last 30 days"))
+        #expect(spendDegradation.value == "Unavailable right now")
+        #expect(spendDegradation.secondaryValue == "Management API key not configured")
     }
 
     @Test

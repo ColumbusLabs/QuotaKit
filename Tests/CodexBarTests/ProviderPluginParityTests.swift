@@ -26,7 +26,11 @@ struct ProviderPluginParityTests {
 
     @Test
     func `cut-over providers use only JS without the prototype flag`() async {
-        for (provider, key) in [(UsageProvider.crof, "CROF_API_KEY"), (.venice, "VENICE_API_KEY")] {
+        for (provider, key) in [
+            (UsageProvider.crof, "CROF_API_KEY"),
+            (.venice, "VENICE_API_KEY"),
+            (.openrouter, "OPENROUTER_API_KEY"),
+        ] {
             let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
             var environment = [key: "fixture-key"]
             let context = Self.context(environment: environment)
@@ -43,8 +47,7 @@ struct ProviderPluginParityTests {
     @Test
     func `QuotaKit compatibility providers keep native defaults and prepend JS when flagged`() async {
         for (provider, key, nativeID) in [
-            (UsageProvider.openrouter, "OPENROUTER_API_KEY", "openrouter.api"),
-            (.clawrouter, "CLAWROUTER_API_KEY", "clawrouter.api"),
+            (UsageProvider.clawrouter, "CLAWROUTER_API_KEY", "clawrouter.api"),
             (.deepgram, "DEEPGRAM_API_KEY", "deepgram.api"),
             (.sub2api, "SUB2API_API_KEY", "sub2api.api"),
         ] {

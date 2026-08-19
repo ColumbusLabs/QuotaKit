@@ -257,6 +257,14 @@ extension SettingsStore {
         }
     }
 
+    var paceVisible: Bool {
+        get { self.defaultsState.paceVisible }
+        set {
+            self.defaultsState.paceVisible = newValue
+            self.userDefaults.set(newValue, forKey: "paceVisible")
+        }
+    }
+
     var weeklyProgressWorkDays: Int? {
         get { self.defaultsState.weeklyProgressWorkDays }
         set {
@@ -429,7 +437,7 @@ extension SettingsStore {
         }
         set {
             self.defaultsState.storedMenuBarLayout = newValue
-            self.persistMenuBarLayout(newValue, key: "menuBarLayout")
+            self.persistMenuBarLayout(newValue)
         }
     }
 
@@ -511,14 +519,17 @@ extension SettingsStore {
         }
     }
 
-    private func persistMenuBarLayout(_ layout: MenuBarLayout, key: String) {
-        guard let data = try? JSONEncoder().encode(layout) else { return }
-        self.userDefaults.set(data, forKey: key)
+    private func persistMenuBarLayout(_ layout: MenuBarLayout) {
+        guard let blobs = try? MenuBarLayoutPersistence.encoded(layout) else { return }
+        self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)
+        self.userDefaults.set(blobs.legacy, forKey: MenuBarLayoutUserDefaultsKey.layout)
     }
 
     private func persistMenuBarLayoutOverrides() {
-        guard let data = try? JSONEncoder().encode(self.defaultsState.menuBarLayoutOverridesRaw) else { return }
-        self.userDefaults.set(data, forKey: "menuBarLayoutOverrides")
+        guard let blobs = try? MenuBarLayoutPersistence.encodedOverrides(self.defaultsState.menuBarLayoutOverridesRaw)
+        else { return }
+        self.userDefaults.set(blobs.current, forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)
+        self.userDefaults.set(blobs.legacy, forKey: MenuBarLayoutUserDefaultsKey.overrides)
     }
 
     var copilotIconSecondaryWindowIDRaw: String {
@@ -537,6 +548,9 @@ extension SettingsStore {
             self.userDefaults.set(newValue, forKey: "tokenCostUsageEnabled")
             if changed {
                 self.costUsageSettingsRevision &+= 1
+            }
+            if newValue {
+                self.pinCostUsageBucketTimeZoneIfNeeded()
             }
             self.noteBackgroundWorkSettingsChanged()
         }
@@ -563,6 +577,66 @@ extension SettingsStore {
             }
             self.noteBackgroundWorkSettingsChanged()
         }
+    }
+
+    var costUsageBucketTimeZoneIdentifier: String {
+        get { self.defaultsState.costUsageBucketTimeZoneIdentifier }
+        set {
+            let trimmed = newValue.trimmingCharacters(in: .whitespacesAndNewlines)
+            let normalized = CostUsageBucketTimeZone.isValidIdentifier(trimmed) ? trimmed : ""
+            let changed = self.defaultsState.costUsageBucketTimeZoneIdentifier != normalized
+            self.defaultsState.costUsageBucketTimeZoneIdentifier = normalized
+            self.userDefaults.set(normalized, forKey: "tokenCostUsageBucketTimeZone")
+            if changed {
+                self.costUsageSettingsRevision &+= 1
+            }
+        }
+    }
+
+    var costUsageBucketCalendar: Calendar {
+        CostUsageBucketTimeZone.calendar(identifier: self.costUsageBucketTimeZoneIdentifier)
+    }
+
+    var openCodexUsageLogsEnabled: Bool {
+        get { self.defaultsState.openCodexUsageLogsEnabled }
+        set {
+            let changed = self.defaultsState.openCodexUsageLogsEnabled != newValue
+            self.defaultsState.openCodexUsageLogsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "openCodexUsageLogsEnabled")
+            if changed {
+                self.costUsageSettingsRevision &+= 1
+            }
+        }
+    }
+
+    var hideNativeCodexCostWhenOpenCodexPresent: Bool {
+        get { self.defaultsState.hideNativeCodexCostWhenOpenCodexPresent }
+        set {
+            let changed = self.defaultsState.hideNativeCodexCostWhenOpenCodexPresent != newValue
+            self.defaultsState.hideNativeCodexCostWhenOpenCodexPresent = newValue
+            self.userDefaults.set(newValue, forKey: "hideNativeCodexCostWhenOpenCodexPresent")
+            if changed {
+                self.costUsageSettingsRevision &+= 1
+            }
+        }
+    }
+
+    var spendDashboardHiddenSourceIDs: [String] {
+        get { self.defaultsState.spendDashboardHiddenSourceIDs }
+        set {
+            let normalized = Array(Set(newValue.filter { !$0.isEmpty })).sorted()
+            let changed = self.defaultsState.spendDashboardHiddenSourceIDs != normalized
+            self.defaultsState.spendDashboardHiddenSourceIDs = normalized
+            self.userDefaults.set(normalized, forKey: "spendDashboardHiddenSourceIDs")
+            if changed {
+                self.costUsageSettingsRevision &+= 1
+            }
+        }
+    }
+
+    func pinCostUsageBucketTimeZoneIfNeeded() {
+        guard self.costUsageBucketTimeZoneIdentifier.isEmpty else { return }
+        self.costUsageBucketTimeZoneIdentifier = CostUsageBucketTimeZone.pinIdentifier()
     }
 
     var costComparisonPeriodsEnabled: Bool {
@@ -778,15 +852,25 @@ extension SettingsStore {
         }
     }
 
-    var backgroundWorkLowPowerModeEnabled: Bool {
-        get { self.defaultsState.backgroundWorkLowPowerModeEnabled }
+    var backgroundWorkLowPowerModePreference: LowPowerModePreference {
+        get { self.defaultsState.backgroundWorkLowPowerModePreference }
         set {
-            self.defaultsState.backgroundWorkLowPowerModeEnabled = newValue
-            self.userDefaults.set(newValue, forKey: "backgroundWorkLowPowerModeEnabled")
+            self.defaultsState.backgroundWorkLowPowerModePreference = newValue
+            self.userDefaults.set(newValue.rawValue, forKey: "backgroundWorkLowPowerModePreference")
             CodexBarLog.logger(LogCategories.settings).info(
-                "Background work low power mode updated",
-                metadata: ["enabled": newValue ? "1" : "0"])
+                "Background work low power mode preference updated",
+                metadata: ["preference": newValue.rawValue])
             self.noteBackgroundWorkSettingsChanged()
+        }
+    }
+
+    /// Resolves `backgroundWorkLowPowerModePreference` against the live system Low Power Mode state
+    /// when the preference is `.automatic`.
+    var backgroundWorkLowPowerModeEnabled: Bool {
+        switch self.backgroundWorkLowPowerModePreference {
+        case .off: false
+        case .on: true
+        case .automatic: ProcessInfo.processInfo.isLowPowerModeEnabled
         }
     }
 

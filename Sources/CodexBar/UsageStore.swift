@@ -59,6 +59,7 @@ extension UsageStore {
         _ = self.refreshingProviders
         _ = self.statuses
         _ = self.tokenSnapshotPublications
+        _ = self.spendDashboardTokenPublications
         _ = self.historicalPaceRevision
         return 0
     }
@@ -185,6 +186,8 @@ final class UsageStore {
     var tokenSnapshots: [ProviderInstanceID: CostUsageTokenSnapshot] = [:]
     var tokenSnapshotPublications: [ProviderInstanceID: TokenSnapshotPublication] = [:]
     var tokenSnapshotPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
+    var spendDashboardTokenPublications: [ProviderInstanceID: TokenSnapshotPublication] = [:]
+    var spendDashboardTokenPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
     var tokenErrors: [ProviderInstanceID: String] = [:]
     var tokenRefreshInFlight: Set<ProviderInstanceID> = []
     var codexCostCatchUpActivity: CodexCostCatchUpActivity?
@@ -423,6 +426,9 @@ final class UsageStore {
     @ObservationIgnored var lastPermissionPromptNotificationAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [ProviderInstanceID: String] = [:]
+    @ObservationIgnored var lastSpendDashboardTokenFetchAt: [ProviderInstanceID: Date] = [:]
+    @ObservationIgnored var lastSpendDashboardTokenFetchScope: [ProviderInstanceID: String] = [:]
+    @ObservationIgnored var spendDashboardTokenRefreshInFlight: Set<ProviderInstanceID> = []
     @ObservationIgnored var planUtilizationHistory: [ProviderInstanceID: PlanUtilizationHistoryBuckets] = [:]
     @ObservationIgnored var sessionEquivalentBurnCache: [ProviderInstanceID: SessionEquivalentBurnCacheEntry] = [:]
     @ObservationIgnored var sessionEquivalentHistoryScanCount: Int = 0
@@ -1597,10 +1603,13 @@ extension UsageStore {
             self.cancelSpendDashboardCodexCostCatchUp()
         }
         self.clearTokenSnapshot(for: provider)
+        self.clearSpendDashboardTokenSnapshot(for: provider)
         self.tokenErrors[provider.instanceID] = nil
         self.tokenFailureGates[provider.instanceID]?.reset()
         self.lastTokenFetchAt.removeValue(forKey: provider.instanceID)
         self.lastTokenFetchScope.removeValue(forKey: provider.instanceID)
+        self.lastSpendDashboardTokenFetchAt.removeValue(forKey: provider.instanceID)
+        self.lastSpendDashboardTokenFetchScope.removeValue(forKey: provider.instanceID)
     }
 
     private func logTokenUsageSuccess(

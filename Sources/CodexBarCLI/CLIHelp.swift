@@ -62,7 +62,7 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit usage [--format text|json]
+          quotakit usage [--format text|json|toon]
                        [--json]
                        [--json-only]
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -72,8 +72,10 @@ extension CodexBarCLI {
                        [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]
 
         Description:
-          Print usage from enabled providers as text (default) or JSON. Honors your in-app toggles.
+          Print usage from enabled providers as text (default), JSON, or TOON. Honors your in-app toggles.
           Output format: use --json (or --format json) for JSON on stdout; use --json-output for JSON logs on stderr.
+          --format toon emits the same payload as --format json, rendered as TOON (github.com/toon-format/spec)
+          for token-cheaper agent consumption.
           Source behavior is provider-specific:
           - Codex: OpenAI web dashboard (usage limits, credits remaining, code review remaining, usage breakdown).
             Auto falls back to Codex CLI only when cookies are missing.
@@ -102,6 +104,7 @@ extension CodexBarCLI {
           quotakit usage --provider all --json
           quotakit usage --status
           quotakit usage --provider codex --source web --format json --pretty
+          quotakit usage --format toon --provider claude
         """
     }
 
@@ -446,7 +449,7 @@ extension CodexBarCLI {
         QuotaKit \(version)
 
         Usage:
-          quotakit [--format text|json]
+          quotakit [--format text|json|toon]
                   [--json]
                   [--json-only]
                   [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
@@ -500,6 +503,7 @@ extension CodexBarCLI {
         Examples:
           quotakit
           quotakit --format json --provider all --pretty
+          quotakit --format toon --provider claude
           quotakit --provider all --json
           quotakit --provider gemini
           quotakit cards --provider all --status
