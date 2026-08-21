@@ -236,7 +236,9 @@ struct ClaudeProviderRuntimeTests {
             now: now)
         store.claudeSwapAccountSnapshots = previous
 
-        await store.refreshClaudeSwapAccounts()
+        await ProviderInteractionContext.$current.withValue(.userInitiated) {
+            await store.refreshClaudeSwapAccounts()
+        }
 
         let account = try #require(store.claudeSwapAccountSnapshots.first)
         #expect(account.id == ProviderAccountIdentity(source: "claude-swap", opaqueID: "1"))
