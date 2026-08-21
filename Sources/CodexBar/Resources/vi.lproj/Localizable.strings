@@ -1376,6 +1376,7 @@
 "menu_bar_layout_empty_line" = "Thả một thẻ vào đây";
 "menu_bar_layout_line" = "Dòng %d";
 "menu_bar_layout_drag_remove" = "Kéo vào đây để xóa";
+"menu_bar_layout_remove_selected" = "Xoá mục đã chọn";
 "menu_bar_layout_size" = "Kích thước";
 "menu_bar_layout_size_small" = "Nhỏ";
 "menu_bar_layout_size_regular" = "Thường";

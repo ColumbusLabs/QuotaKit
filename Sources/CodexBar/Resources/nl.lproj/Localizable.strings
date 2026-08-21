@@ -1375,6 +1375,7 @@
 "menu_bar_layout_empty_line" = "Zet hier een token neer";
 "menu_bar_layout_line" = "Regel %d";
 "menu_bar_layout_drag_remove" = "Sleep hierheen om te verwijderen";
+"menu_bar_layout_remove_selected" = "Selectie verwijderen";
 "menu_bar_layout_size" = "Grootte";
 "menu_bar_layout_size_small" = "Klein";
 "menu_bar_layout_size_regular" = "Normaal";

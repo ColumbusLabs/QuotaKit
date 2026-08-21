@@ -1378,6 +1378,7 @@
 "menu_bar_layout_empty_line" = "Deixa una fitxa aquí";
 "menu_bar_layout_line" = "Línia %d";
 "menu_bar_layout_drag_remove" = "Arrossega aquí per eliminar";
+"menu_bar_layout_remove_selected" = "Elimina la selecció";
 "menu_bar_layout_size" = "Mida";
 "menu_bar_layout_size_small" = "Petita";
 "menu_bar_layout_size_regular" = "Normal";

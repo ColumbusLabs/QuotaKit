@@ -1379,6 +1379,7 @@
 "menu_bar_layout_empty_line" = "Upuść element tutaj";
 "menu_bar_layout_line" = "Wiersz %d";
 "menu_bar_layout_drag_remove" = "Przeciągnij tutaj, aby usunąć";
+"menu_bar_layout_remove_selected" = "Usuń wybrane";
 "menu_bar_layout_size" = "Rozmiar";
 "menu_bar_layout_size_small" = "Mały";
 "menu_bar_layout_size_regular" = "Zwykły";

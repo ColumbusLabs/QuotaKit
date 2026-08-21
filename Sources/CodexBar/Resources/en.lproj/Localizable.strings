@@ -1376,6 +1376,7 @@
 "menu_bar_layout_empty_line" = "Drop a token here";
 "menu_bar_layout_line" = "Line %d";
 "menu_bar_layout_drag_remove" = "Drag here to remove";
+"menu_bar_layout_remove_selected" = "Remove selected";
 "menu_bar_layout_size" = "Size";
 "menu_bar_layout_size_small" = "Small";
 "menu_bar_layout_size_regular" = "Regular";

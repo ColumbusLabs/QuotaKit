@@ -1376,6 +1376,7 @@
 "menu_bar_layout_empty_line" = "Baustein hier ablegen";
 "menu_bar_layout_line" = "Zeile %d";
 "menu_bar_layout_drag_remove" = "Zum Entfernen hierher ziehen";
+"menu_bar_layout_remove_selected" = "Auswahl entfernen";
 "menu_bar_layout_size" = "Größe";
 "menu_bar_layout_size_small" = "Klein";
 "menu_bar_layout_size_regular" = "Normal";

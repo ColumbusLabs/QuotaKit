@@ -1375,6 +1375,7 @@
 "menu_bar_layout_empty_line" = "Déposez un jeton ici";
 "menu_bar_layout_line" = "Ligne %d";
 "menu_bar_layout_drag_remove" = "Faites glisser ici pour supprimer";
+"menu_bar_layout_remove_selected" = "Retirer la sélection";
 "menu_bar_layout_size" = "Taille";
 "menu_bar_layout_size_small" = "Petite";
 "menu_bar_layout_size_regular" = "Normale";
