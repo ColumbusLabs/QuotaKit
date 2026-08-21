@@ -95,6 +95,7 @@ struct SpendDashboardPublication: Sendable {
         let knownInputIDs = Set(model.groups.flatMap(\.providers).compactMap { row in
             row.totalCost == nil ? nil : row.id
         })
+        // Provider-specific by design: Grok local session scans prove token presence but not dollar-spend coverage.
         return self.knownSubscriptionCount(
             knownInputIDs: knownInputIDs,
             providerScope: providerScope,

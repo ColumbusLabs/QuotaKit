@@ -31,6 +31,7 @@ extension UsageStore {
             } else {
                 resolved = UsagePace.weekly(window: window, now: now, defaultWindowMinutes: 10080, workDays: workDays)
             }
+            // Provider-specific by design: learned historical pacing is currently backed by Codex session history only.
         } else if provider == .codex, self.settings.historicalTrackingEnabled {
             elapsedWindow = window
             // An explicit work-day schedule is the user's declared plan and takes precedence over learned history.

@@ -90,6 +90,7 @@ struct DashboardSnapshotProducer: Sendable {
             generatedAt: generatedAt,
             refreshInterval: refreshInterval,
             codexBarVersion: codexBarVersion,
+            // Provider-specific by design: claude-swap is Claude-owned account data projected into the dashboard.
             claudeSwap: claudeSwap.map {
                 DashboardClaudeSwapInput(
                     accounts: $0.accounts,
