@@ -14,6 +14,7 @@ struct CostUsageCache: Codable, Equatable, @unchecked Sendable {
     var codexProjectMetadataVersion: Int?
     var codexPriorityTurnKeys: [String: String]?
     var codexPriorityTurnIDsByDay: [String: [String]]?
+    var codexPriorityTurnsCursor: CostUsageScanner.CodexPriorityTurnsPersistedCursor?
     var codexScanCatchUpPending: Bool?
     var codexScanProcessedBytes: Int64?
     var codexScanTotalBytes: Int64?
