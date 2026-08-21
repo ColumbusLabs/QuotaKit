@@ -889,7 +889,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         #expect(redirected.value(forHTTPHeaderField: "Cookie") == "dashboard_only=keep")
     }
 
-    private static func makeResponse(url: URL, body: String, statusCode: Int) -> (HTTPURLResponse, Data) {
+    static func makeResponse(url: URL, body: String, statusCode: Int) -> (HTTPURLResponse, Data) {
         let response = HTTPURLResponse(
             url: url,
             statusCode: statusCode,
@@ -1354,5 +1354,101 @@ struct AlibabaTokenPlanSECTokenScrapeTests {
     @Test
     func `returns nil when no token is present`() {
         #expect(AlibabaTokenPlanUsageFetcher.extractSECToken(from: "<html><body>no token here</body></html>") == nil)
+    }
+}
+
+struct AlibabaTokenPlanPersonalUsageRetryTests {
+    private static let emptySuccess = #"{"code":"SUCCESS","successResponse":true,"msg":"Success.","data":{}}"#
+
+    private static func personalHandler(
+        usageBodies: @escaping @Sendable (Int) -> String,
+        subscription: String,
+        quota: String,
+        usageCalls: LockIsolated<Int>) -> @Sendable (URLRequest) throws -> (HTTPURLResponse, Data)
+    {
+        { request in
+            guard let url = request.url else { throw URLError(.badURL) }
+            if url.host == "bailian.console.aliyun.com", request.httpMethod == "GET" {
+                if url.path == "/tool/user/info.json" {
+                    return AlibabaTokenPlanUsageParsingTests.makeResponse(
+                        url: url,
+                        body: #"{"code":"200","data":{"secToken":"t"},"successResponse":true}"#,
+                        statusCode: 200)
+                }
+                return AlibabaTokenPlanUsageParsingTests.makeResponse(url: url, body: "<html></html>", statusCode: 200)
+            }
+            let api = URLComponents(url: url, resolvingAgainstBaseURL: false)?
+                .queryItems?.first(where: { $0.name == "api" })?.value
+            switch api {
+            case "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/usage":
+                let n = usageCalls.value + 1
+                usageCalls.setValue(n)
+                return AlibabaTokenPlanUsageParsingTests.makeResponse(url: url, body: usageBodies(n), statusCode: 200)
+            case "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/subscription":
+                return AlibabaTokenPlanUsageParsingTests.makeResponse(url: url, body: subscription, statusCode: 200)
+            case "zeldaHttp.apikeyMgr./tokenplan/personal/api/v2/quota-config":
+                return AlibabaTokenPlanUsageParsingTests.makeResponse(url: url, body: quota, statusCode: 200)
+            default:
+                throw URLError(.unsupportedURL)
+            }
+        }
+    }
+
+    private static func stubSession() -> URLSession {
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
+        return URLSession(configuration: configuration)
+    }
+
+    @Test
+    func `recovers when an empty Success usage response is followed by a full one`() async throws {
+        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        let usageBody = try #require(String(data: alibabaTokenPlanFixture("personal_usage"), encoding: .utf8))
+        let subscriptionBody = try #require(
+            String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
+        let quotaBody = try #require(String(data: alibabaTokenPlanFixture("personal_quota_config"), encoding: .utf8))
+        let usageCalls = LockIsolated(0)
+
+        // The gateway answers the first usage request with an empty Success payload, the second with data.
+        AlibabaTokenPlanStubURLProtocol.handler = Self.personalHandler(
+            usageBodies: { $0 == 1 ? Self.emptySuccess : usageBody },
+            subscription: subscriptionBody,
+            quota: quotaBody,
+            usageCalls: usageCalls)
+
+        let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+            apiCookieHeader: "quota_only=quota",
+            dashboardCookieHeader: "dashboard_only=dashboard",
+            region: .chinaMainlandPersonal,
+            environment: [:],
+            session: Self.stubSession())
+
+        #expect(snapshot.toUsageSnapshot().primary != nil)
+        #expect(usageCalls.value == 2)
+    }
+
+    @Test
+    func `surfaces usageWindowsUnavailable when every usage attempt is an empty Success`() async throws {
+        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        let subscriptionBody = try #require(
+            String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
+        let quotaBody = try #require(String(data: alibabaTokenPlanFixture("personal_quota_config"), encoding: .utf8))
+        let usageCalls = LockIsolated(0)
+
+        AlibabaTokenPlanStubURLProtocol.handler = Self.personalHandler(
+            usageBodies: { _ in Self.emptySuccess },
+            subscription: subscriptionBody,
+            quota: quotaBody,
+            usageCalls: usageCalls)
+
+        await #expect(throws: AlibabaTokenPlanUsageError.usageWindowsUnavailable) {
+            _ = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "quota_only=quota",
+                dashboardCookieHeader: "dashboard_only=dashboard",
+                region: .chinaMainlandPersonal,
+                environment: [:],
+                session: Self.stubSession())
+        }
+        #expect(usageCalls.value > 1)
     }
 }
