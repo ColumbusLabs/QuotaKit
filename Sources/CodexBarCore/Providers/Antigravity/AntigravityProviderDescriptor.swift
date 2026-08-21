@@ -178,9 +178,10 @@ public enum AntigravityProviderDescriptor {
         let cli = AntigravityCLIHTTPSFetchStrategy()
         let ide = AntigravityStatusFetchStrategy(source: .ide)
         let oauth = AntigravityOAuthFetchStrategy()
+        let offline = AntigravityOfflineFetchStrategy()
         switch context.sourceMode {
         case .cli:
-            return [app, cli, ide]
+            return [app, cli, ide, offline]
         case .oauth:
             return [oauth]
         case .auto:
@@ -188,9 +189,9 @@ public enum AntigravityProviderDescriptor {
                 context.env[AntigravityOAuthCredentialsStore.environmentCredentialsKey] != nil ||
                 self.hasSharedOAuthCredentials(context: context)
             {
-                return [app, cli, ide, oauth]
+                return [app, cli, ide, oauth, offline]
             }
-            return [app, cli, ide]
+            return [app, cli, ide, offline]
         case .web, .api:
             return []
         }
@@ -782,6 +783,61 @@ struct AntigravityOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
+}
+
+/// Offline fallback (tokscale lesson): when live probes and OAuth have no data,
+/// surface the local Antigravity CLI conversation count from
+/// `~/.gemini/antigravity-cli/conversations/*.db` as a non-quota snapshot.
+/// This keeps the menu bar from going blank on a fresh install without a running
+/// server and mirrors tokscale's direct SQLite read (no RPC, no `antigravity sync`).
+struct AntigravityOfflineFetchStrategy: ProviderFetchStrategy {
+    let id: String = "antigravity.offline"
+    let kind: ProviderFetchKind = .localProbe
+
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        // Cheap file existence check; no SQLite open.
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        return AntigravityOfflineStore.hasOfflineData(home: homeURL, env: context.env)
+    }
+
+    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
+        let homeURL = context.env["HOME"]
+            .flatMap { $0.isEmpty ? nil : URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.homeDirectoryForCurrentUser
+        let count = AntigravityOfflineStore.countConversations(home: homeURL, env: context.env)
+        guard count > 0 else {
+            throw AntigravityStatusProbeError.notRunning
+        }
+        let window = RateWindow(
+            usedPercent: 0,
+            windowMinutes: nil,
+            resetsAt: nil,
+            resetDescription: nil)
+        let offlineWindow = NamedRateWindow(
+            id: "antigravity-offline-conversations",
+            title: "Offline · \(count) conversation" + (count == 1 ? "" : "s"),
+            window: window,
+            usageKnown: false)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            extraRateWindows: [offlineWindow],
+            updatedAt: Date(),
+            identity: ProviderIdentitySnapshot(
+                providerID: .antigravity,
+                accountEmail: AntigravitySelectedAccountGuard.selectedAccountEmail(context: context),
+                accountOrganization: nil,
+                loginMethod: "offline"))
+        return self.makeResult(usage: snapshot, sourceLabel: "offline")
+    }
+
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        // Offline is terminal; no further fallback.
         false
     }
 }

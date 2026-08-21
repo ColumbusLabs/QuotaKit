@@ -268,7 +268,7 @@ run_swiftformat_lint() {
 }
 
 run_swiftlint() {
-  "${BIN_DIR}/swiftlint" --strict
+  "${BIN_DIR}/swiftlint" --strict --no-cache
 }
 
 cmd="${1:-lint}"

@@ -138,6 +138,7 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             "antigravity.app-local",
             "antigravity.cli-https",
             "antigravity.ide-local",
+            "antigravity.offline",
         ])
 
         let autoStrategies = await descriptor.fetchPlan.pipeline.resolveStrategies(
@@ -146,6 +147,7 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             "antigravity.app-local",
             "antigravity.cli-https",
             "antigravity.ide-local",
+            "antigravity.offline",
         ])
     }
 
@@ -166,11 +168,13 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             "antigravity.cli-https",
             "antigravity.ide-local",
             "antigravity.oauth",
+            "antigravity.offline",
         ])
         #expect(cliStrategies.map(\.id) == [
             "antigravity.app-local",
             "antigravity.cli-https",
             "antigravity.ide-local",
+            "antigravity.offline",
         ])
         #expect(oauthStrategies.map(\.id) == ["antigravity.oauth"])
     }
@@ -189,6 +193,7 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             "antigravity.cli-https",
             "antigravity.ide-local",
             "antigravity.oauth",
+            "antigravity.offline",
         ])
     }
 
@@ -215,6 +220,7 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
             "antigravity.cli-https",
             "antigravity.ide-local",
             "antigravity.oauth",
+            "antigravity.offline",
         ])
     }
 
