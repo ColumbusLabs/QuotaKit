@@ -28,6 +28,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex: isolate profile-scoped token counts, costs, usage charts, top models, and cost history while switching between profile-home accounts.
 - Mac to iPhone sync: publish cost freshness independently from quota status, coalesce cost changes that arrive during an iCloud write, and prevent stale or missing current-day spend from appearing as a confirmed zero on iPhone.
 - Usage & Spend: share one provider-source publication between Overview and the dashboard, count every enabled provider, align calendar bucketing, and drain completed Codex catch-up files.
 - Mac reliability: preserve cached menu-card subclasses, prevent post-exit RPC pipe aborts, and size agent-session menus from their actual content.
