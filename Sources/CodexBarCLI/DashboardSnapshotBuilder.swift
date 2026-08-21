@@ -5,6 +5,19 @@ struct DashboardClaudeSwapInput {
     let accounts: [ProviderAccountUsageSnapshot]?
     let adapterError: String?
     let weeklyWorkDays: Int?
+    let showSingleAccount: Bool
+
+    init(
+        accounts: [ProviderAccountUsageSnapshot]?,
+        adapterError: String?,
+        weeklyWorkDays: Int?,
+        showSingleAccount: Bool = false)
+    {
+        self.accounts = accounts
+        self.adapterError = adapterError
+        self.weeklyWorkDays = weeklyWorkDays
+        self.showSingleAccount = showSingleAccount
+    }
 }
 
 /// Projects the CLI's provider usage and cost payloads into the stable,
@@ -120,8 +133,19 @@ enum DashboardSnapshotBuilder {
         let metadata = descriptor?.metadata
 
         let error = payload.error ?? cost?.error
+        let projectedAccounts: [ProviderAccountUsageSnapshot]? = if let claudeSwapAccounts = claudeSwap?.accounts,
+                                                                    claudeSwapAccounts.isEmpty ||
+                                                                    ClaudeSwapAccountProjection.shouldPresentAccounts(
+                                                                        accountCount: claudeSwapAccounts.count,
+                                                                        showSingleAccount: claudeSwap?
+                                                                            .showSingleAccount == true)
+        {
+            claudeSwapAccounts
+        } else {
+            nil
+        }
         let accounts = claudeSwap?.adapterError == nil
-            ? claudeSwap?.accounts?.map { account in
+            ? projectedAccounts?.map { account in
                 self.makeClaudeSwapAccount(
                     account,
                     identityMode: identityMode,
@@ -179,11 +203,15 @@ enum DashboardSnapshotBuilder {
         weeklyWorkDays: Int?,
         generatedAt: Date) -> DashboardAccountPayload
     {
-        // Provider-specific by design: identity stays the source email; the card label may be an alias
-        // or an "email · org" disambiguation, and redaction rewrites only the email prefix.
+        // Provider-specific by design: identity stays the source email. Aliases and organization labels can
+        // contain personal or workspace-identifying text, so redacted output retains only the redacted mailbox.
         let sourceEmail: String? = {
-            if let email = account.accountEmail, email.contains("@") { return email }
-            if let email = account.snapshot?.identity?.accountEmail, email.contains("@") { return email }
+            if let email = account.accountEmail, email.contains("@") {
+                return email
+            }
+            if let email = account.snapshot?.identity?.accountEmail, email.contains("@") {
+                return email
+            }
             return nil
         }()
         let presentedEmail = identityMode != .none && sourceEmail?.contains("@") == true
@@ -224,17 +252,23 @@ enum DashboardSnapshotBuilder {
         accountID: String,
         identityMode: DashboardIdentityMode) -> String
     {
-        if let presentedEmail {
-            if let sourceEmail,
-               displayLabel.contains("@"),
-               displayLabel == sourceEmail || displayLabel.hasPrefix(sourceEmail)
-            {
-                let suffix = String(displayLabel.dropFirst(sourceEmail.count))
-                return presentedEmail + self.redactEmailShapedText(suffix, mode: identityMode)
+        switch identityMode {
+        case .full:
+            return displayLabel
+        case .none:
+            return "Account \(accountID)"
+        case .redacted:
+            guard let presentedEmail, let sourceEmail else {
+                return "Account \(accountID)"
             }
-            return self.redactEmailShapedText(displayLabel, mode: identityMode)
+            if displayLabel == sourceEmail {
+                return presentedEmail
+            }
+            if displayLabel.hasPrefix(sourceEmail) {
+                return "\(presentedEmail) · Account \(accountID)"
+            }
+            return "Account \(accountID)"
         }
-        return displayLabel.contains("@") ? "Account \(accountID)" : displayLabel
     }
 
     private static func dashboardSource(from source: String) -> String {
@@ -290,67 +324,6 @@ enum DashboardSnapshotBuilder {
         guard mode == .redacted else { return email }
         guard let at = email.lastIndex(of: "@") else { return "redacted" }
         return "redacted\(email[at...])"
-    }
-
-    /// Redacts every bounded `@` address range, including apostrophes, quoted local parts,
-    /// internal domains, and domain literals, so Hide Personal Info cannot leak a second address.
-    private static func redactEmailShapedText(_ text: String, mode: DashboardIdentityMode) -> String {
-        guard mode == .redacted else { return text }
-        var output = ""
-        var cursor = text.startIndex
-        var search = text.startIndex
-        while let at = text[search...].firstIndex(of: "@") {
-            let localStart = self.emailTokenStart(in: text, before: at)
-            let domainEnd = self.emailTokenEnd(in: text, after: at)
-            if localStart < at, domainEnd > text.index(after: at) {
-                output += text[cursor..<localStart]
-                output += self.dashboardEmail(String(text[localStart..<domainEnd]), mode: .redacted) ?? "redacted"
-                cursor = domainEnd
-                search = domainEnd
-            } else {
-                search = text.index(after: at)
-            }
-        }
-        output += text[cursor...]
-        return output
-    }
-
-    private static func emailTokenStart(in text: String, before at: String.Index) -> String.Index {
-        var idx = at
-        var inQuotedLocalPart = false
-        while idx > text.startIndex {
-            let previous = text.index(before: idx)
-            let character = text[previous]
-            if character == "\"" {
-                inQuotedLocalPart.toggle()
-                idx = previous
-                continue
-            }
-            if !inQuotedLocalPart, self.isEmailBoundary(character) { break }
-            idx = previous
-        }
-        return idx
-    }
-
-    private static func emailTokenEnd(in text: String, after at: String.Index) -> String.Index {
-        var idx = text.index(after: at)
-        guard idx < text.endIndex else { return idx }
-        if text[idx] == "[" {
-            while idx < text.endIndex {
-                let character = text[idx]
-                idx = text.index(after: idx)
-                if character == "]" { break }
-            }
-            return idx
-        }
-        while idx < text.endIndex, !self.isEmailBoundary(text[idx]) {
-            idx = text.index(after: idx)
-        }
-        return idx
-    }
-
-    private static func isEmailBoundary(_ character: Character) -> Bool {
-        character.isWhitespace || "()<>:,;·/".contains(character)
     }
 
     private static func dashboardPlan(_ raw: String?, provider: UsageProvider) -> String? {

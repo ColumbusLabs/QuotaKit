@@ -26,13 +26,24 @@ extension UsageStore {
     /// windows). Returns nil — keep the ambient snapshot — when the adapter is below
     /// its presentation threshold or the active account reports no usable usage.
     func claudeSwapMenuBarSnapshotOverride(for instanceID: ProviderInstanceID) -> UsageSnapshot? {
+        self.claudeSwapActiveAccountOverride(for: instanceID)?.snapshot
+    }
+
+    /// Returns the same opaque active account record used by every compact Claude surface.
+    /// The record lets widgets bind preserved quota to a stable source slot without exposing identity labels.
+    func claudeSwapActiveAccountOverride(
+        for instanceID: ProviderInstanceID) -> ProviderAccountUsageSnapshot?
+    {
         guard instanceID == UsageProvider.claude.instanceID else { return nil }
         guard ClaudeSwapMenuPrecedence.prefersClaudeSwap(
             provider: .claude,
             accountCount: self.claudeSwapAccountSnapshots.count,
             showSingleAccount: self.settings.claudeSwapShowSingleAccount)
         else { return nil }
-        return self.claudeSwapAccountSnapshots.first(where: \.isActive)?.snapshot
+        guard let active = self.claudeSwapAccountSnapshots.first(where: \.isActive), active.snapshot != nil else {
+            return nil
+        }
+        return active
     }
 
     func clearClaudeSwapAccountState() {
@@ -51,6 +62,7 @@ extension UsageStore {
         self.claudeSwapTransientState.switchingAccountID = nil
         if hadState {
             self.claudeSwapRevision &+= 1
+            self.persistWidgetSnapshot(reason: "claude-swap-clear")
         }
     }
 
@@ -88,6 +100,7 @@ extension UsageStore {
             self.claudeSwapLastRefreshAt = Date()
             self.claudeSwapLastError = nil
             self.claudeSwapRevision &+= 1
+            self.persistWidgetSnapshot(reason: "claude-swap-refresh")
         } catch is CancellationError {
             return
         } catch {

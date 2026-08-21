@@ -179,6 +179,19 @@ extension UsageStore {
             authFingerprint: self.currentCodexAuthFingerprint(source: resolvedSource))
     }
 
+    /// PAT whoami is the credential's authoritative identity. Do not mix it with an OAuth runtime
+    /// identity that may be active in the same Codex home or selected managed account.
+    func seedCodexPATRefreshGuard(source: CodexActiveSource, accountEmail: String?) {
+        let accountKey = Self.normalizeCodexAccountScopedEmail(accountEmail)
+        let identity = CodexIdentityResolver.resolve(accountId: nil, email: accountKey)
+        guard identity != .unresolved || accountKey != nil else { return }
+        self.lastCodexAccountScopedRefreshGuard = CodexAccountScopedRefreshGuard(
+            source: source,
+            identity: identity,
+            accountKey: accountKey,
+            authFingerprint: self.currentCodexAuthFingerprint(source: source))
+    }
+
     func currentCodexAccountScopedRefreshGuard(
         preferCurrentSnapshot: Bool = true,
         allowLastKnownLiveFallback: Bool = true) -> CodexAccountScopedRefreshGuard

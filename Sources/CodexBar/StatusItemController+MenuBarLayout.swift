@@ -120,7 +120,11 @@ extension StatusItemController {
                 ? Self.mistralSpendDisplayText(snapshot: snapshot)
                 : nil,
             sessionPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.session, now: now),
-            weeklyPace: self.store.menuBarLayoutPaceText(provider: provider, window: windows.weekly, now: now),
+            weeklyPace: self.store.menuBarLayoutPaceText(
+                provider: provider,
+                window: windows.weekly,
+                now: now,
+                minimumElapsedPercent: 1),
             automaticPace: self.store.menuBarLayoutPaceText(
                 provider: provider,
                 window: windows.automatic,

@@ -113,6 +113,21 @@ struct ClaudeSwapAccountAliasProjectionTests {
     }
 
     @Test
+    func `disambiguates duplicate aliases including case only matches`() {
+        let snapshots = ClaudeSwapAccountProjection.accountSnapshots(
+            from: self.list(
+                self.row(number: 1, email: "one@example.com", alias: "Work"),
+                self.row(number: 2, email: "two@example.com", alias: "work", active: true)),
+            now: self.now)
+
+        #expect(snapshots.map(\.displayLabel) == [
+            "work · Account 2",
+            "Work · Account 1",
+        ])
+        #expect(snapshots.map(\.id.opaqueID) == ["2", "1"])
+    }
+
+    @Test
     func `cloud sync payload omits display only organization names`() throws {
         let snapshots = ClaudeSwapAccountProjection.accountSnapshots(
             from: self.list(

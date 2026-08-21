@@ -300,6 +300,32 @@ struct SpendDashboardPublicationTests {
     }
 
     @Test
+    func `confirmed empty Grok session scan is known zero tokens but unknown spend`() {
+        let publication = SpendDashboardPublication(
+            revision: 1,
+            generation: 1,
+            configuration: nil,
+            loadedAt: Self.now,
+            isRefreshing: false,
+            inputs: [],
+            sources: [SpendSourcePublication(
+                id: UsageProvider.grok.rawValue,
+                provider: .grok,
+                displayName: "Grok",
+                role: .subscription,
+                state: .confirmedEmpty)])
+        let model = publication.model(
+            requestedDays: 30,
+            now: Self.now,
+            calendar: Self.calendar,
+            preferredCurrencyCode: "USD",
+            providerScope: [.grok])
+
+        #expect(publication.knownTokenSubscriptionCount(model: model, providerScope: [.grok]) == 1)
+        #expect(publication.knownCostSubscriptionCount(model: model, providerScope: [.grok]) == 0)
+    }
+
+    @Test
     func `available unpriced source keeps cost subtotal partial`() {
         let publication = SpendDashboardPublication(
             revision: 1,

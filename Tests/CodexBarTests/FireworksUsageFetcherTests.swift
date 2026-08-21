@@ -304,6 +304,46 @@ struct FireworksUsageFetcherTests {
     }
 
     @Test
+    func `strategy returns discovered slug for app-owned persistence`() async throws {
+        defer {
+            FireworksStubURLProtocol.requests = []
+            FireworksStubURLProtocol.handler = nil
+        }
+        let configuration = URLSessionConfiguration.ephemeral
+        configuration.protocolClasses = [FireworksStubURLProtocol.self]
+        let session = URLSession(configuration: configuration)
+        FireworksStubURLProtocol.handler = { request in
+            let url = try #require(request.url)
+            let body = if url.path == "/v1/accounts" {
+                #"{"accounts":[{"name":"accounts/discovered-team"}]}"#
+            } else {
+                #"{"lineItems":[{"totalCost":{"currencyCode":"USD","units":"1","nanos":0}}]}"#
+            }
+            return (
+                HTTPURLResponse(url: url, statusCode: 200, httpVersion: nil, headerFields: nil)!,
+                Data(body.utf8))
+        }
+        let browserDetection = BrowserDetection(cacheTTL: 0)
+        let context = ProviderFetchContext(
+            runtime: .app,
+            sourceMode: .api,
+            includeCredits: false,
+            webTimeout: 10,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: [FireworksSettingsReader.configAPIKeyEnvironmentKey: "fw-test-key"],
+            settings: nil,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
+            browserDetection: browserDetection)
+
+        let result = try await FireworksAPIFetchStrategy(transport: session).fetch(context)
+
+        #expect(result.fireworksDiscoveredAccountSlug == "discovered-team")
+        #expect(result.sourceLabel.contains("auto-discovered"))
+    }
+
+    @Test
     func `multiple visible accounts report sorted slug candidates`() async throws {
         defer {
             FireworksStubURLProtocol.requests = []

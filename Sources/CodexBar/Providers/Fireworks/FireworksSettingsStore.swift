@@ -25,6 +25,18 @@ extension SettingsStore {
         guard let config = self.configSnapshot.providerConfig(for: .fireworks) else { return false }
         return config.sanitizedAPIKey != nil
     }
+
+    func persistDiscoveredFireworksAccountSlug(_ accountSlug: String?) {
+        guard let accountSlug,
+              let normalized = self.normalizedConfigValue(accountSlug),
+              self.configSnapshot.providerConfig(for: .fireworks)?.sanitizedAccountSlug != normalized
+        else { return }
+        // Merge into SettingsStore's current revision so a fetch completion cannot overwrite another
+        // pending settings mutation with a stale whole-file snapshot.
+        self.updateProviderConfig(provider: .fireworks, affectsBackgroundWork: false) { entry in
+            entry.accountSlug = normalized
+        }
+    }
 }
 
 extension SettingsStore {

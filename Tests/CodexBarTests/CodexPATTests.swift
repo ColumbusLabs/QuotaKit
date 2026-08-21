@@ -289,6 +289,12 @@ struct CodexPATTests {
             CodexPATFetchStrategy._credentialEnvironmentForTesting(["CODEX_HOME": profileWithPAT.path])[
                 "CODEX_HOME",
             ] == profileWithPAT.path)
+        #expect(
+            CodexPATFetchStrategy._credentialOwnerForTesting(["CODEX_HOME": profileWithPAT.path]) ==
+                .scopedCodexHome(path: profileWithPAT.standardizedFileURL.path))
+        #expect(
+            CodexPATFetchStrategy._credentialOwnerForTesting(["CODEX_HOME": profileHome.path]) ==
+                .ambientCodexHome)
         #expect(CodexPATFetchStrategy._credentialEnvironmentForTesting([:])["CODEX_HOME"] == nil)
     }
 

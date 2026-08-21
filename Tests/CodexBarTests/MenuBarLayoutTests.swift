@@ -1237,7 +1237,7 @@ struct MenuBarLayoutTests {
         #expect(try decoder.decode([MenuBarLayoutConditional].self, from: current) ==
             [readable, newMetric, inverted])
 
-        // The whole point: a 0.54.0 decoder reads the projection, and would have thrown on the full blob.
+        // The whole point: a legacy decoder reads the projection, and would have thrown on the full blob.
         let legacyEntries = try decoder.decode([PreExpandedConditional].self, from: legacy)
         #expect(legacyEntries.map(\.name) == ["readable"])
         #expect(legacyEntries.first?.clauses.first?.predicate.metric == .session)
@@ -1455,7 +1455,7 @@ private struct PreLanePercentMenuBarLayout: Codable, Equatable {
     let lines: [[PreLanePercentMenuBarLayoutToken]]
 }
 
-/// The 0.54.0 conditional surface: four percent metrics, no `direction`. Its synthesized `Codable`
+/// The legacy conditional surface: four percent metrics, no `direction`. Its synthesized `Codable`
 /// throws on any other metric raw value and silently ignores unknown keys, which is exactly why the
 /// older-readable projection has to drop those entries rather than hand them over.
 private enum PreExpandedConditionalMetric: String, Codable, Equatable {

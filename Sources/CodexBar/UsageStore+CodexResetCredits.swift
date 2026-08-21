@@ -171,6 +171,7 @@ extension ProviderFetchOutcome {
                 strategyID: result.strategyID,
                 strategyKind: result.strategyKind,
                 codexResetCreditsAttempted: result.codexResetCreditsAttempted,
+                codexPATCredentialOwner: result.codexPATCredentialOwner,
                 diagnostic: result.diagnostic,
                 claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
                 claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,

@@ -10,6 +10,9 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let credentialEnv = Self.credentialEnvironment(context.env)
+        let credentialOwner = Self.credentialOwner(
+            requestedEnvironment: context.env,
+            credentialEnvironment: credentialEnv)
         let credentials = try CodexOAuthCredentialsStore.loadPAT(env: credentialEnv)
         let fetched = try await CodexPATUsageFetcher.fetchUsage(
             credentials: credentials,
@@ -18,7 +21,8 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
         return try Self.makeResult(
             usageResponse: fetched.usage,
             whoami: fetched.whoami,
-            updatedAt: Date())
+            updatedAt: Date(),
+            credentialOwner: credentialOwner)
     }
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
@@ -72,6 +76,22 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
         return ambient
     }
 
+    private static func credentialOwner(
+        requestedEnvironment: [String: String],
+        credentialEnvironment: [String: String]) -> CodexPATCredentialOwner
+    {
+        guard let requestedHome = requestedEnvironment["CODEX_HOME"]?.trimmingCharacters(
+            in: .whitespacesAndNewlines),
+            !requestedHome.isEmpty,
+            let credentialHome = credentialEnvironment["CODEX_HOME"]?.trimmingCharacters(
+                in: .whitespacesAndNewlines),
+            !credentialHome.isEmpty
+        else { return .ambientCodexHome }
+        let requested = URL(fileURLWithPath: requestedHome).standardizedFileURL.path
+        let resolved = URL(fileURLWithPath: credentialHome).standardizedFileURL.path
+        return requested == resolved ? .scopedCodexHome(path: requested) : .ambientCodexHome
+    }
+
     private static func isManagedOrFailClosedCodexHome(_ path: String) -> Bool {
         let normalized = URL(fileURLWithPath: path).standardizedFileURL.path
         if (normalized as NSString).lastPathComponent == "managed-store-unreadable" {
@@ -92,7 +112,8 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
     private static func makeResult(
         usageResponse: CodexUsageResponse,
         whoami: CodexPATWhoami?,
-        updatedAt: Date) throws -> ProviderFetchResult
+        updatedAt: Date,
+        credentialOwner: CodexPATCredentialOwner = .ambientCodexHome) throws -> ProviderFetchResult
     {
         let credits = Self.mapCredits(response: usageResponse, updatedAt: updatedAt)
         let reconciled = CodexReconciledState.fromPAT(
@@ -108,7 +129,8 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
                     : .exact
             return Self.patResult(
                 usage: reconciled.toUsageSnapshot().withDataConfidence(dataConfidence),
-                credits: credits)
+                credits: credits,
+                credentialOwner: credentialOwner)
         }
 
         guard credits != nil else {
@@ -122,7 +144,8 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
                 tertiary: nil,
                 updatedAt: updatedAt,
                 identity: CodexReconciledState.patIdentity(response: usageResponse, whoami: whoami)),
-            credits: credits)
+            credits: credits,
+            credentialOwner: credentialOwner)
     }
 
     private static func mapCredits(
@@ -139,7 +162,10 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
             codexCreditLimit: creditLimit)
     }
 
-    private static func patResult(usage: UsageSnapshot, credits: CreditsSnapshot?)
+    private static func patResult(
+        usage: UsageSnapshot,
+        credits: CreditsSnapshot?,
+        credentialOwner: CodexPATCredentialOwner)
         -> ProviderFetchResult
     {
         ProviderFetchResult(
@@ -149,7 +175,8 @@ struct CodexPATFetchStrategy: ProviderFetchStrategy {
             sourceLabel: CodexUsageDataSource.pat.sourceLabel,
             strategyID: "codex.pat",
             strategyKind: .apiToken,
-            codexResetCreditsAttempted: true)
+            codexResetCreditsAttempted: true,
+            codexPATCredentialOwner: credentialOwner)
     }
 }
 
@@ -161,6 +188,12 @@ extension CodexPATFetchStrategy {
 
     static func _credentialEnvironmentForTesting(_ env: [String: String]) -> [String: String] {
         self.credentialEnvironment(env)
+    }
+
+    static func _credentialOwnerForTesting(_ env: [String: String]) -> CodexPATCredentialOwner {
+        self.credentialOwner(
+            requestedEnvironment: env,
+            credentialEnvironment: self.credentialEnvironment(env))
     }
 
     static func _mapResultForTesting(

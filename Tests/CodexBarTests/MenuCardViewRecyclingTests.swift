@@ -506,6 +506,35 @@ extension StatusMenuTests {
     }
 
     @Test
+    func `cached hosted row swap carries agent keyboard action identifier`() {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        let controller = self.makeRecyclingController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let liveItem = controller.makeMenuCardItem(Text("first"), id: "agent-session", width: 300, onClick: {})
+        liveItem.identifier = NSUserInterfaceItemIdentifier("agent-session-action:first")
+        let cachedItem = controller.makeMenuCardItem(Text("second"), id: "agent-session", width: 300, onClick: {})
+        cachedItem.identifier = NSUserInterfaceItemIdentifier("agent-session-action:second")
+        let menu = NSMenu()
+        menu.addItem(liveItem)
+
+        let displaced = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 0,
+            with: [cachedItem])
+
+        #expect(menu.items.first === liveItem)
+        #expect(liveItem.identifier?.rawValue == "agent-session-action:second")
+        #expect(displaced.first?.identifier?.rawValue == "agent-session-action:first")
+        #expect(liveItem.representedObject as? String == "agent-session")
+    }
+
+    @Test
     func `reconcile preserves highlight on a retained custom action row`() {
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false

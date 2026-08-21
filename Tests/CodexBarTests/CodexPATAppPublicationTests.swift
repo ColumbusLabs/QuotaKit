@@ -56,7 +56,8 @@ extension CodexAccountScopedRefreshTests {
             credits: nil,
             id: "codex.pat",
             kind: .apiToken,
-            sourceLabel: "pat")
+            sourceLabel: "pat",
+            codexPATCredentialOwner: .ambientCodexHome)
         store.providerSpecs[.codex] = Self.makeCodexProviderSpec(baseSpec: baseSpec) { _ in
             [strategy]
         }
@@ -70,6 +71,8 @@ extension CodexAccountScopedRefreshTests {
         #expect(store.snapshots[.codex]?.primary?.usedPercent == 68)
         #expect(store.lastSourceLabels[.codex] == "pat")
         #expect(store.lastCodexUsagePublicationGuard?.source == .liveSystem)
+        #expect(store.lastCodexUsagePublicationGuard?.accountKey == "pat@example.com")
+        #expect(store.lastCodexUsagePublicationGuard?.identity == .emailOnly(normalizedEmail: "pat@example.com"))
     }
 
     @Test
@@ -117,7 +120,8 @@ extension CodexAccountScopedRefreshTests {
             credits: nil,
             id: "codex.pat",
             kind: .apiToken,
-            sourceLabel: "pat")
+            sourceLabel: "pat",
+            codexPATCredentialOwner: .scopedCodexHome(path: profileHome.path))
         store.providerSpecs[.codex] = Self.makeCodexProviderSpec(baseSpec: baseSpec) { _ in
             [strategy]
         }
@@ -131,5 +135,10 @@ extension CodexAccountScopedRefreshTests {
         #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "pat-profile@example.com")
         #expect(store.snapshots[.codex]?.primary?.usedPercent == 41)
         #expect(store.lastSourceLabels[.codex] == "pat")
+        #expect(store.lastCodexUsagePublicationGuard?.source == .profileHome(path: profileHome.path))
+        #expect(store.lastCodexUsagePublicationGuard?.accountKey == "pat-profile@example.com")
+        #expect(
+            store.lastCodexUsagePublicationGuard?.identity ==
+                .emailOnly(normalizedEmail: "pat-profile@example.com"))
     }
 }

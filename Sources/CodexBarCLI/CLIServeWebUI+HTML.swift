@@ -1030,6 +1030,11 @@ extension CLIServeWebUI {
               if (provider.accountsError) grid.append(node("p", "error-message", provider.accountsError));
               group.append(grid);
               sections.push(group);
+              const activeAccount = accounts.find(account => account.active === true);
+              const activeHasUsableWindows = activeAccount && visibleWindows(activeAccount.windows).length > 0;
+              const hasAmbientSummary = visibleWindows(provider.windows).length > 0 ||
+                provider.cost || provider.credits || provider.status;
+              if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider);
             } else {
               rest.push(provider);
             }

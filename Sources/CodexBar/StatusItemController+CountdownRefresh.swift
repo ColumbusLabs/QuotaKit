@@ -63,6 +63,7 @@ extension StatusItemController {
             // the reset itself, whichever comes first; the next icon update schedules any later boundary.
             delays.append(delay)
         }
+        delays += self.menuBarWeeklyPaceRefreshDelays(providers: providers, now: now)
 
         if self.menuBarObservesCodexReset(providers: providers) {
             let projection = self.store.codexConsumerProjection(surface: .menuBar, now: now)

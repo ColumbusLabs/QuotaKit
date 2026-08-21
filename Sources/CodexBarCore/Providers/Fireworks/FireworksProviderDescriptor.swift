@@ -77,36 +77,16 @@ struct FireworksAPIFetchStrategy: ProviderFetchStrategy {
             apiKey: apiKey,
             accountSlug: FireworksSettingsReader.accountSlug(environment: context.env),
             session: self.transport)
-        var diagnostic: String?
-        if usage.accountSlugWasDiscovered {
-            do {
-                try Self.persistAccountSlug(usage.accountSlug)
-            } catch {
-                diagnostic = "Auto-discovered Fireworks account '\(usage.accountSlug)' but could not save it: "
-                    + error.localizedDescription
-            }
-        }
         let sourceLabel = usage.accountSlugWasDiscovered
             ? "api · \(usage.accountSlug) (auto-discovered)"
             : "api · \(usage.accountSlug)"
         return self.makeResult(
             usage: usage.toUsageSnapshot(),
             sourceLabel: sourceLabel,
-            diagnostic: diagnostic)
+            fireworksDiscoveredAccountSlug: usage.accountSlugWasDiscovered ? usage.accountSlug : nil)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         false
-    }
-
-    private static func persistAccountSlug(_ accountSlug: String) throws {
-        let store = CodexBarConfigStore()
-        var config = try store.load() ?? .makeDefault()
-        var providerConfig = config.providerConfig(for: UsageProvider.fireworks.instanceID)
-            ?? ProviderConfig(id: UsageProvider.fireworks.instanceID)
-        guard providerConfig.sanitizedAccountSlug != accountSlug else { return }
-        providerConfig.accountSlug = accountSlug
-        config.setProviderConfig(providerConfig)
-        try store.save(config)
     }
 }

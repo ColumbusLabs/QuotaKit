@@ -566,6 +566,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: result.strategyID,
             strategyKind: result.strategyKind,
             codexResetCreditsAttempted: true,
+            codexPATCredentialOwner: result.codexPATCredentialOwner,
             diagnostic: result.diagnostic,
             claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
             claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,
@@ -611,6 +612,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: oauthResult.strategyID,
             strategyKind: oauthResult.strategyKind,
             codexResetCreditsAttempted: oauthResult.codexResetCreditsAttempted,
+            codexPATCredentialOwner: oauthResult.codexPATCredentialOwner,
             diagnostic: oauthResult.diagnostic)
     }
 
@@ -691,6 +693,7 @@ struct CodexOAuthFetchStrategy: ProviderFetchStrategy {
             strategyID: result.strategyID,
             strategyKind: result.strategyKind,
             codexResetCreditsAttempted: result.codexResetCreditsAttempted,
+            codexPATCredentialOwner: result.codexPATCredentialOwner,
             diagnostic: result.diagnostic,
             claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
             claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,

@@ -60,6 +60,15 @@ struct CLIServeWebUITests {
     }
 
     @Test
+    func `web ui keeps healthy ambient summary when active swap account has no usage`() {
+        let html = self.html
+        #expect(html.contains("const activeAccount = accounts.find(account => account.active === true)"))
+        #expect(html.contains("visibleWindows(activeAccount.windows).length > 0"))
+        #expect(html.contains("provider.cost || provider.credits || provider.status"))
+        #expect(html.contains("if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider)"))
+    }
+
+    @Test
     func `web ui renders daily spend charts from cost history`() {
         let html = self.html
         // Chart data rides /cost daily buckets keyed by provider; rendering is

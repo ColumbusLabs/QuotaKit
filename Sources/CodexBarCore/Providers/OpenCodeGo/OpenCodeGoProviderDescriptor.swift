@@ -497,7 +497,7 @@ enum OpenCodeGoSettingsError: LocalizedError {
     var errorDescription: String? {
         switch self {
         case .missingAPIKey:
-            "No OpenCode Go API key configured. Set OPENCODE_API_KEY or add apiKey to the CodexBar config."
+            "No OpenCode Go API key configured. Set OPENCODE_API_KEY or add apiKey to the QuotaKit config."
         case .missingCookie:
             "No OpenCode Go session cookies found in browsers."
         case .invalidCookie:

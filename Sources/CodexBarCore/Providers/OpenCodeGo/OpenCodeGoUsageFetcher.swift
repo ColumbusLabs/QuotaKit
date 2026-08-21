@@ -221,7 +221,7 @@ public struct OpenCodeGoUsageFetcher: Sendable {
         request.timeoutInterval = timeout
         request.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("CodexBar", forHTTPHeaderField: "User-Agent")
+        request.setValue("QuotaKit", forHTTPHeaderField: "User-Agent")
 
         let response = try await (session ?? self.redirectGuardSession).response(for: request)
         guard response.statusCode == 200 else {

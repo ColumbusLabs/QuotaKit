@@ -111,6 +111,11 @@ public enum ProviderCLISessionLifecycle {
     }
 }
 
+public enum CodexPATCredentialOwner: Sendable, Equatable {
+    case scopedCodexHome(path: String)
+    case ambientCodexHome
+}
+
 public struct ProviderFetchResult: Sendable {
     public let usage: UsageSnapshot
     public let credits: CreditsSnapshot?
@@ -122,6 +127,11 @@ public struct ProviderFetchResult: Sendable {
     /// winning in-memory credential snapshot. Generic enrichment must not reload auth.json after
     /// that attempt fails, or it could attach another account's credits to this usage result.
     public let codexResetCreditsAttempted: Bool
+    /// Transient routing evidence for the credential selected by the Codex PAT strategy.
+    /// This value never enters persisted usage or sync payloads.
+    public let codexPATCredentialOwner: CodexPATCredentialOwner?
+    /// A non-secret Fireworks account slug discovered by the winning request. The app owns persistence.
+    public let fireworksDiscoveredAccountSlug: String?
     /// Optional live diagnostic retained alongside an otherwise usable snapshot.
     public let diagnostic: String?
     /// Transient account ownership evidence for plan-utilization history.
@@ -147,6 +157,8 @@ public struct ProviderFetchResult: Sendable {
         strategyID: String,
         strategyKind: ProviderFetchKind,
         codexResetCreditsAttempted: Bool = false,
+        codexPATCredentialOwner: CodexPATCredentialOwner? = nil,
+        fireworksDiscoveredAccountSlug: String? = nil,
         diagnostic: String? = nil,
         claudeOAuthKeychainPersistentRefHash: String? = nil,
         claudeOAuthHistoryOwnerIdentifier: String? = nil,
@@ -162,6 +174,8 @@ public struct ProviderFetchResult: Sendable {
         self.strategyID = strategyID
         self.strategyKind = strategyKind
         self.codexResetCreditsAttempted = codexResetCreditsAttempted
+        self.codexPATCredentialOwner = codexPATCredentialOwner
+        self.fireworksDiscoveredAccountSlug = fireworksDiscoveredAccountSlug
         self.diagnostic = diagnostic
         self.claudeOAuthKeychainPersistentRefHash = claudeOAuthKeychainPersistentRefHash
         self.claudeOAuthHistoryOwnerIdentifier = claudeOAuthHistoryOwnerIdentifier
@@ -258,7 +272,8 @@ extension ProviderFetchStrategy {
         credits: CreditsSnapshot? = nil,
         dashboard: OpenAIDashboardSnapshot? = nil,
         sourceLabel: String,
-        diagnostic: String? = nil) -> ProviderFetchResult
+        diagnostic: String? = nil,
+        fireworksDiscoveredAccountSlug: String? = nil) -> ProviderFetchResult
     {
         ProviderFetchResult(
             usage: usage,
@@ -267,6 +282,7 @@ extension ProviderFetchStrategy {
             sourceLabel: sourceLabel,
             strategyID: self.id,
             strategyKind: self.kind,
+            fireworksDiscoveredAccountSlug: fireworksDiscoveredAccountSlug,
             diagnostic: diagnostic)
     }
 }

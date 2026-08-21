@@ -66,12 +66,14 @@ public enum XAIBillingFetcher {
         // so only credential problems (and cancellation) are allowed to escalate.
         var daily: [XAIUsageSnapshot.DailyBucket] = []
         var limitReached = false
+        var historyAvailable = false
         do {
             (daily, limitReached) = try await self.fetchDailyUsage(
                 key: key,
                 teamID: teamID,
                 transport: transport,
                 now: now)
+            historyAvailable = true
         } catch is CancellationError {
             throw CancellationError()
         } catch let error as URLError where error.code == .cancelled {
@@ -89,6 +91,7 @@ public enum XAIBillingFetcher {
             daily: daily,
             historyDays: self.historyDays,
             limitReached: limitReached,
+            historyAvailable: historyAvailable,
             updatedAt: now)
     }
 

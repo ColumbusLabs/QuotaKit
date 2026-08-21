@@ -1,7 +1,7 @@
 import Foundation
 
 extension ProviderConfig {
-    /// Account slug that owns `apiKey`. When omitted, CodexBar discovers it from the
+    /// Account slug that owns `apiKey`. When omitted, QuotaKit discovers it from the
     /// accounts visible to the Fireworks API key.
     public var accountSlug: String? {
         get { self.extensionValue(forKey: "accountSlug") }

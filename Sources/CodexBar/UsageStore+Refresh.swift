@@ -517,28 +517,6 @@ extension UsageStore {
 
     // swiftlint:enable function_body_length
 
-    private func recordCodexRefreshSuccessPublication(
-        provider: UsageProvider,
-        scoped: UsageSnapshot,
-        backfilled: UsageSnapshot,
-        result: ProviderFetchResult,
-        context: ProviderRefreshOutcomeContext)
-    {
-        guard provider == .codex else { return }
-        self.rememberLiveSystemCodexEmailIfNeeded(scoped.accountEmail(for: .codex))
-        let publicationSource: CodexActiveSource? =
-            result.strategyID == "codex.pat" || result.sourceLabel == "pat" ? .liveSystem : nil
-        self.seedCodexAccountScopedRefreshGuard(
-            source: publicationSource,
-            accountEmail: scoped.accountEmail(for: .codex))
-        self.lastCodexUsagePublicationGuard = self.lastCodexAccountScopedRefreshGuard
-        self.persistSingleCodexAccountSnapshot(
-            backfilled,
-            sourceLabel: result.sourceLabel,
-            expectedGuard: context.codexExpectedGuard,
-            expectedOwnerKey: context.codexLimitResetOwnerKey)
-    }
-
     private func completeProviderRefreshPass(
         provider: UsageProvider,
         outcome: ProviderFetchOutcome,
@@ -796,6 +774,7 @@ extension UsageStore {
                 self.tokenErrors[provider.instanceID] = nil
             }
             self.lastSourceLabels[provider.instanceID] = result.sourceLabel
+            self.settings.persistDiscoveredFireworksAccountSlug(result.fireworksDiscoveredAccountSlug)
             self.recordProviderFetchSuccessErrorState(provider: provider)
             self.diagnostics[provider.instanceID] = result.diagnostic
             if let tokenAccount = currentTokenAccount {
@@ -810,12 +789,14 @@ extension UsageStore {
             }
             self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
             self.failureGates[provider.instanceID]?.recordSuccess()
-            self.recordCodexRefreshSuccessPublication(
-                provider: provider,
-                scoped: scoped,
-                backfilled: backfilled,
-                result: result,
-                context: context)
+            if provider == .codex {
+                self.recordCodexRefreshSuccessPublication(
+                    scoped: scoped,
+                    backfilled: backfilled,
+                    result: result,
+                    expectedGuard: context.codexExpectedGuard,
+                    expectedOwnerKey: context.codexLimitResetOwnerKey)
+            }
             return backfilled
         }
         guard let backfilled else { return }
@@ -952,55 +933,6 @@ extension UsageStore {
             accountEmail: accountEmail,
             accountOrganization: identity?.accountOrganization,
             loginMethod: identity?.loginMethod))
-    }
-
-    private func persistSingleCodexAccountSnapshot(
-        _ snapshot: UsageSnapshot,
-        sourceLabel: String,
-        expectedGuard: CodexAccountScopedRefreshGuard?,
-        expectedOwnerKey: CodexLimitResetOwnerKey?)
-    {
-        guard let expectedGuard,
-              let expectedOwnerKey
-        else { return }
-
-        let currentGuard = self.freshCodexAccountScopedRefreshGuard()
-        guard Self.codexScopedRefreshGuardsMatchAccount(expectedGuard, currentGuard),
-              let currentOwnerKey = CodexLimitResetOwnerKey(
-                  identity: currentGuard.identity,
-                  accountEmail: currentGuard.accountKey),
-              currentOwnerKey == expectedOwnerKey
-        else { return }
-
-        let visibleAccounts = self.freshCodexVisibleAccountsForSnapshotHydration()
-        let activeMatches = visibleAccounts.filter {
-            $0.isActive &&
-                $0.selectionSource == currentGuard.source &&
-                CodexIdentityResolver.normalizeEmail($0.email) == currentGuard.accountKey
-        }
-        guard activeMatches.count == 1,
-              let account = activeMatches.first,
-              let snapshotEmail = CodexIdentityResolver.normalizeEmail(snapshot.accountEmail(for: .codex)),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(currentGuard.accountKey),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(account.email),
-              self.codexLimitResetOwnerKey(
-                  forVisibleAccount: account,
-                  visibleAccounts: visibleAccounts) == currentOwnerKey
-        else { return }
-
-        let identity = snapshot.identity(for: .codex)
-        let relabeled = snapshot.withIdentity(ProviderIdentitySnapshot(
-            providerID: .codex,
-            accountEmail: account.email,
-            accountOrganization: identity?.accountOrganization,
-            loginMethod: identity?.loginMethod ?? account.workspaceLabel))
-        let currentSnapshots = [CodexAccountUsageSnapshot(
-            account: account,
-            snapshot: relabeled,
-            error: nil,
-            sourceLabel: sourceLabel)]
-        self.codexAccountSnapshots = currentSnapshots
-        self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
     }
 
     private func clearDisabledProviderRefreshState(_ provider: UsageProvider) async {

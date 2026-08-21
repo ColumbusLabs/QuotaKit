@@ -242,27 +242,6 @@ extension UsageStore {
         return self.settings.multiAccountMenuLayout == .stacked && projection.visibleAccounts.count > 1
     }
 
-    func shouldUseAmbientCodexPATForUsage() -> Bool {
-        switch self.settings.codexUsageDataSource {
-        case .pat:
-            true
-        case .auto:
-            (try? CodexOAuthCredentialsStore.loadPATResolvingScopedHome(env: self.codexFetchEnvironment()))
-                != nil
-        case .oauth, .cli:
-            false
-        }
-    }
-
-    func codexFetchEnvironment() -> [String: String] {
-        // Provider-specific by design: PAT admission reads the selected Codex CODEX_HOME fetch environment.
-        ProviderRegistry.makeEnvironment(
-            base: self.environmentBase,
-            provider: .codex,
-            settings: self.settings,
-            tokenOverride: nil)
-    }
-
     func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(

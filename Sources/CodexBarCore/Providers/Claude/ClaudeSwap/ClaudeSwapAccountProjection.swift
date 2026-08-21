@@ -79,20 +79,19 @@ public enum ClaudeSwapAccountProjection {
     private static func displayLabels(for rows: [ClaudeSwapAccountRow], duplicateEmails: Set<String>) -> [String] {
         let candidates = rows.map { self.displayLabel(for: $0, duplicateEmails: duplicateEmails) }
         var collisionCounts: [String: Int] = [:]
-        for (row, label) in zip(rows, candidates) {
-            guard duplicateEmails.contains(self.normalizedEmail(row.email)),
-                  self.alias(from: row) == nil else { continue }
-            collisionCounts[label.lowercased(), default: 0] += 1
+        for label in candidates {
+            collisionCounts[self.normalizedLabel(label), default: 0] += 1
         }
         return zip(rows, candidates).map { row, label in
-            guard duplicateEmails.contains(self.normalizedEmail(row.email)),
-                  self.alias(from: row) == nil,
-                  collisionCounts[label.lowercased(), default: 0] > 1
-            else {
+            guard collisionCounts[self.normalizedLabel(label), default: 0] > 1 else {
                 return label
             }
             return "\(label) · Account \(row.number)"
         }
+    }
+
+    private static func normalizedLabel(_ label: String) -> String {
+        label.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
     }
 
     private static func alias(from row: ClaudeSwapAccountRow) -> String? {

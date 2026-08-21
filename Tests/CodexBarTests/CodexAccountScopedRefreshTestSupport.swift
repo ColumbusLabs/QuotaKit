@@ -339,6 +339,7 @@ struct TestCodexFetchStrategy: ProviderFetchStrategy {
     var id = "test-codex"
     var kind: ProviderFetchKind = .cli
     var sourceLabel = "test-codex"
+    var codexPATCredentialOwner: CodexPATCredentialOwner?
 
     func isAvailable(_: ProviderFetchContext) async -> Bool {
         true
@@ -346,10 +347,18 @@ struct TestCodexFetchStrategy: ProviderFetchStrategy {
 
     func fetch(_: ProviderFetchContext) async throws -> ProviderFetchResult {
         let snapshot = try await self.loader()
-        return self.makeResult(
+        let result = self.makeResult(
             usage: snapshot,
             credits: self.credits,
             sourceLabel: self.sourceLabel)
+        return ProviderFetchResult(
+            usage: result.usage,
+            credits: result.credits,
+            dashboard: result.dashboard,
+            sourceLabel: result.sourceLabel,
+            strategyID: result.strategyID,
+            strategyKind: result.strategyKind,
+            codexPATCredentialOwner: self.codexPATCredentialOwner)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

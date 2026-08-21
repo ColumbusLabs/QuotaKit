@@ -14,7 +14,11 @@ struct DashboardClaudeSwapSnapshotTests {
             now: self.generatedAt)
         let providers = try self.providers(
             identityMode: .redacted,
-            claudeSwap: DashboardClaudeSwapInput(accounts: accounts, adapterError: nil, weeklyWorkDays: nil))
+            claudeSwap: DashboardClaudeSwapInput(
+                accounts: accounts,
+                adapterError: nil,
+                weeklyWorkDays: nil,
+                showSingleAccount: true))
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
 
@@ -88,8 +92,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let redactedClaude = try #require(redactedProviders.first { $0["id"] as? String == "claude" })
         let redactedRows = try #require(redactedClaude["accounts"] as? [[String: Any]])
         #expect(redactedRows.compactMap { $0["label"] as? String } == [
-            "Work",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -114,12 +118,16 @@ struct DashboardClaudeSwapSnapshotTests {
             now: self.generatedAt)
         let providers = try self.providers(
             identityMode: .redacted,
-            claudeSwap: DashboardClaudeSwapInput(accounts: accounts, adapterError: nil, weeklyWorkDays: nil))
+            claudeSwap: DashboardClaudeSwapInput(
+                accounts: accounts,
+                adapterError: nil,
+                weeklyWorkDays: nil,
+                showSingleAccount: true))
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "redacted@example.com",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
         #expect(rows.compactMap { ($0["identity"] as? [String: Any])?["accountEmail"] as? String } == [
             "redacted@example.com",
@@ -152,8 +160,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Work (redacted@example.com)",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
         #expect(rows.compactMap { ($0["identity"] as? [String: Any])?["accountEmail"] as? String } == [
             "redacted@example.com",
@@ -186,8 +194,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Work:redacted@example.com",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
         #expect(rows.compactMap { ($0["identity"] as? [String: Any])?["accountEmail"] as? String } == [
             "redacted@example.com",
@@ -219,8 +227,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "redacted@example.com · redacted@company.com",
-            "redacted@example.com · Acme",
+            "redacted@example.com · Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -249,8 +257,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Work (redacted@corp)",
-            "redacted@example.com · redacted@[192.0.2.1]",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -279,8 +287,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Work (redacted@example.com)",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -299,7 +307,11 @@ struct DashboardClaudeSwapSnapshotTests {
             now: self.generatedAt)
         let providers = try self.providers(
             identityMode: .redacted,
-            claudeSwap: DashboardClaudeSwapInput(accounts: accounts, adapterError: nil, weeklyWorkDays: nil))
+            claudeSwap: DashboardClaudeSwapInput(
+                accounts: accounts,
+                adapterError: nil,
+                weeklyWorkDays: nil,
+                showSingleAccount: true))
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == ["redacted@例子.公司"])
@@ -330,8 +342,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Contact redacted@example.com",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -360,8 +372,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "Contact redacted@example.com",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -390,8 +402,8 @@ struct DashboardClaudeSwapSnapshotTests {
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         let rows = try #require(claude["accounts"] as? [[String: Any]])
         #expect(rows.compactMap { $0["label"] as? String } == [
-            "redacted@example.com/redacted@example.net",
-            "redacted@example.com · Acme",
+            "Account 1",
+            "redacted@example.com · Account 2",
         ])
     }
 
@@ -564,6 +576,30 @@ struct DashboardClaudeSwapSnapshotTests {
     }
 
     @Test
+    func `single account stays ambient unless explicitly enabled`() throws {
+        let account = ClaudeSwapAccountProjection.accountSnapshots(
+            from: ClaudeSwapAccountList(
+                activeAccountNumber: 1,
+                accounts: [self.accountRow(number: 1, email: "person@example.com", active: true)]),
+            now: self.generatedAt)
+        let hidden = try self.providers(
+            identityMode: .redacted,
+            claudeSwap: DashboardClaudeSwapInput(accounts: account, adapterError: nil, weeklyWorkDays: nil))
+        let shown = try self.providers(
+            identityMode: .redacted,
+            claudeSwap: DashboardClaudeSwapInput(
+                accounts: account,
+                adapterError: nil,
+                weeklyWorkDays: nil,
+                showSingleAccount: true))
+
+        let hiddenClaude = try #require(hidden.first { $0["id"] as? String == "claude" })
+        let shownClaude = try #require(shown.first { $0["id"] as? String == "claude" })
+        #expect(hiddenClaude["accounts"] == nil)
+        #expect((shownClaude["accounts"] as? [Any])?.count == 1)
+    }
+
+    @Test
     func `producer collects swap accounts with config while its default omits them`() async throws {
         let recorder = DashboardClaudeSwapConfigRecorder()
         let account = ClaudeSwapAccountProjection.accountSnapshots(
@@ -648,7 +684,11 @@ struct DashboardClaudeSwapSnapshotTests {
     {
         let providers = try self.providers(
             identityMode: mode,
-            claudeSwap: DashboardClaudeSwapInput(accounts: accounts, adapterError: nil, weeklyWorkDays: nil))
+            claudeSwap: DashboardClaudeSwapInput(
+                accounts: accounts,
+                adapterError: nil,
+                weeklyWorkDays: nil,
+                showSingleAccount: true))
         let claude = try #require(providers.first { $0["id"] as? String == "claude" })
         return try #require((claude["accounts"] as? [[String: Any]])?.first)
     }
@@ -738,6 +778,7 @@ struct DashboardClaudeSwapSnapshotTests {
     private func enabledSwapConfig() -> CodexBarConfig {
         var claude = ProviderConfig(id: .claude, enabled: true)
         claude.claudeSwapEnabled = true
+        claude.claudeSwapShowSingleAccount = true
         return CodexBarConfig(providers: [claude])
     }
 

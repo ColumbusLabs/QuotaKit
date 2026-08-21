@@ -91,7 +91,7 @@ enum MenuBarConditionalMetric: String, CaseIterable, Codable, Hashable, Sendable
         }
     }
 
-    /// Whether a 0.54.0-era decoder has a case for this metric at all. That release shipped the
+    /// Whether the legacy conditional decoder has a case for this metric at all. That schema shipped the
     /// conditional editor with only the four percent windows, and its synthesized `Codable` throws on
     /// any other raw value — which would take the whole persisted library down with it. The legacy
     /// projection written alongside the current library drops entries this returns `false` for.
@@ -363,7 +363,7 @@ struct MenuBarLayoutConditional: Codable, Hashable, Sendable {
         ]
     }
 
-    /// This conditional as a 0.54.0-era release can read it, or nil when it cannot be represented.
+    /// This conditional as the legacy schema can read it, or nil when it cannot be represented.
     ///
     /// Two things make an entry unreadable there. A metric outside the original four throws on decode
     /// and takes the whole array with it. A non-`.used` direction is worse than unreadable: the extra

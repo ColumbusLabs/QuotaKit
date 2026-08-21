@@ -94,7 +94,8 @@ struct DashboardSnapshotProducer: Sendable {
                 DashboardClaudeSwapInput(
                     accounts: $0.accounts,
                     adapterError: $0.adapterError,
-                    weeklyWorkDays: self.weeklyWorkDays())
+                    weeklyWorkDays: self.weeklyWorkDays(),
+                    showSingleAccount: config.providerConfig(for: .claude)?.claudeSwapShowSingleAccount == true)
             })
         return DashboardSnapshotResult(
             payload: payload,
@@ -323,7 +324,9 @@ extension CodexBarCLI {
             }
             guard renamed == 0 else { throw Self.dashboardOutputPOSIXError(errno, path: url.path) }
         } catch {
-            if handleOpen { try? handle.close() }
+            if handleOpen {
+                try? handle.close()
+            }
             try? FileManager.default.removeItem(at: staged)
             throw error
         }

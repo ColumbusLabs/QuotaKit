@@ -99,7 +99,8 @@ struct SpendDashboardPublication: Sendable {
             knownInputIDs: knownInputIDs,
             providerScope: providerScope,
             hiddenSourceIDs: hiddenSourceIDs,
-            hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent)
+            hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent,
+            confirmedEmptyIsKnown: { $0.provider != .grok })
     }
 
     func knownTokenSubscriptionCount(
@@ -115,14 +116,16 @@ struct SpendDashboardPublication: Sendable {
             knownInputIDs: knownInputIDs,
             providerScope: providerScope,
             hiddenSourceIDs: hiddenSourceIDs,
-            hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent)
+            hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent,
+            confirmedEmptyIsKnown: { _ in true })
     }
 
     private func knownSubscriptionCount(
         knownInputIDs: Set<String>,
         providerScope: Set<UsageProvider>,
         hiddenSourceIDs: Set<String>,
-        hideNativeCodexWhenOpenCodexPresent: Bool) -> Int
+        hideNativeCodexWhenOpenCodexPresent: Bool,
+        confirmedEmptyIsKnown: (SpendSourcePublication) -> Bool) -> Int
     {
         providerScope.reduce(into: 0) { count, provider in
             count += self.coverageSources(
@@ -130,7 +133,7 @@ struct SpendDashboardPublication: Sendable {
                 hiddenSourceIDs: hiddenSourceIDs,
                 hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent)
                 .count { source in
-                    source.state == .confirmedEmpty ||
+                    (source.state == .confirmedEmpty && confirmedEmptyIsKnown(source)) ||
                         (source.state == .available && knownInputIDs.contains(source.id))
                 }
         }
