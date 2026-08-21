@@ -88,6 +88,7 @@ extension SyncCoordinator {
         snapshot: UsageSnapshot?) -> SyncKiroCredits?
     {
         guard provider == .kiro, let k = snapshot?.kiroUsage else { return nil }
+        let limits = k.usageLimits
         // Percent: prefer Mac-computed; otherwise derive used / total.
         let percent: Double? = {
             if k.creditsTotal > 0 {
@@ -103,9 +104,15 @@ extension SyncCoordinator {
             bonusUsed: k.bonusCreditsUsed,
             bonusTotal: k.bonusCreditsTotal,
             bonusExpiryDays: k.bonusExpiryDays,
-            resetsAt: nil,
+            resetsAt: k.resetsAt,
             overageCreditsUsed: k.overageCreditsUsed,
-            estimatedOverageCostUSD: k.estimatedOverageCostUSD)
+            estimatedOverageCostUSD: limits?.currencyCode.uppercased() == "USD" || limits == nil
+                ? k.estimatedOverageCostUSD
+                : nil,
+            overageCreditsCap: limits?.overageCap,
+            overageCharges: limits?.overageCharges,
+            overageChargeLimit: limits?.overageChargeLimit,
+            overageCurrencyCode: limits?.currencyCode)
     }
 
     static func mapBedrockCost(

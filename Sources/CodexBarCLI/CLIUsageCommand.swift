@@ -513,6 +513,10 @@ extension CodexBarCLI {
         }
         #endif
 
+        // Provider-specific by design: Codex PAT User-Agent needs the CLI version before the fetch starts.
+        let resolvedCLIVersion = provider == .codex
+            ? Self.detectVersion(for: provider, browserDetection: command.browserDetection)
+            : nil
         let fetchContext = ProviderFetchContext(
             runtime: command.providerRuntime,
             sourceMode: effectiveSourceMode,
@@ -530,7 +534,8 @@ extension CodexBarCLI {
             tokenAccountTokenUpdater: tokenContext.tokenUpdater(for: account),
             providerManualTokenUpdater: tokenContext.manualTokenUpdater(),
             persistsCLISessions: Self.persistsCLISessions(provider: provider, command: command),
-            persistentCLISessionIdleWindow: command.persistentCLISessionIdleWindow)
+            persistentCLISessionIdleWindow: command.persistentCLISessionIdleWindow,
+            resolvedCLIVersion: resolvedCLIVersion)
         let outcome = await Self.fetchProviderUsage(provider: provider, context: fetchContext)
         if command.verbose, !command.jsonOnly {
             Self.printFetchAttempts(provider: provider, attempts: outcome.attempts)
@@ -562,7 +567,8 @@ extension CodexBarCLI {
             let shouldDetectVersion = Self.shouldDetectVersion(provider: provider, result: result)
             let version = Self.normalizeVersion(
                 raw: shouldDetectVersion
-                    ? Self.detectVersion(for: provider, browserDetection: command.browserDetection)
+                    ? (resolvedCLIVersion
+                        ?? Self.detectVersion(for: provider, browserDetection: command.browserDetection))
                     : nil)
             let source = result.sourceLabel
             let notes = Self.usageTextNotes(

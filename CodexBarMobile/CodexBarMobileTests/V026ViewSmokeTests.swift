@@ -128,6 +128,53 @@ final class V026ViewSmokeTests: XCTestCase {
         XCTAssertNotNil(image)
     }
 
+    func testKiroOveragePresentationUsesCapRemainingAndNativeCurrency() throws {
+        let credits = SyncKiroCredits(
+            planName: "Pro",
+            creditsUsed: 1000,
+            creditsTotal: 1000,
+            creditsPercent: 100,
+            bonusUsed: nil,
+            bonusTotal: nil,
+            bonusExpiryDays: nil,
+            resetsAt: Date(),
+            overageCreditsUsed: 125,
+            estimatedOverageCostUSD: nil,
+            overageCreditsCap: 500,
+            overageCharges: 18.75,
+            overageChargeLimit: 75,
+            overageCurrencyCode: "eur")
+
+        let presentation = try XCTUnwrap(KiroOveragePresentation(credits))
+
+        XCTAssertEqual(presentation.creditsRemaining, 375)
+        XCTAssertEqual(presentation.creditsFraction, 0.25)
+        XCTAssertEqual(presentation.charges, 18.75)
+        XCTAssertEqual(presentation.chargeLimit, 75)
+        XCTAssertEqual(presentation.currencyCode, "EUR")
+    }
+
+    func testKiroOveragePresentationFallsBackToLegacyUSDEstimate() throws {
+        let credits = SyncKiroCredits(
+            planName: "Pro",
+            creditsUsed: 1000,
+            creditsTotal: 1000,
+            creditsPercent: 100,
+            bonusUsed: nil,
+            bonusTotal: nil,
+            bonusExpiryDays: nil,
+            resetsAt: nil,
+            overageCreditsUsed: 25,
+            estimatedOverageCostUSD: 2.5)
+
+        let presentation = try XCTUnwrap(KiroOveragePresentation(credits))
+
+        XCTAssertEqual(presentation.charges, 2.5)
+        XCTAssertEqual(presentation.currencyCode, "USD")
+        XCTAssertNil(presentation.creditsCap)
+        XCTAssertNil(presentation.creditsRemaining)
+    }
+
     func testAntigravityAccountSwitcherRendersSingleAccount() {
         // When only one Google account is wired, the switcher should
         // still render the row (caller already gates count > 1 in the

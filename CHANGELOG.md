@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Providers: add Codex personal-access-token usage, OpenCode Go API quotas, Fireworks account discovery, Kiro overage limits, z.ai China balances, and live Grok/xAI spend sources.
+- Menu bar: add reusable conditional layout rules, richer conditional metrics, and stable multi-line rendering.
+- Claude: retain complete claude-swap usage at exhausted limits and disambiguate same-email accounts with stable aliases.
 - Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.
 - Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.
 - Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.
@@ -25,6 +28,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Usage & Spend: share one provider-source publication between Overview and the dashboard, count every enabled provider, align calendar bucketing, and drain completed Codex catch-up files.
+- Mac reliability: preserve cached menu-card subclasses, prevent post-exit RPC pipe aborts, and size agent-session menus from their actual content.
 - Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.
 - Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.
 - Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.

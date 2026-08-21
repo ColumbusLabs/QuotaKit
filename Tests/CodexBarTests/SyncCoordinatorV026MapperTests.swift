@@ -217,7 +217,11 @@ struct SyncCoordinatorV026MapperTests {
         total: Double = 1000,
         bonusUsed: Double? = nil,
         bonusTotal: Double? = nil,
-        bonusExpiryDays: Int? = nil) -> KiroUsageDetails
+        bonusExpiryDays: Int? = nil,
+        overageCreditsUsed: Double? = nil,
+        estimatedOverageCostUSD: Double? = nil,
+        usageLimits: KiroUsageLimits? = nil,
+        resetsAt: Date? = nil) -> KiroUsageDetails
     {
         KiroUsageDetails(
             planName: plan,
@@ -230,10 +234,12 @@ struct SyncCoordinatorV026MapperTests {
             bonusCreditsRemaining: (bonusTotal ?? 0) - (bonusUsed ?? 0),
             bonusExpiryDays: bonusExpiryDays,
             overagesStatus: nil,
-            overageCreditsUsed: nil,
-            estimatedOverageCostUSD: nil,
+            overageCreditsUsed: overageCreditsUsed,
+            estimatedOverageCostUSD: estimatedOverageCostUSD,
             manageURL: nil,
-            contextUsage: nil)
+            contextUsage: nil,
+            usageLimits: usageLimits,
+            resetsAt: resetsAt)
     }
 
     @Test
@@ -276,6 +282,57 @@ struct SyncCoordinatorV026MapperTests {
             provider: .kiro, snapshot: snapshot)
         #expect(result?.creditsTotal == nil)
         #expect(result?.creditsPercent == nil)
+    }
+
+    @Test
+    func `Kiro mapper: preserves CLI reset when limits enrichment is unavailable`() {
+        let resetsAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            kiroUsage: Self.makeKiroDetails(resetsAt: resetsAt),
+            updatedAt: Self.now)
+
+        let result = SyncCoordinator.mapKiroCredits(provider: .kiro, snapshot: snapshot)
+
+        #expect(result?.resetsAt == resetsAt)
+        #expect(result?.overageCreditsCap == nil)
+    }
+
+    @Test
+    func `Kiro mapper: carries overage cap charges currency and reset without mislabeling legacy USD`() throws {
+        let resetsAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let limits = KiroUsageLimits(
+            planLimit: 1000,
+            planUsed: 1000,
+            overageUsed: 125,
+            overageCap: 500,
+            overageEnabled: true,
+            overageCharges: 18.75,
+            overageRate: 0.15,
+            currencyCode: "EUR",
+            resetsAt: resetsAt)
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            kiroUsage: Self.makeKiroDetails(
+                used: 1000,
+                total: 1000,
+                overageCreditsUsed: 125,
+                estimatedOverageCostUSD: 18.75,
+                usageLimits: limits,
+                resetsAt: resetsAt),
+            updatedAt: Self.now)
+
+        let result = try #require(SyncCoordinator.mapKiroCredits(provider: .kiro, snapshot: snapshot))
+
+        #expect(result.overageCreditsUsed == 125)
+        #expect(result.overageCreditsCap == 500)
+        #expect(result.overageCharges == 18.75)
+        #expect(result.overageChargeLimit == 75)
+        #expect(result.overageCurrencyCode == "EUR")
+        #expect(result.resetsAt == resetsAt)
+        #expect(result.estimatedOverageCostUSD == nil)
     }
 
     // MARK: - mapBedrockCost

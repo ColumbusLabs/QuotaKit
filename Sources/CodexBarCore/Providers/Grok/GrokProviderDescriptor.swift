@@ -85,8 +85,11 @@ public enum GrokProviderDescriptor {
                     ProviderColor(hex: 0xFDFDFD),
                 ]),
             tokenCost: ProviderTokenCostConfig(
-                supportsTokenCost: false,
-                noDataMessage: { "Grok cost summary is not supported yet." }),
+                supportsTokenCost: true,
+                noDataMessage: {
+                    "Grok token totals come from local ~/.grok/sessions logs. "
+                        + "Subscription credits are not converted to dollars."
+                }),
             // Pace needs a real period length, not a guess. Both fetch paths now supply one — the
             // CLI from `billingPeriodMinutes`, the web fallback from `GrokBillingCadenceStore` — so
             // this no longer keys off the inferred "Weekly"/"Monthly" label. That label goes `nil`

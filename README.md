@@ -69,7 +69,7 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [Claude](docs/claude.md) — OAuth API, browser cookies, or CLI PTY fallback; session and weekly usage where available.
 - [Cursor](docs/cursor.md) — Browser session cookies for plan + usage + billing resets.
 - [OpenCode](docs/opencode.md) — Browser cookies for workspace subscription usage.
-- [OpenCode Go](docs/opencode.md) — Browser or local SQLite data for Go usage windows.
+- [OpenCode Go](docs/opencode.md) — Usage API, browser fallback, and local SQLite cost history.
 - [Alibaba Coding Plan](docs/alibaba-coding-plan.md) — Web cookies or API key for coding-plan quotas.
 - [Alibaba Token Plan](docs/alibaba-token-plan.md) — Bailian browser/manual cookies for token-plan credits.
 - [Qwen Cloud](docs/qwen-cloud.md) — 5-hour and weekly individual Token Plan usage via browser/manual cookies.

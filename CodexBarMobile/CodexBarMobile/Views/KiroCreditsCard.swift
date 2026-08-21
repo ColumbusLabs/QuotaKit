@@ -1,6 +1,38 @@
 import CodexBarSync
 import SwiftUI
 
+struct KiroOveragePresentation: Equatable {
+    let creditsUsed: Double?
+    let creditsCap: Double?
+    let creditsRemaining: Double?
+    let creditsFraction: Double?
+    let charges: Double?
+    let chargeLimit: Double?
+    let currencyCode: String
+
+    init?(_ credits: SyncKiroCredits) {
+        let used = credits.overageCreditsUsed
+        let cap = credits.overageCreditsCap.flatMap { $0 > 0 ? $0 : nil }
+        let charges = credits.overageCharges ?? credits.estimatedOverageCostUSD
+        guard (used ?? 0) > 0 || cap != nil || (charges ?? 0) > 0 else { return nil }
+
+        self.creditsUsed = used
+        self.creditsCap = cap
+        self.creditsRemaining = cap.map { max(0, $0 - (used ?? 0)) }
+        self.creditsFraction = cap.map { min(max((used ?? 0) / $0, 0), 1) }
+        self.charges = charges
+        self.chargeLimit = credits.overageChargeLimit
+        self.currencyCode = credits.overageCharges != nil
+            ? Self.normalizedCurrencyCode(credits.overageCurrencyCode)
+            : "USD"
+    }
+
+    private static func normalizedCurrencyCode(_ code: String?) -> String {
+        let normalized = code?.trimmingCharacters(in: .whitespacesAndNewlines).uppercased() ?? ""
+        return normalized.count == 3 ? normalized : "USD"
+    }
+}
+
 /// Dedicated Kiro credit-display card. Mirrors the Mac MenuCard
 /// affordance added in upstream PR #933 — plan tag + primary credits
 /// progress + optional bonus pool with expiry countdown.
@@ -29,9 +61,8 @@ struct KiroCreditsCard: View {
         self.credits.bonusTotal != nil && (self.credits.bonusTotal ?? 0) > 0
     }
 
-    private var hasOverage: Bool {
-        (self.credits.overageCreditsUsed ?? 0) > 0
-            || (self.credits.estimatedOverageCostUSD ?? 0) > 0
+    private var overagePresentation: KiroOveragePresentation? {
+        KiroOveragePresentation(self.credits)
     }
 
     var body: some View {
@@ -45,9 +76,9 @@ struct KiroCreditsCard: View {
                 self.bonusRow(fraction: bonusFraction)
             }
 
-            if self.hasOverage {
+            if let overage = self.overagePresentation {
                 Divider()
-                self.overageRow
+                self.overageRow(overage)
             }
         }
         .padding(16)
@@ -60,34 +91,69 @@ struct KiroCreditsCard: View {
     /// `overage_credits_used` (Kiro plan exhausted, user paying
     /// per-credit). Mirrors Mac's v0.27.0 "overage credits / overage
     /// cost" menu bar display modes.
-    private var overageRow: some View {
-        HStack(alignment: .firstTextBaseline, spacing: 8) {
-            Text(String(localized: "kiro_overage_label", defaultValue: "Overage"))
-                .font(.caption)
-                .foregroundStyle(.secondary)
-            Spacer()
-            if let usedCredits = credits.overageCreditsUsed, usedCredits > 0 {
-                Text(String(
-                    format: String(localized: "kiro_overage_credits_format", defaultValue: "+%@ credits"),
-                    Self.formatCredits(usedCredits)))
-                    .font(.caption.bold().monospacedDigit())
-                    .foregroundStyle(.orange)
+    private func overageRow(_ overage: KiroOveragePresentation) -> some View {
+        VStack(alignment: .leading, spacing: 6) {
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                Text(String(localized: "kiro_overage_label", defaultValue: "Overage"))
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+                Spacer()
+                if let usedCredits = overage.creditsUsed {
+                    Text(self.overageCreditsText(used: usedCredits, cap: overage.creditsCap))
+                        .font(.caption.bold().monospacedDigit())
+                        .foregroundStyle(.orange)
+                }
             }
-            if let costUSD = credits.estimatedOverageCostUSD, costUSD > 0 {
-                Text(self.overageCostText(costUSD: costUSD))
-                    .font(.caption.bold().monospacedDigit())
-                    .foregroundStyle(.orange)
+
+            if let fraction = overage.creditsFraction {
+                ProgressView(value: fraction)
+                    .progressViewStyle(.linear)
+                    .tint(.orange)
+            }
+
+            HStack(alignment: .firstTextBaseline, spacing: 8) {
+                if let remaining = overage.creditsRemaining {
+                    Text(String(
+                        format: String(localized: "%@ credits left"),
+                        Self.formatCredits(remaining)))
+                        .font(.caption.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
+                Spacer()
+                if let charges = overage.charges {
+                    Text(self.overageCostText(
+                        charges: charges,
+                        limit: overage.chargeLimit,
+                        currencyCode: overage.currencyCode))
+                        .font(.caption.bold().monospacedDigit())
+                        .foregroundStyle(.orange)
+                }
             }
         }
         .accessibilityIdentifier("kiro-overage-row")
     }
 
-    private func overageCostText(costUSD: Double) -> String {
+    private func overageCreditsText(used: Double, cap: Double?) -> String {
+        guard let cap else {
+            return String(
+                format: String(localized: "kiro_overage_credits_format", defaultValue: "+%@ credits"),
+                Self.formatCredits(used))
+        }
+        return "\(Self.formatCredits(used)) / \(Self.formatCredits(cap))"
+    }
+
+    private func overageCostText(charges: Double, limit: Double?, currencyCode: String) -> String {
+        let used = Self.currencyText(charges, currencyCode: currencyCode)
+        guard let limit else { return used }
+        return "\(used) / \(Self.currencyText(limit, currencyCode: currencyCode))"
+    }
+
+    private static func currencyText(_ value: Double, currencyCode: String) -> String {
         let formatter = NumberFormatter()
         formatter.numberStyle = .currency
-        formatter.currencyCode = "USD"
-        formatter.maximumFractionDigits = costUSD < 10 ? 2 : 0
-        return formatter.string(from: NSNumber(value: costUSD)) ?? "$\(costUSD)"
+        formatter.currencyCode = currencyCode
+        formatter.maximumFractionDigits = value < 10 ? 2 : 0
+        return formatter.string(from: NSNumber(value: value)) ?? "\(currencyCode) \(value)"
     }
 
     private var header: some View {
@@ -218,7 +284,11 @@ struct KiroCreditsCard: View {
             bonusExpiryDays: 7,
             resetsAt: nil,
             overageCreditsUsed: 145,
-            estimatedOverageCostUSD: 2.45),
+            estimatedOverageCostUSD: nil,
+            overageCreditsCap: 500,
+            overageCharges: 18.85,
+            overageChargeLimit: 65,
+            overageCurrencyCode: "EUR"),
         tintColor: Color(red: 0.25, green: 0.62, blue: 0.49))
         .padding()
 }

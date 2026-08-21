@@ -155,6 +155,21 @@ public enum ZaiProviderDescriptor {
                         provider: .zai,
                         bundledPlugin: "zai",
                         secretKey: ZaiSettingsReader.apiTokenKey,
+                        sourceLabel: "api",
+                        validateContext: { context in
+                            let settings = context.settings?.zai
+                            let region = settings?.apiRegion ?? .global
+                            try ZaiSettingsReader.validateEndpointOverrides(
+                                region: region,
+                                environment: context.env)
+                            let scope = settings?.usageScope ?? .personal
+                            if scope == .team,
+                               settings?.teamContext == nil,
+                               ZaiBigModelTeamContext(environment: context.env) == nil
+                            {
+                                throw ZaiProviderSettingsError.missingTeamContext
+                            }
+                        },
                         resolveValues: { context in
                             let settings = context.settings?.zai
                             let region = settings?.apiRegion ?? .global
@@ -165,8 +180,20 @@ public enum ZaiProviderDescriptor {
                             var plainValues = [
                                 "Z_AI_REGION": region.rawValue,
                                 "Z_AI_USAGE_SCOPE": (settings?.usageScope ?? .personal).rawValue,
+                                "Z_AI_QUOTA_ENDPOINT": ZaiEndpointRouter.resolveQuotaURL(
+                                    region: region,
+                                    environment: context.env).absoluteString,
+                                "Z_AI_MODEL_USAGE_ENDPOINT": ZaiEndpointRouter.resolveModelUsageURL(
+                                    region: region,
+                                    environment: context.env).absoluteString,
                             ]
-                            if let team = settings?.teamContext {
+                            if let balanceURL = ZaiEndpointRouter.resolveBalanceURL(
+                                region: region,
+                                environment: context.env)
+                            {
+                                plainValues["Z_AI_BALANCE_ENDPOINT"] = balanceURL.absoluteString
+                            }
+                            if let team = settings?.teamContext ?? ZaiBigModelTeamContext(environment: context.env) {
                                 plainValues["Z_AI_ORGANIZATION"] = team.organizationID
                                 plainValues["Z_AI_PROJECT"] = team.projectID
                             }

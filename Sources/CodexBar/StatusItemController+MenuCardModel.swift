@@ -20,7 +20,8 @@ extension StatusItemController {
         accountOverride: AccountInfo? = nil,
         historySelectionOverride: PlanUtilizationHistorySelection? = nil,
         planOverride: String? = nil,
-        subtitleOverride: String? = nil) -> UsageMenuCardView.Model?
+        subtitleOverride: String? = nil,
+        sourceLabelOverride: String? = nil) -> UsageMenuCardView.Model?
     {
         // Provider-specific by design: Codex is the historical card fallback when no enabled provider is available.
         let target = provider ?? self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex
@@ -87,7 +88,7 @@ extension StatusItemController {
             tokenError = nil
         }
 
-        let sourceLabel = surface == .liveCard ? self.store.sourceLabel(for: target) : nil
+        let sourceLabel = sourceLabelOverride ?? (surface == .liveCard ? self.store.sourceLabel(for: target) : nil)
         // Provider-specific by design: Kilo's automatic source mode is surfaced as card fallback context.
         let kiloAutoMode = target == .kilo && self.settings.kiloUsageDataSource == .auto
         let (weeklyPace, sessionEquivalentForecast) = self.resolvePaceAndForecast(

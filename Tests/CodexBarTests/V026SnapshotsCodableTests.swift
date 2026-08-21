@@ -123,7 +123,13 @@ struct V026SnapshotsCodableTests {
             bonusUsed: 45,
             bonusTotal: 200,
             bonusExpiryDays: 19,
-            resetsAt: Date(timeIntervalSince1970: 1_700_000_000))
+            resetsAt: Date(timeIntervalSince1970: 1_700_000_000),
+            overageCreditsUsed: 125,
+            estimatedOverageCostUSD: nil,
+            overageCreditsCap: 500,
+            overageCharges: 18.75,
+            overageChargeLimit: 75,
+            overageCurrencyCode: "EUR")
         let withoutBonus = SyncKiroCredits(
             planName: nil,
             creditsUsed: 0,
@@ -138,6 +144,29 @@ struct V026SnapshotsCodableTests {
             let decoded = try Self.decoder.decode(SyncKiroCredits.self, from: data)
             #expect(decoded == source)
         }
+    }
+
+    @Test
+    func `Kiro credits: legacy overage payload decodes richer limit fields as nil`() throws {
+        let json = """
+        {
+          "planName": "Pro",
+          "creditsUsed": 1000,
+          "creditsTotal": 1000,
+          "creditsPercent": 100,
+          "overageCreditsUsed": 25,
+          "estimatedOverageCostUSD": 2.5
+        }
+        """
+
+        let decoded = try Self.decoder.decode(SyncKiroCredits.self, from: Data(json.utf8))
+
+        #expect(decoded.overageCreditsUsed == 25)
+        #expect(decoded.estimatedOverageCostUSD == 2.5)
+        #expect(decoded.overageCreditsCap == nil)
+        #expect(decoded.overageCharges == nil)
+        #expect(decoded.overageChargeLimit == nil)
+        #expect(decoded.overageCurrencyCode == nil)
     }
 
     // MARK: - SyncBedrockCost
@@ -268,7 +297,10 @@ struct V026SnapshotsCodableTests {
             ]),
             kiroCredits: SyncKiroCredits(
                 planName: "Pro", creditsUsed: 1, creditsTotal: 2, creditsPercent: 50,
-                bonusUsed: nil, bonusTotal: nil, bonusExpiryDays: nil, resetsAt: nil),
+                bonusUsed: nil, bonusTotal: nil, bonusExpiryDays: nil, resetsAt: now,
+                overageCreditsUsed: 10, estimatedOverageCostUSD: nil,
+                overageCreditsCap: 100, overageCharges: 1.5,
+                overageChargeLimit: 15, overageCurrencyCode: "GBP"),
             bedrockCost: SyncBedrockCost(
                 monthlySpendUSD: 1, monthlyBudgetUSD: 2, inputTokens: nil, outputTokens: nil,
                 region: "us-east-1", budgetUsedPercent: 50, updatedAt: now),
@@ -282,6 +314,11 @@ struct V026SnapshotsCodableTests {
         #expect(decoded.openAIAPIDashboard != nil)
         #expect(decoded.zaiHourlyUsage != nil)
         #expect(decoded.kiroCredits?.planName == "Pro")
+        #expect(decoded.kiroCredits?.overageCreditsCap == 100)
+        #expect(decoded.kiroCredits?.overageCharges == 1.5)
+        #expect(decoded.kiroCredits?.overageChargeLimit == 15)
+        #expect(decoded.kiroCredits?.overageCurrencyCode == "GBP")
+        #expect(decoded.kiroCredits?.resetsAt == now)
         #expect(decoded.bedrockCost?.region == "us-east-1")
         #expect(decoded.moonshotBalance?.balanceCurrency == "USD")
         #expect(decoded.antigravityAccounts?.accounts.first?.email == "a@b.test")

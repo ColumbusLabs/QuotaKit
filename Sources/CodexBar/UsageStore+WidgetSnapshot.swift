@@ -111,7 +111,7 @@ extension UsageStore {
                 provider: accountSnapshot.provider.instanceID,
                 deviceID: deviceID,
                 accountIdentity: identity,
-                displayLabel: accountSnapshot.displayLabel,
+                displayLabel: accountSnapshot.accountEmail ?? "Account \(accountSnapshot.id.opaqueID)",
                 usage: usage)
             payloads[payload.recordName] = payload
         }
