@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Cursor: show Grok Bot's weekly included allowance as a separate named quota lane while preserving QuotaKit's explicit Cursor snapshot layout and widget contract.
 - Providers: add Codex personal-access-token usage, OpenCode Go API quotas, Fireworks account discovery, Kiro overage limits, z.ai China balances, and live Grok/xAI spend sources.
 - Menu bar: add reusable conditional layout rules, richer conditional metrics, and stable multi-line rendering.
 - Claude: retain complete claude-swap usage at exhausted limits and disambiguate same-email accounts with stable aliases.
