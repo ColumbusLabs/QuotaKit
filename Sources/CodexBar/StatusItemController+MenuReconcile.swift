@@ -118,7 +118,12 @@ extension StatusItemController {
             let requiresNativeImageReplacement =
                 self.shouldReplaceNativeImageItemDuringReconcile(liveItem) ||
                 self.shouldReplaceNativeImageItemDuringReconcile(newItem)
-            if liveItem.isSeparatorItem == newItem.isSeparatorItem, !requiresNativeImageReplacement {
+            let hasCompatibleItemClass =
+                ObjectIdentifier(type(of: liveItem)) == ObjectIdentifier(type(of: newItem))
+            if liveItem.isSeparatorItem == newItem.isSeparatorItem,
+               hasCompatibleItemClass,
+               !requiresNativeImageReplacement
+            {
                 if !liveItem.isSeparatorItem {
                     self.swapMenuItemContents(liveItem, newItem)
                 }
@@ -290,6 +295,9 @@ extension StatusItemController {
         let liveRepresented = liveItem.representedObject
         liveItem.representedObject = cachedItem.representedObject
         cachedItem.representedObject = liveRepresented
+        let liveIdentifier = liveItem.identifier
+        liveItem.identifier = cachedItem.identifier
+        cachedItem.identifier = liveIdentifier
         swap(&liveItem.state, &cachedItem.state)
         let liveEnabled = liveItem.isEnabled
         liveItem.isEnabled = cachedItem.isEnabled

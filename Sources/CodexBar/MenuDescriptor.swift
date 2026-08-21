@@ -698,7 +698,7 @@ struct MenuDescriptor {
         snapshot: UsageSnapshot) -> (primary: String, secondary: String, tertiary: String, showsTertiary: Bool)
     {
         if provider == .factory, snapshot.tertiary != nil {
-            return ("5-hour", L("Weekly"), L("Monthly"), true)
+            return (L("5-hour"), L("Weekly"), L("Monthly"), true)
         }
         let cursorLabels = provider == .cursor
             ? Self.cursorRateWindowLabels(

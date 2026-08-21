@@ -6,6 +6,66 @@ import Testing
 @MainActor
 struct UsageStoreWidgetSnapshotTests {
     @Test
+    func `widget follows active swap account with an opaque stable owner key`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-claude-swap-active"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let now = Date(timeIntervalSince1970: 1_782_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 99,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: now),
+            provider: .claude)
+        store.claudeSwapAccountSnapshots = ClaudeSwapAccountProjection.accountSnapshots(
+            from: ClaudeSwapAccountList(
+                activeAccountNumber: 2,
+                accounts: [
+                    ClaudeSwapAccountRow(
+                        number: 1,
+                        email: "one@example.com",
+                        isActive: false,
+                        usageStatus: .ok,
+                        fiveHour: ClaudeSwapUsageWindow(usedPercent: 20, resetsAt: nil),
+                        sevenDay: nil),
+                    ClaudeSwapAccountRow(
+                        number: 2,
+                        email: "private@example.com",
+                        isActive: true,
+                        usageStatus: .ok,
+                        fiveHour: ClaudeSwapUsageWindow(usedPercent: 37, resetsAt: nil),
+                        sevenDay: nil),
+                ]),
+            now: now)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "claude-swap-active-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(entry.primary?.usedPercent == 37)
+        #expect(entry.quotaOwnerKey == "claude-swap:2")
+        #expect(entry.quotaOwnerKey?.contains("private@example.com") == false)
+    }
+
+    @Test
     func `widget snapshot preserves raw Codex windows for timeline projection`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-codex-weekly-cap"
         let defaults = try #require(UserDefaults(suiteName: suite))

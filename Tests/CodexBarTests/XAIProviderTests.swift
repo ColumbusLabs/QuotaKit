@@ -194,6 +194,8 @@ struct XAIProviderTests {
         #expect(usage.balanceUSD == 10.0)
         #expect(usage.daily.isEmpty)
         #expect(!usage.limitReached)
+        #expect(!usage.historyAvailable)
+        #expect(usage.toUsageSnapshot().details.first?.chart == nil)
     }
 
     @Test
@@ -230,6 +232,7 @@ struct XAIProviderTests {
         let usage = try await Self.fetch(usageBody: #"{"object":"list"}"#)
         #expect(usage.balanceUSD == 10.0)
         #expect(usage.daily.isEmpty)
+        #expect(!usage.historyAvailable)
     }
 
     @Test
@@ -261,6 +264,7 @@ struct XAIProviderTests {
             let usage = try await Self.fetch(usageBody: body)
             #expect(usage.balanceUSD == 10.0)
             #expect(usage.daily.isEmpty)
+            #expect(!usage.historyAvailable)
         }
     }
 
@@ -392,13 +396,32 @@ struct XAIProviderTests {
     }
 
     @Test
-    func `empty history yields no cost history snapshot`() {
+    func `successful empty history is confirmed zero rather than unavailable`() async throws {
+        let usage = try await Self.fetch(usageBody: #"{"timeSeries":[],"limitReached":false}"#)
+        #expect(usage.historyAvailable)
+        #expect(usage.daily.isEmpty)
+        #expect(usage.toUsageSnapshot().details.first?.chart?.points.isEmpty == true)
+        let cost = try #require(usage.costHistorySnapshot())
+        #expect(cost.daily.isEmpty)
+        #expect(cost.last30DaysCostUSD == 0)
+        #expect(cost.sessionCostUSD == nil)
+    }
+
+    @Test
+    func `legacy empty snapshot decodes as unavailable`() throws {
         let usage = XAIUsageSnapshot(
             balanceUSD: 1,
             daily: [],
             updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
-        #expect(usage.costHistorySnapshot() == nil)
-        #expect(usage.toUsageSnapshot().providerCost?.used == 1)
+        let encoded = try JSONEncoder().encode(usage)
+        var object = try #require(try JSONSerialization.jsonObject(with: encoded) as? [String: Any])
+        object.removeValue(forKey: "historyAvailable")
+        let legacy = try JSONSerialization.data(withJSONObject: object)
+
+        let decoded = try JSONDecoder().decode(XAIUsageSnapshot.self, from: legacy)
+
+        #expect(!decoded.historyAvailable)
+        #expect(decoded.costHistorySnapshot() == nil)
     }
 
     @Test
@@ -411,6 +434,7 @@ struct XAIProviderTests {
         let encoded = try JSONEncoder().encode(usage.toUsageSnapshot())
         let decoded = try JSONDecoder().decode(UsageSnapshot.self, from: encoded)
         #expect(decoded.xaiUsage == usage)
+        #expect(decoded.xaiUsage?.historyAvailable == true)
         #expect(decoded.details == usage.toUsageSnapshot().details)
         #expect(decoded.providerCost?.used == 7.36)
     }
@@ -424,7 +448,7 @@ struct XAIProviderTests {
         #expect(descriptor.metadata.cliName == "xai")
         #expect(descriptor.metadata.defaultEnabled == false)
         #expect(!descriptor.metadata.supportsCredits)
-        #expect(!descriptor.tokenCost.supportsTokenCost)
+        #expect(descriptor.tokenCost.supportsTokenCost)
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
         #expect(descriptor.cli.aliases.isEmpty)
 

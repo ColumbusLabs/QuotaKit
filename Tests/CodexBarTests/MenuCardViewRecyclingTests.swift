@@ -426,6 +426,41 @@ extension StatusMenuTests {
     }
 
     @Test
+    func `cached provider content preserves menu item subclasses across switch back`() {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        let controller = self.makeRecyclingController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let plainItem = NSMenuItem(title: "Overview", action: nil, keyEquivalent: "")
+        let cardItem = controller.makeMenuCardItem(Text("Codex"), id: "codex", width: 300)
+        let menu = NSMenu()
+        menu.addItem(plainItem)
+
+        let displacedPlain = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 0,
+            with: [cardItem])
+
+        #expect(menu.items.first === cardItem)
+        #expect(menu.items.first is MenuCardMenuItem)
+        #expect(displacedPlain.first === plainItem)
+
+        let displacedCard = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 0,
+            with: displacedPlain)
+
+        #expect(menu.items.first === plainItem)
+        #expect(!(menu.items.first is MenuCardMenuItem))
+        #expect(displacedCard.first === cardItem)
+    }
+
+    @Test
     func `cached provider content swap preserves both item sets for switch back`() {
         let settings = self.makeSettings()
         settings.statusChecksEnabled = false
@@ -468,6 +503,35 @@ extension StatusMenuTests {
         #expect(displacedIncoming.map(ObjectIdentifier.init) == incoming.map(ObjectIdentifier.init))
         #expect(displacedIncoming.allSatisfy { $0.menu == nil })
         #expect(displacedIncoming.map(\.title) == ["Codex Card", "", "Codex Usage", "Codex Settings"])
+    }
+
+    @Test
+    func `cached hosted row swap carries agent keyboard action identifier`() {
+        let previousRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousRendering }
+
+        let settings = self.makeSettings()
+        settings.statusChecksEnabled = false
+        let controller = self.makeRecyclingController(settings: settings)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let liveItem = controller.makeMenuCardItem(Text("first"), id: "agent-session", width: 300, onClick: {})
+        liveItem.identifier = NSUserInterfaceItemIdentifier("agent-session-action:first")
+        let cachedItem = controller.makeMenuCardItem(Text("second"), id: "agent-session", width: 300, onClick: {})
+        cachedItem.identifier = NSUserInterfaceItemIdentifier("agent-session-action:second")
+        let menu = NSMenu()
+        menu.addItem(liveItem)
+
+        let displaced = controller.replaceMenuContentKeepingRowsVisible(
+            menu,
+            fromIndex: 0,
+            with: [cachedItem])
+
+        #expect(menu.items.first === liveItem)
+        #expect(liveItem.identifier?.rawValue == "agent-session-action:second")
+        #expect(displaced.first?.identifier?.rawValue == "agent-session-action:first")
+        #expect(liveItem.representedObject as? String == "agent-session")
     }
 
     @Test

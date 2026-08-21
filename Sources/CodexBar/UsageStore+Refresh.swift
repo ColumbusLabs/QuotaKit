@@ -342,6 +342,7 @@ extension UsageStore {
     {
         guard let spec = await self.providerRefreshSpec(provider) else { return nil }
         guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return nil }
+        let codexExplicitPAT = provider == .codex && self.settings.codexUsageDataSource == .pat
         let codexPreparation = provider == .codex ? self.prepareCodexRefreshPublication() : nil
         let codexExpectedGuard = codexPreparation?.expectedGuard
         let codexLimitResetOwnerKey = codexPreparation?.limitResetOwnerKey
@@ -434,6 +435,7 @@ extension UsageStore {
         let codexSuppressesWeeklyResetCelebration: Bool
         if provider == .codex {
             if case let .success(result) = initialOutcome.result,
+               !Self.isCodexPATOutcome(initialOutcome),
                let codexExpectedGuard,
                !self.shouldApplyCodexUsageResult(
                    expectedGuard: codexExpectedGuard,
@@ -458,6 +460,7 @@ extension UsageStore {
                 return nil
             }
             if case let .success(result) = admission.outcome.result,
+               !Self.isCodexPATOutcome(admission.outcome),
                let codexExpectedGuard,
                !self.shouldApplyCodexUsageResult(
                    expectedGuard: codexExpectedGuard,
@@ -474,6 +477,12 @@ extension UsageStore {
             outcome = initialOutcome
             codexSuppressesWeeklyResetCelebration = false
         }
+        let (codexPublicationGuard, publishedCodexLimitResetOwnerKey) = Self.codexPublicationRefreshOverrides(
+            provider: provider,
+            outcome: outcome,
+            explicitPAT: codexExplicitPAT,
+            expectedGuard: codexExpectedGuard,
+            limitResetOwnerKey: codexLimitResetOwnerKey)
         let claudeReconciliation = await self.reconcileClaudeRefreshAfterFetch(input: .init(
             provider: provider,
             outcome: outcome,
@@ -492,10 +501,10 @@ extension UsageStore {
                 hasAdminAPIKey: claudeHasAdminAPIKey,
                 hasTokenAccount: tokenAccount != nil,
                 removedTokenAccountAuthority: tokenAccountPreparation.removesAccountAuthority),
-            codexExpectedGuard: codexExpectedGuard,
+            codexExpectedGuard: codexPublicationGuard,
             tokenAccount: tokenAccount,
             priorTokenAccountSnapshot: priorTokenAccountSnapshot,
-            codexLimitResetOwnerKey: codexLimitResetOwnerKey,
+            codexLimitResetOwnerKey: publishedCodexLimitResetOwnerKey,
             codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration,
             claudeOAuthHistoryPersistentRefHash: claudeReconciliation.oauthHistoryPersistentRefHash,
             claudeOAuthActiveAccountObservation: claudeReconciliation.oauthActiveAccountObservation)
@@ -755,11 +764,17 @@ extension UsageStore {
                 self.publishTokenSnapshot(tokenSnapshot, for: provider)
                 self.tokenErrors[provider.instanceID] = nil
                 self.tokenFailureGates[provider.instanceID]?.recordSuccess()
+            } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(backfilled) {
+                // Provider-specific by design: prepaid balance without usage history is unavailable,
+                // not a confirmed-empty $0 spend row.
+                self.clearTokenSnapshot(for: provider)
+                self.tokenErrors[provider.instanceID] = nil
             } else if Self.tokenCostRequiresProviderSnapshot(provider) {
                 self.publishConfirmedEmptyTokenSnapshot(for: provider)
                 self.tokenErrors[provider.instanceID] = nil
             }
             self.lastSourceLabels[provider.instanceID] = result.sourceLabel
+            self.settings.persistDiscoveredFireworksAccountSlug(result.fireworksDiscoveredAccountSlug)
             self.recordProviderFetchSuccessErrorState(provider: provider)
             self.diagnostics[provider.instanceID] = result.diagnostic
             if let tokenAccount = currentTokenAccount {
@@ -775,12 +790,10 @@ extension UsageStore {
             self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
             self.failureGates[provider.instanceID]?.recordSuccess()
             if provider == .codex {
-                self.rememberLiveSystemCodexEmailIfNeeded(scoped.accountEmail(for: .codex))
-                self.seedCodexAccountScopedRefreshGuard(accountEmail: scoped.accountEmail(for: .codex))
-                self.lastCodexUsagePublicationGuard = self.lastCodexAccountScopedRefreshGuard
-                self.persistSingleCodexAccountSnapshot(
-                    backfilled,
-                    sourceLabel: result.sourceLabel,
+                self.recordCodexRefreshSuccessPublication(
+                    scoped: scoped,
+                    backfilled: backfilled,
+                    result: result,
                     expectedGuard: context.codexExpectedGuard,
                     expectedOwnerKey: context.codexLimitResetOwnerKey)
             }
@@ -893,7 +906,7 @@ extension UsageStore {
         self.lastCodexUsagePublicationGuard = expectedGuard
     }
 
-    private func retireCodexStateIfRefreshOwnerChanged(
+    func retireCodexStateIfRefreshOwnerChanged(
         expectedGuard: CodexAccountScopedRefreshGuard,
         generation: UInt64)
     {
@@ -920,55 +933,6 @@ extension UsageStore {
             accountEmail: accountEmail,
             accountOrganization: identity?.accountOrganization,
             loginMethod: identity?.loginMethod))
-    }
-
-    private func persistSingleCodexAccountSnapshot(
-        _ snapshot: UsageSnapshot,
-        sourceLabel: String,
-        expectedGuard: CodexAccountScopedRefreshGuard?,
-        expectedOwnerKey: CodexLimitResetOwnerKey?)
-    {
-        guard let expectedGuard,
-              let expectedOwnerKey
-        else { return }
-
-        let currentGuard = self.freshCodexAccountScopedRefreshGuard()
-        guard Self.codexScopedRefreshGuardsMatchAccount(expectedGuard, currentGuard),
-              let currentOwnerKey = CodexLimitResetOwnerKey(
-                  identity: currentGuard.identity,
-                  accountEmail: currentGuard.accountKey),
-              currentOwnerKey == expectedOwnerKey
-        else { return }
-
-        let visibleAccounts = self.freshCodexVisibleAccountsForSnapshotHydration()
-        let activeMatches = visibleAccounts.filter {
-            $0.isActive &&
-                $0.selectionSource == currentGuard.source &&
-                CodexIdentityResolver.normalizeEmail($0.email) == currentGuard.accountKey
-        }
-        guard activeMatches.count == 1,
-              let account = activeMatches.first,
-              let snapshotEmail = CodexIdentityResolver.normalizeEmail(snapshot.accountEmail(for: .codex)),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(currentGuard.accountKey),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(account.email),
-              self.codexLimitResetOwnerKey(
-                  forVisibleAccount: account,
-                  visibleAccounts: visibleAccounts) == currentOwnerKey
-        else { return }
-
-        let identity = snapshot.identity(for: .codex)
-        let relabeled = snapshot.withIdentity(ProviderIdentitySnapshot(
-            providerID: .codex,
-            accountEmail: account.email,
-            accountOrganization: identity?.accountOrganization,
-            loginMethod: identity?.loginMethod ?? account.workspaceLabel))
-        let currentSnapshots = [CodexAccountUsageSnapshot(
-            account: account,
-            snapshot: relabeled,
-            error: nil,
-            sourceLabel: sourceLabel)]
-        self.codexAccountSnapshots = currentSnapshots
-        self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
     }
 
     private func clearDisabledProviderRefreshState(_ provider: UsageProvider) async {
@@ -1465,7 +1429,19 @@ extension UsageStore {
                 self.errors[provider.instanceID] = error.localizedDescription
                 if !preservesPriorData, !preservesClaudeWebSessionFailure {
                     self.snapshots.removeValue(forKey: provider.instanceID)
-                    if Self.tokenCostRequiresProviderSnapshot(provider) {
+                    // Provider-specific by design: local ~/.grok/sessions tokens remain readable
+                    // when the remote billing probe fails.
+                    if provider == .grok {
+                        if let local = self.tokenSnapshot(
+                            fromProviderSnapshot: nil,
+                            provider: .grok,
+                            historyDays: SpendDashboardSource.scanDays)
+                        {
+                            self.publishTokenSnapshot(local, for: provider)
+                        } else {
+                            self.clearTokenSnapshot(for: provider)
+                        }
+                    } else if Self.tokenCostRequiresProviderSnapshot(provider) {
                         self.clearTokenSnapshot(for: provider)
                     }
                 }

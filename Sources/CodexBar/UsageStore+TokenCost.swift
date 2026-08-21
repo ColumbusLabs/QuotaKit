@@ -111,8 +111,7 @@ extension UsageStore {
               publication.scopeSignature == self.tokenSnapshotScopeSignature(for: provider)
         else { return nil }
         return CurrentProviderConfigTokenPublication(
-            snapshot: publication.snapshot,
-            publicationRevision: publication.publicationRevision)
+            snapshot: publication.snapshot, publicationRevision: publication.publicationRevision)
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -136,6 +135,7 @@ extension UsageStore {
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider))
+        self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
     func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
@@ -174,6 +174,11 @@ extension UsageStore {
         guard Self.tokenCostRequiresProviderSnapshot(provider) else { return }
         if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: snapshot, provider: provider) {
             self.publishTokenSnapshot(tokenSnapshot, for: provider)
+            // Provider-specific by design: a prepaid-balance snapshot without a usage chart means
+            // analytics failed. Leave the source unpublished so Overview counts it unavailable
+            // instead of known-zero spend.
+        } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(snapshot) {
+            self.clearTokenSnapshot(for: provider)
         } else {
             self.publishConfirmedEmptyTokenSnapshot(for: provider)
         }
@@ -449,6 +454,9 @@ extension UsageStore {
         -> CostUsageTokenSnapshot?
     {
         let windowDays = historyDays ?? self.settings.costUsageHistoryDays
+        // Provider-specific by design: snapshot-backed spend sources own their live billing
+        // projection. Grok contributes local session tokens only; xAI contributes Management API
+        // daily spend only. Neither converts a quota or prepaid balance into dollars.
         switch provider {
         case .openai:
             return snapshot?.openAIAPIUsage?.toCostUsageTokenSnapshot()
@@ -464,14 +472,21 @@ extension UsageStore {
             }
         case .openrouter:
             return snapshot?.costUsage
+        case .xai:
+            return snapshot.flatMap { XAICostUsageMapping.tokenSnapshot(from: $0, historyDays: windowDays) }
+        case .grok:
+            return GrokLocalSessionScanner.summarize(lookbackDays: windowDays)
+                .toCostUsageTokenSnapshot(historyDays: windowDays)
         default:
             return nil
         }
     }
 
     nonisolated static func tokenCostRequiresProviderSnapshot(_ provider: UsageProvider) -> Bool {
+        // Provider-specific by design: these providers project live usage snapshots into the
+        // shared spend catalog instead of running the local CostUsageFetcher JSONL pipeline.
         switch provider {
-        case .mistral, .openai, .opencodego, .openrouter:
+        case .grok, .mistral, .openai, .opencodego, .openrouter, .xai:
             true
         default:
             false

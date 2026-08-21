@@ -1065,6 +1065,7 @@ extension UsageMenuCardView.Model {
         if input.provider == .sub2api {
             details = Self.sub2APILocalizedDetails(details)
         }
+        details = Self.localizedProviderDetails(details, provider: input.provider)
         guard input.hidePersonalInfo else { return details }
         return details.compactMap { section in
             let rows = section.rows.compactMap { row in
@@ -1094,25 +1095,29 @@ extension UsageMenuCardView.Model {
         }
     }
 
-    private static func email(
-        for provider: UsageProvider,
-        snapshot: UsageSnapshot?,
-        account: AccountInfo,
-        metadata: ProviderMetadata,
-        accountIsAuthoritative: Bool) -> String
-    {
-        if let email = snapshot?.accountEmail(for: provider), !email.isEmpty {
+    private static func email(from input: Input) -> String {
+        // Provider-specific by design: claude-swap accountOverride is the display label
+        // (alias or email · org). Other stacked sources keep fetched identity first.
+        if input.accountIsAuthoritative,
+           input.provider == .claude,
+           input.sourceLabel == ClaudeSwapAccountProjection.sourceLabel,
+           let email = input.account.email, !email.isEmpty
+        {
+            return email
+        }
+        if let email = input.snapshot?.accountEmail(for: input.provider), !email.isEmpty {
             return email
         }
         // Provider-specific by design: Cursor app auth can expose only a subject ID, so its card needs this fallback.
-        if provider == .cursor,
-           let accountID = snapshot?.identity(for: .cursor)?.accountID?.trimmingCharacters(in: .whitespacesAndNewlines),
-           !accountID.isEmpty
-        {
-            return accountID.split(separator: "|", omittingEmptySubsequences: true).last.map(String.init) ?? accountID
+        if input.provider == .cursor {
+            let raw = input.snapshot?.identity(for: .cursor)?.accountID
+            let accountID = raw?.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+            if !accountID.isEmpty {
+                return accountID.split(separator: "|").last.map(String.init) ?? accountID
+            }
         }
-        if metadata.usesAccountFallback || accountIsAuthoritative,
-           let email = account.email, !email.isEmpty
+        if input.metadata.usesAccountFallback || input.accountIsAuthoritative,
+           let email = input.account.email, !email.isEmpty
         {
             return email
         }
@@ -1242,12 +1247,7 @@ extension UsageMenuCardView.Model {
         subtitle: (text: String, style: SubtitleStyle)) -> RedactedText
     {
         let email = PersonalInfoRedactor.redactEmail(
-            Self.email(
-                for: input.provider,
-                snapshot: input.snapshot,
-                account: input.account,
-                metadata: input.metadata,
-                accountIsAuthoritative: input.accountIsAuthoritative),
+            Self.email(from: input),
             isEnabled: input.hidePersonalInfo)
         let subtitleText = PersonalInfoRedactor.redactEmails(in: subtitle.text, isEnabled: input.hidePersonalInfo)
             ?? subtitle.text
@@ -1403,6 +1403,10 @@ extension UsageMenuCardView.Model {
             Self.applyPrimaryPacePresentation(&presentation, input: input, primary: primary)
         }
         Self.applyPrimaryFinalOverrides(&presentation, input: input, primary: primary)
+        // Provider-specific by design: z.ai's textual 5-hour reset phrase is provider-owned copy localized here.
+        if input.provider == .zai, let resetText = Self.localizedZaiPeriodicResetText(primary) {
+            presentation.resetText = resetText
+        }
         if let bindingProjection {
             let resetWindow = RateWindow(
                 usedPercent: bindingProjection.usedPercent,

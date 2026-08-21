@@ -540,6 +540,17 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         request.setValue(
             "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             forHTTPHeaderField: "Accept")
+        // The OneConsole shell only server-renders `window.ALIYUN_CONSOLE_CONFIG.SEC_TOKEN` for a
+        // genuine same-origin document navigation; a bare request receives a token-less shell, so the
+        // Personal `sec_token` can never be scraped. Send the browser-navigation headers so the shell
+        // includes it (mainland Personal/Solo rejects the API without it — fixes #2500/#2349/#2370).
+        if let origin = request.url.flatMap(\.host).map({ "https://\($0)/" }) {
+            request.setValue(origin, forHTTPHeaderField: "Referer")
+        }
+        request.setValue("same-origin", forHTTPHeaderField: "Sec-Fetch-Site")
+        request.setValue("navigate", forHTTPHeaderField: "Sec-Fetch-Mode")
+        request.setValue("document", forHTTPHeaderField: "Sec-Fetch-Dest")
+        request.setValue("zh-CN,zh;q=0.9,en;q=0.8", forHTTPHeaderField: "Accept-Language")
 
         if let (data, response) = try? await session.data(for: request),
            let httpResponse = response as? HTTPURLResponse,
@@ -1257,12 +1268,15 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return names.isEmpty ? "none" : names.joined(separator: ",")
     }
 
-    private static func extractSECToken(from html: String) -> String? {
+    static func extractSECToken(from html: String) -> String? {
         let patterns = [
             #""secToken"\s*:\s*"([^"]+)""#,
             #""sec_token"\s*:\s*"([^"]+)""#,
             #"secToken['"]?\s*[:=]\s*['"]([^'"]+)['"]"#,
             #"sec_token['"]?\s*[:=]\s*['"]([^'"]+)['"]"#,
+            // Aliyun's OneConsole shell embeds it inside `window.ALIYUN_CONSOLE_CONFIG` with an
+            // upper-case, unquoted key: `SEC_TOKEN: "<token>"`. The lower-case patterns above miss it.
+            #"SEC_TOKEN['"]?\s*[:=]\s*['"]([^'"]+)['"]"#,
         ]
         for pattern in patterns {
             if let token = self.matchFirstGroup(pattern: pattern, in: html), !token.isEmpty {

@@ -60,6 +60,7 @@ extension UsageStore {
         _ = self.statuses
         _ = self.tokenSnapshotPublications
         _ = self.spendDashboardTokenPublications
+        _ = self.spendDashboardPublication.revision
         _ = self.historicalPaceRevision
         return 0
     }
@@ -188,6 +189,9 @@ final class UsageStore {
     var tokenSnapshotPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
     var spendDashboardTokenPublications: [ProviderInstanceID: TokenSnapshotPublication] = [:]
     var spendDashboardTokenPublicationRevisions: [ProviderInstanceID: UInt64] = [:]
+    var spendDashboardPublication = SpendDashboardPublication.empty
+    @ObservationIgnored var sharedSpendDashboardControllerStorage: SpendDashboardController?
+    @ObservationIgnored var sharedSpendDashboardObservationStarted = false
     var tokenErrors: [ProviderInstanceID: String] = [:]
     var tokenRefreshInFlight: Set<ProviderInstanceID> = []
     var codexCostCatchUpActivity: CodexCostCatchUpActivity?
@@ -545,6 +549,7 @@ final class UsageStore {
             loginShellPATH: LoginShellPathCache.shared.current?.joined(separator: ":"))
         guard self.startupBehavior.automaticallyStartsBackgroundWork else { return }
         self.hydrateCachedTokenSnapshots()
+        self.startSharedSpendDashboardPublication()
         self.detectVersions()
         self.updateProviderRuntimes()
         Task { @MainActor [weak self] in

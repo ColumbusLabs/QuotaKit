@@ -235,6 +235,9 @@ extension UsageStore {
     }
 
     func shouldFetchAllCodexVisibleAccounts() -> Bool {
+        // PAT is not a per-visible-account credential. Fan-out would fetch the same token for
+        // every row and then reject its whoami identity against other accounts.
+        guard !self.shouldUseAmbientCodexPATForUsage() else { return false }
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         return self.settings.multiAccountMenuLayout == .stacked && projection.visibleAccounts.count > 1
     }
@@ -1044,7 +1047,8 @@ extension UsageStore {
             claudeOwnerCLIRecoveryOnly: claudeOwnerCLIRecoveryOnly,
             persistsCLISessions: true,
             persistentCLISessionIdleWindow: ProviderRegistry.persistentCLISessionIdleWindow(
-                refreshInterval: self.normalRefreshIntervalForHeuristics()))
+                refreshInterval: self.normalRefreshIntervalForHeuristics()),
+            resolvedCLIVersion: self.version(for: provider))
     }
 
     private func providerConfigMutationIsCurrent(

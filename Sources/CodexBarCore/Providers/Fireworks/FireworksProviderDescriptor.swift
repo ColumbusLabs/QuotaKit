@@ -9,24 +9,7 @@ public enum FireworksProviderDescriptor {
                 key: FireworksSettingsReader.configAccountSlugEnvironmentKey,
                 value: { $0.sanitizedAccountSlug }),
         ],
-        resolve: FireworksSettingsReader.apiKey,
-        configValidator: { config in
-            guard config.sanitizedAPIKey != nil, config.sanitizedAccountSlug == nil else {
-                return []
-            }
-            return [CodexBarConfigIssue(
-                severity: .error,
-                provider: .fireworks,
-                field: "accountSlug",
-                code: "missing_account_slug",
-                message: "Fireworks needs the account slug from app.fireworks.ai/accounts/<slug> to read billing.")]
-        },
-        missingCredentialMessage: { environment in
-            guard FireworksSettingsReader.apiKey(environment: environment) != nil else {
-                return nil
-            }
-            return "Fireworks needs the account slug (set FIREWORKS_ACCOUNT_SLUG or the slug field in Settings)."
-        })
+        resolve: FireworksSettingsReader.apiKey)
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -84,21 +67,23 @@ struct FireworksAPIFetchStrategy: ProviderFetchStrategy {
 
     func isAvailable(_ context: ProviderFetchContext) async -> Bool {
         FireworksSettingsReader.apiKey(environment: context.env) != nil
-            && FireworksSettingsReader.accountSlug(environment: context.env) != nil
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         guard let apiKey = FireworksSettingsReader.apiKey(environment: context.env) else {
             throw FireworksUsageError.missingCredentials
         }
-        guard let accountSlug = FireworksSettingsReader.accountSlug(environment: context.env) else {
-            throw FireworksUsageError.missingAccountSlug
-        }
         let usage = try await FireworksUsageFetcher.fetchUsage(
             apiKey: apiKey,
-            accountSlug: accountSlug,
+            accountSlug: FireworksSettingsReader.accountSlug(environment: context.env),
             session: self.transport)
-        return self.makeResult(usage: usage.toUsageSnapshot(), sourceLabel: "api")
+        let sourceLabel = usage.accountSlugWasDiscovered
+            ? "api · \(usage.accountSlug) (auto-discovered)"
+            : "api · \(usage.accountSlug)"
+        return self.makeResult(
+            usage: usage.toUsageSnapshot(),
+            sourceLabel: sourceLabel,
+            fireworksDiscoveredAccountSlug: usage.accountSlugWasDiscovered ? usage.accountSlug : nil)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

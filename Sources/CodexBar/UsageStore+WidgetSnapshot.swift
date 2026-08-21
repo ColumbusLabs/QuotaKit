@@ -111,7 +111,7 @@ extension UsageStore {
                 provider: accountSnapshot.provider.instanceID,
                 deviceID: deviceID,
                 accountIdentity: identity,
-                displayLabel: accountSnapshot.displayLabel,
+                displayLabel: accountSnapshot.accountEmail ?? "Account \(accountSnapshot.id.opaqueID)",
                 usage: usage)
             payloads[payload.recordName] = payload
         }
@@ -188,10 +188,14 @@ extension UsageStore {
         now: Date,
         previousEntry: WidgetSnapshot.ProviderEntry?) -> WidgetSnapshot.ProviderEntry?
     {
-        let snapshot = self.snapshots[provider.instanceID]
+        let claudeSwapAccount = provider == .claude
+            ? self.claudeSwapActiveAccountOverride(for: provider.instanceID)
+            : nil
+        let snapshot = claudeSwapAccount?.snapshot ?? self.snapshots[provider.instanceID]
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {
-            self.expectedClaudeWidgetQuotaOwnerKey()
+            claudeSwapAccount.map(Self.claudeSwapWidgetQuotaOwnerKey)
+                ?? self.expectedClaudeWidgetQuotaOwnerKey()
         } else {
             nil
         }
@@ -251,7 +255,11 @@ extension UsageStore {
             nil
         }
         let quotaOwnerKey: String? = if provider == .claude {
-            snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
+            if let claudeSwapAccount {
+                Self.claudeSwapWidgetQuotaOwnerKey(claudeSwapAccount)
+            } else {
+                snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
+            }
         } else {
             nil
         }
@@ -278,6 +286,12 @@ extension UsageStore {
         let tertiary: RateWindow?
         let usageRows: [WidgetSnapshot.WidgetUsageRowSnapshot]?
         let quotaOwnerKey: String?
+    }
+
+    private nonisolated static func claudeSwapWidgetQuotaOwnerKey(
+        _ account: ProviderAccountUsageSnapshot) -> String
+    {
+        "\(account.id.source):\(account.id.opaqueID)"
     }
 
     private func expectedClaudeWidgetQuotaOwnerKey() -> String? {

@@ -90,11 +90,13 @@ struct DashboardSnapshotProducer: Sendable {
             generatedAt: generatedAt,
             refreshInterval: refreshInterval,
             codexBarVersion: codexBarVersion,
+            // Provider-specific by design: claude-swap is Claude-owned account data projected into the dashboard.
             claudeSwap: claudeSwap.map {
                 DashboardClaudeSwapInput(
                     accounts: $0.accounts,
                     adapterError: $0.adapterError,
-                    weeklyWorkDays: self.weeklyWorkDays())
+                    weeklyWorkDays: self.weeklyWorkDays(),
+                    showSingleAccount: config.providerConfig(for: .claude)?.claudeSwapShowSingleAccount == true)
             })
         return DashboardSnapshotResult(
             payload: payload,
@@ -141,8 +143,12 @@ struct DashboardSnapshotProducer: Sendable {
                             executablePath: path,
                             timeout: timeout)
                     }
+                    let accounts = ClaudeSwapAccountProjection.accountSnapshots(
+                        from: list,
+                        previousAccounts: ClaudeSwapRetainedUsageStore.load())
+                    ClaudeSwapRetainedUsageStore.save(accounts)
                     return DashboardClaudeSwapCollection(
-                        accounts: ClaudeSwapAccountProjection.accountSnapshots(from: list),
+                        accounts: accounts,
                         adapterError: nil)
                 } catch {
                     let diagnostic = CLIClaudeSwapText.sanitizeDiagnostic(error.localizedDescription)
@@ -319,7 +325,9 @@ extension CodexBarCLI {
             }
             guard renamed == 0 else { throw Self.dashboardOutputPOSIXError(errno, path: url.path) }
         } catch {
-            if handleOpen { try? handle.close() }
+            if handleOpen {
+                try? handle.close()
+            }
             try? FileManager.default.removeItem(at: staged)
             throw error
         }

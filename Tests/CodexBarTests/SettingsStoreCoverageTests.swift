@@ -7,6 +7,31 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct SettingsStoreCoverageTests {
     @Test
+    func `discovered Fireworks slug merges with current config revision`() throws {
+        let suite = "SettingsStoreCoverageTests-fireworks-discovered-slug"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+
+        settings.updateProviderConfig(provider: .fireworks) { entry in
+            entry.apiKey = "pending-api-key"
+            entry.region = "concurrent-region"
+        }
+        settings.persistDiscoveredFireworksAccountSlug("discovered-team")
+
+        let current = try #require(settings.configSnapshot.providerConfig(for: .fireworks))
+        #expect(current.sanitizedAPIKey == "pending-api-key")
+        #expect(current.region == "concurrent-region")
+        #expect(current.sanitizedAccountSlug == "discovered-team")
+
+        let persisted = try #require(configStore.load()?.providerConfig(for: .fireworks))
+        #expect(persisted.sanitizedAPIKey == "pending-api-key")
+        #expect(persisted.region == "concurrent-region")
+        #expect(persisted.sanitizedAccountSlug == "discovered-team")
+    }
+
+    @Test
     func `agent sessions default to opt in disabled`() {
         let settings = Self.makeSettingsStore(suiteName: "SettingsStoreCoverageTests-agent-sessions-default")
 

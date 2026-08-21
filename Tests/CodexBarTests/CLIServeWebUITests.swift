@@ -31,10 +31,41 @@ struct CLIServeWebUITests {
     }
 
     @Test
+    func `web ui renders account windows alongside an error note`() {
+        let html = self.html
+        let errorAppend = "card.append(node(\"p\", \"error-message\", account.error));"
+        #expect(html.contains(errorAppend))
+        #expect(!html.contains(errorAppend + "\n            return card;"))
+        #expect(html.contains(
+            "for (const window of visibleWindows(account.windows)) windows.append(renderWindow(window))"))
+    }
+
+    @Test
+    func `web ui skips windows the snapshot marks idle`() {
+        let html = self.html
+        // The producer decides which lanes are idle, so the page must not repeat any
+        // provider-specific rule. It filters on the generic flag and nothing else.
+        #expect(html.contains("function visibleWindows(windows)"))
+        #expect(html.contains("w.idle !== true"))
+        #expect(html.contains("for (const window of visibleWindows(provider.windows))"))
+        #expect(html.contains("for (const window of visibleWindows(account.windows))"))
+        #expect(html.contains("worstWindowLevel(visibleWindows(account.windows))"))
+    }
+
+    @Test
     func `web ui keeps ambient windows when no accounts are present`() {
         let html = self.html
         #expect(html.contains("Array.isArray(provider.accounts)"))
         #expect(html.contains("renderWindow(window)"))
+    }
+
+    @Test
+    func `web ui keeps healthy ambient summary when active swap account has no usage`() {
+        let html = self.html
+        #expect(html.contains("const activeAccount = accounts.find(account => account.active === true)"))
+        #expect(html.contains("visibleWindows(activeAccount.windows).length > 0"))
+        #expect(html.contains("provider.cost || provider.credits || provider.status"))
+        #expect(html.contains("if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider)"))
     }
 
     @Test

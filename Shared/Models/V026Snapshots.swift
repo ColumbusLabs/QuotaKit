@@ -175,10 +175,8 @@ public struct SyncZaiHourlyUsage: Codable, Sendable, Equatable {
 /// Kiro plan + monthly credit allowance + optional bonus pool.
 /// Populated only on the `kiro` provider snapshot.
 ///
-/// v0.27.0 (upstream) added two overage fields — `overageCreditsUsed`
-/// and `estimatedOverageCostUSD` — that Mac surfaces when a plan has
-/// been exhausted. Both are optional + decoded with `decodeIfPresent`
-/// so pre-v0.27.0 payloads (no overage data) still decode cleanly.
+/// Overage fields are optional and decoded with `decodeIfPresent` so older
+/// payloads and clients remain compatible as the Mac learns richer limits.
 public struct SyncKiroCredits: Codable, Sendable, Equatable {
     public let planName: String?
     public let creditsUsed: Double
@@ -194,8 +192,16 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
     public let overageCreditsUsed: Double?
     /// Mac-computed `(overageCreditsUsed * priceUSD)` estimate. Always
     /// USD; nil when no overage data is present or when Kiro has not
-    /// surfaced a price. iOS displays this as a "overage cost" badge.
+    /// surfaced a price. Retained for older Mac payloads and iOS clients.
     public let estimatedOverageCostUSD: Double?
+    /// Maximum overage credits the account can spend.
+    public let overageCreditsCap: Double?
+    /// Actual accrued overage charge in `overageCurrencyCode`.
+    public let overageCharges: Double?
+    /// Monetary ceiling corresponding to `overageCreditsCap`.
+    public let overageChargeLimit: Double?
+    /// ISO 4217 currency code for `overageCharges` and `overageChargeLimit`.
+    public let overageCurrencyCode: String?
 
     public init(
         planName: String?,
@@ -207,7 +213,11 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
         bonusExpiryDays: Int?,
         resetsAt: Date?,
         overageCreditsUsed: Double? = nil,
-        estimatedOverageCostUSD: Double? = nil)
+        estimatedOverageCostUSD: Double? = nil,
+        overageCreditsCap: Double? = nil,
+        overageCharges: Double? = nil,
+        overageChargeLimit: Double? = nil,
+        overageCurrencyCode: String? = nil)
     {
         self.planName = planName
         self.creditsUsed = creditsUsed
@@ -219,6 +229,10 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
         self.resetsAt = resetsAt
         self.overageCreditsUsed = overageCreditsUsed
         self.estimatedOverageCostUSD = estimatedOverageCostUSD
+        self.overageCreditsCap = overageCreditsCap
+        self.overageCharges = overageCharges
+        self.overageChargeLimit = overageChargeLimit
+        self.overageCurrencyCode = overageCurrencyCode
     }
 
     public init(from decoder: Decoder) throws {
@@ -234,6 +248,10 @@ public struct SyncKiroCredits: Codable, Sendable, Equatable {
         // v0.27.0 additions — decodeIfPresent so v0.26 payloads decode.
         self.overageCreditsUsed = try c.decodeIfPresent(Double.self, forKey: .overageCreditsUsed)
         self.estimatedOverageCostUSD = try c.decodeIfPresent(Double.self, forKey: .estimatedOverageCostUSD)
+        self.overageCreditsCap = try c.decodeIfPresent(Double.self, forKey: .overageCreditsCap)
+        self.overageCharges = try c.decodeIfPresent(Double.self, forKey: .overageCharges)
+        self.overageChargeLimit = try c.decodeIfPresent(Double.self, forKey: .overageChargeLimit)
+        self.overageCurrencyCode = try c.decodeIfPresent(String.self, forKey: .overageCurrencyCode)
     }
 }
 

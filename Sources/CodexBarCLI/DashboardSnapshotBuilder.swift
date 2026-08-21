@@ -5,6 +5,19 @@ struct DashboardClaudeSwapInput {
     let accounts: [ProviderAccountUsageSnapshot]?
     let adapterError: String?
     let weeklyWorkDays: Int?
+    let showSingleAccount: Bool
+
+    init(
+        accounts: [ProviderAccountUsageSnapshot]?,
+        adapterError: String?,
+        weeklyWorkDays: Int?,
+        showSingleAccount: Bool = false)
+    {
+        self.accounts = accounts
+        self.adapterError = adapterError
+        self.weeklyWorkDays = weeklyWorkDays
+        self.showSingleAccount = showSingleAccount
+    }
 }
 
 /// Projects the CLI's provider usage and cost payloads into the stable,
@@ -120,8 +133,19 @@ enum DashboardSnapshotBuilder {
         let metadata = descriptor?.metadata
 
         let error = payload.error ?? cost?.error
+        let projectedAccounts: [ProviderAccountUsageSnapshot]? = if let claudeSwapAccounts = claudeSwap?.accounts,
+                                                                    claudeSwapAccounts.isEmpty ||
+                                                                    ClaudeSwapAccountProjection.shouldPresentAccounts(
+                                                                        accountCount: claudeSwapAccounts.count,
+                                                                        showSingleAccount: claudeSwap?
+                                                                            .showSingleAccount == true)
+        {
+            claudeSwapAccounts
+        } else {
+            nil
+        }
         let accounts = claudeSwap?.adapterError == nil
-            ? claudeSwap?.accounts?.map { account in
+            ? projectedAccounts?.map { account in
                 self.makeClaudeSwapAccount(
                     account,
                     identityMode: identityMode,
@@ -179,20 +203,34 @@ enum DashboardSnapshotBuilder {
         weeklyWorkDays: Int?,
         generatedAt: Date) -> DashboardAccountPayload
     {
-        // Provider-specific by design: claude-swap keeps the source email in displayLabel when usage is unavailable.
-        let snapshotEmail = account.snapshot?.identity?.accountEmail
-        let email = snapshotEmail?.contains("@") == true
-            ? snapshotEmail
-            : (account.displayLabel.contains("@") ? account.displayLabel : nil)
-        let presentedEmail = identityMode != .none && email?.contains("@") == true
-            ? self.dashboardEmail(email, mode: identityMode)
+        // Provider-specific by design: identity stays the source email. Aliases and organization labels can
+        // contain personal or workspace-identifying text, so redacted output retains only the redacted mailbox.
+        let sourceEmail: String? = {
+            if let email = account.accountEmail, email.contains("@") {
+                return email
+            }
+            if let email = account.snapshot?.identity?.accountEmail, email.contains("@") {
+                return email
+            }
+            return nil
+        }()
+        let presentedEmail = identityMode != .none && sourceEmail?.contains("@") == true
+            ? self.dashboardEmail(sourceEmail, mode: identityMode)
             : nil
         let identity = presentedEmail.map { DashboardIdentityPayload(accountEmail: $0, plan: nil) }
+        let trimmedLabel = account.displayLabel.trimmingCharacters(in: .whitespacesAndNewlines)
+        let fallbackLabel = trimmedLabel.isEmpty ? "Account \(account.id.opaqueID)" : trimmedLabel
+        let label = self.claudeSwapDashboardLabel(
+            displayLabel: fallbackLabel,
+            sourceEmail: sourceEmail,
+            presentedEmail: presentedEmail,
+            accountID: account.id.opaqueID,
+            identityMode: identityMode)
         // Provider-specific by design: claude-swap account windows and pace use Claude's presentation semantics.
         let metadata = ProviderDescriptorRegistry.descriptor(for: UsageProvider.claude).metadata
         return DashboardAccountPayload(
             id: "\(account.id.source):\(account.id.opaqueID)",
-            label: presentedEmail ?? "Account \(account.id.opaqueID)",
+            label: label,
             active: account.isActive,
             identity: identity,
             windows: self.makeWindows(provider: .claude, metadata: metadata, usage: account.snapshot),
@@ -205,6 +243,32 @@ enum DashboardSnapshotBuilder {
             },
             error: account.error,
             updatedAt: account.snapshot?.updatedAt)
+    }
+
+    private static func claudeSwapDashboardLabel(
+        displayLabel: String,
+        sourceEmail: String?,
+        presentedEmail: String?,
+        accountID: String,
+        identityMode: DashboardIdentityMode) -> String
+    {
+        switch identityMode {
+        case .full:
+            return displayLabel
+        case .none:
+            return "Account \(accountID)"
+        case .redacted:
+            guard let presentedEmail, let sourceEmail else {
+                return "Account \(accountID)"
+            }
+            if displayLabel == sourceEmail {
+                return presentedEmail
+            }
+            if displayLabel.hasPrefix(sourceEmail) {
+                return "\(presentedEmail) · Account \(accountID)"
+            }
+            return "Account \(accountID)"
+        }
     }
 
     private static func dashboardSource(from source: String) -> String {
@@ -320,14 +384,23 @@ enum DashboardSnapshotBuilder {
     }
 
     /// Display lanes for an Antigravity quota-summary snapshot, or `nil` when the snapshot has no
-    /// summary lanes and must keep the standard primary and secondary rows. Every family stays
-    /// visible: the dashboard is a detail surface, so only the duplicated representatives go away.
+    /// summary lanes and must keep the standard primary and secondary rows. Every family stays in the
+    /// payload, because a script client reads the same document and must not lose a window. The lanes of
+    /// a family that reports no usage carry `idle`, the same rule the menu card and the widget use to
+    /// hide that family, so the web UI can drop those rows without repeating the rule in JavaScript.
     private static func antigravityQuotaSummaryWindows(_ usage: UsageSnapshot) -> [DashboardWindowPayload]? {
         let extras = usage.extraRateWindows ?? []
         guard extras.contains(where: { AntigravityStatusSnapshot.isQuotaSummaryWindowID($0.id) }) else {
             return nil
         }
-        return extras.map { self.makeWindow(kind: $0.id, label: $0.title, window: $0.window) }
+        let idleWindowIDs = AntigravityQuotaFamilyVisibility.idleWindowIDs(in: usage)
+        return extras.map {
+            self.makeWindow(
+                kind: $0.id,
+                label: $0.title,
+                window: $0.window,
+                idle: idleWindowIDs.contains($0.id))
+        }
     }
 
     private struct RateWindowLabels {
@@ -355,7 +428,12 @@ enum DashboardSnapshotBuilder {
             tertiary: labels.tertiary)
     }
 
-    private static func makeWindow(kind: String, label: String, window: RateWindow) -> DashboardWindowPayload {
+    private static func makeWindow(
+        kind: String,
+        label: String,
+        window: RateWindow,
+        idle: Bool = false) -> DashboardWindowPayload
+    {
         let used = self.clampedPercent(window.usedPercent)
         let remaining = self.clampedPercent(100 - used)
         return DashboardWindowPayload(
@@ -363,7 +441,8 @@ enum DashboardSnapshotBuilder {
             label: label,
             usedPercent: used,
             remainingPercent: remaining,
-            resetAt: window.resetsAt)
+            resetAt: window.resetsAt,
+            idle: idle)
     }
 
     private static func clampedPercent(_ value: Double) -> Double {
