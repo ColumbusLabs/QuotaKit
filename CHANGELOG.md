@@ -28,6 +28,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex: show and preserve Business and Enterprise monthly spend-control credits on stacked and compact account cards, including safe fallback across transient enrichment failures.
 - Codex: persist the priority-turn scan cursor across relaunches so unchanged local trace databases do not require a cold full-body rescan after every launch.
 - Codex: isolate profile-scoped token counts, costs, usage charts, top models, and cost history while switching between profile-home accounts.
 - Mac to iPhone sync: publish cost freshness independently from quota status, coalesce cost changes that arrive during an iCloud write, and prevent stale or missing current-day spend from appearing as a confirmed zero on iPhone.

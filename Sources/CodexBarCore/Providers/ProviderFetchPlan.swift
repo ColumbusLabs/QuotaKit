@@ -132,6 +132,10 @@ public struct ProviderFetchResult: Sendable {
     public let codexPATCredentialOwner: CodexPATCredentialOwner?
     /// A non-secret Fireworks account slug discovered by the winning request. The app owns persistence.
     public let fireworksDiscoveredAccountSlug: String?
+    /// True when Codex spend-controls monthly-limit enrichment was attempted and failed.
+    /// Callers should retain a matching prior `codexCreditLimit` instead of treating a missing
+    /// limit as confirmed absence.
+    public let codexMonthlyLimitEnrichmentFailed: Bool
     /// Optional live diagnostic retained alongside an otherwise usable snapshot.
     public let diagnostic: String?
     /// Transient account ownership evidence for plan-utilization history.
@@ -159,6 +163,7 @@ public struct ProviderFetchResult: Sendable {
         codexResetCreditsAttempted: Bool = false,
         codexPATCredentialOwner: CodexPATCredentialOwner? = nil,
         fireworksDiscoveredAccountSlug: String? = nil,
+        codexMonthlyLimitEnrichmentFailed: Bool = false,
         diagnostic: String? = nil,
         claudeOAuthKeychainPersistentRefHash: String? = nil,
         claudeOAuthHistoryOwnerIdentifier: String? = nil,
@@ -176,6 +181,7 @@ public struct ProviderFetchResult: Sendable {
         self.codexResetCreditsAttempted = codexResetCreditsAttempted
         self.codexPATCredentialOwner = codexPATCredentialOwner
         self.fireworksDiscoveredAccountSlug = fireworksDiscoveredAccountSlug
+        self.codexMonthlyLimitEnrichmentFailed = codexMonthlyLimitEnrichmentFailed
         self.diagnostic = diagnostic
         self.claudeOAuthKeychainPersistentRefHash = claudeOAuthKeychainPersistentRefHash
         self.claudeOAuthHistoryOwnerIdentifier = claudeOAuthHistoryOwnerIdentifier
@@ -183,6 +189,26 @@ public struct ProviderFetchResult: Sendable {
         self.claudeOAuthKeychainCredentialMismatch = claudeOAuthKeychainCredentialMismatch
         self.claudeOAuthKeychainCredentialAbsent = claudeOAuthKeychainCredentialAbsent
         self.claudeOAuthKeychainCredentialUnavailable = claudeOAuthKeychainCredentialUnavailable
+    }
+
+    public func markingMonthlyLimitEnrichmentFailed() -> ProviderFetchResult {
+        guard !self.codexMonthlyLimitEnrichmentFailed else { return self }
+        return ProviderFetchResult(
+            usage: self.usage,
+            credits: self.credits,
+            dashboard: self.dashboard,
+            sourceLabel: self.sourceLabel,
+            strategyID: self.strategyID,
+            strategyKind: self.strategyKind,
+            codexResetCreditsAttempted: self.codexResetCreditsAttempted,
+            codexMonthlyLimitEnrichmentFailed: true,
+            diagnostic: self.diagnostic,
+            claudeOAuthKeychainPersistentRefHash: self.claudeOAuthKeychainPersistentRefHash,
+            claudeOAuthHistoryOwnerIdentifier: self.claudeOAuthHistoryOwnerIdentifier,
+            claudeOAuthCredentialOwner: self.claudeOAuthCredentialOwner,
+            claudeOAuthKeychainCredentialMismatch: self.claudeOAuthKeychainCredentialMismatch,
+            claudeOAuthKeychainCredentialAbsent: self.claudeOAuthKeychainCredentialAbsent,
+            claudeOAuthKeychainCredentialUnavailable: self.claudeOAuthKeychainCredentialUnavailable)
     }
 }
 
