@@ -523,12 +523,15 @@ struct UsageFormatterTests {
         #expect(explicitCZK.contains("CZK"))
         #expect(explicitCZK.contains("."))
 
-        #expect(exchange.convert(amount: 10.0, from: "CHF", to: "USD") == nil)
+        let chfRate = exchange.rate(for: "CHF") ?? 0.80
+        #expect(abs((exchange.convert(usdAmount: 10.0, to: "CHF") ?? 0) - 10.0 * chfRate) < epsilon)
+        #expect(abs((exchange.convert(amount: 10.0, from: "CHF", to: "USD") ?? 0) - 10.0 / chfRate) < epsilon)
+
         let unavailable = UsageFormatter.convertedCostString(
             10.0,
             preferredCurrency: "USD",
-            providerCurrency: "CHF")
-        #expect(unavailable.contains("CHF"))
+            providerCurrency: "XYZ")
+        #expect(unavailable.contains("XYZ"))
         #expect(!unavailable.contains("$"))
     }
 
@@ -537,7 +540,8 @@ struct UsageFormatterTests {
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "USD"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " usd "))
         #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "auto"))
-        #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "CHF"))
+        #expect(!CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "XYZ"))
+        #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "CHF"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "GBP"))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: " eur "))
         #expect(CurrencyExchange.requiresLiveRates(preferredCurrencyCode: "KRW"))
@@ -557,9 +561,9 @@ struct UsageFormatterTests {
             " usd": 2,
         ])
 
-        #expect(valid == ["USD": 1, "GBP": 0.8])
-        #expect(CurrencyExchange.shared.convert(usdAmount: 10, to: "CHF") == nil)
-        #expect(CurrencyExchange.shared.convert(amount: 10, from: "CHF", to: "CHF") == nil)
+        #expect(valid == ["USD": 1, "GBP": 0.8, "CHF": 0.9])
+        #expect(CurrencyExchange.shared.convert(usdAmount: 10, to: "XYZ") == nil)
+        #expect(CurrencyExchange.shared.convert(amount: 10, from: "XYZ", to: "XYZ") == nil)
     }
 
     @Test
