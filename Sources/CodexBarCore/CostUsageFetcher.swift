@@ -1167,12 +1167,13 @@ public struct CostUsageFetcher: Sendable {
     }
     #endif
 
-    private static func loadCursorLocalSnapshot(
+    static func loadCursorLocalSnapshot(
         now: Date,
         historyDays: Int,
-        calendar: Calendar = .current) async -> CostUsageTokenSnapshot?
+        calendar: Calendar = .current,
+        paths overridePaths: [URL]? = nil) async -> CostUsageTokenSnapshot?
     {
-        let paths = CursorLocalCSVReader.cachedCSVPaths()
+        let paths = overridePaths ?? CursorLocalCSVReader.cachedCSVPaths()
         guard !paths.isEmpty else { return nil }
         var allRows: [CursorLocalCSVReader.Row] = []
         for url in paths {
@@ -1203,7 +1204,8 @@ public struct CostUsageFetcher: Sendable {
             historyDays: historyDays,
             useCurrentLocalDayForSession: true,
             calendar: calendar,
-            costProvenance: .listPriceEstimate)
+            costProvenance: .listPriceEstimate,
+            ownership: .machineLocalUnowned)
     }
 
     private static func loadAntigravityLocalSnapshot(
@@ -1236,7 +1238,8 @@ public struct CostUsageFetcher: Sendable {
             historyDays: historyDays,
             useCurrentLocalDayForSession: true,
             calendar: calendar,
-            costProvenance: .unknown)
+            costProvenance: .unknown,
+            ownership: .machineLocalUnowned)
     }
 
     static func tokenSnapshot(
@@ -1249,6 +1252,7 @@ public struct CostUsageFetcher: Sendable {
         meteredCostUSD: Double? = nil,
         costProvenance: CostProvenance = .unknown,
         credentialScopeFingerprint: String? = nil,
+        ownership: CostUsageTokenOwnership = .accountScoped,
         historyLabel: String? = nil,
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
@@ -1306,6 +1310,7 @@ public struct CostUsageFetcher: Sendable {
             meteredCostUSD: meteredCostUSD,
             costProvenance: costProvenance,
             credentialScopeFingerprint: credentialScopeFingerprint,
+            ownership: ownership,
             daily: daily.data,
             projects: projects,
             sessions: sessions,

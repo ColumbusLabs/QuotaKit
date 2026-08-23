@@ -1557,7 +1557,12 @@ final class SyncCoordinator {
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
-        let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        // Machine-global local caches have no trustworthy account owner. They remain available to
+        // the Mac spend dashboard, but never travel in an account-keyed CloudKit provider record.
+        let storedTokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        let tokenSnapshot = storedTokenSnapshot?.ownership == .machineLocalUnowned
+            ? nil
+            : storedTokenSnapshot
         let serviceBreakdownsByDay = self.dashboardServiceBreakdowns(for: provider)
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }

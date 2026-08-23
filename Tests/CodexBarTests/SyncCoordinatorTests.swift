@@ -195,6 +195,105 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Cursor machine local fallback stays standalone and out of account sync`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-unowned-local-cost")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .cursor,
+            metadata: #require(ProviderDefaults.metadata[.cursor]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let localCost = CostUsageTokenSnapshot(
+            sessionTokens: 150,
+            sessionCostUSD: 0.12,
+            last30DaysTokens: 150,
+            last30DaysCostUSD: 0.12,
+            ownership: .machineLocalUnowned,
+            daily: [],
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_000))
+        store._setTokenSnapshotForTesting(localCost, provider: .cursor)
+
+        // With no account context, the machine-local total remains available to Mac surfaces.
+        #expect(store.tokenSnapshot(for: .cursor)?.ownership == .machineLocalUnowned)
+
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 25,
+                    windowMinutes: 10080,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_001),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .cursor,
+                    accountEmail: "selected@cursor.test",
+                    accountOrganization: nil,
+                    loginMethod: "cookie")),
+            provider: .cursor)
+
+        // A remote failure may leave the local fallback published, but it cannot inherit the
+        // selected Cursor account or appear on that account's provider card.
+        #expect(store.tokenSnapshot(for: .cursor) == nil)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let cursor = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "cursor" })
+        #expect(cursor.accountEmail == "selected@cursor.test")
+        #expect(cursor.costSummary == nil)
+    }
+
+    @Test
+    func `Antigravity authoritative account never syncs machine local cost`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-antigravity-unowned-local-cost")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .antigravity,
+            metadata: #require(ProviderDefaults.metadata[.antigravity]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 40,
+                    windowMinutes: 300,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: nil,
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_001),
+                identity: ProviderIdentitySnapshot(
+                    providerID: .antigravity,
+                    accountEmail: "owner@antigravity.test",
+                    accountOrganization: nil,
+                    loginMethod: "oauth")),
+            provider: .antigravity)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 300,
+                sessionCostUSD: nil,
+                last30DaysTokens: 300,
+                last30DaysCostUSD: nil,
+                ownership: .machineLocalUnowned,
+                daily: [],
+                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+            provider: .antigravity)
+
+        #expect(store.tokenSnapshot(for: .antigravity) == nil)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let antigravity = try #require(mock.lastSnapshot?.providers.first {
+            $0.providerID == "antigravity"
+        })
+        #expect(antigravity.accountEmail == "owner@antigravity.test")
+        #expect(antigravity.costSummary == nil)
+    }
+
+    @Test
     func `xAI sync preserves balance and cost history without a false budget`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-xai")
         settings.iCloudSyncEnabled = true

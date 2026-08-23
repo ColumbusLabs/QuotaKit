@@ -118,6 +118,28 @@ struct CursorAntigravityLocalReaderTests {
     }
 
     @Test
+    func `cursor local fallback remains explicitly unowned after remote failure`() async throws {
+        let now = Date()
+        let timestamp = ISO8601DateFormatter().string(from: now)
+        let csv = """
+        Date,Model,Input (w/ Cache Write),Input (w/o Cache Write),Cache Read,Output Tokens,Total Tokens,Cost,Cost to you
+        \(timestamp),test-model-a,120,100,20,30,150,0.012,0
+        """
+        let url = try Self.writeTemporary(csv, extension: "csv")
+        defer { try? FileManager.default.removeItem(at: url) }
+
+        // This is the exact local branch used after Cursor's authenticated dashboard throws.
+        let fallback = try #require(await CostUsageFetcher.loadCursorLocalSnapshot(
+            now: now,
+            historyDays: 30,
+            paths: [url]))
+
+        #expect(fallback.ownership == .machineLocalUnowned)
+        #expect(fallback.credentialScopeFingerprint == nil)
+        #expect(fallback.last30DaysTokens == 150)
+    }
+
+    @Test
     func `antigravity cache jsonl aggregates usage with session model fallback`() throws {
         // Derive timestamps from local noon so both events land on the same local day in any TZ.
         let calendar = Calendar.current

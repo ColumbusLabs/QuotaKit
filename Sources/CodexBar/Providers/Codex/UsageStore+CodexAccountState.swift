@@ -31,10 +31,13 @@ struct CodexAccountScopedRefreshGuard: Equatable {
 @MainActor
 extension UsageStore {
     func accountScopedTokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
-        guard provider == .codex, !self.settings.codexLocalSessionCostLedgerEnabled else {
-            return self.tokenSnapshots[provider.instanceID]
+        if provider == .codex, !self.settings.codexLocalSessionCostLedgerEnabled {
+            return self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         }
-        return self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
+        guard let snapshot = self.tokenSnapshots[provider.instanceID],
+              self.tokenSnapshotCanAttachToProviderContext(snapshot, provider: provider)
+        else { return nil }
+        return snapshot
     }
 
     func refreshCodexAccountScopedState(
