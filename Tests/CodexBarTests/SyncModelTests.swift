@@ -692,6 +692,52 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
                 currentEngine: nil))
     }
 
+    @Test
+    func `server response lost save remains pending and resumes on the originating engine`() {
+        let original = NSObject()
+        let replacement = NSObject()
+        let recordID = CKRecord.ID(recordName: "snap-claude-slot-device-id", zoneID: CloudSyncEngine.zoneID)
+        var pending = [recordID.recordName: "hash-sent"]
+        var confirmed: [String: String] = [:]
+        let error = Self.cloudKitError(.serverResponseLost)
+
+        CloudSyncSnapshotMigration.applyTerminalSaveSkip(
+            recordName: recordID.recordName,
+            error: error,
+            pendingSaveHashes: &pending,
+            skippedTerminalReplacementHashes: &confirmed)
+
+        #expect(CloudSyncSnapshotMigration.retryDelay(for: error) == 1)
+        #expect(pending[recordID.recordName] == "hash-sent")
+        #expect(confirmed.isEmpty)
+        #expect(
+            CloudSyncSnapshotMigration.shouldResumeDelayedSaveRetry(
+                recordID: recordID,
+                desiredRecordIDs: [recordID],
+                originatingEngine: ObjectIdentifier(original),
+                currentEngine: ObjectIdentifier(original)))
+        #expect(
+            !CloudSyncSnapshotMigration.shouldResumeDelayedSaveRetry(
+                recordID: recordID,
+                desiredRecordIDs: [recordID],
+                originatingEngine: ObjectIdentifier(original),
+                currentEngine: ObjectIdentifier(replacement)))
+
+        CloudSyncSnapshotMigration.applyConfirmedSaveHashes(
+            savedRecordNames: [recordID.recordName],
+            pendingSaveHashes: &pending,
+            lastSnapshotHashes: &confirmed)
+
+        #expect(pending.isEmpty)
+        #expect(confirmed[recordID.recordName] == "hash-sent")
+        #expect(
+            !CloudSyncSnapshotMigration.shouldResumeDelayedSaveRetry(
+                recordID: recordID,
+                desiredRecordIDs: [],
+                originatingEngine: ObjectIdentifier(original),
+                currentEngine: ObjectIdentifier(original)))
+    }
+
     private static func cloudKitError(_ code: CKError.Code, retryAfter: TimeInterval? = nil) -> CKError {
         var userInfo: [String: Any] = [:]
         if let retryAfter {

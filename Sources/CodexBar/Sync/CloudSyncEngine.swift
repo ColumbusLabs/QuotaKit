@@ -368,6 +368,17 @@ enum CloudSyncSnapshotMigration {
         guard let originatingEngine, let currentEngine else { return false }
         return originatingEngine == currentEngine
     }
+
+    static func shouldResumeDelayedSaveRetry(
+        recordID: CKRecord.ID,
+        desiredRecordIDs: Set<CKRecord.ID>,
+        originatingEngine: ObjectIdentifier?,
+        currentEngine: ObjectIdentifier?) -> Bool
+    {
+        desiredRecordIDs.contains(recordID) && self.shouldResumeDelayedRetry(
+            originatingEngine: originatingEngine,
+            currentEngine: currentEngine)
+    }
 }
 
 enum CloudSyncEntitlementGate {
@@ -1019,6 +1030,8 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 .boolValue == true
             if resetEncryptedData {
                 self.recreateZoneAndRequeue(failure.record, syncEngine: syncEngine)
+            } else if let retry = CloudSyncSnapshotMigration.retryDelay(for: failure.error) {
+                self.scheduleRetry(recordID: failure.record.recordID, after: retry)
             } else {
                 await self.record(error: failure.error)
                 self.abandonTerminalReplacementSave(failure)
@@ -1036,14 +1049,23 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 
     private func scheduleRetry(recordID: CKRecord.ID, after delay: TimeInterval) {
         Task { [weak self] in
+            let originatingEngine = await self?.engine.map { ObjectIdentifier($0) }
             do {
                 if delay > 0 {
                     try await Task.sleep(for: .seconds(delay))
                 }
                 await Task.yield()
-                guard let self, let engine = await self.engine, await self.enabled else { return }
+                guard let self, await self.enabled, let engine = await self.engine else { return }
+                let shouldResume = await CloudSyncSnapshotMigration.shouldResumeDelayedSaveRetry(
+                    recordID: recordID,
+                    desiredRecordIDs: Set(self.desiredRecords.keys),
+                    originatingEngine: originatingEngine,
+                    currentEngine: ObjectIdentifier(engine))
+                guard shouldResume else { return }
                 engine.state.add(pendingRecordZoneChanges: [.saveRecord(recordID)])
                 try await engine.sendChanges(.init(scope: .recordIDs([recordID])))
+            } catch is CancellationError {
+                return
             } catch {
                 await self?.record(error: error)
             }
