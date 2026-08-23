@@ -224,6 +224,24 @@ struct AntigravityCLIHTTPSFetchStrategyTests {
         ])
     }
 
+    @Test
+    func `oauth strategy falls back only when unowned offline data is available`() throws {
+        let root = FileManager.default.temporaryDirectory
+            .appendingPathComponent("antigravity-oauth-offline-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: root, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: root) }
+        let strategy = AntigravityOAuthFetchStrategy()
+        let context = self.makeFetchContext(sourceMode: .auto, env: ["HOME": root.path])
+
+        #expect(!strategy.shouldFallback(on: AntigravityStatusProbeError.notRunning, context: context))
+
+        let appData = AntigravityOfflineStore.appDataDirectory(home: root)
+        try FileManager.default.createDirectory(at: appData, withIntermediateDirectories: true)
+        FileManager.default.createFile(atPath: appData.appendingPathComponent("desktop.db").path, contents: Data())
+
+        #expect(strategy.shouldFallback(on: AntigravityStatusProbeError.notRunning, context: context))
+    }
+
     // MARK: - Selected-account guard
 
     @Test
