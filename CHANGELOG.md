@@ -24,7 +24,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced reviewed CodexBar development through `7427660af`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
+- Synced reviewed CodexBar development through `d92783689`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
 - Synced reviewed CodexBar development through `4b14ed9c5`, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
 - Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
@@ -35,6 +35,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend: read compatible local Cursor and Antigravity activity caches, preserve refresh cancellation, refresh all changed dashboard detail, and keep calendar bucketing consistent across heatmap labels and selection.
 - Mac: report non-writable CLI path conflicts and let a single meaningful quota fill the menu icon while retaining Claude's explicit missing-secondary lane.
 - Codex: avoid re-merging canonical plan-utilization history on every refresh, keep decoded histories sorted, and make real legacy-history migration scale near-linearly.
+- Codex: align local token parsing with headless usage envelopes and stale cumulative snapshots while preserving fork ownership, priority pricing, calendar bucketing, and safe cache invalidation.
 - Codex: retain daily cost when trace data classifies a persisted standard turn as priority, while continuing to reject genuinely stale row-ownership evidence.
 - Codex: show and preserve Business and Enterprise monthly spend-control credits on stacked and compact account cards, including safe fallback across transient enrichment failures.
 - Codex: persist the priority-turn scan cursor across relaunches so unchanged local trace databases do not require a cold full-body rescan after every launch.
