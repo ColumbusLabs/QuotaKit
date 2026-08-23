@@ -1230,27 +1230,6 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         })
     }
 
-    static func copyUserFields(from source: CKRecord, onto server: CKRecord) -> CKRecord {
-        // allKeys() includes encrypted field names, but CloudKit throws NSInvalidArgumentException
-        // when an encrypted field goes through the plain subscript — every key must stay on the
-        // API surface (plain vs encryptedValues) it was written with.
-        let serverEncryptedKeys = Set(server.encryptedValues.allKeys())
-        let sourceEncryptedKeys = Set(source.encryptedValues.allKeys())
-        for key in server.allKeys() where !serverEncryptedKeys.contains(key) {
-            server[key] = nil
-        }
-        for key in serverEncryptedKeys {
-            server.encryptedValues[key] = nil
-        }
-        for key in source.allKeys() where !sourceEncryptedKeys.contains(key) {
-            server[key] = source[key]
-        }
-        for key in sourceEncryptedKeys {
-            server.encryptedValues[key] = source.encryptedValues[key]
-        }
-        return server
-    }
-
     private func editCount(_ record: CKRecord) -> Int64 {
         (record["editCount"] as? NSNumber)?.int64Value ?? 0
     }
@@ -1283,6 +1262,27 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
 }
 
 extension CloudSyncEngine {
+    static func copyUserFields(from source: CKRecord, onto server: CKRecord) -> CKRecord {
+        // allKeys() includes encrypted field names, but CloudKit throws NSInvalidArgumentException
+        // when an encrypted field goes through the plain subscript — every key must stay on the
+        // API surface (plain vs encryptedValues) it was written with.
+        let serverEncryptedKeys = Set(server.encryptedValues.allKeys())
+        let sourceEncryptedKeys = Set(source.encryptedValues.allKeys())
+        for key in server.allKeys() where !serverEncryptedKeys.contains(key) {
+            server[key] = nil
+        }
+        for key in serverEncryptedKeys {
+            server.encryptedValues[key] = nil
+        }
+        for key in source.allKeys() where !sourceEncryptedKeys.contains(key) {
+            server[key] = source[key]
+        }
+        for key in sourceEncryptedKeys {
+            server.encryptedValues[key] = source.encryptedValues[key]
+        }
+        return server
+    }
+
     private func finishConfirmedSnapshotMigrations(
         savedRecordNames: [String],
         syncEngine: CKSyncEngine) async

@@ -1357,6 +1357,7 @@ struct AlibabaTokenPlanSECTokenScrapeTests {
     }
 }
 
+@Suite(.serialized)
 struct AlibabaTokenPlanPersonalUsageRetryTests {
     private static let emptySuccess = #"{"code":"SUCCESS","successResponse":true,"msg":"Success.","data":{}}"#
 

@@ -436,6 +436,12 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         do {
             (data, response) = try await context.session.data(for: request)
         } catch {
+            if error is CancellationError
+                || (error as? URLError)?.code == .cancelled
+                || Task.isCancelled
+            {
+                throw CancellationError()
+            }
             throw AlibabaTokenPlanUsageError.networkError(error.localizedDescription)
         }
         guard let httpResponse = response as? HTTPURLResponse else {
