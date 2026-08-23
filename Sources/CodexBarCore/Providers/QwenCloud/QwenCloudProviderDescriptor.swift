@@ -12,7 +12,9 @@ public enum QwenCloudProviderDescriptor {
 
     static func makeDescriptor() -> ProviderDescriptor {
         #if os(macOS)
-        let browserOrder: BrowserCookieImportOrder = [.chrome]
+        // Qwen Cloud browser recovery is intentionally limited to Chrome and Brave.
+        // Keeping the list narrow avoids probing unrelated browser stores during refresh.
+        let browserOrder: BrowserCookieImportOrder = [.chrome, .brave]
         #else
         let browserOrder: BrowserCookieImportOrder? = nil
         #endif
@@ -88,7 +90,8 @@ struct QwenCloudWebFetchStrategy: ProviderFetchStrategy {
     private static let log = CodexBarLog.logger("qwen-cloud")
 
     #if os(macOS)
-    static let browserOrder: BrowserCookieImportOrder = [.chrome]
+    /// Mirrors the descriptor's supported browser recovery order.
+    static let browserOrder: BrowserCookieImportOrder = [.chrome, .brave]
     #endif
 
     let id: String = "qwen-cloud.web"

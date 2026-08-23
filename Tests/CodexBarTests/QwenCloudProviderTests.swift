@@ -12,6 +12,27 @@ private func qwenCloudFixture(_ name: String) throws -> Data {
 
 struct QwenCloudSettingsReaderTests {
     @Test
+    func `missing cookie error names supported browser recovery paths`() {
+        let error = QwenCloudSettingsError.missingCookie()
+        let message = error.errorDescription ?? ""
+
+        #expect(message.contains("Chrome"))
+        #expect(message.contains("Brave"))
+        #expect(message.contains("Safe Storage"))
+        #expect(message.contains("manual Cookie header"))
+        #expect(message.contains("Keychain Access"))
+    }
+
+    @Test
+    func `missing cookie error appends non-empty details without trailing empty suffix`() {
+        let detailed = QwenCloudSettingsError.missingCookie(details: "Brave Safe Storage keychain denied")
+        #expect((detailed.errorDescription ?? "").contains("Brave Safe Storage keychain denied"))
+
+        let empty = QwenCloudSettingsError.missingCookie(details: "")
+        #expect(!(empty.errorDescription ?? "").hasSuffix(" "))
+    }
+
+    @Test
     func `cookie reads from environment`() {
         let cookie = QwenCloudSettingsReader.cookieHeader(environment: [
             QwenCloudSettingsReader.cookieHeaderKey: "\"login_aliyunid_ticket=ticket\"",
@@ -103,8 +124,9 @@ struct QwenCloudUsageSnapshotTests {
         #expect(metadata.sessionLabel == "5-hour")
         #expect(metadata.weeklyLabel == "Weekly")
         #if os(macOS)
-        #expect(metadata.browserCookieOrder == [.chrome])
-        #expect(QwenCloudWebFetchStrategy.browserOrder == [.chrome])
+        let expectedOrder: BrowserCookieImportOrder = [.chrome, .brave]
+        #expect(metadata.browserCookieOrder == expectedOrder)
+        #expect(QwenCloudWebFetchStrategy.browserOrder == expectedOrder)
         #else
         #expect(metadata.browserCookieOrder == nil)
         #endif
