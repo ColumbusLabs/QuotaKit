@@ -2285,7 +2285,7 @@ struct ProviderArchitectureGatekeeperTests {
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 3,
             expectedReferenceFingerprint: ["codex@0", "codex@2", "codex@9"],
-            reason: "This shared construct fans out Codex account cache and refresh inputs at the dashboard boundary."),
+            reason: "This dashboard boundary fans out the Codex account cache, publication, and refresh inputs."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/SpendDashboardController.swift",
             line: 1630,
@@ -4604,14 +4604,6 @@ struct ProviderArchitectureGatekeeperTests {
             expectedProviderIDs: ["codex", "grok"],
             expectedReferenceCount: 7,
             expectedReferenceFingerprint: ["codex@0", "grok@3", "grok@5", "grok@6", "grok@10", "grok@11", "grok@14"],
-            reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
-        AllowedProviderConstruct(
-            path: "Sources/CodexBar/SpendDashboardController.swift",
-            line: 708,
-            anchor: "guard provider != .codex else { return nil }",
-            expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 1,
-            expectedReferenceFingerprint: ["codex@0"],
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+TokenAccounts.swift",

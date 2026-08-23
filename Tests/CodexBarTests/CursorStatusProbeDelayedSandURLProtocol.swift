@@ -40,7 +40,7 @@ final class CursorStatusProbeDelayedSandURLProtocol: URLProtocol {
         switch url.path {
         case "/api/usage-summary":
             body = #"{"membershipType":"pro","individualUsage":{"plan":{"used":1500,"limit":5000,"# +
-                #"totalPercentUsed":30}}}"#
+                #""totalPercentUsed":30}}}"#
         case "/api/auth/me":
             body = #"{"email":"user@example.com","name":"Test User"}"#
         default:
