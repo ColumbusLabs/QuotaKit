@@ -204,7 +204,10 @@ struct OpenRouterPluginGoldenTests {
                         .first { $0.name == "date" }?
                         .value
                     if date == "2026-08-18" {
-                        return try Self.response(request, body: #"{"error":{"message":"Date must be completed UTC day"}}"#, statusCode: 400)
+                        return try Self.response(
+                            request,
+                            body: #"{"error":{"message":"Date must be completed UTC day"}}"#,
+                            statusCode: 400)
                     }
                     return try Self.response(request, body: activityBody)
                 }
