@@ -812,6 +812,14 @@ struct AntigravityOfflineFetchStrategy: ProviderFetchStrategy {
         guard count > 0 else {
             throw AntigravityStatusProbeError.notRunning
         }
+        let snapshot = Self.usageSnapshot(conversationCount: count)
+        return self.makeResult(usage: snapshot, sourceLabel: "offline")
+    }
+
+    static func usageSnapshot(
+        conversationCount count: Int,
+        updatedAt: Date = Date()) -> UsageSnapshot
+    {
         let window = RateWindow(
             usedPercent: 0,
             windowMinutes: nil,
@@ -822,23 +830,33 @@ struct AntigravityOfflineFetchStrategy: ProviderFetchStrategy {
             title: "Offline · \(count) conversation" + (count == 1 ? "" : "s"),
             window: window,
             usageKnown: false)
-        let snapshot = UsageSnapshot(
+        return UsageSnapshot(
             primary: nil,
             secondary: nil,
             tertiary: nil,
             extraRateWindows: [offlineWindow],
-            updatedAt: Date(),
-            identity: ProviderIdentitySnapshot(
-                providerID: .antigravity,
-                accountEmail: AntigravitySelectedAccountGuard.selectedAccountEmail(context: context),
-                accountOrganization: nil,
-                loginMethod: "offline"))
-        return self.makeResult(usage: snapshot, sourceLabel: "offline")
+            updatedAt: updatedAt,
+            identity: nil)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
         // Offline is terminal; no further fallback.
         false
+    }
+}
+
+/// Internal signal used by the app when unowned offline conversation metadata arrives after a
+/// previously authoritative quota snapshot. The refresh remains a failure so the last-good quota,
+/// reset times, identity, and stale/error presentation are preserved.
+public struct AntigravityOfflineQuotaFallbackError: LocalizedError, Sendable, Equatable {
+    public let liveErrorDescription: String
+
+    public init(liveErrorDescription: String) {
+        self.liveErrorDescription = liveErrorDescription
+    }
+
+    public var errorDescription: String? {
+        self.liveErrorDescription
     }
 }
 

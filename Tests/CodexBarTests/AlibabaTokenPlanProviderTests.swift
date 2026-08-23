@@ -1451,4 +1451,41 @@ struct AlibabaTokenPlanPersonalUsageRetryTests {
         }
         #expect(usageCalls.value > 1)
     }
+
+    @Test
+    func `cancellation during Personal retry delay stops further requests`() async throws {
+        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        let subscriptionBody = try #require(
+            String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
+        let quotaBody = try #require(String(data: alibabaTokenPlanFixture("personal_quota_config"), encoding: .utf8))
+        let usageCalls = LockIsolated(0)
+
+        AlibabaTokenPlanStubURLProtocol.handler = Self.personalHandler(
+            usageBodies: { _ in Self.emptySuccess },
+            subscription: subscriptionBody,
+            quota: quotaBody,
+            usageCalls: usageCalls)
+
+        let task = Task {
+            try await AlibabaTokenPlanUsageFetcher.fetchUsage(
+                apiCookieHeader: "quota_only=quota",
+                dashboardCookieHeader: "dashboard_only=dashboard",
+                region: .chinaMainlandPersonal,
+                environment: [:],
+                session: Self.stubSession())
+        }
+        while usageCalls.value == 0 {
+            await Task.yield()
+        }
+        task.cancel()
+
+        do {
+            _ = try await task.value
+            Issue.record("Expected cancellation to propagate")
+        } catch {
+            #expect(error is CancellationError)
+        }
+        try await Task.sleep(nanoseconds: 500_000_000)
+        #expect(usageCalls.value == 1)
+    }
 }

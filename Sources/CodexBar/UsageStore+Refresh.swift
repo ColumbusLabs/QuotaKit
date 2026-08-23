@@ -683,6 +683,21 @@ extension UsageStore {
         attempts: [ProviderFetchAttempt],
         context: ProviderRefreshOutcomeContext) async
     {
+        if Self.shouldPreserveAntigravityQuotaSnapshot(
+            provider: provider,
+            result: result,
+            priorSnapshot: self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID])
+        {
+            let liveErrorDescription = attempts.last(where: {
+                $0.strategyID != result.strategyID && $0.errorDescription != nil
+            })?.errorDescription ?? "Antigravity live quota is temporarily unavailable."
+            await self.applyProviderRefreshFailure(
+                provider: provider,
+                error: AntigravityOfflineQuotaFallbackError(liveErrorDescription: liveErrorDescription),
+                attempts: attempts,
+                context: context)
+            return
+        }
         let rawScoped = result.usage.scoped(to: provider)
         // Provider-specific by design: Codex results are discarded when managed-account ownership changes mid-fetch.
         if provider == .codex,
@@ -698,10 +713,19 @@ extension UsageStore {
             provider: provider,
             usage: rawScoped,
             expectedGuard: context.codexExpectedGuard)
-        let currentTokenAccount = context.tokenAccount.flatMap { account in
-            self.uniqueTokenAccount(provider: provider, accountID: account.id)
+        // Antigravity's local conversation cache is global and contains no account owner.
+        // Never stamp the selected OAuth account onto this unowned offline-only result.
+        let isUnownedAntigravityOffline = Self.isUnownedAntigravityOfflineResult(
+            provider: provider,
+            result: result)
+        let currentTokenAccount: ProviderTokenAccount? = if isUnownedAntigravityOffline {
+            nil
+        } else {
+            context.tokenAccount.flatMap { account in
+                self.uniqueTokenAccount(provider: provider, accountID: account.id)
+            }
         }
-        if context.tokenAccount != nil, currentTokenAccount == nil {
+        if context.tokenAccount != nil, currentTokenAccount == nil, !isUnownedAntigravityOffline {
             return
         }
         let accountScoped = if let tokenAccount = currentTokenAccount {
@@ -836,6 +860,31 @@ extension UsageStore {
         if provider == .codex {
             self.recordCodexHistoricalSampleIfNeeded(snapshot: backfilled)
         }
+    }
+
+    nonisolated static func shouldPreserveAntigravityQuotaSnapshot(
+        provider: UsageProvider,
+        result: ProviderFetchResult,
+        priorSnapshot: UsageSnapshot?) -> Bool
+    {
+        guard self.isUnownedAntigravityOfflineResult(provider: provider, result: result),
+              let priorSnapshot
+        else {
+            return false
+        }
+        if [priorSnapshot.primary, priorSnapshot.secondary, priorSnapshot.tertiary]
+            .contains(where: { $0 != nil })
+        {
+            return true
+        }
+        return (priorSnapshot.extraRateWindows ?? []).contains(where: \.usageKnown)
+    }
+
+    nonisolated static func isUnownedAntigravityOfflineResult(
+        provider: UsageProvider,
+        result: ProviderFetchResult) -> Bool
+    {
+        provider == .antigravity && result.strategyID == "antigravity.offline"
     }
 
     private nonisolated static func verifiedClaudeOAuthPersistentRefHash(
@@ -1397,6 +1446,7 @@ extension UsageStore {
             let preservesPriorData = Self.shouldPreservePriorSnapshot(
                 after: error,
                 hadPriorData: hadPriorData) ||
+                (provider == .antigravity && error is AntigravityOfflineQuotaFallbackError && hadPriorData) ||
                 (provider == .claude &&
                     hadPriorData &&
                     (context.claudeUsesConsumerAutoPipeline ||

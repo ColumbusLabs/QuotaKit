@@ -1,8 +1,61 @@
 import Foundation
 import Testing
+@testable import CodexBar
 @testable import CodexBarCore
 
 struct AntigravityOfflineStoreTests {
+    @Test
+    func `offline snapshot is deliberately unowned`() {
+        let updatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let snapshot = AntigravityOfflineFetchStrategy.usageSnapshot(
+            conversationCount: 3,
+            updatedAt: updatedAt)
+
+        #expect(snapshot.identity == nil)
+        #expect(snapshot.updatedAt == updatedAt)
+        #expect(snapshot.extraRateWindows?.first?.usageKnown == false)
+    }
+
+    @Test
+    func `offline result preserves an existing authoritative quota snapshot`() {
+        let offline = ProviderFetchResult(
+            usage: AntigravityOfflineFetchStrategy.usageSnapshot(conversationCount: 3),
+            credits: nil,
+            dashboard: nil,
+            sourceLabel: "offline",
+            strategyID: "antigravity.offline",
+            strategyKind: .localProbe)
+        let priorReset = Date(timeIntervalSince1970: 1_700_100_000)
+        let prior = UsageSnapshot(
+            primary: RateWindow(
+                usedPercent: 42,
+                windowMinutes: 300,
+                resetsAt: priorReset,
+                resetDescription: nil),
+            secondary: nil,
+            tertiary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_700_000_000),
+            identity: ProviderIdentitySnapshot(
+                providerID: .antigravity,
+                accountEmail: "owner@example.com",
+                accountOrganization: nil,
+                loginMethod: "oauth"))
+
+        #expect(UsageStore.shouldPreserveAntigravityQuotaSnapshot(
+            provider: .antigravity,
+            result: offline,
+            priorSnapshot: prior))
+        #expect(!UsageStore.shouldPreserveAntigravityQuotaSnapshot(
+            provider: .antigravity,
+            result: offline,
+            priorSnapshot: nil))
+        #expect(!UsageStore.shouldPreserveAntigravityQuotaSnapshot(
+            provider: .antigravity,
+            result: offline,
+            priorSnapshot: offline.usage))
+        #expect(UsageStore.isUnownedAntigravityOfflineResult(provider: .antigravity, result: offline))
+    }
+
     @Test
     func `resolves gemini home from env override`() {
         let home = URL(fileURLWithPath: "/Users/test", isDirectory: true)

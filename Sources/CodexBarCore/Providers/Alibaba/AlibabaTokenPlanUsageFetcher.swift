@@ -362,7 +362,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         // "temporarily unavailable" note rather than a hard "could not parse" error.
         for attempt in 0..<Self.personalUsageMaxAttempts {
             if attempt > 0 {
-                try? await Task.sleep(nanoseconds: Self.personalUsageRetryDelayNanoseconds)
+                try await Task.sleep(nanoseconds: Self.personalUsageRetryDelayNanoseconds)
             }
             do {
                 let usageData = try await self.fetchPersonalAPI(
