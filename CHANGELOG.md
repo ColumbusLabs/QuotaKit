@@ -24,12 +24,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced reviewed CodexBar development through `07bd85a5e`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers.
 - Synced reviewed CodexBar development through `4b14ed9c5`, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
 - Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
 
 ### Fixed
 
+- Codex: avoid re-merging canonical plan-utilization history on every refresh, keep decoded histories sorted, and make real legacy-history migration scale near-linearly.
+- Codex: retain daily cost when trace data classifies a persisted standard turn as priority, while continuing to reject genuinely stale row-ownership evidence.
 - Codex: show and preserve Business and Enterprise monthly spend-control credits on stacked and compact account cards, including safe fallback across transient enrichment failures.
 - Codex: persist the priority-turn scan cursor across relaunches so unchanged local trace databases do not require a cold full-body rescan after every launch.
 - Codex: isolate profile-scoped token counts, costs, usage charts, top models, and cost history while switching between profile-home accounts.
