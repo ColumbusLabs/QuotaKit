@@ -4,18 +4,23 @@ import Testing
 
 struct CostUsageScannerBareUsageResumeTests {
     @Test
-    func `codex incremental bare usage resumes persisted session timestamp`() throws {
+    func `codex incremental bare usage ignores later cross-midnight non-usage activity`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
-        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 21)
-        let iso = env.isoString(for: day)
+        let formatter = ISO8601DateFormatter()
+        let contextDate = try #require(formatter.date(from: "2026-08-21T23:58:00Z"))
+        let usageDate = try #require(formatter.date(from: "2026-08-21T23:59:00Z"))
+        let laterActivityDate = try #require(formatter.date(from: "2026-08-22T00:01:00Z"))
+        let contextTimestamp = env.isoString(for: contextDate)
+        let usageTimestamp = env.isoString(for: usageDate)
+        let laterActivityTimestamp = env.isoString(for: laterActivityDate)
         let model = "openai/gpt-5.5"
         let initialContents = try env.jsonl([
-            ["type": "turn_context", "timestamp": iso, "payload": ["model": model]],
+            ["type": "turn_context", "timestamp": contextTimestamp, "payload": ["model": model]],
             [
                 "type": "event_msg",
-                "timestamp": iso,
+                "timestamp": usageTimestamp,
                 "payload": [
                     "type": "token_count",
                     "info": [
@@ -23,14 +28,28 @@ struct CostUsageScannerBareUsageResumeTests {
                     ],
                 ],
             ],
+            ["type": "turn_context", "timestamp": laterActivityTimestamp, "payload": ["model": model]],
         ])
         let fileURL = try env.writeCodexSessionFile(
-            day: day,
+            day: usageDate,
             filename: "incremental-bare-timestamp.jsonl",
             contents: initialContents)
-        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: usageDate,
+            until: laterActivityDate,
+            calendar: utc)
         let first = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
-        let persistedActivity = try #require(first.codexSession.latestActivityUnixMs)
+        let restoredSession = try JSONDecoder().decode(
+            CostUsageCodexSessionMetadata.self,
+            from: JSONEncoder().encode(first.codexSession))
+        let persistedUsageTimestamp = try #require(restoredSession.latestAcceptedUsageUnixMs)
+        let broadActivityTimestamp = try #require(first.codexSession.latestActivityUnixMs)
+        #expect(broadActivityTimestamp > persistedUsageTimestamp)
+        #expect(CostUsageScanner.CostUsageDayRange.dayKey(
+            from: Date(timeIntervalSince1970: Double(broadActivityTimestamp) / 1000),
+            calendar: utc) == "2026-08-22")
 
         let appendedContents = try env.jsonl([
             ["result": ["usage": ["input_tokens": 5, "output_tokens": 1]]],
@@ -47,10 +66,10 @@ struct CostUsageScannerBareUsageResumeTests {
             initialHasDivergentTotals: first.hasDivergentTotals,
             initialCodexTurnID: first.lastCodexTurnID,
             initialCodexUsageRowIndex: first.rows.count,
-            initialLastAcceptedTokenTimestampUnixMs: persistedActivity)
-        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+            initialLastAcceptedTokenTimestampUnixMs: persistedUsageTimestamp)
 
-        #expect(delta.days[dayKey]?["gpt-5.5"] == [5, 0, 1])
-        #expect(delta.rows.first?.timestampUnixMs == persistedActivity)
+        #expect(delta.days["2026-08-21"]?["gpt-5.5"] == [5, 0, 1])
+        #expect(delta.days["2026-08-22"]?["gpt-5.5"] == nil)
+        #expect(delta.rows.first?.timestampUnixMs == persistedUsageTimestamp)
     }
 }

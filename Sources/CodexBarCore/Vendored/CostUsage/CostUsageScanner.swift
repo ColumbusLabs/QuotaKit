@@ -4432,7 +4432,8 @@ enum CostUsageScanner {
                 cwd: nil,
                 title: nil,
                 startedAtUnixMs: nil,
-                latestActivityUnixMs: initialLastAcceptedTokenTimestampUnixMs),
+                latestActivityUnixMs: nil,
+                latestAcceptedUsageUnixMs: initialLastAcceptedTokenTimestampUnixMs),
             rows: [],
             tokenSnapshots: [],
             jsonlResumeState: nil,
@@ -4483,7 +4484,8 @@ enum CostUsageScanner {
             cwd: nil,
             title: nil,
             startedAtUnixMs: nil,
-            latestActivityUnixMs: nil)
+            latestActivityUnixMs: nil,
+            latestAcceptedUsageUnixMs: initialLastAcceptedTokenTimestampUnixMs)
         var inheritedTotals: CostUsageCodexTotals?
         var remainingInheritedTotals: CostUsageCodexTotals?
         var forkBaselineResolved = false
@@ -5419,6 +5421,7 @@ enum CostUsageScanner {
             jsonlResumeState = initialJSONLResumeState
         }
 
+        codexSession.latestAcceptedUsageUnixMs = lastAcceptedTokenTimestampUnixMs
         return CodexParseResult(
             days: days,
             parsedBytes: parsedBytes,
