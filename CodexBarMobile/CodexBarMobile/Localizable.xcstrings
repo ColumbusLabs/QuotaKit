@@ -4926,6 +4926,62 @@
         }
       }
     },
+    "%d of %d providers updated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d of %d providers updated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d/%d件のプロバイダーを更新"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d/%d 个提供商已更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "%d/%d 個供應商已更新"
+          }
+        }
+      }
+    },
+    "Not updated today": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Not updated today"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "本日は未更新"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日尚未更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日尚未更新"
+          }
+        }
+      }
+    },
     "No spend today": {
       "localizations": {
         "en": {
@@ -4950,6 +5006,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "今日無支出"
+          }
+        }
+      }
+    },
+    "Partial provider data": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Partial provider data"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "一部のプロバイダーデータ"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分提供商数据"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "部分供應商資料"
           }
         }
       }
@@ -8928,6 +9012,34 @@
         }
       }
     },
+    "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日の支出はクォータ更新とは別に更新され、Macのデータが遅延または欠落している場合は誤ったゼロではなく利用不可として表示されます。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日支出现在会独立于配额刷新而更新；如果 Mac 数据延迟或缺失，将显示为不可用，而不是错误的零。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日支出現在會獨立於配額重新整理而更新；如果 Mac 資料延遲或缺失，將顯示為無法使用，而不是錯誤的零。"
+          }
+        }
+      }
+    },
     "Today": {
       "localizations": {
         "en": {
@@ -9937,6 +10049,62 @@
           "stringUnit": {
             "state": "translated",
             "value": "等待同步"
+          }
+        }
+      }
+    },
+    "Updated": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Updated"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "更新済み"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已更新"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "已更新"
+          }
+        }
+      }
+    },
+    "Waiting for today's Mac sync": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Waiting for today's Mac sync"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "今日のMac同期を待機中"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待今天的 Mac 同步"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "正在等待今天的 Mac 同步"
           }
         }
       }

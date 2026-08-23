@@ -338,7 +338,7 @@ struct ProviderDetailView: View {
         // See `SyncCostSummary+Today.swift` for reasoning. Cost + tokens
         // are resolved through one `todayTotals()` call so they can't
         // straddle midnight with mismatched day keys.
-        let today = cost.todayTotals()
+        let today = cost.todayTotals(providerLastUpdated: self.provider.lastUpdated)
         return VStack(alignment: .leading, spacing: 8) {
             Text("Cost & Usage")
                 .font(.headline)
@@ -352,6 +352,12 @@ struct ProviderDetailView: View {
                         subtitle: today.tokens.map { Self.formatTokens($0) },
                         tintColor: self.providerColor,
                         isEstimated: today.isEstimated == true)
+                } else {
+                    CostMetricCard(
+                        title: "Today",
+                        value: "—",
+                        subtitle: String(localized: "Not updated today"),
+                        tintColor: self.providerColor)
                 }
                 if let monthCost = cost.last30DaysCostUSD {
                     CostMetricCard(

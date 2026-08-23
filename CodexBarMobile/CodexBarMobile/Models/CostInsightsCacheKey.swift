@@ -6,16 +6,18 @@ enum CostInsightsCacheKey {
         snapshotKey: SnapshotIdentityKey?,
         cwlEnabled: Bool,
         cwlWindowDays: Int,
-        todayKey: String) -> String
+        todayKey: String,
+        freshnessRevision: Int = 0) -> String
     {
         let snapshotPart = if isDemoMode {
             "demo"
         } else if let snapshotKey {
-            "\(snapshotKey.providerIDs)@\(snapshotKey.lastUpdated.timeIntervalSince1970)"
+            "\(snapshotKey.providerIDs)@\(snapshotKey.lastUpdated.timeIntervalSince1970)" +
+                "#\(snapshotKey.costRevisionKey)"
         } else {
             "none"
         }
         let sourcePart = (cwlEnabled && !isDemoMode) ? "cwl\(cwlWindowDays)" : "blob"
-        return "\(snapshotPart)|\(sourcePart)|\(todayKey)"
+        return "\(snapshotPart)|\(sourcePart)|\(todayKey)|freshness:\(freshnessRevision)"
     }
 }

@@ -198,13 +198,23 @@ private struct TodayCard: View {
             .padding(.bottom, 16)
 
             // Hero number
-            Text(formatUSD(self.data.todayCost))
+            Text(self.data.todayIsAvailable ? formatUSD(self.data.todayCost) : "—")
                 .font(.system(size: 42, weight: .bold, design: .rounded).monospacedDigit())
                 .foregroundStyle(self.theme.foreground)
                 .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 2)
 
-            if self.data.totalTokens > 0 {
+            if !self.data.todayIsAvailable {
+                Text(String(localized: "Waiting for today's Mac sync"))
+                    .font(.caption)
+                    .foregroundStyle(self.theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if self.data.todayStatus == .partial {
+                Text(String(localized: "Partial provider data"))
+                    .font(.caption)
+                    .foregroundStyle(self.theme.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+            } else if self.data.totalTokens > 0 {
                 Text("\(formatTokens(self.data.totalTokens)) tokens")
                     .font(.caption)
                     .foregroundStyle(self.theme.secondary)

@@ -31,6 +31,10 @@ final class SyncCoordinator {
     private(set) var lastSyncMessage: String?
     private(set) var lastSyncMessageIsWarning: Bool = false
     private(set) var isSyncing: Bool = false
+    /// Set whenever observed state changes while a CloudKit write is in flight.
+    /// The active push drain consumes this flag and performs one trailing push,
+    /// coalescing any number of mutations that arrived during the network wait.
+    private var pushPending: Bool = false
 
     /// Stable device UUID for this Mac, persisted across app launches.
     private let deviceID: String
@@ -183,6 +187,7 @@ final class SyncCoordinator {
             _ = self.store.snapshots
             _ = self.store.errors
             _ = self.store.tokenSnapshots
+            _ = self.store.openAIDashboard
             _ = self.settings.iCloudSyncEnabled
             // Multi-account: re-push when the active Codex managed account
             // changes (user switches accounts in menu) so the new active
@@ -192,22 +197,46 @@ final class SyncCoordinator {
         } onChange: { [weak self] in
             Task { @MainActor [weak self] in
                 guard let self, self.isObserving else { return }
-                await self.pushCurrentSnapshot()
+                // Observation tracking is one-shot. Re-arm before the first
+                // suspension so a token-cost publication that lands during a
+                // CloudKit write cannot disappear into an unobserved window.
                 self.observeLoop()
+                await self.pushCurrentSnapshot()
             }
         }
     }
 
-    /// Builds and pushes the current state to iCloud.
+    /// Requests a push of the current state and drains any changes that arrive
+    /// while the CloudKit write is in flight. Overlapping requests mark a
+    /// trailing push as pending instead of being discarded.
     func pushCurrentSnapshot() async {
         guard self.settings.iCloudSyncEnabled else { return }
 
         let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
         guard !enabledProviders.isEmpty else { return }
+
+        self.pushPending = true
         guard !self.isSyncing else { return }
 
         self.isSyncing = true
-        defer { self.isSyncing = false }
+        defer {
+            self.isSyncing = false
+            self.pushPending = false
+        }
+
+        repeat {
+            self.pushPending = false
+            await self.performCurrentSnapshotPush()
+        } while self.pushPending
+    }
+
+    /// Performs one immutable-at-start snapshot publication. Callers must go
+    /// through `pushCurrentSnapshot()` so concurrent observations are drained.
+    private func performCurrentSnapshotPush() async {
+        guard self.settings.iCloudSyncEnabled else { return }
+
+        let enabledProviders = self.store.enabledProviders().compactMap(\.firstPartyProvider)
+        guard !enabledProviders.isEmpty else { return }
 
         var providerSnapshots: [ProviderUsageSnapshot] = []
 
@@ -224,6 +253,15 @@ final class SyncCoordinator {
             // source allows.
             let sharedCostSummary = self.makeCostSummary(for: provider)
             let sharedUtilizationHistory = self.makeUtilizationHistory(for: provider)
+            if let sharedCostSummary {
+                let revision = sharedCostSummary.costUpdatedAt.map {
+                    ISO8601DateFormatter().string(from: $0)
+                } ?? "legacy"
+                let latestDay = sharedCostSummary.daily.last?.dayKey ?? "none"
+                print(
+                    "[CodexBar Sync] \(provider.rawValue): cost revision=\(revision), " +
+                        "latestDay=\(latestDay), dailyPoints=\(sharedCostSummary.daily.count)")
+            }
             if let uh = sharedUtilizationHistory {
                 let totalEntries = uh.reduce(0) { $0 + $1.entries.count }
                 print("[CodexBar Sync] \(provider.rawValue): \(uh.count) utilization series, \(totalEntries) entries")
@@ -1507,6 +1545,21 @@ final class SyncCoordinator {
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }
 
+        // Cost refreshes independently from provider quota/status. Carry the
+        // newest cost-bearing input as a separate revision so mobile can
+        // update its ledger and caches without corrupting provider merge
+        // precedence. The dashboard timestamp participates only when its
+        // service breakdowns actually contribute to this summary.
+        let dashboardCostUpdatedAt = serviceBreakdownsByDay.isEmpty
+            ? nil
+            : self.store.openAIDashboard?.updatedAt
+        let costUpdatedAt = [tokenSnapshot?.updatedAt, dashboardCostUpdatedAt]
+            .compactMap(\.self)
+            .max()
+        var sourceRevisions: [String: Date] = [:]
+        sourceRevisions["tokenScanner"] = tokenSnapshot?.updatedAt
+        sourceRevisions["openAIDashboard"] = dashboardCostUpdatedAt
+
         let tokenEntriesByDay = Dictionary(
             uniqueKeysWithValues: (tokenSnapshot?.daily ?? []).map { ($0.date, $0) })
         let allDayKeys = Set(tokenEntriesByDay.keys).union(serviceBreakdownsByDay.keys).sorted()
@@ -1549,7 +1602,13 @@ final class SyncCoordinator {
             historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
-            currencyCode: tokenSnapshot?.currencyCode)
+            currencyCode: tokenSnapshot?.currencyCode,
+            costUpdatedAt: costUpdatedAt,
+            // The local token scanner supplies authoritative total spend
+            // whenever present. Dashboard-only refreshes may advance the
+            // payload revision without making that scanner total newer.
+            totalCostUpdatedAt: tokenSnapshot?.updatedAt ?? dashboardCostUpdatedAt,
+            sourceRevisions: sourceRevisions)
     }
 
     static func mapXAICostSummary(
@@ -1577,7 +1636,10 @@ final class SyncCoordinator {
             },
             isEstimated: isEstimated,
             historyDays: projected.historyDays,
-            currencyCode: projected.currencyCode)
+            currencyCode: projected.currencyCode,
+            costUpdatedAt: snapshot?.updatedAt,
+            totalCostUpdatedAt: snapshot?.updatedAt,
+            sourceRevisions: (snapshot?.updatedAt).map { ["xai": $0] })
     }
 
     private func modelBreakdowns(

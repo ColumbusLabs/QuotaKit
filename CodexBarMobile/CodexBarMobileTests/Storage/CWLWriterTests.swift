@@ -287,6 +287,218 @@ struct CWLWriterTests {
     }
 
     @Test
+    func `upsertFromSnapshot: newer cost freshness overwrites equal provider freshness`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let container = ModelContainerFactory.makeContainer(at: url)
+        let context = ModelContext(container)
+
+        let providerUpdatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let costUpdatedAt = providerUpdatedAt.addingTimeInterval(60)
+        let makeSnapshot: (Double, Date) -> ProviderUsageSnapshot = { cost, freshness in
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil, secondary: nil,
+                accountEmail: nil, loginMethod: nil, statusMessage: nil,
+                isError: false,
+                lastUpdated: providerUpdatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: nil,
+                    sessionTokens: nil,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100)],
+                    costUpdatedAt: freshness))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            makeSnapshot(1, providerUpdatedAt), deviceID: "dev-A", in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            makeSnapshot(2, costUpdatedAt), deviceID: "dev-A", in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let row = try #require(rows.first)
+        #expect(rows.count == 1)
+        #expect(row.costUSD == 2)
+        #expect(row.lastUpdated == costUpdatedAt)
+    }
+
+    @Test
+    func `upsertFromSnapshot: newer total freshness is not hidden by unchanged payload revision`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let providerUpdatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let dashboardRevision = providerUpdatedAt.addingTimeInterval(120)
+        let oldTotalRevision = providerUpdatedAt.addingTimeInterval(10)
+        let newTotalRevision = providerUpdatedAt.addingTimeInterval(20)
+        func snapshot(cost: Double, totalRevision: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: providerUpdatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: cost,
+                        totalTokens: 100)],
+                    costUpdatedAt: dashboardRevision,
+                    totalCostUpdatedAt: totalRevision))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 1, totalRevision: oldTotalRevision),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 2, totalRevision: newTotalRevision),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 2)
+        #expect(row.lastUpdated == dashboardRevision)
+        #expect(row.totalUpdatedAt == newTotalRevision)
+    }
+
+    @Test
+    func `upsertFromSnapshot: newer dashboard source is not hidden by newer scanner maximum`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let providerUpdatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let scannerRevision = providerUpdatedAt.addingTimeInterval(120)
+        let oldDashboardRevision = providerUpdatedAt.addingTimeInterval(10)
+        let newDashboardRevision = providerUpdatedAt.addingTimeInterval(20)
+        func snapshot(serviceCost: Double, dashboardRevision: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: providerUpdatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 5,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 5,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: 5,
+                        totalTokens: 100,
+                        serviceBreakdowns: [SyncCostBreakdown(
+                            label: "Codex Run",
+                            costUSD: serviceCost)])],
+                    costUpdatedAt: scannerRevision,
+                    totalCostUpdatedAt: scannerRevision,
+                    sourceRevisions: [
+                        "tokenScanner": scannerRevision,
+                        "openAIDashboard": dashboardRevision,
+                    ]))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(serviceCost: 1, dashboardRevision: oldDashboardRevision),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(serviceCost: 2, dashboardRevision: newDashboardRevision),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        let data = try #require(row.serviceBreakdownsData)
+        let breakdowns = try CloudSyncConstants.makeJSONDecoder().decode(
+            [SyncCostBreakdown].self,
+            from: data)
+        #expect(breakdowns.first?.costUSD == 2)
+        #expect(row.lastUpdated == scannerRevision)
+        #expect(row.totalUpdatedAt == scannerRevision)
+        #expect(row.sourceRevisionKey?.contains(
+            "openAIDashboard:\(newDashboardRevision.timeIntervalSince1970)") == true)
+    }
+
+    @Test
+    func `upsertFromSnapshot: removing dashboard source clears retained breakdowns`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+
+        let providerUpdatedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let scannerRevision = providerUpdatedAt.addingTimeInterval(120)
+        let dashboardRevision = providerUpdatedAt.addingTimeInterval(10)
+        func snapshot(includeDashboard: Bool) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: providerUpdatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: 5,
+                    sessionTokens: 100,
+                    last30DaysCostUSD: 5,
+                    last30DaysTokens: 100,
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-05-28",
+                        costUSD: 5,
+                        totalTokens: 100,
+                        serviceBreakdowns: includeDashboard
+                            ? [SyncCostBreakdown(label: "Codex Run", costUSD: 1)]
+                            : [])],
+                    costUpdatedAt: scannerRevision,
+                    totalCostUpdatedAt: scannerRevision,
+                    sourceRevisions: includeDashboard
+                        ? [
+                            "tokenScanner": scannerRevision,
+                            "openAIDashboard": dashboardRevision,
+                        ]
+                        : ["tokenScanner": scannerRevision]))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(includeDashboard: true),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(includeDashboard: false),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.serviceBreakdownsData == nil)
+        #expect(row.sourceRevisionKey?.contains("openAIDashboard") == false)
+    }
+
+    @Test
     func `upsertFromSnapshot: nil costSummary → no rows written`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

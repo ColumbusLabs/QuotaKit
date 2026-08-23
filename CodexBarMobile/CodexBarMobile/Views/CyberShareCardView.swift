@@ -186,8 +186,21 @@ private struct CyberCard: View {
     let period: SharePeriod
     let theme: CyberTheme
 
-    private var heroCost: Double {
-        self.period == .today ? self.data.todayCost : self.data.totalCost
+    private var heroCostText: String {
+        if self.period == .today, !self.data.todayIsAvailable {
+            return "—"
+        }
+        let cost = self.period == .today ? self.data.todayCost : self.data.totalCost
+        return formatUSD(cost)
+    }
+
+    private var todayStatusText: String? {
+        guard self.period == .today else { return nil }
+        return switch self.data.todayStatus {
+        case .reported: nil
+        case .partial: String(localized: "Partial provider data")
+        case .unavailable: String(localized: "Waiting for today's Mac sync")
+        }
     }
 
     var body: some View {
@@ -221,12 +234,19 @@ private struct CyberCard: View {
             }
 
             // 3. Cost — medium, accent color
-            Text(formatUSD(self.heroCost))
-                .font(.system(size: 20, weight: .bold, design: .monospaced).monospacedDigit())
-                .foregroundStyle(self.theme.accent)
-                .shadow(color: self.theme.accentGlow, radius: 6)
-                .frame(maxWidth: .infinity)
-                .padding(.bottom, 22)
+            VStack(spacing: 4) {
+                Text(self.heroCostText)
+                    .font(.system(size: 20, weight: .bold, design: .monospaced).monospacedDigit())
+                    .foregroundStyle(self.theme.accent)
+                    .shadow(color: self.theme.accentGlow, radius: 6)
+                    .frame(maxWidth: .infinity)
+                if let todayStatusText {
+                    Text(todayStatusText)
+                        .font(.system(size: 9, weight: .medium, design: .monospaced))
+                        .foregroundStyle(self.theme.dim)
+                }
+            }
+            .padding(.bottom, 22)
 
             // 4. Gauge row
             HStack(spacing: 24) {

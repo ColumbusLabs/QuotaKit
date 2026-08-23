@@ -6,6 +6,91 @@ import Testing
 @Suite("Sync Model Codable Tests")
 struct SyncModelTests {
     @Test
+    func `today totals preserve an explicit zero as reported`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 42,
+            sessionTokens: 900,
+            last30DaysCostUSD: 42,
+            last30DaysTokens: 900,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKey(for: now),
+                    costUSD: 0,
+                    totalTokens: 0),
+            ],
+            costUpdatedAt: now)
+
+        let today = summary.todayTotals(now: now)
+        #expect(today.availability == .reported)
+        #expect(today.source == .daily)
+        #expect(today.costUSD == 0)
+        #expect(today.tokens == 0)
+    }
+
+    @Test
+    func `today totals only use a session fallback when freshness is today`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30000,
+            daily: [
+                SyncDailyPoint(dayKey: "2020-01-01", costUSD: 99, totalTokens: 9999),
+            ])
+
+        let today = summary.todayTotals(now: now, providerLastUpdated: now)
+        #expect(today.availability == .reported)
+        #expect(today.source == .session)
+        #expect(today.costUSD == 1.23)
+
+        let yesterday = summary.todayTotals(now: now, providerLastUpdated: now.addingTimeInterval(-86400))
+        #expect(yesterday.availability == .unavailable)
+        #expect(yesterday.costUSD == nil)
+    }
+
+    @Test
+    func `today totals report unavailable when session freshness is not today`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let summary = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 1000,
+            last30DaysCostUSD: 50,
+            last30DaysTokens: 30000,
+            daily: [
+                SyncDailyPoint(dayKey: "2020-01-01", costUSD: 99, totalTokens: 9999),
+            ])
+
+        let today = summary.todayTotals(now: now, providerLastUpdated: now.addingTimeInterval(-86400))
+        #expect(today.availability == .unavailable)
+        #expect(today.costUSD == nil)
+        #expect(today.source == .none)
+    }
+
+    @Test
+    func `today totals retain a stale reported value instead of hiding it`() {
+        let now = Date(timeIntervalSince1970: 1_745_500_000)
+        let summary = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: nil,
+            last30DaysCostUSD: 20,
+            last30DaysTokens: 200,
+            daily: [
+                SyncDailyPoint(
+                    dayKey: SyncCostSummary.iso8601DayKey(for: now),
+                    costUSD: 4.56,
+                    totalTokens: 400),
+            ],
+            costUpdatedAt: now.addingTimeInterval(-2 * 60 * 60))
+
+        let today = summary.todayTotals(now: now)
+        #expect(today.availability == .reported)
+        #expect(today.costUSD == 4.56)
+        #expect(today.isStale)
+    }
+
+    @Test
     func `ProviderUsageSnapshot round-trips through JSON`() throws {
         let snapshot = ProviderUsageSnapshot(
             providerID: "claude",

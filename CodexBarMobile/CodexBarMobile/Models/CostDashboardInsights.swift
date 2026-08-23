@@ -6,8 +6,15 @@ struct CostDashboardInsights {
     struct ProviderRow: Identifiable {
         let provider: ProviderUsageSnapshot
         let thirtyDayCost: Double
-        let todayCost: Double
+        let today: SyncCostSummary.TodayTotals
         let thirtyDayTokens: Int
+
+        /// Kept as a narrow compatibility view for callers that only need
+        /// the numeric amount. New UI should inspect `today.availability` so
+        /// missing data cannot be confused with an explicit zero.
+        var todayCost: Double? {
+            self.today.costUSD
+        }
 
         /// Composite key (providerID|accountEmail) so multi-account rows
         /// with the same providerID don't collapse in SwiftUI ForEach.
@@ -39,12 +46,50 @@ struct CostDashboardInsights {
     /// max Mac `historyDays` across providers (e.g. a 90-day mock provider).
     let cwlWindowDays: Int?
 
+    /// Number of live providers that supplied a cost summary. This is the
+    /// denominator for the current-day coverage label; it is intentionally
+    /// independent of `providerRows`, which may omit providers with no
+    /// historical cost for the selected window.
+    let todayProviderCount: Int
+
     var total30DayCost: Double {
         self.providerRows.reduce(0) { $0 + $1.thirtyDayCost }
     }
 
-    var totalTodayCost: Double {
-        self.providerRows.reduce(0) { $0 + $1.todayCost }
+    /// Known current-day subtotal. `nil` means no provider has reported a
+    /// current-day value; an explicit reported zero remains `0`.
+    var totalTodayCost: Double? {
+        let reported = self.providerRows.compactMap(\.today.costUSD)
+        guard !reported.isEmpty else { return nil }
+        return reported.reduce(0, +)
+    }
+
+    var todayReportingProviderCount: Int {
+        self.providerRows.count(where: { $0.today.isAvailable })
+    }
+
+    var todayCoverageIsPartial: Bool {
+        let reported = self.todayReportingProviderCount
+        return reported > 0 && reported < self.todayProviderCount
+    }
+
+    var todayHasNoReportedProviders: Bool {
+        self.todayReportingProviderCount == 0
+    }
+
+    var todayIsStale: Bool {
+        self.providerRows.contains(where: { $0.today.isAvailable && $0.today.isStale })
+    }
+
+    var todayUpdatedAt: Date? {
+        // When any contributing provider is stale, communicate the oldest
+        // included freshness rather than the newest provider's timestamp.
+        // Otherwise a fresh provider could make a partial stale subtotal look
+        // fully current in the hero subtitle.
+        self.providerRows
+            .filter(\.today.isAvailable)
+            .compactMap(\.today.updatedAt)
+            .min()
     }
 
     var total30DayTokens: Int {
@@ -56,7 +101,9 @@ struct CostDashboardInsights {
     /// ledger to it); when OFF it's the Mac's max configured `historyDays`
     /// (gap F) across providers. nil → caller defaults to 30.
     var historyDays: Int? {
-        if let cwlWindowDays = self.cwlWindowDays { return cwlWindowDays }
+        if let cwlWindowDays = self.cwlWindowDays {
+            return cwlWindowDays
+        }
         return self.providerRows.compactMap { $0.provider.costSummary?.historyDays }.max()
     }
 
@@ -77,7 +124,7 @@ struct CostDashboardInsights {
     }
 
     init(snapshot: SyncedUsageSnapshot) {
-        let todayKey = Self.dayKeyFormatter.string(from: Date())
+        let now = Date()
         var providerRows: [ProviderRow] = []
         var dailyTotals: [String: (costUSD: Double, totalTokens: Int)] = [:]
         var modelTotals: [String: (cost: Double, tokens: Int, hasTokens: Bool)] = [:]
@@ -86,6 +133,7 @@ struct CostDashboardInsights {
         var modelSplits: [String: (std: Double, fast: Double)] = [:]
         var serviceTotals: [String: Double] = [:]
         var budgetRows: [CostBudgetRow] = []
+        var todayProviderCount = 0
 
         // Drop extinct mock zombies before aggregation so the Cost
         // dashboard's totals don't include them. iOS 1.5.2+: see
@@ -97,22 +145,24 @@ struct CostDashboardInsights {
             }
 
             guard let costSummary = provider.costSummary else { continue }
+            todayProviderCount += 1
+
+            let today = costSummary.todayTotals(
+                now: now,
+                providerLastUpdated: provider.lastUpdated)
 
             let thirtyDayCost = costSummary.last30DaysCostUSD
                 ?? costSummary.daily.reduce(0) { $0 + $1.costUSD }
             let thirtyDayTokens = costSummary.last30DaysTokens
                 ?? costSummary.daily.reduce(0) { $0 + $1.totalTokens }
 
-            let todayPoint = costSummary.daily.first(where: { $0.dayKey == todayKey })
-            let todayCost = todayPoint?.costUSD ?? costSummary.sessionCostUSD ?? 0
-
-            guard thirtyDayCost > 0 || todayCost > 0 || !costSummary.daily.isEmpty else { continue }
+            guard thirtyDayCost > 0 || today.isAvailable || !costSummary.daily.isEmpty else { continue }
 
             providerRows.append(
                 ProviderRow(
                     provider: provider,
                     thirtyDayCost: thirtyDayCost,
-                    todayCost: todayCost,
+                    today: today,
                     thirtyDayTokens: thirtyDayTokens))
 
             for point in costSummary.daily {
@@ -162,6 +212,7 @@ struct CostDashboardInsights {
             return lhsRatio > rhsRatio
         }
         self.cwlWindowDays = nil
+        self.todayProviderCount = todayProviderCount
     }
 
     /// Memberwise init used by `fromLedger` (CWL path) and any future
@@ -173,7 +224,8 @@ struct CostDashboardInsights {
         modelRows: [CostBreakdownRow],
         serviceRows: [CostBreakdownRow],
         budgetRows: [CostBudgetRow],
-        cwlWindowDays: Int? = nil)
+        cwlWindowDays: Int? = nil,
+        todayProviderCount: Int? = nil)
     {
         self.providerRows = providerRows
         self.dailyPoints = dailyPoints
@@ -181,6 +233,7 @@ struct CostDashboardInsights {
         self.serviceRows = serviceRows
         self.budgetRows = budgetRows
         self.cwlWindowDays = cwlWindowDays
+        self.todayProviderCount = todayProviderCount ?? providerRows.count
     }
 
     /// Build insights from the Cost Window Ledger aggregation (CWL ON path,
@@ -188,33 +241,57 @@ struct CostDashboardInsights {
     /// series, model / service mix) come from the ledger — re-aggregated over
     /// the user's chosen window, which can exceed Mac's historyDays. Provider
     /// metadata (name, color, budget, loginMethod) still comes from the live
-    /// snapshot since the ledger stores only IDs + numbers. Providers in the
-    /// snapshot but absent from the ledger get no row (no cost yet); ledger
-    /// rollups with no matching live provider are dropped (stale / removed
-    /// provider — no metadata to render).
+    /// snapshot since the ledger stores only IDs + numbers. A live provider
+    /// with fresh session-only today data is included even before it has a
+    /// daily ledger row; ledger rollups with no matching live provider are
+    /// dropped (stale / removed provider — no metadata to render).
     static func fromLedger(
         aggregation: CostLedgerAggregation,
         snapshot: SyncedUsageSnapshot) -> CostDashboardInsights
     {
-        let todayKey = Self.dayKeyFormatter.string(from: Date())
+        let now = Date()
+        let todayKey = Self.dayKeyFormatter.string(from: now)
         let liveProviders = MockProviderDetector.filteredProviders(from: snapshot)
+        let todayProviderCount = liveProviders.count(where: { $0.costSummary != nil })
 
         var providerRows: [ProviderRow] = []
-        for rollup in aggregation.providerRollups.values {
-            // Match on the actual (providerID, accountEmail) tuple — avoids the
-            // "_"-vs-"" nil-sentinel mismatch between the ledger composite key
-            // and `cardIdentityKey`.
-            guard let provider = liveProviders.first(where: {
-                $0.providerID == rollup.providerID
-                    && $0.accountEmail == rollup.accountEmail
-            }) else { continue }
-            let todayCost = rollup.dailyPoints
-                .first(where: { $0.dayKey == todayKey })?.costUSD ?? 0
+        for provider in liveProviders {
+            let rollupKey = "\(provider.providerID)|\(provider.accountEmail ?? "_")"
+            let rollup = aggregation.providerRollups[rollupKey]
+            let todayPoint = rollup?.dailyPoints.first(where: { $0.dayKey == todayKey })
+            let totalUpdatedAt = provider.costSummary?.totalCostUpdatedAt
+                ?? provider.costSummary?.costUpdatedAt
+                ?? provider.lastUpdated
+            let today = if let todayPoint {
+                SyncCostSummary.TodayTotals(
+                    availability: .reported,
+                    source: .daily,
+                    costUSD: todayPoint.costUSD,
+                    tokens: todayPoint.totalTokens,
+                    isEstimated: todayPoint.isEstimated,
+                    updatedAt: totalUpdatedAt,
+                    isStale: Self.isStale(totalUpdatedAt, at: now),
+                    lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max())
+            } else {
+                provider.costSummary?.todayTotals(
+                    now: now,
+                    providerLastUpdated: provider.lastUpdated)
+                    ?? SyncCostSummary.TodayTotals(
+                        availability: .unavailable,
+                        source: .none,
+                        costUSD: nil,
+                        tokens: nil,
+                        isEstimated: nil,
+                        updatedAt: provider.lastUpdated,
+                        isStale: false,
+                        lastReportedDayKey: rollup?.dailyPoints.map(\.dayKey).max())
+            }
+            guard rollup != nil || today.isAvailable else { continue }
             providerRows.append(ProviderRow(
                 provider: provider,
-                thirtyDayCost: rollup.totalCostUSD,
-                todayCost: todayCost,
-                thirtyDayTokens: rollup.totalTokens))
+                thirtyDayCost: rollup?.totalCostUSD ?? 0,
+                today: today,
+                thirtyDayTokens: rollup?.totalTokens ?? 0))
         }
 
         var budgetRows: [CostBudgetRow] = []
@@ -260,7 +337,13 @@ struct CostDashboardInsights {
                 let rhsRatio = rhs.budget.limitAmount > 0 ? rhs.budget.usedAmount / rhs.budget.limitAmount : 0
                 return lhsRatio > rhsRatio
             },
-            cwlWindowDays: aggregation.windowDays)
+            cwlWindowDays: aggregation.windowDays,
+            todayProviderCount: todayProviderCount)
+    }
+
+    private static func isStale(_ updatedAt: Date?, at now: Date) -> Bool {
+        guard let updatedAt else { return false }
+        return now.timeIntervalSince(updatedAt) > 60 * 60
     }
 
     private static func breakdownRows(

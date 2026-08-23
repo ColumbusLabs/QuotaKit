@@ -17,11 +17,10 @@ import SwiftData
 //      this file runs in production — build-140 behavior is identical.
 //   2. Per-day uniqueness by `(deviceID, providerID, dayKey)`. Enforced via
 //      `DailyCostPoint.compositeKey` lookup before insert.
-//   3. Dedup rule: `existing.lastUpdated >= incoming.lastUpdated` → skip.
-//      Same-or-older incoming data is rejected. The wire format has no
-//      per-day timestamp, so all days in a single Mac push share the
-//      `ProviderUsageSnapshot.lastUpdated`. Same-Mac, same-cycle pushes
-//      are therefore correctly skipped as redundant.
+//   3. Dedup compares both payload and displayed-total revisions. A row is
+//      skipped only when both stored dimensions are at least as fresh. Cost
+//      summaries carry optional split freshness timestamps; legacy payloads
+//      fall back to the provider's quota/status `lastUpdated`.
 //   4. The writer never deletes ledger rows. Clearing is a separate
 //      explicit action (P4 + P6).
 
@@ -118,8 +117,9 @@ enum CostLedgerService {
     /// the blob stay in sync (the blob acts as a fallback / authoritative
     /// snapshot for the current Mac window).
     ///
-    /// All days in one call share `provider.lastUpdated` — the wire format
-    /// has no per-day timestamp.
+    /// All days in one call share the summary's cost freshness timestamp.
+    /// Legacy summaries without independent cost freshness fall back to
+    /// `provider.lastUpdated`.
     static func upsertFromSnapshot(
         _ provider: ProviderUsageSnapshot,
         deviceID: String,
@@ -128,6 +128,10 @@ enum CostLedgerService {
         guard let summary = provider.costSummary else { return }
         guard !summary.daily.isEmpty else { return }
 
+        let costUpdatedAt = summary.costUpdatedAt ?? provider.lastUpdated
+        let totalCostUpdatedAt = summary.totalCostUpdatedAt ?? costUpdatedAt
+        let sourceRevisionKey = summary.mobileRevisionKey(
+            providerLastUpdated: provider.lastUpdated)
         let encoder = CloudSyncConstants.makeJSONEncoder()
         for point in summary.daily {
             try Self.upsertDayPoint(
@@ -140,7 +144,9 @@ enum CostLedgerService {
                 isEstimated: point.isEstimated,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
-                lastUpdated: provider.lastUpdated,
+                lastUpdated: costUpdatedAt,
+                totalUpdatedAt: totalCostUpdatedAt,
+                sourceRevisionKey: sourceRevisionKey,
                 encoder: encoder,
                 in: context)
         }
@@ -166,6 +172,8 @@ enum CostLedgerService {
         modelBreakdowns: [SyncCostBreakdown],
         serviceBreakdowns: [SyncCostBreakdown],
         lastUpdated: Date,
+        totalUpdatedAt: Date? = nil,
+        sourceRevisionKey: String? = nil,
         encoder: JSONEncoder? = nil,
         in context: ModelContext) throws
     {
@@ -186,10 +194,18 @@ enum CostLedgerService {
             : try? enc.encode(serviceBreakdowns)
 
         if let existing = try context.fetch(descriptor).first {
-            // Dedup. Skip if we already have data at least as fresh for
-            // this exact (deviceID, providerID, dayKey). Same `lastUpdated`
-            // = same Mac, same cycle = redundant write; older = stale.
-            if existing.lastUpdated >= lastUpdated {
+            // A newer dashboard breakdown revision can be ahead of the local
+            // scanner total. Compare the full two-dimensional revision so a
+            // scanner advance cannot be hidden behind an unchanged max
+            // payload timestamp.
+            let incomingTotalUpdatedAt = totalUpdatedAt ?? lastUpdated
+            let existingTotalUpdatedAt = existing.totalUpdatedAt ?? existing.lastUpdated
+            if existing.lastUpdated >= lastUpdated,
+               existingTotalUpdatedAt >= incomingTotalUpdatedAt,
+               existing.lastUpdated > lastUpdated
+               || existingTotalUpdatedAt > incomingTotalUpdatedAt
+               || existing.sourceRevisionKey == sourceRevisionKey
+            {
                 return
             }
             existing.costUSD = costUSD
@@ -197,7 +213,9 @@ enum CostLedgerService {
             existing.isEstimated = isEstimated
             existing.modelBreakdownsData = modelData
             existing.serviceBreakdownsData = serviceData
-            existing.lastUpdated = lastUpdated
+            existing.lastUpdated = max(existing.lastUpdated, lastUpdated)
+            existing.totalUpdatedAt = max(existingTotalUpdatedAt, incomingTotalUpdatedAt)
+            existing.sourceRevisionKey = sourceRevisionKey
         } else {
             let point = DailyCostPoint(
                 deviceID: deviceID,
@@ -209,7 +227,9 @@ enum CostLedgerService {
                 isEstimated: isEstimated,
                 modelBreakdownsData: modelData,
                 serviceBreakdownsData: serviceData,
-                lastUpdated: lastUpdated)
+                lastUpdated: lastUpdated,
+                totalUpdatedAt: totalUpdatedAt ?? lastUpdated,
+                sourceRevisionKey: sourceRevisionKey)
             context.insert(point)
         }
     }
@@ -217,9 +237,10 @@ enum CostLedgerService {
     // MARK: - Aggregate (reader · Round 3 / P3)
 
     /// Aggregate ledger rows for the trailing `windowDays`. Cross-device
-    /// merge:within the window, group by `(providerID, dayKey)` and keep
-    /// the row with the largest `lastUpdated` (same rule the writer uses
-    /// to dedup within a device, applied across devices at read time).
+    /// merge:within the window, group by `(providerID, dayKey)` and prefer
+    /// the row with the newest displayed-total revision, breaking ties with
+    /// the payload revision. This prevents a newer breakdown-only dashboard
+    /// response from masking a newer total on another device.
     ///
     /// `asOf` exists for deterministic tests; production callers pass `Date()`.
     /// The "window" is `[asOf-(windowDays-1) … asOf]` in UTC dayKeys.
@@ -246,7 +267,12 @@ enum CostLedgerService {
         for row in rows {
             let key = "\(row.providerID)|\(row.accountEmail ?? "_")|\(row.dayKey)"
             if let existing = survivors[key] {
-                if row.lastUpdated > existing.lastUpdated {
+                let rowTotalUpdatedAt = row.totalUpdatedAt ?? row.lastUpdated
+                let existingTotalUpdatedAt = existing.totalUpdatedAt ?? existing.lastUpdated
+                if rowTotalUpdatedAt > existingTotalUpdatedAt
+                    || (rowTotalUpdatedAt == existingTotalUpdatedAt
+                        && row.lastUpdated > existing.lastUpdated)
+                {
                     survivors[key] = row
                 }
             } else {
@@ -449,7 +475,7 @@ enum CostLedgerService {
                     isEstimated: point.isEstimated,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
-                    lastUpdated: row.lastUpdated,
+                    lastUpdated: summary.costUpdatedAt ?? row.lastUpdated,
                     encoder: encoder,
                     in: context)
             }

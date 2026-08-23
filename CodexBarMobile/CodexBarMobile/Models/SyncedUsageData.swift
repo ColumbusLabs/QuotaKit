@@ -686,8 +686,13 @@ final class SyncedUsageData {
         guard let snapshot else { return nil }
         let providers = snapshot.providers
         let latest = providers.map(\.lastUpdated).max() ?? snapshot.syncTimestamp
+        let latestCost = providers.compactMap { $0.costSummary?.costUpdatedAt }.max()
+        let revisionSnapshots = self.deviceSnapshots.isEmpty ? [snapshot] : self.deviceSnapshots
+        let costRevisions = SnapshotIdentityKey.costRevisionComponents(from: revisionSnapshots)
         return SnapshotIdentityKey.make(
             providerIDs: providers.map(\.providerID),
-            lastUpdated: latest)
+            lastUpdated: latest,
+            costUpdatedAt: latestCost,
+            costRevisions: costRevisions)
     }
 }

@@ -78,6 +78,70 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Local cost merge propagates the newest independent cost freshness`() throws {
+        let olderCostFreshness = self.olderDate
+        let newerCostFreshness = self.newerDate
+        func summary(cost: Double, updatedAt: Date) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: cost,
+                sessionTokens: 100,
+                last30DaysCostUSD: cost,
+                last30DaysTokens: 100,
+                daily: [SyncDailyPoint(
+                    dayKey: "2026-08-12", costUSD: cost, totalTokens: 100)],
+                historyCoverageIsEstablished: true,
+                costUpdatedAt: updatedAt)
+        }
+
+        let macA = self.makeSnapshot(
+            deviceName: "Mac A", deviceID: "uuid-a", providers: [self.makeProvider(
+                id: "codex", name: "Codex", email: "user@example.com",
+                lastUpdated: self.newerDate,
+                costSummary: summary(cost: 10, updatedAt: olderCostFreshness))])
+        let macB = self.makeSnapshot(
+            deviceName: "Mac B", deviceID: "uuid-b", providers: [self.makeProvider(
+                id: "codex", name: "Codex", email: "user@example.com",
+                lastUpdated: self.olderDate,
+                costSummary: summary(cost: 3, updatedAt: newerCostFreshness))])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.costUpdatedAt == newerCostFreshness)
+        #expect(cost.totalCostUpdatedAt == olderCostFreshness)
+    }
+
+    @Test
+    func `Local cost merge uses provider freshness for legacy summary fallback`() throws {
+        let legacy = SyncCostSummary(
+            sessionCostUSD: 1,
+            sessionTokens: 1,
+            last30DaysCostUSD: 1,
+            last30DaysTokens: 1,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 1, totalTokens: 1)])
+        let modern = SyncCostSummary(
+            sessionCostUSD: 2,
+            sessionTokens: 2,
+            last30DaysCostUSD: 2,
+            last30DaysTokens: 2,
+            daily: [SyncDailyPoint(dayKey: "2026-08-13", costUSD: 2, totalTokens: 2)],
+            costUpdatedAt: self.olderDate)
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProvider(
+                id: "codex", name: "Codex", email: "user@example.com",
+                lastUpdated: self.newerDate, costSummary: legacy),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProvider(
+                id: "codex", name: "Codex", email: "user@example.com",
+                lastUpdated: self.olderDate, costSummary: modern),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.costUpdatedAt == self.newerDate)
+    }
+
+    @Test
     func `Single device returns its data unchanged`() throws {
         let provider = self.makeProvider(id: "claude", name: "Claude", email: "a@b.com", lastUpdated: self.olderDate)
         let snapshot = self.makeSnapshot(deviceName: "MacBook Air", deviceID: "uuid-1", providers: [provider])
@@ -574,6 +638,40 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Service breakdowns are preserved and merged by label`() throws {
+        let dailyA = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 2.00, totalTokens: 10000,
+            serviceBreakdowns: [
+                SyncCostBreakdown(label: "Responses", costUSD: 1.50),
+                SyncCostBreakdown(label: "Assistants", costUSD: 0.50),
+            ])]
+        let dailyB = [SyncDailyPoint(
+            dayKey: "2024-01-15", costUSD: 1.00, totalTokens: 5000,
+            serviceBreakdowns: [
+                SyncCostBreakdown(label: "Responses", costUSD: 0.80),
+                SyncCostBreakdown(label: "Realtime", costUSD: 0.20),
+            ])]
+
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProviderWithCost(
+                id: "codex", name: "Codex", lastUpdated: self.olderDate,
+                sessionCost: 0, daily: dailyA),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProviderWithCost(
+                id: "codex", name: "Codex", lastUpdated: self.newerDate,
+                sessionCost: 0, daily: dailyB),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let services = try #require(merged.providers[0].costSummary?.daily.first?.serviceBreakdowns)
+        #expect(services.count == 3)
+        #expect(services.first(where: { $0.label == "Responses" })?.costUSD == 2.30)
+        #expect(services.first(where: { $0.label == "Assistants" })?.costUSD == 0.50)
+        #expect(services.first(where: { $0.label == "Realtime" })?.costUSD == 0.20)
+    }
+
+    @Test
     func `Same-day model breakdown merge preserves metadata and token fallback`() throws {
         let dailyA = [SyncDailyPoint(
             dayKey: "2024-01-15", costUSD: 1.25, totalTokens: 2000,
@@ -983,6 +1081,42 @@ struct CloudKitMergeTests {
         let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
         let cursor = try #require(merged.providers.first)
         #expect(cursor.costSummary?.sessionCostUSD == 1.23)
+        #expect(cursor.costSummary?.costUpdatedAt == self.olderDate)
+        #expect(cursor.costSummary?.totalCostUpdatedAt == self.olderDate)
+    }
+
+    @Test
+    func `non-local-cost costSummary prefers independent cost freshness over provider freshness`() throws {
+        let olderProviderNewerCost = SyncCostSummary(
+            sessionCostUSD: 9.87,
+            sessionTokens: 0,
+            last30DaysCostUSD: 9.87,
+            last30DaysTokens: 0,
+            daily: [],
+            costUpdatedAt: self.newerDate)
+        let newerProviderOlderCost = SyncCostSummary(
+            sessionCostUSD: 1.23,
+            sessionTokens: 0,
+            last30DaysCostUSD: 1.23,
+            last30DaysTokens: 0,
+            daily: [],
+            costUpdatedAt: self.olderDate)
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [
+            self.makeProvider(
+                id: "cursor", name: "Cursor", email: "user@example.com",
+                lastUpdated: self.olderDate, costSummary: olderProviderNewerCost),
+        ])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [
+            self.makeProvider(
+                id: "cursor", name: "Cursor", email: "user@example.com",
+                lastUpdated: self.newerDate, costSummary: newerProviderOlderCost),
+        ])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        let cursor = try #require(merged.providers.first)
+        #expect(cursor.costSummary?.sessionCostUSD == 9.87)
+        #expect(cursor.costSummary?.costUpdatedAt == self.newerDate)
+        #expect(cursor.costSummary?.totalCostUpdatedAt == self.newerDate)
     }
 
     @Test
@@ -1278,7 +1412,7 @@ struct CloudKitMergeTests {
         #expect(merged.notificationPushEnabled == nil)
     }
 
-    // MARK: - SyncCostSummary.todayCostUSD prefers daily[today] over session (Build 78)
+    // MARK: - SyncCostSummary today availability and source precedence
 
     //
     // Reported class: same as Subscription Utilization aggregate/detail mismatch
@@ -1286,7 +1420,7 @@ struct CloudKitMergeTests {
     // while `ProviderDetailView`'s "Today" card used `sessionCostUSD` directly.
     // Mid-day the two numbers diverge (session is stale relative to the
     // accumulated daily point, or vice versa). Fix: both paths now go through
-    // `SyncCostSummary.todayCostUSD`.
+    // `SyncCostSummary.todayTotals`.
 
     /// Fixed pin so the tests stay deterministic across wall-clock midnight
     /// crossings. `todayTotals(now:)` is called with this same date, and the
@@ -1313,7 +1447,7 @@ struct CloudKitMergeTests {
     }
 
     @Test
-    func `todayTotals falls back to session when no daily entry for today`() {
+    func `todayTotals rejects an undated session when no daily entry exists today`() {
         let cost = SyncCostSummary(
             sessionCostUSD: 1.23,
             sessionTokens: 1000,
@@ -1326,8 +1460,9 @@ struct CloudKitMergeTests {
                     totalTokens: 9999),
             ])
         let today = cost.todayTotals(now: Self.pinnedToday)
-        #expect(today.costUSD == 1.23) // session fallback
-        #expect(today.tokens == 1000)
+        #expect(today.availability == .unavailable)
+        #expect(today.costUSD == nil)
+        #expect(today.tokens == nil)
     }
 
     @Test

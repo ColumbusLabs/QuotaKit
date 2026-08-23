@@ -1,3 +1,4 @@
+import CodexBarSync
 import Foundation
 import SwiftData
 
@@ -223,22 +224,56 @@ enum CodexBarSwiftDataSchema {
 /// when underlying data changed without hashing the entire snapshot.
 ///
 /// - `providerIDs`: sorted, comma-joined `providerID` list.
-/// - `lastUpdated`: max `lastUpdated` across all visible providers.
+/// - `lastUpdated`: max quota/status `lastUpdated` across all visible providers.
+/// - `costRevisionKey`: sorted per-provider/account cost revisions.
 ///
 /// Semantics: two keys are equal iff both the provider set AND the newest
 /// `lastUpdated` are equal. Adding/removing a provider changes `providerIDs`;
-/// refreshing any provider changes `lastUpdated`.
+/// refreshing any provider changes `lastUpdated`; a cost-only refresh changes
+/// the matching entry in `costRevisionKey` while quota freshness stays stable.
 struct SnapshotIdentityKey: Hashable, Sendable {
     let providerIDs: String
     let lastUpdated: Date
+    let costUpdatedAt: Date?
+    let costRevisionKey: String
 
     /// Build from an arbitrary collection of providers.
     static func make(
         providerIDs: some Sequence<String>,
-        lastUpdated: Date) -> SnapshotIdentityKey
+        lastUpdated: Date,
+        costUpdatedAt: Date? = nil,
+        costRevisions: [String] = []) -> SnapshotIdentityKey
     {
-        SnapshotIdentityKey(
+        let revisionKey = costRevisions.isEmpty
+            ? costUpdatedAt?.timeIntervalSince1970.description ?? ""
+            : costRevisions.sorted().joined(separator: ",")
+        return SnapshotIdentityKey(
             providerIDs: providerIDs.sorted().joined(separator: ","),
-            lastUpdated: lastUpdated)
+            lastUpdated: lastUpdated,
+            costUpdatedAt: costUpdatedAt,
+            costRevisionKey: revisionKey)
+    }
+
+    /// Lossless cost-revision vector from the unmerged device snapshots.
+    /// A merged provider necessarily collapses contributor timestamps (max
+    /// payload / minimum total freshness), so an intermediate device can
+    /// change spend without changing either aggregate scalar. Keeping every
+    /// device/provider/account lane here makes that mutation invalidate view
+    /// caches without putting UI-only identity state on the wire.
+    static func costRevisionComponents(
+        from snapshots: [SyncedUsageSnapshot]) -> [String]
+    {
+        snapshots.flatMap { snapshot in
+            let deviceIdentity = snapshot.deviceID ?? snapshot.deviceName
+            return snapshot.providers.compactMap { provider -> String? in
+                guard let summary = provider.costSummary else { return nil }
+                let payloadRevision = summary.costUpdatedAt ?? provider.lastUpdated
+                let totalRevision = summary.totalCostUpdatedAt ?? payloadRevision
+                return "\(deviceIdentity)|\(provider.cardIdentityKey)" +
+                    "@\(payloadRevision.timeIntervalSince1970)" +
+                    ":\(totalRevision.timeIntervalSince1970)" +
+                    "#\(summary.mobileRevisionKey(providerLastUpdated: provider.lastUpdated))"
+            }
+        }
     }
 }

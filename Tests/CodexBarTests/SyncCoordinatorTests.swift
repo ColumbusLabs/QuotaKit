@@ -8,7 +8,10 @@ import Testing
 final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     var pushCount = 0
     var lastSnapshot: SyncedUsageSnapshot?
+    var snapshotsAcrossCalls: [SyncedUsageSnapshot] = []
     var nextResult: SyncPushResult = .success
+    var shouldBlockNextPush = false
+    private var blockedPushContinuation: CheckedContinuation<Void, Never>?
 
     // P4 — per-provider write tracking
     var perProviderCallCount = 0
@@ -29,7 +32,19 @@ final class MockSyncPusher: SyncPushing, @unchecked Sendable {
     func pushSnapshot(_ snapshot: SyncedUsageSnapshot) async -> SyncPushResult {
         self.pushCount += 1
         self.lastSnapshot = snapshot
+        self.snapshotsAcrossCalls.append(snapshot)
+        if self.shouldBlockNextPush {
+            self.shouldBlockNextPush = false
+            await withCheckedContinuation { continuation in
+                self.blockedPushContinuation = continuation
+            }
+        }
         return self.nextResult
+    }
+
+    func resumeBlockedPush() {
+        self.blockedPushContinuation?.resume()
+        self.blockedPushContinuation = nil
     }
 
     @discardableResult
@@ -151,6 +166,11 @@ struct SyncCoordinatorTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        let providerUpdatedAt = Date(timeIntervalSince1970: 1_799_999_995)
+        let costUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: providerUpdatedAt),
+            provider: .codex)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
                 sessionTokens: 30,
@@ -159,7 +179,7 @@ struct SyncCoordinatorTests {
                 last30DaysCostUSD: 3,
                 historyCoverageIsEstablished: false,
                 daily: [],
-                updatedAt: Date(timeIntervalSince1970: 1_800_000_000)),
+                updatedAt: costUpdatedAt),
             provider: .codex)
 
         let mock = MockSyncPusher()
@@ -168,6 +188,10 @@ struct SyncCoordinatorTests {
 
         let codex = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "codex" })
         #expect(codex.costSummary?.historyCoverageIsEstablished == false)
+        #expect(codex.lastUpdated == providerUpdatedAt)
+        #expect(codex.costSummary?.costUpdatedAt == costUpdatedAt)
+        #expect(codex.costSummary?.totalCostUpdatedAt == costUpdatedAt)
+        #expect(codex.costSummary?.sourceRevisions?["tokenScanner"] == costUpdatedAt)
     }
 
     @Test
@@ -202,6 +226,9 @@ struct SyncCoordinatorTests {
         #expect(provider.budget == nil)
         #expect(provider.costSummary?.last30DaysCostUSD == 4)
         #expect(provider.costSummary?.isEstimated == true)
+        #expect(provider.costSummary?.costUpdatedAt == usage.updatedAt)
+        #expect(provider.costSummary?.totalCostUpdatedAt == usage.updatedAt)
+        #expect(provider.costSummary?.sourceRevisions?["xai"] == usage.updatedAt)
     }
 
     @Test
@@ -405,6 +432,123 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `cost mutation during an in flight push is published by one trailing push`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-trailing-cost-push")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let initialDate = Date(timeIntervalSince1970: 1_800_000_000)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 100,
+                sessionCostUSD: 1,
+                last30DaysTokens: 100,
+                last30DaysCostUSD: 1,
+                daily: [],
+                updatedAt: initialDate),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        mock.shouldBlockNextPush = true
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        coordinator.startObserving()
+
+        let initialPush = Task { @MainActor in
+            await coordinator.pushCurrentSnapshot()
+        }
+        for _ in 0..<100 where mock.pushCount == 0 {
+            await Task.yield()
+        }
+        #expect(mock.pushCount == 1)
+        #expect(coordinator.isSyncing)
+
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 250,
+                sessionCostUSD: 2.5,
+                last30DaysTokens: 250,
+                last30DaysCostUSD: 2.5,
+                daily: [],
+                updatedAt: initialDate.addingTimeInterval(5)),
+            provider: .codex)
+        // Let the observation callback re-arm and mark the active drain pending.
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+
+        mock.resumeBlockedPush()
+        await initialPush.value
+
+        #expect(mock.pushCount == 2)
+        let finalCodex = try #require(mock.lastSnapshot?.providers.first {
+            $0.providerID == UsageProvider.codex.rawValue
+        })
+        #expect(finalCodex.costSummary?.sessionCostUSD == 2.5)
+        #expect(coordinator.isSyncing == false)
+    }
+
+    @Test
+    func `multiple mutations during an in flight push coalesce into one trailing push`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-coalesced-cost-push")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        let initialDate = Date(timeIntervalSince1970: 1_800_000_000)
+
+        func snapshot(cost: Double, offset: TimeInterval) -> CostUsageTokenSnapshot {
+            CostUsageTokenSnapshot(
+                sessionTokens: Int(cost * 100),
+                sessionCostUSD: cost,
+                last30DaysTokens: Int(cost * 100),
+                last30DaysCostUSD: cost,
+                daily: [],
+                updatedAt: initialDate.addingTimeInterval(offset))
+        }
+
+        store._setTokenSnapshotForTesting(snapshot(cost: 1, offset: 0), provider: .codex)
+        let mock = MockSyncPusher()
+        mock.shouldBlockNextPush = true
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        coordinator.startObserving()
+
+        let initialPush = Task { @MainActor in
+            await coordinator.pushCurrentSnapshot()
+        }
+        for _ in 0..<100 where mock.pushCount == 0 {
+            await Task.yield()
+        }
+        #expect(mock.pushCount == 1)
+
+        store._setTokenSnapshotForTesting(snapshot(cost: 2, offset: 2), provider: .codex)
+        for _ in 0..<10 {
+            await Task.yield()
+        }
+        store._setTokenSnapshotForTesting(snapshot(cost: 3, offset: 3), provider: .codex)
+        for _ in 0..<10 {
+            await Task.yield()
+        }
+        store._setTokenSnapshotForTesting(snapshot(cost: 4, offset: 4), provider: .codex)
+        for _ in 0..<20 {
+            await Task.yield()
+        }
+
+        mock.resumeBlockedPush()
+        await initialPush.value
+
+        #expect(mock.pushCount == 2)
+        let finalCodex = try #require(mock.lastSnapshot?.providers.first {
+            $0.providerID == UsageProvider.codex.rawValue
+        })
+        #expect(finalCodex.costSummary?.sessionCostUSD == 4)
+    }
+
+    @Test
     func `push includes model and service breakdowns`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-breakdowns")
         settings.iCloudSyncEnabled = true
@@ -414,6 +558,8 @@ struct SyncCoordinatorTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        let tokenUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let dashboardUpdatedAt = tokenUpdatedAt.addingTimeInterval(5)
         store._setTokenSnapshotForTesting(
             CostUsageTokenSnapshot(
                 sessionTokens: 1500,
@@ -433,7 +579,7 @@ struct SyncCoordinatorTests {
                             .init(modelName: "gpt-5.3-codex", costUSD: 0.60, totalTokens: 400),
                         ]),
                 ],
-                updatedAt: Date()),
+                updatedAt: tokenUpdatedAt),
             provider: .codex)
         store.openAIDashboard = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
@@ -450,7 +596,7 @@ struct SyncCoordinatorTests {
                     totalCreditsUsed: 2.40),
             ],
             creditsPurchaseURL: nil,
-            updatedAt: Date())
+            updatedAt: dashboardUpdatedAt)
 
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
@@ -470,6 +616,10 @@ struct SyncCoordinatorTests {
             SyncCostBreakdown(label: "Codex Run", costUSD: 1.90),
             SyncCostBreakdown(label: "GitHub Code Review", costUSD: 0.50),
         ])
+        #expect(costSummary.costUpdatedAt == dashboardUpdatedAt)
+        #expect(costSummary.totalCostUpdatedAt == tokenUpdatedAt)
+        #expect(costSummary.sourceRevisions?["tokenScanner"] == tokenUpdatedAt)
+        #expect(costSummary.sourceRevisions?["openAIDashboard"] == dashboardUpdatedAt)
     }
 
     @Test
@@ -482,6 +632,7 @@ struct SyncCoordinatorTests {
             enabled: true)
 
         let store = self.makeUsageStore(settings: settings)
+        let dashboardUpdatedAt = Date(timeIntervalSince1970: 1_800_000_000)
         store.openAIDashboard = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
             codeReviewRemainingPercent: nil,
@@ -498,7 +649,7 @@ struct SyncCoordinatorTests {
                     totalCreditsUsed: 1.25),
             ],
             creditsPurchaseURL: nil,
-            updatedAt: Date())
+            updatedAt: dashboardUpdatedAt)
 
         let mock = MockSyncPusher()
         let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
@@ -512,6 +663,9 @@ struct SyncCoordinatorTests {
         #expect(costSummary.last30DaysCostUSD == 2.0)
         #expect(costSummary.daily.count == 2)
         #expect(costSummary.daily[0].serviceBreakdowns == [SyncCostBreakdown(label: "Codex Run", costUSD: 0.75)])
+        #expect(costSummary.costUpdatedAt == dashboardUpdatedAt)
+        #expect(costSummary.totalCostUpdatedAt == dashboardUpdatedAt)
+        #expect(costSummary.sourceRevisions?["openAIDashboard"] == dashboardUpdatedAt)
     }
 
     @Test

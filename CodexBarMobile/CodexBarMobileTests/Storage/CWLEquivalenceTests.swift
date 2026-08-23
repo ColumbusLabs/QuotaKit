@@ -192,6 +192,53 @@ struct CWLEquivalenceTests {
     }
 
     @Test
+    func `CWL includes fresh session-only today data before a ledger row exists`() {
+        let now = Date()
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: now,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 12.34,
+                sessionTokens: 4321,
+                last30DaysCostUSD: 12.34,
+                last30DaysTokens: 4321,
+                daily: [],
+                costUpdatedAt: now,
+                totalCostUpdatedAt: now))
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: now,
+            deviceName: "Test Mac",
+            deviceID: "test-device")
+        let emptyLedger = CostLedgerAggregation(
+            windowDays: 30,
+            totalCostUSD: 0,
+            totalTokens: 0,
+            activeDayCount: 0,
+            providerRollups: [:],
+            dailyPoints: [],
+            modelMix: [],
+            serviceMix: [])
+
+        let insights = CostDashboardInsights.fromLedger(
+            aggregation: emptyLedger,
+            snapshot: snapshot)
+
+        #expect(insights.providerRows.count == 1)
+        #expect(insights.providerRows[0].today.source == .session)
+        #expect(insights.totalTodayCost == 12.34)
+        #expect(insights.todayReportingProviderCount == 1)
+        #expect(insights.hasDisplayData)
+    }
+
+    @Test
     func `Equivalence holds with multi-account providers (two Codex accounts)`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

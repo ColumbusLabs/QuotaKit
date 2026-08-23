@@ -17,6 +17,8 @@ final class ShareCardRenderTests: XCTestCase {
 
         let cases: [(SharePeriod, ShareCardData, String)] = [
             (.today, .previewToday, "today"),
+            (.today, Self.todayPreview(status: .partial), "today_partial"),
+            (.today, Self.todayPreview(status: .unavailable), "today_unavailable"),
             (.week, .preview7d, "7day"),
             (.month, .preview, "30day"),
         ]
@@ -37,5 +39,18 @@ final class ShareCardRenderTests: XCTestCase {
                 print("✅ \(styleLabel)_\(label)")
             }
         }
+    }
+
+    private static func todayPreview(status: ShareCardData.TodayStatus) -> ShareCardData {
+        ShareCardData(
+            totalCost: status == .unavailable ? 0 : 18.42,
+            todayCost: status == .unavailable ? 0 : 18.42,
+            todayStatus: status,
+            totalTokens: status == .unavailable ? 0 : 240_000,
+            activeDays: status == .unavailable ? 0 : 1,
+            avgDailyCost: status == .unavailable ? 0 : 18.42,
+            providers: [],
+            topModels: [],
+            dailyBars: [])
     }
 }

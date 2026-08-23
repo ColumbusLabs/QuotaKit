@@ -224,6 +224,19 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let sessionRequests: Int?
     public let last30DaysRequests: Int?
     public let currencyCode: String?
+    /// Timestamp of the newest cost-bearing source included in this summary.
+    /// Optional for wire compatibility with Mac builds that predate
+    /// independent cost freshness. This is intentionally separate from the
+    /// provider's quota/status `lastUpdated` timestamp.
+    public let costUpdatedAt: Date?
+    /// Freshness of the source that supplied the aggregate/daily cost totals.
+    /// This can be older than `costUpdatedAt` when a newer auxiliary source
+    /// only changes breakdown metadata. Optional for wire compatibility.
+    public let totalCostUpdatedAt: Date?
+    /// Independent revisions for every source contributing cost content.
+    /// Aggregate timestamps cannot identify subordinate source changes.
+    /// Optional for wire compatibility with older producers.
+    public let sourceRevisions: [String: Date]?
 
     public init(
         sessionCostUSD: Double?,
@@ -236,7 +249,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         historyCoverageIsEstablished: Bool? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
-        currencyCode: String? = nil)
+        currencyCode: String? = nil,
+        costUpdatedAt: Date? = nil,
+        totalCostUpdatedAt: Date? = nil,
+        sourceRevisions: [String: Date]? = nil)
     {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
@@ -249,6 +265,9 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode
+        self.costUpdatedAt = costUpdatedAt
+        self.totalCostUpdatedAt = totalCostUpdatedAt
+        self.sourceRevisions = sourceRevisions
     }
 
     /// Reconciles an incoming summary (`self`) with the previously retained
@@ -259,13 +278,36 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// known partial (`false`). An incoming summary of equal or higher quality
     /// is authoritative. A lower-quality summary keeps previous values for
     /// overlapping days, retains previous missing days, and may add new days.
-    public func reconcilingHistory(with previous: SyncCostSummary?) -> SyncCostSummary {
-        guard let previous,
-              Self.historyCoverageRank(self.historyCoverageIsEstablished)
-              < Self.historyCoverageRank(previous.historyCoverageIsEstablished)
-        else {
+    public func reconcilingHistory(
+        with previous: SyncCostSummary?,
+        previousFallbackUpdatedAt: Date? = nil) -> SyncCostSummary
+    {
+        guard let previous else {
             return self
         }
+
+        let reconciledCostUpdatedAt = Self.latestCostUpdatedAt(
+            self.costUpdatedAt,
+            previous.costUpdatedAt)
+        let previousTotalCostUpdatedAt = previous.totalCostUpdatedAt
+            ?? previous.costUpdatedAt
+            ?? previousFallbackUpdatedAt
+        let incomingRank = Self.historyCoverageRank(self.historyCoverageIsEstablished)
+        let previousRank = Self.historyCoverageRank(previous.historyCoverageIsEstablished)
+
+        // An equal- or higher-quality incoming history is authoritative, but
+        // the freshness marker still represents the newest cost source known
+        // across both summaries.
+        guard incomingRank < previousRank else {
+            return self.withFreshness(
+                costUpdatedAt: reconciledCostUpdatedAt,
+                totalCostUpdatedAt: self.totalCostUpdatedAt,
+                sourceRevisions: self.sourceRevisions)
+        }
+
+        let reconciledSourceRevisions = Self.mergingSourceRevisions(
+            self.sourceRevisions,
+            previous.sourceRevisions)
 
         var dailyByDayKey: [String: SyncDailyPoint] = [:]
         for point in self.daily {
@@ -301,7 +343,42 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             // cannot safely derive this aggregate. Retain the higher-quality
             // value rather than publishing an inconsistent incoming total.
             last30DaysRequests: previous.last30DaysRequests,
-            currencyCode: self.currencyCode ?? previous.currencyCode)
+            currencyCode: self.currencyCode ?? previous.currencyCode,
+            costUpdatedAt: reconciledCostUpdatedAt,
+            // The higher-quality prior history remains authoritative for
+            // overlapping daily values. Do not label those retained totals
+            // with the newer partial scan's timestamp.
+            totalCostUpdatedAt: previousTotalCostUpdatedAt,
+            sourceRevisions: reconciledSourceRevisions)
+    }
+
+    private func withFreshness(
+        costUpdatedAt: Date?,
+        totalCostUpdatedAt: Date?,
+        sourceRevisions: [String: Date]?) -> SyncCostSummary
+    {
+        guard costUpdatedAt != self.costUpdatedAt
+            || totalCostUpdatedAt != self.totalCostUpdatedAt
+            || sourceRevisions != self.sourceRevisions
+        else {
+            return self
+        }
+
+        return SyncCostSummary(
+            sessionCostUSD: self.sessionCostUSD,
+            sessionTokens: self.sessionTokens,
+            last30DaysCostUSD: self.last30DaysCostUSD,
+            last30DaysTokens: self.last30DaysTokens,
+            daily: self.daily,
+            isEstimated: self.isEstimated,
+            historyDays: self.historyDays,
+            historyCoverageIsEstablished: self.historyCoverageIsEstablished,
+            sessionRequests: self.sessionRequests,
+            last30DaysRequests: self.last30DaysRequests,
+            currencyCode: self.currencyCode,
+            costUpdatedAt: costUpdatedAt,
+            totalCostUpdatedAt: totalCostUpdatedAt,
+            sourceRevisions: sourceRevisions)
     }
 
     private static func historyCoverageRank(_ value: Bool?) -> Int {
@@ -310,6 +387,26 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         case nil: 1
         case false: 0
         }
+    }
+
+    private static func latestCostUpdatedAt(_ lhs: Date?, _ rhs: Date?) -> Date? {
+        switch (lhs, rhs) {
+        case let (lhs?, rhs?): max(lhs, rhs)
+        case let (value?, nil), let (nil, value?): value
+        case (nil, nil): nil
+        }
+    }
+
+    private static func mergingSourceRevisions(
+        _ lhs: [String: Date]?,
+        _ rhs: [String: Date]?) -> [String: Date]?
+    {
+        guard lhs != nil || rhs != nil else { return nil }
+        var merged = rhs ?? [:]
+        for (source, revision) in lhs ?? [:] {
+            merged[source] = max(merged[source] ?? .distantPast, revision)
+        }
+        return merged
     }
 }
 

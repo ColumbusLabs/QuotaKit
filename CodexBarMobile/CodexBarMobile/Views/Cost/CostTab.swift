@@ -36,6 +36,7 @@ struct CostTab: View {
     /// `cachedInsightsKey` alone decides cache validity.
     @State private var cachedInsightsKey = ""
     @State private var cachedInsights: CostDashboardInsights?
+    @State private var freshnessRevision = 0
 
     /// The expensive aggregation. Callers go through `resolvedInsights()`.
     private func computeInsights() -> CostDashboardInsights? {
@@ -59,9 +60,9 @@ struct CostTab: View {
     /// Inputs that can change what `computeInsights()` returns:
     /// - demo mode renders a static sample snapshot (snapshot identity is
     ///   irrelevant while it's on),
-    /// - `SnapshotIdentityKey` covers provider set + data freshness (the
-    ///   ledger is written in lockstep with snapshot publication inside
-    ///   `applyFullFetchResults`, so it needs no separate key component),
+    /// - `SnapshotIdentityKey` covers provider set + quota/status and
+    ///   independent cost freshness (a cost-only Mac refresh must invalidate
+    ///   the memo even when provider quota freshness is unchanged),
     /// - the CWL toggle + window change the aggregation source,
     /// - `todayKey` flips the "Today" totals at midnight.
     static func insightsCacheKey(
@@ -69,14 +70,16 @@ struct CostTab: View {
         snapshotKey: SnapshotIdentityKey?,
         cwlEnabled: Bool,
         cwlWindowDays: Int,
-        todayKey: String) -> String
+        todayKey: String,
+        freshnessRevision: Int = 0) -> String
     {
         CostInsightsCacheKey.make(
             isDemoMode: isDemoMode,
             snapshotKey: snapshotKey,
             cwlEnabled: cwlEnabled,
             cwlWindowDays: cwlWindowDays,
-            todayKey: todayKey)
+            todayKey: todayKey,
+            freshnessRevision: freshnessRevision)
     }
 
     private var insightsCacheKey: String {
@@ -85,7 +88,40 @@ struct CostTab: View {
             snapshotKey: self.usageData.snapshotIdentityKey,
             cwlEnabled: self.cwlEnabled,
             cwlWindowDays: self.cwlWindowDays,
-            todayKey: CostDashboardInsights.todayDayKey())
+            todayKey: CostDashboardInsights.todayDayKey(),
+            freshnessRevision: self.freshnessRevision)
+    }
+
+    /// Earliest clock boundary that can change Today presentation: either a
+    /// fresh value becomes stale or the local calendar rolls to a new day.
+    /// The midnight boundary remains scheduled even if every value is already
+    /// stale, so an app left open overnight cannot retain yesterday as Today.
+    static func nextTemporalTransition(
+        now: Date,
+        providers: [ProviderUsageSnapshot],
+        calendar: Calendar = .current) -> Date?
+    {
+        let nextMidnight = calendar.date(
+            byAdding: .day,
+            value: 1,
+            to: calendar.startOfDay(for: now))
+        let nextStaleness = providers.compactMap { provider -> Date? in
+            guard let summary = provider.costSummary else { return nil }
+            let today = summary.todayTotals(
+                now: now,
+                providerLastUpdated: provider.lastUpdated)
+            guard today.isAvailable, !today.isStale, let updatedAt = today.updatedAt else {
+                return nil
+            }
+            let transition = updatedAt.addingTimeInterval(60 * 60)
+            return transition > now ? transition : nil
+        }.min()
+        return [nextMidnight, nextStaleness].compactMap(\.self).min()
+    }
+
+    private var nextTemporalTransition: Date? {
+        guard !self.isDemoMode, let snapshot = self.displaySnapshot else { return nil }
+        return Self.nextTemporalTransition(now: Date(), providers: snapshot.providers)
     }
 
     /// Cache hit → stored value; miss → synchronous compute so the current
@@ -183,6 +219,13 @@ struct CostTab: View {
             guard self.cachedInsightsKey != newKey else { return }
             self.cachedInsightsKey = newKey
             self.cachedInsights = self.computeInsights()
+        }
+        .task(id: self.nextTemporalTransition) {
+            guard let transition = self.nextTemporalTransition else { return }
+            let delay = max(0, transition.timeIntervalSinceNow)
+            try? await Task.sleep(nanoseconds: UInt64(delay * 1_000_000_000))
+            guard !Task.isCancelled else { return }
+            self.freshnessRevision &+= 1
         }
     }
 }

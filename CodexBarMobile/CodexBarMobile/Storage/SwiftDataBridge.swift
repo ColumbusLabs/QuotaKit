@@ -164,7 +164,9 @@ enum SwiftDataBridge {
             let previousCost = existing?.costSummaryData.flatMap {
                 try? decoder.decode(SyncCostSummary.self, from: $0)
             }
-            persistedProvider.costSummary = incomingCost.reconcilingHistory(with: previousCost)
+            persistedProvider.costSummary = incomingCost.reconcilingHistory(
+                with: previousCost,
+                previousFallbackUpdatedAt: existing?.lastUpdated)
         }
         let rateWindowsData = (try? encoder.encode(provider.allRateWindows)) ?? Data("[]".utf8)
         let costSummaryData = persistedProvider.costSummary.flatMap { try? encoder.encode($0) }

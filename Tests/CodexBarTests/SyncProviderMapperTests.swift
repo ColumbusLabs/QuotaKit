@@ -87,6 +87,9 @@ struct SyncProviderMapperTests {
             provider: .mistral, snapshot: self.snapshot(mistral: self.mistralFixture())))
         #expect(summary.last30DaysCostUSD == 4.2)
         #expect(summary.last30DaysTokens == 1700) // 1000 + 500 + 200
+        #expect(summary.costUpdatedAt == Self.now)
+        #expect(summary.totalCostUpdatedAt == Self.now)
+        #expect(summary.sourceRevisions?["mistral"] == Self.now)
         #expect(summary.daily.count == 2)
 
         let day25 = try #require(summary.daily.first { $0.dayKey == "2026-05-25" })

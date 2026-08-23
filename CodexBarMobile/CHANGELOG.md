@@ -26,6 +26,9 @@ current Columbus Labs product surface and recent release history.
 
 - Daily Spend now retains the last complete cost and model breakdown while the
   Mac is rebuilding Codex history, instead of temporarily showing a reduced total.
+- Today's spend now refreshes when cost changes without a quota change, and
+  missing or delayed Mac data is shown as unavailable or partial instead of a
+  false `$0.00` / "No spend today."
 
 ## [1.11.3 (175)] — 2026-08-04 — Model token usage
 

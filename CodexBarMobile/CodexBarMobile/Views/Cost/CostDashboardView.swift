@@ -64,7 +64,9 @@ struct CostDashboardView: View {
                         .padding(.top, 4)
                 }
 
-                if !self.insights.modelRows.isEmpty { self.modelMixSection }
+                if !self.insights.modelRows.isEmpty {
+                    self.modelMixSection
+                }
 
                 if !self.insights.serviceRows.isEmpty {
                     self.contributionSection(
@@ -111,7 +113,7 @@ struct CostDashboardView: View {
                 tokenSubtitle: self.insights.total30DayTokens > 0
                     ? Self.formatTokens(self.insights.total30DayTokens)
                     : String(localized: "No token data"),
-                todayValue: Self.formatUSD(self.insights.totalTodayCost),
+                todayValue: self.insights.totalTodayCost.map(Self.formatUSD) ?? "—",
                 todaySubtitle: self.providersActiveSubtitle,
                 topDriverValue: Self.formatUSD(self.insights.topProvider?.thirtyDayCost ?? 0),
                 topDriverSubtitle: self.topDriverSubtitle ?? String(localized: "No data"),
@@ -417,7 +419,9 @@ struct CostDashboardView: View {
         return VStack(alignment: .leading, spacing: 10) {
             HStack(alignment: .top, spacing: 12) {
                 QKSectionHeader(title: title, subtitle: subtitle)
-                if showsModelMetricToggle { self.modelMetricPicker }
+                if showsModelMetricToggle {
+                    self.modelMetricPicker
+                }
             }
             .padding(.top, 4)
 
@@ -485,12 +489,20 @@ struct CostDashboardView: View {
     }
 
     private func providerSubtitle(for row: CostDashboardInsights.ProviderRow) -> String {
-        let today = row.todayCost > 0
-            ? "\(String(localized: "Today")) \(Self.formatUSD(row.todayCost))"
-            : String(localized: "No spend today")
+        let today = if !row.today.isAvailable {
+            String(localized: "Not updated today")
+        } else if let cost = row.today.costUSD, cost == 0 {
+            String(localized: "No spend today")
+        } else if let cost = row.today.costUSD {
+            "\(String(localized: "Today")) \(Self.formatUSD(cost))"
+        } else {
+            String(localized: "Not updated today")
+        }
+
+        let freshness = row.today.isStale ? self.updatedSubtitle(for: row.today.updatedAt) : nil
         let tokens = row.thirtyDayTokens > 0 ? Self
             .formatTokens(row.thirtyDayTokens) : String(localized: "No token data")
-        return "\(today) · \(tokens)"
+        return [today, freshness, tokens].compactMap(\.self).joined(separator: " · ")
     }
 
     private var topDriverSubtitle: String? {
@@ -505,7 +517,30 @@ struct CostDashboardView: View {
     }
 
     private var providersActiveSubtitle: String {
-        "\(self.insights.providerRows.count(where: { $0.todayCost > 0 }).formatted()) \(String(localized: "providers active"))"
+        if self.insights.todayHasNoReportedProviders {
+            return String(localized: "Waiting for today's Mac sync")
+        }
+
+        if self.insights.todayCoverageIsPartial {
+            return String(
+                format: String(localized: "%d of %d providers updated"),
+                self.insights.todayReportingProviderCount,
+                self.insights.todayProviderCount)
+        }
+
+        if self.insights.todayIsStale {
+            return self.updatedSubtitle(for: self.insights.todayUpdatedAt)
+                ?? String(localized: "Updated")
+        }
+
+        return "\(self.insights.todayReportingProviderCount.formatted()) \(String(localized: "providers active"))"
+    }
+
+    private func updatedSubtitle(for date: Date?) -> String? {
+        guard let date else { return nil }
+        let formatter = RelativeDateTimeFormatter()
+        formatter.unitsStyle = .abbreviated
+        return "\(String(localized: "Updated")) \(formatter.localizedString(for: date, relativeTo: Date()))"
     }
 
     private var selectedPoint: CostDashboardInsights.DailyPoint? {

@@ -56,13 +56,16 @@ final class DailyCostPoint {
     /// Encoded `[SyncCostBreakdown]` for service-level breakdowns. Decoded on read.
     var serviceBreakdownsData: Data?
 
-    /// When this day's data was last refreshed by the Mac that pushed it.
-    /// Used by the writer's dedup:
-    /// `if existing.lastUpdated >= new.lastUpdated → skip` (we already have
-    /// fresher data for this `(deviceID, providerID, dayKey)`). Also used by
-    /// the reader's multi-device merge — same `(providerID, dayKey)` across
-    /// devices, latest `lastUpdated` wins.
+    /// Payload revision: newest cost-bearing input included in this row.
+    /// This can advance for breakdown-only dashboard data.
     var lastUpdated: Date
+    /// Freshness of the source supplying `costUSD` and `totalTokens`. Optional
+    /// so existing CWL stores lightweight-migrate; nil means `lastUpdated` for
+    /// rows written before the split-freshness contract.
+    var totalUpdatedAt: Date?
+    /// Deterministic per-source revision vector. Optional for lightweight
+    /// migration from rows written before independent source revisions.
+    var sourceRevisionKey: String?
 
     init(
         deviceID: String,
@@ -74,7 +77,9 @@ final class DailyCostPoint {
         isEstimated: Bool? = nil,
         modelBreakdownsData: Data? = nil,
         serviceBreakdownsData: Data? = nil,
-        lastUpdated: Date)
+        lastUpdated: Date,
+        totalUpdatedAt: Date? = nil,
+        sourceRevisionKey: String? = nil)
     {
         self.compositeKey = Self.makeCompositeKey(
             deviceID: deviceID,
@@ -91,6 +96,8 @@ final class DailyCostPoint {
         self.modelBreakdownsData = modelBreakdownsData
         self.serviceBreakdownsData = serviceBreakdownsData
         self.lastUpdated = lastUpdated
+        self.totalUpdatedAt = totalUpdatedAt
+        self.sourceRevisionKey = sourceRevisionKey
     }
 
     /// Compose the composite unique key. Format pinned:

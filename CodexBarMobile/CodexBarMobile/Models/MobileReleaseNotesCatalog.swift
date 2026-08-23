@@ -51,6 +51,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Provider Daily Spend bars can now be tapped or scrubbed to show the selected day's per-model cost and token usage, matching the Mac cost-history detail."),
                         String(
                             localized: "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."),
+                        String(
+                            localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),
                     ]),
             ]),
         ReleaseNotesVersion(

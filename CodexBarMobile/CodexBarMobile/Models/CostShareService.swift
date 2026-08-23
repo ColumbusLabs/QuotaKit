@@ -50,14 +50,51 @@ enum SharePeriod: String, CaseIterable, Identifiable {
 // MARK: - Data model for share card
 
 struct ShareCardData {
+    enum TodayStatus: Equatable {
+        case reported
+        case partial
+        case unavailable
+    }
+
     let totalCost: Double // total for the selected period
+    /// Numeric compatibility value for existing card renderers. Renderers
+    /// must inspect `todayStatus` before displaying it; unavailable today
+    /// data is represented by zero here only because the original share-card
+    /// wire shape required a non-optional number.
     let todayCost: Double
+    let todayStatus: TodayStatus
     let totalTokens: Int
     let activeDays: Int
     let avgDailyCost: Double
     let providers: [ProviderRow]
     let topModels: [BreakdownRow]
     let dailyBars: [DailyBar] // bars for chart (7 or 30 entries)
+
+    init(
+        totalCost: Double,
+        todayCost: Double,
+        todayStatus: TodayStatus = .reported,
+        totalTokens: Int,
+        activeDays: Int,
+        avgDailyCost: Double,
+        providers: [ProviderRow],
+        topModels: [BreakdownRow],
+        dailyBars: [DailyBar])
+    {
+        self.totalCost = totalCost
+        self.todayCost = todayCost
+        self.todayStatus = todayStatus
+        self.totalTokens = totalTokens
+        self.activeDays = activeDays
+        self.avgDailyCost = avgDailyCost
+        self.providers = providers
+        self.topModels = topModels
+        self.dailyBars = dailyBars
+    }
+
+    var todayIsAvailable: Bool {
+        self.todayStatus != .unavailable
+    }
 
     struct ProviderRow {
         let name: String
@@ -164,7 +201,7 @@ extension ShareCardData {
         let providerRows: [ProviderRow] = insights.providerRows.map { row in
             let cost: Double = switch period {
             case .today:
-                row.todayCost
+                row.today.costUSD ?? 0
             case .week, .month:
                 row.thirtyDayCost // we'll recalculate for 7d below
             }
@@ -192,10 +229,9 @@ extension ShareCardData {
         let periodTokens: Int
         switch period {
         case .today:
-            periodCost = insights.totalTodayCost
+            periodCost = insights.totalTodayCost ?? 0
             periodTokens = insights.providerRows.reduce(0) { total, row in
-                // Today's tokens from provider's cost summary
-                total + (row.provider.costSummary?.sessionTokens ?? 0)
+                total + (row.today.isAvailable ? (row.today.tokens ?? 0) : 0)
             }
         case .week:
             periodCost = filteredDays.reduce(0) { $0 + $1.costUSD }
@@ -230,13 +266,20 @@ extension ShareCardData {
         }
 
         let activeDays: Int = switch period {
-        case .today: 1
+        case .today: insights.totalTodayCost == nil ? 0 : 1
         case .week: filteredDays.count(where: { $0.costUSD > 0 })
         case .month: insights.activeDayCount
         }
 
         self.totalCost = periodCost
-        self.todayCost = insights.totalTodayCost
+        self.todayCost = insights.totalTodayCost ?? 0
+        self.todayStatus = if insights.todayHasNoReportedProviders {
+            .unavailable
+        } else if insights.todayCoverageIsPartial {
+            .partial
+        } else {
+            .reported
+        }
         self.totalTokens = periodTokens
         self.activeDays = activeDays
         self.avgDailyCost = activeDays > 0 ? periodCost / Double(activeDays) : 0

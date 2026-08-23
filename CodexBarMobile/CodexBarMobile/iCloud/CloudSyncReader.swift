@@ -396,6 +396,65 @@ final class CloudSyncReader: @unchecked Sendable {
             .first(where: { $0[keyPath: keyPath] != nil })?[keyPath: keyPath]
     }
 
+    /// Chooses the freshest non-local cost summary using its field-specific
+    /// cost timestamp when available. Older Mac payloads do not carry
+    /// `costUpdatedAt`, so their provider quota/status timestamp remains the
+    /// compatibility fallback. Provider `lastUpdated` is used as a tie-break
+    /// so two legacy or equal-cost revisions remain deterministic.
+    private static func latestCostSummaryNonNil(
+        _ entries: [ProviderUsageSnapshot]) -> SyncCostSummary?
+    {
+        let selected = entries.compactMap { entry in
+            entry.costSummary.map {
+                (
+                    summary: $0,
+                    costUpdatedAt: $0.costUpdatedAt ?? entry.lastUpdated,
+                    providerUpdatedAt: entry.lastUpdated)
+            }
+        }
+        .max { lhs, rhs in
+            if lhs.costUpdatedAt != rhs.costUpdatedAt {
+                return lhs.costUpdatedAt < rhs.costUpdatedAt
+            }
+            return lhs.providerUpdatedAt < rhs.providerUpdatedAt
+        }
+        guard let selected else { return nil }
+        return Self.materializingLegacyCostFreshness(
+            selected.summary,
+            fallbackUpdatedAt: selected.providerUpdatedAt)
+    }
+
+    /// Once entries from multiple devices are merged, the enclosing provider
+    /// timestamp belongs to the newest quota/status entry and can no longer be
+    /// used as a safe legacy cost fallback. Materialize the contributing
+    /// entry's effective freshness into the summary before that provenance is
+    /// lost.
+    private static func materializingLegacyCostFreshness(
+        _ summary: SyncCostSummary,
+        fallbackUpdatedAt: Date) -> SyncCostSummary
+    {
+        guard summary.costUpdatedAt == nil || summary.totalCostUpdatedAt == nil else {
+            return summary
+        }
+        return SyncCostSummary(
+            sessionCostUSD: summary.sessionCostUSD,
+            sessionTokens: summary.sessionTokens,
+            last30DaysCostUSD: summary.last30DaysCostUSD,
+            last30DaysTokens: summary.last30DaysTokens,
+            daily: summary.daily,
+            isEstimated: summary.isEstimated,
+            historyDays: summary.historyDays,
+            historyCoverageIsEstablished: summary.historyCoverageIsEstablished,
+            sessionRequests: summary.sessionRequests,
+            last30DaysRequests: summary.last30DaysRequests,
+            currencyCode: summary.currencyCode,
+            costUpdatedAt: summary.costUpdatedAt ?? fallbackUpdatedAt,
+            totalCostUpdatedAt: summary.totalCostUpdatedAt
+                ?? summary.costUpdatedAt
+                ?? fallbackUpdatedAt,
+            sourceRevisions: summary.sourceRevisions)
+    }
+
     /// Reset-credit snapshots have their own fetch timestamp because detail
     /// enrichment can complete after the enclosing usage refresh. Prefer that
     /// field-specific freshness while retaining latest-non-nil compatibility
@@ -559,9 +618,13 @@ final class CloudSyncReader: @unchecked Sendable {
         // for cross-version / partial-install robustness.
         let isLocalCost = self.localCostProviders.contains(base.providerID)
         let mergedCost: SyncCostSummary? = if isLocalCost {
-            self.mergeCostSummaries(entries.compactMap(\.costSummary))
+            self.mergeCostSummaries(entries.compactMap { entry in
+                entry.costSummary.map {
+                    (summary: $0, fallbackUpdatedAt: entry.lastUpdated)
+                }
+            })
         } else {
-            Self.latestNonNil(entries, \.costSummary)
+            Self.latestCostSummaryNonNil(entries)
         }
 
         // Utilization history: merge across ALL devices, dedup by hour.
@@ -594,10 +657,15 @@ final class CloudSyncReader: @unchecked Sendable {
 
     /// Sums cost data from multiple devices.
     /// Daily points are merged by dayKey (costs summed), then totals are recalculated.
-    private static func mergeCostSummaries(_ summaries: [SyncCostSummary]) -> SyncCostSummary? {
-        guard !summaries.isEmpty else { return nil }
+    private static func mergeCostSummaries(
+        _ entries: [(summary: SyncCostSummary, fallbackUpdatedAt: Date)]) -> SyncCostSummary?
+    {
+        guard !entries.isEmpty else { return nil }
+        let summaries = entries.map(\.summary)
         if summaries.count == 1 {
-            return summaries[0]
+            return Self.materializingLegacyCostFreshness(
+                entries[0].summary,
+                fallbackUpdatedAt: entries[0].fallbackUpdatedAt)
         }
 
         // Merge daily points by dayKey, summing costs and tokens
@@ -605,6 +673,7 @@ final class CloudSyncReader: @unchecked Sendable {
             costUSD: Double,
             totalTokens: Int,
             modelBreakdowns: [SyncCostBreakdown],
+            serviceBreakdowns: [SyncCostBreakdown],
             isEstimated: Bool?)] = [:]
 
         for summary in summaries {
@@ -630,12 +699,26 @@ final class CloudSyncReader: @unchecked Sendable {
                             $0.value.makeBreakdown(label: $0.key)
                         }
                         .sorted { $0.costUSD > $1.costUSD }
+
+                    var serviceBreakdownByLabel: [String: ModelBreakdownAccumulator] = [:]
+                    for b in existing.serviceBreakdowns {
+                        serviceBreakdownByLabel[b.label, default: ModelBreakdownAccumulator()].add(b)
+                    }
+                    for b in point.serviceBreakdowns {
+                        serviceBreakdownByLabel[b.label, default: ModelBreakdownAccumulator()].add(b)
+                    }
+                    existing.serviceBreakdowns = serviceBreakdownByLabel
+                        .map {
+                            $0.value.makeBreakdown(label: $0.key)
+                        }
+                        .sorted { $0.costUSD > $1.costUSD }
                     dailyByKey[point.dayKey] = existing
                 } else {
                     dailyByKey[point.dayKey] = (
                         point.costUSD,
                         point.totalTokens,
                         point.modelBreakdowns,
+                        point.serviceBreakdowns,
                         point.isEstimated)
                 }
             }
@@ -648,6 +731,7 @@ final class CloudSyncReader: @unchecked Sendable {
                 costUSD: entry.costUSD,
                 totalTokens: entry.totalTokens,
                 modelBreakdowns: entry.modelBreakdowns,
+                serviceBreakdowns: entry.serviceBreakdowns,
                 isEstimated: entry.isEstimated)
         }
 
@@ -678,6 +762,35 @@ final class CloudSyncReader: @unchecked Sendable {
             nil
         }
 
+        let mergedHistoryDays = summaries.compactMap(\.historyDays).max()
+        let mergedSessionRequests = summaries.compactMap(\.sessionRequests).reduce(0, +)
+        let mergedLast30DaysRequests = summaries.compactMap(\.last30DaysRequests).reduce(0, +)
+        let mergedCurrencyCode = summaries.compactMap(\.currencyCode).first
+        var mergedSourceRevisions: [String: Date] = [:]
+        for summary in summaries {
+            for (source, revision) in summary.sourceRevisions ?? [:] {
+                mergedSourceRevisions[source] = max(
+                    mergedSourceRevisions[source] ?? .distantPast,
+                    revision)
+            }
+        }
+        // Legacy summaries have no field-specific timestamp. Their provider
+        // refresh time is the documented compatibility fallback, so include
+        // it when determining the freshness of the merged local-cost result.
+        let mergedCostUpdatedAt = entries
+            .map { $0.summary.costUpdatedAt ?? $0.fallbackUpdatedAt }
+            .max()
+        // A summed multi-device total is only as fresh as its oldest
+        // contributing total. Keep payload revision (above) independent so a
+        // newer breakdown still invalidates persistence and view caches.
+        let mergedTotalCostUpdatedAt = entries
+            .map {
+                $0.summary.totalCostUpdatedAt
+                    ?? $0.summary.costUpdatedAt
+                    ?? $0.fallbackUpdatedAt
+            }
+            .min()
+
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
             sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
@@ -685,7 +798,18 @@ final class CloudSyncReader: @unchecked Sendable {
             last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
             daily: mergedDaily,
             isEstimated: mergedIsEstimated,
-            historyCoverageIsEstablished: mergedHistoryCoverage)
+            historyDays: mergedHistoryDays,
+            historyCoverageIsEstablished: mergedHistoryCoverage,
+            sessionRequests: summaries.contains(where: { $0.sessionRequests != nil })
+                ? mergedSessionRequests
+                : nil,
+            last30DaysRequests: summaries.contains(where: { $0.last30DaysRequests != nil })
+                ? mergedLast30DaysRequests
+                : nil,
+            currencyCode: mergedCurrencyCode,
+            costUpdatedAt: mergedCostUpdatedAt,
+            totalCostUpdatedAt: mergedTotalCostUpdatedAt,
+            sourceRevisions: mergedSourceRevisions.isEmpty ? nil : mergedSourceRevisions)
     }
 
     // MARK: - Utilization History Merge + Hourly Dedup

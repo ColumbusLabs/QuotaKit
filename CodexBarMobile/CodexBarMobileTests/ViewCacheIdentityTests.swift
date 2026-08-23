@@ -245,6 +245,28 @@ struct ViewCacheIdentityTests {
     }
 
     @Test
+    func `CostTab key: cost-only refresh → different key`() {
+        let quotaFreshness = Date(timeIntervalSince1970: 1_700_000_000)
+        let cost1 = Date(timeIntervalSince1970: 1_700_000_000)
+        let cost2 = Date(timeIntervalSince1970: 1_700_000_060)
+        let k1 = CostTab.insightsCacheKey(
+            isDemoMode: false,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["codex"],
+                lastUpdated: quotaFreshness,
+                costUpdatedAt: cost1),
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        let k2 = CostTab.insightsCacheKey(
+            isDemoMode: false,
+            snapshotKey: SnapshotIdentityKey.make(
+                providerIDs: ["codex"],
+                lastUpdated: quotaFreshness,
+                costUpdatedAt: cost2),
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11")
+        #expect(k1 != k2)
+    }
+
+    @Test
     func `CostTab key: CWL toggle and window changes → different keys`() {
         let snapshotKey = SnapshotIdentityKey.make(
             providerIDs: ["claude"],
@@ -288,6 +310,65 @@ struct ViewCacheIdentityTests {
             isDemoMode: false, snapshotKey: snapshotKey,
             cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-12")
         #expect(k1 != k2)
+    }
+
+    @Test
+    func `CostTab key: freshness timer revision changes → different key`() {
+        let snapshotKey = SnapshotIdentityKey.make(
+            providerIDs: ["codex"],
+            lastUpdated: Date(timeIntervalSince1970: 1_700_000_000))
+        let fresh = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11",
+            freshnessRevision: 0)
+        let stale = CostTab.insightsCacheKey(
+            isDemoMode: false, snapshotKey: snapshotKey,
+            cwlEnabled: false, cwlWindowDays: 30, todayKey: "2026-06-11",
+            freshnessRevision: 1)
+
+        #expect(fresh != stale)
+    }
+
+    @Test @MainActor
+    func `CostTab clock: already-stale data schedules local midnight rollover`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(identifier: "UTC"))
+        let now = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 6,
+            day: 11,
+            hour: 23,
+            minute: 59)))
+        let midnight = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 6,
+            day: 12)))
+        let staleRevision = now.addingTimeInterval(-2 * 60 * 60)
+        let provider = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: staleRevision,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 5,
+                sessionTokens: 500,
+                last30DaysCostUSD: 5,
+                last30DaysTokens: 500,
+                daily: [],
+                costUpdatedAt: staleRevision,
+                totalCostUpdatedAt: staleRevision))
+
+        let transition = CostTab.nextTemporalTransition(
+            now: now,
+            providers: [provider],
+            calendar: calendar)
+
+        #expect(transition == midnight)
     }
 
     @Test

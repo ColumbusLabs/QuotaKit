@@ -548,7 +548,10 @@ extension SyncCoordinator {
             last30DaysTokens: m.totalInputTokens + m.totalOutputTokens + m.totalCachedTokens,
             daily: daily,
             isEstimated: nil,
-            currencyCode: m.currency)
+            currencyCode: m.currency,
+            costUpdatedAt: snapshot?.updatedAt,
+            totalCostUpdatedAt: snapshot?.updatedAt,
+            sourceRevisions: (snapshot?.updatedAt).map { ["mistral": $0] })
     }
 
     /// Maps OpenRouter's native balance/credits + per-key usage windows into

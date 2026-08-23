@@ -112,6 +112,8 @@ private struct RawProviderRow: View {
                 Spacer()
                 VStack(alignment: .trailing, spacing: 2) {
                     if let cost = self.provider.costSummary {
+                        let today = cost.todayTotals(
+                            providerLastUpdated: self.provider.lastUpdated)
                         // 30-day cost is what iPhone Cost dashboard
                         // aggregates — show it inline so multi-device sync
                         // bugs are visible at a glance instead of needing
@@ -123,11 +125,13 @@ private struct RawProviderRow: View {
                             cost.last30DaysCostUSD ?? 0))
                             .font(.caption)
                             .foregroundStyle(.secondary)
-                        Text(String(
-                            format: String(
-                                localized: "$%.2f / today",
-                                comment: "Raw Sync Data row trailing label — today's cost"),
-                            cost.sessionCostUSD ?? 0))
+                        Text(today.costUSD.map {
+                            String(
+                                format: String(
+                                    localized: "$%.2f / today",
+                                    comment: "Raw Sync Data row trailing label — today's cost"),
+                                $0)
+                        } ?? "— / today")
                             .font(.caption2)
                             .foregroundStyle(.tertiary)
                     }
@@ -166,11 +170,16 @@ private struct RawProviderDetailView: View {
             }
 
             if let cost = self.provider.costSummary {
+                let today = cost.todayTotals(providerLastUpdated: self.provider.lastUpdated)
                 Section("Cost Summary") {
+                    LabeledContent("Today", value: self.formatCost(today.costUSD))
                     LabeledContent("Session", value: self.formatCost(cost.sessionCostUSD))
                     LabeledContent("Session Tokens", value: self.formatTokens(cost.sessionTokens))
                     LabeledContent("30 Days", value: self.formatCost(cost.last30DaysCostUSD))
                     LabeledContent("30 Days Tokens", value: self.formatTokens(cost.last30DaysTokens))
+                    LabeledContent(
+                        "Last Updated",
+                        value: today.updatedAt?.formatted(date: .abbreviated, time: .shortened) ?? "N/A")
                 }
             }
 

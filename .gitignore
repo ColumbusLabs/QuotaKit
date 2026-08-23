@@ -19,6 +19,7 @@ CodexBar.app/
 CodexBar *.app/
 CodexBar_*.app/
 Codexbar.app/
+QuotaKit.app/
 # Release artifacts
 *.ipa
 *.dSYM*

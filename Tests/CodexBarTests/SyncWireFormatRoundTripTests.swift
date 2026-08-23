@@ -28,7 +28,10 @@ struct SyncWireFormatRoundTripTests {
     private func costSummary(
         coverage: Bool?,
         days: [(String, Double, Int)],
-        sessionCost: Double? = nil) -> SyncCostSummary
+        sessionCost: Double? = nil,
+        costUpdatedAt: Date? = nil,
+        totalCostUpdatedAt: Date? = nil,
+        sourceRevisions: [String: Date]? = nil) -> SyncCostSummary
     {
         SyncCostSummary(
             sessionCostUSD: sessionCost,
@@ -38,7 +41,10 @@ struct SyncWireFormatRoundTripTests {
             daily: days.map {
                 SyncDailyPoint(dayKey: $0.0, costUSD: $0.1, totalTokens: $0.2)
             },
-            historyCoverageIsEstablished: coverage)
+            historyCoverageIsEstablished: coverage,
+            costUpdatedAt: costUpdatedAt,
+            totalCostUpdatedAt: totalCostUpdatedAt,
+            sourceRevisions: sourceRevisions)
     }
 
     private func makeRichSnapshot(
@@ -79,7 +85,9 @@ struct SyncWireFormatRoundTripTests {
                         modelBreakdowns: [SyncCostBreakdown(label: "gpt-5", costUSD: 1.5)],
                         serviceBreakdowns: [SyncCostBreakdown(label: "codex", costUSD: 1.5)]),
                 ],
-                isEstimated: false),
+                isEstimated: false,
+                costUpdatedAt: Date(timeIntervalSince1970: 1_700_000_400),
+                totalCostUpdatedAt: Date(timeIntervalSince1970: 1_700_000_390)),
             budget: SyncBudgetSnapshot(
                 usedAmount: 12.34,
                 limitAmount: 100,
@@ -164,6 +172,29 @@ struct SyncWireFormatRoundTripTests {
         let decoded = try JSONDecoder().decode(SyncCostSummary.self, from: json)
 
         #expect(decoded.historyCoverageIsEstablished == nil)
+        #expect(decoded.costUpdatedAt == nil)
+        #expect(decoded.totalCostUpdatedAt == nil)
+        #expect(decoded.sourceRevisions == nil)
+    }
+
+    @Test
+    func `cost summary cost freshness round-trips`() throws {
+        let timestamp = Date(timeIntervalSince1970: 1_800_000_000)
+        let totalTimestamp = timestamp.addingTimeInterval(-60)
+        let original = self.costSummary(
+            coverage: true,
+            days: [],
+            costUpdatedAt: timestamp,
+            totalCostUpdatedAt: totalTimestamp,
+            sourceRevisions: ["scanner": timestamp, "dashboard": totalTimestamp])
+
+        let decoded = try self.decoder().decode(
+            SyncCostSummary.self,
+            from: self.encoder().encode(original))
+
+        #expect(decoded.costUpdatedAt == timestamp)
+        #expect(decoded.totalCostUpdatedAt == totalTimestamp)
+        #expect(decoded.sourceRevisions == ["scanner": timestamp, "dashboard": totalTimestamp])
     }
 
     @Test(arguments: [true, false])
@@ -179,13 +210,21 @@ struct SyncWireFormatRoundTripTests {
 
     @Test
     func `partial history preserves complete daily values and recomputes totals`() {
+        let completeUpdatedAt = Date(timeIntervalSince1970: 1_700_000_100)
+        let partialUpdatedAt = Date(timeIntervalSince1970: 1_700_000_200)
         let complete = self.costSummary(
             coverage: true,
-            days: [("2026-08-10", 10, 100)])
+            days: [("2026-08-10", 10, 100)],
+            costUpdatedAt: completeUpdatedAt,
+            totalCostUpdatedAt: completeUpdatedAt,
+            sourceRevisions: ["scanner": completeUpdatedAt])
         let partial = self.costSummary(
             coverage: false,
             days: [("2026-08-10", 3, 30)],
-            sessionCost: 3)
+            sessionCost: 3,
+            costUpdatedAt: partialUpdatedAt,
+            totalCostUpdatedAt: partialUpdatedAt,
+            sourceRevisions: ["dashboard": partialUpdatedAt])
 
         let reconciled = partial.reconcilingHistory(with: complete)
 
@@ -194,16 +233,28 @@ struct SyncWireFormatRoundTripTests {
         #expect(reconciled.last30DaysTokens == 100)
         #expect(reconciled.sessionCostUSD == 3)
         #expect(reconciled.historyCoverageIsEstablished == true)
+        #expect(reconciled.costUpdatedAt == partialUpdatedAt)
+        #expect(reconciled.totalCostUpdatedAt == completeUpdatedAt)
+        #expect(reconciled.sourceRevisions == [
+            "scanner": completeUpdatedAt,
+            "dashboard": partialUpdatedAt,
+        ])
     }
 
     @Test
     func `partial history adds absent days without replacing complete days`() {
+        let completeUpdatedAt = Date(timeIntervalSince1970: 1_700_000_200)
+        let partialUpdatedAt = Date(timeIntervalSince1970: 1_700_000_100)
         let complete = self.costSummary(
             coverage: true,
-            days: [("2026-08-10", 10, 100)])
+            days: [("2026-08-10", 10, 100)],
+            costUpdatedAt: completeUpdatedAt,
+            totalCostUpdatedAt: completeUpdatedAt)
         let partial = self.costSummary(
             coverage: false,
-            days: [("2026-08-10", 3, 30), ("2026-08-11", 4, 40)])
+            days: [("2026-08-10", 3, 30), ("2026-08-11", 4, 40)],
+            costUpdatedAt: partialUpdatedAt,
+            totalCostUpdatedAt: partialUpdatedAt)
 
         let reconciled = partial.reconcilingHistory(with: complete)
 
@@ -211,6 +262,8 @@ struct SyncWireFormatRoundTripTests {
         #expect(reconciled.daily.map(\.costUSD) == [10, 4])
         #expect(reconciled.last30DaysCostUSD == 14)
         #expect(reconciled.last30DaysTokens == 140)
+        #expect(reconciled.costUpdatedAt == completeUpdatedAt)
+        #expect(reconciled.totalCostUpdatedAt == completeUpdatedAt)
     }
 
     @Test
@@ -225,6 +278,31 @@ struct SyncWireFormatRoundTripTests {
         let reconciled = complete.reconcilingHistory(with: partial)
 
         #expect(reconciled == complete)
+    }
+
+    @Test
+    func `authoritative history preserves source deletion`() {
+        let scannerRevision = Date(timeIntervalSince1970: 1_700_000_200)
+        let dashboardRevision = Date(timeIntervalSince1970: 1_700_000_100)
+        let previous = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 10, 100)],
+            costUpdatedAt: scannerRevision,
+            totalCostUpdatedAt: scannerRevision,
+            sourceRevisions: [
+                "scanner": scannerRevision,
+                "dashboard": dashboardRevision,
+            ])
+        let incoming = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 10, 100)],
+            costUpdatedAt: scannerRevision,
+            totalCostUpdatedAt: scannerRevision,
+            sourceRevisions: ["scanner": scannerRevision])
+
+        let reconciled = incoming.reconcilingHistory(with: previous)
+
+        #expect(reconciled.sourceRevisions == ["scanner": scannerRevision])
     }
 
     @Test
