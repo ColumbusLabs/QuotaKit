@@ -89,6 +89,7 @@ actor CostUsageStore {
         "47144baa8daccf52", // This branch changes only scan scheduling, discovery, and persistence bookkeeping.
         "2d17f4981b78d07f", // Persisted priority-turn cursor; parser and persisted row shape unchanged.
         "1ad1e41af7f25b3e", // Trace-priority ownership evidence fix; parser and persisted row shape unchanged.
+        "76877b47a94fe28c", // Tokscale token parsing changes values only; persisted row shape remains compatible.
     ]
 
     nonisolated static func defaultCacheRoot() -> URL {
