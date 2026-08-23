@@ -4390,6 +4390,7 @@ enum CostUsageScanner {
         initialHasDivergentTotals: Bool = false,
         initialCodexTurnID: String? = nil,
         initialCodexUsageRowIndex: Int = 0,
+        initialLastAcceptedTokenTimestampUnixMs: Int64? = nil,
         inheritedTotalsResolver: ((String, String) -> CodexForkBaseline)? = nil) -> CodexParseResult
     {
         let throwingResolver: ((String, String) throws -> CodexForkBaseline)? = inheritedTotalsResolver
@@ -4407,6 +4408,7 @@ enum CostUsageScanner {
                 initialHasDivergentTotals: initialHasDivergentTotals,
                 initialCodexTurnID: initialCodexTurnID,
                 initialCodexUsageRowIndex: initialCodexUsageRowIndex,
+                initialLastAcceptedTokenTimestampUnixMs: initialLastAcceptedTokenTimestampUnixMs,
                 inheritedTotalsResolver: throwingResolver,
                 checkCancellation: nil)) ?? CodexParseResult(
             days: [:],
@@ -4430,7 +4432,7 @@ enum CostUsageScanner {
                 cwd: nil,
                 title: nil,
                 startedAtUnixMs: nil,
-                latestActivityUnixMs: nil),
+                latestActivityUnixMs: initialLastAcceptedTokenTimestampUnixMs),
             rows: [],
             tokenSnapshots: [],
             jsonlResumeState: nil,
@@ -4452,6 +4454,7 @@ enum CostUsageScanner {
         initialHasInterleavedTotals: Bool = false,
         initialCodexTurnID: String? = nil,
         initialCodexUsageRowIndex: Int = 0,
+        initialLastAcceptedTokenTimestampUnixMs: Int64? = nil,
         initialBufferedSubagentLines: [CodexBufferedFastLine]? = nil,
         initialBufferedUnresolvedForkLines: [CodexBufferedFastLine]? = nil,
         initialJSONLResumeState: CostUsageJsonl.ResumeState? = nil,
@@ -4498,7 +4501,7 @@ enum CostUsageScanner {
         var days: [String: [String: [Int]]] = [:]
         var rows: [CodexUsageRow] = []
         var tokenSnapshots: [CostUsageCodexTokenSnapshot] = []
-        var lastAcceptedTokenTimestamp: String?
+        var lastAcceptedTokenTimestampUnixMs = initialLastAcceptedTokenTimestampUnixMs
 
         func add(dayKey: String, model: String, input: Int, cached: Int, output: Int) {
             guard CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey)
@@ -4533,13 +4536,22 @@ enum CostUsageScanner {
         /// so timestamp-less responses remain attributable to the active day.
         func handleBareUsage(_ record: CodexBareUsageRecord) {
             guard !suppressUnownedCopiedPrefix, !hasUnresolvedForkBaseline else { return }
-            let resolvedTimestamp = record.timestamp ?? lastAcceptedTokenTimestamp
-            guard let dayKey = resolvedTimestamp.flatMap({
-                Self.dayKeyFromTimestamp($0, calendar: range.calendar)
-                    ?? Self.dayKeyFromParsedISO($0, calendar: range.calendar)
-            }) else { return }
-
-            observeTimestamp(resolvedTimestamp)
+            let dayKey: String
+            let resolvedTimestampUnixMs: Int64?
+            if let timestamp = record.timestamp {
+                guard let parsedDayKey = Self.dayKeyFromTimestamp(timestamp, calendar: range.calendar)
+                    ?? Self.dayKeyFromParsedISO(timestamp, calendar: range.calendar)
+                else { return }
+                dayKey = parsedDayKey
+                resolvedTimestampUnixMs = unixMilliseconds(from: timestamp)
+                observeTimestamp(timestamp)
+            } else {
+                guard let timestampUnixMs = lastAcceptedTokenTimestampUnixMs else { return }
+                dayKey = CostUsageDayRange.dayKey(
+                    from: Date(timeIntervalSince1970: Double(timestampUnixMs) / 1000),
+                    calendar: range.calendar)
+                resolvedTimestampUnixMs = timestampUnixMs
+            }
             let model = Self.codexModelEvidence(record.model)
                 ?? Self.codexModelEvidence(currentModel)
                 ?? CostUsagePricing.codexUnattributedModel
@@ -4560,14 +4572,14 @@ enum CostUsageScanner {
                     rawModel: model,
                     turnID: currentTurnID,
                     eventIndex: eventIndex,
-                    timestampUnixMs: unixMilliseconds(from: resolvedTimestamp),
+                    timestampUnixMs: resolvedTimestampUnixMs,
                     input: record.totals.input,
                     cached: record.totals.cached,
                     output: record.totals.output,
                     reasoning: record.totals.reasoning))
             }
-            if let resolvedTimestamp {
-                lastAcceptedTokenTimestamp = resolvedTimestamp
+            if let resolvedTimestampUnixMs {
+                lastAcceptedTokenTimestampUnixMs = resolvedTimestampUnixMs
             }
         }
 
@@ -4879,7 +4891,9 @@ enum CostUsageScanner {
                     output: deltaOutput,
                     reasoning: deltaReasoning))
             }
-            lastAcceptedTokenTimestamp = record.timestamp
+            if let timestampUnixMs = unixMilliseconds(from: record.timestamp) {
+                lastAcceptedTokenTimestampUnixMs = timestampUnixMs
+            }
         }
 
         func processFastLine(_ fastLine: CodexFastLine) throws {
