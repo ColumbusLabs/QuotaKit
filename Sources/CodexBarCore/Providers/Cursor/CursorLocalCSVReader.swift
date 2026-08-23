@@ -66,7 +66,9 @@ enum CursorLocalCSVReader {
             guard let date = parseDate(c[0], calendar: calendar) else { continue }
             let write = max(0, inW - inWo)
             let input = inWo
-            if input == 0, out == 0, read == 0, write == 0 { continue }
+            if input == 0, out == 0, read == 0, write == 0 {
+                continue
+            }
             rows.append(Row(
                 date: date,
                 model: model,
@@ -91,7 +93,7 @@ enum CursorLocalCSVReader {
         for row in rows {
             let key = CostUsageLocalDay.key(from: row.date, calendar: calendar)
             let existing = byDay[key]
-            var e = existing ?? CostUsageDailyReport.Entry(
+            let e = existing ?? CostUsageDailyReport.Entry(
                 date: key,
                 inputTokens: 0,
                 outputTokens: 0,
@@ -149,9 +151,13 @@ enum CursorLocalCSVReader {
         var cur = ""
         var q = false
         for ch in line {
-            if ch == "\"" { q.toggle() } else if ch == ",", !q {
+            if ch == "\"" {
+                q.toggle()
+            } else if ch == ",", !q {
                 cols.append(cur); cur = ""
-            } else { cur.append(ch) }
+            } else {
+                cur.append(ch)
+            }
         }
         cols.append(cur)
         return cols
@@ -164,7 +170,9 @@ enum CursorLocalCSVReader {
 
     static func parseCost(_ s: String) -> Double {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
-        if t.isEmpty || t == "-" || t.lowercased() == "included" || t.lowercased() == "nan" { return 0 }
+        if t.isEmpty || t == "-" || t.lowercased() == "included" || t.lowercased() == "nan" {
+            return 0
+        }
         return Double(t.replacingOccurrences(of: "$", with: "").replacingOccurrences(of: ",", with: "")) ?? 0
     }
 
@@ -172,9 +180,13 @@ enum CursorLocalCSVReader {
         let t = s.trimmingCharacters(in: .whitespacesAndNewlines)
         let iso = ISO8601DateFormatter()
         iso.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
-        if let d = iso.date(from: t) { return d }
+        if let d = iso.date(from: t) {
+            return d
+        }
         iso.formatOptions = [.withInternetDateTime]
-        if let d = iso.date(from: t) { return d }
+        if let d = iso.date(from: t) {
+            return d
+        }
         let df = DateFormatter()
         df.locale = Locale(identifier: "en_US_POSIX")
         df.timeZone = TimeZone(secondsFromGMT: 0)

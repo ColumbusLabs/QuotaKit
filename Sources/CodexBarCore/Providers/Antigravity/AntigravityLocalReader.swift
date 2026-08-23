@@ -54,7 +54,9 @@ enum AntigravityLocalReader {
                 }
                 if type == "usage" || json["input"] != nil {
                     if let rid = (json["responseId"] as? String ?? json["response_id"] as? String), !rid.isEmpty {
-                        if seenResponseIds.contains(rid) { continue }
+                        if seenResponseIds.contains(rid) {
+                            continue
+                        }
                         seenResponseIds.insert(rid)
                     }
                     let modelId =
@@ -67,9 +69,11 @@ enum AntigravityLocalReader {
                     let ts = (json["timestamp"] as? Int64) ?? (json["timestamp"] as? Int).map(Int64.init) ?? 0
                     let date = self.timestampToDayKey(ts, calendar: calendar)
                     let total = input + output + read + write
-                    if total == 0 { continue }
+                    if total == 0 {
+                        continue
+                    }
                     if let idx = entries.firstIndex(where: { $0.date == date }) {
-                        var e = entries[idx]
+                        let e = entries[idx]
                         let ne = CostUsageDailyReport.Entry(
                             date: e.date,
                             inputTokens: (e.inputTokens ?? 0) + input,
@@ -117,9 +121,11 @@ enum AntigravityLocalReader {
     static func makeDailyReport(calendar: Calendar = .current) -> CostUsageDailyReport {
         var merged: [String: CostUsageDailyReport.Entry] = [:]
         for e in self.parseJSONLCache(calendar: calendar) + self.parseCLIDBs() {
-            if var ex = merged[e.date] {
+            if let ex = merged[e.date] {
                 let mergedCost: Double? = {
-                    if ex.costUSD == nil, e.costUSD == nil { return nil }
+                    if ex.costUSD == nil, e.costUSD == nil {
+                        return nil
+                    }
                     return (ex.costUSD ?? 0) + (e.costUSD ?? 0)
                 }()
                 let ne = CostUsageDailyReport.Entry(
@@ -190,7 +196,9 @@ enum AntigravityLocalReader {
         for m in (a ?? []) + (b ?? []) {
             if var ex = d[m.modelName] {
                 let mergedCost: Double? = {
-                    if ex.costUSD == nil, m.costUSD == nil { return nil }
+                    if ex.costUSD == nil, m.costUSD == nil {
+                        return nil
+                    }
                     return (ex.costUSD ?? 0) + (m.costUSD ?? 0)
                 }()
                 ex = CostUsageDailyReport.ModelBreakdown(
