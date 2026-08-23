@@ -1669,9 +1669,13 @@ final class CursorStatusProbeDelayedSandURLProtocol: URLProtocol {
         self.lock.unlock()
     }
 
-    override static func canInit(with request: URLRequest) -> Bool { true }
+    override static func canInit(with request: URLRequest) -> Bool {
+        true
+    }
 
-    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest {
+        request
+    }
 
     override func startLoading() {
         guard let url = self.request.url else {
