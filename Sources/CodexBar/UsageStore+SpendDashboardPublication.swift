@@ -86,6 +86,12 @@ extension UsageStore {
         self.scheduleDebouncedTokenPublicationSync()
     }
 
+    #if DEBUG
+    var _test_hasPendingSpendDashboardTokenPublicationSync: Bool {
+        self.sharedSpendDashboardTokenPublicationDebounceTask != nil
+    }
+    #endif
+
     private func scheduleDebouncedTokenPublicationSync() {
         self.sharedSpendDashboardTokenPublicationDebounceTask?.cancel()
         let delay: Duration = self.startupBehavior.automaticallyStartsBackgroundWork

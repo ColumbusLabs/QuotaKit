@@ -489,6 +489,7 @@ struct SpendDashboardPane: View {
             SpendDashboardPanel {
                 SpendActivityHeatmapView(
                     points: self.controller.model.tokenActivity,
+                    calendar: self.settings.costUsageBucketCalendar,
                     selectedDay: self.controller.selectedDay,
                     onSelectDay: { day in
                         self.controller.selectDay(day)
