@@ -188,8 +188,10 @@ struct OpenRouterPluginGoldenTests {
         let requests = OpenRouterRequestRecorder()
         let activityBody = #"""
         {"data":[
-          {"date":"2026-08-17","model":"openai/gpt-5.6","prompt_tokens":10,"completion_tokens":5,"reasoning_tokens":2,"requests":1,"usage":1},
-          {"date":"2026-07-19","model":"x-ai/grok-4","prompt_tokens":4,"completion_tokens":1,"reasoning_tokens":0,"requests":1,"usage":1}
+          {"date":"2026-08-17","model":"openai/gpt-5.6","prompt_tokens":10,"completion_tokens":5,
+           "reasoning_tokens":2,"requests":1,"usage":1},
+          {"date":"2026-07-19","model":"x-ai/grok-4","prompt_tokens":4,"completion_tokens":1,
+           "reasoning_tokens":0,"requests":1,"usage":1}
         ]}
         """#
         let runtime = try ProviderPluginRuntime(
