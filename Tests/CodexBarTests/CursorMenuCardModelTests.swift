@@ -278,7 +278,7 @@ struct CursorMenuCardModelTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.metrics.map(\.title) == ["Total", "Cursor", "Third Party", "Grok Bot"])
+        #expect(model.metrics.map(\.title) == ["Total", "Auto", "API", "Grok Bot"])
         #expect(model.metrics.last?.percentLabel == "0% left")
     }
 }
