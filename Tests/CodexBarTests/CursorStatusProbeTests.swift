@@ -855,6 +855,32 @@ extension CursorStatusProbeTests {
     }
 
     @Test
+    func `slow optional sand usage does not delay ordinary refresh`() async throws {
+        CursorStatusProbeDelayedSandURLProtocol.reset()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStatusProbeDelayedSandURLProtocol.self]
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        let baseURL = try #require(URL(string: "https://cursor.test"))
+
+        let start = ContinuousClock.now
+        let snapshot = try await CursorStatusProbe(
+            baseURL: baseURL,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: session).fetchWithManualCookies("auth=test")
+        let elapsed = start.duration(to: .now)
+
+        #expect(snapshot.planPercentUsed == 30)
+        #expect(snapshot.accountEmail == "user@example.com")
+        #expect(snapshot.sandUsage == nil)
+        #expect(elapsed < .seconds(1))
+        for _ in 0..<20 where !CursorStatusProbeDelayedSandURLProtocol.sandRequestWasCancelled {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(CursorStatusProbeDelayedSandURLProtocol.sandRequestWasCancelled)
+    }
+
+    @Test
     func `fetch fails cleanly when usage summary fails`() async {
         let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
@@ -1624,4 +1650,63 @@ final class CursorStatusProbeStubURLProtocol: URLProtocol {
     }
 
     override func stopLoading() {}
+}
+
+final class CursorStatusProbeDelayedSandURLProtocol: URLProtocol {
+    private static let lock = NSLock()
+    private nonisolated(unsafe) static var sandCancelled = false
+    private var isSandRequest = false
+
+    static var sandRequestWasCancelled: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.sandCancelled
+    }
+
+    static func reset() {
+        self.lock.lock()
+        self.sandCancelled = false
+        self.lock.unlock()
+    }
+
+    override static func canInit(with request: URLRequest) -> Bool { true }
+
+    override static func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+
+    override func startLoading() {
+        guard let url = self.request.url else {
+            self.client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        if url.path == CursorSandUsageStatus.endpointPath {
+            self.isSandRequest = true
+            return
+        }
+
+        let body: String
+        switch url.path {
+        case "/api/usage-summary":
+            body = #"{"membershipType":"pro","individualUsage":{"plan":{"used":1500,"limit":5000,"totalPercentUsed":30}}}"#
+        case "/api/auth/me":
+            body = #"{"email":"user@example.com","name":"Test User"}"#
+        default:
+            self.client?.urlProtocol(self, didFailWithError: URLError(.badURL))
+            return
+        }
+        let response = HTTPURLResponse(
+            url: url,
+            statusCode: 200,
+            httpVersion: nil,
+            headerFields: ["Content-Type": "application/json"])!
+        self.client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+        self.client?.urlProtocol(self, didLoad: Data(body.utf8))
+        self.client?.urlProtocolDidFinishLoading(self)
+    }
+
+    override func stopLoading() {
+        guard self.isSandRequest else { return }
+        Self.lock.lock()
+        Self.sandCancelled = true
+        Self.lock.unlock()
+    }
 }

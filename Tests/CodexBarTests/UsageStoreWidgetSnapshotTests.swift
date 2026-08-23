@@ -113,6 +113,62 @@ struct UsageStoreWidgetSnapshotTests {
     }
 
     @Test
+    func `Cursor widget snapshot includes Grok Bot after explicit Cursor lanes`() async throws {
+        let suite = "UsageStoreWidgetSnapshotTests-cursor-grok-bot"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.statusChecksEnabled = false
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        let grokWindow = RateWindow(
+            usedPercent: 35,
+            windowMinutes: 7 * 24 * 60,
+            resetsAt: Date(timeIntervalSince1970: 1_800_000_000),
+            resetDescription: "Resets next week")
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: 12,
+                    windowMinutes: 30 * 24 * 60,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                secondary: RateWindow(
+                    usedPercent: 34,
+                    windowMinutes: 30 * 24 * 60,
+                    resetsAt: nil,
+                    resetDescription: nil),
+                extraRateWindows: [
+                    NamedRateWindow(
+                        id: CursorSandUsageStatus.extraWindowID,
+                        title: "Grok Bot",
+                        window: grokWindow),
+                ],
+                cursorRateWindowLayout: .autoAPI,
+                updatedAt: Date()),
+            provider: .cursor)
+
+        var widgetSnapshots: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "cursor-grok-bot-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == .cursor })
+        #expect(entry.usageRows?.map(\.id) == ["primary", "secondary", CursorSandUsageStatus.extraWindowID])
+        #expect(entry.usageRows?.map(\.title) == ["Auto", "API", "Grok Bot"])
+        #expect(entry.usageRows?.last?.percentLeft == 65)
+        #expect(entry.usageRows?.last?.window == grokWindow)
+    }
+
+    @Test
     func `widget snapshot includes Kimi subscription quota rows`() async throws {
         let suite = "UsageStoreWidgetSnapshotTests-kimi-subscription-rows"
         let defaults = try #require(UserDefaults(suiteName: suite))

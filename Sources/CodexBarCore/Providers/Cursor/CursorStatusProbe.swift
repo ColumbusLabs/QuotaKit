@@ -1450,6 +1450,7 @@ public struct CursorStatusProbe: Sendable {
 
         var usageSummaryResult: (CursorUsageSummary, String)?
         var userInfo: CursorUserInfo?
+        var userInfoFinished = false
         var sandUsage: CursorSandUsageStatus?
         var sandUsageRawJSON: String?
 
@@ -1481,12 +1482,19 @@ public struct CursorStatusProbe: Sendable {
                 case let .usageSummary(value):
                     usageSummaryResult = value
                 case let .userInfo(value):
+                    userInfoFinished = true
                     userInfo = try? value.get()
                 case let .sandUsage(value):
                     if let (status, rawJSON) = try? value.get() {
                         sandUsage = status
                         sandUsageRawJSON = rawJSON
                     }
+                }
+                // Sand usage is optional enrichment. Let it race the required usage and identity
+                // requests, but never let a slow optional endpoint extend an ordinary refresh.
+                if usageSummaryResult != nil, userInfoFinished {
+                    group.cancelAll()
+                    return
                 }
                 // Required usage-summary is enough to finish login. Cancel leftover optional
                 // work if the interactive deadline has already elapsed.

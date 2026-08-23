@@ -472,20 +472,6 @@ extension UsageStore {
                 title: metadata?.opusLabel ?? "Opus",
                 percentLeft: snapshot.tertiary?.remainingPercent))
         }
-        // Provider-specific by design: Cursor Grok Bot weekly included usage is a named extraRateWindow.
-        if provider == .cursor {
-            rows.append(contentsOf: (snapshot.extraRateWindows ?? []).compactMap { namedWindow in
-                guard namedWindow.id == CursorSandUsageStatus.extraWindowID, namedWindow.usageKnown else {
-                    return nil
-                }
-                return WidgetSnapshot.WidgetUsageRowSnapshot(
-                    id: namedWindow.id,
-                    title: namedWindow.title,
-                    percentLeft: namedWindow.window.remainingPercent,
-                    window: namedWindow.window)
-            })
-        }
-
         if provider == .kimi {
             // Keep persisted widget order stable and include only Kimi's intentional subscription lanes.
             let kimiWindowIDs = ["kimi-monthly", "kimi-code-7d"]
@@ -516,7 +502,7 @@ extension UsageStore {
                 window: window)
         }
 
-        let rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
+        var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
         case .requests:
             [row(id: "primary", title: "Requests", window: snapshot.primary)]
         case .plan:
@@ -546,6 +532,16 @@ extension UsageStore {
                 ]
             }
         }
+        rows.append(contentsOf: (snapshot.extraRateWindows ?? []).compactMap { namedWindow in
+            guard namedWindow.id == CursorSandUsageStatus.extraWindowID, namedWindow.usageKnown else {
+                return nil
+            }
+            return WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.window.remainingPercent,
+                window: namedWindow.window)
+        })
         return rows.filter { $0.percentLeft != nil }
     }
 
