@@ -745,6 +745,114 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func `codex bare usage inherits accepted token timestamp in report calendar`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let timestamp = try #require(ISO8601DateFormatter().date(from: "2026-08-22T02:30:00Z"))
+        let iso = env.isoString(for: timestamp)
+        let model = "openai/gpt-5.5"
+        let fileURL = try env.writeCodexSessionFile(
+            day: timestamp,
+            filename: "bare-after-token-count.jsonl",
+            contents: env.jsonl([
+                ["type": "turn_context", "timestamp": iso, "payload": ["model": model]],
+                [
+                    "type": "event_msg",
+                    "timestamp": iso,
+                    "payload": [
+                        "type": "token_count",
+                        "info": [
+                            "total_token_usage": ["input_tokens": 7, "output_tokens": 3],
+                        ],
+                    ],
+                ],
+                ["result": ["usage": ["input_tokens": 5, "output_tokens": 1]]],
+            ]))
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let range = CostUsageScanner.CostUsageDayRange(since: timestamp, until: timestamp, calendar: utc)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+
+        #expect(parsed.days["2026-08-22"]?["gpt-5.5"] == [12, 0, 4])
+        #expect(parsed.rows.map(\.day) == ["2026-08-22", "2026-08-22"])
+    }
+
+    @Test
+    func `codex copied subagent prefix excludes bare usage and preserves owned priority turn`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 21)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let model = "openai/gpt-5.5"
+        let priorityTurnID = "priority-turn"
+        func tokenCount(ordinal: Int, timestamp: String, input: Int, output: Int, lastInput: Int) -> [String: Any] {
+            [
+                "ordinal": ordinal,
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": [
+                        "total_token_usage": ["input_tokens": input, "output_tokens": output],
+                        "last_token_usage": ["input_tokens": lastInput, "output_tokens": 1],
+                        "model": model,
+                    ],
+                ],
+            ]
+        }
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "copied-prefix-bare-usage.jsonl",
+            contents: env.jsonl([
+                [
+                    "ordinal": 0,
+                    "type": "session_meta",
+                    "timestamp": iso0,
+                    "payload": [
+                        "id": "child-session",
+                        "timestamp": iso0,
+                        "source": "subagent",
+                        "subagent_history_start_ordinal": 4,
+                    ],
+                ],
+                ["ordinal": 1, "type": "turn_context", "timestamp": iso0, "payload": ["model": model]],
+                tokenCount(ordinal: 2, timestamp: iso1, input: 100, output: 10, lastInput: 100),
+                [
+                    "ordinal": 3,
+                    "timestamp": iso1,
+                    "model": model,
+                    "usage": ["input_tokens": 50, "output_tokens": 5],
+                ],
+                [
+                    "ordinal": 4,
+                    "type": "event_msg",
+                    "timestamp": iso2,
+                    "payload": ["type": "task_started", "turn_id": priorityTurnID],
+                ],
+                tokenCount(ordinal: 5, timestamp: iso2, input: 110, output: 11, lastInput: 10),
+                [
+                    "ordinal": 6,
+                    "timestamp": iso2,
+                    "model": model,
+                    "usage": ["input_tokens": 7, "output_tokens": 2],
+                ],
+            ]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [17, 0, 3])
+        #expect(parsed.rows.map(\.turnID) == [priorityTurnID, priorityTurnID])
+        #expect(parsed.rows.map(\.input) == [10, 7])
+    }
+
+    @Test
     func `codex parses large turn_context line and attributes tokens to its model`() throws {
         // Regression for 0.23.3 bug: Codex CLI 0.125+ ships turn_context
         // lines ~38–41KB because user_instructions now bundles project
@@ -1036,6 +1144,58 @@ struct CostUsageScannerTests {
         #expect(packed[0] == 0)
         #expect(packed[1] == 0)
         #expect(packed[2] == 5)
+    }
+
+    @Test
+    func `codex stale regression comparison is overflow safe near Int max`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let input = Int.max - 100
+        let cached = Int.max - 200
+        let output = Int.max - 300
+        func tokenCount(timestamp: String, input: Int, includeLast: Bool) -> [String: Any] {
+            var info: [String: Any] = [
+                "total_token_usage": [
+                    "input_tokens": input,
+                    "cached_input_tokens": cached,
+                    "output_tokens": output,
+                ],
+                "model": "openai/gpt-5.5",
+            ]
+            if includeLast {
+                info["last_token_usage"] = [
+                    "input_tokens": 1,
+                    "cached_input_tokens": 1,
+                    "output_tokens": 1,
+                ]
+            }
+            return [
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": info,
+                ],
+            ]
+        }
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "stale-overflow.jsonl",
+            contents: env.jsonl([
+                tokenCount(timestamp: iso1, input: input, includeLast: false),
+                tokenCount(timestamp: iso2, input: input - 1, includeLast: true),
+            ]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [input, cached, output])
+        #expect(parsed.rows.count == 1)
     }
 
     @Test

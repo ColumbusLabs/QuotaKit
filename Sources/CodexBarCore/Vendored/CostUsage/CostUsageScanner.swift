@@ -453,9 +453,15 @@ enum CostUsageScanner {
             || current.output < previous.output
             || reasoningRegressed
         else { return false }
-        let previousTotal = previous.input + previous.output + previous.cached + (previous.reasoning ?? 0)
-        let currentTotal = current.input + current.output + current.cached + (current.reasoning ?? 0)
-        let lastTotal = last.input + last.output + last.cached + (last.reasoning ?? 0)
+        func magnitude(_ totals: CostUsageCodexTotals) -> Decimal {
+            Decimal(totals.input)
+                + Decimal(totals.output)
+                + Decimal(totals.cached)
+                + Decimal(totals.reasoning ?? 0)
+        }
+        let previousTotal = magnitude(previous)
+        let currentTotal = magnitude(current)
+        let lastTotal = magnitude(last)
         if previousTotal <= 0 || currentTotal <= 0 || lastTotal <= 0 {
             return false
         }
@@ -3562,16 +3568,23 @@ enum CostUsageScanner {
         let total: CostUsageCodexTotals?
     }
 
+    struct CodexBareUsageRecord: Codable, Equatable {
+        let timestamp: String?
+        let model: String?
+        let totals: CostUsageCodexTotals
+    }
+
     enum CodexFastLine: Codable, Equatable {
         case sessionMeta(CodexSessionMetadata)
         case turnContext(CodexTurnContextMetadata)
         case interAgentCommunication(triggerTurn: Bool)
         case taskStarted(turnID: String?)
         case tokenCount(CodexTokenCountRecord)
+        case bareUsage(CodexBareUsageRecord)
 
         var requiresValidTimestamp: Bool {
             switch self {
-            case .sessionMeta:
+            case .sessionMeta, .bareUsage:
                 false
             case .turnContext, .interAgentCommunication, .taskStarted, .tokenCount:
                 true
@@ -4293,7 +4306,7 @@ enum CostUsageScanner {
                             }
                         case let .tokenCount(record):
                             appendSnapshot(timestamp: record.timestamp, last: record.last, total: record.total)
-                        case .turnContext, .interAgentCommunication, .taskStarted:
+                        case .turnContext, .interAgentCommunication, .taskStarted, .bareUsage:
                             break
                         }
                         return
@@ -4518,21 +4531,28 @@ enum CostUsageScanner {
         /// interactive event_msg/token_count envelope. Tokscale parity: accept OpenAI and completion-style
         /// aliases, subtract cached input from billed input, and fall back to the last accepted timestamp
         /// so timestamp-less responses remain attributable to the active day.
-        func handleBareUsage(totals: CostUsageCodexTotals, modelEvidence: String?, timestamp: String?) {
-            let resolvedTimestamp = timestamp ?? lastAcceptedTokenTimestamp
+        func handleBareUsage(_ record: CodexBareUsageRecord) {
+            guard !suppressUnownedCopiedPrefix, !hasUnresolvedForkBaseline else { return }
+            let resolvedTimestamp = record.timestamp ?? lastAcceptedTokenTimestamp
             guard let dayKey = resolvedTimestamp.flatMap({
-                Self.dayKeyFromTimestamp($0) ?? Self.dayKeyFromParsedISO($0)
+                Self.dayKeyFromTimestamp($0, calendar: range.calendar)
+                    ?? Self.dayKeyFromParsedISO($0, calendar: range.calendar)
             }) else { return }
 
             observeTimestamp(resolvedTimestamp)
-            let model = Self.codexModelEvidence(modelEvidence)
+            let model = Self.codexModelEvidence(record.model)
                 ?? Self.codexModelEvidence(currentModel)
                 ?? CostUsagePricing.codexUnattributedModel
             let normModel = CostUsagePricing.normalizeCodexModel(model)
 
             let eventIndex = codexUsageRowIndex
             codexUsageRowIndex += 1
-            add(dayKey: dayKey, model: normModel, input: totals.input, cached: totals.cached, output: totals.output)
+            add(
+                dayKey: dayKey,
+                model: normModel,
+                input: record.totals.input,
+                cached: record.totals.cached,
+                output: record.totals.output)
             if CostUsageDayRange.isInRange(dayKey: dayKey, since: range.scanSinceKey, until: range.scanUntilKey) {
                 rows.append(CodexUsageRow(
                     day: dayKey,
@@ -4541,10 +4561,10 @@ enum CostUsageScanner {
                     turnID: currentTurnID,
                     eventIndex: eventIndex,
                     timestampUnixMs: unixMilliseconds(from: resolvedTimestamp),
-                    input: totals.input,
-                    cached: totals.cached,
-                    output: totals.output,
-                    reasoning: totals.reasoning))
+                    input: record.totals.input,
+                    cached: record.totals.cached,
+                    output: record.totals.output,
+                    reasoning: record.totals.reasoning))
             }
             if let resolvedTimestamp {
                 lastAcceptedTokenTimestamp = resolvedTimestamp
@@ -4859,6 +4879,7 @@ enum CostUsageScanner {
                     output: deltaOutput,
                     reasoning: deltaReasoning))
             }
+            lastAcceptedTokenTimestamp = record.timestamp
         }
 
         func processFastLine(_ fastLine: CodexFastLine) throws {
@@ -4879,6 +4900,8 @@ enum CostUsageScanner {
                 currentTurnID = turnID
             case let .tokenCount(record):
                 try handleTokenCount(record)
+            case let .bareUsage(record):
+                handleBareUsage(record)
             }
         }
 
@@ -5026,10 +5049,18 @@ enum CostUsageScanner {
                                   obj["type"] == nil,
                                   let bare = Self.codexBareUsage(from: obj)
                             else { return }
-                            handleBareUsage(
-                                totals: bare.totals,
-                                modelEvidence: bare.model,
-                                timestamp: obj["timestamp"] as? String)
+                            do {
+                                try routeFastLine(
+                                    .bareUsage(CodexBareUsageRecord(
+                                        timestamp: obj["timestamp"] as? String,
+                                        model: bare.model,
+                                        totals: bare.totals)),
+                                    lineIndex: lineIndex,
+                                    ordinal: Self.codexLineOrdinal(line.bytes),
+                                    endOffset: line.endOffset)
+                            } catch {
+                                deferredError = error
+                            }
                         }
                         return
                     }
@@ -5244,7 +5275,7 @@ enum CostUsageScanner {
                         kind = .interAgentCommunication(triggerTurn: triggerTurn)
                     case let .tokenCount(record):
                         kind = .tokenCount(total: record.total, last: record.last)
-                    case .taskStarted:
+                    case .taskStarted, .bareUsage:
                         return nil
                     }
                     return Self.CodexSubagentRolloutShape.Observation(

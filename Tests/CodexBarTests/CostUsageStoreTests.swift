@@ -1048,7 +1048,6 @@ extension CostUsageStoreTests {
             "47144baa8daccf52",
             "2d17f4981b78d07f",
             "1ad1e41af7f25b3e",
-            "76877b47a94fe28c",
         ])
         let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -1197,6 +1196,30 @@ extension CostUsageStoreTests {
 
         #expect(await store.fetchMetadata() == .empty)
         #expect(await store.rebuildCount == 1)
+    }
+
+    @Test
+    func `tokscale value-changing parser hash forces a rebuild`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let previousParserHash = "76877b47a94fe28c"
+        let previousStore = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: CostUsageStore.combinedSchemaVersion(
+                base: CostUsageStore.baseSchemaVersion,
+                parserHash: previousParserHash),
+            parserHash: previousParserHash)
+        let cachedFile = Self.file(path: "/rollouts/stale-tokscale-values.jsonl", day: "2026-08-01")
+        #expect(await previousStore.upsertFile(cachedFile))
+
+        let currentStore = CostUsageStore(cacheRoot: fixture.root)
+
+        #expect(await currentStore.fetchFile(path: cachedFile.path) == nil)
+        #expect(await currentStore.rebuildCount == 1)
+        #expect(await currentStore.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
     @Test
