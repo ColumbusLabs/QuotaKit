@@ -448,6 +448,9 @@ public struct CostUsageFetcher: Sendable {
                 historyDays: clampedHistoryDays,
                 cursorCookieHeaderOverride: cursorCookieHeaderOverride)
         } catch {
+            if error is CancellationError || Task.isCancelled {
+                throw error
+            }
             if provider != .cursor {
                 throw error
             }
