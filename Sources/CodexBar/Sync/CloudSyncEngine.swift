@@ -301,8 +301,15 @@ enum CloudSyncSnapshotMigration {
         pendingReplacements: Set<String>) -> Set<String>
     {
         Set(failures.compactMap { name, error in
-            pendingReplacements.contains(name) && self.retryDelay(for: error) == nil ? name : nil
+            pendingReplacements.contains(name) && self.retryDelay(for: error) == nil
+                && !self.isAutomaticallyRetriedSaveError(error) ? name : nil
         })
+    }
+
+    /// CKSyncEngine retains and retries these failed saves itself. Their local migration state must
+    /// remain in flight, but adding a second delayed retry would duplicate the engine's work.
+    static func isAutomaticallyRetriedSaveError(_ error: CKError) -> Bool {
+        error.code == .notAuthenticated
     }
 
     static func applyConfirmedSaveHashes(
@@ -322,7 +329,7 @@ enum CloudSyncSnapshotMigration {
         pendingSaveHashes: inout [String: String],
         skippedTerminalReplacementHashes: inout [String: String])
     {
-        guard self.retryDelay(for: error) == nil else { return }
+        guard self.retryDelay(for: error) == nil, !self.isAutomaticallyRetriedSaveError(error) else { return }
         guard let hash = pendingSaveHashes.removeValue(forKey: recordName) else { return }
         skippedTerminalReplacementHashes[recordName] = hash
     }
@@ -1016,6 +1023,10 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
         case .accountTemporarilyUnavailable:
             let retry = CloudSyncSnapshotMigration.retryDelay(for: failure.error) ?? 1
             self.scheduleRetry(recordID: failure.record.recordID, after: retry)
+        case .notAuthenticated:
+            // CKSyncEngine automatically retries after the account becomes available. Preserve
+            // pending save and predecessor state so its eventual confirmation can finish migration.
+            await self.record(error: failure.error)
         case .serverRecordChanged:
             guard let server = failure.error.serverRecord else {
                 await self.record(error: failure.error)

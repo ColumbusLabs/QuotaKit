@@ -738,6 +738,46 @@ struct CloudSyncSnapshotMigrationSaveThenDeleteTests {
                 currentEngine: ObjectIdentifier(original)))
     }
 
+    @Test
+    func `engine retried authentication failure preserves replacement migration until confirmation`() throws {
+        let slot = Self.claudeSnapshot(accountID: "claude-swap:2", email: "owner@example.com")
+        let predecessor = try #require(slot.emailKeyedPredecessorRecordName())
+        let hash = try CanonicalSyncJSON.hash(slot)
+        let error = Self.cloudKitError(.notAuthenticated)
+        var pendingPredecessors = [slot.recordName: Set([predecessor])]
+        var pendingHashes = [slot.recordName: hash]
+        var lastHashes: [String: String] = [:]
+        var skippedHashes: [String: String] = [:]
+
+        #expect(CloudSyncSnapshotMigration.isAutomaticallyRetriedSaveError(error))
+        #expect(
+            CloudSyncSnapshotMigration.abandonedReplacementNames(
+                failures: [slot.recordName: error],
+                pendingReplacements: [slot.recordName]).isEmpty)
+        CloudSyncSnapshotMigration.applyTerminalSaveSkip(
+            recordName: slot.recordName,
+            error: error,
+            pendingSaveHashes: &pendingHashes,
+            skippedTerminalReplacementHashes: &skippedHashes)
+
+        #expect(pendingHashes[slot.recordName] == hash)
+        #expect(pendingPredecessors[slot.recordName] == [predecessor])
+        #expect(skippedHashes.isEmpty)
+
+        CloudSyncSnapshotMigration.applyConfirmedSaveHashes(
+            savedRecordNames: [slot.recordName],
+            pendingSaveHashes: &pendingHashes,
+            lastSnapshotHashes: &lastHashes)
+        let deletes = CloudSyncSnapshotMigration.takeDeletes(
+            forSavedRecordNames: [slot.recordName],
+            pending: &pendingPredecessors)
+
+        #expect(pendingHashes.isEmpty)
+        #expect(lastHashes[slot.recordName] == hash)
+        #expect(deletes == [predecessor])
+        #expect(pendingPredecessors.isEmpty)
+    }
+
     private static func cloudKitError(_ code: CKError.Code, retryAfter: TimeInterval? = nil) -> CKError {
         var userInfo: [String: Any] = [:]
         if let retryAfter {
