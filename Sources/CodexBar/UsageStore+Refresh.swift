@@ -936,56 +936,6 @@ extension UsageStore {
             loginMethod: identity?.loginMethod))
     }
 
-    private func persistSingleCodexAccountSnapshot(
-        _ snapshot: UsageSnapshot,
-        sourceLabel: String,
-        expectedGuard: CodexAccountScopedRefreshGuard?,
-        expectedOwnerKey: CodexLimitResetOwnerKey?)
-    {
-        guard let expectedGuard,
-              let expectedOwnerKey
-        else { return }
-
-        let currentGuard = self.freshCodexAccountScopedRefreshGuard()
-        guard Self.codexScopedRefreshGuardsMatchAccount(expectedGuard, currentGuard),
-              let currentOwnerKey = CodexLimitResetOwnerKey(
-                  identity: currentGuard.identity,
-                  accountEmail: currentGuard.accountKey),
-              currentOwnerKey == expectedOwnerKey
-        else { return }
-
-        let visibleAccounts = self.freshCodexVisibleAccountsForSnapshotHydration()
-        let activeMatches = visibleAccounts.filter {
-            $0.isActive &&
-                $0.selectionSource == currentGuard.source &&
-                CodexIdentityResolver.normalizeEmail($0.email) == currentGuard.accountKey
-        }
-        guard activeMatches.count == 1,
-              let account = activeMatches.first,
-              let snapshotEmail = CodexIdentityResolver.normalizeEmail(snapshot.accountEmail(for: .codex)),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(currentGuard.accountKey),
-              snapshotEmail == CodexIdentityResolver.normalizeEmail(account.email),
-              self.codexLimitResetOwnerKey(
-                  forVisibleAccount: account,
-                  visibleAccounts: visibleAccounts) == currentOwnerKey
-        else { return }
-
-        let identity = snapshot.identity(for: .codex)
-        let relabeled = snapshot.withIdentity(ProviderIdentitySnapshot(
-            providerID: .codex,
-            accountEmail: account.email,
-            accountOrganization: identity?.accountOrganization,
-            loginMethod: identity?.loginMethod ?? account.workspaceLabel))
-        let currentSnapshots = [CodexAccountUsageSnapshot(
-            account: account,
-            snapshot: relabeled,
-            error: nil,
-            sourceLabel: sourceLabel,
-            credits: self.credits)]
-        self.codexAccountSnapshots = currentSnapshots
-        self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
-    }
-
     private func clearDisabledProviderRefreshState(_ provider: UsageProvider) async {
         self.clearProviderRuntimeState(provider)
     }

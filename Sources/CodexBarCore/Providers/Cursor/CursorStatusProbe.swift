@@ -926,7 +926,7 @@ public struct CursorStatusProbe: Sendable {
     public var timeout: TimeInterval = 15.0
     let browserDetection: BrowserDetection
     let browserCookieImportOrder: BrowserCookieImportOrder
-    private let urlSession: any ProviderHTTPTransport
+    let urlSession: any ProviderHTTPTransport
     #if os(macOS)
     let appAuthStore: any CursorAppAuthSessionProviding
     let persistAppAuthSession: @Sendable (CursorAppAuthSession) async -> Void
@@ -1575,109 +1575,14 @@ public struct CursorStatusProbe: Sendable {
         }
     }
 
-    private func fetchSandUsage(
-        cookieHeader: String,
-        deadline: Date?) async throws -> (CursorSandUsageStatus, String)
-    {
-        let url = self.baseURL.appendingPathComponent(CursorSandUsageStatus.endpointPath)
-        var request = URLRequest(url: url)
-        request.httpMethod = "POST"
-        // Best-effort: cap wait so a stalled Sand endpoint cannot consume the login deadline.
-        guard let sandTimeout = self.optionalRequestTimeout(
-            deadline: deadline,
-            budget: Self.sandUsageTimeout)
-        else {
-            throw CursorStatusProbeError.networkError("Sand usage skipped after login deadline")
-        }
-        request.timeoutInterval = sandTimeout
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        request.setValue(self.originHeader, forHTTPHeaderField: "Origin")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-        request.httpBody = Data("{}".utf8)
-
-        let (data, response) = try await self.urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse else {
-            throw CursorStatusProbeError.networkError("Invalid response")
-        }
-
-        if httpResponse.statusCode == 401 || httpResponse.statusCode == 403 {
-            throw CursorStatusProbeError.notLoggedIn
-        }
-
-        guard httpResponse.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("HTTP \(httpResponse.statusCode)")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-        do {
-            let status = try JSONDecoder().decode(CursorSandUsageStatus.self, from: data)
-            return (status, rawJSON)
-        } catch {
-            throw CursorStatusProbeError
-                .parseFailed("Sand usage decode failed: \(error.localizedDescription). Raw: \(rawJSON.prefix(200))")
-        }
-    }
-
-    private var originHeader: String {
-        guard let scheme = self.baseURL.scheme, let host = self.baseURL.host else {
-            return "https://cursor.com"
-        }
-        return "\(scheme)://\(host)"
-    }
-
-    private func fetchUserInfo(cookieHeader: String, deadline: Date?) async throws -> CursorUserInfo {
-        let url = self.baseURL.appendingPathComponent("/api/auth/me")
-        var request = URLRequest(url: url)
-        request.timeoutInterval = try self.requestTimeout(deadline: deadline)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-
-        let (data, response) = try await self.urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("Failed to fetch user info")
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(CursorUserInfo.self, from: data)
-    }
-
-    private func fetchRequestUsage(
-        userId: String,
-        cookieHeader: String,
-        deadline: Date?) async throws -> (CursorUsageResponse, String)
-    {
-        let url = self.baseURL.appendingPathComponent("/api/usage")
-            .appending(queryItems: [URLQueryItem(name: "user", value: userId)])
-        var request = URLRequest(url: url)
-        request.timeoutInterval = try self.requestTimeout(deadline: deadline)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-
-        let (data, response) = try await self.urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("Failed to fetch request usage")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-        let decoder = JSONDecoder()
-        let usage = try decoder.decode(CursorUsageResponse.self, from: data)
-        return (usage, rawJSON)
-    }
-
-    private static let sandUsageTimeout: TimeInterval = 5
-
-    private func requestTimeout(deadline: Date?) throws -> TimeInterval {
+    func requestTimeout(deadline: Date?) throws -> TimeInterval {
         guard let deadline else { return self.timeout }
         let remainingTime = deadline.timeIntervalSinceNow
         guard remainingTime > 0 else { throw Self.browserLoginTimeoutError() }
         return min(self.timeout, remainingTime)
     }
 
-    private func optionalRequestTimeout(deadline: Date?, budget: TimeInterval) -> TimeInterval? {
+    func optionalRequestTimeout(deadline: Date?, budget: TimeInterval) -> TimeInterval? {
         let capped = min(self.timeout, budget)
         guard let deadline else { return capped }
         let remainingTime = deadline.timeIntervalSinceNow
