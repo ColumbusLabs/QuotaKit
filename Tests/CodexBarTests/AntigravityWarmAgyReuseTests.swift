@@ -215,8 +215,14 @@ struct AntigravityWarmAgyReuseTests {
             dependencies: AntigravityCLIHTTPSFetchStrategy.WarmAgyDependencies(
                 processInfos: { _ in
                     [
-                        Self.cliProcessInfo(pid: 6151, binaryPath: "/other/agy"),
-                        Self.cliProcessInfo(pid: 6152, binaryPath: "/selected/agy"),
+                        Self.cliProcessInfo(
+                            pid: 6151,
+                            binaryPath: "/other/agy",
+                            commandLine: "agy language-server"),
+                        Self.cliProcessInfo(
+                            pid: 6152,
+                            binaryPath: "/selected/agy",
+                            commandLine: "agy language-server"),
                     ]
                 },
                 listeningPorts: { pid, _ in
@@ -355,7 +361,9 @@ struct AntigravityWarmAgyReuseTests {
             resetAfterFetch: false,
             expectedAccountEmail: "terminal@example.com",
             warmDependencies: AntigravityCLIHTTPSFetchStrategy.WarmAgyDependencies(
-                processInfos: { _ in [Self.cliProcessInfo(pid: 6301)] },
+                processInfos: { _ in [Self.cliProcessInfo(
+                    pid: 6301,
+                    commandLine: "agy language-server --verbose")] },
                 listeningPorts: { _, _ in [50080] },
                 fetchSnapshot: { _, _ in Self.usableSnapshot(email: "TERMINAL@example.com") }),
             spawnFetch: { _, _, _ in
@@ -461,14 +469,16 @@ struct AntigravityWarmAgyReuseTests {
 
     private static func cliProcessInfo(
         pid: Int,
-        binaryPath: String = "/usr/local/bin/agy") -> AntigravityStatusProbe.ProcessInfoResult
+        binaryPath: String = "/usr/local/bin/agy",
+        commandLine: String? = nil) -> AntigravityStatusProbe.ProcessInfoResult
     {
         AntigravityStatusProbe.ProcessInfoResult(
             pid: pid,
             extensionPort: nil,
             extensionServerCSRFToken: nil,
             csrfToken: "",
-            commandLine: binaryPath)
+            commandLine: commandLine ?? binaryPath,
+            executablePath: binaryPath)
     }
 
     private static func usableSnapshot(email: String) -> AntigravityStatusSnapshot {

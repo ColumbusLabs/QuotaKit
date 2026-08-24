@@ -1041,6 +1041,25 @@ public struct AntigravityStatusProbe: Sendable {
         let extensionServerCSRFToken: String?
         let csrfToken: String
         let commandLine: String
+        /// Kernel-resolved executable identity. `commandLine` is display/parser
+        /// input and its argv[0] may be only `agy`, so it must not authorize reuse.
+        let executablePath: String?
+
+        init(
+            pid: Int,
+            extensionPort: Int?,
+            extensionServerCSRFToken: String?,
+            csrfToken: String,
+            commandLine: String,
+            executablePath: String? = nil)
+        {
+            self.pid = pid
+            self.extensionPort = extensionPort
+            self.extensionServerCSRFToken = extensionServerCSRFToken
+            self.csrfToken = csrfToken
+            self.commandLine = commandLine
+            self.executablePath = executablePath
+        }
     }
 
     struct AntigravityConnectionEndpoint: Equatable {
@@ -1087,12 +1106,13 @@ public struct AntigravityStatusProbe: Sendable {
         scope: ProcessScope = .ideAndCLI) async throws -> [ProcessInfoResult]
     {
         #if canImport(Darwin)
-        let entries = DarwinProcessEnumerator.allPIDs().compactMap { pid -> (pid: Int, command: String)? in
+        let entries = DarwinProcessEnumerator.allPIDs().compactMap { pid
+            -> (pid: Int, command: String, executablePath: String?)? in
             guard let executablePath = DarwinProcessEnumerator.executablePath(pid: pid),
                   DarwinProcessEnumerator.isAntigravityCandidatePath(executablePath)
             else { return nil }
             let command = DarwinProcessEnumerator.commandLine(pid: pid) ?? executablePath
-            return (Int(pid), command)
+            return (Int(pid), command, executablePath)
         }
         return try self.processInfos(fromEntries: entries, scope: scope)
         #else
@@ -1123,15 +1143,16 @@ public struct AntigravityStatusProbe: Sendable {
         fromProcessListOutput output: String,
         scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
     {
-        let entries = output.split(separator: "\n").compactMap { line -> (pid: Int, command: String)? in
+        let entries = output.split(separator: "\n").compactMap { line
+            -> (pid: Int, command: String, executablePath: String?)? in
             guard let match = Self.matchProcessLine(String(line)) else { return nil }
-            return (match.pid, match.command)
+            return (match.pid, match.command, nil)
         }
         return try self.processInfos(fromEntries: entries, scope: scope)
     }
 
     static func processInfos(
-        fromEntries entries: [(pid: Int, command: String)],
+        fromEntries entries: [(pid: Int, command: String, executablePath: String?)],
         scope: ProcessScope = .ideAndCLI) throws -> [ProcessInfoResult]
     {
         var sawTokenlessIDE = false
@@ -1155,7 +1176,8 @@ public struct AntigravityStatusProbe: Sendable {
                 extensionPort: port,
                 extensionServerCSRFToken: extensionServerCSRFToken,
                 csrfToken: token,
-                commandLine: entry.command))
+                commandLine: entry.command,
+                executablePath: entry.executablePath))
         }
 
         if !results.isEmpty {

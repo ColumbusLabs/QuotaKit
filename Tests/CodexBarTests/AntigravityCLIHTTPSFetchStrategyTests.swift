@@ -1030,6 +1030,34 @@ extension AntigravityCLIHTTPSFetchStrategyTests {
     }
 
     @Test
+    func `terminal unavailable offline fallback preserves actionable signed out CLI error`() async {
+        let pipeline = ProviderFetchPipeline(
+            resolveStrategies: { _ in
+                [
+                    AntigravityFallbackFixtureStrategy(
+                        id: "antigravity.cli-https",
+                        error: .authenticationRequired),
+                    AntigravityFallbackFixtureStrategy(
+                        id: "antigravity.offline",
+                        error: .notRunning,
+                        allowsFallback: false),
+                ]
+            },
+            resolveFallbackError: AntigravityProviderDescriptor.resolveFallbackError)
+
+        let outcome = await pipeline.fetch(context: self.makeFetchContext(), provider: .antigravity)
+
+        #expect(outcome.attempts.map(\.strategyID) == ["antigravity.cli-https", "antigravity.offline"])
+        #expect(outcome.attempts.last?.errorDescription == AntigravityStatusProbeError.notRunning.localizedDescription)
+        do {
+            _ = try outcome.result.get()
+            Issue.record("Expected the signed-out CLI failure")
+        } catch {
+            #expect((error as? AntigravityStatusProbeError) == .authenticationRequired)
+        }
+    }
+
+    @Test
     func `signed out CLI still allows a usable IDE fallback`() async throws {
         let pipeline = ProviderFetchPipeline(
             resolveStrategies: { _ in
@@ -1061,6 +1089,7 @@ extension AntigravityCLIHTTPSFetchStrategyTests {
 private struct AntigravityFallbackFixtureStrategy: ProviderFetchStrategy {
     let id: String
     let error: AntigravityStatusProbeError?
+    var allowsFallback = true
     let kind: ProviderFetchKind = .localProbe
 
     func isAvailable(_: ProviderFetchContext) async -> Bool {
@@ -1077,6 +1106,6 @@ private struct AntigravityFallbackFixtureStrategy: ProviderFetchStrategy {
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        true
+        self.allowsFallback
     }
 }

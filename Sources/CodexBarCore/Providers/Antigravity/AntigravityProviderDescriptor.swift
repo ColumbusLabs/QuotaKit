@@ -400,7 +400,8 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
 
         for info in cliProcesses {
             if let expectedBinaryPath {
-                guard Self.commandLine(info.commandLine, matchesBinaryPath: expectedBinaryPath)
+                guard let executablePath = info.executablePath,
+                      Self.executablePath(executablePath, matches: expectedBinaryPath)
                 else {
                     continue
                 }
@@ -455,14 +456,18 @@ struct AntigravityCLIHTTPSFetchStrategy: ProviderFetchStrategy {
         return remaining > 0 ? remaining : nil
     }
 
-    private static func commandLine(_ commandLine: String, matchesBinaryPath binaryPath: String) -> Bool {
-        let candidates = [
-            URL(fileURLWithPath: binaryPath).standardizedFileURL.path,
-            URL(fileURLWithPath: binaryPath).resolvingSymlinksInPath().standardizedFileURL.path,
-        ]
-        return candidates.contains { candidate in
-            commandLine == candidate || commandLine.hasPrefix("\(candidate) ")
-        }
+    private static func executablePath(_ executablePath: String, matches expectedPath: String) -> Bool {
+        let actual = URL(fileURLWithPath: executablePath)
+        let expected = URL(fileURLWithPath: expectedPath)
+        let actualCandidates = Set([
+            actual.standardizedFileURL.path,
+            actual.resolvingSymlinksInPath().standardizedFileURL.path,
+        ])
+        let expectedCandidates = Set([
+            expected.standardizedFileURL.path,
+            expected.resolvingSymlinksInPath().standardizedFileURL.path,
+        ])
+        return !actualCandidates.isDisjoint(with: expectedCandidates)
     }
 
     /// Production wiring for ``tryWarmAgyFetch``: list processes via `ps`, find
