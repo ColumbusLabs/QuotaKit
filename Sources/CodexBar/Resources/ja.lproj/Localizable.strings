@@ -1376,6 +1376,7 @@
 "menu_bar_layout_empty_line" = "ここにトークンをドロップ";
 "menu_bar_layout_line" = "%d 行目";
 "menu_bar_layout_drag_remove" = "ここへドラッグして削除";
+"menu_bar_layout_remove_selected" = "選択項目を削除";
 "menu_bar_layout_size" = "サイズ";
 "menu_bar_layout_size_small" = "小";
 "menu_bar_layout_size_regular" = "標準";

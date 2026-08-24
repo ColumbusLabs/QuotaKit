@@ -245,6 +245,13 @@ final class SyncCoordinator {
             let error = self.store.errors[provider.instanceID]
             let meta = self.store.providerMetadata[provider]
 
+            // Antigravity's offline conversation cache is machine-global and carries no account
+            // owner. Keep it as a Mac-only availability signal instead of creating an iCloud
+            // `antigravity|_` record that could be mistaken for an account-scoped quota snapshot.
+            if Self.shouldSuppressUnownedAntigravityOfflineSnapshot(provider: provider, snapshot: snapshot) {
+                continue
+            }
+
             // Per-provider shared data (computed once, reused across all
             // account snapshots for this provider during multi-account
             // expansion). Cost JSONL scanner and utilization history are
@@ -1500,6 +1507,16 @@ final class SyncCoordinator {
             && provider.statusMessage == nil
     }
 
+    nonisolated static func shouldSuppressUnownedAntigravityOfflineSnapshot(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> Bool
+    {
+        guard provider == .antigravity, snapshot?.identity == nil else { return false }
+        return snapshot?.extraRateWindows?.contains(where: {
+            $0.id == "antigravity-offline-conversations" && !$0.usageKnown
+        }) == true
+    }
+
     /// Key used by the in-memory diff cache — same (providerID, accountEmail)
     /// composite as `CloudSyncManager.perProviderRecordName`, but local-only
     /// (never serialized to CloudKit). The `"_"` sentinel for nil
@@ -1540,7 +1557,12 @@ final class SyncCoordinator {
     }
 
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
-        let tokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        // Machine-global local caches have no trustworthy account owner. They remain available to
+        // the Mac spend dashboard, but never travel in an account-keyed CloudKit provider record.
+        let storedTokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        let tokenSnapshot = storedTokenSnapshot?.ownership == .machineLocalUnowned
+            ? nil
+            : storedTokenSnapshot
         let serviceBreakdownsByDay = self.dashboardServiceBreakdowns(for: provider)
 
         guard tokenSnapshot != nil || !serviceBreakdownsByDay.isEmpty else { return nil }

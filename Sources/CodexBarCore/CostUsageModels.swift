@@ -105,6 +105,13 @@ public struct CostUsageHourlyEntry: Sendable, Equatable {
     }
 }
 
+public enum CostUsageTokenOwnership: Sendable, Equatable {
+    /// Usage is scoped to the authenticated provider/account context that produced it.
+    case accountScoped
+    /// Usage came from a machine-global local cache with no trustworthy account owner.
+    case machineLocalUnowned
+}
+
 public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let sessionTokens: Int?
     public let sessionCostUSD: Double?
@@ -126,6 +133,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     /// Internal credential scope used to prevent cross-account cache publication. This is a
     /// non-reversible fingerprint, not account identity, and is not emitted by CLI payloads.
     public let credentialScopeFingerprint: String?
+    /// Whether this snapshot can safely be attached to an authenticated provider account.
+    public let ownership: CostUsageTokenOwnership
     public let daily: [CostUsageDailyReport.Entry]
     public let projects: [CostUsageProjectBreakdown]
     public let sessions: [CostUsageSessionBreakdown]
@@ -147,6 +156,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         meteredCostUSD: Double? = nil,
         costProvenance: CostProvenance = .unknown,
         credentialScopeFingerprint: String? = nil,
+        ownership: CostUsageTokenOwnership = .accountScoped,
         daily: [CostUsageDailyReport.Entry],
         projects: [CostUsageProjectBreakdown] = [],
         sessions: [CostUsageSessionBreakdown] = [],
@@ -167,6 +177,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.meteredCostUSD = meteredCostUSD
         self.costProvenance = costProvenance
         self.credentialScopeFingerprint = credentialScopeFingerprint
+        self.ownership = ownership
         self.daily = daily
         self.projects = projects
         self.sessions = sessions

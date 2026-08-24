@@ -1345,6 +1345,7 @@
 "menu_bar_layout_empty_line" = "여기에 토큰 놓기";
 "menu_bar_layout_line" = "%d번째 줄";
 "menu_bar_layout_drag_remove" = "여기로 드래그해 제거";
+"menu_bar_layout_remove_selected" = "선택 항목 제거";
 "menu_bar_layout_size" = "크기";
 "menu_bar_layout_size_small" = "작게";
 "menu_bar_layout_size_regular" = "보통";

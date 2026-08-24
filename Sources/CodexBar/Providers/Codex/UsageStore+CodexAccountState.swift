@@ -30,6 +30,16 @@ struct CodexAccountScopedRefreshGuard: Equatable {
 
 @MainActor
 extension UsageStore {
+    func accountScopedTokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
+        if provider == .codex, !self.settings.codexLocalSessionCostLedgerEnabled {
+            return self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
+        }
+        guard let snapshot = self.tokenSnapshots[provider.instanceID],
+              self.tokenSnapshotCanAttachToProviderContext(snapshot, provider: provider)
+        else { return nil }
+        return snapshot
+    }
+
     func refreshCodexAccountScopedState(
         allowDisabled: Bool = false,
         phaseDidChange: (@MainActor (CodexAccountScopedRefreshPhase) -> Void)? = nil)
@@ -81,7 +91,8 @@ extension UsageStore {
         let accountChanged = previousGuard.map {
             !Self.codexScopedRefreshGuardsMatchAccount($0, currentGuard)
         } ?? false
-        guard forceInvalidation || accountChanged else { return false }
+        let tokenCostScopeChanged = self.invalidateCodexTokenSnapshotIfScopeChanged()
+        guard forceInvalidation || accountChanged || tokenCostScopeChanged else { return false }
 
         let preserveSessionQuotaTransitionState = !forceInvalidation &&
             Self.codexSessionQuotaOwnersMatch(previousGuard, currentGuard)
@@ -98,6 +109,24 @@ extension UsageStore {
         self.clearCodexOpenAIWebStateForAccountTransition(targetEmail: self.codexAccountEmailForOpenAIDashboard())
 
         self.persistWidgetSnapshot(reason: "codex-account-invalidate")
+        return true
+    }
+
+    private func invalidateCodexTokenSnapshotIfScopeChanged() -> Bool {
+        guard !self.settings.codexLocalSessionCostLedgerEnabled,
+              let publication = self.tokenSnapshotPublications[.codex],
+              publication.scopeSignature != self.tokenSnapshotScopeSignature(for: .codex)
+        else {
+            return false
+        }
+
+        self.clearTokenSnapshot(for: .codex)
+        self.tokenErrors[.codex] = nil
+        self.tokenFailureGates[.codex]?.reset()
+        self.lastTokenFetchAt.removeValue(forKey: .codex)
+        self.lastTokenFetchScope.removeValue(forKey: .codex)
+        self.cancelCodexCostCatchUp()
+        self.synchronizeSharedSpendDashboardAfterTokenPublication(for: .codex)
         return true
     }
 

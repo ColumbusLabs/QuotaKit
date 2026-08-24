@@ -411,6 +411,8 @@ public struct CursorStatusSnapshot: Sendable {
     public let accountName: String?
     /// Raw API response for debugging
     public let rawJSON: String?
+    /// Grok Bot weekly included usage from `/api/dashboard/get-sand-usage-status`.
+    public let sandUsage: CursorSandUsageStatus?
 
     // MARK: - Legacy Plan (Request-Based) Fields
 
@@ -441,6 +443,7 @@ public struct CursorStatusSnapshot: Sendable {
         accountID: String? = nil,
         accountName: String?,
         rawJSON: String?,
+        sandUsage: CursorSandUsageStatus? = nil,
         requestsUsed: Int? = nil,
         requestsLimit: Int? = nil)
     {
@@ -460,6 +463,7 @@ public struct CursorStatusSnapshot: Sendable {
         self.accountID = accountID
         self.accountName = accountName
         self.rawJSON = rawJSON
+        self.sandUsage = sandUsage
         self.requestsUsed = requestsUsed
         self.requestsLimit = requestsLimit
     }
@@ -526,6 +530,17 @@ public struct CursorStatusSnapshot: Sendable {
             cursorRateWindowLayout = nil
         }
 
+        // Grok Bot is a weekly included allowance on the same Cursor account, not the monthly
+        // Total/Cursor/Third Party bars. Hide it on legacy request plans so it cannot sit next
+        // to a request quota that does not share that token-based breakdown.
+        let extraRateWindows: [NamedRateWindow]? = if cursorRequests != nil {
+            nil
+        } else {
+            self.sandUsage.flatMap { status in
+                status.extraRateWindow(resetDescription: Self.formatResetDate)
+            }.map { [$0] }
+        }
+
         // Prefer a personal cap. Team accounts with no user cap expose only the shared on-demand budget.
         let resolvedOnDemandUsed: Double
         let resolvedOnDemandLimit: Double?
@@ -575,6 +590,7 @@ public struct CursorStatusSnapshot: Sendable {
             primary: primary,
             secondary: secondary,
             tertiary: nil,
+            extraRateWindows: extraRateWindows,
             providerCost: providerCost,
             details: cursorRequests.map { requests in
                 [.makeSection(title: "Usage", rows: [
@@ -910,7 +926,7 @@ public struct CursorStatusProbe: Sendable {
     public var timeout: TimeInterval = 15.0
     let browserDetection: BrowserDetection
     let browserCookieImportOrder: BrowserCookieImportOrder
-    private let urlSession: any ProviderHTTPTransport
+    let urlSession: any ProviderHTTPTransport
     #if os(macOS)
     let appAuthStore: any CursorAppAuthSessionProviding
     let persistAppAuthSession: @Sendable (CursorAppAuthSession) async -> Void
@@ -1427,12 +1443,16 @@ public struct CursorStatusProbe: Sendable {
         enum FetchPart: Sendable {
             case usageSummary((CursorUsageSummary, String))
             case userInfo(Result<CursorUserInfo, Error>)
+            case sandUsage(Result<(CursorSandUsageStatus, String), Error>)
         }
 
         try Self.checkBrowserLoginDeadline(deadline)
 
         var usageSummaryResult: (CursorUsageSummary, String)?
         var userInfo: CursorUserInfo?
+        var userInfoFinished = false
+        var sandUsage: CursorSandUsageStatus?
+        var sandUsageRawJSON: String?
 
         try await withThrowingTaskGroup(of: FetchPart.self) { group in
             group.addTask {
@@ -1447,19 +1467,45 @@ public struct CursorStatusProbe: Sendable {
                     return .userInfo(.failure(error))
                 }
             }
+            group.addTask {
+                do {
+                    return try await .sandUsage(.success(self.fetchSandUsage(
+                        cookieHeader: cookieHeader,
+                        deadline: deadline)))
+                } catch {
+                    return .sandUsage(.failure(error))
+                }
+            }
 
             while let result = try await group.next() {
                 switch result {
                 case let .usageSummary(value):
                     usageSummaryResult = value
                 case let .userInfo(value):
+                    userInfoFinished = true
                     userInfo = try? value.get()
+                case let .sandUsage(value):
+                    if let (status, rawJSON) = try? value.get() {
+                        sandUsage = status
+                        sandUsageRawJSON = rawJSON
+                    }
+                }
+                // Sand usage is optional enrichment. Let it race the required usage and identity
+                // requests, but never let a slow optional endpoint extend an ordinary refresh.
+                if usageSummaryResult != nil, userInfoFinished {
+                    group.cancelAll()
+                    return
+                }
+                // Required usage-summary is enough to finish login. Cancel leftover optional
+                // work if the interactive deadline has already elapsed.
+                if usageSummaryResult != nil, let deadline, deadline.timeIntervalSinceNow <= 0 {
+                    group.cancelAll()
                 }
             }
         }
-        try Self.checkBrowserLoginDeadline(deadline)
 
         guard let usageSummaryResult else {
+            try Self.checkBrowserLoginDeadline(deadline)
             throw CursorStatusProbeError.networkError("Cursor usage summary fetch did not complete")
         }
 
@@ -1487,12 +1533,17 @@ public struct CursorStatusProbe: Sendable {
         if let usageJSON = requestUsageRawJSON {
             combinedRawJSON = (combinedRawJSON ?? "") + "\n\n--- /api/usage response ---\n" + usageJSON
         }
+        if let sandJSON = sandUsageRawJSON {
+            combinedRawJSON = (combinedRawJSON ?? "") + "\n\n--- /api/dashboard/get-sand-usage-status ---\n"
+                + sandJSON
+        }
 
         return self.parseUsageSummary(
             usageSummary,
             userInfo: userInfo,
             rawJSON: combinedRawJSON,
             requestUsage: requestUsage,
+            sandUsage: sandUsage,
             identityFallback: identityFallback)
     }
 
@@ -1532,52 +1583,19 @@ public struct CursorStatusProbe: Sendable {
         }
     }
 
-    private func fetchUserInfo(cookieHeader: String, deadline: Date?) async throws -> CursorUserInfo {
-        let url = self.baseURL.appendingPathComponent("/api/auth/me")
-        var request = URLRequest(url: url)
-        request.timeoutInterval = try self.requestTimeout(deadline: deadline)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-
-        let (data, response) = try await self.urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("Failed to fetch user info")
-        }
-
-        let decoder = JSONDecoder()
-        return try decoder.decode(CursorUserInfo.self, from: data)
-    }
-
-    private func fetchRequestUsage(
-        userId: String,
-        cookieHeader: String,
-        deadline: Date?) async throws -> (CursorUsageResponse, String)
-    {
-        let url = self.baseURL.appendingPathComponent("/api/usage")
-            .appending(queryItems: [URLQueryItem(name: "user", value: userId)])
-        var request = URLRequest(url: url)
-        request.timeoutInterval = try self.requestTimeout(deadline: deadline)
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
-        request.setValue(cookieHeader, forHTTPHeaderField: "Cookie")
-
-        let (data, response) = try await self.urlSession.data(for: request)
-
-        guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-            throw CursorStatusProbeError.networkError("Failed to fetch request usage")
-        }
-
-        let rawJSON = String(data: data, encoding: .utf8) ?? "<binary>"
-        let decoder = JSONDecoder()
-        let usage = try decoder.decode(CursorUsageResponse.self, from: data)
-        return (usage, rawJSON)
-    }
-
-    private func requestTimeout(deadline: Date?) throws -> TimeInterval {
+    func requestTimeout(deadline: Date?) throws -> TimeInterval {
         guard let deadline else { return self.timeout }
         let remainingTime = deadline.timeIntervalSinceNow
         guard remainingTime > 0 else { throw Self.browserLoginTimeoutError() }
         return min(self.timeout, remainingTime)
+    }
+
+    func optionalRequestTimeout(deadline: Date?, budget: TimeInterval) -> TimeInterval? {
+        let capped = min(self.timeout, budget)
+        guard let deadline else { return capped }
+        let remainingTime = deadline.timeIntervalSinceNow
+        guard remainingTime > 0 else { return nil }
+        return min(capped, remainingTime)
     }
 
     private static func checkBrowserLoginDeadline(_ deadline: Date?) throws {
@@ -1594,6 +1612,7 @@ public struct CursorStatusProbe: Sendable {
         userInfo: CursorUserInfo?,
         rawJSON: String?,
         requestUsage: CursorUsageResponse? = nil,
+        sandUsage: CursorSandUsageStatus? = nil,
         identityFallback: CursorSessionIdentity? = nil) -> CursorStatusSnapshot
     {
         func parseBillingCycleDate(_ dateString: String?) -> Date? {
@@ -1700,6 +1719,7 @@ public struct CursorStatusProbe: Sendable {
             accountID: userInfo?.sub ?? identityFallback?.subject,
             accountName: userInfo?.name,
             rawJSON: rawJSON,
+            sandUsage: sandUsage,
             requestsUsed: requestsUsed,
             requestsLimit: requestsLimit)
     }

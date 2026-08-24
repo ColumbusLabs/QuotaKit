@@ -89,18 +89,32 @@ extension UsageStore {
     }
 
     func tokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
-        self.tokenSnapshots[provider.instanceID]
+        self.accountScopedTokenSnapshot(for: provider)
     }
 
     func tokenSnapshotForCurrentProviderConfig(
         for provider: UsageProvider) -> CurrentProviderConfigTokenSnapshot?
     {
         guard let publication = self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider),
-              let snapshot = publication.snapshot
+              let snapshot = publication.snapshot,
+              self.tokenSnapshotCanAttachToProviderContext(snapshot, provider: provider)
         else { return nil }
         return CurrentProviderConfigTokenSnapshot(
             snapshot: snapshot,
             publicationRevision: publication.publicationRevision)
+    }
+
+    func tokenSnapshotCanAttachToProviderContext(
+        _ snapshot: CostUsageTokenSnapshot,
+        provider: UsageProvider) -> Bool
+    {
+        guard snapshot.ownership == .machineLocalUnowned else { return true }
+        let hasSnapshotOwner = self.snapshots[provider.instanceID]?.identity?.accountEmail?
+            .trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == false
+        let hasConfiguredTokenAccount = self.settings.tokenAccountsData(for: provider)?.accounts.isEmpty == false
+        // Machine-local Cursor/Antigravity caches remain useful as standalone Mac spend data,
+        // but must not appear on a selected or authenticated account's quota/card surfaces.
+        return !hasSnapshotOwner && !hasConfiguredTokenAccount
     }
 
     func tokenSnapshotPublicationForCurrentProviderConfig(

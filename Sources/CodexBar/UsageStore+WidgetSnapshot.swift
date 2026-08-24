@@ -502,7 +502,7 @@ extension UsageStore {
                 window: window)
         }
 
-        let rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
+        var rows: [WidgetSnapshot.WidgetUsageRowSnapshot] = switch snapshot.cursorRateWindowLayout {
         case .requests:
             [row(id: "primary", title: "Requests", window: snapshot.primary)]
         case .plan:
@@ -532,6 +532,16 @@ extension UsageStore {
                 ]
             }
         }
+        rows.append(contentsOf: (snapshot.extraRateWindows ?? []).compactMap { namedWindow in
+            guard namedWindow.id == CursorSandUsageStatus.extraWindowID, namedWindow.usageKnown else {
+                return nil
+            }
+            return WidgetSnapshot.WidgetUsageRowSnapshot(
+                id: namedWindow.id,
+                title: namedWindow.title,
+                percentLeft: namedWindow.window.remainingPercent,
+                window: namedWindow.window)
+        })
         return rows.filter { $0.percentLeft != nil }
     }
 

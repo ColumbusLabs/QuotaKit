@@ -21,7 +21,8 @@ extension StatusItemController {
         historySelectionOverride: PlanUtilizationHistorySelection? = nil,
         planOverride: String? = nil,
         subtitleOverride: String? = nil,
-        sourceLabelOverride: String? = nil) -> UsageMenuCardView.Model?
+        sourceLabelOverride: String? = nil,
+        creditsOverride: CreditsSnapshot? = nil) -> UsageMenuCardView.Model?
     {
         // Provider-specific by design: Codex is the historical card fallback when no enabled provider is available.
         let target = provider ?? self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex
@@ -49,6 +50,7 @@ extension StatusItemController {
             surface: surface,
             snapshotOverride: snapshotOverride,
             errorOverride: errorOverride,
+            creditsOverride: surface == .overrideCard ? creditsOverride : nil,
             now: now)
         let credits: CreditsSnapshot?
         let creditsError: String?

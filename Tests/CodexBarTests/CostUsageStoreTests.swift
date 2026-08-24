@@ -1046,6 +1046,8 @@ extension CostUsageStoreTests {
             "43609cc56f76a003",
             "b975eb705f905b9a",
             "47144baa8daccf52",
+            "2d17f4981b78d07f",
+            "1ad1e41af7f25b3e",
         ])
         let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -1095,6 +1097,39 @@ extension CostUsageStoreTests {
         #expect(after == before)
         #expect(await current.rebuildCount == 0)
         #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
+    }
+
+    @Test
+    func `compatible predecessor parser hash adopts cursorless priority payload without rebuilding`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let predecessorHash = "2d17f4981b78d07f"
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: predecessorHash)
+        let predecessor = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: predecessorVersion,
+            parserHash: predecessorHash)
+        let file = Self.file(path: "/rollouts/compatible.jsonl", day: "2026-08-01")
+        var metadata = CostUsageStoreMetadata.empty
+        metadata.priorityTurnStatePayload = Data(
+            #"{"turnKeys":{"turn-a":"priority"},"turnIDsByDay":{"2026-05-10":["turn-a"]}}"#.utf8)
+        #expect(await predecessor.upsertFile(file))
+        #expect(await predecessor.setMetadata(metadata))
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+        let loaded = current.syncLoadCodexCache(calendar: .current)
+        #expect(await current.fetchFile(path: file.path) == file)
+        #expect(await current.fetchMetadata() == metadata)
+        #expect(await current.rebuildCount == 0)
+        #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        #expect(loaded.codexPriorityTurnKeys == ["turn-a": "priority"])
+        #expect(loaded.codexPriorityTurnIDsByDay == ["2026-05-10": ["turn-a"]])
+        #expect(loaded.codexPriorityTurnsCursor == nil)
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
         #expect(try connection.scalarInt(
             "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
@@ -1161,6 +1196,30 @@ extension CostUsageStoreTests {
 
         #expect(await store.fetchMetadata() == .empty)
         #expect(await store.rebuildCount == 1)
+    }
+
+    @Test
+    func `tokscale value-changing parser hash forces a rebuild`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let previousParserHash = "76877b47a94fe28c"
+        let previousStore = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: CostUsageStore.combinedSchemaVersion(
+                base: CostUsageStore.baseSchemaVersion,
+                parserHash: previousParserHash),
+            parserHash: previousParserHash)
+        let cachedFile = Self.file(path: "/rollouts/stale-tokscale-values.jsonl", day: "2026-08-01")
+        #expect(await previousStore.upsertFile(cachedFile))
+
+        let currentStore = CostUsageStore(cacheRoot: fixture.root)
+
+        #expect(await currentStore.fetchFile(path: cachedFile.path) == nil)
+        #expect(await currentStore.rebuildCount == 1)
+        #expect(await currentStore.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
     @Test

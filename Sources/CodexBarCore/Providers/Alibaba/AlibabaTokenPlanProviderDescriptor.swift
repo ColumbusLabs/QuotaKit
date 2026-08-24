@@ -341,7 +341,7 @@ extension AlibabaTokenPlanUsageError {
         switch self {
         case .loginRequired, .invalidCredentials:
             true
-        case .apiError, .networkError, .parseFailed:
+        case .apiError, .networkError, .parseFailed, .usageWindowsUnavailable:
             false
         }
     }

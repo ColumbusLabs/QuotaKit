@@ -104,7 +104,8 @@ extension UsageStore {
     }
 
     private nonisolated static func requiresResetCreditRescue(_ result: ProviderFetchResult) -> Bool {
-        result.strategyID == "codex.oauth"
+        !result.codexMonthlyLimitEnrichmentFailed
+            && result.strategyID == "codex.oauth"
             && result.credits == nil
             && result.usage.primary == nil
             && result.usage.secondary == nil
@@ -172,6 +173,7 @@ extension ProviderFetchOutcome {
                 strategyKind: result.strategyKind,
                 codexResetCreditsAttempted: result.codexResetCreditsAttempted,
                 codexPATCredentialOwner: result.codexPATCredentialOwner,
+                codexMonthlyLimitEnrichmentFailed: result.codexMonthlyLimitEnrichmentFailed,
                 diagnostic: result.diagnostic,
                 claudeOAuthKeychainPersistentRefHash: result.claudeOAuthKeychainPersistentRefHash,
                 claudeOAuthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier,

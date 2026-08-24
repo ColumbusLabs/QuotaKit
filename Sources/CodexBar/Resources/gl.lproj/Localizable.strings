@@ -1375,6 +1375,7 @@
 "menu_bar_layout_empty_line" = "Solta unha ficha aquí";
 "menu_bar_layout_line" = "Liña %d";
 "menu_bar_layout_drag_remove" = "Arrastra aquí para retirar";
+"menu_bar_layout_remove_selected" = "Retirar a selección";
 "menu_bar_layout_size" = "Tamaño";
 "menu_bar_layout_size_small" = "Pequeno";
 "menu_bar_layout_size_regular" = "Normal";

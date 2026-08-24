@@ -180,16 +180,29 @@ public struct AgentProcessRecord: Equatable, Sendable {
     public let ppid: Int32
     public let startedAt: Date?
     public let command: String
+    public let executablePath: String?
+    public let arguments: [String]?
 
-    public init(pid: Int32, ppid: Int32, startedAt: Date?, command: String) {
+    public init(
+        pid: Int32,
+        ppid: Int32,
+        startedAt: Date?,
+        command: String,
+        executablePath: String? = nil,
+        arguments: [String]? = nil)
+    {
         self.pid = pid
         self.ppid = ppid
         self.startedAt = startedAt
         self.command = command
+        self.executablePath = executablePath
+        self.arguments = arguments
     }
 
     public var executableBasename: String {
-        let firstToken = self.command.split(whereSeparator: \ .isWhitespace).first.map(String.init) ?? ""
+        let firstToken = self.executablePath ??
+            self.arguments?.first ??
+            self.command.split(whereSeparator: \ .isWhitespace).first.map(String.init) ?? ""
         let firstBasename = URL(fileURLWithPath: firstToken).lastPathComponent
         if firstBasename == "disclaimer" {
             return firstBasename
@@ -291,9 +304,29 @@ public enum AgentPSOutputParser {
     public static func hasCodexAppServer(in records: [AgentProcessRecord]) -> Bool {
         records.contains { record in
             record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
-                self.isCodexAgentExecutable(record.command) &&
+                self.isCodexDesktopAgentExecutable(record.command) &&
                 self.arguments(record.command).contains("app-server")
         }
+    }
+
+    static func chatGPTCodexAppServerProcesses(in records: [AgentProcessRecord]) -> [AgentProcessRecord] {
+        records.filter { record in
+            record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
+                self.arguments(record.command).contains("app-server")
+        }
+    }
+
+    static func isChatGPTCodexAppServerExecutable(
+        _ executablePath: String,
+        homeDirectory: URL) -> Bool
+    {
+        let allowedPaths = Set([
+            URL(fileURLWithPath: "/Applications/ChatGPT.app/Contents/Resources/codex")
+                .standardizedFileURL.path,
+            homeDirectory.appendingPathComponent("Applications/ChatGPT.app/Contents/Resources/codex")
+                .standardizedFileURL.path,
+        ])
+        return allowedPaths.contains(URL(fileURLWithPath: executablePath).standardizedFileURL.path)
     }
 
     private static func arguments(_ command: String) -> [String] {
@@ -320,8 +353,13 @@ public enum AgentPSOutputParser {
     private static func isCodexAgentExecutable(_ command: String) -> Bool {
         let lowercased = command.lowercased()
         guard lowercased.contains(".app/") else { return true }
-        return lowercased.hasPrefix("/applications/codex.app/contents/resources/codex ") ||
-            lowercased.hasPrefix("/applications/codex.app/contents/resources/codex\t")
+        return self.isCodexDesktopAgentExecutable(command)
+    }
+
+    private static func isCodexDesktopAgentExecutable(_ command: String) -> Bool {
+        let lowercased = command.lowercased()
+        let executable = lowercased.split(whereSeparator: \ .isWhitespace).first.map(String.init)
+        return executable == "/applications/codex.app/contents/resources/codex"
     }
 
     private static func isClaudeAgentExecutable(_ command: String) -> Bool {

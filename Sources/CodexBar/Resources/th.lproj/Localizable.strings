@@ -1379,6 +1379,7 @@
 "menu_bar_layout_empty_line" = "วางโทเค็นที่นี่";
 "menu_bar_layout_line" = "บรรทัด %d";
 "menu_bar_layout_drag_remove" = "ลากมาที่นี่เพื่อลบ";
+"menu_bar_layout_remove_selected" = "ลบรายการที่เลือก";
 "menu_bar_layout_size" = "ขนาด";
 "menu_bar_layout_size_small" = "เล็ก";
 "menu_bar_layout_size_regular" = "ปกติ";

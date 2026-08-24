@@ -1376,6 +1376,7 @@
 "menu_bar_layout_empty_line" = "将项目拖放到此处";
 "menu_bar_layout_line" = "第 %d 行";
 "menu_bar_layout_drag_remove" = "拖到此处以移除";
+"menu_bar_layout_remove_selected" = "移除所选";
 "menu_bar_layout_size" = "大小";
 "menu_bar_layout_size_small" = "小";
 "menu_bar_layout_size_regular" = "常规";

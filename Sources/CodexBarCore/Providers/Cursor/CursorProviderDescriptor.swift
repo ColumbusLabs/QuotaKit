@@ -77,6 +77,9 @@ public enum CursorProviderDescriptor {
                     "invoice."),
             pace: ProviderPaceCapability(resetWindowPace: .windowDurationPresent),
             presentation: ProviderUsagePresentation(
+                extraRateWindowSelector: { snapshot in
+                    (snapshot.extraRateWindows ?? []).filter { $0.id == CursorSandUsageStatus.extraWindowID }
+                },
                 requestedMenuBarLaneOrders: [
                     .tertiary: [.tertiary, .secondary, .primary],
                 ],
@@ -117,15 +120,37 @@ public enum CursorProviderDescriptor {
     {
         guard context.metric == .automatic else { return .unhandled }
         let snapshot = context.snapshot
+        let grokBot = snapshot.extraRateWindows?.first {
+            $0.id == CursorSandUsageStatus.extraWindowID && $0.usageKnown
+        }?.window
         if let layout = snapshot.cursorRateWindowLayout {
             return switch layout {
             case .autoAPI:
                 .resolved(Self.mostConstrainedCursorWindow(
                     total: nil,
                     auto: snapshot.primary,
-                    api: snapshot.secondary))
-            case .requests, .autoOnly, .apiOnly, .plan:
+                    api: snapshot.secondary,
+                    grokBot: grokBot))
+            case .requests:
                 .resolved(snapshot.primary)
+            case .autoOnly:
+                .resolved(Self.mostConstrainedCursorWindow(
+                    total: nil,
+                    auto: snapshot.primary,
+                    api: nil,
+                    grokBot: grokBot))
+            case .apiOnly:
+                .resolved(Self.mostConstrainedCursorWindow(
+                    total: nil,
+                    auto: nil,
+                    api: snapshot.primary,
+                    grokBot: grokBot))
+            case .plan:
+                .resolved(Self.mostConstrainedCursorWindow(
+                    total: snapshot.primary,
+                    auto: nil,
+                    api: nil,
+                    grokBot: grokBot))
             }
         }
         if snapshot.tertiary == nil {
@@ -134,20 +159,23 @@ public enum CursorProviderDescriptor {
             return .resolved(Self.mostConstrainedCursorWindow(
                 total: nil,
                 auto: snapshot.primary,
-                api: snapshot.secondary))
+                api: snapshot.secondary,
+                grokBot: grokBot))
         }
         return .resolved(Self.mostConstrainedCursorWindow(
             total: snapshot.primary,
             auto: snapshot.secondary,
-            api: snapshot.tertiary))
+            api: snapshot.tertiary,
+            grokBot: grokBot))
     }
 
     private static func mostConstrainedCursorWindow(
         total: RateWindow?,
         auto: RateWindow?,
-        api: RateWindow?) -> RateWindow?
+        api: RateWindow?,
+        grokBot: RateWindow?) -> RateWindow?
     {
-        let subquotas = [auto, api].compactMap(\.self)
+        let subquotas = [auto, api, grokBot].compactMap(\.self)
         let usableSubquotas = subquotas.filter { $0.remainingPercent > 0 }
         if let total, total.remainingPercent <= 0 {
             return total

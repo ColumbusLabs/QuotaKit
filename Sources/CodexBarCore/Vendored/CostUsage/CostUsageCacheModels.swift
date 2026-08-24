@@ -14,6 +14,7 @@ struct CostUsageCache: Codable, Equatable, @unchecked Sendable {
     var codexProjectMetadataVersion: Int?
     var codexPriorityTurnKeys: [String: String]?
     var codexPriorityTurnIDsByDay: [String: [String]]?
+    var codexPriorityTurnsCursor: CostUsageScanner.CodexPriorityTurnsPersistedCursor?
     var codexScanCatchUpPending: Bool?
     var codexScanProcessedBytes: Int64?
     var codexScanTotalBytes: Int64?
@@ -329,10 +330,30 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
     var title: String?
     var startedAtUnixMs: Int64?
     var latestActivityUnixMs: Int64?
+    var latestAcceptedUsageUnixMs: Int64?
+
+    init(
+        sessionId: String?,
+        forkedFromId: String?,
+        cwd: String?,
+        title: String?,
+        startedAtUnixMs: Int64?,
+        latestActivityUnixMs: Int64?,
+        latestAcceptedUsageUnixMs: Int64? = nil)
+    {
+        self.sessionId = sessionId
+        self.forkedFromId = forkedFromId
+        self.cwd = cwd
+        self.title = title
+        self.startedAtUnixMs = startedAtUnixMs
+        self.latestActivityUnixMs = latestActivityUnixMs
+        self.latestAcceptedUsageUnixMs = latestAcceptedUsageUnixMs
+    }
 
     var isEmpty: Bool {
         self.sessionId == nil && self.forkedFromId == nil && self.cwd == nil && self.title == nil
             && self.startedAtUnixMs == nil && self.latestActivityUnixMs == nil
+            && self.latestAcceptedUsageUnixMs == nil
     }
 
     func merging(_ newer: CostUsageCodexSessionMetadata) -> CostUsageCodexSessionMetadata {
@@ -342,7 +363,8 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
             cwd: newer.cwd ?? self.cwd,
             title: newer.title ?? self.title,
             startedAtUnixMs: Self.earlier(self.startedAtUnixMs, newer.startedAtUnixMs),
-            latestActivityUnixMs: Self.later(self.latestActivityUnixMs, newer.latestActivityUnixMs))
+            latestActivityUnixMs: Self.later(self.latestActivityUnixMs, newer.latestActivityUnixMs),
+            latestAcceptedUsageUnixMs: newer.latestAcceptedUsageUnixMs ?? self.latestAcceptedUsageUnixMs)
     }
 
     private static func earlier(_ lhs: Int64?, _ rhs: Int64?) -> Int64? {

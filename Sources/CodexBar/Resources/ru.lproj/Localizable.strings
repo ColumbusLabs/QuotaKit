@@ -1377,6 +1377,7 @@
 "menu_bar_layout_empty_line" = "Перетащите элемент сюда";
 "menu_bar_layout_line" = "Строка %d";
 "menu_bar_layout_drag_remove" = "Перетащите сюда для удаления";
+"menu_bar_layout_remove_selected" = "Удалить выбранное";
 "menu_bar_layout_size" = "Размер";
 "menu_bar_layout_size_small" = "Маленький";
 "menu_bar_layout_size_regular" = "Обычный";

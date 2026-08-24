@@ -87,6 +87,8 @@ actor CostUsageStore {
         "43609cc56f76a003", // 0.49.3 request-tier pricing; persisted row shape unchanged.
         "b975eb705f905b9a", // 0.49.0-0.49.2 SQLite producer with compatible rows.
         "47144baa8daccf52", // This branch changes only scan scheduling, discovery, and persistence bookkeeping.
+        "2d17f4981b78d07f", // Persisted priority-turn cursor; parser and persisted row shape unchanged.
+        "1ad1e41af7f25b3e", // Trace-priority ownership evidence fix; parser and persisted row shape unchanged.
     ]
 
     nonisolated static func defaultCacheRoot() -> URL {

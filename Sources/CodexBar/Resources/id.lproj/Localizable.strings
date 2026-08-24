@@ -1379,6 +1379,7 @@
 "menu_bar_layout_empty_line" = "Letakkan token di sini";
 "menu_bar_layout_line" = "Baris %d";
 "menu_bar_layout_drag_remove" = "Seret ke sini untuk menghapus";
+"menu_bar_layout_remove_selected" = "Hapus yang dipilih";
 "menu_bar_layout_size" = "Ukuran";
 "menu_bar_layout_size_small" = "Kecil";
 "menu_bar_layout_size_regular" = "Reguler";

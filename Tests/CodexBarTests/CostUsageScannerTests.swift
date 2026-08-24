@@ -509,6 +509,350 @@ struct CostUsageScannerTests {
     }
 
     @Test
+    func `codex cached tokens use maximum of both cache fields`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso = env.isoString(for: day)
+        let model = "openai/gpt-5.2-codex"
+        // cache_read_input_tokens is the authoritative field in this fixture;
+        // the legacy fallback would have silently used the stale zero instead.
+        let tokenCount: [String: Any] = [
+            "type": "event_msg",
+            "timestamp": iso,
+            "payload": [
+                "type": "token_count",
+                "info": [
+                    "last_token_usage": [
+                        "input_tokens": 100,
+                        "cached_input_tokens": 0,
+                        "cache_read_input_tokens": 25,
+                        "output_tokens": 10,
+                    ],
+                    "model": model,
+                ],
+            ],
+        ]
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "cache-max.jsonl",
+            contents: env.jsonl([tokenCount]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.2-codex"] ?? []
+
+        #expect(packed.count >= 3)
+        #expect(packed[0] == 100)
+        #expect(packed[1] == 25)
+        #expect(packed[2] == 10)
+    }
+
+    @Test
+    func `codex out-of-order stale snapshot does not double-count last usage`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let model = "openai/gpt-5.2-codex"
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": ["model": model],
+        ]
+        func tokenCount(_ timestamp: String, input: Int, output: Int) -> [String: Any] {
+            [
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": [
+                        "total_token_usage": [
+                            "input_tokens": input,
+                            "output_tokens": output,
+                        ],
+                        "last_token_usage": [
+                            "input_tokens": 5,
+                            "output_tokens": 1,
+                        ],
+                    ],
+                ],
+            ]
+        }
+        // Normal increment, then a stale snapshot that regressed by roughly one
+        // increment, then a resume from the true watermark.
+        let lines = try env.jsonl([
+            turnContext,
+            tokenCount(iso1, input: 10, output: 3),
+            tokenCount(iso2, input: 8, output: 2),
+            tokenCount(iso2, input: 15, output: 5),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "stale-regression.jsonl",
+            contents: lines)
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.2-codex"] ?? []
+
+        // Stale detection skips the regressed snapshot without advancing its baseline;
+        // the resumed true watermark contributes a second 5-token increment. Counted
+        // usage is therefore 10/2, while the raw cumulative watermark remains 15/5.
+        #expect(packed.count >= 3)
+        #expect(packed[0] == 10)
+        #expect(packed[2] == 2)
+    }
+
+    @Test
+    func `codex stale detection treats omitted reasoning as unknown`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let model = "openai/gpt-5.2-codex"
+        let turnContext: [String: Any] = [
+            "type": "turn_context",
+            "timestamp": iso0,
+            "payload": ["model": model],
+        ]
+        func tokenCount(_ timestamp: String, input: Int, output: Int, reasoning: Int?) -> [String: Any] {
+            var total: [String: Any] = [
+                "input_tokens": input,
+                "output_tokens": output,
+            ]
+            if let reasoning {
+                total["reasoning_output_tokens"] = reasoning
+            }
+            return [
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": [
+                        "total_token_usage": total,
+                        "last_token_usage": [
+                            "input_tokens": 5,
+                            "output_tokens": 1,
+                        ],
+                    ],
+                ],
+            ]
+        }
+        // The first snapshot includes reasoning; the resumed snapshot omits it. The
+        // omitted field must not count as a reasoning regression that hides the row.
+        let lines = try env.jsonl([
+            turnContext,
+            tokenCount(iso1, input: 10, output: 3, reasoning: 1),
+            tokenCount(iso2, input: 15, output: 4, reasoning: nil),
+        ])
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "stale-omitted-reasoning.jsonl",
+            contents: lines)
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.2-codex"] ?? []
+
+        #expect(packed.count >= 3)
+        #expect(packed[0] == 10)
+        // Both increments contribute one output unit each (1 + 1); the omitted
+        // reasoning field must not cause the second snapshot to be discarded.
+        #expect(packed[2] == 2)
+    }
+
+    @Test
+    func `codex bare usage rows count exec aliases with cached input subtraction`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 21)
+        let iso = env.isoString(for: day)
+        let model = "openai/gpt-5.2-codex"
+
+        func bareUsage(model: String?, cachedTokens: Int) -> [String: Any] {
+            var usage: [String: Any] = [
+                "prompt_tokens": 120,
+                "completion_tokens": 30,
+            ]
+            if cachedTokens > 0 {
+                usage["cached_input_tokens"] = 0
+                usage["cache_read_input_tokens"] = cachedTokens
+            }
+            var line: [String: Any] = [
+                "timestamp": iso,
+                "usage": usage,
+            ]
+            if let model {
+                line["model"] = model
+            }
+            return line
+        }
+
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "bare-usage.jsonl",
+            contents: env.jsonl([
+                bareUsage(model: model, cachedTokens: 20),
+                ["timestamp": iso, "data": ["usage": ["input": 10, "output": 4]]],
+            ]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.2-codex"] == [100, 20, 30])
+        #expect(parsed.days[dayKey]?["unknown"] == [10, 0, 4])
+        #expect(parsed.rows.count == 2)
+    }
+
+    @Test
+    func `codex bare usage without timestamp uses prior accepted timestamp`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let dayOne = try env.makeLocalNoon(year: 2026, month: 8, day: 21)
+        let dayTwo = try env.makeLocalNoon(year: 2026, month: 8, day: 22)
+        let isoOne = env.isoString(for: dayOne)
+        let fileURL = try env.writeCodexSessionFile(
+            day: dayOne,
+            filename: "bare-usage-timestamp-fallback.jsonl",
+            contents: env.jsonl([
+                ["timestamp": isoOne, "response": ["usage": ["input_tokens": 7, "output_tokens": 3]]],
+                ["result": ["usage": ["input_tokens": 5, "output_tokens": 1]]],
+            ]))
+
+        let parsed = CostUsageScanner.parseCodexFile(
+            fileURL: fileURL,
+            range: .init(since: dayTwo, until: dayTwo))
+
+        // The timestamp-less result row must stay attributable to the last accepted day,
+        // not disappear when the requested report window is the following day.
+        let firstDayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: dayOne)
+        #expect(parsed.days[firstDayKey]?["unknown"] == [12, 0, 4])
+        #expect(parsed.rows.map(\.day) == [firstDayKey, firstDayKey])
+    }
+
+    @Test
+    func `codex bare usage inherits accepted token timestamp in report calendar`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let timestamp = try #require(ISO8601DateFormatter().date(from: "2026-08-22T02:30:00Z"))
+        let iso = env.isoString(for: timestamp)
+        let model = "openai/gpt-5.5"
+        let fileURL = try env.writeCodexSessionFile(
+            day: timestamp,
+            filename: "bare-after-token-count.jsonl",
+            contents: env.jsonl([
+                ["type": "turn_context", "timestamp": iso, "payload": ["model": model]],
+                [
+                    "type": "event_msg",
+                    "timestamp": iso,
+                    "payload": [
+                        "type": "token_count",
+                        "info": [
+                            "total_token_usage": ["input_tokens": 7, "output_tokens": 3],
+                        ],
+                    ],
+                ],
+                ["result": ["usage": ["input_tokens": 5, "output_tokens": 1]]],
+            ]))
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let range = CostUsageScanner.CostUsageDayRange(since: timestamp, until: timestamp, calendar: utc)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+
+        #expect(parsed.days["2026-08-22"]?["gpt-5.5"] == [12, 0, 4])
+        #expect(parsed.rows.map(\.day) == ["2026-08-22", "2026-08-22"])
+    }
+
+    @Test
+    func `codex copied subagent prefix excludes bare usage and preserves owned priority turn`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 8, day: 21)
+        let iso0 = env.isoString(for: day)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let model = "openai/gpt-5.5"
+        let priorityTurnID = "priority-turn"
+        func tokenCount(ordinal: Int, timestamp: String, input: Int, output: Int, lastInput: Int) -> [String: Any] {
+            [
+                "ordinal": ordinal,
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": [
+                        "total_token_usage": ["input_tokens": input, "output_tokens": output],
+                        "last_token_usage": ["input_tokens": lastInput, "output_tokens": 1],
+                        "model": model,
+                    ],
+                ],
+            ]
+        }
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "copied-prefix-bare-usage.jsonl",
+            contents: env.jsonl([
+                [
+                    "ordinal": 0,
+                    "type": "session_meta",
+                    "timestamp": iso0,
+                    "payload": [
+                        "id": "child-session",
+                        "timestamp": iso0,
+                        "source": "subagent",
+                        "subagent_history_start_ordinal": 4,
+                    ],
+                ],
+                ["ordinal": 1, "type": "turn_context", "timestamp": iso0, "payload": ["model": model]],
+                tokenCount(ordinal: 2, timestamp: iso1, input: 100, output: 10, lastInput: 100),
+                [
+                    "ordinal": 3,
+                    "timestamp": iso1,
+                    "model": model,
+                    "usage": ["input_tokens": 50, "output_tokens": 5],
+                ],
+                [
+                    "ordinal": 4,
+                    "type": "event_msg",
+                    "timestamp": iso2,
+                    "payload": ["type": "task_started", "turn_id": priorityTurnID],
+                ],
+                tokenCount(ordinal: 5, timestamp: iso2, input: 110, output: 11, lastInput: 10),
+                [
+                    "ordinal": 6,
+                    "timestamp": iso2,
+                    "model": model,
+                    "usage": ["input_tokens": 7, "output_tokens": 2],
+                ],
+            ]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [17, 0, 3])
+        #expect(parsed.rows.map(\.turnID) == [priorityTurnID, priorityTurnID])
+        #expect(parsed.rows.map(\.input) == [10, 7])
+    }
+
+    @Test
     func `codex parses large turn_context line and attributes tokens to its model`() throws {
         // Regression for 0.23.3 bug: Codex CLI 0.125+ ships turn_context
         // lines ~38–41KB because user_instructions now bundles project
@@ -800,6 +1144,101 @@ struct CostUsageScannerTests {
         #expect(packed[0] == 0)
         #expect(packed[1] == 0)
         #expect(packed[2] == 5)
+    }
+
+    @Test
+    func `codex stale regression comparison is overflow safe near Int max`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso1 = env.isoString(for: day.addingTimeInterval(1))
+        let iso2 = env.isoString(for: day.addingTimeInterval(2))
+        let input = Int.max - 100
+        let cached = Int.max - 200
+        let output = Int.max - 300
+        func tokenCount(timestamp: String, input: Int, includeLast: Bool) -> [String: Any] {
+            var info: [String: Any] = [
+                "total_token_usage": [
+                    "input_tokens": input,
+                    "cached_input_tokens": cached,
+                    "output_tokens": output,
+                ],
+                "model": "openai/gpt-5.5",
+            ]
+            if includeLast {
+                info["last_token_usage"] = [
+                    "input_tokens": 1,
+                    "cached_input_tokens": 1,
+                    "output_tokens": 1,
+                ]
+            }
+            return [
+                "type": "event_msg",
+                "timestamp": timestamp,
+                "payload": [
+                    "type": "token_count",
+                    "info": info,
+                ],
+            ]
+        }
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "stale-overflow.jsonl",
+            contents: env.jsonl([
+                tokenCount(timestamp: iso1, input: input, includeLast: false),
+                tokenCount(timestamp: iso2, input: input - 1, includeLast: true),
+            ]))
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+
+        #expect(parsed.days[dayKey]?["gpt-5.5"] == [input, cached, output])
+        #expect(parsed.rows.count == 1)
+    }
+
+    @Test
+    func `codex json fallback applies maximum cache selection`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let day = try env.makeLocalNoon(year: 2025, month: 12, day: 20)
+        let iso = env.isoString(for: day)
+        // The fast byte parser declines an escaped cache-read key, and the huge
+        // integer also defeats its nil-coalescing fallback. The line therefore
+        // reaches the JSONSerialization fallback, where the legacy
+        // nil-coalescing selection would have used the present zero and
+        // undercounted cached input.
+        let hugeInteger = String(repeating: "9", count: 100)
+        let cacheReadKey = "cache_\(String(UnicodeScalar(0x72)))ead_input_tokens"
+        let usageJSONParts = [
+            "{\"input_tokens\":\(hugeInteger)",
+            "\"cached_input_tokens\":0",
+            "\"\(cacheReadKey)\":25",
+            "\"output_tokens\":10}",
+        ]
+        let usageJSON = usageJSONParts.joined(separator: ",")
+        let eventJSONParts = [
+            "{\"type\":\"event_msg\",\"timestamp\":\"\(iso)\"",
+            "\"payload\":{\"type\":\"token_count\",\"info\":",
+            "{\"last_token_usage\":\(usageJSON),\"model\":\"openai/gpt-5.5\"}}}",
+        ]
+        let line = eventJSONParts.joined()
+        #expect(line.contains("\n") == false)
+        let fileURL = try env.writeCodexSessionFile(
+            day: day,
+            filename: "fallback-cache-max.jsonl",
+            contents: line + "\n")
+        let range = CostUsageScanner.CostUsageDayRange(since: day, until: day)
+
+        let parsed = CostUsageScanner.parseCodexFile(fileURL: fileURL, range: range)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let packed = parsed.days[dayKey]?["gpt-5.5"] ?? []
+
+        #expect(packed.count >= 3)
+        #expect(packed[1] == 25)
+        #expect(packed[2] == 10)
     }
 
     @Test

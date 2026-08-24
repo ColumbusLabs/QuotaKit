@@ -44,6 +44,13 @@ extension UsageStore {
         let missingWindowBackfillSnapshot: UsageSnapshot?
     }
 
+    private struct ProviderRefreshSuccessPublication {
+        let rawScoped: UsageSnapshot
+        let scoped: UsageSnapshot
+        let accountScoped: UsageSnapshot
+        let currentTokenAccount: ProviderTokenAccount?
+    }
+
     private struct ClaudeRefreshReconciliation {
         let disposition: ClaudeRefreshDisposition
         let oauthHistoryPersistentRefHash: String?
@@ -308,6 +315,7 @@ extension UsageStore {
             self.lastKnownResetSnapshots[.codex] = hydratedSnapshot
             self.errors[.codex] = hydratedPrior.error
             self.lastSourceLabels[.codex] = hydratedPrior.sourceLabel
+            self.publishHydratedCodexCreditsIfNeeded(from: hydratedPrior.credits, accountKey: expectedGuard.accountKey)
             self.lastCodexUsagePublicationGuard = expectedGuard
             self.lastCodexAccountScopedRefreshGuard = expectedGuard
         }
@@ -682,6 +690,21 @@ extension UsageStore {
         attempts: [ProviderFetchAttempt],
         context: ProviderRefreshOutcomeContext) async
     {
+        if Self.shouldPreserveAntigravityQuotaSnapshot(
+            provider: provider,
+            result: result,
+            priorSnapshot: self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID])
+        {
+            let liveErrorDescription = attempts.last(where: {
+                $0.strategyID != result.strategyID && $0.errorDescription != nil
+            })?.errorDescription ?? "Antigravity live quota is temporarily unavailable."
+            await self.applyProviderRefreshFailure(
+                provider: provider,
+                error: AntigravityOfflineQuotaFallbackError(liveErrorDescription: liveErrorDescription),
+                attempts: attempts,
+                context: context)
+            return
+        }
         let rawScoped = result.usage.scoped(to: provider)
         // Provider-specific by design: Codex results are discarded when managed-account ownership changes mid-fetch.
         if provider == .codex,
@@ -697,10 +720,19 @@ extension UsageStore {
             provider: provider,
             usage: rawScoped,
             expectedGuard: context.codexExpectedGuard)
-        let currentTokenAccount = context.tokenAccount.flatMap { account in
-            self.uniqueTokenAccount(provider: provider, accountID: account.id)
+        // Antigravity's local conversation cache is global and contains no account owner.
+        // Never stamp the selected OAuth account onto this unowned offline-only result.
+        let isUnownedAntigravityOffline = Self.isUnownedAntigravityOfflineResult(
+            provider: provider,
+            result: result)
+        let currentTokenAccount: ProviderTokenAccount? = if isUnownedAntigravityOffline {
+            nil
+        } else {
+            context.tokenAccount.flatMap { account in
+                self.uniqueTokenAccount(provider: provider, accountID: account.id)
+            }
         }
-        if context.tokenAccount != nil, currentTokenAccount == nil {
+        if context.tokenAccount != nil, currentTokenAccount == nil, !isUnownedAntigravityOffline {
             return
         }
         let accountScoped = if let tokenAccount = currentTokenAccount {
@@ -708,96 +740,17 @@ extension UsageStore {
         } else {
             scoped
         }
-        let backfilled = await MainActor.run { () -> UsageSnapshot? in
-            guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else {
-                return nil
-            }
-            if provider == .codex,
-               let codexExpectedGuard = context.codexExpectedGuard,
-               !self.shouldApplyCodexUsageResult(expectedGuard: codexExpectedGuard, usage: rawScoped)
-            {
-                self.retireCodexStateIfRefreshOwnerChanged(
-                    expectedGuard: codexExpectedGuard,
-                    generation: context.generation)
-                return nil
-            }
-            self.lastFetchAttempts[provider.instanceID] = attempts
-            let resetBackfillSource = if provider == .codex {
-                context.codexLimitResetOwnerKey == nil
-                    ? nil
-                    : self.codexLastKnownResetSnapshot(matching: context.codexExpectedGuard)
-            } else {
-                self.lastKnownResetSnapshots[provider.instanceID]
-            }
-            let profileStable = self.preservingDeepSeekProfileCatalog(in: accountScoped, provider: provider)
-            let stabilized = Self.commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
-                current: profileStable,
-                previous: self.snapshots[provider.instanceID])
-            let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
-            let warningAccountDiscriminator = Self.warningAccountDiscriminator(
+        let backfilled = await MainActor.run {
+            self.publishProviderRefreshSuccess(
                 provider: provider,
-                tokenAccount: currentTokenAccount,
                 result: result,
-                context: context)
-            self.handleQuotaWarningTransitions(
-                provider: provider,
-                snapshot: backfilled,
-                accountDiscriminator: warningAccountDiscriminator)
-            self.handleSessionQuotaTransition(
-                provider: provider,
-                snapshot: backfilled,
-                codexOwnerKey: provider == .codex ? context.codexSessionQuotaOwnerKey : nil)
-            self.handlePredictivePaceWarningTransitions(
-                provider: provider,
-                snapshot: backfilled,
-                accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
-            if provider == .codex {
-                self.handleCodexResetCreditNotifications(snapshot: backfilled)
-            }
-            self.lastKnownResetSnapshots[provider.instanceID] = backfilled
-            self.snapshots[provider.instanceID] = backfilled
-            self.widgetUsagePreservationBlockedProviders.remove(provider.instanceID)
-            if provider == .deepseek {
-                self.clearDeepSeekProfileTransition()
-            }
-            if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
-                self.publishTokenSnapshot(tokenSnapshot, for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-                self.tokenFailureGates[provider.instanceID]?.recordSuccess()
-            } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(backfilled) {
-                // Provider-specific by design: prepaid balance without usage history is unavailable,
-                // not a confirmed-empty $0 spend row.
-                self.clearTokenSnapshot(for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-            } else if Self.tokenCostRequiresProviderSnapshot(provider) {
-                self.publishConfirmedEmptyTokenSnapshot(for: provider)
-                self.tokenErrors[provider.instanceID] = nil
-            }
-            self.lastSourceLabels[provider.instanceID] = result.sourceLabel
-            self.settings.persistDiscoveredFireworksAccountSlug(result.fireworksDiscoveredAccountSlug)
-            self.recordProviderFetchSuccessErrorState(provider: provider)
-            self.diagnostics[provider.instanceID] = result.diagnostic
-            if let tokenAccount = currentTokenAccount {
-                self.cacheTokenAccountSnapshot(
-                    provider: provider,
-                    account: tokenAccount,
-                    snapshot: backfilled,
-                    sourceLabel: result.sourceLabel)
-            }
-            if provider == .gemini {
-                self.clearGeminiConsumerTierDeprecationObservation()
-            }
-            self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
-            self.failureGates[provider.instanceID]?.recordSuccess()
-            if provider == .codex {
-                self.recordCodexRefreshSuccessPublication(
+                attempts: attempts,
+                context: context,
+                publication: ProviderRefreshSuccessPublication(
+                    rawScoped: rawScoped,
                     scoped: scoped,
-                    backfilled: backfilled,
-                    result: result,
-                    expectedGuard: context.codexExpectedGuard,
-                    expectedOwnerKey: context.codexLimitResetOwnerKey)
-            }
-            return backfilled
+                    accountScoped: accountScoped,
+                    currentTokenAccount: currentTokenAccount))
         }
         guard let backfilled else { return }
         self.refreshClaudeVersionAfterUserInitiatedCLIFetch(provider: provider, strategyKind: result.strategyKind)
@@ -835,6 +788,129 @@ extension UsageStore {
         if provider == .codex {
             self.recordCodexHistoricalSampleIfNeeded(snapshot: backfilled)
         }
+    }
+
+    private func publishProviderRefreshSuccess(
+        provider: UsageProvider,
+        result: ProviderFetchResult,
+        attempts: [ProviderFetchAttempt],
+        context: ProviderRefreshOutcomeContext,
+        publication: ProviderRefreshSuccessPublication) -> UsageSnapshot?
+    {
+        guard self.isCurrentProviderRefreshGeneration(provider, generation: context.generation) else {
+            return nil
+        }
+        if provider == .codex,
+           let codexExpectedGuard = context.codexExpectedGuard,
+           !self.shouldApplyCodexUsageResult(expectedGuard: codexExpectedGuard, usage: publication.rawScoped)
+        {
+            self.retireCodexStateIfRefreshOwnerChanged(
+                expectedGuard: codexExpectedGuard,
+                generation: context.generation)
+            return nil
+        }
+        self.lastFetchAttempts[provider.instanceID] = attempts
+        let resetBackfillSource = if provider == .codex {
+            context.codexLimitResetOwnerKey == nil
+                ? nil
+                : self.codexLastKnownResetSnapshot(matching: context.codexExpectedGuard)
+        } else {
+            self.lastKnownResetSnapshots[provider.instanceID]
+        }
+        let profileStable = self.preservingDeepSeekProfileCatalog(in: publication.accountScoped, provider: provider)
+        let stabilized = Self.commandCodeSnapshotResolvingDepletionOnEnrichmentFailure(
+            current: profileStable,
+            previous: self.snapshots[provider.instanceID])
+        let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
+        let warningAccountDiscriminator = Self.warningAccountDiscriminator(
+            provider: provider,
+            tokenAccount: publication.currentTokenAccount,
+            result: result,
+            context: context)
+        self.handleQuotaWarningTransitions(
+            provider: provider,
+            snapshot: backfilled,
+            accountDiscriminator: warningAccountDiscriminator)
+        self.handleSessionQuotaTransition(
+            provider: provider,
+            snapshot: backfilled,
+            codexOwnerKey: provider == .codex ? context.codexSessionQuotaOwnerKey : nil)
+        self.handlePredictivePaceWarningTransitions(
+            provider: provider,
+            snapshot: backfilled,
+            accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
+        if provider == .codex {
+            self.handleCodexResetCreditNotifications(snapshot: backfilled)
+        }
+        self.lastKnownResetSnapshots[provider.instanceID] = backfilled
+        self.snapshots[provider.instanceID] = backfilled
+        self.widgetUsagePreservationBlockedProviders.remove(provider.instanceID)
+        if provider == .deepseek {
+            self.clearDeepSeekProfileTransition()
+        }
+        if let tokenSnapshot = self.tokenSnapshot(fromProviderSnapshot: backfilled, provider: provider) {
+            self.publishTokenSnapshot(tokenSnapshot, for: provider)
+            self.tokenErrors[provider.instanceID] = nil
+            self.tokenFailureGates[provider.instanceID]?.recordSuccess()
+        } else if provider == .xai, XAICostUsageMapping.isAnalyticsUnavailable(backfilled) {
+            // Provider-specific by design: prepaid balance without usage history is unavailable,
+            // not a confirmed-empty $0 spend row.
+            self.clearTokenSnapshot(for: provider)
+            self.tokenErrors[provider.instanceID] = nil
+        } else if Self.tokenCostRequiresProviderSnapshot(provider) {
+            self.publishConfirmedEmptyTokenSnapshot(for: provider)
+            self.tokenErrors[provider.instanceID] = nil
+        }
+        self.lastSourceLabels[provider.instanceID] = result.sourceLabel
+        self.settings.persistDiscoveredFireworksAccountSlug(result.fireworksDiscoveredAccountSlug)
+        self.recordProviderFetchSuccessErrorState(provider: provider)
+        self.diagnostics[provider.instanceID] = result.diagnostic
+        if let tokenAccount = publication.currentTokenAccount {
+            self.cacheTokenAccountSnapshot(
+                provider: provider,
+                account: tokenAccount,
+                snapshot: backfilled,
+                sourceLabel: result.sourceLabel)
+        }
+        if provider == .gemini {
+            self.clearGeminiConsumerTierDeprecationObservation()
+        }
+        self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
+        self.failureGates[provider.instanceID]?.recordSuccess()
+        if provider == .codex {
+            self.recordCodexRefreshSuccessPublication(
+                scoped: publication.scoped,
+                backfilled: backfilled,
+                result: result,
+                expectedGuard: context.codexExpectedGuard,
+                expectedOwnerKey: context.codexLimitResetOwnerKey)
+        }
+        return backfilled
+    }
+
+    nonisolated static func shouldPreserveAntigravityQuotaSnapshot(
+        provider: UsageProvider,
+        result: ProviderFetchResult,
+        priorSnapshot: UsageSnapshot?) -> Bool
+    {
+        guard self.isUnownedAntigravityOfflineResult(provider: provider, result: result),
+              let priorSnapshot
+        else {
+            return false
+        }
+        if [priorSnapshot.primary, priorSnapshot.secondary, priorSnapshot.tertiary]
+            .contains(where: { $0 != nil })
+        {
+            return true
+        }
+        return (priorSnapshot.extraRateWindows ?? []).contains(where: \.usageKnown)
+    }
+
+    nonisolated static func isUnownedAntigravityOfflineResult(
+        provider: UsageProvider,
+        result: ProviderFetchResult) -> Bool
+    {
+        provider == .antigravity && result.strategyID == "antigravity.offline"
     }
 
     private nonisolated static func verifiedClaudeOAuthPersistentRefHash(
@@ -1396,6 +1472,7 @@ extension UsageStore {
             let preservesPriorData = Self.shouldPreservePriorSnapshot(
                 after: error,
                 hadPriorData: hadPriorData) ||
+                (provider == .antigravity && error is AntigravityOfflineQuotaFallbackError && hadPriorData) ||
                 (provider == .claude &&
                     hadPriorData &&
                     (context.claudeUsesConsumerAutoPipeline ||
@@ -1489,59 +1566,6 @@ extension UsageStore {
             cached.account.id == account.id &&
                 cached.cacheKey == self.tokenAccountSnapshotCacheKey(provider: provider, account: account)
         }
-    }
-
-    nonisolated static func isPreservableNetworkTransportError(_ error: Error) -> Bool {
-        let nsError = error as NSError
-        guard nsError.domain == NSURLErrorDomain else { return false }
-        switch nsError.code {
-        case NSURLErrorTimedOut,
-             NSURLErrorCancelled,
-             NSURLErrorNetworkConnectionLost,
-             NSURLErrorNotConnectedToInternet,
-             NSURLErrorCannotFindHost,
-             NSURLErrorCannotConnectToHost,
-             NSURLErrorDNSLookupFailed:
-            return true
-        default:
-            return false
-        }
-    }
-
-    static func startupConnectivityRetryDelay(forAttempt attempt: Int) -> TimeInterval? {
-        let delays: [TimeInterval] = [15, 45, 120, 300]
-        guard attempt >= 1, attempt <= delays.count else { return nil }
-        return delays[attempt - 1]
-    }
-
-    static func isStartupConnectivityRetryableError(_ error: Error) -> Bool {
-        if error is CancellationError {
-            return false
-        }
-
-        let nsError = error as NSError
-        if nsError.domain == NSURLErrorDomain {
-            switch nsError.code {
-            case NSURLErrorTimedOut,
-                 NSURLErrorNetworkConnectionLost,
-                 NSURLErrorNotConnectedToInternet,
-                 NSURLErrorCannotFindHost,
-                 NSURLErrorCannotConnectToHost,
-                 NSURLErrorDNSLookupFailed:
-                return true
-            default:
-                return false
-            }
-        }
-
-        let message = error.localizedDescription.lowercased()
-        return message.contains("timed out") ||
-            message.contains("timeout") ||
-            message.contains("network connection was lost") ||
-            message.contains("not connected to the internet") ||
-            message.contains("cannot find host") ||
-            message.contains("cannot connect to host") ||
-            message.contains("dns lookup")
     }
 
     private static func isClaudeUsageProbeTimeout(_ error: Error) -> Bool {

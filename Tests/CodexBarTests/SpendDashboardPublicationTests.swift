@@ -24,6 +24,17 @@ struct SpendDashboardPublicationTests {
             settings: settings,
             startupBehavior: .testing,
             environmentBase: [:])
+        // Keep the independent Claude source at a stable confirmed-empty revision throughout this
+        // Codex ownership test; no live provider behavior should influence publication assertions.
+        var claudeSpendSnapshotPinned = false
+        store._test_tokenUsageRefreshOverride = { provider, _ in
+            guard provider == .claude, !claudeSpendSnapshotPinned else { return }
+            claudeSpendSnapshotPinned = true
+            store._setSpendDashboardTokenSnapshotForTesting(nil, for: .claude)
+        }
+        defer { store._test_tokenUsageRefreshOverride = nil }
+        store._setSpendDashboardTokenSnapshotForTesting(nil, for: .claude)
+        claudeSpendSnapshotPinned = true
         let initial = SpendDashboardSource.configuration(settings: settings, store: store)
         store.startSharedSpendDashboardPublication()
         defer { store.stopSharedSpendDashboardPublication() }
@@ -55,6 +66,49 @@ struct SpendDashboardPublicationTests {
         #expect(rebucketed.sourceOwnershipFingerprints != afterRegularCodexPublication.sourceOwnershipFingerprints)
         #expect(store.spendDashboardPublication.configuration?.menuOwnershipFingerprint ==
             rebucketed.menuOwnershipFingerprint)
+    }
+
+    @Test
+    func `synchronizes independent snapshot publications`() async {
+        let settings = testSettingsStore(suiteName: "SpendDashboardPublicationTests-independent-sync")
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(
+                provider: provider,
+                metadata: metadata,
+                enabled: provider == .claude)
+        }
+        settings.costUsageBucketTimeZoneIdentifier = "UTC"
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+
+        store._setSpendDashboardTokenSnapshotForTesting(nil, for: .claude)
+        store.startSharedSpendDashboardPublication()
+        defer { store.stopSharedSpendDashboardPublication() }
+        let seeded = SpendDashboardSource.configuration(settings: settings, store: store)
+        await Self.waitUntil {
+            store.spendDashboardPublication.configuration == seeded
+        }
+
+        let refreshedSnapshot = Self.input(id: "claude", provider: .claude, cost: 2.5).snapshot
+        store._setSpendDashboardTokenSnapshotForTesting(refreshedSnapshot, for: .claude)
+
+        #expect(store._test_hasPendingSpendDashboardTokenPublicationSync)
+
+        let synchronized = SpendDashboardSource.configuration(settings: settings, store: store)
+        #expect(synchronized != seeded)
+        await Self.waitUntil {
+            store.spendDashboardPublication.configuration == synchronized &&
+                store.spendDashboardPublication.inputs.contains { $0.id == "claude" }
+        }
+
+        #expect(store.spendDashboardPublication.inputs.first { $0.id == "claude" }?
+            .snapshot.last30DaysCostUSD == 2.5)
     }
 
     @Test
@@ -765,11 +819,12 @@ struct SpendDashboardPublicationTests {
     }
 
     private static func waitUntil(_ condition: @MainActor () -> Bool) async {
-        for _ in 0..<1000 {
+        let deadline = Date().addingTimeInterval(30)
+        while Date() < deadline {
             if condition() {
                 return
             }
-            await Task.yield()
+            try? await Task.sleep(for: .milliseconds(2))
         }
         Issue.record("Timed out waiting for Spend Dashboard publication")
     }

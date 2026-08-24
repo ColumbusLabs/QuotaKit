@@ -1377,6 +1377,7 @@
 "menu_bar_layout_empty_line" = "Buraya bir belirteç bırakın";
 "menu_bar_layout_line" = "Satır %d";
 "menu_bar_layout_drag_remove" = "Kaldırmak için buraya sürükleyin";
+"menu_bar_layout_remove_selected" = "Seçileni kaldır";
 "menu_bar_layout_size" = "Boyut";
 "menu_bar_layout_size_small" = "Küçük";
 "menu_bar_layout_size_regular" = "Normal";

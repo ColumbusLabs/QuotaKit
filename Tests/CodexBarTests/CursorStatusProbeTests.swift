@@ -711,7 +711,7 @@ struct CursorStatusProbeTests {
     }
 }
 
-private final class CursorStatusProbeTestSession {
+final class CursorStatusProbeTestSession {
     let urlSession: URLSession
     private let sessionID: String
 
@@ -741,7 +741,7 @@ private final class CursorStatusProbeTestSession {
     }
 }
 
-private func makeCursorStatusProbeResponse(
+func makeCursorStatusProbeResponse(
     url: URL,
     body: String,
     statusCode: Int,
@@ -849,7 +849,35 @@ extension CursorStatusProbeTests {
 
         #expect(snapshot.planPercentUsed == 30.0)
         #expect(snapshot.accountEmail == nil)
-        #expect(testSession.requestCount == 2)
+        #expect(snapshot.sandUsage == nil)
+        #expect(testSession.requestCount == 3)
+        #expect(testSession.requestPaths.contains(CursorSandUsageStatus.endpointPath))
+    }
+
+    @Test
+    func `slow optional sand usage does not delay ordinary refresh`() async throws {
+        CursorStatusProbeDelayedSandURLProtocol.reset()
+        let config = URLSessionConfiguration.ephemeral
+        config.protocolClasses = [CursorStatusProbeDelayedSandURLProtocol.self]
+        let session = URLSession(configuration: config)
+        defer { session.invalidateAndCancel() }
+        let baseURL = try #require(URL(string: "https://cursor.test"))
+
+        let start = ContinuousClock.now
+        let snapshot = try await CursorStatusProbe(
+            baseURL: baseURL,
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            urlSession: session).fetchWithManualCookies("auth=test")
+        let elapsed = start.duration(to: .now)
+
+        #expect(snapshot.planPercentUsed == 30)
+        #expect(snapshot.accountEmail == "user@example.com")
+        #expect(snapshot.sandUsage == nil)
+        #expect(elapsed < .seconds(1))
+        for _ in 0..<20 where !CursorStatusProbeDelayedSandURLProtocol.sandRequestWasCancelled {
+            try await Task.sleep(for: .milliseconds(10))
+        }
+        #expect(CursorStatusProbeDelayedSandURLProtocol.sandRequestWasCancelled)
     }
 
     @Test
@@ -908,6 +936,10 @@ extension CursorStatusProbeTests {
             let requestURL = try #require(request.url)
             #expect(request.value(forHTTPHeaderField: "Authorization") == nil)
             #expect(request.value(forHTTPHeaderField: "Cookie") == expectedCookie)
+            if requestURL.path == CursorSandUsageStatus.endpointPath {
+                #expect(request.httpMethod == "POST")
+                return makeCursorStatusProbeResponse(url: requestURL, body: "{}", statusCode: 404)
+            }
             #expect(request.httpMethod == "GET")
 
             switch requestURL.path {
@@ -972,6 +1004,7 @@ extension CursorStatusProbeTests {
         #expect(snapshot.accountName == "Test User")
         #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
+            "/api/dashboard/get-sand-usage-status",
             "/api/usage",
             "/api/usage-summary",
         ])
@@ -1170,6 +1203,8 @@ extension CursorStatusProbeTests {
                     url: requestURL,
                     body: #"{"gpt-4":{}}"#,
                     statusCode: 200)
+            case "/api/dashboard/get-sand-usage-status":
+                return makeCursorStatusProbeResponse(url: requestURL, body: "{}", statusCode: 404)
             default:
                 Issue.record("App-session precedence test unexpectedly requested \(requestURL.path)")
                 throw URLError(.badURL)
@@ -1191,6 +1226,7 @@ extension CursorStatusProbeTests {
         #expect(snapshot.accountEmail == "app@example.com")
         #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
+            "/api/dashboard/get-sand-usage-status",
             "/api/usage",
             "/api/usage-summary",
         ])
@@ -1254,6 +1290,7 @@ extension CursorStatusProbeTests {
         #expect(snapshot.accountEmail == nil)
         #expect(testSession.requestPaths.sorted() == [
             "/api/auth/me",
+            "/api/dashboard/get-sand-usage-status",
             "/api/usage",
             "/api/usage-summary",
         ])

@@ -1375,6 +1375,7 @@
 "menu_bar_layout_empty_line" = "Перетягніть елемент сюди";
 "menu_bar_layout_line" = "Рядок %d";
 "menu_bar_layout_drag_remove" = "Перетягніть сюди, щоб видалити";
+"menu_bar_layout_remove_selected" = "Вилучити вибране";
 "menu_bar_layout_size" = "Розмір";
 "menu_bar_layout_size_small" = "Малий";
 "menu_bar_layout_size_regular" = "Звичайний";
