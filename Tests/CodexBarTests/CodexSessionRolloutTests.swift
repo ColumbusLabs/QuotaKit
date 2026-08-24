@@ -28,6 +28,23 @@ private final class AppServerTrustValidatorSpy: @unchecked Sendable {
     }
 }
 
+private final class AppServerTrustIdentitySpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var value: String
+
+    init(_ value: String) {
+        self.value = value
+    }
+
+    func identity(_: String) -> String? {
+        self.lock.withLock { self.value }
+    }
+
+    func replace(with value: String) {
+        self.lock.withLock { self.value = value }
+    }
+}
+
 struct CodexSessionRolloutTests {
     @Test
     func `first rollout line maps to file only agent session`() throws {
@@ -182,26 +199,49 @@ struct CodexSessionRolloutTests {
     }
 
     @Test
-    func `chatgpt trust is revalidated for every adaptive scan`() async throws {
+    func `chatgpt home path with whitespace uses proc path and structured arguments`() async throws {
         let now = Date()
-        let validator = AppServerTrustValidatorSpy(results: [true, false])
         let fixture = try Self.makeAdaptiveChatGPTFixture(
             now: now,
             rolloutAge: 30,
-            appServerTrustValidator: { validator.validate($0) })
+            homeDirectoryName: "Home With Spaces",
+            appServerUsesHomeInstall: true)
         defer { try? FileManager.default.removeItem(at: fixture.root) }
 
-        let first = await fixture.scanner.scan(
+        let sessions = await fixture.scanner.scan(
             now: now,
             environment: fixture.environment,
             includeFileOnlySessions: false)
-        let second = await fixture.scanner.scan(
+
+        #expect(sessions.count == 1)
+    }
+
+    @Test
+    func `chatgpt trust cache reuses matching identity and invalidates replacement`() async throws {
+        let now = Date()
+        let validator = AppServerTrustValidatorSpy(results: [true, false])
+        let identity = AppServerTrustIdentitySpy("first")
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerTrustValidator: { validator.validate($0) },
+            appServerTrustIdentityProvider: { identity.identity($0) })
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let first = await fixture.scanner.scan(now: now, environment: fixture.environment, includeFileOnlySessions: false)
+        let cached = await fixture.scanner.scan(
             now: now.addingTimeInterval(1),
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+        identity.replace(with: "replacement")
+        let replaced = await fixture.scanner.scan(
+            now: now.addingTimeInterval(2),
             environment: fixture.environment,
             includeFileOnlySessions: false)
 
         #expect(first.count == 1)
-        #expect(second.isEmpty)
+        #expect(cached.count == 1)
+        #expect(replaced.isEmpty)
         #expect(validator.callCount == 2)
     }
 
@@ -463,9 +503,13 @@ struct CodexSessionRolloutTests {
         now: Date,
         rolloutAge: TimeInterval,
         appServerExecutable: String = "/Applications/ChatGPT.app/Contents/Resources/codex",
+        homeDirectoryName: String? = nil,
+        appServerUsesHomeInstall: Bool = false,
         appServerActualExecutable: String? = nil,
         appServerIsTrusted: Bool = true,
         appServerTrustValidator: LocalAgentSessionScanner.AppServerTrustValidator? = nil,
+        appServerArguments: [String] = ["codex", "app-server"],
+        appServerTrustIdentityProvider: LocalAgentSessionScanner.AppServerTrustIdentityProvider? = nil,
         rolloutOriginator: String = "codex_exec",
         rolloutSource: String = "exec",
         sessionIndexTitle: String? = nil) throws -> AdaptiveChatGPTFixture
@@ -473,6 +517,11 @@ struct CodexSessionRolloutTests {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
             .appendingPathComponent("CodexSessionRolloutTests-chatgpt-\(UUID().uuidString)", isDirectory: true)
+        let homeDirectory = homeDirectoryName.map { root.appendingPathComponent($0, isDirectory: true) } ?? root
+        let homeInstallExecutable = homeDirectory
+            .appendingPathComponent("Applications/ChatGPT.app/Contents/Resources/codex").path
+        let resolvedActualExecutable = appServerActualExecutable ??
+            (appServerUsesHomeInstall ? homeInstallExecutable : appServerExecutable)
         let formatter = DateFormatter()
         formatter.locale = Locale(identifier: "en_US_POSIX")
         formatter.dateFormat = "yyyy/MM/dd"
@@ -507,14 +556,16 @@ struct CodexSessionRolloutTests {
             },
             cwdProvider: { _, _ in [:] },
             appServerTrustValidator: appServerTrustValidator ?? { _ in appServerIsTrusted },
-            appServerExecutablePathProvider: { _ in appServerActualExecutable ?? appServerExecutable })
+            appServerExecutablePathProvider: { _ in resolvedActualExecutable },
+            appServerArgumentsProvider: { _ in appServerArguments },
+            appServerTrustIdentityProvider: appServerTrustIdentityProvider ?? { _ in "fixture" })
         return AdaptiveChatGPTFixture(
             root: root,
             rollout: rollout,
             scanner: scanner,
             environment: [
                 "CODEX_HOME": codexHome.path,
-                "HOME": root.path,
+                "HOME": homeDirectory.path,
                 "PATH": "/usr/bin:/bin:/usr/sbin:/sbin",
             ])
     }

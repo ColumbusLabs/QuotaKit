@@ -20,11 +20,37 @@ final class FutureModificationDateClamp: @unchecked Sendable {
     }
 }
 
+private final class TrustedCodexAppServerCache: @unchecked Sendable {
+    private let lock = NSLock()
+    private var trustedIdentities: [String: String] = [:]
+
+    func isTrusted(
+        executablePath: String,
+        identityProvider: @Sendable (String) -> String?,
+        validator: @Sendable (String) -> Bool) -> Bool
+    {
+        guard let identity = identityProvider(executablePath) else { return false }
+        return self.lock.withLock {
+            if self.trustedIdentities[executablePath] == identity {
+                return true
+            }
+            guard validator(executablePath) else {
+                self.trustedIdentities.removeValue(forKey: executablePath)
+                return false
+            }
+            self.trustedIdentities[executablePath] = identity
+            return true
+        }
+    }
+}
+
 public struct LocalAgentSessionScanner: Sendable {
     typealias ProcessOutputProvider = @Sendable ([String: String]) async -> String
     typealias CWDProvider = @Sendable ([Int32], [String: String]) async -> [Int32: String]
     typealias AppServerTrustValidator = @Sendable (String) -> Bool
     typealias AppServerExecutablePathProvider = @Sendable (Int32) -> String?
+    typealias AppServerArgumentsProvider = @Sendable (Int32) -> [String]?
+    typealias AppServerTrustIdentityProvider = @Sendable (String) -> String?
 
     private struct Rollout: Sendable {
         let url: URL
@@ -45,10 +71,13 @@ public struct LocalAgentSessionScanner: Sendable {
 
     public let config: SessionScanConfig
     private let futureModificationDateClamp = FutureModificationDateClamp()
+    private let trustedCodexAppServerCache = TrustedCodexAppServerCache()
     private let processOutputProvider: ProcessOutputProvider?
     private let cwdProvider: CWDProvider?
     private let appServerTrustValidator: AppServerTrustValidator
     private let appServerExecutablePathProvider: AppServerExecutablePathProvider
+    private let appServerArgumentsProvider: AppServerArgumentsProvider
+    private let appServerTrustIdentityProvider: AppServerTrustIdentityProvider
     private let didVisitDirectoryEntry: (@Sendable () -> Void)?
 
     public init(config: SessionScanConfig = SessionScanConfig()) {
@@ -57,6 +86,8 @@ public struct LocalAgentSessionScanner: Sendable {
         self.cwdProvider = nil
         self.appServerTrustValidator = { CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0) }
         self.appServerExecutablePathProvider = Self.runningExecutablePath
+        self.appServerArgumentsProvider = Self.runningArguments
+        self.appServerTrustIdentityProvider = Self.trustIdentity
         self.didVisitDirectoryEntry = nil
     }
 
@@ -68,6 +99,8 @@ public struct LocalAgentSessionScanner: Sendable {
             CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0)
         },
         appServerExecutablePathProvider: @escaping AppServerExecutablePathProvider = LocalAgentSessionScanner.runningExecutablePath,
+        appServerArgumentsProvider: @escaping AppServerArgumentsProvider = LocalAgentSessionScanner.runningArguments,
+        appServerTrustIdentityProvider: @escaping AppServerTrustIdentityProvider = LocalAgentSessionScanner.trustIdentity,
         didVisitDirectoryEntry: (@Sendable () -> Void)? = nil)
     {
         self.config = config
@@ -75,6 +108,8 @@ public struct LocalAgentSessionScanner: Sendable {
         self.cwdProvider = cwdProvider
         self.appServerTrustValidator = appServerTrustValidator
         self.appServerExecutablePathProvider = appServerExecutablePathProvider
+        self.appServerArgumentsProvider = appServerArgumentsProvider
+        self.appServerTrustIdentityProvider = appServerTrustIdentityProvider
         self.didVisitDirectoryEntry = didVisitDirectoryEntry
     }
 
@@ -93,15 +128,21 @@ public struct LocalAgentSessionScanner: Sendable {
             AgentPSOutputParser.agentProcesses(from: allProcesses))
             .prefix(max(0, self.config.maxProcessCount)))
         let homeDirectory = URL(fileURLWithPath: environment["HOME"] ?? NSHomeDirectory(), isDirectory: true)
-        let trustedCodexAppServerPresent = AgentPSOutputParser.chatGPTCodexAppServerProcesses(
-            in: allProcesses)
-            .contains { process in
-                guard let executablePath = self.appServerExecutablePathProvider(process.pid) else { return false }
+        let trustedCodexAppServerPresent = allProcesses.contains { process in
+                guard let executablePath = process.executablePath ??
+                    self.appServerExecutablePathProvider(process.pid)
+                else { return false }
                 let standardizedPath = URL(fileURLWithPath: executablePath).standardizedFileURL.path
-                return AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
+                guard AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
                     standardizedPath,
-                    homeDirectory: homeDirectory) &&
-                    self.appServerTrustValidator(standardizedPath)
+                    homeDirectory: homeDirectory),
+                    let arguments = process.arguments ?? self.appServerArgumentsProvider(process.pid),
+                    arguments.contains("app-server")
+                else { return false }
+                return self.trustedCodexAppServerCache.isTrusted(
+                    executablePath: standardizedPath,
+                    identityProvider: self.appServerTrustIdentityProvider,
+                    validator: self.appServerTrustValidator)
             }
         guard Self.shouldScanSessionMetadata(
             hasAgentProcesses: !processes.isEmpty,
@@ -195,6 +236,53 @@ public struct LocalAgentSessionScanner: Sendable {
         _ = pid
         nil
         #endif
+    }
+
+    private static func runningArguments(pid: Int32) -> [String]? {
+        #if canImport(Darwin)
+        DarwinProcessEnumerator.commandArguments(pid: pid)
+        #else
+        _ = pid
+        nil
+        #endif
+    }
+
+    private static func trustIdentity(executablePath: String) -> String? {
+        let executableURL = URL(fileURLWithPath: executablePath).resolvingSymlinksInPath()
+        guard let bundleURL = self.containingAppBundle(of: executableURL),
+              let executableIdentity = self.fileIdentity(executableURL),
+              let bundleIdentity = self.fileIdentity(bundleURL),
+              let codeResourcesIdentity = self.fileIdentity(
+                  bundleURL.appendingPathComponent("Contents/_CodeSignature/CodeResources"))
+        else { return nil }
+        return [executableIdentity, bundleIdentity, codeResourcesIdentity].joined(separator: "|")
+    }
+
+    private static func containingAppBundle(of url: URL) -> URL? {
+        var candidate = url.standardizedFileURL
+        while candidate.path != "/" {
+            if candidate.pathExtension.caseInsensitiveCompare("app") == .orderedSame {
+                return candidate
+            }
+            let parent = candidate.deletingLastPathComponent()
+            guard parent.path != candidate.path else { return nil }
+            candidate = parent
+        }
+        return nil
+    }
+
+    private static func fileIdentity(_ url: URL) -> String? {
+        let keys: Set<URLResourceKey> = [
+            .fileResourceIdentifierKey,
+            .contentModificationDateKey,
+            .fileSizeKey,
+        ]
+        guard let values = try? url.resourceValues(forKeys: keys),
+              let resourceIdentifier = values.fileResourceIdentifier,
+              let modificationDate = values.contentModificationDate,
+              let fileSize = values.fileSize
+        else { return nil }
+        return "\(url.path)#\(String(describing: resourceIdentifier))#\(modificationDate.timeIntervalSince1970)#\(fileSize)"
     }
 
     private static func codexThreadMetadata(
@@ -357,12 +445,15 @@ public struct LocalAgentSessionScanner: Sendable {
             guard let bsdInfo = DarwinProcessEnumerator.bsdInfo(pid: pid),
                   let executablePath = DarwinProcessEnumerator.executablePath(pid: pid)
             else { return nil }
-            let command = DarwinProcessEnumerator.commandLine(pid: pid) ?? executablePath
+            let arguments = DarwinProcessEnumerator.commandArguments(pid: pid)
+            let command = arguments?.joined(separator: " ") ?? executablePath
             return AgentProcessRecord(
                 pid: pid,
                 ppid: bsdInfo.ppid,
                 startedAt: bsdInfo.startTime,
-                command: command)
+                command: command,
+                executablePath: executablePath,
+                arguments: arguments)
         }
         #else
         return await AgentPSOutputParser.parse(self.processOutput(environment: environment))

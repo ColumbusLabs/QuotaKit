@@ -180,16 +180,29 @@ public struct AgentProcessRecord: Equatable, Sendable {
     public let ppid: Int32
     public let startedAt: Date?
     public let command: String
+    public let executablePath: String?
+    public let arguments: [String]?
 
-    public init(pid: Int32, ppid: Int32, startedAt: Date?, command: String) {
+    public init(
+        pid: Int32,
+        ppid: Int32,
+        startedAt: Date?,
+        command: String,
+        executablePath: String? = nil,
+        arguments: [String]? = nil)
+    {
         self.pid = pid
         self.ppid = ppid
         self.startedAt = startedAt
         self.command = command
+        self.executablePath = executablePath
+        self.arguments = arguments
     }
 
     public var executableBasename: String {
-        let firstToken = self.command.split(whereSeparator: \ .isWhitespace).first.map(String.init) ?? ""
+        let firstToken = self.executablePath ??
+            self.arguments?.first ??
+            self.command.split(whereSeparator: \ .isWhitespace).first.map(String.init) ?? ""
         let firstBasename = URL(fileURLWithPath: firstToken).lastPathComponent
         if firstBasename == "disclaimer" {
             return firstBasename
