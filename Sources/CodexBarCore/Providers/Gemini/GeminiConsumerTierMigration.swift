@@ -7,6 +7,13 @@ public enum GeminiConsumerTierMigration {
     Enable QuotaKit's Antigravity provider, sign in to Antigravity or run `agy`, then refresh.
     """
 
+    /// Explains the one reason to continue into a Gemini CLI sign-in after the shutdown was detected:
+    /// moving to an account Google still serves. Signing in clears the stored credentials first.
+    public static let loginSwitchAccountPrompt = """
+    Signing in again only helps if you are switching to a Workspace, education, or Code Assist \
+    Standard/Enterprise account. Continuing clears the stored Gemini credentials and opens Gemini CLI.
+    """
+
     public static let oauthRecoveryError = """
     Could not refresh Gemini OAuth credentials. Reinstall or update Gemini CLI. Advanced \
     users launching QuotaKit from a configured environment can set GEMINI_OAUTH_CLIENT_ID \

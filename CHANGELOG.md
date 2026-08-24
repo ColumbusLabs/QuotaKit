@@ -24,6 +24,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
+- Synced reviewed CodexBar development through `c9e7f4df5`, adopting Claude cookie-refresh safety, OpenCodex pricing performance, Gemini consumer-shutdown detection, and merged Warp icon correctness while preserving QuotaKit identity, provider/mobile contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `100deb6fa`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
 - Synced reviewed CodexBar development through `4b14ed9c5`, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
@@ -31,6 +32,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Claude: prefer Chrome without dropping fallback browsers, stop after the first usable cookie source, and keep ad-hoc browser-cookie caches process-local without moving OAuth credentials out of Keychain.
+- Gemini: detect Google's live consumer-tier shutdown response, keep Workspace and licensed accounts eligible, and warn before an explicit account-switch flow clears credentials.
+- Usage & Spend: price each OpenCodex entry once with shared catalog and custom-pricing context while preserving overflow-safe aggregation and compatible local caches.
+- Menu bar: preserve Warp's bonus lane in merged icons when unused while continuing to distinguish a genuinely exhausted bonus.
 - Providers: restore Qwen Cloud Brave cookie import, use the latest completed UTC day for OpenRouter activity, and improve Antigravity offline discovery without attributing machine-global data to an OAuth account or iCloud record.
 - Usage & Spend: read compatible local Cursor and Antigravity activity caches, preserve refresh cancellation, refresh all changed dashboard detail, and keep calendar bucketing consistent across heatmap labels and selection.
 - Mac: report non-writable CLI path conflicts and let a single meaningful quota fill the menu icon while retaining Claude's explicit missing-secondary lane.
