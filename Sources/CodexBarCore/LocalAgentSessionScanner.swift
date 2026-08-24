@@ -20,26 +20,11 @@ final class FutureModificationDateClamp: @unchecked Sendable {
     }
 }
 
-private final class TrustedCodexAppServerCache: @unchecked Sendable {
-    private let lock = NSLock()
-    private var trustedExecutablePaths = Set<String>()
-
-    func isTrusted(_ path: String, validator: @Sendable (String) -> Bool) -> Bool {
-        self.lock.withLock {
-            if self.trustedExecutablePaths.contains(path) {
-                return true
-            }
-            guard validator(path) else { return false }
-            self.trustedExecutablePaths.insert(path)
-            return true
-        }
-    }
-}
-
 public struct LocalAgentSessionScanner: Sendable {
     typealias ProcessOutputProvider = @Sendable ([String: String]) async -> String
     typealias CWDProvider = @Sendable ([Int32], [String: String]) async -> [Int32: String]
     typealias AppServerTrustValidator = @Sendable (String) -> Bool
+    typealias AppServerExecutablePathProvider = @Sendable (Int32) -> String?
 
     private struct Rollout: Sendable {
         let url: URL
@@ -60,10 +45,10 @@ public struct LocalAgentSessionScanner: Sendable {
 
     public let config: SessionScanConfig
     private let futureModificationDateClamp = FutureModificationDateClamp()
-    private let trustedCodexAppServerCache = TrustedCodexAppServerCache()
     private let processOutputProvider: ProcessOutputProvider?
     private let cwdProvider: CWDProvider?
     private let appServerTrustValidator: AppServerTrustValidator
+    private let appServerExecutablePathProvider: AppServerExecutablePathProvider
     private let didVisitDirectoryEntry: (@Sendable () -> Void)?
 
     public init(config: SessionScanConfig = SessionScanConfig()) {
@@ -71,6 +56,7 @@ public struct LocalAgentSessionScanner: Sendable {
         self.processOutputProvider = nil
         self.cwdProvider = nil
         self.appServerTrustValidator = { CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0) }
+        self.appServerExecutablePathProvider = Self.runningExecutablePath
         self.didVisitDirectoryEntry = nil
     }
 
@@ -81,12 +67,14 @@ public struct LocalAgentSessionScanner: Sendable {
         appServerTrustValidator: @escaping AppServerTrustValidator = {
             CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0)
         },
+        appServerExecutablePathProvider: @escaping AppServerExecutablePathProvider = LocalAgentSessionScanner.runningExecutablePath,
         didVisitDirectoryEntry: (@Sendable () -> Void)? = nil)
     {
         self.config = config
         self.processOutputProvider = processOutputProvider
         self.cwdProvider = cwdProvider
         self.appServerTrustValidator = appServerTrustValidator
+        self.appServerExecutablePathProvider = appServerExecutablePathProvider
         self.didVisitDirectoryEntry = didVisitDirectoryEntry
     }
 
@@ -105,14 +93,16 @@ public struct LocalAgentSessionScanner: Sendable {
             AgentPSOutputParser.agentProcesses(from: allProcesses))
             .prefix(max(0, self.config.maxProcessCount)))
         let homeDirectory = URL(fileURLWithPath: environment["HOME"] ?? NSHomeDirectory(), isDirectory: true)
-        let trustedCodexAppServerPresent = if let executable = AgentPSOutputParser.chatGPTCodexAppServerExecutable(
-            in: allProcesses,
-            homeDirectory: homeDirectory)
-        {
-            self.trustedCodexAppServerCache.isTrusted(executable, validator: self.appServerTrustValidator)
-        } else {
-            false
-        }
+        let trustedCodexAppServerPresent = AgentPSOutputParser.chatGPTCodexAppServerProcesses(
+            in: allProcesses)
+            .contains { process in
+                guard let executablePath = self.appServerExecutablePathProvider(process.pid) else { return false }
+                let standardizedPath = URL(fileURLWithPath: executablePath).standardizedFileURL.path
+                return AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
+                    standardizedPath,
+                    homeDirectory: homeDirectory) &&
+                    self.appServerTrustValidator(standardizedPath)
+            }
         guard Self.shouldScanSessionMetadata(
             hasAgentProcesses: !processes.isEmpty,
             includeFileOnlySessions: includeFileOnlySessions,
@@ -168,10 +158,12 @@ public struct LocalAgentSessionScanner: Sendable {
         } else {
             []
         }
-        let threadMetadata = Self.codexThreadMetadata(
-            rollouts: rollouts,
-            codexHomeDirectory: codexHomeDirectory,
-            environment: environment)
+        let threadMetadata = includeTrustedCodexAppServerRollouts
+            ? [:]
+            : Self.codexThreadMetadata(
+                rollouts: rollouts,
+                codexHomeDirectory: codexHomeDirectory,
+                environment: environment)
         return self.sessions(
             processes: processes,
             cwdByPID: cwdByPID,
@@ -194,6 +186,15 @@ public struct LocalAgentSessionScanner: Sendable {
         hasTrustedCodexAppServer: Bool = false) -> Bool
     {
         hasAgentProcesses || includeFileOnlySessions || hasTrustedCodexAppServer
+    }
+
+    private static func runningExecutablePath(pid: Int32) -> String? {
+        #if canImport(Darwin)
+        DarwinProcessEnumerator.executablePath(pid: pid)
+        #else
+        _ = pid
+        nil
+        #endif
     }
 
     private static func codexThreadMetadata(

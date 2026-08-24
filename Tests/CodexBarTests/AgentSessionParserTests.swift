@@ -45,7 +45,7 @@ struct AgentSessionParserTests {
 
         #expect(records.count == 2)
         #expect(AgentPSOutputParser.agentProcesses(from: records).isEmpty)
-        #expect(AgentPSOutputParser.hasCodexAppServer(in: records))
+        #expect(!AgentPSOutputParser.hasCodexAppServer(in: records))
     }
 
     @Test

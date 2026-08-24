@@ -7,6 +7,27 @@ import CSQLite3
 import Testing
 @testable import CodexBarCore
 
+private final class AppServerTrustValidatorSpy: @unchecked Sendable {
+    private let lock = NSLock()
+    private var results: [Bool]
+    private var calls = 0
+
+    init(results: [Bool]) {
+        self.results = results
+    }
+
+    func validate(_: String) -> Bool {
+        self.lock.withLock {
+            self.calls += 1
+            return self.results.isEmpty ? false : self.results.removeFirst()
+        }
+    }
+
+    var callCount: Int {
+        self.lock.withLock { self.calls }
+    }
+}
+
 struct CodexSessionRolloutTests {
     @Test
     func `first rollout line maps to file only agent session`() throws {
@@ -141,6 +162,84 @@ struct CodexSessionRolloutTests {
             includeFileOnlySessions: false)
 
         #expect(sessions.isEmpty)
+    }
+
+    @Test
+    func `argv spoof cannot authorize adaptive rollout inspection`() async throws {
+        let now = Date()
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerActualExecutable: "/tmp/ChatGPT.app/Contents/Resources/codex")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let sessions = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(sessions.isEmpty)
+    }
+
+    @Test
+    func `chatgpt trust is revalidated for every adaptive scan`() async throws {
+        let now = Date()
+        let validator = AppServerTrustValidatorSpy(results: [true, false])
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerTrustValidator: { validator.validate($0) })
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let first = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+        let second = await fixture.scanner.scan(
+            now: now.addingTimeInterval(1),
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(first.count == 1)
+        #expect(second.isEmpty)
+        #expect(validator.callCount == 2)
+    }
+
+    @Test
+    func `untrusted chatgpt app server does not relabel file-only activity as desktop`() async throws {
+        let now = Date()
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerIsTrusted: false,
+            rolloutOriginator: "unknown",
+            rolloutSource: "unknown")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let sessions = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: true)
+
+        #expect(sessions.first?.source == .unknown)
+    }
+
+    @Test
+    func `trusted adaptive chatgpt scan skips unscoped thread metadata`() async throws {
+        let now = Date()
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            sessionIndexTitle: "Must not be read adaptively")
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let sessions = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.sessionName == nil)
     }
 
     @Test
@@ -364,7 +463,12 @@ struct CodexSessionRolloutTests {
         now: Date,
         rolloutAge: TimeInterval,
         appServerExecutable: String = "/Applications/ChatGPT.app/Contents/Resources/codex",
-        appServerIsTrusted: Bool = true) throws -> AdaptiveChatGPTFixture
+        appServerActualExecutable: String? = nil,
+        appServerIsTrusted: Bool = true,
+        appServerTrustValidator: LocalAgentSessionScanner.AppServerTrustValidator? = nil,
+        rolloutOriginator: String = "codex_exec",
+        rolloutSource: String = "exec",
+        sessionIndexTitle: String? = nil) throws -> AdaptiveChatGPTFixture
     {
         let fileManager = FileManager.default
         let root = fileManager.temporaryDirectory
@@ -380,10 +484,21 @@ struct CodexSessionRolloutTests {
 
         let source = try AgentSessionParserTests.fixtureURL("agent-session-rollout", extension: "jsonl")
         let rollout = sessionDirectory.appendingPathComponent("rollout-chatgpt-existing.jsonl")
-        try fileManager.copyItem(at: source, to: rollout)
+        try String(contentsOf: source, encoding: .utf8)
+            .replacingOccurrences(of: "\"originator\":\"codex_exec\"", with: "\"originator\":\"\(rolloutOriginator)\"")
+            .replacingOccurrences(of: "\"source\":\"exec\"", with: "\"source\":\"\(rolloutSource)\"")
+            .write(to: rollout, atomically: true, encoding: .utf8)
         try fileManager.setAttributes(
             [.modificationDate: now.addingTimeInterval(-rolloutAge)],
             ofItemAtPath: rollout.path)
+        if let sessionIndexTitle {
+            try """
+            {"id":"019f-session-fixture","thread_name":"\(sessionIndexTitle)","updated_at":"now"}
+            """.write(
+                to: codexHome.appendingPathComponent("session_index.jsonl"),
+                atomically: true,
+                encoding: .utf8)
+        }
 
         let scanner = LocalAgentSessionScanner(
             processOutputProvider: { _ in
@@ -391,7 +506,8 @@ struct CodexSessionRolloutTests {
                     "-c features.code_mode_host=true app-server --analytics-default-enabled"
             },
             cwdProvider: { _, _ in [:] },
-            appServerTrustValidator: { _ in appServerIsTrusted })
+            appServerTrustValidator: appServerTrustValidator ?? { _ in appServerIsTrusted },
+            appServerExecutablePathProvider: { _ in appServerActualExecutable ?? appServerExecutable })
         return AdaptiveChatGPTFixture(
             root: root,
             rollout: rollout,

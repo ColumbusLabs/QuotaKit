@@ -291,14 +291,22 @@ public enum AgentPSOutputParser {
     public static func hasCodexAppServer(in records: [AgentProcessRecord]) -> Bool {
         records.contains { record in
             record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
-                self.isCodexAgentExecutable(record.command) &&
+                self.isCodexDesktopAgentExecutable(record.command) &&
                 self.arguments(record.command).contains("app-server")
         }
     }
 
-    static func chatGPTCodexAppServerExecutable(
-        in records: [AgentProcessRecord],
-        homeDirectory: URL) -> String?
+    static func chatGPTCodexAppServerProcesses(in records: [AgentProcessRecord]) -> [AgentProcessRecord]
+    {
+        records.filter { record in
+            record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
+                self.arguments(record.command).contains("app-server")
+        }
+    }
+
+    static func isChatGPTCodexAppServerExecutable(
+        _ executablePath: String,
+        homeDirectory: URL) -> Bool
     {
         let allowedPaths = Set([
             URL(fileURLWithPath: "/Applications/ChatGPT.app/Contents/Resources/codex")
@@ -306,16 +314,7 @@ public enum AgentPSOutputParser {
             homeDirectory.appendingPathComponent("Applications/ChatGPT.app/Contents/Resources/codex")
                 .standardizedFileURL.path,
         ])
-
-        return records.lazy.compactMap { record -> String? in
-            guard record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue,
-                  self.arguments(record.command).contains("app-server"),
-                  let executable = record.command.split(whereSeparator: \ .isWhitespace).first
-            else { return nil }
-
-            let path = URL(fileURLWithPath: String(executable)).standardizedFileURL.path
-            return allowedPaths.contains(path) ? path : nil
-        }.first
+        return allowedPaths.contains(URL(fileURLWithPath: executablePath).standardizedFileURL.path)
     }
 
     private static func arguments(_ command: String) -> [String] {
@@ -342,9 +341,13 @@ public enum AgentPSOutputParser {
     private static func isCodexAgentExecutable(_ command: String) -> Bool {
         let lowercased = command.lowercased()
         guard lowercased.contains(".app/") else { return true }
+        return self.isCodexDesktopAgentExecutable(command)
+    }
+
+    private static func isCodexDesktopAgentExecutable(_ command: String) -> Bool {
+        let lowercased = command.lowercased()
         let executable = lowercased.split(whereSeparator: \ .isWhitespace).first.map(String.init)
-        return executable == "/applications/codex.app/contents/resources/codex" ||
-            executable == "/applications/chatgpt.app/contents/resources/codex"
+        return executable == "/applications/codex.app/contents/resources/codex"
     }
 
     private static func isClaudeAgentExecutable(_ command: String) -> Bool {
