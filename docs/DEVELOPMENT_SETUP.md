@@ -105,14 +105,13 @@ This script:
 6. Verifies it stays running
 
 Launching an unbundled `CodexBar` executable, including SwiftPM builds using `.build` or a custom scratch path, disables
-Keychain access for that process to avoid repeated password prompts. Use the packaged `CodexBar.app` when local
-validation needs browser cookies or stored credentials; packaged app bundles keep their normal Keychain behavior
-regardless of signing mode.
+Keychain access for that process to avoid repeated password prompts. Use the packaged `QuotaKit.app` when local
+validation needs browser cookies or stored credentials.
 
-When the script falls back to ad-hoc signing, it preserves CodexBar-owned keychain state by default.
-That means you may still see keychain prompts for existing CodexBar cache entries, but allowing those prompts keeps the
-cached browser/OAuth state available across normal rebuilds.
-If you want a clean reset of CodexBar-owned keychain state for an ad-hoc build, run
+When the script falls back to ad-hoc signing, QuotaKit keeps browser-cookie cache entries in process memory because a
+new ad-hoc executable identity cannot satisfy the previous build's Keychain ACL. OAuth credentials and other persistent
+QuotaKit-owned Keychain state stay in Keychain, while certificate-signed development and release apps continue using
+the persistent browser-cookie cache. If you want a clean reset of QuotaKit-owned Keychain state for an ad-hoc build, run
 `./Scripts/compile_and_run.sh --clear-adhoc-keychain` before relaunching.
 Third-party keychain items still need stable signing if you want macOS to remember **Always Allow** across rebuilds.
 

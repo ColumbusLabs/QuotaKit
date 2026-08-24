@@ -305,8 +305,7 @@ extension StatusItemController {
             provider: primaryProvider,
             snapshot: snapshot,
             style: resolverStyle,
-            showUsed: showUsed,
-            renderingStyle: style)
+            showUsed: showUsed)
         var primary = resolved?.primary
         var weekly = resolved?.secondary
         var credits = self.menuBarCreditsRemainingForIcon(provider: primaryProvider, snapshot: snapshot)
@@ -739,8 +738,7 @@ extension StatusItemController {
         provider: UsageProvider,
         snapshot: UsageSnapshot?,
         style: IconStyle,
-        showUsed: Bool,
-        renderingStyle: IconStyle? = nil)
+        showUsed: Bool)
         -> (primary: Double?, secondary: Double?)?
     {
         guard let snapshot else { return nil }
@@ -765,7 +763,6 @@ extension StatusItemController {
             snapshot: snapshot,
             style: style,
             showUsed: showUsed,
-            renderingStyle: renderingStyle,
             secondaryOverrideWindowID: self.settings.copilotIconSecondaryWindowOverrideID(snapshot: snapshot))
     }
 
