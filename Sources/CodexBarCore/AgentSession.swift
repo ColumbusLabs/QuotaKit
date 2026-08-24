@@ -309,8 +309,7 @@ public enum AgentPSOutputParser {
         }
     }
 
-    static func chatGPTCodexAppServerProcesses(in records: [AgentProcessRecord]) -> [AgentProcessRecord]
-    {
+    static func chatGPTCodexAppServerProcesses(in records: [AgentProcessRecord]) -> [AgentProcessRecord] {
         records.filter { record in
             record.executableBasename.lowercased() == AgentSession.Provider.codex.rawValue &&
                 self.arguments(record.command).contains("app-server")
