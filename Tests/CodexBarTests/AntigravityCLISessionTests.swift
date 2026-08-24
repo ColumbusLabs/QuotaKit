@@ -777,6 +777,18 @@ struct AntigravityCLISessionTests {
     }
 
     @Test
+    func `authentication prompt matcher recognizes logged out and exhausted keyring states`() {
+        #expect(AntigravityCLIHTTPSFetchStrategy.containsAuthenticationPrompt(
+            Data("You are not logged into Antigravity.".utf8)))
+        #expect(AntigravityCLIHTTPSFetchStrategy.containsAuthenticationPrompt(
+            Data("keyringAuth: timed out after 10s, skipping keyring auth".utf8)))
+        #expect(AntigravityCLIHTTPSFetchStrategy.containsAuthenticationPrompt(
+            Data("KEYRING auth : timed out after 10s".utf8)))
+        #expect(!AntigravityCLIHTTPSFetchStrategy.containsAuthenticationPrompt(
+            Data("Welcome. You are currently not signed in.\nSigning in...".utf8)))
+    }
+
+    @Test
     func `session returns complete new output before retaining only its tail`() async throws {
         let fixture = self.makeFixture()
         fixture.identity.setIdentity(pid: 10, executablePath: "/bin/agy", startEpoch: 100)

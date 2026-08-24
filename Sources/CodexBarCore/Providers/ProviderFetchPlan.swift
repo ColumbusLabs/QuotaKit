@@ -314,10 +314,17 @@ extension ProviderFetchStrategy {
 }
 
 public struct ProviderFetchPipeline: Sendable {
-    public let resolveStrategies: @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy]
+    public typealias FallbackErrorResolver = @Sendable (Error?, Error) -> Error
 
-    public init(resolveStrategies: @escaping @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy]) {
+    public let resolveStrategies: @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy]
+    private let resolveFallbackError: FallbackErrorResolver
+
+    public init(
+        resolveStrategies: @escaping @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy],
+        resolveFallbackError: @escaping FallbackErrorResolver = { _, error in error })
+    {
         self.resolveStrategies = resolveStrategies
+        self.resolveFallbackError = resolveFallbackError
     }
 
     public func fetch(context: ProviderFetchContext, provider: UsageProvider) async -> ProviderFetchOutcome {
@@ -358,7 +365,7 @@ public struct ProviderFetchPipeline: Sendable {
                     errorDescription: nil))
                 return ProviderFetchOutcome(result: .success(result), attempts: attempts)
             } catch {
-                lastAvailableError = error
+                lastAvailableError = self.resolveFallbackError(lastAvailableError, error)
                 attempts.append(ProviderFetchAttempt(
                     strategyID: strategy.id,
                     kind: strategy.kind,
