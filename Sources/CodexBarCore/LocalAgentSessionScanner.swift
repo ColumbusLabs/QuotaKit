@@ -1,4 +1,7 @@
 import Foundation
+#if canImport(Darwin)
+import Darwin
+#endif
 
 final class FutureModificationDateClamp: @unchecked Sendable {
     private let lock = NSLock()
@@ -21,24 +24,35 @@ final class FutureModificationDateClamp: @unchecked Sendable {
 }
 
 private final class TrustedCodexAppServerCache: @unchecked Sendable {
+    private struct Entry {
+        let identity: String
+        let validatedAt: Date
+    }
+
+    private static let maximumTrustAge: TimeInterval = 5 * 60
     private let lock = NSLock()
-    private var trustedIdentities: [String: String] = [:]
+    private var trustedIdentities: [String: Entry] = [:]
 
     func isTrusted(
         executablePath: String,
+        now: Date,
         identityProvider: @Sendable (String) -> String?,
         validator: @Sendable (String) -> Bool) -> Bool
     {
         guard let identity = identityProvider(executablePath) else { return false }
         return self.lock.withLock {
-            if self.trustedIdentities[executablePath] == identity {
+            if let cached = self.trustedIdentities[executablePath],
+               cached.identity == identity,
+               now.timeIntervalSince(cached.validatedAt) >= 0,
+               now.timeIntervalSince(cached.validatedAt) < Self.maximumTrustAge
+            {
                 return true
             }
             guard validator(executablePath) else {
                 self.trustedIdentities.removeValue(forKey: executablePath)
                 return false
             }
-            self.trustedIdentities[executablePath] = identity
+            self.trustedIdentities[executablePath] = Entry(identity: identity, validatedAt: now)
             return true
         }
     }
@@ -98,9 +112,11 @@ public struct LocalAgentSessionScanner: Sendable {
         appServerTrustValidator: @escaping AppServerTrustValidator = {
             CodexLaunchPreflight.isLaunchCandidateAllowed(path: $0)
         },
-        appServerExecutablePathProvider: @escaping AppServerExecutablePathProvider = LocalAgentSessionScanner.runningExecutablePath,
+        appServerExecutablePathProvider: @escaping AppServerExecutablePathProvider = LocalAgentSessionScanner
+            .runningExecutablePath,
         appServerArgumentsProvider: @escaping AppServerArgumentsProvider = LocalAgentSessionScanner.runningArguments,
-        appServerTrustIdentityProvider: @escaping AppServerTrustIdentityProvider = LocalAgentSessionScanner.trustIdentity,
+        appServerTrustIdentityProvider: @escaping AppServerTrustIdentityProvider = LocalAgentSessionScanner
+            .trustIdentity,
         didVisitDirectoryEntry: (@Sendable () -> Void)? = nil)
     {
         self.config = config
@@ -129,21 +145,22 @@ public struct LocalAgentSessionScanner: Sendable {
             .prefix(max(0, self.config.maxProcessCount)))
         let homeDirectory = URL(fileURLWithPath: environment["HOME"] ?? NSHomeDirectory(), isDirectory: true)
         let trustedCodexAppServerPresent = allProcesses.contains { process in
-                guard let executablePath = process.executablePath ??
-                    self.appServerExecutablePathProvider(process.pid)
-                else { return false }
-                let standardizedPath = URL(fileURLWithPath: executablePath).standardizedFileURL.path
-                guard AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
-                    standardizedPath,
-                    homeDirectory: homeDirectory),
-                    let arguments = process.arguments ?? self.appServerArgumentsProvider(process.pid),
-                    arguments.contains("app-server")
-                else { return false }
-                return self.trustedCodexAppServerCache.isTrusted(
-                    executablePath: standardizedPath,
-                    identityProvider: self.appServerTrustIdentityProvider,
-                    validator: self.appServerTrustValidator)
-            }
+            guard let executablePath = process.executablePath ??
+                self.appServerExecutablePathProvider(process.pid)
+            else { return false }
+            let standardizedPath = URL(fileURLWithPath: executablePath).standardizedFileURL.path
+            guard AgentPSOutputParser.isChatGPTCodexAppServerExecutable(
+                standardizedPath,
+                homeDirectory: homeDirectory),
+                let arguments = process.arguments ?? self.appServerArgumentsProvider(process.pid),
+                arguments.contains("app-server")
+            else { return false }
+            return self.trustedCodexAppServerCache.isTrusted(
+                executablePath: standardizedPath,
+                now: now,
+                identityProvider: self.appServerTrustIdentityProvider,
+                validator: self.appServerTrustValidator)
+        }
         guard Self.shouldScanSessionMetadata(
             hasAgentProcesses: !processes.isEmpty,
             includeFileOnlySessions: includeFileOnlySessions,
@@ -282,7 +299,47 @@ public struct LocalAgentSessionScanner: Sendable {
               let modificationDate = values.contentModificationDate,
               let fileSize = values.fileSize
         else { return nil }
-        return "\(url.path)#\(String(describing: resourceIdentifier))#\(modificationDate.timeIntervalSince1970)#\(fileSize)"
+        let changeIdentity = self.fileChangeIdentity(url.path)
+        let securityAttributes = ["com.apple.quarantine", "com.apple.malware"]
+            .map { "\($0)=\(self.extendedAttributeIdentity(path: url.path, name: $0))" }
+            .joined(separator: ",")
+        return "\(url.path)#\(String(describing: resourceIdentifier))#\(modificationDate.timeIntervalSince1970)#\(fileSize)#\(changeIdentity)#\(securityAttributes)"
+    }
+
+    private static func fileChangeIdentity(_ path: String) -> String {
+        #if canImport(Darwin)
+        var info = Darwin.stat()
+        guard Darwin.lstat(path, &info) == 0 else { return "unavailable" }
+        return "\(info.st_ctimespec.tv_sec).\(info.st_ctimespec.tv_nsec)"
+        #else
+        _ = path
+        return "unsupported"
+        #endif
+    }
+
+    private static func extendedAttributeIdentity(path: String, name: String) -> String {
+        #if canImport(Darwin)
+        let length = path.withCString { pathPointer in
+            name.withCString { namePointer in
+                getxattr(pathPointer, namePointer, nil, 0, 0, 0)
+            }
+        }
+        guard length >= 0 else { return "absent" }
+        var bytes = [UInt8](repeating: 0, count: length)
+        let readCount = path.withCString { pathPointer in
+            name.withCString { namePointer in
+                bytes.withUnsafeMutableBytes { buffer in
+                    getxattr(pathPointer, namePointer, buffer.baseAddress, length, 0, 0)
+                }
+            }
+        }
+        guard readCount >= 0 else { return "unreadable" }
+        return Data(bytes.prefix(readCount)).base64EncodedString()
+        #else
+        _ = path
+        _ = name
+        return "unsupported"
+        #endif
     }
 
     private static func codexThreadMetadata(

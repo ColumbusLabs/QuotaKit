@@ -228,7 +228,10 @@ struct CodexSessionRolloutTests {
             appServerTrustIdentityProvider: { identity.identity($0) })
         defer { try? FileManager.default.removeItem(at: fixture.root) }
 
-        let first = await fixture.scanner.scan(now: now, environment: fixture.environment, includeFileOnlySessions: false)
+        let first = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
         let cached = await fixture.scanner.scan(
             now: now.addingTimeInterval(1),
             environment: fixture.environment,
@@ -242,6 +245,35 @@ struct CodexSessionRolloutTests {
         #expect(first.count == 1)
         #expect(cached.count == 1)
         #expect(replaced.isEmpty)
+        #expect(validator.callCount == 2)
+    }
+
+    @Test
+    func `chatgpt trust cache expires so external policy is revalidated`() async throws {
+        let now = Date()
+        let validator = AppServerTrustValidatorSpy(results: [true, false])
+        let fixture = try Self.makeAdaptiveChatGPTFixture(
+            now: now,
+            rolloutAge: 30,
+            appServerTrustValidator: { validator.validate($0) })
+        defer { try? FileManager.default.removeItem(at: fixture.root) }
+
+        let first = await fixture.scanner.scan(
+            now: now,
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+        let cached = await fixture.scanner.scan(
+            now: now.addingTimeInterval(299),
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+        let expired = await fixture.scanner.scan(
+            now: now.addingTimeInterval(300),
+            environment: fixture.environment,
+            includeFileOnlySessions: false)
+
+        #expect(first.count == 1)
+        #expect(cached.count == 1)
+        #expect(expired.isEmpty)
         #expect(validator.callCount == 2)
     }
 
