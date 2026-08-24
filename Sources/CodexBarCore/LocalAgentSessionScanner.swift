@@ -303,7 +303,14 @@ public struct LocalAgentSessionScanner: Sendable {
         let securityAttributes = ["com.apple.quarantine", "com.apple.malware"]
             .map { "\($0)=\(self.extendedAttributeIdentity(path: url.path, name: $0))" }
             .joined(separator: ",")
-        return "\(url.path)#\(String(describing: resourceIdentifier))#\(modificationDate.timeIntervalSince1970)#\(fileSize)#\(changeIdentity)#\(securityAttributes)"
+        return [
+            url.path,
+            String(describing: resourceIdentifier),
+            String(modificationDate.timeIntervalSince1970),
+            String(fileSize),
+            changeIdentity,
+            securityAttributes,
+        ].joined(separator: "#")
     }
 
     private static func fileChangeIdentity(_ path: String) -> String {
