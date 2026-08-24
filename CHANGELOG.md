@@ -24,7 +24,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Changed
 
-- Synced reviewed CodexBar development through `23ccb7dac`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
+- Synced reviewed CodexBar development through `1699ad81b`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
 - Synced reviewed CodexBar development through `4b14ed9c5`, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
 - Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
@@ -43,6 +43,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Mac to iPhone sync: publish cost freshness independently from quota status, coalesce cost changes that arrive during an iCloud write, and prevent stale or missing current-day spend from appearing as a confirmed zero on iPhone.
 - Usage & Spend: share one provider-source publication between Overview and the dashboard, count every enabled provider, align calendar bucketing, and drain completed Codex catch-up files.
 - Mac reliability: preserve cached menu-card subclasses, prevent post-exit RPC pipe aborts, and size agent-session menus from their actual content.
+- Agent sessions: recognize recent Codex activity hosted by a trusted ChatGPT app server without treating the host as a live coding process or scanning unbounded metadata.
 - Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.
 - Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.
 - Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.
