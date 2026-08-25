@@ -5,6 +5,52 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.20</title>
+            <pubDate>Mon, 24 Aug 2026 22:32:37 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.20.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.20</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.20 Mobile 1.11.3</h2>
+<h3>Added</h3>
+<ul>
+<li>Cursor: show Grok Bot's weekly included allowance as a separate named quota lane while preserving QuotaKit's explicit Cursor snapshot layout and widget contract.</li>
+<li>Providers: add Codex personal-access-token usage, OpenCode Go API quotas, Fireworks account discovery, Kiro overage limits, z.ai China balances, and live Grok/xAI spend sources.</li>
+<li>Menu bar: add reusable conditional layout rules, richer conditional metrics, and stable multi-line rendering.</li>
+<li>Claude: retain complete claude-swap usage at exhausted limits and disambiguate same-email accounts with stable aliases.</li>
+</ul>
+<h3>Changed</h3>
+<ul>
+<li>Synced reviewed CodexBar development through <code>c9e7f4df5</code>, adopting Claude cookie-refresh safety, OpenCodex pricing performance, Gemini consumer-shutdown detection, and merged Warp icon correctness while preserving QuotaKit identity, provider/mobile contracts, and release/build ownership.</li>
+<li>Synced reviewed CodexBar development through <code>100deb6fa</code>, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.</li>
+<li>Synced reviewed CodexBar development through <code>4b14ed9c5</code>, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Claude: prefer Chrome without dropping fallback browsers, stop after the first usable cookie source, and keep ad-hoc browser-cookie caches process-local without moving OAuth credentials out of Keychain.</li>
+<li>Gemini: detect Google's live consumer-tier shutdown response, keep Workspace and licensed accounts eligible, and warn before an explicit account-switch flow clears credentials.</li>
+<li>Usage & Spend: price each OpenCodex entry once with shared catalog and custom-pricing context while preserving overflow-safe aggregation and compatible local caches.</li>
+<li>Menu bar: preserve Warp's bonus lane in merged icons when unused while continuing to distinguish a genuinely exhausted bonus.</li>
+<li>Providers: restore Qwen Cloud Brave cookie import, use the latest completed UTC day for OpenRouter activity, and improve Antigravity offline discovery without attributing machine-global data to an OAuth account or iCloud record.</li>
+<li>Usage & Spend: read compatible local Cursor and Antigravity activity caches, preserve refresh cancellation, refresh all changed dashboard detail, and keep calendar bucketing consistent across heatmap labels and selection.</li>
+<li>Mac: report non-writable CLI path conflicts and let a single meaningful quota fill the menu icon while retaining Claude's explicit missing-secondary lane.</li>
+<li>Codex: avoid re-merging canonical plan-utilization history on every refresh, keep decoded histories sorted, and make real legacy-history migration scale near-linearly.</li>
+<li>Codex: align local token parsing with headless usage envelopes and stale cumulative snapshots while preserving fork ownership, priority pricing, calendar bucketing, and safe cache invalidation.</li>
+<li>Codex: retain daily cost when trace data classifies a persisted standard turn as priority, while continuing to reject genuinely stale row-ownership evidence.</li>
+<li>Codex: show and preserve Business and Enterprise monthly spend-control credits on stacked and compact account cards, including safe fallback across transient enrichment failures.</li>
+<li>Codex: persist the priority-turn scan cursor across relaunches so unchanged local trace databases do not require a cold full-body rescan after every launch.</li>
+<li>Codex: isolate profile-scoped token counts, costs, usage charts, top models, and cost history while switching between profile-home accounts.</li>
+<li>Mac to iPhone sync: publish cost freshness independently from quota status, coalesce cost changes that arrive during an iCloud write, and prevent stale or missing current-day spend from appearing as a confirmed zero on iPhone.</li>
+<li>Usage & Spend: share one provider-source publication between Overview and the dashboard, count every enabled provider, align calendar bucketing, and drain completed Codex catch-up files.</li>
+<li>Mac reliability: preserve cached menu-card subclasses, prevent post-exit RPC pipe aborts, and size agent-session menus from their actual content.</li>
+<li>Agent sessions: recognize recent Codex activity hosted by a trusted ChatGPT app server without treating the host as a live coding process or scanning unbounded metadata.</li>
+<li>Antigravity: reuse a matching signed-in user-owned <code>agy</code> process for quota refreshes while preserving selected-account validation and QuotaKit-managed process ownership.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.20/QuotaKit-macos-universal-0.32.4.20.zip" length="78207162" type="application/octet-stream" sparkle:edSignature="jHj/EtMz+fnEpyU0ZmS+ci/fC1s0Zxg1XDIxXRVzMEMHqc6doHLc7rx2XPSMqonkp+Bz3jtm+AysR/YvFgmuAA=="/>
+        </item>
+        <item>
             <title>0.32.4.19</title>
             <pubDate>Wed, 19 Aug 2026 08:03:16 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -59,22 +105,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.18/QuotaKit-macos-universal-0.32.4.18.zip" length="72881237" type="application/octet-stream" sparkle:edSignature="dEpkoSDj9zdrHYQykL1f3bgld26pk6IqU2TA9oHVeT11InSoT6rHdijcIxEkIKtgpldrP1x0LVxmxMR/MkXcCA=="/>
-        </item>
-        <item>
-            <title>0.32.4.17</title>
-            <pubDate>Thu, 13 Aug 2026 06:01:36 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.17.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.17</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.17 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Usage & Spend: preserve complete Daily Spend totals and model breakdowns on iPhone while a Mac's local Codex history is catching up, then replace them once the complete refresh finishes.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.17/QuotaKit-macos-universal-0.32.4.17.zip" length="72818927" type="application/octet-stream" sparkle:edSignature="1dH5rWKlx7F798QObGkByT/XO/ypkOue19QBUYdKXem1HuECoJfbMgRJp1LznQVg3PykQacoXsuo/mKUKkysAQ=="/>
         </item>
     </channel>
 </rss>
