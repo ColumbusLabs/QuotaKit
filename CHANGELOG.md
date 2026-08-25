@@ -5,7 +5,7 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.19 / iOS 1.11.3 — 2026-08-19
+## 0.32.4.20 / iOS 1.11.3 — 2026-08-24
 
 ### Added
 
@@ -13,22 +13,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Providers: add Codex personal-access-token usage, OpenCode Go API quotas, Fireworks account discovery, Kiro overage limits, z.ai China balances, and live Grok/xAI spend sources.
 - Menu bar: add reusable conditional layout rules, richer conditional metrics, and stable multi-line rendering.
 - Claude: retain complete claude-swap usage at exhausted limits and disambiguate same-email accounts with stable aliases.
-- Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.
-- Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.
-- Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.
-- OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false `$used / $0` budget.
-- Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.
-- Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.
-- Grok and LongCat: read current billing credits and live token-pack usage from their provider-owned endpoints.
-- Menu bar: add accessible vertical icon adjustment, system dimming, Ghostty terminal selection, draggable layout fixes, and preferred-currency cost-history charts with CZK support.
 
 ### Changed
 
 - Synced reviewed CodexBar development through `c9e7f4df5`, adopting Claude cookie-refresh safety, OpenCodex pricing performance, Gemini consumer-shutdown detection, and merged Warp icon correctness while preserving QuotaKit identity, provider/mobile contracts, and release/build ownership.
 - Synced reviewed CodexBar development through `100deb6fa`, preserving QuotaKit identity, release ownership, provider/mobile contracts, and build numbers; upstream credit-only changelog bookkeeping and an incompatible Grok period fallback were reviewed but not imported.
 - Synced reviewed CodexBar development through `4b14ed9c5`, adopting eleven product/test commits while excluding upstream credit-only and release bookkeeping, and preserving QuotaKit identity, all 69 providers, Mac-to-iPhone contracts, and release/build ownership.
-- Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
-- Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
 
 ### Fixed
 
@@ -49,6 +39,28 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend: share one provider-source publication between Overview and the dashboard, count every enabled provider, align calendar bucketing, and drain completed Codex catch-up files.
 - Mac reliability: preserve cached menu-card subclasses, prevent post-exit RPC pipe aborts, and size agent-session menus from their actual content.
 - Agent sessions: recognize recent Codex activity hosted by a trusted ChatGPT app server without treating the host as a live coding process or scanning unbounded metadata.
+- Antigravity: reuse a matching signed-in user-owned `agy` process for quota refreshes while preserving selected-account validation and QuotaKit-managed process ownership.
+
+## 0.32.4.19 / iOS 1.11.3 — 2026-08-19
+
+### Added
+
+- Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.
+- Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.
+- Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.
+- OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false `$used / $0` budget.
+- Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.
+- Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.
+- Grok and LongCat: read current billing credits and live token-pack usage from their provider-owned endpoints.
+- Menu bar: add accessible vertical icon adjustment, system dimming, Ghostty terminal selection, draggable layout fixes, and preferred-currency cost-history charts with CZK support.
+
+### Changed
+
+- Synced reviewed CodexBar development through `7c64d280f`, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.
+- Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.
+
+### Fixed
+
 - Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.
 - Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.
 - Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.
@@ -56,7 +68,6 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage & Spend: preserve complete requested and retained Codex history under byte pressure, recover orphaned resumable catch-up work, reduce catch-up status memory use, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.
 - OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.
 - Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.
-- Antigravity: reuse a matching signed-in user-owned `agy` process for quota refreshes while preserving selected-account validation and QuotaKit-managed process ownership.
 - Process handling: bound PTY hard-stop cleanup, resolve helper resources through CLI symlinks, and escalate orphaned RPC children through a bounded teardown path.
 - Codex and Ollama: confirm zero-credit server resets correctly and recover browser-backed usage without spurious background sign-in errors.
 
