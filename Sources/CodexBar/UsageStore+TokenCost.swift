@@ -489,8 +489,7 @@ extension UsageStore {
         case .xai:
             return snapshot.flatMap { XAICostUsageMapping.tokenSnapshot(from: $0, historyDays: windowDays) }
         case .grok:
-            return GrokLocalSessionScanner.summarize(lookbackDays: windowDays)
-                .toCostUsageTokenSnapshot(historyDays: windowDays)
+            return self.grokLocalTokenSnapshot(from: snapshot, historyDays: windowDays)
         default:
             return nil
         }
