@@ -38,7 +38,7 @@ extension UsageStore {
         let pendingCandidate: CodexWeeklyResetPublicationCandidate?
     }
 
-    nonisolated static func codexOutcomeAdmittedForPublication(
+    nonisolated static func codexOutcomeAdmittedForPublication( // swiftlint:disable:this function_body_length
         initialOutcome: ProviderFetchOutcome,
         previousSnapshot: UsageSnapshot?,
         previousSourceLabel: String?,

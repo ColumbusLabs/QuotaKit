@@ -207,6 +207,7 @@ extension UsageStore {
         return self.settings.multiAccountMenuLayout == .stacked && projection.visibleAccounts.count > 1
     }
 
+    // swiftlint:disable:next function_body_length
     func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(

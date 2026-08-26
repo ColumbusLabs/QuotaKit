@@ -1,3 +1,5 @@
+// The provider's web, CLI, region, and migration fixtures intentionally share one test support surface.
+// swiftlint:disable file_length
 import Foundation
 import Testing
 @testable import CodexBar
