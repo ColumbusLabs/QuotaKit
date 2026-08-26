@@ -77,12 +77,16 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "f22371c47d2e006f", // QuotaKit main before retained-report scoping; persisted rows remain compatible.
         "295616a4e7dcfc3f", // Catch-up queue/status scheduling only; persisted parser rows remain compatible.
         "238791b3f1229c6b", // Stable equal-mtime scan ordering changes no persisted parser rows.
         "f3c7abf13e841047", // ENOENT root filtering changes discovery only; persisted parser rows remain compatible.
         "1a8e14e8e822301c", // Optional-root discovery fix; persisted parser rows remain compatible.
         "b5ecfaed30e652cd", // Pre-cursor-v3 scheduling and retention bookkeeping; persisted rows are compatible.
         "3d2771687ba0133f", // Shipped QuotaKit SQLite producer; persisted row shape is compatible.
+        "dd19ffa2dcfa8d47", // Current main before report-window scoping; persisted rows unchanged.
+        "8050a4faf4fddb96", // PR base before retained-report persistence; parsed rows unchanged.
+        "cfd84d13ad7d4cfa", // 0.55.x scan scheduling and progress bookkeeping; persisted rows unchanged.
         "98da5914d2f6a9cd", // Pushed PR producer before retry signaling; persisted rows unchanged.
         "43609cc56f76a003", // 0.49.3 request-tier pricing; persisted row shape unchanged.
         "b975eb705f905b9a", // 0.49.0-0.49.2 SQLite producer with compatible rows.
@@ -90,6 +94,12 @@ actor CostUsageStore {
         "2d17f4981b78d07f", // Persisted priority-turn cursor; parser and persisted row shape unchanged.
         "1ad1e41af7f25b3e", // Trace-priority ownership evidence fix; parser and persisted row shape unchanged.
         "be0bb04e9e92b697", // QuotaKit pre-OpenCodex optimization producer; persisted row shape unchanged.
+    ]
+    static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
+        "f22371c47d2e006f",
+        "dd19ffa2dcfa8d47",
+        "2d17f4981b78d07f",
+        "8050a4faf4fddb96",
     ]
 
     nonisolated static func defaultCacheRoot() -> URL {
@@ -419,7 +429,7 @@ extension CostUsageStore {
     }
 
     private func validateExistingDatabase(_ database: OpaquePointer) throws {
-        let state: (isCurrent: Bool, canAdoptPredecessor: Bool)
+        let state: (storedHash: String, isCurrent: Bool, canAdoptPredecessor: Bool)
         try Self.execute(database, "BEGIN")
         do {
             state = try self.databaseCompatibilityState(database)
@@ -446,7 +456,7 @@ extension CostUsageStore {
             }
             try Self.validateDatabaseIntegrity(database)
             if lockedState.canAdoptPredecessor {
-                try self.adoptCompatiblePredecessor(database)
+                try self.adoptCompatiblePredecessor(database, storedHash: lockedState.storedHash)
             }
             try Self.execute(database, "COMMIT")
         } catch {
@@ -456,6 +466,7 @@ extension CostUsageStore {
     }
 
     private func databaseCompatibilityState(_ database: OpaquePointer) throws -> (
+        storedHash: String,
         isCurrent: Bool,
         canAdoptPredecessor: Bool)
     {
@@ -473,7 +484,7 @@ extension CostUsageStore {
             && self.expectedSchemaVersion == Self.schemaVersion
             && Self.compatiblePredecessorParserHashes.contains(storedHash)
             && actualVersion == Int64(predecessorVersion)
-        return (isCurrent, canAdoptPredecessor)
+        return (storedHash, isCurrent, canAdoptPredecessor)
     }
 
     private static func validateDatabaseIntegrity(_ database: OpaquePointer) throws {
@@ -485,7 +496,23 @@ extension CostUsageStore {
         }
     }
 
-    private func adoptCompatiblePredecessor(_ database: OpaquePointer) throws {
+    private func adoptCompatiblePredecessor(_ database: OpaquePointer, storedHash: String) throws {
+        if Self.incompatibleRetainedReportPredecessorParserHashes.contains(storedHash),
+           var metadata = try Self.readSingleton(
+               CostUsageStoreMetadata.self,
+               database: database,
+               table: "scan_metadata")
+        {
+            metadata.previousReportPayload = nil
+            let payload = try JSONEncoder().encode(metadata)
+            let metadataStatement = try Self.prepare(
+                database,
+                "UPDATE scan_metadata SET payload = ? WHERE id = 1")
+            defer { sqlite3_finalize(metadataStatement) }
+            Self.bind(payload, to: metadataStatement, at: 1)
+            try Self.stepDone(metadataStatement, database: database)
+            guard sqlite3_changes(database) == 1 else { throw StoreError.incompatibleSchema }
+        }
         let statement = try Self.prepare(database, "UPDATE meta SET value = ? WHERE key = 'parser_hash'")
         defer { sqlite3_finalize(statement) }
         Self.bind(self.expectedParserHash, to: statement, at: 1)

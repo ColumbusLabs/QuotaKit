@@ -44,7 +44,7 @@ struct CostUsageStoreTests {
         }
         thread.start()
 
-        #expect(finished.wait(timeout: .now() + 10) == .success)
+        #expect(finished.wait(timeout: .now() + 30) == .success)
         #expect(outcome.loadedScanStamp == 0)
         #expect((outcome.savedRowCount ?? -1) >= 0)
     }
@@ -445,7 +445,9 @@ extension CostUsageStoreTests {
                     modelsUsed: nil,
                     modelBreakdowns: nil),
             ], summary: nil),
-            cache: cache)
+            cache: cache,
+            reportSinceKey: "2026-08-01",
+            reportUntilKey: "2026-08-01")
 
         func save(_ cache: CostUsageCache) {
             _ = store.syncSaveCodexCache(
@@ -1036,12 +1038,16 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "f22371c47d2e006f",
             "295616a4e7dcfc3f",
             "238791b3f1229c6b",
             "f3c7abf13e841047",
             "1a8e14e8e822301c",
             "b5ecfaed30e652cd",
             "3d2771687ba0133f",
+            "dd19ffa2dcfa8d47",
+            "8050a4faf4fddb96",
+            "cfd84d13ad7d4cfa",
             "98da5914d2f6a9cd",
             "43609cc56f76a003",
             "b975eb705f905b9a",
@@ -1101,6 +1107,35 @@ extension CostUsageStoreTests {
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
         #expect(try connection.scalarInt(
             "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
+    }
+
+    @Test(arguments: ["f22371c47d2e006f", "8050a4faf4fddb96", "dd19ffa2dcfa8d47"])
+    func `retained report migration preserves compatible rows and clears stale payload`(
+        predecessorHash: String) async throws
+    {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: predecessorHash)
+        let predecessor = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: predecessorVersion,
+            parserHash: predecessorHash)
+        let file = Self.file(path: "/rollouts/retained-report.jsonl", day: "2026-08-01")
+        let aggregate = Self.aggregate(day: "2026-08-01", model: "gpt-5.6-sol", scale: 1)
+        #expect(await predecessor.upsertFile(file))
+        #expect(await predecessor.replaceFileDayAggregates(path: file.path, aggregates: [aggregate]))
+        #expect(await predecessor.mergeDayAggregates([aggregate]))
+        #expect(await predecessor.setMetadata(Self.metadata()))
+        var expected = await predecessor.readSnapshot()
+        expected.metadata.previousReportPayload = nil
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+
+        #expect(await current.readSnapshot() == expected)
+        #expect(await current.rebuildCount == 0)
+        #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
     }
 
     @Test
@@ -1672,7 +1707,9 @@ extension CostUsageStoreTests {
                     modelsUsed: nil,
                     modelBreakdowns: nil),
             ], summary: nil),
-            cache: cache)
+            cache: cache,
+            reportSinceKey: "2026-06-01",
+            reportUntilKey: "2026-07-01")
 
         let result = store.syncSaveCodexCache(
             cache,

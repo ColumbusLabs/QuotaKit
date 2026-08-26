@@ -5755,6 +5755,9 @@ enum CostUsageScanner {
             return previous
         }
 
+        // A routine bounded refresh can turn an established cache back into pending while it
+        // validates a growing active tail. Snapshot the established report before any refresh,
+        // not only explicit rescans, so presentation can remain stable until catch-up converges.
         let sourceCache: CostUsageCache? = if plan.shouldRefresh,
                                               !currentScanIsPending,
                                               !cache.days.isEmpty
@@ -5776,7 +5779,11 @@ enum CostUsageScanner {
             modelsDevCatalog: plan.modelsDevCatalog,
             modelsDevCacheRoot: options.cacheRoot,
             priorityTurns: plan.priorityTurns)
-        return CostUsageCodexPreviousReport(report: report, cache: sourceCache)
+        return CostUsageCodexPreviousReport(
+            report: report,
+            cache: sourceCache,
+            reportSinceKey: range.sinceKey,
+            reportUntilKey: range.untilKey)
     }
 
     static func codexPreviousReport(
