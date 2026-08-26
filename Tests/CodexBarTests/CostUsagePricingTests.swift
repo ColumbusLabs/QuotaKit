@@ -400,22 +400,29 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func `codex API fast cost matches brief gpt56 scenarios`() {
+    func `codex API fast cost matches brief gpt56 scenarios`() throws {
+        let emptyCacheRoot = try Self.cacheRoot()
         let sol = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-sol",
             inputTokens: 100_000,
             cachedInputTokens: 20000,
-            outputTokens: 20000)
+            outputTokens: 20000,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         let terra = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-terra",
             inputTokens: 100_000,
             cachedInputTokens: 20000,
-            outputTokens: 20000)
+            outputTokens: 20000,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         let luna = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-luna",
             inputTokens: 100_000,
             cachedInputTokens: 20000,
-            outputTokens: 20000)
+            outputTokens: 20000,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
 
         // Public API Fast rates are 2x Standard for GPT-5.6.
         let expectedSol = 2.02
@@ -427,31 +434,40 @@ struct CostUsagePricingTests {
     }
 
     @Test
-    func `codex priority cost multiplies standard cache write rates`() {
+    func `codex priority cost multiplies standard cache write rates`() throws {
+        let emptyCacheRoot = try Self.cacheRoot()
         let sol = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-sol",
             inputTokens: 100,
             cachedInputTokens: 10,
             cacheWriteInputTokens: 20,
-            outputTokens: 5)
+            outputTokens: 5,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         let terra = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-terra",
             inputTokens: 100,
             cachedInputTokens: 10,
             cacheWriteInputTokens: 20,
-            outputTokens: 5)
+            outputTokens: 5,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         let luna = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.6-luna",
             inputTokens: 100,
             cachedInputTokens: 10,
             cacheWriteInputTokens: 20,
-            outputTokens: 5)
+            outputTokens: 5,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         let modelWithoutCacheWriteSupport = CostUsagePricing.codexPriorityCostUSD(
             model: "gpt-5.5",
             inputTokens: 100,
             cachedInputTokens: 10,
             cacheWriteInputTokens: 20,
-            outputTokens: 5)
+            outputTokens: 5,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
 
         let solInput = 70.0 * 5e-6
         let solCached = 10.0 * 5e-7
