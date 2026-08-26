@@ -140,11 +140,15 @@ struct CodexFamilyResolverTests {
 
     @Test
     func `codexCostUSD returns non-nil for gpt-5.6 alias`() {
+        let emptyCacheRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent(UUID().uuidString, isDirectory: true)
         let cost = CostUsagePricing.codexCostUSD(
             model: "gpt-5.6",
             inputTokens: 1000,
             cachedInputTokens: 0,
-            outputTokens: 100)
+            outputTokens: 100,
+            modelsDevCacheRoot: emptyCacheRoot,
+            customPricing: .empty)
         // Upstream maps the unsuffixed alias to Sol pricing.
         #expect(cost == 0.008)
     }

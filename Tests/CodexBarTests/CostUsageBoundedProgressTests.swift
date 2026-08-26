@@ -78,7 +78,7 @@ struct CostUsageBoundedProgressTests {
             options: options)
         let firstCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(firstCache.files.count == CostUsageScanner.codexCatchUpScanCandidateLimit)
-        #expect(firstCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit - 1)
+        #expect(firstCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(firstCache.codexScanTotalFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
 
         let secondRecorder = CostUsageScanner.CodexScanWorkRecorder()
@@ -92,7 +92,7 @@ struct CostUsageBoundedProgressTests {
         let secondCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         #expect(secondRecorder.snapshot().codexProgressAccountingVisits == 0)
         #expect(secondCache.files.count == corpusSize)
-        #expect(secondCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit - 1)
+        #expect(secondCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(secondCache.codexScanTotalFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(secondCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
         #expect(secondCache.codexScanInventoryPaths == nil)
@@ -395,7 +395,7 @@ struct CostUsageBoundedProgressTests {
         #expect(firstCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
         #expect(firstCache.codexScanProcessedBytes == 0)
         #expect(firstCache.codexScanTotalBytes == 0)
-        #expect(firstCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit - 1)
+        #expect(firstCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(firstCache.codexScanTotalFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(firstCache.codexScanInventoryPaths == nil)
         #expect(firstCache.codexScanCatchUpPending == true)
@@ -419,7 +419,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
         #expect(secondCache.codexScanProcessedBytes == 0)
         #expect(secondCache.codexScanTotalBytes == 0)
-        #expect(secondCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit - 1)
+        #expect(secondCache.codexScanCompletedFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(secondCache.codexScanTotalFiles == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(secondCache.codexScanInventoryPaths == nil)
         #expect(secondCache.codexScanCatchUpPending == true)
@@ -530,7 +530,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondMetrics.codexProgressAccountingVisits == 0)
         #expect(secondCache.files[incompletePath]?.codexScanComplete == true)
         #expect(secondCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
-        #expect(secondCache.codexScanCompletedFiles == corpusSize - 1)
+        #expect(secondCache.codexScanCompletedFiles == corpusSize)
         #expect(secondCache.codexScanTotalFiles == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
@@ -703,7 +703,7 @@ struct CostUsageBoundedProgressTests {
         #expect(afterTotals != beforeTotals)
         #expect(secondCache.files[incompletePath]?.codexScanComplete == true)
         #expect(secondCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
-        #expect(secondCache.codexScanCompletedFiles == corpusSize - 1)
+        #expect(secondCache.codexScanCompletedFiles == corpusSize)
         #expect(secondCache.codexScanTotalFiles == corpusSize)
         #expect(secondCache.codexScanCatchUpPending == true)
 
@@ -845,7 +845,7 @@ struct CostUsageBoundedProgressTests {
         #expect(secondMetrics.codexFileScanAttempts == 1)
         #expect(secondMetrics.codexProgressAccountingVisits == 0)
         #expect(secondCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
-        #expect(secondCache.codexScanCompletedFiles == corpusSize - 1)
+        #expect(secondCache.codexScanCompletedFiles == corpusSize)
         #expect(secondCache.codexScanInventoryPaths == nil)
         #expect(secondCache.codexScanCatchUpPending == true)
 
@@ -944,7 +944,7 @@ struct CostUsageBoundedProgressTests {
         #expect(finalMetrics.codexFileScanAttempts == 1)
         #expect(finalMetrics.codexProgressAccountingVisits == 0)
         #expect(finalCache.codexActiveLookbackState?.pendingFilePaths.isEmpty == true)
-        #expect(finalCache.codexScanCompletedFiles == corpusSize - 1)
+        #expect(finalCache.codexScanCompletedFiles == corpusSize)
         #expect(finalCache.codexScanTotalFiles == corpusSize)
         #expect(finalCache.codexScanCatchUpPending == true)
 
@@ -1023,6 +1023,7 @@ struct CostUsageBoundedProgressTests {
             == CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(stoppedCache.files[incompletePath]?.codexScanComplete == false)
         #expect(stoppedCache.codexScanCatchUpPending == true)
+        #expect(try #require(stoppedCache.codexScanCompletedFiles) < #require(stoppedCache.codexScanTotalFiles))
     }
 
     @Test

@@ -156,25 +156,6 @@ private struct TokenAccountFetchResult {
     let outcome: ProviderFetchOutcome
 }
 
-private struct CodexAccountFetchResult {
-    let index: Int
-    let account: CodexVisibleAccount
-    let outcome: ProviderFetchOutcome?
-    let limitResetOwnerKey: CodexLimitResetOwnerKey?
-    let suppressesWeeklyResetCelebration: Bool
-}
-
-private struct CodexAccountFetchRequest {
-    let index: Int
-    let account: CodexVisibleAccount
-    let previousSnapshot: UsageSnapshot?
-    let missingWindowBackfillSnapshot: UsageSnapshot?
-    let limitResetOwnerKey: CodexLimitResetOwnerKey?
-    let descriptor: ProviderDescriptor
-    let context: ProviderFetchContext
-    let resetCreditsFetcher: UsageStore.CodexResetCreditsFetcher
-}
-
 private struct CodexManagedVisibleAccountRuntimeState {
     let authFingerprint: String?
     let workspaceAccountID: String?
@@ -226,6 +207,7 @@ extension UsageStore {
         return self.settings.multiAccountMenuLayout == .stacked && projection.visibleAccounts.count > 1
     }
 
+    // swiftlint:disable:next function_body_length
     func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(
@@ -265,9 +247,8 @@ extension UsageStore {
                 matching: account,
                 in: priorSnapshots)
             guard let outcome = result.outcome else {
-                if let priorSnapshot {
-                    snapshots.append(priorSnapshot)
-                }
+                snapshots += Self.codexSnapshotsRetainingCandidate(
+                    priorSnapshot, candidate: result.pendingWeeklyResetCandidate)
                 if account.id == originalVisibleAccountID {
                     selectedAccount = account
                     selectedLimitResetOwnerKey = result.limitResetOwnerKey
@@ -285,7 +266,13 @@ extension UsageStore {
                         priorSnapshot: priorSnapshot,
                         activeVisibleAccountID: originalVisibleAccountID))
             if let snapshot = resolved.snapshot {
-                snapshots.append(snapshot)
+                snapshots.append(CodexAccountUsageSnapshot(
+                    account: snapshot.account,
+                    snapshot: snapshot.snapshot,
+                    error: snapshot.error,
+                    sourceLabel: snapshot.sourceLabel,
+                    credits: snapshot.credits,
+                    weeklyResetCandidate: result.pendingWeeklyResetCandidate))
             }
             if account.id == originalVisibleAccountID {
                 selectedOutcome = outcome
@@ -318,7 +305,8 @@ extension UsageStore {
                     account: currentAccount),
                 error: snapshot.error,
                 sourceLabel: snapshot.sourceLabel,
-                credits: snapshot.credits)
+                credits: snapshot.credits,
+                weeklyResetCandidate: snapshot.weeklyResetCandidate)
         }
         self.codexAccountSnapshots = currentSnapshots
         self.codexAccountUsageSnapshotStore?.store(currentSnapshots)
@@ -884,8 +872,10 @@ extension UsageStore {
                 index: index,
                 account: account,
                 previousSnapshot: limitResetOwnerKey == nil ? nil : priorSnapshot?.snapshot,
+                previousSourceLabel: limitResetOwnerKey == nil ? nil : priorSnapshot?.sourceLabel,
                 missingWindowBackfillSnapshot: missingWindowBackfillSnapshot,
                 limitResetOwnerKey: limitResetOwnerKey,
+                pendingWeeklyResetCandidate: priorSnapshot?.weeklyResetCandidate,
                 descriptor: descriptor,
                 context: context,
                 resetCreditsFetcher: self.codexResetCreditsFetcher(workspaceAccountID: context.codexWorkspaceID))
@@ -905,29 +895,40 @@ extension UsageStore {
                             fetcher: request.resetCreditsFetcher)
                     }
                     let initialOutcome = await fetchOutcome()
-                    let admission: CodexWeeklyPublicationAdmission? = if Self.codexUsageOutcomeMatchesVisibleAccount(
+                    let admission: CodexWeeklyResetPublicationAdmission?
+                    if Self.codexUsageOutcomeMatchesVisibleAccount(
                         initialOutcome,
                         account: request.account)
                     {
-                        if let admitted = await Self.codexOutcomeAdmittedForPublication(
+                        let admitted = await Self.codexOutcomeAdmittedForPublication(
                             initialOutcome: initialOutcome,
                             previousSnapshot: request.previousSnapshot,
+                            previousSourceLabel: request.previousSourceLabel,
                             missingWindowBackfillSnapshot: request.missingWindowBackfillSnapshot,
-                            fetchConfirmation: fetchOutcome),
-                            Self.codexUsageOutcomeMatchesVisibleAccount(admitted.outcome, account: request.account)
+                            pendingCandidate: request.pendingWeeklyResetCandidate,
+                            fetchConfirmation: fetchOutcome)
+                        if let outcome = admitted.outcome,
+                           Self.codexUsageOutcomeMatchesVisibleAccount(outcome, account: request.account)
                         {
-                            admitted
+                            admission = CodexWeeklyResetPublicationAdmission(
+                                outcome: outcome,
+                                pendingCandidate: admitted.pendingCandidate,
+                                suppressesWeeklyResetCelebration: admitted.suppressesWeeklyResetCelebration)
                         } else {
-                            nil
+                            admission = CodexWeeklyResetPublicationAdmission(
+                                outcome: nil,
+                                pendingCandidate: admitted.pendingCandidate,
+                                suppressesWeeklyResetCelebration: admitted.suppressesWeeklyResetCelebration)
                         }
                     } else {
-                        nil
+                        admission = nil
                     }
                     return CodexAccountFetchResult(
                         index: request.index,
                         account: request.account,
                         outcome: admission?.outcome,
                         limitResetOwnerKey: request.limitResetOwnerKey,
+                        pendingWeeklyResetCandidate: admission?.pendingCandidate,
                         suppressesWeeklyResetCelebration: admission?.suppressesWeeklyResetCelebration ?? false)
                 }
             }
