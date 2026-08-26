@@ -41,7 +41,9 @@ extension UsageStore {
         let expectedGuard: CodexAccountScopedRefreshGuard
         let limitResetOwnerKey: CodexLimitResetOwnerKey?
         let previousSnapshot: UsageSnapshot?
+        let previousSourceLabel: String?
         let missingWindowBackfillSnapshot: UsageSnapshot?
+        let pendingWeeklyResetCandidate: CodexWeeklyResetPublicationCandidate?
     }
 
     private struct ProviderRefreshSuccessPublication {
@@ -336,7 +338,9 @@ extension UsageStore {
             expectedGuard: expectedGuard,
             limitResetOwnerKey: ownerKey,
             previousSnapshot: previousSnapshot,
-            missingWindowBackfillSnapshot: missingWindowBackfillSnapshot)
+            previousSourceLabel: hydratedPrior?.sourceLabel ?? self.lastSourceLabels[.codex],
+            missingWindowBackfillSnapshot: missingWindowBackfillSnapshot,
+            pendingWeeklyResetCandidate: hydratedPrior?.weeklyResetCandidate)
     }
 
     // swiftlint:disable function_body_length
@@ -454,12 +458,18 @@ extension UsageStore {
                     generation: generation)
                 return nil
             }
-            guard let admission = await Self.codexOutcomeAdmittedForPublication(
+            let admission = await Self.codexOutcomeAdmittedForPublication(
                 initialOutcome: initialOutcome,
                 previousSnapshot: previousCodexSnapshot,
+                previousSourceLabel: codexPreparation?.previousSourceLabel,
                 missingWindowBackfillSnapshot: codexMissingWindowBackfillSnapshot,
+                pendingCandidate: codexPreparation?.pendingWeeklyResetCandidate,
                 fetchConfirmation: fetchOutcome)
-            else {
+            self.persistCodexWeeklyResetPublicationCandidate(
+                admission.pendingCandidate,
+                expectedGuard: codexExpectedGuard,
+                previousSnapshot: previousCodexSnapshot)
+            guard let admittedOutcome = admission.outcome else {
                 if let codexExpectedGuard {
                     self.retireCodexStateIfRefreshOwnerChanged(
                         expectedGuard: codexExpectedGuard,
@@ -467,8 +477,8 @@ extension UsageStore {
                 }
                 return nil
             }
-            if case let .success(result) = admission.outcome.result,
-               !Self.isCodexPATOutcome(admission.outcome),
+            if case let .success(result) = admittedOutcome.result,
+               !Self.isCodexPATOutcome(admittedOutcome),
                let codexExpectedGuard,
                !self.shouldApplyCodexUsageResult(
                    expectedGuard: codexExpectedGuard,
@@ -479,7 +489,7 @@ extension UsageStore {
                     generation: generation)
                 return nil
             }
-            outcome = admission.outcome
+            outcome = admittedOutcome
             codexSuppressesWeeklyResetCelebration = admission.suppressesWeeklyResetCelebration
         } else {
             outcome = initialOutcome
