@@ -9,7 +9,7 @@ struct MobileReleaseNotesCatalogTests {
         let versions = MobileReleaseNotesCatalog.versions
 
         #expect(!versions.isEmpty)
-        #expect(versions.first?.version == "1.11.3")
+        #expect(versions.first?.version == "1.11.4")
         #expect(versions.first?.status == String(localized: "Latest"))
         #expect(versions.count { $0.status == String(localized: "Latest") } == 1)
     }

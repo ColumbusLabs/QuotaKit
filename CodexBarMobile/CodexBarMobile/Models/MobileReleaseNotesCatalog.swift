@@ -23,8 +23,23 @@ struct ReleaseNotesVersion: Identifiable {
 enum MobileReleaseNotesCatalog {
     static let versions: [ReleaseNotesVersion] = [
         ReleaseNotesVersion(
-            version: "1.11.3",
+            version: "1.11.4",
             status: String(localized: "Latest"),
+            summary: String(
+                localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),
+            sections: [
+                .init(
+                    title: String(localized: "What's New"),
+                    items: [
+                        String(
+                            localized: "Daily Spend keeps the last complete cost and model breakdown while your Mac rebuilds Codex history."),
+                        String(
+                            localized: "Today's spend now updates independently from quota refreshes and shows delayed or missing Mac data as unavailable instead of a false zero."),
+                    ]),
+            ]),
+        ReleaseNotesVersion(
+            version: "1.11.3",
+            status: "",
             summary: String(
                 localized: "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions."),
             sections: [

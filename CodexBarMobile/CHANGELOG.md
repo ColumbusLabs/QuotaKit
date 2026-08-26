@@ -5,6 +5,19 @@ Notable changes to the QuotaKit iOS companion app are documented here.
 Older build-by-build notes remain in Git history. This file now focuses on the
 current Columbus Labs product surface and recent release history.
 
+## [1.11.4 (178)] — 2026-08-26 — Cost freshness and provider details
+
+### Improved
+
+- Daily Spend keeps the last complete cost and model breakdown while the Mac is
+  rebuilding Codex history, avoiding a temporary reduced total.
+- Today's spend refreshes independently from quota usage and reports delayed or
+  missing Mac data as unavailable or partial rather than a false `$0.00`.
+- Fireworks and IBM Bob now receive restored provider presentation and synced-card
+  support, with quota-alert coverage for IBM Bob.
+- Kiro overage details now show available credit and charge limits, remaining
+  credits, accrued charges, and the provider's reported currency when available.
+
 ## [1.11.3 (177)] — 2026-08-11 — Recovery
 
 ### Restored
@@ -19,16 +32,6 @@ current Columbus Labs product surface and recent release history.
 
 - Kept the model-token dashboard improvements and background-sync reliability
   fixes already included in the 1.11.3 release line.
-- Extended the restored provider presentation, brand assets, and synced-card support
-  to Fireworks and IBM Bob, plus quota-alert coverage for IBM Bob, without changing the release build.
-
-### Fixed
-
-- Daily Spend now retains the last complete cost and model breakdown while the
-  Mac is rebuilding Codex history, instead of temporarily showing a reduced total.
-- Today's spend now refreshes when cost changes without a quota change, and
-  missing or delayed Mac data is shown as unavailable or partial instead of a
-  false `$0.00` / "No spend today."
 
 ## [1.11.3 (175)] — 2026-08-04 — Model token usage
 
