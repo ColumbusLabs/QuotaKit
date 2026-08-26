@@ -661,6 +661,8 @@
 "section_keyboard_shortcut" = "Klavye kısayolu";
 "open_menu_shortcut_title" = "Menüyü aç";
 "open_menu_shortcut_subtitle" = "Menü çubuğu menüsünü herhangi bir yerden tetikleyin.";
+"record_shortcut" = "Kısayolu kaydet";
+"press_shortcut" = "Kısayola basın";
 "install_cli" = "CLI Kur";
 "install_cli_subtitle" = "QuotaKitCLI'yi quotakit olarak /usr/local/bin ve /opt/homebrew/bin dizinlerine sembolik bağlayın.";
 "cli_not_found" = "QuotaKitCLI uygulama paketinde bulunamadı.";

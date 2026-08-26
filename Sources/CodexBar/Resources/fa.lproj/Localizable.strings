@@ -661,6 +661,8 @@
 "section_keyboard_shortcut" = "میانبر کیبورد";
 "open_menu_shortcut_title" = "منوی باز";
 "open_menu_shortcut_subtitle" = "منوی نوار منو را از هر جایی فعال کنید.";
+"record_shortcut" = "ثبت میانبر";
+"press_shortcut" = "میانبر را فشار دهید";
 "install_cli" = "نصب CLI";
 "install_cli_subtitle" = "Symlink QuotaKitCLI به /usr/local/bin و /opt/homebrew/bin به عنوان quotakit.";
 "cli_not_found" = "QuotaKitCLI در بسته برنامه ها یافت نمی شود.";
