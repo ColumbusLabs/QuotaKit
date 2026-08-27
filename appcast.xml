@@ -5,6 +5,24 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.21</title>
+            <pubDate>Thu, 27 Aug 2026 10:25:43 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.21.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.21</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.21 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: keep large local cost-history catch-up bounded to the files currently being processed instead of hydrating the entire retained cache, sharply reducing peak Mac memory use on large session corpora.</li>
+<li>Usage & Spend: persist compact report projections and incremental SQLite updates while preserving exact historical, routed-model, and priority-pricing results across relaunches.</li>
+<li>Mac reliability: pace background catch-up work and return unused allocator pages after heavy scans so temporary parsing memory is released more promptly.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.21/QuotaKit-macos-universal-0.32.4.21.zip" length="80599294" type="application/octet-stream" sparkle:edSignature="uxauJhtUJ4gvU3LLLy/xM86okuxzErL3JSn+xkhJG3YZP1YbSt4KgV1ZtZfqRPX74iU1K+iuBfGS+3OXVUUMCw=="/>
+        </item>
+        <item>
             <title>0.32.4.20</title>
             <pubDate>Mon, 24 Aug 2026 22:32:37 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -89,22 +107,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.19/QuotaKit-macos-universal-0.32.4.19.zip" length="75867339" type="application/octet-stream" sparkle:edSignature="887f36oJ/de+KencqrXMM/pVzTrVsAakxKIEB3dXuvzHtBGuEBa9LH/GWqEIWhbUq/YtMlB4iopS64e9Xt7IAA=="/>
-        </item>
-        <item>
-            <title>0.32.4.18</title>
-            <pubDate>Thu, 13 Aug 2026 07:19:14 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.18.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.18</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.18 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: confirmed quota refreshes now publish immediately when the service advances a rolling weekly boundary, without emitting a false early weekly-reset notification.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.18/QuotaKit-macos-universal-0.32.4.18.zip" length="72881237" type="application/octet-stream" sparkle:edSignature="dEpkoSDj9zdrHYQykL1f3bgld26pk6IqU2TA9oHVeT11InSoT6rHdijcIxEkIKtgpldrP1x0LVxmxMR/MkXcCA=="/>
         </item>
     </channel>
 </rss>
