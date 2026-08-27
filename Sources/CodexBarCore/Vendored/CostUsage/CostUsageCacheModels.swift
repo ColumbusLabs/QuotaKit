@@ -68,6 +68,7 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var exactInventoryCompletedFlatRootPaths: [String]?
     var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
+    var priorityMigrationGenerationKey: String?
 }
 
 struct CostUsageCodexSessionDiscovery: Codable, Equatable {
@@ -208,6 +209,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var totalOutputTokens: Int?
         var cacheReadTokens: Int?
         var cacheCreationTokens: Int?
+        var reasoningTokens: Int?
         var totalTokens: Int?
         var totalCostUSD: Double?
 
@@ -216,6 +218,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.totalOutputTokens = summary.totalOutputTokens
             self.cacheReadTokens = summary.cacheReadTokens
             self.cacheCreationTokens = summary.cacheCreationTokens
+            self.reasoningTokens = summary.reasoningTokens
             self.totalTokens = summary.totalTokens
             self.totalCostUSD = summary.totalCostUSD
         }
@@ -226,6 +229,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 totalOutputTokens: self.totalOutputTokens,
                 cacheReadTokens: self.cacheReadTokens,
                 cacheCreationTokens: self.cacheCreationTokens,
+                reasoningTokens: self.reasoningTokens,
                 totalTokens: self.totalTokens,
                 totalCostUSD: self.totalCostUSD)
         }
@@ -321,10 +325,14 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
+    var codexHasBufferedSubagentLines: Bool?
+    var codexHasBufferedUnresolvedForkLines: Bool?
 
     var hasBufferedCodexForkRetryLines: Bool {
         self.codexBufferedSubagentLines?.isEmpty == false
             || self.codexBufferedUnresolvedForkLines?.isEmpty == false
+            || self.codexHasBufferedSubagentLines == true
+            || self.codexHasBufferedUnresolvedForkLines == true
     }
 }
 

@@ -55,6 +55,9 @@ extension UsageStore {
         self.codexCostCatchUpTask = Task(priority: priority) { @MainActor [weak self] in
             guard let self else { return }
             defer {
+                // Catch-up parses the large Codex cache in bounded passes. Ask malloc to return
+                // free pages after every worker lifetime, including cancellation and failures.
+                self.scheduleMemoryPressureRelief()
                 if self.codexCostCatchUpToken == token {
                     self.codexCostCatchUpTask = nil
                     self.codexCostCatchUpToken = nil
@@ -70,7 +73,11 @@ extension UsageStore {
     }
 
     func cancelCodexCostCatchUp() {
+        let hadWorker = self.codexCostCatchUpTask != nil
         self.codexCostCatchUpTask?.cancel()
+        if hadWorker {
+            self.scheduleMemoryPressureRelief()
+        }
         self.codexCostCatchUpTask = nil
         self.codexCostCatchUpToken = nil
         self.codexCostCatchUpScopeSignature = nil
@@ -92,6 +99,7 @@ extension UsageStore {
         guard self.codexCostCatchUpTask != nil else { return }
         self.codexCostCatchUpStopRequested = true
         self.codexCostCatchUpRestartRequested = false
+        self.scheduleMemoryPressureRelief()
         guard !self.codexCostCatchUpPassIsRunning else { return }
         if let activity = self.codexCostCatchUpActivity {
             self.codexCostCatchUpActivity = CodexCostCatchUpActivity(
@@ -172,8 +180,10 @@ extension UsageStore {
                             codexHomePath: context.codexHomePath,
                             historyDays: context.historyDays)
                         self.codexCostCatchUpPassIsRunning = false
+                        self.scheduleMemoryPressureRelief()
                     } catch {
                         self.codexCostCatchUpPassIsRunning = false
+                        self.scheduleMemoryPressureRelief()
                         throw error
                     }
                     let passDuration = ContinuousClock.now - passStartedAt
@@ -251,12 +261,27 @@ extension UsageStore {
         context: CodexCostCatchUpContext) async throws -> CostUsageFetcher.CodexScanCatchUpStatus
     {
         let now = Date()
-        let snapshot = try await self.loadTokenUsageSnapshot(
-            provider: .codex,
-            force: true,
+        // Catch-up has already completed the authoritative scan. Publish from the compact
+        // persisted report projection instead of forcing another scan and hydrating the entire
+        // usage ledger a second time merely to build project/session breakdowns.
+        let snapshot: CostUsageTokenSnapshot
+        if self._test_tokenUsageSnapshotLoaderOverride != nil {
+            snapshot = try await self.loadTokenUsageSnapshot(
+                provider: .codex,
+                force: true,
+                now: now,
+                codexHomePath: context.codexHomePath,
+                historyDays: context.historyDays)
+        } else if let cached = await self.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: now,
             codexHomePath: context.codexHomePath,
-            historyDays: context.historyDays)
+            historyDays: context.historyDays,
+            calendar: self.settings.costUsageBucketCalendar)?.snapshot
+        {
+            snapshot = cached
+        } else {
+            throw CostUsageError.cachedSnapshotUnavailable
+        }
         try Task.checkCancellation()
         guard self.codexCostCatchUpContextIsCurrent(context) else {
             throw CancellationError()

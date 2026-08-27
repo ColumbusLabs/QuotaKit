@@ -1129,7 +1129,7 @@ extension CostUsageFetcherTests {
         #expect(first.cachedInputTokens == 20)
         #expect(first.outputTokens == 10)
         #expect(first.totalTokens == 110)
-        #expect(first.requestCount == nil)
+        #expect(first.requestCount == 1)
         #expect(first.modelBreakdowns.map(\.modelName) == ["gpt-5.4"])
         #expect(first.costUSD != nil)
 

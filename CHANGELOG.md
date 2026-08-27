@@ -5,7 +5,13 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.21 / iOS 1.11.3 — Unreleased
+## 0.32.4.21 / iOS 1.11.3 — 2026-08-27
+
+### Fixed
+
+- Codex: keep large local cost-history catch-up bounded to the files currently being processed instead of hydrating the entire retained cache, sharply reducing peak Mac memory use on large session corpora.
+- Usage & Spend: persist compact report projections and incremental SQLite updates while preserving exact historical, routed-model, and priority-pricing results across relaunches.
+- Mac reliability: pace background catch-up work and return unused allocator pages after heavy scans so temporary parsing memory is released more promptly.
 
 ## 0.32.4.20 / iOS 1.11.3 — 2026-08-24
 

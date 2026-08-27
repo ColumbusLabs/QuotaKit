@@ -2,7 +2,299 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+// swiftlint:disable:next type_body_length
 struct CostUsageFetcherCacheSnapshotTests {
+    @Test
+    func `cached projection preserves exact report evidence without a full snapshot hydration`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let day = "2026-04-08"
+        let fileURL = try env.writeCodexSessionFile(day: now, filename: "projected.jsonl", contents: "{}\n")
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: now,
+            until: now,
+            calendar: options.calendar)
+        let fileMetadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
+        // Dense persisted-report fixtures are clearer when their row fields stay grouped.
+        // swiftlint:disable multiline_arguments
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "standard", eventIndex: 0,
+                input: 100, cached: 20, output: 10, reasoning: 5,
+                knownCostNanos: 1_000_000_000, pricingModel: "gpt-5.4", pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "priority", eventIndex: 1,
+                input: 200, cached: 40, output: 20, reasoning: 7,
+                knownCostNanos: 2_000_000_000, pricingModel: "gpt-5.4", pricingMode: "priority"),
+        ]
+        // swiftlint:enable multiline_arguments
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = Int64(now.timeIntervalSince1970 * 1000)
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.codexProjectMetadataVersion = CostUsageScanner.codexProjectMetadataVersion
+        cache.days = [day: ["gpt-5.4": [300, 60, 30]]]
+        cache.files[fileURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: fileMetadata.mtimeUnixMs,
+            size: fileMetadata.size,
+            days: cache.days,
+            parsedBytes: fileMetadata.size,
+            sessionId: "projected-session",
+            projectPath: "/tmp/projected-project",
+            canonicalProjectPath: "/tmp/projected-project",
+            codexRows: rows,
+            codexScanFileId: fileMetadata.fileId,
+            codexScanTargetSize: fileMetadata.size,
+            codexScanComplete: true)
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+
+        let projection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        #expect(projection.cache.days == cache.days)
+        #expect(projection.cache.roots == cache.roots)
+        #expect(projection.fileDayAggregates.count == 1)
+        #expect(projection.fileDayAggregates.first?.aggregate.requestCount == 2)
+        #expect(projection.fileDayAggregates.first?.aggregate.reasoningTokens == 12)
+
+        #if DEBUG
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        var fullSnapshotReads = 0
+        CostUsageStore.snapshotReadForTesting = { readURL in
+            if readURL == databaseURL {
+                fullSnapshotReads += 1
+            }
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
+        #endif
+
+        let result = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        let entry = try #require(result?.snapshot.daily.first)
+        let model = try #require(entry.modelBreakdowns?.first)
+        #expect(entry.requestCount == 2)
+        #expect(entry.reasoningTokens == 12)
+        #expect(entry.costUSD == 3)
+        #expect(model.standardCostUSD == 1)
+        #expect(model.priorityCostUSD == 2)
+        #expect(model.standardTokens == 110)
+        #expect(model.priorityTokens == 220)
+        #expect(result?.snapshot.projects.first?.path == "/tmp/projected-project")
+        #expect(result?.snapshot.sessions.first?.sessionID == "projected-session")
+        #if DEBUG
+        #expect(fullSnapshotReads == 0)
+        #endif
+    }
+
+    @Test
+    func `compact projection preserves mixed priced and unpriced request evidence`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let day = "2026-04-08"
+        let fileURL = try env.writeCodexSessionFile(day: now, filename: "mixed.jsonl", contents: "{}\n")
+        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
+        // swiftlint:disable multiline_arguments
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "priced", eventIndex: 0,
+                input: 100, cached: 20, output: 10, knownCostNanos: 1_000_000_000,
+                pricingModel: "gpt-5.4", pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "unpriced", eventIndex: 1,
+                input: 40, cached: 0, output: 10, unpricedTokens: 50,
+                pricingModel: "gpt-5.4", pricingMode: "standard"),
+        ]
+        // swiftlint:enable multiline_arguments
+        var cache = CostUsageCache()
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.days = [day: ["gpt-5.4": [140, 20, 20]]]
+        cache.files[fileURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: cache.days,
+            parsedBytes: metadata.size,
+            sessionId: "mixed",
+            codexRows: rows,
+            codexScanFileId: metadata.fileId,
+            codexScanComplete: true)
+        let compatibility = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+
+        let projection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        let compact = CostUsageCodexReportProjectionBuilder.build(
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
+
+        #expect(projection.fileDayAggregates.first?.aggregate.unpricedRequestCount == 1)
+        #expect(compact.summary?.totalTokens == compatibility.summary?.totalTokens)
+        #expect(compact.summary?.totalCostUSD == compatibility.summary?.totalCostUSD)
+        #expect(compact.data.first?.requestCount == compatibility.data.first?.requestCount)
+        #expect(compact.data.first?.unpricedRequestCount == compatibility.data.first?.unpricedRequestCount)
+        #expect(compact.data.first?.unpricedRequestCount == 1)
+        #expect(compact.data.first?.costUSD == nil)
+    }
+
+    @Test
+    func `compact projection preserves routed model and historical pricing semantics`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let now = try env.makeLocalNoon(year: 2026, month: 7, day: 29)
+        let day = "2026-07-29"
+        let fileURL = try env.writeCodexSessionFile(day: now, filename: "pricing-parity.jsonl", contents: "{}\n")
+        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
+        let historicalTimestamp = try Int64(#require(ISO8601DateFormatter().date(
+            from: "2026-07-29T12:00:00Z")).timeIntervalSince1970 * 1000)
+        // swiftlint:disable multiline_arguments
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-fictitious-display", turnID: "routed", eventIndex: 0,
+                timestampUnixMs: historicalTimestamp, input: 1_000_000, cached: 0, output: 100_000,
+                pricingModel: "gpt-5.4", pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.6-terra", turnID: "historical", eventIndex: 1,
+                timestampUnixMs: historicalTimestamp, input: 1_000_000, cached: 0, output: 100_000,
+                pricingModel: "gpt-5.6-terra", pricingMode: "standard"),
+        ]
+        // swiftlint:enable multiline_arguments
+        let days = [day: [
+            "gpt-fictitious-display": [1_000_000, 0, 100_000],
+            "gpt-5.6-terra": [1_000_000, 0, 100_000],
+        ]]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.days = days
+        cache.files[fileURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: days,
+            parsedBytes: metadata.size,
+            sessionId: "pricing-parity",
+            codexRows: rows,
+            codexScanFileId: metadata.fileId,
+            codexScanComplete: true)
+        let full = CostUsageScanner.buildCodexReportFromCache(
+            cache: cache,
+            range: range,
+            modelsDevCacheRoot: env.cacheRoot)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+
+        let projection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        let compact = CostUsageCodexReportProjectionBuilder.build(
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
+        let fullModels = try Dictionary(uniqueKeysWithValues: #require(full.data.first?.modelBreakdowns).map {
+            ($0.modelName, $0.costUSD)
+        })
+        let compactModels = try Dictionary(uniqueKeysWithValues: #require(compact.data.first?.modelBreakdowns).map {
+            ($0.modelName, $0.costUSD)
+        })
+        let fullPricedModels = fullModels.compactMapValues { $0 }
+        let compactPricedModels = compactModels.compactMapValues { $0 }
+
+        let fullRoutedCost = try #require(fullPricedModels["gpt-fictitious-display"])
+        let fullHistoricalCost = try #require(fullPricedModels["gpt-5.6-terra"])
+        let compactRoutedCost = try #require(compactPricedModels["gpt-fictitious-display"])
+        let compactHistoricalCost = try #require(compactPricedModels["gpt-5.6-terra"])
+        #expect(compactRoutedCost == fullRoutedCost)
+        #expect(compactHistoricalCost == fullHistoricalCost)
+        #expect(compact.summary?.totalCostUSD == full.summary?.totalCostUSD)
+    }
+
+    @Test
+    func `compact projection preserves cached only standard and priority cost evidence`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let now = try env.makeLocalNoon(year: 2026, month: 8, day: 8)
+        let day = "2026-08-08"
+        let fileURL = try env.writeCodexSessionFile(day: now, filename: "cached-only.jsonl", contents: "{}\n")
+        let options = CostUsageScanner.Options(codexSessionsRoot: env.codexSessionsRoot, cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(since: now, until: now, calendar: options.calendar)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: fileURL)
+        // swiftlint:disable multiline_arguments
+        let rows = [
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "standard-cache", eventIndex: 0,
+                input: 0, cached: 1_000_000, output: 0,
+                pricingModel: "gpt-5.4", pricingMode: "standard"),
+            CostUsageScanner.CodexUsageRow(
+                day: day, model: "gpt-5.4", turnID: "priority-cache", eventIndex: 1,
+                input: 0, cached: 1_000_000, output: 0,
+                pricingModel: "gpt-5.4", pricingMode: "priority"),
+        ]
+        // swiftlint:enable multiline_arguments
+        let days = [day: ["gpt-5.4": [0, 2_000_000, 0]]]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.days = days
+        cache.files[fileURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: days,
+            parsedBytes: metadata.size,
+            sessionId: "cached-only",
+            codexRows: rows,
+            codexScanFileId: metadata.fileId,
+            codexScanComplete: true)
+        let full = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+
+        let projection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        let compact = CostUsageCodexReportProjectionBuilder.build(
+            projection: projection,
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: false).report
+        let fullModel = try #require(full.data.first?.modelBreakdowns?.first)
+        let compactModel = try #require(compact.data.first?.modelBreakdowns?.first)
+
+        #expect(compactModel.costUSD == fullModel.costUSD)
+        #expect(compactModel.standardCostUSD == fullModel.standardCostUSD)
+        #expect(compactModel.priorityCostUSD == fullModel.priorityCostUSD)
+        #expect(compactModel.standardCostUSD != nil)
+        #expect(compactModel.priorityCostUSD != nil)
+    }
+
     @Test
     func `cached token activity derives buckets and partial coverage from the shared scan cache`() async throws {
         let env = try CostUsageTestEnvironment()
@@ -36,11 +328,19 @@ struct CostUsageFetcherCacheSnapshotTests {
             cache: cache,
             calendar: options.calendar)
 
+        let readCount = LockIsolated(0)
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        CostUsageStore.snapshotReadForTesting = { readURL in
+            guard readURL == databaseURL else { return }
+            readCount.setValue(readCount.value + 1)
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
         let activity = await CostUsageFetcher.loadCachedCodexTokenActivity(
             now: now,
             maximumDays: 365,
             scannerOptions: options)
 
+        #expect(readCount.value == 0)
         #expect(activity?.coverageSinceKey == "2026-04-06")
         #expect(activity?.coverageUntilKey == "2026-04-08")
         #expect(activity?.daily.map(\.date) == ["2026-04-06", "2026-04-08"])

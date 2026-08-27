@@ -271,64 +271,86 @@ extension CostUsageStore {
         maxFileBytes: Int64,
         requestedSinceDay: String? = nil,
         requestedUntilDay: String? = nil,
-        calendar: Calendar = .current) -> CostUsageStoreBudgetResult
+        calendar: Calendar = .current,
+        previousReportPayload: Data? = nil) -> CostUsageStoreBudgetResult
     {
         let fallback = CostUsageStoreBudgetResult(deletedRows: 0, rowCount: 0, fileBytes: 0)
         return self.withDatabase(default: fallback) { database in
-            let initialRows = try Self.rowCount(database)
-            let initialBytes = Self.fileSize(at: self.databaseURL)
-            let metadata = try Self.readSingleton(
-                CostUsageStoreMetadata.self,
-                database: database,
-                table: "scan_metadata")
-            let sinceDay = requestedSinceDay ?? metadata?.scanSinceDay
-            let untilDay = requestedUntilDay ?? metadata?.scanUntilDay
-            let rowLimit = max(0, maxRows)
-            let byteLimit = max(0, maxFileBytes)
-            if initialRows > Int64(rowLimit) || initialBytes > byteLimit,
-               let sinceDay, let untilDay, sinceDay <= untilDay
-            {
-                _ = try Self.prune(database, sinceDay: sinceDay, untilDay: untilDay, calendar: calendar)
-            }
+            var result = try Self.inTransaction(database) {
+                let initialRows = try Self.rowCount(database)
+                let initialBytes = Self.fileSize(at: self.databaseURL)
+                let metadata = try Self.readSingleton(
+                    CostUsageStoreMetadata.self,
+                    database: database,
+                    table: "scan_metadata")
+                let sinceDay = requestedSinceDay ?? metadata?.scanSinceDay
+                let untilDay = requestedUntilDay ?? metadata?.scanUntilDay
+                let rowLimit = max(0, maxRows)
+                let byteLimit = max(0, maxFileBytes)
+                if initialRows > Int64(rowLimit) || initialBytes > byteLimit,
+                   let sinceDay, let untilDay, sinceDay <= untilDay
+                {
+                    let pruned = try Self.prune(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay,
+                        calendar: calendar)
+                    if pruned.deletedFiles > 0 {
+                        try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    }
+                }
 
-            var catchUpRequired = false
-            // The row and byte budgets only remove files outside the requested window. Once
-            // only protected data remains, preserving report fidelity takes precedence over
-            // forcing the database under its best-effort byte cap.
-            while try Self.rowCount(database) > Int64(rowLimit) {
-                guard try Self.deleteOldestRetainedFile(
-                    database,
-                    sinceDay: sinceDay,
-                    untilDay: untilDay,
-                    calendar: calendar,
-                    protectRequestedWindow: true) else { break }
-                catchUpRequired = true
+                var catchUpRequired = false
+                // The row and byte budgets only remove files outside the requested window. Once
+                // only protected data remains, preserving report fidelity takes precedence over
+                // forcing the database under its best-effort byte cap.
+                while try Self.rowCount(database) > Int64(rowLimit) {
+                    guard try Self.deleteOldestRetainedFile(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay,
+                        calendar: calendar,
+                        protectRequestedWindow: true) else { break }
+                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    catchUpRequired = true
+                }
+                var fileBytes = try Self.logicalFileBytes(database)
+                while fileBytes > byteLimit {
+                    guard try Self.deleteOldestRetainedFile(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay,
+                        calendar: calendar,
+                        protectRequestedWindow: true)
+                    else { break }
+                    try Self.budgetMutationFailureForTesting?(self.databaseURL)
+                    catchUpRequired = true
+                    fileBytes = try Self.logicalFileBytes(database)
+                }
+                if catchUpRequired {
+                    try Self.rebuildDayAggregates(database)
+                    if let previousReportPayload {
+                        var updatedMetadata = try Self.readSingleton(
+                            CostUsageStoreMetadata.self,
+                            database: database,
+                            table: "scan_metadata") ?? .empty
+                        if updatedMetadata.previousReportPayload == nil {
+                            updatedMetadata.previousReportPayload = previousReportPayload
+                            try Self.writeSingleton(updatedMetadata, database: database, table: "scan_metadata")
+                        }
+                    }
+                    try Self.markCatchUpRequired(database)
+                }
+                let finalRows = try Self.rowCount(database)
+                return CostUsageStoreBudgetResult(
+                    deletedRows: Int(max(0, initialRows - finalRows)),
+                    rowCount: Int(finalRows),
+                    fileBytes: fileBytes,
+                    catchUpRequired: catchUpRequired)
             }
             try Self.reclaimFreePages(database)
-
-            var fileBytes = Self.fileSize(at: self.databaseURL)
-            while fileBytes > byteLimit {
-                guard try Self.deleteOldestRetainedFile(
-                    database,
-                    sinceDay: sinceDay,
-                    untilDay: untilDay,
-                    calendar: calendar,
-                    protectRequestedWindow: true)
-                else { break }
-                catchUpRequired = true
-                try Self.reclaimFreePages(database)
-                fileBytes = Self.fileSize(at: self.databaseURL)
-            }
-            if catchUpRequired {
-                try Self.rebuildDayAggregates(database)
-                try Self.markCatchUpRequired(database)
-            }
-            let finalRows = try Self.rowCount(database)
-            return CostUsageStoreBudgetResult(
-                deletedRows: Int(max(0, initialRows - finalRows)),
-                rowCount: Int(finalRows),
-                fileBytes: fileBytes,
-                catchUpRequired: catchUpRequired)
+            result.fileBytes = Self.fileSize(at: self.databaseURL)
+            return result
         }
     }
 
@@ -337,6 +359,13 @@ extension CostUsageStore {
             try Self.reclaimFreePages(database)
             return Self.fileSize(at: self.databaseURL)
         }
+    }
+
+    private static func logicalFileBytes(_ database: OpaquePointer) throws -> Int64 {
+        let pageCount = try self.scalarInt(database, "PRAGMA page_count")
+        let freePages = try self.scalarInt(database, "PRAGMA freelist_count")
+        let pageSize = try self.scalarInt(database, "PRAGMA page_size")
+        return max(0, pageCount - freePages) * max(0, pageSize)
     }
 
     private static func deleteOldestRetainedFile(
@@ -399,16 +428,23 @@ extension CostUsageStore {
         try self.execute(database, """
         INSERT INTO day_aggregates (
             day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
-            request_count, authoritative_cost_nanos,
+            request_count, unpriced_request_count, authoritative_cost_nanos,
+            standard_authoritative_cost_nanos, priority_authoritative_cost_nanos,
             standard_input_tokens, standard_cached_tokens, standard_output_tokens,
             priority_input_tokens, priority_cached_tokens, priority_output_tokens,
-            standard_tokens, priority_tokens
+            standard_tokens, priority_tokens, standard_resolved_cost_nanos,
+            priority_resolved_cost_nanos, standard_unresolved_pricing_count,
+            priority_unresolved_pricing_count
         )
         SELECT day, model, SUM(input_tokens), SUM(cached_tokens), SUM(output_tokens),
-               SUM(reasoning_tokens), SUM(request_count), SUM(authoritative_cost_nanos),
+               SUM(reasoning_tokens), SUM(request_count), SUM(unpriced_request_count),
+               SUM(authoritative_cost_nanos),
+               SUM(standard_authoritative_cost_nanos), SUM(priority_authoritative_cost_nanos),
                SUM(standard_input_tokens), SUM(standard_cached_tokens), SUM(standard_output_tokens),
                SUM(priority_input_tokens), SUM(priority_cached_tokens), SUM(priority_output_tokens),
-               SUM(standard_tokens), SUM(priority_tokens)
+               SUM(standard_tokens), SUM(priority_tokens),
+               SUM(standard_resolved_cost_nanos), SUM(priority_resolved_cost_nanos),
+               SUM(standard_unresolved_pricing_count), SUM(priority_unresolved_pricing_count)
         FROM file_day_aggregates
         GROUP BY day, model
         """)

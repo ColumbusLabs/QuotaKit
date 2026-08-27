@@ -116,7 +116,12 @@ struct CodexCostCatchUpPolicy: Sendable {
         case .battery: 0.05
         case .unknown: 0.15
         }
-        let activeDuration = max(0, input.previousActiveDuration ?? Self.automaticBurstDuration)
+        // A very short pass still incurs parser/database setup and allocator churn. Treat it as
+        // the configured burst duration so a continuously growing tail cannot collapse the
+        // automatic retry delay to zero (or a few milliseconds) and spin indefinitely.
+        let activeDuration = max(
+            Self.automaticBurstDuration,
+            max(0, input.previousActiveDuration ?? Self.automaticBurstDuration))
         let delay = activeDuration * (1 - dutyCycle) / dutyCycle
         return Decision(action: .runAfter(delay), targetDutyCycle: dutyCycle)
     }

@@ -91,6 +91,7 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 2)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
         #expect(store.tokenError(for: .codex) == nil)
+        #expect(store.memoryPressureReliefTask != nil)
     }
 
     @Test

@@ -1,10 +1,13 @@
 import Foundation
 
+// swiftlint:disable file_length
+
 public enum CostUsageError: LocalizedError, Sendable {
     case unsupportedProvider(UsageProvider)
     case timedOut(seconds: Int)
     case cursorPaginationIncomplete(expected: Int?, received: Int)
     case cursorPaginationInconsistent(expected: Int, received: Int)
+    case cachedSnapshotUnavailable
 
     public var errorDescription: String? {
         switch self {
@@ -22,6 +25,8 @@ public enum CostUsageError: LocalizedError, Sendable {
             return "Cursor cost refresh reached its pagination safety limit after \(received) events."
         case let .cursorPaginationInconsistent(expected, received):
             return "Cursor cost pagination was inconsistent (expected \(expected), received \(received) events)."
+        case .cachedSnapshotUnavailable:
+            return "The completed cost scan did not produce a readable cached snapshot."
         }
     }
 }
@@ -309,6 +314,7 @@ public struct CostUsageFetcher: Sendable {
             codexHomePath: codexHomePath)
         options.forceRescan = false
         options.refreshMinIntervalSeconds = 0
+        options.useCodexCatchUpWorkingSet = true
         let clampedHistoryDays = max(1, min(365, historyDays))
         options.maxCodexScanDurationPerRefresh =
             scanDurationPerRefresh ?? Self.codexAutomaticScanDurationPerRefresh
@@ -822,11 +828,15 @@ public struct CostUsageFetcher: Sendable {
         scannerOptions overrideScannerOptions: CostUsageScanner.Options? = nil) async
         -> CostUsageTokenActivityCache?
     {
+        let projectionOptions = Self.resolvedScannerOptions(
+            overrideScannerOptions,
+            provider: .codex,
+            codexHomePath: codexHomePath)
+        let persistedProjection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: projectionOptions.cacheRoot,
+            calendar: projectionOptions.calendar)
         let cachedActivity: CostUsageTokenActivityCache?? = try? await CostUsageScanExecutor.run { _ in
-            let options = Self.resolvedScannerOptions(
-                overrideScannerOptions,
-                provider: .codex,
-                codexHomePath: codexHomePath)
+            let options = projectionOptions
             let days = max(1, min(365, maximumDays))
             let since = options.calendar.date(byAdding: .day, value: -(days - 1), to: now) ?? now
             let requestedRange = CostUsageScanner.CostUsageDayRange(
@@ -836,9 +846,7 @@ public struct CostUsageFetcher: Sendable {
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
             let cache = CostUsageScanner.codexCache(
-                CostUsageStoreAccess.read(
-                    cacheRoot: options.cacheRoot,
-                    calendar: options.calendar),
+                persistedProjection.cache,
                 scopedTo: roots)
             guard cache.timeZoneIdentifier == options.calendar.timeZone.identifier,
                   cache.roots == rootsFingerprint,
@@ -899,8 +907,17 @@ public struct CostUsageFetcher: Sendable {
             return nil
         }
 
-        // Snapshot assembly can touch many SQLite rows; keep it off the cooperative pool
-        // alongside the scans themselves.
+        let projectionOptions = Self.resolvedScannerOptions(
+            overrideScannerOptions,
+            provider: .codex,
+            codexHomePath: codexHomePath)
+        let persistedProjection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: projectionOptions.cacheRoot,
+            calendar: projectionOptions.calendar)
+
+        // Projection assembly touches only compact manifests and day/model aggregates. Keep
+        // pricing and project/session rollups off the cooperative pool, but never hydrate the
+        // token-snapshot or usage-row ledgers for cached presentation.
         let cachedSnapshot: CachedCodexTokenSnapshotResult?? = try? await CostUsageScanExecutor.run { _ in
             let clampedHistoryDays = max(1, min(365, historyDays))
             let options = Self.resolvedScannerOptions(
@@ -919,9 +936,7 @@ public struct CostUsageFetcher: Sendable {
             let shouldMergePiUsage = scopedCodexHomePath?.isEmpty != false
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
-            let loadedCache = CostUsageStoreAccess.read(
-                cacheRoot: options.cacheRoot,
-                calendar: options.calendar)
+            let loadedCache = persistedProjection.cache
             let cache = CostUsageScanner.codexCache(
                 loadedCache,
                 scopedTo: roots)
@@ -954,10 +969,13 @@ public struct CostUsageFetcher: Sendable {
                       cache.roots == rootsFingerprint,
                       !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
             {
-                let daily = CostUsageScanner.buildCodexReportFromCache(
-                    cache: cache,
+                let projected = CostUsageCodexReportProjectionBuilder.build(
+                    projection: persistedProjection,
+                    roots: roots,
                     range: range,
-                    modelsDevCacheRoot: options.cacheRoot)
+                    cacheRoot: options.cacheRoot,
+                    includeBreakdowns: includeProjectAndSessionBreakdowns)
+                let daily = projected.report
                 if !daily.data.isEmpty {
                     reports.append(daily)
                     if cache.lastScanUnixMs > 0 {
@@ -966,16 +984,9 @@ public struct CostUsageFetcher: Sendable {
                         scanTimes.append(scanAt)
                     }
                     if includeProjectAndSessionBreakdowns {
-                        sessions = CostUsageScanner.buildCodexSessionBreakdownsFromCache(
-                            cache: cache,
-                            range: range,
-                            modelsDevCacheRoot: options.cacheRoot,
-                            sessionRoots: roots)
+                        sessions = projected.sessions
                         if cache.codexProjectMetadataVersion == CostUsageScanner.codexProjectMetadataVersion {
-                            projects.append(contentsOf: CostUsageScanner.buildCodexProjectBreakdownsFromCache(
-                                cache: cache,
-                                range: range,
-                                modelsDevCacheRoot: options.cacheRoot))
+                            projects.append(contentsOf: projected.projects)
                         }
                     }
                 }
@@ -1630,3 +1641,5 @@ extension CostUsageFetcher {
         return nil
     }
 }
+
+// swiftlint:enable file_length

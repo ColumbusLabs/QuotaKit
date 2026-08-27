@@ -205,6 +205,7 @@ struct CostUsageScannerBreakdownTests {
                 modelName: "gpt-5.2-codex",
                 costUSD: first.data[0].costUSD,
                 totalTokens: 110,
+                requestCount: 1,
                 inputTokens: 100,
                 outputTokens: 10,
                 cacheReadTokens: 20),

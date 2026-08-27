@@ -56,6 +56,18 @@ struct CodexCostCatchUpPolicyTests {
     }
 
     @Test
+    func `automatic mode keeps a minimum burst duration for very short passes`() {
+        let decision = CodexCostCatchUpPolicy().decision(for: .init(
+            mode: .automatic,
+            previousActiveDuration: 0,
+            powerSource: .ac,
+            lowPowerModeEnabled: false,
+            thermalState: .nominal))
+
+        #expect(decision == .init(action: .runAfter(8), targetDutyCycle: 0.2))
+    }
+
+    @Test
     func `automatic mode pauses for low power mode`() {
         let decision = CodexCostCatchUpPolicy().decision(for: .init(
             mode: .automatic,

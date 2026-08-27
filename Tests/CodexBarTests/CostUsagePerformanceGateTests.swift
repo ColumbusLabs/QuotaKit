@@ -987,6 +987,16 @@ struct CostUsagePerformanceGateTests {
             options: options)
 
         let fetcher = CostUsageFetcher(scannerOptions: options)
+        #if DEBUG
+        let catchUpDatabaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        var fullSnapshotReadsDuringCatchUp = 0
+        CostUsageStore.snapshotReadForTesting = { databaseURL in
+            if databaseURL == catchUpDatabaseURL {
+                fullSnapshotReadsDuringCatchUp += 1
+            }
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
+        #endif
         var status = await fetcher.codexScanCatchUpStatus()
         #expect(status.pending)
         var progressStates = [(pending: status.pending, key: status.progressKey)]
@@ -994,6 +1004,10 @@ struct CostUsagePerformanceGateTests {
             status = try await fetcher.advanceCodexScanCatchUp(now: day, historyDays: 1)
             progressStates.append((pending: status.pending, key: status.progressKey))
         }
+        #if DEBUG
+        CostUsageStore.snapshotReadForTesting = nil
+        #expect(fullSnapshotReadsDuringCatchUp == 0)
+        #endif
 
         let completedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let completedUsage = try #require(completedCache.files.values.first)
@@ -1229,6 +1243,164 @@ struct CostUsagePerformanceGateTests {
         #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
         #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
         #expect(report.data.first?.modelBreakdowns?.first?.priorityTokens == 110)
+    }
+
+    @Test
+    func `working set durably drains priority paths beyond one candidate prefix`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso = env.isoString(for: day)
+        let model = "gpt-5.5"
+        let fileCount = CostUsageScanner.codexCatchUpScanCandidateLimit + 18
+        for index in 0..<fileCount {
+            // swiftlint:disable line_length
+            let body = [
+                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"priority-\#(index)"}}"#,
+                #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"\#(model)"}}"#,
+                #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"task_started","turn_id":"priority-turn"}}"#,
+                #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"model":"\#(model)"}}}"#,
+            ].joined(separator: "\n") + "\n"
+            // swiftlint:enable line_length
+            _ = try env.writeCodexSessionFile(
+                day: day,
+                filename: "priority-\(index).jsonl",
+                contents: body)
+        }
+        let dbURL = env.root.appendingPathComponent("logs_2.sqlite")
+        try CostUsageScannerCodexPriorityTests.createTestLogsDatabase(at: dbURL)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: dbURL,
+            maxCodexSessionFileBytes: 0,
+            maxCodexScanBytesPerRefresh: 0)
+        options.refreshMinIntervalSeconds = 0
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        let originalCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let originalTurnKeys = originalCache.codexPriorityTurnKeys
+        let originalCursor = originalCache.codexPriorityTurnsCursor
+
+        try CostUsageScannerCodexPriorityTests.insertTestLog(
+            dbURL: dbURL,
+            timestamp: iso,
+            body: "thread_id=thread turn.id=priority-turn websocket request: "
+                + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#)
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = 60
+
+        var cache = CostUsageCache()
+        var sawPendingTail = false
+        let maximumPasses = (fileCount + CostUsageScanner.codexCatchUpHydrationPathLimit - 1)
+            / CostUsageScanner.codexCatchUpHydrationPathLimit + 2
+        for pass in 1...maximumPasses {
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(TimeInterval(pass)),
+                options: options)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false {
+                sawPendingTail = true
+                #expect(cache.codexPriorityTurnKeys == originalTurnKeys)
+                #expect(cache.codexPriorityTurnsCursor == originalCursor)
+            } else if cache.codexScanCatchUpPending != true {
+                break
+            }
+        }
+
+        #expect(sawPendingTail)
+        #expect(cache.codexActiveLookbackState?.pendingFilePaths.isEmpty != false)
+        #expect(cache.codexPriorityTurnKeys != originalTurnKeys)
+        let completed = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: day,
+            historyDays: 1,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(completed?.snapshot.daily.first?.modelBreakdowns?.first?.priorityTokens == fileCount * 110)
+    }
+
+    @Test
+    func `working set bounds deep fork hydration and converges exactly`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let model = "openai/gpt-5.2-codex"
+        let fileCount = CostUsageScanner.codexCatchUpHydrationPathLimit * 2 + 16
+
+        for index in 0..<fileCount {
+            let timestamp = env.isoString(for: day.addingTimeInterval(TimeInterval(index)))
+            let parentField = index == 0 ? "" : ",\"forked_from_id\":\"deep-\(index - 1)\""
+            let input = (index + 1) * 100
+            let output = (index + 1) * 10
+            // swiftlint:disable line_length
+            let body = [
+                #"{"type":"session_meta","timestamp":"\#(timestamp)","payload":{"session_id":"deep-\#(index)"\#(parentField)}}"#,
+                #"{"type":"turn_context","timestamp":"\#(timestamp)","payload":{"model":"\#(model)"}}"#,
+                #"{"type":"event_msg","timestamp":"\#(timestamp)","payload":{"type":"token_count","info":{"total_token_usage":{"input_tokens":\#(input),"cached_input_tokens":0,"output_tokens":\#(output)},"model":"\#(model)"}}}"#,
+            ].joined(separator: "\n") + "\n"
+            // swiftlint:enable line_length
+            _ = try env.writeCodexSessionFile(
+                day: day,
+                filename: String(format: "deep-%03d.jsonl", index),
+                contents: body)
+        }
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"),
+            maxCodexSessionFileBytes: 64 * 1024 * 1024,
+            maxCodexScanBytesPerRefresh: 64 * 1024 * 1024)
+        options.refreshMinIntervalSeconds = 0
+        let baseline = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        let expectedTokens = baseline.summary?.totalTokens
+
+        options.useCodexCatchUpWorkingSet = true
+        options.maxCodexScanDurationPerRefresh = 60
+        var cache = CostUsageCache()
+        var maxHydratedFiles = 0
+        for pass in 1...8 {
+            let recorder = CostUsageScanner.CodexScanWorkRecorder()
+            options.codexScanWorkRecorderForTesting = recorder
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: day,
+                until: day,
+                now: day.addingTimeInterval(TimeInterval(pass)),
+                options: options)
+            let hydratedFiles = recorder.snapshot().codexHydratedFiles
+            maxHydratedFiles = max(maxHydratedFiles, hydratedFiles)
+            #expect(hydratedFiles <= CostUsageScanner.codexCatchUpHydrationPathLimit)
+            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            if cache.codexScanCatchUpPending != true {
+                break
+            }
+        }
+
+        #expect(maxHydratedFiles > 0)
+        #expect(maxHydratedFiles < fileCount)
+        #expect(cache.codexScanCatchUpPending == false)
+        let completed = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(9),
+            options: options)
+        #expect(completed.summary?.totalTokens == expectedTokens)
     }
 
     @Test

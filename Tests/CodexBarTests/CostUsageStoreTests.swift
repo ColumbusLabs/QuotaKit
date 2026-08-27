@@ -121,6 +121,267 @@ struct CostUsageStoreTests {
         #expect(indexes.contains("day_aggregates_model_idx"))
         #expect(indexes.contains("day_aggregates_model_day_idx"))
     }
+
+    @Test
+    func `codex working set hydrates selected paths without reading full snapshot`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var first = Self.file(path: "/rollouts/first.jsonl", day: "2026-08-01")
+        var second = Self.file(path: "/rollouts/second.jsonl", day: "2026-08-01")
+        let details = Data(#"{"hasRows":false,"hasTurnIDs":false,"hasTokenSnapshots":true,"hasSeenRawTotals":false}"#
+            .utf8)
+        first.scanState.detailsPayload = details
+        second.scanState.detailsPayload = details
+        #expect(await store.upsertFile(first))
+        #expect(await store.upsertFile(second))
+        #expect(await store.appendTokenSnapshots([
+            Self.snapshot(path: first.path, eventIndex: 0),
+            Self.snapshot(path: second.path, eventIndex: 0),
+        ]))
+
+        let workingSet = store.syncLoadCodexCache(
+            calendar: .current,
+            hydratingPaths: [first.path])
+        #expect(workingSet.files.count == 2)
+        #expect(workingSet.files[first.path]?.codexTokenSnapshots?.count == 1)
+        #expect(workingSet.files[second.path]?.codexTokenSnapshots == nil)
+    }
+
+    @Test
+    func `priority turn lookup returns only matching persisted files`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let first = Self.file(path: "/rollouts/priority.jsonl", day: "2026-08-01")
+        let second = Self.file(path: "/rollouts/standard.jsonl", day: "2026-08-01")
+        #expect(await store.upsertFile(first))
+        #expect(await store.upsertFile(second))
+        #expect(await store.replaceUsageRows(path: first.path, rows: [
+            CostUsageStoreUsageRow(
+                path: first.path,
+                rowIndex: 0,
+                payload: Data(#"{"turnID":"turn-priority"}"#.utf8)),
+        ]))
+        #expect(await store.replaceUsageRows(path: second.path, rows: [
+            CostUsageStoreUsageRow(
+                path: second.path,
+                rowIndex: 0,
+                payload: Data(#"{"turnID":"turn-standard"}"#.utf8)),
+        ]))
+
+        #expect(try store.syncPathsContainingCodexTurnIDs(["turn-priority"]) == [first.path])
+        #expect(try store.syncPathsContainingCodexTurnIDs(["missing"]).isEmpty)
+    }
+
+    @Test
+    func `priority turn lookup propagates sqlite query failure`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let file = Self.file(path: "/rollouts/malformed.jsonl", day: "2026-08-01")
+        #expect(await store.upsertFile(file))
+        #expect(await store.replaceUsageRows(path: file.path, rows: [
+            CostUsageStoreUsageRow(path: file.path, rowIndex: 0, payload: Data("not-json".utf8)),
+        ]))
+
+        #expect(throws: CostUsageStore.StoreError.self) {
+            _ = try store.syncPathsContainingCodexTurnIDs(["turn-priority"])
+        }
+    }
+
+    @Test
+    func `bounded delta migrates file aliases without duplicating aggregate totals`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let aliasPath = "/sessions/active/rollout.jsonl"
+        let canonicalPath = "/sessions/archived/rollout.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanFileId = "7:42"
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "priority-turn",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3,
+            knownCostNanos: 1200,
+            pricingMode: "priority")]
+        var seed = CostUsageCache()
+        seed.scanSinceKey = "2026-08-01"
+        seed.scanUntilKey = "2026-08-01"
+        seed.files = [aliasPath: usage]
+        seed.days = usage.days
+        _ = store.syncSaveCodexCache(
+            seed,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        let aggregateBefore = await store.fetchDayAggregates(
+            sinceDay: "2026-08-01",
+            untilDay: "2026-08-01")
+
+        var moved = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [aliasPath])
+        moved.files.removeValue(forKey: aliasPath)
+        moved.files[canonicalPath] = usage
+        let result = store.syncSaveCodexCatchUpCache(
+            moved,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            hydratedPaths: [canonicalPath])
+
+        #expect(!result.catchUpRequired)
+        #expect(await store.fetchFile(path: aliasPath) == nil)
+        #expect(await store.fetchFile(path: canonicalPath) != nil)
+        #expect(await store.fetchDayAggregates(
+            sinceDay: "2026-08-01",
+            untilDay: "2026-08-01") == aggregateBefore)
+    }
+
+    @Test
+    func `bounded delta invalidates unhydrated rows when the calendar time zone changes`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var oldCalendar = Calendar(identifier: .gregorian)
+        oldCalendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let stalePath = "/sessions/stale.jsonl"
+        let retainedPath = "/sessions/reparsed.jsonl"
+        var oldUsage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 0, 1]]])
+        oldUsage.parsedBytes = 100
+        oldUsage.codexScanComplete = true
+        var seed = CostUsageCache()
+        seed.scanSinceKey = "2026-08-01"
+        seed.scanUntilKey = "2026-08-01"
+        seed.files = [stalePath: oldUsage, retainedPath: oldUsage]
+        seed.days = ["2026-08-01": ["gpt-5.6-sol": [20, 0, 2]]]
+        _ = store.syncSaveCodexCache(
+            seed,
+            calendar: oldCalendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+
+        var newCalendar = oldCalendar
+        newCalendar.timeZone = try #require(TimeZone(secondsFromGMT: 3600))
+        var rebuilt = store.syncLoadCodexCache(calendar: newCalendar, hydratingPaths: [retainedPath])
+        #expect(rebuilt.files.isEmpty)
+        var reparsedUsage = oldUsage
+        reparsedUsage.days = ["2026-08-02": ["gpt-5.6-sol": [10, 0, 1]]]
+        rebuilt.scanSinceKey = "2026-08-02"
+        rebuilt.scanUntilKey = "2026-08-02"
+        rebuilt.files[retainedPath] = reparsedUsage
+        rebuilt.days = reparsedUsage.days
+        _ = store.syncSaveCodexCatchUpCache(
+            rebuilt,
+            calendar: newCalendar,
+            requestedScanWindow: (sinceKey: "2026-08-02", untilKey: "2026-08-02"),
+            hydratedPaths: [retainedPath])
+
+        #expect(await store.fetchFile(path: stalePath) == nil)
+        #expect(await store.fetchFile(path: retainedPath) != nil)
+        #expect(await store.fetchDayAggregates(
+            sinceDay: "2026-08-01",
+            untilDay: "2026-08-01").isEmpty)
+        #expect(await store.fetchDayAggregates(
+            sinceDay: "2026-08-02",
+            untilDay: "2026-08-02").count == 1)
+        #expect(await store.fetchMetadata().timeZoneIdentifier == newCalendar.timeZone.identifier)
+    }
+
+    @Test
+    func `bounded delta preserves store on transient sqlite failure`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/rollout.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [1, 0, 1]]])
+        usage.parsedBytes = 100
+        usage.codexScanFileId = "7:99"
+        usage.codexScanComplete = true
+        var seed = CostUsageCache()
+        seed.scanSinceKey = "2026-08-01"
+        seed.scanUntilKey = "2026-08-01"
+        seed.files = [path: usage]
+        seed.days = usage.days
+        _ = store.syncSaveCodexCache(
+            seed,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+
+        var changed = store.syncLoadCodexCache(calendar: calendar, hydratingPaths: [path])
+        changed.files[path]?.parsedBytes = 200
+        CostUsageStore.codexCatchUpDeltaFailureForTesting = { databaseURL in
+            guard databaseURL == store.databaseURL else { return }
+            throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
+        }
+        defer { CostUsageStore.codexCatchUpDeltaFailureForTesting = nil }
+        let result = store.syncSaveCodexCatchUpCache(
+            changed,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            hydratedPaths: [path])
+
+        #expect(result.catchUpRequired)
+        #expect(await store.rebuildCount == 0)
+        #expect(await store.fetchFile(path: path)?.parsedBytes == 100)
+        #expect(FileManager.default.fileExists(atPath: store.databaseURL.path))
+    }
+
+    @Test
+    func `budget pruning rolls back every mutation on transient sqlite failure`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-07-01"
+        cache.scanUntilKey = "2026-07-02"
+        cache.files = [
+            "/sessions/one.jsonl": CostUsageFileUsage(
+                mtimeUnixMs: 1, size: 10, days: ["2026-07-01": ["gpt-5.4": [10, 0, 1]]]),
+            "/sessions/two.jsonl": CostUsageFileUsage(
+                mtimeUnixMs: 2, size: 10, days: ["2026-07-02": ["gpt-5.4": [20, 0, 2]]]),
+        ]
+        cache.days = ["2026-07-01": ["gpt-5.4": [10, 0, 1]], "2026-07-02": ["gpt-5.4": [20, 0, 2]]]
+        _ = store.syncSaveCodexCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-07-01", untilKey: "2026-07-02"))
+        let before = await store.fetchDayAggregates(sinceDay: "2026-07-01", untilDay: "2026-07-02")
+        CostUsageStore.budgetMutationFailureForTesting = { databaseURL in
+            guard databaseURL == store.databaseURL else { return }
+            throw CostUsageStore.StoreError.sqlite(SQLITE_FULL)
+        }
+        defer { CostUsageStore.budgetMutationFailureForTesting = nil }
+
+        _ = await store.enforceBudgets(
+            maxRows: 0,
+            maxFileBytes: .max,
+            requestedSinceDay: "2026-08-01",
+            requestedUntilDay: "2026-08-01",
+            calendar: calendar)
+
+        #expect(await store.fetchFile(path: "/sessions/one.jsonl") != nil)
+        #expect(await store.fetchFile(path: "/sessions/two.jsonl") != nil)
+        #expect(await store.fetchDayAggregates(sinceDay: "2026-07-01", untilDay: "2026-07-02") == before)
+        #expect(await store.rebuildCount == 0)
+    }
 }
 
 extension CostUsageStoreTests {
@@ -1837,11 +2098,19 @@ extension CostUsageStoreTests {
         for index in 0..<10 {
             let file = Self.file(path: "/rollouts/\(index).jsonl", day: "2026-08-01", updatedAt: Int64(index))
             #expect(await store.upsertFile(file))
+            #expect(await store.replaceFileDayAggregates(
+                path: file.path,
+                aggregates: [Self.aggregate(day: "2026-08-01", model: "gpt-5.5", scale: 1)]))
         }
+        #expect(await store.mergeDayAggregates([
+            Self.aggregate(day: "2026-08-01", model: "gpt-5.5", scale: 10),
+        ]))
 
         let result = await store.enforceBudgets(maxRows: 3, maxFileBytes: Int64.max)
+        let report = await store.readReport(sinceDay: "2026-08-01", untilDay: "2026-08-01")
         #expect(result.rowCount <= 3)
         #expect(result.deletedRows >= 7)
+        #expect(report.aggregates == [Self.aggregate(day: "2026-08-01", model: "gpt-5.5", scale: 3)])
     }
 
     @Test
@@ -2174,7 +2443,10 @@ extension CostUsageStoreTests {
             outputTokens: 3 * scale,
             reasoningTokens: 1 * scale,
             requestCount: 1 * scale,
+            unpricedRequestCount: 1 * scale,
             authoritativeCostNanos: 1000 * scale,
+            standardAuthoritativeCostNanos: 600 * scale,
+            priorityAuthoritativeCostNanos: 400 * scale,
             standardInputTokens: 6 * scale,
             standardCachedTokens: 1 * scale,
             standardOutputTokens: 2 * scale,
@@ -2182,7 +2454,11 @@ extension CostUsageStoreTests {
             priorityCachedTokens: 1 * scale,
             priorityOutputTokens: 1 * scale,
             standardTokens: 9 * scale,
-            priorityTokens: 6 * scale)
+            priorityTokens: 6 * scale,
+            standardResolvedCostNanos: 700 * scale,
+            priorityResolvedCostNanos: 500 * scale,
+            standardUnresolvedPricingCount: 2 * scale,
+            priorityUnresolvedPricingCount: 1 * scale)
     }
 
     private static func lineage(path: String) -> CostUsageStoreForkLineage {

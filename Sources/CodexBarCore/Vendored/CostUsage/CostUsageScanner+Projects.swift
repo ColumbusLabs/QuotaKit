@@ -44,8 +44,12 @@ extension CostUsageScanner {
             }
             let sessionID = usage.sessionId ?? URL(fileURLWithPath: filePath).deletingPathExtension().lastPathComponent
             guard !sessionID.isEmpty else { continue }
-            if let existing = latestFileBySessionID[sessionID], existing.usage.mtimeUnixMs >= usage.mtimeUnixMs {
-                continue
+            if let existing = latestFileBySessionID[sessionID] {
+                if existing.usage.mtimeUnixMs > usage.mtimeUnixMs
+                    || (existing.usage.mtimeUnixMs == usage.mtimeUnixMs && existing.path <= filePath)
+                {
+                    continue
+                }
             }
             latestFileBySessionID[sessionID] = (filePath, usage)
         }

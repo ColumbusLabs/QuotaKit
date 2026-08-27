@@ -149,6 +149,23 @@ struct CostProvenanceTests {
         #expect(decoded.dailyReportValue.unmeteredRequestCount == 2)
         #expect(decoded.dailyReportValue.estimatedRequestCount == 3)
     }
+
+    @Test
+    func `cached previous report summary round-trips reasoning tokens`() throws {
+        let summary = CostUsageDailyReport.Summary(
+            totalInputTokens: 10,
+            totalOutputTokens: 2,
+            cacheReadTokens: 3,
+            reasoningTokens: 7,
+            totalTokens: 12,
+            totalCostUSD: 1.5)
+        let cached = CostUsageCodexPreviousReport.Summary(summary)
+        #expect(cached.dailyReportValue.reasoningTokens == 7)
+
+        let data = try JSONEncoder().encode(cached)
+        let decoded = try JSONDecoder().decode(CostUsageCodexPreviousReport.Summary.self, from: data)
+        #expect(decoded.dailyReportValue.reasoningTokens == 7)
+    }
 }
 
 struct CostUsageBucketTimeZoneTests {

@@ -1,5 +1,9 @@
 import Foundation
 
+// The full-cache compatibility path and the candidate-scoped catch-up path intentionally share
+// one persistence vocabulary so their on-disk semantics cannot drift.
+// swiftlint:disable file_length
+
 enum CostUsagePersistenceAction: Equatable {
     case reuse
     case append(startingAt: Int)
@@ -53,6 +57,21 @@ extension CostUsageStore {
             || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         else { return CostUsageCache() }
         return Self.cache(from: snapshot)
+    }
+
+    /// Loads the Codex manifest and aggregate tables while hydrating event-level state only for
+    /// the supplied paths. A nil path set is the compatibility/full-rescan mode used by regular
+    /// reports; bounded catch-up always passes an explicit working set.
+    func loadCodexCache(
+        calendar: Calendar,
+        hydratingPaths: Set<String>?) -> CostUsageCache
+    {
+        _ = self.removeLegacyCodexArtifactIfPresent()
+        let snapshot = self.readCodexWorkingSetSnapshot(hydratingPaths: hydratingPaths)
+        guard snapshot.metadata.timeZoneIdentifier == nil
+            || snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+        else { return CostUsageCache() }
+        return Self.cache(from: snapshot, hydratingPaths: hydratingPaths)
     }
 
     @discardableResult
@@ -144,6 +163,7 @@ extension CostUsageStore {
             return result
         }
         let canReuseStoredRows = previous.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+        let aggregatePricing = self.aggregatePricingContext()
         let saved = self.withSaveTransaction(default: false) {
             self.deleteRemovedFiles(previous: previous, cache: cache)
             let previousFilesByPath = Dictionary(uniqueKeysWithValues: previous.files.map { ($0.path, $0) })
@@ -160,11 +180,12 @@ extension CostUsageStore {
                         snapshotCount: snapshotCountsByPath[path] ?? 0,
                         rowCount: rowCountsByPath[path] ?? 0,
                         canReuseRows: canReuseStoredRows),
-                    calendar: calendar)
+                    calendar: calendar,
+                    aggregatePricing: aggregatePricing)
                 persistedFiles += 1
                 Self.saveCycleCheckpointForTesting?(persistedFiles)
             }
-            _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache))
+            _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache, pricing: aggregatePricing))
             _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
@@ -182,20 +203,157 @@ extension CostUsageStore {
                 fileBytes: 0,
                 catchUpRequired: true)
         }
+        let compactPreviousReport = self.compactPreviousReport(
+            calendar: calendar,
+            reportWindow: reportWindow)
         let result = self.enforceBudgets(
             maxRows: rowBudget,
             maxFileBytes: fileBudgetBytes,
             requestedSinceDay: budgetProtectionWindow.sinceKey,
             requestedUntilDay: budgetProtectionWindow.untilKey,
-            calendar: calendar)
+            calendar: calendar,
+            previousReportPayload: compactPreviousReport.flatMap { try? JSONEncoder().encode($0) })
         if result.catchUpRequired, self.fetchMetadata().previousReportPayload == nil,
-           let previous = Self.previousReport(cache: cache, calendar: calendar, reportWindow: reportWindow)
+           let previous = compactPreviousReport
         {
             var metadata = self.fetchMetadata()
             metadata.previousReportPayload = try? JSONEncoder().encode(previous)
             _ = self.setMetadata(metadata)
         }
         return result
+    }
+
+    /// Persists one bounded scanner pass without reconstructing the complete event ledger. The
+    /// caller supplies the explicit working set that was hydrated before scanning. Manifest,
+    /// discovery, lookback, and global aggregate metadata are updated as usual; per-file detail
+    /// rows and their aggregate contribution are replaced only for changed paths.
+    @discardableResult
+    func saveCodexCatchUpCache(
+        _ cache: CostUsageCache,
+        calendar: Calendar,
+        requestedScanWindow: (sinceKey: String, untilKey: String),
+        reportWindow: (sinceKey: String, untilKey: String)? = nil,
+        hydratedPaths: Set<String>,
+        rowBudget: Int = CostUsageStore.defaultRowBudget,
+        fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes) -> CostUsageStoreBudgetResult
+    {
+        var cache = cache
+        Self.reconcileCompletedCodexCatchUp(cache: &cache)
+        let budgetProtectionWindow = Self.budgetProtectionWindow(
+            cache: cache,
+            requestedScanWindow: requestedScanWindow)
+        let previousMetadata = self.fetchMetadata()
+        let aggregatePricing = self.aggregatePricingContext()
+        let saved = self.withSaveTransaction(default: false) {
+            let database = try self.activeSaveDatabase()
+            let timeZoneChanged = previousMetadata.timeZoneIdentifier != nil
+                && previousMetadata.timeZoneIdentifier != calendar.timeZone.identifier
+            if timeZoneChanged {
+                // Day keys are calendar-derived. Keeping even one unhydrated file from the old
+                // zone while relabeling metadata would mix incompatible buckets, so invalidate
+                // the rebuildable cache atomically and let bounded discovery repopulate it.
+                try Self.execute(database, "DELETE FROM files")
+                try Self.execute(database, "DELETE FROM day_aggregates")
+                try Self.execute(database, "DELETE FROM discovery_state")
+                try Self.execute(database, "DELETE FROM lookback_state")
+            }
+            var persistedPathsByIdentity: [String: [String]] = [:]
+            for value in try Self.readCodexFileIdentities(database) {
+                guard let identity = Self.aliasIdentityKey(value.identity) else { continue }
+                persistedPathsByIdentity[identity, default: []].append(value.path)
+            }
+            let canReuseStoredRows = !timeZoneChanged
+            var processedPaths = Set<String>()
+            for path in hydratedPaths.sorted() {
+                guard processedPaths.insert(path).inserted else { continue }
+                let oldFile = self.fetchFile(path: path)
+                let oldDetailCounts = self.fetchDetailCounts(path: path)
+                let oldAggregates = self.fetchFileDayAggregates(path: path)
+                if let usage = cache.files[path] {
+                    // A session can move between active and archived roots without changing
+                    // identity. The in-memory alias reconciliation removes the stale spelling;
+                    // mirror that migration explicitly on disk so its aggregate contribution
+                    // is subtracted in the same transaction as the canonical replacement.
+                    for alias in Self.persistedAliases(
+                        fileIdentity: usage.codexScanFileId,
+                        excludingPath: path,
+                        persistedPathsByIdentity: persistedPathsByIdentity)
+                        where processedPaths.insert(alias).inserted
+                    {
+                        let aliasAggregates = self.fetchFileDayAggregates(path: alias)
+                        _ = self.deleteFile(path: alias)
+                        _ = self.mergeDayAggregates(aliasAggregates.map(Self.negated))
+                    }
+                    self.persistFile(
+                        path: path,
+                        usage: usage,
+                        baseline: PersistedFileBaseline(
+                            file: oldFile,
+                            snapshotCount: oldDetailCounts.snapshotCount,
+                            rowCount: oldDetailCounts.rowCount,
+                            canReuseRows: canReuseStoredRows),
+                        calendar: calendar,
+                        aggregatePricing: aggregatePricing)
+                    let newAggregates = Self.fileAggregates(usage, pricing: aggregatePricing)
+                    _ = self.mergeDayAggregates(
+                        oldAggregates.map(Self.negated) + newAggregates)
+                } else {
+                    _ = self.deleteFile(path: path)
+                    _ = self.mergeDayAggregates(oldAggregates.map(Self.negated))
+                }
+            }
+            try Self.codexCatchUpDeltaFailureForTesting?(self.databaseURL)
+            // Nested writes retain their original SQLite error in activeTransactionError.
+            // Do not replace BUSY/FULL/NOMEM with synthetic SQLITE_ERROR here: the outer
+            // transaction uses the original code to preserve the database rather than rebuild.
+            _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
+            _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
+            _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
+            _ = self.retainDayWindow(
+                sinceDay: budgetProtectionWindow.sinceKey,
+                untilDay: budgetProtectionWindow.untilKey,
+                calendar: calendar,
+                updateMetadata: false)
+            return true
+        }
+        guard saved else {
+            return CostUsageStoreBudgetResult(
+                deletedRows: 0,
+                rowCount: hydratedPaths.count,
+                fileBytes: 0,
+                catchUpRequired: true)
+        }
+        let compactPreviousReport = self.compactPreviousReport(
+            calendar: calendar,
+            reportWindow: reportWindow)
+        let result = self.enforceBudgets(
+            maxRows: rowBudget,
+            maxFileBytes: fileBudgetBytes,
+            requestedSinceDay: budgetProtectionWindow.sinceKey,
+            requestedUntilDay: budgetProtectionWindow.untilKey,
+            calendar: calendar,
+            previousReportPayload: compactPreviousReport.flatMap { try? JSONEncoder().encode($0) })
+        if result.catchUpRequired, self.fetchMetadata().previousReportPayload == nil,
+           let previous = compactPreviousReport
+        {
+            var metadata = self.fetchMetadata()
+            metadata.previousReportPayload = try? JSONEncoder().encode(previous)
+            _ = self.setMetadata(metadata)
+        }
+        return result
+    }
+
+    private static func persistedAliases(
+        fileIdentity: String?,
+        excludingPath path: String,
+        persistedPathsByIdentity: [String: [String]]) -> [String]
+    {
+        guard let fileIdentity = aliasIdentityKey(fileIdentity) else { return [] }
+        return (persistedPathsByIdentity[fileIdentity] ?? []).filter { $0 != path }
+    }
+
+    private static func aliasIdentityKey(_ identity: String?) -> String? {
+        identity?.split(separator: ":").last.map(String.init)
     }
 
     /// True when persisting `cache` would leave every content table semantically unchanged.
@@ -251,6 +409,34 @@ extension CostUsageStore {
         var usage = usage
         usage.codexScanComplete = usage.codexScanComplete ?? true
         return usage
+    }
+
+    private static func negated(_ aggregate: CostUsageStoreDayAggregate)
+        -> CostUsageStoreDayAggregate
+    {
+        var value = aggregate
+        value.inputTokens = -value.inputTokens
+        value.cachedTokens = -value.cachedTokens
+        value.outputTokens = -value.outputTokens
+        value.reasoningTokens = -value.reasoningTokens
+        value.requestCount = -value.requestCount
+        value.unpricedRequestCount = -value.unpricedRequestCount
+        value.authoritativeCostNanos = -value.authoritativeCostNanos
+        value.standardAuthoritativeCostNanos = -value.standardAuthoritativeCostNanos
+        value.priorityAuthoritativeCostNanos = -value.priorityAuthoritativeCostNanos
+        value.standardInputTokens = -value.standardInputTokens
+        value.standardCachedTokens = -value.standardCachedTokens
+        value.standardOutputTokens = -value.standardOutputTokens
+        value.priorityInputTokens = -value.priorityInputTokens
+        value.priorityCachedTokens = -value.priorityCachedTokens
+        value.priorityOutputTokens = -value.priorityOutputTokens
+        value.standardTokens = -value.standardTokens
+        value.priorityTokens = -value.priorityTokens
+        value.standardResolvedCostNanos = -value.standardResolvedCostNanos
+        value.priorityResolvedCostNanos = -value.priorityResolvedCostNanos
+        value.standardUnresolvedPricingCount = -value.standardUnresolvedPricingCount
+        value.priorityUnresolvedPricingCount = -value.priorityUnresolvedPricingCount
+        return value
     }
 
     private static func budgetProtectionWindow(
@@ -343,7 +529,13 @@ extension CostUsageStore {
         var validatedCurrentSnapshot = false
     }
 
-    private static func cache(from snapshot: CostUsageStoreSnapshot) -> CostUsageCache {
+    // Full and manifest-only restoration share this mapping to keep every persisted field
+    // byte-compatible across the two read paths.
+    // swiftlint:disable:next function_body_length
+    private static func cache(
+        from snapshot: CostUsageStoreSnapshot,
+        hydratingPaths: Set<String>? = nil) -> CostUsageCache
+    {
         var cache = CostUsageCache()
         let metadata = snapshot.metadata
         cache.lastScanUnixMs = metadata.lastScanUnixMs
@@ -387,9 +579,32 @@ extension CostUsageStore {
         var invalidatedIdentityValidationPaths: [String] = []
 
         for file in snapshot.files {
-            guard let detailsData = file.scanState.detailsPayload,
-                  let details = try? JSONDecoder().decode(StoredFileDetails.self, from: detailsData)
-            else { continue }
+            let details: StoredFileDetails
+            if let detailsData = file.scanState.detailsPayload,
+               let decoded = try? JSONDecoder().decode(StoredFileDetails.self, from: detailsData)
+            {
+                details = decoded
+            } else if hydratingPaths != nil {
+                // Keep a malformed/legacy manifest entry visible to bounded discovery. Its
+                // selected path will be reparsed by the scanner; unrelated paths retain only
+                // compact metadata until they become candidates.
+                details = StoredFileDetails(
+                    lastTotals: nil,
+                    projectPath: nil,
+                    canonicalProjectPath: nil,
+                    costCacheComplete: nil,
+                    session: nil,
+                    workspaceFingerprint: nil,
+                    hasRows: false,
+                    hasTurnIDs: false,
+                    hasTokenSnapshots: false,
+                    hasSeenRawTotals: false,
+                    divergentTotals: nil,
+                    interleavedTotals: nil)
+            } else {
+                continue
+            }
+            let isHydrated = hydratingPaths == nil || hydratingPaths?.contains(file.path) == true
             let aggregates = (aggregatesByPath[file.path] ?? []).map(\.aggregate)
             let rows = (rowsByPath[file.path] ?? []).compactMap {
                 try? JSONDecoder().decode(CostUsageScanner.CodexUsageRow.self, from: $0.payload)
@@ -433,12 +648,11 @@ extension CostUsageStore {
                 parsedBytes: file.parsedBytes,
                 lastModel: file.scanState.lastModel,
                 lastTotals: details.lastTotals,
-                lastCountedTotals: Self.totals(from: accumulator?.countedTotals),
-                lastRawTotalsBaseline: Self.totals(from: accumulator?.rawTotalsBaseline),
-                lastRawTotalsWatermark: Self.totals(from: accumulator?.rawTotalsWatermark),
+                lastCountedTotals: isHydrated ? Self.totals(from: accumulator?.countedTotals) : nil,
+                lastRawTotalsBaseline: isHydrated ? Self.totals(from: accumulator?.rawTotalsBaseline) : nil,
+                lastRawTotalsWatermark: isHydrated ? Self.totals(from: accumulator?.rawTotalsWatermark) : nil,
                 seenRawTotals: details.hasSeenRawTotals
-                    ? accumulator?.seenRawTotals.compactMap(Self.totals(from:)) ?? []
-                    : nil,
+                    && isHydrated ? accumulator?.seenRawTotals.compactMap(Self.totals(from:)) ?? [] : nil,
                 hasDivergentTotals: details.divergentTotals,
                 hasInterleavedTotals: details.interleavedTotals,
                 lastCodexTurnID: file.scanState.lastTurnID,
@@ -455,11 +669,12 @@ extension CostUsageStore {
                 codexPriorityCostNanos: nil,
                 codexStandardTokens: Self.modeTokens(from: aggregates, priority: false),
                 codexPriorityTokens: Self.modeTokens(from: aggregates, priority: true),
-                codexTurnIDs: details.hasTurnIDs ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
+                codexTurnIDs: details.hasTurnIDs && isHydrated
+                    ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
                 codexWorkspaceContentFingerprint: details.workspaceFingerprint,
-                codexRows: details.hasRows ? restoredRows : nil,
-                codexTokenSnapshots: details.hasTokenSnapshots ? tokenSnapshots : nil,
-                codexTokenCheckpoints: details.hasTokenSnapshots
+                codexRows: details.hasRows && isHydrated ? restoredRows : nil,
+                codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
+                codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
                 codexTokenTimestampsMonotonic: file.scanState.tokenTimestampsMonotonic,
                 codexTokenIndexAnchor: file.anchor.map {
@@ -473,11 +688,15 @@ extension CostUsageStore {
                 codexScanTargetSize: file.scanState.targetSize,
                 codexScanComplete: restoredScanState.isComplete,
                 codexInventoryValidationGeneration: file.scanState.inventoryValidationGeneration,
-                codexJSONLResumeState: file.scanState.resumePayload.flatMap {
+                codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
-                },
-                codexBufferedSubagentLines: Self.bufferedLines(buffers, kind: .subagent),
-                codexBufferedUnresolvedForkLines: Self.bufferedLines(buffers, kind: .unresolvedFork))
+                } : nil,
+                codexBufferedSubagentLines: isHydrated
+                    ? Self.bufferedLines(buffers, kind: .subagent) : nil,
+                codexBufferedUnresolvedForkLines: isHydrated
+                    ? Self.bufferedLines(buffers, kind: .unresolvedFork) : nil,
+                codexHasBufferedSubagentLines: file.hasBufferedSubagentLines,
+                codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines)
             cache.files[file.path] = usage
         }
         Self.enqueueDeferredCodexIdentityValidation(
@@ -492,6 +711,12 @@ extension CostUsageStore {
             visitLimit: remainingIdentityValidationVisits)
         cache.days = Self.days(from: snapshot.dayAggregates)
         return cache
+    }
+
+    /// Maps the manifest-only snapshot used by the atomic report projection reader while
+    /// keeping the detailed cache reconstruction implementation private to this file.
+    static func codexManifestCache(from snapshot: CostUsageStoreSnapshot) -> CostUsageCache {
+        self.cache(from: snapshot, hydratingPaths: [])
     }
 
     private static func enqueueDeferredCodexIdentityValidation(
@@ -828,7 +1053,8 @@ extension CostUsageStore {
         path: String,
         usage: CostUsageFileUsage,
         baseline: PersistedFileBaseline,
-        calendar: Calendar)
+        calendar: Calendar,
+        aggregatePricing: AggregatePricingContext)
     {
         let sourceSnapshots = usage.codexTokenSnapshots ?? []
         let sourceRows = usage.codexRows ?? []
@@ -918,7 +1144,9 @@ extension CostUsageStore {
         case .replace:
             _ = self.replaceUsageRows(path: path, rows: rows)
         }
-        _ = self.replaceFileDayAggregates(path: path, aggregates: Self.fileAggregates(usage))
+        _ = self.replaceFileDayAggregates(
+            path: path,
+            aggregates: Self.fileAggregates(usage, pricing: aggregatePricing))
         _ = self.upsertForkLineage(CostUsageStoreForkLineage(
             path: path,
             sessionID: usage.sessionId,
@@ -981,26 +1209,46 @@ extension CostUsageStore {
         }?.turnsCursor
     }
 
-    private static func previousReport(
-        cache: CostUsageCache,
+    private func compactPreviousReport(
         calendar: Calendar,
         reportWindow: (sinceKey: String, untilKey: String)?) -> CostUsageCodexPreviousReport?
     {
-        guard let sinceKey = reportWindow?.sinceKey ?? cache.scanSinceKey,
-              let untilKey = reportWindow?.untilKey ?? cache.scanUntilKey,
+        let projection = self.readCodexReportProjection(calendar: calendar)
+        guard let sinceKey = reportWindow?.sinceKey ?? projection.cache.scanSinceKey,
+              let untilKey = reportWindow?.untilKey ?? projection.cache.scanUntilKey,
               let since = CostUsageScanner.parseDayKey(sinceKey, calendar: calendar),
               let until = CostUsageScanner.parseDayKey(untilKey, calendar: calendar)
         else { return nil }
         let range = CostUsageScanner.CostUsageDayRange(since: since, until: until, calendar: calendar)
-        let report = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
+        let report = CostUsageCodexReportProjectionBuilder.buildReport(
+            projection: projection,
+            range: range,
+            cacheRoot: nil)
         return CostUsageCodexPreviousReport(
             report: report,
-            cache: cache,
+            cache: projection.cache,
             reportSinceKey: sinceKey,
             reportUntilKey: untilKey)
     }
 
-    private static func fileAggregates(_ usage: CostUsageFileUsage) -> [CostUsageStoreDayAggregate] {
+    private struct AggregatePricingContext {
+        var catalog: ModelsDevCatalog?
+        var cacheRoot: URL
+        var customPricing: CostUsageCustomPricing
+    }
+
+    private func aggregatePricingContext() -> AggregatePricingContext {
+        let cacheRoot = self.databaseURL.deletingLastPathComponent().deletingLastPathComponent()
+        return AggregatePricingContext(
+            catalog: ModelsDevCache.load(now: Date(), cacheRoot: cacheRoot).artifact?.catalog,
+            cacheRoot: cacheRoot,
+            customPricing: CostUsagePricing.customPricingOverlay())
+    }
+
+    private static func fileAggregates(
+        _ usage: CostUsageFileUsage,
+        pricing: AggregatePricingContext) -> [CostUsageStoreDayAggregate]
+    {
         var keys = Set<DayModelKey>()
         func addKeys(_ map: [String: [String: some Any]]?) {
             for (day, models) in map ?? [:] {
@@ -1030,7 +1278,10 @@ extension CostUsageStore {
                 outputTokens: Int64(packed[safe: 2] ?? 0),
                 reasoningTokens: Int64(rows.compactMap(\.reasoning).reduce(0, +)),
                 requestCount: Int64(rows.count),
+                unpricedRequestCount: Int64(rows.count { ($0.unpricedTokens ?? 0) > 0 }),
                 authoritativeCostNanos: 0,
+                standardAuthoritativeCostNanos: 0,
+                priorityAuthoritativeCostNanos: 0,
                 standardInputTokens: 0,
                 standardCachedTokens: 0,
                 standardOutputTokens: 0,
@@ -1038,7 +1289,11 @@ extension CostUsageStore {
                 priorityCachedTokens: 0,
                 priorityOutputTokens: 0,
                 standardTokens: 0,
-                priorityTokens: 0)
+                priorityTokens: 0,
+                standardResolvedCostNanos: 0,
+                priorityResolvedCostNanos: 0,
+                standardUnresolvedPricingCount: 0,
+                priorityUnresolvedPricingCount: 0)
             for row in rows {
                 let isPriority = row.pricingMode == "priority"
                 let total = Int64(max(0, row.input) + max(0, row.output))
@@ -1049,21 +1304,46 @@ extension CostUsageStore {
                 }
                 if let cost = row.knownCostNanos {
                     aggregate.authoritativeCostNanos += cost
-                } else if isPriority {
-                    aggregate.priorityInputTokens += Int64(row.input)
-                    aggregate.priorityCachedTokens += Int64(row.cached)
-                    aggregate.priorityOutputTokens += Int64(row.output)
+                    if isPriority {
+                        aggregate.priorityAuthoritativeCostNanos += cost
+                    } else {
+                        aggregate.standardAuthoritativeCostNanos += cost
+                    }
                 } else {
-                    aggregate.standardInputTokens += Int64(row.input)
-                    aggregate.standardCachedTokens += Int64(row.cached)
-                    aggregate.standardOutputTokens += Int64(row.output)
+                    let resolved = CostUsageScanner.codexResolvedCostNanos(
+                        for: row,
+                        modelsDevCatalog: pricing.catalog,
+                        modelsDevCacheRoot: pricing.cacheRoot,
+                        customPricing: pricing.customPricing)
+                    if isPriority {
+                        aggregate.priorityInputTokens += Int64(row.input)
+                        aggregate.priorityCachedTokens += Int64(row.cached)
+                        aggregate.priorityOutputTokens += Int64(row.output)
+                        if let resolved {
+                            aggregate.priorityResolvedCostNanos += resolved
+                        } else {
+                            aggregate.priorityUnresolvedPricingCount += 1
+                        }
+                    } else {
+                        aggregate.standardInputTokens += Int64(row.input)
+                        aggregate.standardCachedTokens += Int64(row.cached)
+                        aggregate.standardOutputTokens += Int64(row.output)
+                        if let resolved {
+                            aggregate.standardResolvedCostNanos += resolved
+                        } else {
+                            aggregate.standardUnresolvedPricingCount += 1
+                        }
+                    }
                 }
             }
             return aggregate
         }.sorted { ($0.day, $0.model) < ($1.day, $1.model) }
     }
 
-    private static func globalAggregates(cache: CostUsageCache) -> [CostUsageStoreDayAggregate] {
+    private static func globalAggregates(
+        cache: CostUsageCache,
+        pricing: AggregatePricingContext) -> [CostUsageStoreDayAggregate]
+    {
         var values: [DayModelKey: CostUsageStoreDayAggregate] = [:]
         for (day, models) in cache.days {
             for (model, packed) in models {
@@ -1075,12 +1355,15 @@ extension CostUsageStore {
             }
         }
         for usage in cache.files.values {
-            for aggregate in self.fileAggregates(usage) {
+            for aggregate in self.fileAggregates(usage, pricing: pricing) {
                 let key = DayModelKey(day: aggregate.day, model: aggregate.model)
                 guard var value = values[key] else { continue }
                 value.reasoningTokens += aggregate.reasoningTokens
                 value.requestCount += aggregate.requestCount
+                value.unpricedRequestCount += aggregate.unpricedRequestCount
                 value.authoritativeCostNanos += aggregate.authoritativeCostNanos
+                value.standardAuthoritativeCostNanos += aggregate.standardAuthoritativeCostNanos
+                value.priorityAuthoritativeCostNanos += aggregate.priorityAuthoritativeCostNanos
                 value.standardInputTokens += aggregate.standardInputTokens
                 value.standardCachedTokens += aggregate.standardCachedTokens
                 value.standardOutputTokens += aggregate.standardOutputTokens
@@ -1089,6 +1372,10 @@ extension CostUsageStore {
                 value.priorityOutputTokens += aggregate.priorityOutputTokens
                 value.standardTokens += aggregate.standardTokens
                 value.priorityTokens += aggregate.priorityTokens
+                value.standardResolvedCostNanos += aggregate.standardResolvedCostNanos
+                value.priorityResolvedCostNanos += aggregate.priorityResolvedCostNanos
+                value.standardUnresolvedPricingCount += aggregate.standardUnresolvedPricingCount
+                value.priorityUnresolvedPricingCount += aggregate.priorityUnresolvedPricingCount
                 values[key] = value
             }
         }
@@ -1123,17 +1410,22 @@ extension CostUsageStore {
                     pricingModel: aggregate.model,
                     pricingMode: mode))
             }
-            append(
-                input: aggregate.standardInputTokens,
-                cached: aggregate.standardCachedTokens,
-                output: aggregate.standardOutputTokens,
-                mode: "standard")
-            append(
-                input: aggregate.priorityInputTokens,
-                cached: aggregate.priorityCachedTokens,
-                output: aggregate.priorityOutputTokens,
-                mode: "priority")
-            if aggregate.authoritativeCostNanos != 0 {
+            if aggregate.standardUnresolvedPricingCount > 0 {
+                append(
+                    input: aggregate.standardInputTokens,
+                    cached: aggregate.standardCachedTokens,
+                    output: aggregate.standardOutputTokens,
+                    mode: "standard")
+            }
+            if aggregate.priorityUnresolvedPricingCount > 0 {
+                append(
+                    input: aggregate.priorityInputTokens,
+                    cached: aggregate.priorityCachedTokens,
+                    output: aggregate.priorityOutputTokens,
+                    mode: "priority")
+            }
+            func appendKnownCost(_ cost: Int64, mode: String) {
+                guard cost != 0 else { return }
                 rows.append(CostUsageScanner.CodexUsageRow(
                     day: aggregate.day,
                     model: aggregate.model,
@@ -1142,10 +1434,16 @@ extension CostUsageStore {
                     input: 0,
                     cached: 0,
                     output: 0,
-                    knownCostNanos: aggregate.authoritativeCostNanos,
+                    knownCostNanos: cost,
                     pricingModel: aggregate.model,
-                    pricingMode: "standard"))
+                    pricingMode: mode))
             }
+            appendKnownCost(
+                aggregate.standardAuthoritativeCostNanos + aggregate.standardResolvedCostNanos,
+                mode: "standard")
+            appendKnownCost(
+                aggregate.priorityAuthoritativeCostNanos + aggregate.priorityResolvedCostNanos,
+                mode: "priority")
             return rows
         }
     }
@@ -1241,7 +1539,8 @@ extension CostUsageStore {
                 exactInventoryFlatDirectoryOffsetByRoot: $0.exactInventoryFlatDirectoryOffsetByRoot,
                 exactInventoryCompletedFlatRootPaths: $0.exactInventoryCompletedFlatRootPaths,
                 exactCachedValidationLastPath: $0.exactCachedValidationLastPath,
-                cacheWideMigrationQueueActive: $0.cacheWideMigrationQueueActive)
+                cacheWideMigrationQueueActive: $0.cacheWideMigrationQueueActive,
+                priorityMigrationGenerationKey: $0.priorityMigrationGenerationKey)
         }
     }
 
@@ -1284,7 +1583,8 @@ extension CostUsageStore {
             exactInventoryFlatDirectoryOffsetByRoot: value.exactInventoryFlatDirectoryOffsetByRoot,
             exactInventoryCompletedFlatRootPaths: value.exactInventoryCompletedFlatRootPaths,
             exactCachedValidationLastPath: value.exactCachedValidationLastPath,
-            cacheWideMigrationQueueActive: value.cacheWideMigrationQueueActive)
+            cacheWideMigrationQueueActive: value.cacheWideMigrationQueueActive,
+            priorityMigrationGenerationKey: value.priorityMigrationGenerationKey)
     }
 
     private static func tokenSnapshot(
@@ -1403,6 +1703,33 @@ enum CostUsageStoreAccess {
         return CostUsageStoreLoad(store: store, cache: cache)
     }
 
+    static func loadCodexWorkingSet(
+        cacheRoot: URL?,
+        calendar: Calendar,
+        hydratingPaths: Set<String>? = Set<String>()) -> CostUsageStoreLoad
+    {
+        let store = CostUsageStore(cacheRoot: cacheRoot)
+        let cache = store.syncLoadCodexCache(
+            calendar: calendar,
+            hydratingPaths: hydratingPaths)
+        return CostUsageStoreLoad(store: store, cache: cache)
+    }
+
+    static func hydrateCodexWorkingSet(
+        store: CostUsageStore,
+        calendar: Calendar,
+        paths: Set<String>) -> CostUsageCache
+    {
+        store.syncLoadCodexCache(calendar: calendar, hydratingPaths: paths)
+    }
+
+    static func pathsContainingCodexTurnIDs(
+        store: CostUsageStore,
+        turnIDs: Set<String>) throws -> Set<String>
+    {
+        try store.syncPathsContainingCodexTurnIDs(turnIDs)
+    }
+
     static func read(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
         self.load(cacheRoot: cacheRoot, calendar: calendar).cache
     }
@@ -1447,5 +1774,22 @@ enum CostUsageStoreAccess {
             requestedScanWindow: requestedScanWindow,
             reportWindow: reportWindow,
             skipIdenticalContent: skipIdenticalContent)
+    }
+
+    @discardableResult
+    static func saveCodexCatchUp(
+        store: CostUsageStore,
+        cache: CostUsageCache,
+        calendar: Calendar,
+        requestedScanWindow: (sinceKey: String, untilKey: String),
+        reportWindow: (sinceKey: String, untilKey: String)? = nil,
+        hydratedPaths: Set<String>) -> CostUsageStoreBudgetResult
+    {
+        store.syncSaveCodexCatchUpCache(
+            cache,
+            calendar: calendar,
+            requestedScanWindow: requestedScanWindow,
+            reportWindow: reportWindow,
+            hydratedPaths: hydratedPaths)
     }
 }

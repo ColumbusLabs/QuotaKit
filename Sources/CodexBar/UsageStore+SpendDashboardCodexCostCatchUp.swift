@@ -93,6 +93,9 @@ extension UsageStore {
         self.spendDashboardCodexCostCatchUpTask = Task(priority: priority) { @MainActor [weak self] in
             guard let self else { return }
             defer {
+                // Catch-up parses the large Codex cache in bounded passes. Ask malloc to return
+                // free pages after every worker lifetime, including cancellation and failures.
+                self.scheduleMemoryPressureRelief()
                 if self.spendDashboardCodexCostCatchUpToken == token {
                     self.spendDashboardCodexCostCatchUpTask = nil
                     self.spendDashboardCodexCostCatchUpToken = nil
@@ -113,6 +116,7 @@ extension UsageStore {
         guard self.spendDashboardCodexCostCatchUpTask != nil else { return }
         self.spendDashboardCodexCostCatchUpStopRequested = true
         self.spendDashboardCodexCostCatchUpRestartRequested = false
+        self.scheduleMemoryPressureRelief()
         guard !self.spendDashboardCodexCostCatchUpPassIsRunning else { return }
         if let activity = self.spendDashboardCodexCostCatchUpActivity {
             self.spendDashboardCodexCostCatchUpActivity = CodexCostCatchUpActivity(
@@ -132,7 +136,11 @@ extension UsageStore {
     }
 
     func cancelSpendDashboardCodexCostCatchUp() {
+        let hadWorker = self.spendDashboardCodexCostCatchUpTask != nil
         self.spendDashboardCodexCostCatchUpTask?.cancel()
+        if hadWorker {
+            self.scheduleMemoryPressureRelief()
+        }
         self.spendDashboardCodexCostCatchUpTask = nil
         self.spendDashboardCodexCostCatchUpToken = nil
         self.spendDashboardCodexCostCatchUpScopeSignature = nil
@@ -226,8 +234,10 @@ extension UsageStore {
                         now: Date(),
                         historyDays: context.historyDays)
                     self.spendDashboardCodexCostCatchUpPassIsRunning = false
+                    self.scheduleMemoryPressureRelief()
                 } catch {
                     self.spendDashboardCodexCostCatchUpPassIsRunning = false
+                    self.scheduleMemoryPressureRelief()
                     throw error
                 }
                 previousActiveDuration = Self.spendDashboardCodexCatchUpDuration(

@@ -85,6 +85,8 @@ extension CostUsageScanner {
         var dayCacheRead = 0
         var dayOutput = 0
         var dayReasoning = 0
+        var dayRequestCount = 0
+        var dayUnpricedRequestCount = 0
         var breakdown: [CostUsageDailyReport.ModelBreakdown] = []
         var dayCost: Double = 0
         var dayCostSeen = false
@@ -98,6 +100,8 @@ extension CostUsageScanner {
             let totalTokens = input + output
             let rows = pricing.rowsByDayModel[day]?[model] ?? []
             let reasoning = rows.compactMap(\.reasoning).reduce(0, +)
+            let requestCount = rows.count
+            let unpricedRequestCount = rows.count { ($0.unpricedTokens ?? 0) > 0 }
 
             dayInput += input
             dayCacheRead += cached
@@ -105,6 +109,8 @@ extension CostUsageScanner {
             if reasoning > 0 {
                 dayReasoning += reasoning
             }
+            dayRequestCount += requestCount
+            dayUnpricedRequestCount += unpricedRequestCount
 
             let rowCost = rows.isEmpty ? nil : Self.codexRowCostBreakdown(
                 rows: rows,
@@ -139,6 +145,7 @@ extension CostUsageScanner {
                     modelName: model,
                     costUSD: cost,
                     totalTokens: totalTokens,
+                    requestCount: requestCount > 0 ? requestCount : nil,
                     inputTokens: input,
                     outputTokens: output,
                     cacheReadTokens: cached > 0 ? cached : nil,
@@ -162,10 +169,13 @@ extension CostUsageScanner {
             cacheReadTokens: dayCacheRead > 0 ? dayCacheRead : nil,
             reasoningTokens: dayReasoning > 0 ? dayReasoning : nil,
             totalTokens: dayTotal,
+            requestCount: dayRequestCount > 0 ? dayRequestCount : nil,
             costUSD: entryCost,
             modelsUsed: modelNames,
             modelBreakdowns: Self.sortedModelBreakdowns(breakdown),
-            unpricedRequestCount: entryCost == nil && dayTotal > 0 ? 1 : nil,
+            unpricedRequestCount: dayUnpricedRequestCount > 0
+                ? dayUnpricedRequestCount
+                : (entryCost == nil && dayTotal > 0 ? 1 : nil),
             unmeteredRequestCount: unmetered > 0 ? unmetered : nil)
     }
 }

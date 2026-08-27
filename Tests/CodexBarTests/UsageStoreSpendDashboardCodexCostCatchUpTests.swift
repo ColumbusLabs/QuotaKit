@@ -56,6 +56,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
         #expect(store.spendDashboardCodexCostCatchUpActivity?.mode == .accelerated)
         #expect(store.spendDashboardCodexCostCatchUpActivity?.fractionCompleted == 1)
+        #expect(store.memoryPressureReliefTask != nil)
     }
 
     @Test(arguments: [1, 7, 29, 123, 248, 365])

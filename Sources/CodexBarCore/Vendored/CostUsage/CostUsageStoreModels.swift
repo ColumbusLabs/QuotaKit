@@ -40,6 +40,8 @@ struct CostUsageStoreFile: Codable, Equatable, Sendable {
     var coverageSinceDay: String?
     var coverageUntilDay: String?
     var updatedAtUnixMs: Int64
+    var hasBufferedSubagentLines: Bool?
+    var hasBufferedUnresolvedForkLines: Bool?
 }
 
 struct CostUsageStoreTokenSnapshot: Codable, Equatable, Sendable {
@@ -67,7 +69,10 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
     var outputTokens: Int64
     var reasoningTokens: Int64
     var requestCount: Int64
+    var unpricedRequestCount: Int64
     var authoritativeCostNanos: Int64
+    var standardAuthoritativeCostNanos: Int64
+    var priorityAuthoritativeCostNanos: Int64
     var standardInputTokens: Int64
     var standardCachedTokens: Int64
     var standardOutputTokens: Int64
@@ -76,6 +81,10 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
     var priorityOutputTokens: Int64
     var standardTokens: Int64
     var priorityTokens: Int64
+    var standardResolvedCostNanos: Int64 = 0
+    var priorityResolvedCostNanos: Int64 = 0
+    var standardUnresolvedPricingCount: Int64 = 0
+    var priorityUnresolvedPricingCount: Int64 = 0
 
     static func zero(day: String, model: String) -> Self {
         Self(
@@ -86,7 +95,10 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
             outputTokens: 0,
             reasoningTokens: 0,
             requestCount: 0,
+            unpricedRequestCount: 0,
             authoritativeCostNanos: 0,
+            standardAuthoritativeCostNanos: 0,
+            priorityAuthoritativeCostNanos: 0,
             standardInputTokens: 0,
             standardCachedTokens: 0,
             standardOutputTokens: 0,
@@ -94,7 +106,11 @@ struct CostUsageStoreDayAggregate: Codable, Equatable, Sendable {
             priorityCachedTokens: 0,
             priorityOutputTokens: 0,
             standardTokens: 0,
-            priorityTokens: 0)
+            priorityTokens: 0,
+            standardResolvedCostNanos: 0,
+            priorityResolvedCostNanos: 0,
+            standardUnresolvedPricingCount: 0,
+            priorityUnresolvedPricingCount: 0)
     }
 }
 
@@ -182,6 +198,7 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var exactInventoryCompletedFlatRootPaths: [String]?
     var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
+    var priorityMigrationGenerationKey: String?
 }
 
 struct CostUsageStoreAccumulator: Codable, Equatable, Sendable {

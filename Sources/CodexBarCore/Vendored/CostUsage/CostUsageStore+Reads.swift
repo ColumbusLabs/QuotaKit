@@ -31,6 +31,21 @@ extension CostUsageStore {
         }
     }
 
+    func fetchDetailCounts(path: String) -> (snapshotCount: Int, rowCount: Int) {
+        self.withDatabase(default: (0, 0)) { database in
+            let statement = try Self.prepare(database, """
+            SELECT
+                (SELECT COUNT(*) FROM token_snapshots WHERE file_id = f.id),
+                (SELECT COUNT(*) FROM usage_rows WHERE file_id = f.id)
+            FROM files f WHERE f.path = ?
+            """)
+            defer { sqlite3_finalize(statement) }
+            Self.bind(path, to: statement, at: 1)
+            guard sqlite3_step(statement) == SQLITE_ROW else { return (0, 0) }
+            return (Int(sqlite3_column_int64(statement, 0)), Int(sqlite3_column_int64(statement, 1)))
+        }
+    }
+
     func fetchDayAggregates(sinceDay: String, untilDay: String) -> [CostUsageStoreDayAggregate] {
         guard sinceDay <= untilDay else { return [] }
         return self.withDatabase(default: []) { database in
@@ -75,6 +90,43 @@ extension CostUsageStore {
     func fetchAccumulator(path: String) -> CostUsageStoreAccumulator? {
         self.withDatabase(default: nil) { database in
             try Self.readAccumulators(database, path: path).first
+        }
+    }
+
+    /// Finds only files whose persisted usage rows mention one of the changed priority turn IDs.
+    /// The payload is intentionally queried in SQLite so a priority metadata update does not
+    /// require hydrating every file's event ledger into Swift memory.
+    func pathsContainingCodexTurnIDs(_ turnIDs: Set<String>) throws -> Set<String> {
+        guard !turnIDs.isEmpty else { return [] }
+        let database = try self.ensureDatabase()
+        return try Self.inReadTransaction(database) {
+            var paths: Set<String> = []
+            let sortedTurnIDs = turnIDs.sorted()
+            for start in stride(from: 0, to: sortedTurnIDs.count, by: 500) {
+                let chunk = sortedTurnIDs[start..<min(start + 500, sortedTurnIDs.count)]
+                let placeholders = Array(repeating: "?", count: chunk.count).joined(separator: ",")
+                let statement = try Self.prepare(database, """
+                SELECT DISTINCT f.path
+                FROM usage_rows r
+                JOIN files f ON f.id = r.file_id
+                WHERE json_extract(r.payload, '$.turnID') IN (\(placeholders))
+                ORDER BY f.path
+                """)
+                defer { sqlite3_finalize(statement) }
+                for (index, turnID) in chunk.enumerated() {
+                    Self.bind(turnID, to: statement, at: Int32(index + 1))
+                }
+                var result = sqlite3_step(statement)
+                while result == SQLITE_ROW {
+                    guard let path = Self.columnText(statement, at: 0) else {
+                        throw StoreError.invalidData
+                    }
+                    paths.insert(path)
+                    result = sqlite3_step(statement)
+                }
+                guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+            }
+            return paths
         }
     }
 
@@ -146,6 +198,55 @@ extension CostUsageStore {
     func readSnapshotInCurrentTransaction() -> CostUsageStoreSnapshot {
         self.withDatabase(default: Self.emptySnapshot) { database in
             try Self.readSnapshot(database)
+        }
+    }
+
+    /// Reads the compact Codex manifest and aggregate tables without materializing the event
+    /// ledger. Event rows are loaded only for `hydratingPaths`, which is the working set selected
+    /// by a bounded scanner pass. This intentionally does not call `readSnapshot()` so callers
+    /// can prove that routine catch-up never performs a cache-wide event read.
+    func readCodexWorkingSetSnapshot(
+        hydratingPaths: Set<String>?) -> CostUsageStoreSnapshot
+    {
+        self.withDatabase(default: Self.emptySnapshot) { database in
+            try Self.inReadTransaction(database) {
+                let files = try Self.readFiles(database, includeBufferedPresence: true)
+                let paths = hydratingPaths.map { Set($0) }
+                let hydratedPaths = paths ?? Set(files.map(\.path))
+                return try CostUsageStoreSnapshot(
+                    metadata: Self.readSingleton(
+                        CostUsageStoreMetadata.self,
+                        database: database,
+                        table: "scan_metadata") ?? .empty,
+                    files: files,
+                    tokenSnapshots: Self.readTokenSnapshots(
+                        database,
+                        paths: hydratedPaths),
+                    usageRows: Self.readUsageRows(
+                        database,
+                        paths: hydratedPaths),
+                    fileDayAggregates: Self.readFileDayAggregates(database, path: nil),
+                    dayAggregates: Self.readDayAggregates(
+                        database,
+                        sinceDay: nil,
+                        untilDay: nil),
+                    forkLineage: Self.readForkLineage(database, path: nil),
+                    bufferedLines: Self.readBufferedLines(
+                        database,
+                        paths: hydratedPaths,
+                        kind: nil),
+                    discoveryState: Self.readSingleton(
+                        CostUsageStoreDiscoveryState.self,
+                        database: database,
+                        table: "discovery_state"),
+                    lookbackState: Self.readSingleton(
+                        CostUsageStoreLookbackState.self,
+                        database: database,
+                        table: "lookback_state"),
+                    accumulators: Self.readAccumulators(
+                        database,
+                        paths: hydratedPaths))
+            }
         }
     }
 
@@ -288,7 +389,9 @@ extension CostUsageStore {
     private static let fileSelectSQL = """
     SELECT path, inode, mtime_ms, size, parsed_bytes, anchor_indexed_bytes,
            anchor_window_start, anchor_sha256, scan_state, scan_target_size,
-           scan_complete, session_id, coverage_since_day, coverage_until_day, updated_at_ms
+           scan_complete, session_id, coverage_since_day, coverage_until_day, updated_at_ms,
+           EXISTS (SELECT 1 FROM buffered_lines b WHERE b.file_id = files.id AND b.kind = 'subagent'),
+           EXISTS (SELECT 1 FROM buffered_lines b WHERE b.file_id = files.id AND b.kind = 'unresolvedFork')
     FROM files
     """
 
@@ -345,6 +448,29 @@ extension CostUsageStore {
         return values
     }
 
+    static func readCodexFileIdentities(
+        _ database: OpaquePointer) throws -> [(path: String, identity: String)]
+    {
+        let statement = try self.prepare(database, """
+        SELECT path, json_extract(scan_state, '$.fileIdentity')
+        FROM files
+        WHERE json_extract(scan_state, '$.fileIdentity') IS NOT NULL
+        ORDER BY path
+        """)
+        defer { sqlite3_finalize(statement) }
+        var values: [(path: String, identity: String)] = []
+        var result = sqlite3_step(statement)
+        while result == SQLITE_ROW {
+            guard let path = self.columnText(statement, at: 0),
+                  let identity = self.columnText(statement, at: 1)
+            else { throw StoreError.invalidData }
+            values.append((path: path, identity: identity))
+            result = sqlite3_step(statement)
+        }
+        guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
+        return values
+    }
+
     private static func readCodexCatchUpMetadata(
         _ database: OpaquePointer) throws -> CatchUpMetadata
     {
@@ -363,7 +489,9 @@ extension CostUsageStore {
         """)
         defer { sqlite3_finalize(statement) }
         let result = sqlite3_step(statement)
-        if result == SQLITE_DONE { return .empty }
+        if result == SQLITE_DONE {
+            return .empty
+        }
         guard result == SQLITE_ROW else { throw StoreError.sqlite(result) }
 
         let rootMtimes = self.columnText(statement, at: 1).flatMap { json in
@@ -387,20 +515,26 @@ extension CostUsageStore {
             previousReportUpdatedAtUnixMs: previousReportUpdatedAtUnixMs)
     }
 
-    static func readFiles(_ database: OpaquePointer) throws -> [CostUsageStoreFile] {
+    static func readFiles(
+        _ database: OpaquePointer,
+        includeBufferedPresence: Bool = false) throws -> [CostUsageStoreFile]
+    {
         let statement = try self.prepare(database, self.fileSelectSQL + " ORDER BY path")
         defer { sqlite3_finalize(statement) }
         var values: [CostUsageStoreFile] = []
         var result = sqlite3_step(statement)
         while result == SQLITE_ROW {
-            try values.append(self.decodeFile(statement))
+            try values.append(self.decodeFile(statement, includeBufferedPresence: includeBufferedPresence))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
         return values
     }
 
-    static func decodeFile(_ statement: OpaquePointer) throws -> CostUsageStoreFile {
+    static func decodeFile(
+        _ statement: OpaquePointer,
+        includeBufferedPresence: Bool = false) throws -> CostUsageStoreFile
+    {
         guard let path = self.columnText(statement, at: 0),
               let stateData = self.columnData(statement, at: 8)
         else { throw StoreError.invalidData }
@@ -426,7 +560,11 @@ extension CostUsageStore {
             sessionID: self.columnText(statement, at: 11),
             coverageSinceDay: self.columnText(statement, at: 12),
             coverageUntilDay: self.columnText(statement, at: 13),
-            updatedAtUnixMs: sqlite3_column_int64(statement, 14))
+            updatedAtUnixMs: sqlite3_column_int64(statement, 14),
+            hasBufferedSubagentLines:
+            includeBufferedPresence && sqlite3_column_int(statement, 15) == 1 ? true : nil,
+            hasBufferedUnresolvedForkLines:
+            includeBufferedPresence && sqlite3_column_int(statement, 16) == 1 ? true : nil)
     }
 
     static func readTokenSnapshots(
@@ -470,6 +608,16 @@ extension CostUsageStore {
         return values
     }
 
+    private static func readTokenSnapshots(
+        _ database: OpaquePointer,
+        paths: Set<String>) throws -> [CostUsageStoreTokenSnapshot]
+    {
+        guard !paths.isEmpty else { return [] }
+        return try paths.sorted().flatMap {
+            try self.readTokenSnapshots(database, path: $0)
+        }
+    }
+
     static func readUsageRows(
         _ database: OpaquePointer,
         path: String?) throws -> [CostUsageStoreUsageRow]
@@ -501,6 +649,16 @@ extension CostUsageStore {
         return values
     }
 
+    private static func readUsageRows(
+        _ database: OpaquePointer,
+        paths: Set<String>) throws -> [CostUsageStoreUsageRow]
+    {
+        guard !paths.isEmpty else { return [] }
+        return try paths.sorted().flatMap {
+            try self.readUsageRows(database, path: $0)
+        }
+    }
+
     static func readDayAggregates(
         _ database: OpaquePointer,
         sinceDay: String?,
@@ -508,10 +666,13 @@ extension CostUsageStore {
     {
         var sql = """
         SELECT day, model, input_tokens, cached_tokens, output_tokens, reasoning_tokens,
-               request_count, authoritative_cost_nanos,
+               request_count, unpriced_request_count, authoritative_cost_nanos,
+               standard_authoritative_cost_nanos, priority_authoritative_cost_nanos,
                standard_input_tokens, standard_cached_tokens, standard_output_tokens,
                priority_input_tokens, priority_cached_tokens, priority_output_tokens,
-               standard_tokens, priority_tokens
+               standard_tokens, priority_tokens, standard_resolved_cost_nanos,
+               priority_resolved_cost_nanos, standard_unresolved_pricing_count,
+               priority_unresolved_pricing_count
         FROM day_aggregates
         """
         if sinceDay != nil, untilDay != nil {
@@ -538,15 +699,22 @@ extension CostUsageStore {
                 outputTokens: sqlite3_column_int64(statement, 4),
                 reasoningTokens: sqlite3_column_int64(statement, 5),
                 requestCount: sqlite3_column_int64(statement, 6),
-                authoritativeCostNanos: sqlite3_column_int64(statement, 7),
-                standardInputTokens: sqlite3_column_int64(statement, 8),
-                standardCachedTokens: sqlite3_column_int64(statement, 9),
-                standardOutputTokens: sqlite3_column_int64(statement, 10),
-                priorityInputTokens: sqlite3_column_int64(statement, 11),
-                priorityCachedTokens: sqlite3_column_int64(statement, 12),
-                priorityOutputTokens: sqlite3_column_int64(statement, 13),
-                standardTokens: sqlite3_column_int64(statement, 14),
-                priorityTokens: sqlite3_column_int64(statement, 15)))
+                unpricedRequestCount: sqlite3_column_int64(statement, 7),
+                authoritativeCostNanos: sqlite3_column_int64(statement, 8),
+                standardAuthoritativeCostNanos: sqlite3_column_int64(statement, 9),
+                priorityAuthoritativeCostNanos: sqlite3_column_int64(statement, 10),
+                standardInputTokens: sqlite3_column_int64(statement, 11),
+                standardCachedTokens: sqlite3_column_int64(statement, 12),
+                standardOutputTokens: sqlite3_column_int64(statement, 13),
+                priorityInputTokens: sqlite3_column_int64(statement, 14),
+                priorityCachedTokens: sqlite3_column_int64(statement, 15),
+                priorityOutputTokens: sqlite3_column_int64(statement, 16),
+                standardTokens: sqlite3_column_int64(statement, 17),
+                priorityTokens: sqlite3_column_int64(statement, 18),
+                standardResolvedCostNanos: sqlite3_column_int64(statement, 19),
+                priorityResolvedCostNanos: sqlite3_column_int64(statement, 20),
+                standardUnresolvedPricingCount: sqlite3_column_int64(statement, 21),
+                priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 22)))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
@@ -559,10 +727,13 @@ extension CostUsageStore {
     {
         var sql = """
         SELECT f.path, a.day, a.model, a.input_tokens, a.cached_tokens, a.output_tokens,
-               a.reasoning_tokens, a.request_count, a.authoritative_cost_nanos,
+               a.reasoning_tokens, a.request_count, a.unpriced_request_count, a.authoritative_cost_nanos,
+               a.standard_authoritative_cost_nanos, a.priority_authoritative_cost_nanos,
                a.standard_input_tokens, a.standard_cached_tokens, a.standard_output_tokens,
                a.priority_input_tokens, a.priority_cached_tokens, a.priority_output_tokens,
-               a.standard_tokens, a.priority_tokens
+               a.standard_tokens, a.priority_tokens, a.standard_resolved_cost_nanos,
+               a.priority_resolved_cost_nanos, a.standard_unresolved_pricing_count,
+               a.priority_unresolved_pricing_count
         FROM file_day_aggregates a JOIN files f ON f.id = a.file_id
         """
         if path != nil {
@@ -591,15 +762,22 @@ extension CostUsageStore {
                     outputTokens: sqlite3_column_int64(statement, 5),
                     reasoningTokens: sqlite3_column_int64(statement, 6),
                     requestCount: sqlite3_column_int64(statement, 7),
-                    authoritativeCostNanos: sqlite3_column_int64(statement, 8),
-                    standardInputTokens: sqlite3_column_int64(statement, 9),
-                    standardCachedTokens: sqlite3_column_int64(statement, 10),
-                    standardOutputTokens: sqlite3_column_int64(statement, 11),
-                    priorityInputTokens: sqlite3_column_int64(statement, 12),
-                    priorityCachedTokens: sqlite3_column_int64(statement, 13),
-                    priorityOutputTokens: sqlite3_column_int64(statement, 14),
-                    standardTokens: sqlite3_column_int64(statement, 15),
-                    priorityTokens: sqlite3_column_int64(statement, 16))))
+                    unpricedRequestCount: sqlite3_column_int64(statement, 8),
+                    authoritativeCostNanos: sqlite3_column_int64(statement, 9),
+                    standardAuthoritativeCostNanos: sqlite3_column_int64(statement, 10),
+                    priorityAuthoritativeCostNanos: sqlite3_column_int64(statement, 11),
+                    standardInputTokens: sqlite3_column_int64(statement, 12),
+                    standardCachedTokens: sqlite3_column_int64(statement, 13),
+                    standardOutputTokens: sqlite3_column_int64(statement, 14),
+                    priorityInputTokens: sqlite3_column_int64(statement, 15),
+                    priorityCachedTokens: sqlite3_column_int64(statement, 16),
+                    priorityOutputTokens: sqlite3_column_int64(statement, 17),
+                    standardTokens: sqlite3_column_int64(statement, 18),
+                    priorityTokens: sqlite3_column_int64(statement, 19),
+                    standardResolvedCostNanos: sqlite3_column_int64(statement, 20),
+                    priorityResolvedCostNanos: sqlite3_column_int64(statement, 21),
+                    standardUnresolvedPricingCount: sqlite3_column_int64(statement, 22),
+                    priorityUnresolvedPricingCount: sqlite3_column_int64(statement, 23))))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
@@ -696,6 +874,17 @@ extension CostUsageStore {
         return values
     }
 
+    private static func readBufferedLines(
+        _ database: OpaquePointer,
+        paths: Set<String>,
+        kind: CostUsageStoreBufferedLineKind?) throws -> [CostUsageStoreBufferedLine]
+    {
+        guard !paths.isEmpty else { return [] }
+        return try paths.sorted().flatMap {
+            try self.readBufferedLines(database, path: $0, kind: kind)
+        }
+    }
+
     static func readAccumulators(
         _ database: OpaquePointer,
         path: String?) throws -> [CostUsageStoreAccumulator]
@@ -740,6 +929,16 @@ extension CostUsageStore {
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }
         return values
+    }
+
+    private static func readAccumulators(
+        _ database: OpaquePointer,
+        paths: Set<String>) throws -> [CostUsageStoreAccumulator]
+    {
+        guard !paths.isEmpty else { return [] }
+        return try paths.sorted().compactMap {
+            try self.readAccumulators(database, path: $0).first
+        }
     }
 }
 

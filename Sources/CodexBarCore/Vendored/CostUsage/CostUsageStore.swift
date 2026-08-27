@@ -71,7 +71,12 @@ actor CostUsageStore {
 
     static let log = CodexBarLog.logger(LogCategories.tokenCost)
     static let databaseFilename = "cost-usage.sqlite"
-    static let baseSchemaVersion = 3
+    // v4 persists authoritative cost by service tier. The store is a derived cache, so older
+    // schemas rebuild and deterministically re-index the session corpus rather than inventing
+    // a tier split for their combined historical cost.
+    // v6 persists resolved non-authoritative pricing. It is rebuilt whenever the pricing key
+    // changes, preserving routed pricing-model and historical-date semantics compactly.
+    static let baseSchemaVersion = 6
     static let schemaVersion = CostUsageStore.combinedSchemaVersion(
         base: CostUsageStore.baseSchemaVersion,
         parserHash: CodexParserHash.value)
@@ -117,6 +122,12 @@ actor CostUsageStore {
     /// Test-only traversal proof for persisted Codex catch-up reconciliation. Never set in production.
     nonisolated(unsafe) static var codexCatchUpReconciliationVisitForTesting: (() -> Void)?
 
+    /// Test-only failure injection inside the bounded delta transaction, after file writes and
+    /// before metadata writes. Used to prove transient SQLite errors preserve the prior store.
+    nonisolated(unsafe) static var codexCatchUpDeltaFailureForTesting: ((URL) throws -> Void)?
+    /// Test-only failure injection after a budget deletion but before aggregate/metadata repair.
+    nonisolated(unsafe) static var budgetMutationFailureForTesting: ((URL) throws -> Void)?
+
     #if DEBUG
     /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
     nonisolated(unsafe) static var snapshotReadForTesting: ((URL) -> Void)?
@@ -141,6 +152,11 @@ actor CostUsageStore {
     /// remainder of the cycle so the outer transaction rolls back as a unit.
     private var activeTransactionDatabase: OpaquePointer?
     private var activeTransactionError: Error?
+
+    func activeSaveDatabase() throws -> OpaquePointer {
+        guard let activeTransactionDatabase else { throw StoreError.sqlite(SQLITE_MISUSE) }
+        return activeTransactionDatabase
+    }
 
     init(
         cacheRoot: URL? = nil,
@@ -187,11 +203,34 @@ extension CostUsageStore {
         }
     }
 
+    nonisolated func syncLoadCodexCache(
+        calendar: Calendar,
+        hydratingPaths: Set<String>?) -> CostUsageCache
+    {
+        self.syncWithStoreIsolation { store in
+            store.loadCodexCache(calendar: calendar, hydratingPaths: hydratingPaths)
+        }
+    }
+
+    nonisolated func syncPathsContainingCodexTurnIDs(_ turnIDs: Set<String>) throws -> Set<String> {
+        try self.syncWithStoreIsolation { store in
+            try store.pathsContainingCodexTurnIDs(turnIDs)
+        }
+    }
+
     nonisolated func syncReadCodexCatchUpProjection(
         calendar: Calendar) -> CostUsageStoreCatchUpProjection
     {
         self.syncWithStoreIsolation { store in
             store.readCodexCatchUpProjection(calendar: calendar)
+        }
+    }
+
+    nonisolated func syncReadCodexReportProjection(
+        calendar: Calendar) -> CostUsageStoreCodexReportProjection
+    {
+        self.syncWithStoreIsolation { store in
+            store.readCodexReportProjection(calendar: calendar)
         }
     }
 
@@ -213,6 +252,23 @@ extension CostUsageStore {
                 rowBudget: rowBudget,
                 fileBudgetBytes: fileBudgetBytes,
                 skipIdenticalContent: skipIdenticalContent)
+        }
+    }
+
+    nonisolated func syncSaveCodexCatchUpCache(
+        _ cache: CostUsageCache,
+        calendar: Calendar,
+        requestedScanWindow: (sinceKey: String, untilKey: String),
+        reportWindow: (sinceKey: String, untilKey: String)? = nil,
+        hydratedPaths: Set<String>) -> CostUsageStoreBudgetResult
+    {
+        self.syncWithStoreIsolation { store in
+            store.saveCodexCatchUpCache(
+                cache,
+                calendar: calendar,
+                requestedScanWindow: requestedScanWindow,
+                reportWindow: reportWindow,
+                hydratedPaths: hydratedPaths)
         }
     }
 }
@@ -627,7 +683,10 @@ extension CostUsageStore {
         output_tokens INTEGER NOT NULL,
         reasoning_tokens INTEGER NOT NULL,
         request_count INTEGER NOT NULL,
+        unpriced_request_count INTEGER NOT NULL,
         authoritative_cost_nanos INTEGER NOT NULL,
+        standard_authoritative_cost_nanos INTEGER NOT NULL,
+        priority_authoritative_cost_nanos INTEGER NOT NULL,
         standard_input_tokens INTEGER NOT NULL,
         standard_cached_tokens INTEGER NOT NULL,
         standard_output_tokens INTEGER NOT NULL,
@@ -636,6 +695,10 @@ extension CostUsageStore {
         priority_output_tokens INTEGER NOT NULL,
         standard_tokens INTEGER NOT NULL,
         priority_tokens INTEGER NOT NULL,
+        standard_resolved_cost_nanos INTEGER NOT NULL,
+        priority_resolved_cost_nanos INTEGER NOT NULL,
+        standard_unresolved_pricing_count INTEGER NOT NULL,
+        priority_unresolved_pricing_count INTEGER NOT NULL,
         PRIMARY KEY(file_id, day, model)
     );
     CREATE INDEX file_day_aggregates_day_idx ON file_day_aggregates(day);
@@ -648,7 +711,10 @@ extension CostUsageStore {
         output_tokens INTEGER NOT NULL,
         reasoning_tokens INTEGER NOT NULL,
         request_count INTEGER NOT NULL,
+        unpriced_request_count INTEGER NOT NULL,
         authoritative_cost_nanos INTEGER NOT NULL,
+        standard_authoritative_cost_nanos INTEGER NOT NULL,
+        priority_authoritative_cost_nanos INTEGER NOT NULL,
         standard_input_tokens INTEGER NOT NULL,
         standard_cached_tokens INTEGER NOT NULL,
         standard_output_tokens INTEGER NOT NULL,
@@ -657,6 +723,10 @@ extension CostUsageStore {
         priority_output_tokens INTEGER NOT NULL,
         standard_tokens INTEGER NOT NULL,
         priority_tokens INTEGER NOT NULL,
+        standard_resolved_cost_nanos INTEGER NOT NULL,
+        priority_resolved_cost_nanos INTEGER NOT NULL,
+        standard_unresolved_pricing_count INTEGER NOT NULL,
+        priority_unresolved_pricing_count INTEGER NOT NULL,
         PRIMARY KEY(day, model)
     );
     CREATE INDEX day_aggregates_day_idx ON day_aggregates(day);
