@@ -5,6 +5,22 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.22</title>
+            <pubDate>Sat, 29 Aug 2026 03:09:48 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.22.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.22</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.22 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: publish fully verified current-day token and cost totals while older history remains in bounded catch-up, without replacing established historical totals or reintroducing large-cache memory spikes.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.22/QuotaKit-macos-universal-0.32.4.22.zip" length="80801738" type="application/octet-stream" sparkle:edSignature="IFaSIqBfKncXSrnzfjYOWbx4PGlW/XQMh+s9dalyxabyf4jC6GokWbRZIBDWHh3loFBdg5aRaJjF/ErvR12YBw=="/>
+        </item>
+        <item>
             <title>0.32.4.21</title>
             <pubDate>Thu, 27 Aug 2026 10:25:43 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -67,46 +83,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.20/QuotaKit-macos-universal-0.32.4.20.zip" length="78207162" type="application/octet-stream" sparkle:edSignature="jHj/EtMz+fnEpyU0ZmS+ci/fC1s0Zxg1XDIxXRVzMEMHqc6doHLc7rx2XPSMqonkp+Bz3jtm+AysR/YvFgmuAA=="/>
-        </item>
-        <item>
-            <title>0.32.4.19</title>
-            <pubDate>Wed, 19 Aug 2026 08:03:16 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.19.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.19</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.19 Mobile 1.11.3</h2>
-<h3>Added</h3>
-<ul>
-<li>Personalization: add per-provider accent colors, configurable workday tick contrast, removable widget backgrounds, compact run-out tokens, and token-aware cost history charts.</li>
-<li>Usage & Spend: add source-safe project breakdowns, partial-cost reporting, provider-qualified model pricing, and Codex session grouping in the CLI.</li>
-<li>Accounts: add bounded Kiro reauthentication, Cursor app-session discovery, explicit Codex external-auth controls, and settings recovery for minimized windows.</li>
-<li>OpenCode: show monthly pay-as-you-go spend and prepaid balance, including an iPhone-safe status that never renders an unlimited workspace as a false <code>$used / $0</code> budget.</li>
-<li>Amp: support monthly subscriptions, separate Other and Orb usage, preserve the daily free-tier lane, and keep the typed Mac-to-iPhone compatibility payload intact.</li>
-<li>Codex: read EDU monthly spend-control limits and make large local-history catch-up bounded, resumable, and persistent across relaunches.</li>
-<li>Grok and LongCat: read current billing credits and live token-pack usage from their provider-owned endpoints.</li>
-<li>Menu bar: add accessible vertical icon adjustment, system dimming, Ghostty terminal selection, draggable layout fixes, and preferred-currency cost-history charts with CZK support.</li>
-</ul>
-<h3>Changed</h3>
-<ul>
-<li>Synced reviewed CodexBar development through <code>7c64d280f</code>, adopting provider, authentication, dashboard, widget, presentation, and Mac lifecycle work while preserving QuotaKit identity, Columbus Labs release ownership, redacted-by-default serving, the full provider registry, CloudKit/App Group and typed iPhone contracts, and all release/build numbers.</li>
-<li>Claude: preserve OAuth authority and actionable prompt-free web recovery errors, refresh the displayed CLI version after explicit usage fetches, and retain QuotaKit's stricter rule that opaque Claude CLI processes run only from explicit user actions.</li>
-</ul>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: keep provider-owned OAuth files read-only, recover account identity from JWT claims, preserve established-empty history, and retain known spend when some models cannot be priced.</li>
-<li>Claude, Cursor, Grok, Ollama, OpenCode Go, Vertex AI, and Antigravity: improve account recovery, local-source authority, plan labels, cookie parsing, quota estimates, limit matching, and dashboard lane selection without live credential probing.</li>
-<li>Mac lifecycle: remove the hidden keepalive window while retaining continuous Mac-to-iPhone sync and noninteractive legacy Keychain migration from durable app startup ownership.</li>
-<li>Provider status: keep transport errors out of menus until a real status fetch succeeds while preserving the last successful provider status through later fetch failures.</li>
-<li>Usage & Spend: preserve complete requested and retained Codex history under byte pressure, recover orphaned resumable catch-up work, reduce catch-up status memory use, distinguish known zero totals from unavailable data, reject incomplete cost rows, and keep narrow dashboard projections from shrinking retained coverage.</li>
-<li>OpenAI dashboard: release hidden WebViews after handoff, cap idle animation work, and make scrape readiness and credits-history recovery deterministic.</li>
-<li>Antigravity: recognize the renamed Gemini desktop app, hide untouched model families without dropping unknown families, and apply the same visibility rules to widgets.</li>
-<li>Process handling: bound PTY hard-stop cleanup, resolve helper resources through CLI symlinks, and escalate orphaned RPC children through a bounded teardown path.</li>
-<li>Codex and Ollama: confirm zero-credit server resets correctly and recover browser-backed usage without spurious background sign-in errors.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.19/QuotaKit-macos-universal-0.32.4.19.zip" length="75867339" type="application/octet-stream" sparkle:edSignature="887f36oJ/de+KencqrXMM/pVzTrVsAakxKIEB3dXuvzHtBGuEBa9LH/GWqEIWhbUq/YtMlB4iopS64e9Xt7IAA=="/>
         </item>
     </channel>
 </rss>
