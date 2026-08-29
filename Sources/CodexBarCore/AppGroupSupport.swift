@@ -6,6 +6,8 @@ import Security
 public enum AppGroupSupport {
     public static let defaultTeamID = "Y5PE65HELJ"
     public static let teamIDInfoKey = "CodexBarTeamID"
+    public static let quotaKitGroupID = "group.com.columbuslabs.quotakit"
+    public static let quotaKitDebugGroupID = "group.com.columbuslabs.quotakit.debug"
     public static let legacyReleaseGroupID = "group.com.steipete.codexbar"
     public static let legacyDebugGroupID = "group.com.steipete.codexbar.debug"
     public static let widgetSnapshotFilename = "widget-snapshot.json"
@@ -40,8 +42,17 @@ public enum AppGroupSupport {
     }
 
     static func currentGroupID(teamID: String, bundleID: String?) -> String {
+        if self.isQuotaKitBundleID(bundleID) {
+            return self.isDebugBundleID(bundleID) ? self.quotaKitDebugGroupID : self.quotaKitGroupID
+        }
+
         let base = "\(teamID).com.steipete.codexbar"
         return self.isDebugBundleID(bundleID) ? "\(base).debug" : base
+    }
+
+    private static func isQuotaKitBundleID(_ bundleID: String?) -> Bool {
+        let baseBundleID = "com.columbuslabs.quotakit.mac"
+        return bundleID == baseBundleID || bundleID?.hasPrefix("\(baseBundleID).") == true
     }
 
     public static func resolvedTeamID(bundle: Bundle = .main) -> String {

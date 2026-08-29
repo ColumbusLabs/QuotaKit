@@ -20,6 +20,25 @@ struct AppGroupSupportTests {
     }
 
     @Test
+    func `QuotaKit app and widget use Columbus Labs app groups`() {
+        #expect(
+            AppGroupSupport.currentGroupID(
+                teamID: "78PXX669LQ",
+                bundleID: "com.columbuslabs.quotakit.mac")
+                == AppGroupSupport.quotaKitGroupID)
+        #expect(
+            AppGroupSupport.currentGroupID(
+                teamID: "78PXX669LQ",
+                bundleID: "com.columbuslabs.quotakit.mac.widget")
+                == AppGroupSupport.quotaKitGroupID)
+        #expect(
+            AppGroupSupport.currentGroupID(
+                teamID: "78PXX669LQ",
+                bundleID: "com.columbuslabs.quotakit.mac.debug")
+                == AppGroupSupport.quotaKitDebugGroupID)
+    }
+
+    @Test
     func `resolved team id falls back to plist and then default`() {
         #expect(
             AppGroupSupport.resolvedTeamID(
