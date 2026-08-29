@@ -1144,6 +1144,7 @@ enum CostUsageScanner {
         private let roots: [URL]
         private let checkCancellation: CancellationCheck?
         private let scanBudget: CodexScanBudget?
+        private var metadataScanBudget: CodexScanBudget?
         private let headParseObserver: (() -> Void)?
         private var discovery: CostUsageCodexSessionDiscovery
         private var knownFilePaths: Set<String> = []
@@ -1162,6 +1163,7 @@ enum CostUsageScanner {
             self.roots = roots
             self.checkCancellation = checkCancellation
             self.scanBudget = scanBudget
+            self.metadataScanBudget = nil
             self.headParseObserver = headParseObserver
             let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
             if var cachedDiscovery, cachedDiscovery.roots == rootPaths {
@@ -1192,6 +1194,43 @@ enum CostUsageScanner {
         var hasPendingDiscovery: Bool {
             !self.discovery.isComplete
                 && (!self.discovery.pendingSessionIds.isEmpty || self.discovery.headScan != nil)
+        }
+
+        var hasPendingMetadataInventory: Bool {
+            self.discovery.nextDirectoryIndex < self.discovery.directoryPaths.count
+                || Set(self.discovery.directoryPaths) != Set(self.discovery.directoryStamps.keys)
+                || self.discovery.validationDirectoryIndex > 0
+        }
+
+        /// Advances the filesystem inventory without parsing session heads. This lets callers
+        /// prove a fresh current-day projection while older session contents remain in bounded
+        /// catch-up. A separate bounded budget and persisted cursor keep traversal incremental
+        /// without taking time from current-day parsing.
+        func advanceMetadataInventory(scanBudget: CodexScanBudget? = nil) throws {
+            self.metadataScanBudget = scanBudget
+            defer { self.metadataScanBudget = nil }
+            let inventoryIsComplete = self.discovery.nextDirectoryIndex == self.discovery.directoryPaths.count
+                && Set(self.discovery.directoryPaths) == Set(self.discovery.directoryStamps.keys)
+            if inventoryIsComplete {
+                switch try self.validateInventory() {
+                case .current:
+                    return
+                case .changed:
+                    self.discovery = Self.makeFreshDiscovery(
+                        roots: self.roots,
+                        files: self.files,
+                        cachedSessionFiles: self.cachedSessionFiles(),
+                        retaining: self.discovery)
+                    self.knownFilePaths = Set(self.discovery.filePaths)
+                    self.knownDirectoryPaths = Set(self.discovery.directoryPaths)
+                case .deferred:
+                    return
+                }
+            }
+
+            while self.discovery.nextDirectoryIndex < self.discovery.directoryPaths.count {
+                guard try self.enumerateNextDirectory() else { return }
+            }
         }
 
         func remember(fileURL: URL, sessionId: String?) {
@@ -1349,9 +1388,10 @@ enum CostUsageScanner {
         }
 
         private func enumerateNextDirectory() throws -> Bool {
+            let directoryBudget = self.metadataScanBudget ?? self.scanBudget
             let admittedWork: Int64
-            if let scanBudget = self.scanBudget {
-                switch scanBudget.admit(workBytes: 1) {
+            if let directoryBudget {
+                switch directoryBudget.admit(workBytes: 1) {
                 case let .allow(allowance): admittedWork = allowance
                 case .deferBudget: return false
                 }
@@ -1359,7 +1399,7 @@ enum CostUsageScanner {
                 admittedWork = 1
             }
             defer {
-                self.scanBudget?.complete(admittedWorkBytes: admittedWork, actualWorkBytes: admittedWork)
+                directoryBudget?.complete(admittedWorkBytes: admittedWork, actualWorkBytes: admittedWork)
             }
 
             try self.checkCancellation?()
@@ -1385,7 +1425,7 @@ enum CostUsageScanner {
                 mtimeUnixMs: metadata.mtimeUnixMs,
                 jsonlFileCount: jsonlFileCount)
             self.discovery.nextDirectoryIndex += 1
-            return !self.scanBudgetExhausted()
+            return !self.metadataScanBudgetExhausted()
         }
 
         private func enqueueCurrentFiles() {
@@ -1427,10 +1467,11 @@ enum CostUsageScanner {
         }
 
         private func validateInventory() throws -> InventoryValidation {
+            let directoryBudget = self.metadataScanBudget ?? self.scanBudget
             while self.discovery.validationDirectoryIndex < self.discovery.directoryPaths.count {
                 let admittedWork: Int64
-                if let scanBudget = self.scanBudget {
-                    switch scanBudget.admit(workBytes: 1) {
+                if let directoryBudget {
+                    switch directoryBudget.admit(workBytes: 1) {
                     case let .allow(allowance): admittedWork = allowance
                     case .deferBudget: return .deferred
                     }
@@ -1440,14 +1481,14 @@ enum CostUsageScanner {
 
                 try self.checkCancellation?()
                 let path = self.discovery.directoryPaths[self.discovery.validationDirectoryIndex]
-                let currentMtime = Self.directoryModificationTime(atPath: path)
-                self.scanBudget?.complete(admittedWorkBytes: admittedWork, actualWorkBytes: admittedWork)
-                guard currentMtime == self.discovery.directoryStamps[path]?.mtimeUnixMs else {
+                let currentStamp = Self.directoryStamp(atPath: path)
+                directoryBudget?.complete(admittedWorkBytes: admittedWork, actualWorkBytes: admittedWork)
+                guard currentStamp == self.discovery.directoryStamps[path] else {
                     self.discovery.validationDirectoryIndex = 0
                     return .changed
                 }
                 self.discovery.validationDirectoryIndex += 1
-                if self.scanBudgetExhausted() {
+                if self.metadataScanBudgetExhausted() {
                     return .deferred
                 }
             }
@@ -1455,8 +1496,8 @@ enum CostUsageScanner {
             return .current
         }
 
-        private func scanBudgetExhausted() -> Bool {
-            guard let scanBudget = self.scanBudget else { return false }
+        private func metadataScanBudgetExhausted() -> Bool {
+            guard let scanBudget = self.metadataScanBudget ?? self.scanBudget else { return false }
             switch scanBudget.admit(workBytes: 1) {
             case let .allow(allowance):
                 scanBudget.release(workBytes: allowance)
@@ -1521,11 +1562,21 @@ enum CostUsageScanner {
                 isComplete: false)
         }
 
-        private static func directoryModificationTime(atPath path: String) -> Int64? {
+        private static func directoryStamp(
+            atPath path: String) -> CostUsageCodexSessionDiscovery.DirectoryStamp?
+        {
             let url = URL(fileURLWithPath: path, isDirectory: true)
             let metadata = CostUsageScanner.codexFileMetadata(fileURL: url)
             guard metadata.fileId != nil else { return nil }
-            return metadata.mtimeUnixMs
+            guard let items = try? FileManager.default.contentsOfDirectory(
+                at: url,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants])
+            else { return nil }
+            let jsonlFileCount = items.lazy
+                .count(where: { $0.pathExtension.lowercased() == "jsonl" })
+
+            return .init(mtimeUnixMs: metadata.mtimeUnixMs, jsonlFileCount: jsonlFileCount)
         }
 
         private static func fileStamp(
@@ -2134,6 +2185,141 @@ enum CostUsageScanner {
             out.append(item)
         }
         return out
+    }
+
+    /// Proves that the compact persisted aggregates for one local day reflect every
+    /// Codex session file at the same metadata inventory snapshot. Historical parsing
+    /// may still be pending; only files that can affect `dayKey` must be fully parsed.
+    static func codexCurrentDayProjectionCanPublish(
+        cache: CostUsageCache,
+        roots: [URL],
+        dayKey: String,
+        calendar: Calendar) -> Bool
+    {
+        guard let dayStart = self.parseDayKey(dayKey, calendar: calendar),
+              let dayEnd = calendar.date(byAdding: .day, value: 1, to: dayStart)
+        else { return false }
+
+        let dayStartMs = Int64(dayStart.timeIntervalSince1970 * 1000)
+        let dayEndMs = Int64(dayEnd.timeIntervalSince1970 * 1000)
+        let scanSince = calendar.date(byAdding: .day, value: -1, to: dayStart) ?? dayStart
+        let scanUntil = dayEnd
+        let scanSinceKey = CostUsageDayRange.dayKey(from: scanSince, calendar: calendar)
+        let scanUntilKey = CostUsageDayRange.dayKey(from: scanUntil, calendar: calendar)
+        let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
+        guard let discovery = cache.codexSessionDiscovery,
+              discovery.roots == rootPaths,
+              discovery.nextDirectoryIndex == discovery.directoryPaths.count,
+              Set(rootPaths).isSubset(of: Set(discovery.directoryPaths)),
+              Set(discovery.directoryPaths) == Set(discovery.directoryStamps.keys),
+              cache.roots == Self.codexRootsFingerprint(roots)
+        else { return false }
+
+        func directoryMatchesInventory(_ path: String) -> Bool {
+            let directoryURL = URL(fileURLWithPath: path, isDirectory: true)
+            let metadata = Self.codexFileMetadata(fileURL: directoryURL)
+            let jsonlFileCount = (try? FileManager.default.contentsOfDirectory(
+                at: directoryURL,
+                includingPropertiesForKeys: [.isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants]))?
+                .lazy
+                .count(where: { $0.pathExtension.lowercased() == "jsonl" })
+
+            guard let stamp = discovery.directoryStamps[path] else { return false }
+            return metadata.mtimeUnixMs == stamp.mtimeUnixMs
+                && jsonlFileCount == stamp.jsonlFileCount
+        }
+        guard discovery.directoryPaths.allSatisfy(directoryMatchesInventory) else { return false }
+
+        let directlyDiscovered = roots.flatMap {
+            self.listCodexSessionFiles(
+                root: $0,
+                scanSinceKey: scanSinceKey,
+                scanUntilKey: scanUntilKey,
+                includeRecursive: false,
+                calendar: calendar)
+        }
+        let directlyDiscoveredPathKeys = Set(directlyDiscovered.map(self.codexPathKey))
+        var cachedByPathKey: [String: CostUsageFileUsage] = [:]
+        for (path, usage) in cache.files {
+            let pathKey = Self.codexPathKey(URL(fileURLWithPath: path))
+            guard cachedByPathKey[pathKey] == nil else { return false }
+            cachedByPathKey[pathKey] = usage
+        }
+
+        func cachedEntry(for fileURL: URL) -> CostUsageFileUsage? {
+            cachedByPathKey[Self.codexPathKey(fileURL)]
+        }
+
+        func matchesPersistedSnapshot(fileURL: URL, usage: CostUsageFileUsage) -> Bool {
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            guard usage.codexScanComplete == true,
+                  !usage.hasBufferedCodexForkRetryLines,
+                  usage.mtimeUnixMs == metadata.mtimeUnixMs,
+                  usage.size == metadata.size,
+                  usage.codexScanFileId == metadata.fileId,
+                  (usage.parsedBytes ?? usage.size) >= metadata.size
+            else { return false }
+            return true
+        }
+
+        for fileURL in directlyDiscovered {
+            guard let cached = cachedEntry(for: fileURL),
+                  matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
+            else { return false }
+        }
+
+        let inventoryPathKeys = Set(discovery.filePaths.map {
+            Self.codexPathKey(URL(fileURLWithPath: $0))
+        })
+        for path in discovery.filePaths {
+            let fileURL = URL(fileURLWithPath: path)
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            if let cached = cachedEntry(for: fileURL) {
+                if metadata.mtimeUnixMs >= dayStartMs,
+                   !matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
+                {
+                    return false
+                }
+                continue
+            }
+            guard metadata.mtimeUnixMs < dayStartMs else { return false }
+        }
+
+        for (path, usage) in cache.files {
+            let fileURL = URL(fileURLWithPath: path)
+            guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { continue }
+            let sessionTimestamps = [
+                usage.codexSession?.startedAtUnixMs,
+                usage.codexSession?.latestActivityUnixMs,
+                usage.codexSession?.latestAcceptedUsageUnixMs,
+            ].compactMap(\.self)
+            let canAffectDay = usage.touchesCodexScanWindow(
+                sinceKey: dayKey,
+                untilKey: dayKey,
+                calendar: calendar)
+                || sessionTimestamps.contains { $0 >= dayStartMs && $0 < dayEndMs }
+                || usage.mtimeUnixMs >= dayStartMs
+                || directlyDiscoveredPathKeys.contains(Self.codexPathKey(fileURL))
+            guard canAffectDay else { continue }
+            guard inventoryPathKeys.contains(Self.codexPathKey(fileURL)) else { return false }
+            guard matchesPersistedSnapshot(fileURL: fileURL, usage: usage) else { return false }
+        }
+
+        for pendingPath in cache.codexActiveLookbackState?.pendingFilePaths ?? [] {
+            let fileURL = URL(fileURLWithPath: pendingPath)
+            let pathKey = Self.codexPathKey(fileURL)
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            let cached = cachedEntry(for: fileURL)
+            let pendingCanAffectDay = directlyDiscoveredPathKeys.contains(pathKey)
+                || cached?.touchesCodexScanWindow(
+                    sinceKey: dayKey,
+                    untilKey: dayKey,
+                    calendar: calendar) == true
+                || metadata.mtimeUnixMs >= dayStartMs
+            guard !pendingCanAffectDay else { return false }
+        }
+        return discovery.directoryPaths.allSatisfy(directoryMatchesInventory)
     }
 
     private static func cachedCodexSessionFiles(
@@ -3304,6 +3490,84 @@ enum CostUsageScanner {
             recoveredCount += 1
         }
         return recoveredCount
+    }
+
+    private static func codexMetadataInventoryRefreshCandidates(
+        discovery: CostUsageCodexSessionDiscovery,
+        cache: CostUsageCache,
+        roots: [URL],
+        dayKey: String,
+        calendar: Calendar) -> [URL]
+    {
+        guard let dayStart = parseDayKey(dayKey, calendar: calendar) else { return [] }
+        let dayStartMs = Int64(dayStart.timeIntervalSince1970 * 1000)
+        var cachedByPathKey: [String: CostUsageFileUsage] = [:]
+        var duplicateCachedPathKeys: Set<String> = []
+        for (path, usage) in cache.files {
+            let pathKey = Self.codexPathKey(URL(fileURLWithPath: path))
+            if cachedByPathKey[pathKey] != nil {
+                duplicateCachedPathKeys.insert(pathKey)
+            } else {
+                cachedByPathKey[pathKey] = usage
+            }
+        }
+        let inventoryPathKeys = Set(discovery.filePaths.map {
+            Self.codexPathKey(URL(fileURLWithPath: $0))
+        })
+        var candidatePathKeys: Set<String> = []
+
+        func matchesPersistedSnapshot(
+            usage: CostUsageFileUsage,
+            metadata: CodexFileMetadata) -> Bool
+        {
+            usage.codexScanComplete == true
+                && !usage.hasBufferedCodexForkRetryLines
+                && usage.mtimeUnixMs == metadata.mtimeUnixMs
+                && usage.size == metadata.size
+                && usage.codexScanFileId == metadata.fileId
+                && (usage.parsedBytes ?? usage.size) >= metadata.size
+        }
+
+        for path in discovery.filePaths {
+            let fileURL = URL(fileURLWithPath: path)
+            let pathKey = Self.codexPathKey(fileURL)
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            if let cached = cachedByPathKey[pathKey] {
+                let canAffectDay = metadata.mtimeUnixMs >= dayStartMs
+                    || cached.touchesCodexScanWindow(
+                        sinceKey: dayKey,
+                        untilKey: dayKey,
+                        calendar: calendar)
+                if canAffectDay,
+                   !matchesPersistedSnapshot(
+                       usage: cached,
+                       metadata: metadata)
+                {
+                    candidatePathKeys.insert(pathKey)
+                }
+            } else if metadata.mtimeUnixMs >= dayStartMs {
+                candidatePathKeys.insert(pathKey)
+            }
+        }
+
+        candidatePathKeys.formUnion(duplicateCachedPathKeys)
+
+        for (path, usage) in cache.files {
+            let fileURL = URL(fileURLWithPath: path)
+            guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { continue }
+            let canAffectDay = usage.mtimeUnixMs >= dayStartMs
+                || usage.touchesCodexScanWindow(
+                    sinceKey: dayKey,
+                    untilKey: dayKey,
+                    calendar: calendar)
+            guard canAffectDay else { continue }
+            let pathKey = Self.codexPathKey(fileURL)
+            if !inventoryPathKeys.contains(pathKey) {
+                candidatePathKeys.insert(pathKey)
+            }
+        }
+
+        return candidatePathKeys.sorted().map { URL(fileURLWithPath: $0) }
     }
 
     private struct CodexActiveLookbackQueueUpdateContext {
@@ -6710,6 +6974,24 @@ enum CostUsageScanner {
                 context: scanContext,
                 cache: &cache,
                 inheritedResolver: inheritedResolver)
+            let currentDayKey = CostUsageDayRange.dayKey(from: now, calendar: range.calendar)
+            let metadataRefreshCandidates: [URL]
+            if options.useCodexCatchUpWorkingSet {
+                try fileIndex.advanceMetadataInventory(scanBudget: shouldBoundCatchUp
+                    ? CodexScanBudget(
+                        maxFileBytes: Int64(Self.codexCatchUpScanCandidateLimit),
+                        maxBytesPerRefresh: Int64(Self.codexCatchUpScanCandidateLimit),
+                        maxDuration: 0.25)
+                    : nil)
+                metadataRefreshCandidates = Self.codexMetadataInventoryRefreshCandidates(
+                    discovery: fileIndex.persistedState,
+                    cache: cache,
+                    roots: plan.roots,
+                    dayKey: currentDayKey,
+                    calendar: range.calendar)
+            } else {
+                metadataRefreshCandidates = []
+            }
             filePathsInScan.formUnion(scanResult.scannedPaths.map {
                 Self.codexPathKey(URL(fileURLWithPath: $0))
             })
@@ -6728,13 +7010,21 @@ enum CostUsageScanner {
                 attemptedPaths: scanResult.attemptedPaths,
                 processedPaths: scanResult.processedPaths,
                 cache: cache)
-            cache.codexActiveLookbackState = Self.finalizedCodexActiveLookbackState(
+            var finalizedLookbackState = Self.finalizedCodexActiveLookbackState(
                 activeLookbackState,
                 completedFilePaths: completedScheduledPaths,
                 completionCandidateCount: pendingLookbackPathCount,
                 requiresBoundedDiscoveryCompletion: shouldPageDiscovery,
-                retainCompletedStateForExactValidation: shouldBoundCatchUp && pendingLookbackPathCount > 0,
+                retainCompletedStateForExactValidation: (shouldBoundCatchUp && pendingLookbackPathCount > 0)
+                    || !metadataRefreshCandidates.isEmpty,
                 workRecorder: options.codexScanWorkRecorderForTesting)
+            if var retainedLookbackState = finalizedLookbackState {
+                Self.reseedCodexActiveLookbackPathKeys(
+                    metadataRefreshCandidates.map(\.path),
+                    state: &retainedLookbackState)
+                finalizedLookbackState = retainedLookbackState
+            }
+            cache.codexActiveLookbackState = finalizedLookbackState
             if scanBudget.resumedPartialFileCount > 0
                 || scanBudget.deferredByBudgetFileCount > 0
                 || scanBudget.deferredByTimeBudgetFileCount > 0
@@ -6824,6 +7114,7 @@ enum CostUsageScanner {
                 || hasExhaustedVisitBudget
                 || cache.codexActiveLookbackState != nil
                 || fileIndex.hasPendingDiscovery
+                || (options.useCodexCatchUpWorkingSet && fileIndex.hasPendingMetadataInventory)
             // Active/archive overlap can intentionally collapse multiple physical files into one
             // canonical cache row. Once unbounded work is complete, validate that post-dedupe
             // inventory; bounded passes remain conservative about every discovered candidate.
@@ -6855,6 +7146,7 @@ enum CostUsageScanner {
                 || scanProgress.completedFiles < scanProgress.totalFiles
                 || cache.files.values.contains { $0.codexScanComplete == false }
                 || cache.files.values.contains { $0.hasBufferedCodexForkRetryLines }
+                || (options.useCodexCatchUpWorkingSet && fileIndex.hasPendingMetadataInventory)
             cache.codexScanCatchUpPending = catchUpPending
             cache.codexPreviousReport = catchUpPending ? previousReport : nil
             let hasPendingPriorityReprocessing = options.useCodexCatchUpWorkingSet

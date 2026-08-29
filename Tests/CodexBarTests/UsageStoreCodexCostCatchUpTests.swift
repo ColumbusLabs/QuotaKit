@@ -49,7 +49,69 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
-    func `bounded catch-up automatically publishes only the final stable snapshot`() async throws {
+    func `verified current day overlays established history without adopting partial coverage`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let establishedAt = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 7,
+            day: 30,
+            hour: 10)))
+        let candidateAt = establishedAt.addingTimeInterval(60)
+        let historical = CostUsageDailyReport.Entry(
+            date: "2026-07-29",
+            inputTokens: 2,
+            outputTokens: 2,
+            totalTokens: 4,
+            costUSD: 4,
+            modelsUsed: nil,
+            modelBreakdowns: nil)
+        let establishedToday = CostUsageDailyReport.Entry(
+            date: "2026-07-30",
+            inputTokens: 4,
+            outputTokens: 6,
+            totalTokens: 10,
+            costUSD: 3,
+            modelsUsed: nil,
+            modelBreakdowns: nil)
+        let established = CostUsageTokenSnapshot(
+            sessionTokens: 10,
+            sessionCostUSD: 3,
+            last30DaysTokens: 14,
+            last30DaysCostUSD: 7,
+            historyCoverageIsEstablished: true,
+            daily: [historical, establishedToday],
+            updatedAt: establishedAt)
+        let candidate = Self.tokenSnapshot(
+            cost: 9,
+            now: candidateAt,
+            historyCoverageIsEstablished: false)
+
+        let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
+            candidate,
+            onto: established,
+            calendar: calendar))
+
+        #expect(overlaid.historyCoverageIsEstablished)
+        #expect(overlaid.sessionCostUSD == 9)
+        #expect(overlaid.last30DaysCostUSD == 13)
+        #expect(overlaid.last30DaysTokens == 14)
+        #expect(overlaid.daily.first { $0.date == "2026-07-29" }?.costUSD == 4)
+        #expect(overlaid.daily.first { $0.date == "2026-07-30" }?.costUSD == 9)
+        #expect(overlaid.updatedAt == candidateAt)
+
+        let staleCandidate = Self.tokenSnapshot(
+            cost: 12,
+            now: establishedAt.addingTimeInterval(-1),
+            historyCoverageIsEstablished: false)
+        #expect(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
+            staleCandidate,
+            onto: established,
+            calendar: calendar) == nil)
+    }
+
+    @Test
+    func `bounded catch-up publishes a changed current day before final history completes`() async throws {
         let store = try Self.makeStore(suite: "publishes-final")
         var snapshotLoadCount = 0
         var statusLoadCount = 0
@@ -81,15 +143,15 @@ struct UsageStoreCodexCostCatchUpTests {
 
         await store.refreshTokenUsage(.codex, force: true)
         await Self.waitUntil {
-            store.codexCostCatchUpTask == nil && snapshotLoadCount == 2
+            store.codexCostCatchUpTask == nil && snapshotLoadCount == 3
         }
 
         #expect(advanceCount == 2)
         #expect(statusLoadCount == 2)
-        #expect(snapshotLoadCount == 2)
+        #expect(snapshotLoadCount == 3)
         #expect(sleepDurations.first == 8)
-        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 2)
-        #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 3)
+        #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 3)
         #expect(store.tokenError(for: .codex) == nil)
         #expect(store.memoryPressureReliefTask != nil)
     }
@@ -123,11 +185,39 @@ struct UsageStoreCodexCostCatchUpTests {
         }
 
         #expect(advanceCount == 1)
-        #expect(snapshotLoadCount == 1)
+        #expect(snapshotLoadCount == 2)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 1)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 1)
         #expect(store.codexCostCatchUpActivity?.phase == .paused)
         #expect(store.codexCostCatchUpActivity?.pauseReason == .noProgress)
+    }
+
+    @Test
+    func `pending tail cannot overwrite a newer foreground publication`() async throws {
+        let store = try Self.makeStore(suite: "foreground-race")
+        var snapshotLoadCount = 0
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            snapshotLoadCount += 1
+            if snapshotLoadCount == 2 {
+                store.publishTokenSnapshot(Self.tokenSnapshot(cost: 99, now: now), for: .codex)
+            }
+            return Self.tokenSnapshot(cost: Double(snapshotLoadCount), now: now)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        await store.refreshTokenUsage(.codex, force: true)
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        #expect(snapshotLoadCount == 2)
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 99)
+        #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
     }
 
     @Test

@@ -198,6 +198,9 @@ extension UsageStore {
                         status: nextStatus,
                         context: context,
                         phase: nextStatus.pending ? .indexing : .complete)
+                    if nextStatus.pending {
+                        await self.publishPendingCodexCostCatchUpSnapshotIfChanged(context: context)
+                    }
                     if self.codexCostCatchUpStopRequested {
                         self.publishCodexCostCatchUpActivity(
                             status: nextStatus,
@@ -257,10 +260,169 @@ extension UsageStore {
         }
     }
 
+    private func publishPendingCodexCostCatchUpSnapshotIfChanged(
+        context: CodexCostCatchUpContext) async
+    {
+        guard let current = self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex)?.snapshot,
+              current.historyCoverageIsEstablished
+        else { return }
+        let publicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
+        do {
+            let now = Date()
+            let snapshot: CostUsageTokenSnapshot? = if self._test_tokenUsageSnapshotLoaderOverride != nil {
+                try await self.loadTokenUsageSnapshot(
+                    provider: .codex,
+                    force: true,
+                    now: now,
+                    codexHomePath: context.codexHomePath,
+                    historyDays: context.historyDays)
+            } else if let cached = await self.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
+                now: now,
+                codexHomePath: context.codexHomePath,
+                historyDays: context.historyDays,
+                allowScopedCodexHome: context.codexHomePath != nil,
+                includeProjectAndSessionBreakdowns: false,
+                calendar: self.settings.costUsageBucketCalendar)
+            {
+                if cached.snapshot.historyCoverageIsEstablished {
+                    cached.snapshot
+                } else if cached.currentDayIsFullyVerified {
+                    Self.codexCostSnapshotOverlayingVerifiedCurrentDay(
+                        cached.snapshot,
+                        onto: current,
+                        calendar: self.settings.costUsageBucketCalendar)
+                } else {
+                    nil
+                }
+            } else {
+                nil
+            }
+            try Task.checkCancellation()
+            guard self.codexCostCatchUpContextIsCurrent(context),
+                  self.tokenSnapshotPublicationRevision(for: .codex) == publicationRevision,
+                  let snapshot,
+                  snapshot.historyCoverageIsEstablished,
+                  !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil
+            else { return }
+            let publicationSnapshot = Self.codexCostSnapshot(
+                snapshot,
+                retainingBreakdownsFrom: current)
+            if Self.codexCostSnapshotContentEquals(current, publicationSnapshot) {
+                return
+            }
+
+            self.lastTokenFetchAt[.codex] = now
+            self.lastTokenFetchScope[.codex] = context.scopeSignature
+            self.publishTokenSnapshot(publicationSnapshot, for: .codex)
+            self.tokenErrors[.codex] = nil
+            self.tokenFailureGates[.codex]?.recordSuccess()
+            self.persistWidgetSnapshot(reason: "token-usage-catch-up-tail")
+        } catch is CancellationError {
+            return
+        } catch {
+            CodexBarLog.logger(LogCategories.tokenCost).warning(
+                "Codex cost catch-up fresh-day publication failed: \(error.localizedDescription)")
+        }
+    }
+
+    private static func codexCostSnapshotContentEquals(
+        _ lhs: CostUsageTokenSnapshot,
+        _ rhs: CostUsageTokenSnapshot) -> Bool
+    {
+        lhs.sessionTokens == rhs.sessionTokens
+            && lhs.sessionCostUSD == rhs.sessionCostUSD
+            && lhs.sessionRequests == rhs.sessionRequests
+            && lhs.last30DaysTokens == rhs.last30DaysTokens
+            && lhs.last30DaysCostUSD == rhs.last30DaysCostUSD
+            && lhs.last30DaysRequests == rhs.last30DaysRequests
+            && lhs.currencyCode == rhs.currencyCode
+            && lhs.historyDays == rhs.historyDays
+            && lhs.historyCoverageIsEstablished == rhs.historyCoverageIsEstablished
+            && lhs.historyLabel == rhs.historyLabel
+            && lhs.meteredCostUSD == rhs.meteredCostUSD
+            && lhs.costProvenance == rhs.costProvenance
+            && lhs.credentialScopeFingerprint == rhs.credentialScopeFingerprint
+            && lhs.ownership == rhs.ownership
+            && lhs.daily == rhs.daily
+            && lhs.projects == rhs.projects
+            && lhs.sessions == rhs.sessions
+            && lhs.hourly == rhs.hourly
+    }
+
+    private static func codexCostSnapshot(
+        _ snapshot: CostUsageTokenSnapshot,
+        retainingBreakdownsFrom current: CostUsageTokenSnapshot) -> CostUsageTokenSnapshot
+    {
+        CostUsageTokenSnapshot(
+            sessionTokens: snapshot.sessionTokens,
+            sessionCostUSD: snapshot.sessionCostUSD,
+            sessionRequests: snapshot.sessionRequests,
+            last30DaysTokens: snapshot.last30DaysTokens,
+            last30DaysCostUSD: snapshot.last30DaysCostUSD,
+            last30DaysRequests: snapshot.last30DaysRequests,
+            currencyCode: snapshot.currencyCode,
+            historyDays: snapshot.historyDays,
+            historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            historyLabel: snapshot.historyLabel,
+            meteredCostUSD: snapshot.meteredCostUSD,
+            costProvenance: snapshot.costProvenance,
+            credentialScopeFingerprint: snapshot.credentialScopeFingerprint,
+            ownership: snapshot.ownership,
+            daily: snapshot.daily,
+            projects: current.projects,
+            sessions: current.sessions,
+            hourly: current.hourly,
+            updatedAt: snapshot.updatedAt)
+    }
+
+    static func codexCostSnapshotOverlayingVerifiedCurrentDay(
+        _ candidate: CostUsageTokenSnapshot,
+        onto established: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostUsageTokenSnapshot?
+    {
+        guard candidate.updatedAt > established.updatedAt,
+              let currentDay = candidate.currentDayEntry(calendar: calendar),
+              currentDay.costUSD != nil
+        else { return nil }
+
+        var daily = established.daily.filter { $0.date != currentDay.date }
+        daily.append(currentDay)
+        daily.sort { $0.date < $1.date }
+
+        let allEntriesCarryTokens = daily.allSatisfy { $0.totalTokens != nil }
+        let allEntriesCarryCost = daily.allSatisfy { $0.costUSD != nil }
+        let allEntriesCarryRequests = daily.allSatisfy { $0.requestCount != nil }
+        let totalTokens = allEntriesCarryTokens ? daily.compactMap(\.totalTokens).reduce(0, +) : nil
+        let totalCost = allEntriesCarryCost ? daily.compactMap(\.costUSD).reduce(0, +) : nil
+        let totalRequests = allEntriesCarryRequests ? daily.compactMap(\.requestCount).reduce(0, +) : nil
+
+        return CostUsageTokenSnapshot(
+            sessionTokens: currentDay.totalTokens,
+            sessionCostUSD: currentDay.costUSD,
+            sessionRequests: currentDay.requestCount,
+            last30DaysTokens: totalTokens,
+            last30DaysCostUSD: totalCost,
+            last30DaysRequests: totalRequests,
+            currencyCode: established.currencyCode,
+            historyDays: established.historyDays,
+            historyCoverageIsEstablished: true,
+            historyLabel: established.historyLabel,
+            meteredCostUSD: established.meteredCostUSD,
+            costProvenance: established.costProvenance,
+            credentialScopeFingerprint: established.credentialScopeFingerprint,
+            ownership: established.ownership,
+            daily: daily,
+            projects: established.projects,
+            sessions: established.sessions,
+            hourly: established.hourly,
+            updatedAt: candidate.updatedAt)
+    }
+
     private func publishStableCodexCostCatchUpSnapshot(
         context: CodexCostCatchUpContext) async throws -> CostUsageFetcher.CodexScanCatchUpStatus
     {
         let now = Date()
+        let publicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
         // Catch-up has already completed the authoritative scan. Publish from the compact
         // persisted report projection instead of forcing another scan and hydrating the entire
         // usage ledger a second time merely to build project/session breakdowns.
@@ -276,6 +438,7 @@ extension UsageStore {
             now: now,
             codexHomePath: context.codexHomePath,
             historyDays: context.historyDays,
+            allowScopedCodexHome: context.codexHomePath != nil,
             calendar: self.settings.costUsageBucketCalendar)?.snapshot
         {
             snapshot = cached
@@ -283,7 +446,9 @@ extension UsageStore {
             throw CostUsageError.cachedSnapshotUnavailable
         }
         try Task.checkCancellation()
-        guard self.codexCostCatchUpContextIsCurrent(context) else {
+        guard self.codexCostCatchUpContextIsCurrent(context),
+              self.tokenSnapshotPublicationRevision(for: .codex) == publicationRevision
+        else {
             throw CancellationError()
         }
 

@@ -5,7 +5,11 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## 0.32.4.22 / iOS 1.11.3 — Unreleased
+## 0.32.4.22 / iOS 1.11.3 — 2026-08-29
+
+### Fixed
+
+- Codex: publish fully verified current-day token and cost totals while older history remains in bounded catch-up, without replacing established historical totals or reintroducing large-cache memory spikes.
 
 ## 0.32.4.21 / iOS 1.11.3 — 2026-08-27
 

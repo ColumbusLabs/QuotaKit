@@ -2,6 +2,7 @@ import Foundation
 import Testing
 @testable import CodexBarCore
 
+// swiftlint:disable file_length
 // swiftlint:disable:next type_body_length
 struct CostUsageFetcherCacheSnapshotTests {
     @Test
@@ -664,6 +665,407 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `pending historical catch-up replaces only a fully indexed current day`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let olderDay = try env.makeLocalNoon(year: 2026, month: 2, day: 7)
+        let currentDayKey = "2026-04-08"
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current-complete.jsonl",
+            contents: "{}\n")
+        let olderURL = try env.writeCodexSessionFile(
+            day: olderDay,
+            filename: "historical-pending.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes(
+            [.modificationDate: olderDay],
+            ofItemAtPath: olderURL.path)
+
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let since = try #require(options.calendar.date(byAdding: .day, value: -29, to: now))
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: since,
+            until: now,
+            calendar: options.calendar)
+        let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let olderMetadata = CostUsageScanner.codexFileMetadata(fileURL: olderURL)
+        let roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        let oldScanAt = now.addingTimeInterval(-60)
+        let freshScanAt = now.addingTimeInterval(60)
+        let establishedReport = CostUsageDailyReport(data: [
+            CostUsageDailyReport.Entry(
+                date: "2026-04-07",
+                inputTokens: 10,
+                outputTokens: 0,
+                totalTokens: 10,
+                costUSD: 3,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+            CostUsageDailyReport.Entry(
+                date: currentDayKey,
+                inputTokens: 5,
+                outputTokens: 0,
+                totalTokens: 5,
+                costUSD: 1,
+                modelsUsed: nil,
+                modelBreakdowns: nil),
+        ], summary: nil)
+
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = Int64(oldScanAt.timeIntervalSince1970 * 1000)
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = roots
+        cache.codexScanCatchUpPending = true
+        cache.codexPreviousReport = CostUsageCodexPreviousReport(
+            report: establishedReport,
+            cache: cache,
+            reportSinceKey: range.sinceKey,
+            reportUntilKey: range.untilKey)
+        cache.lastScanUnixMs = Int64(freshScanAt.timeIntervalSince1970 * 1000)
+        cache.days = [currentDayKey: ["gpt-5.4": [20, 0, 0]]]
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: currentMetadata.mtimeUnixMs,
+            size: currentMetadata.size,
+            days: cache.days,
+            parsedBytes: currentMetadata.size,
+            codexRows: [CostUsageScanner.CodexUsageRow(
+                day: currentDayKey,
+                model: "gpt-5.4",
+                turnID: "fresh-current-day",
+                eventIndex: 0,
+                input: 20,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                pricingModel: "gpt-5.4",
+                pricingMode: "standard")],
+            codexScanFileId: currentMetadata.fileId,
+            codexScanTargetSize: currentMetadata.size,
+            codexScanComplete: true)
+        cache.files[olderURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: olderMetadata.mtimeUnixMs,
+            size: olderMetadata.size,
+            days: ["2026-02-07": ["gpt-5.4": [7, 0, 0]]],
+            parsedBytes: 0,
+            codexScanFileId: olderMetadata.fileId,
+            codexScanTargetSize: olderMetadata.size,
+            codexScanComplete: false)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            filePaths: [currentURL.path, olderURL.path])
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+
+        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(persisted.codexSessionDiscovery?.isComplete == false)
+        #expect(persisted.codexSessionDiscovery?.generation == nil)
+        #expect(persisted.codexSessionDiscovery?.nextFileIndex == 0)
+        #expect(persisted.codexSessionDiscovery?.nextDirectoryIndex
+            == persisted.codexSessionDiscovery?.directoryPaths.count)
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: persisted,
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            dayKey: currentDayKey,
+            calendar: options.calendar))
+
+        let published = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        #expect(published?.snapshot.daily.map(\.date) == ["2026-04-07", currentDayKey])
+        #expect(published?.snapshot.daily.map(\.totalTokens) == [10, 20])
+        #expect(published?.snapshot.last30DaysTokens == 30)
+        #expect(published?.snapshot.last30DaysCostUSD == 5)
+        #expect(published?.snapshot.updatedAt == freshScanAt)
+        #expect(published?.staleSnapshotUpdatedAt == oldScanAt)
+
+        let yesterday = try env.makeLocalNoon(year: 2026, month: 4, day: 7)
+        _ = try env.writeCodexSessionFile(
+            day: yesterday,
+            filename: "uncached-resumed-session.jsonl",
+            contents: "{}\n")
+        cache.lastScanUnixMs += 1000
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+        let adjacentPartitionBlocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        #expect(adjacentPartitionBlocked?.snapshot.daily.map(\.totalTokens) == [10, 5])
+        #expect(adjacentPartitionBlocked?.snapshot.updatedAt == oldScanAt)
+
+        cache.lastScanUnixMs += 1000
+        cache.files[currentURL.path]?.codexScanComplete = false
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+        let blocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        #expect(blocked?.snapshot.daily.map(\.totalTokens) == [10, 5])
+        #expect(blocked?.snapshot.last30DaysTokens == 15)
+        #expect(blocked?.snapshot.last30DaysCostUSD == 4)
+        #expect(blocked?.snapshot.updatedAt == oldScanAt)
+    }
+
+    @Test
+    func `bounded refresh advances metadata inventory without session head discovery`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 2, day: 7)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: "{}\n")
+        let olderURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "older.jsonl",
+            contents: "{}\n")
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            maxCodexScanBytesPerRefresh: 64 * 1024,
+            useCodexCatchUpWorkingSet: true)
+        options.refreshMinIntervalSeconds = 0
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.codexSessionDiscovery = Self.incompleteMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path, olderURL.path])
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache, calendar: options.calendar)
+
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: now,
+            until: now,
+            now: now,
+            options: options)
+
+        let persisted = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let discovery = try #require(persisted.codexSessionDiscovery)
+        #expect(discovery.isComplete == false)
+        #expect(discovery.generation == nil)
+        #expect(discovery.nextFileIndex == 0)
+        #expect(discovery.nextDirectoryIndex == discovery.directoryPaths.count)
+        #expect(Set(discovery.directoryPaths) == Set(discovery.directoryStamps.keys))
+        #expect(Set([currentURL.path, olderURL.path]).isSubset(of: Set(discovery.filePaths)))
+
+        var backloggedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        backloggedCache.codexScanCatchUpPending = true
+        backloggedCache.codexActiveLookbackState = CostUsageCodexActiveLookbackState(
+            scanSinceKey: "2026-02-07",
+            rootPaths: roots.map(\.path),
+            pendingFilePaths: (0...CostUsageScanner.codexCatchUpScanCandidateLimit).map {
+                env.codexSessionsRoot.appendingPathComponent("historical-backlog-\($0).jsonl").path
+            })
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: backloggedCache,
+            calendar: options.calendar)
+
+        let addedURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "added-after-inventory.jsonl",
+            contents: env.jsonl([
+                [
+                    "type": "turn_context",
+                    "timestamp": env.isoString(for: now),
+                    "payload": ["model": "openai/gpt-5.4"],
+                ],
+                [
+                    "type": "event_msg",
+                    "timestamp": env.isoString(for: now.addingTimeInterval(1)),
+                    "payload": [
+                        "type": "token_count",
+                        "info": [
+                            "last_token_usage": [
+                                "input_tokens": 9,
+                                "cached_input_tokens": 0,
+                                "output_tokens": 0,
+                            ],
+                            "model": "openai/gpt-5.4",
+                        ],
+                    ],
+                ],
+            ]))
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: now,
+            until: now,
+            now: now.addingTimeInterval(1),
+            options: options)
+
+        let rebuilt = try #require(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).codexSessionDiscovery)
+        #expect(rebuilt.nextDirectoryIndex == rebuilt.directoryPaths.count)
+        #expect(Set(rebuilt.directoryPaths) == Set(rebuilt.directoryStamps.keys))
+        #expect(rebuilt.filePaths.contains(addedURL.path))
+        let queuedAfterBacklog = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+            .codexActiveLookbackState?.pendingFilePaths
+        #expect(queuedAfterBacklog?.first == addedURL.path)
+
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: now,
+            until: now,
+            now: now.addingTimeInterval(2),
+            options: options)
+
+        let recoveredCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(recoveredCache.files[addedURL.path]?.codexScanComplete == true)
+        #expect(recoveredCache.files[addedURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 9)
+        #expect(recoveredCache.codexActiveLookbackState?.pendingFilePaths.contains(addedURL.path) != true)
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: recoveredCache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
+    func `current day proof rejects an appended cached session from an older partition`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 4, day: 5)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: "{}\n")
+        let resumedURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "resumed.jsonl",
+            contents: "{}\n")
+        let historicalUncachedURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "historical-uncached.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes([.modificationDate: oldDay], ofItemAtPath: resumedURL.path)
+        try FileManager.default.setAttributes(
+            [.modificationDate: oldDay],
+            ofItemAtPath: historicalUncachedURL.path)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let resumedMetadata = CostUsageScanner.codexFileMetadata(fileURL: resumedURL)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            filePaths: [currentURL.path, resumedURL.path, historicalUncachedURL.path])
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: currentMetadata.mtimeUnixMs,
+            size: currentMetadata.size,
+            days: ["2026-04-08": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: currentMetadata.size,
+            codexScanFileId: currentMetadata.fileId,
+            codexScanTargetSize: currentMetadata.size,
+            codexScanComplete: true)
+        cache.files[resumedURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: resumedMetadata.mtimeUnixMs,
+            size: resumedMetadata.size,
+            days: ["2026-04-05": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: resumedMetadata.size,
+            codexScanFileId: resumedMetadata.fileId,
+            codexScanTargetSize: resumedMetadata.size,
+            codexScanComplete: true)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+
+        let handle = try FileHandle(forWritingTo: resumedURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{}\n".utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: resumedURL.path)
+
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
+    func `current day proof rejects a new session in an older partition`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 4, day: 5)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: "{}\n")
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: currentMetadata.mtimeUnixMs,
+            size: currentMetadata.size,
+            days: ["2026-04-08": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: currentMetadata.size,
+            codexScanFileId: currentMetadata.fileId,
+            codexScanTargetSize: currentMetadata.size,
+            codexScanComplete: true)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path])
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+
+        let newOldPartitionURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "new-in-old-partition.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes(
+            [.modificationDate: now],
+            ofItemAtPath: newOldPartitionURL.path)
+
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
     func `cached codex token snapshot keeps the cache scan time as updatedAt`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -866,9 +1268,16 @@ struct CostUsageFetcherCacheSnapshotTests {
             codexHomePath: env.codexHomeRoot.path,
             historyDays: 1,
             scannerOptions: options)
+        let scopedFetcher = CostUsageFetcher(scannerOptions: options)
+        let allowedManaged = await scopedFetcher.loadCachedCodexTokenSnapshotResult(
+            now: day,
+            codexHomePath: env.codexHomeRoot.path,
+            historyDays: 1,
+            allowScopedCodexHome: true)
 
         #expect(expanded == nil)
         #expect(managed == nil)
+        #expect(allowedManaged?.snapshot.sessionTokens == 42)
     }
 
     @Test
@@ -1174,5 +1583,78 @@ struct CostUsageFetcherCacheSnapshotTests {
                     ],
                 ],
             ]))
+    }
+
+    private static func completeMetadataDiscovery(
+        roots: [URL],
+        filePaths: [String]) -> CostUsageCodexSessionDiscovery
+    {
+        let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
+        var directoryPaths: [String] = []
+        var directoryStamps: [String: CostUsageCodexSessionDiscovery.DirectoryStamp] = [:]
+        var discoveredFilePaths = Set(filePaths)
+        var pendingDirectories = roots
+        while !pendingDirectories.isEmpty {
+            let directory = pendingDirectories.removeFirst()
+            let path = directory.standardizedFileURL.path
+            guard directoryStamps[path] == nil else { continue }
+            let items = (try? FileManager.default.contentsOfDirectory(
+                at: directory,
+                includingPropertiesForKeys: [.isDirectoryKey, .isRegularFileKey],
+                options: [.skipsHiddenFiles, .skipsPackageDescendants])) ?? []
+            var jsonlFileCount = 0
+            for item in items {
+                let values = try? item.resourceValues(forKeys: [.isDirectoryKey, .isRegularFileKey])
+                if values?.isDirectory == true {
+                    pendingDirectories.append(item)
+                } else if item.pathExtension.lowercased() == "jsonl" {
+                    jsonlFileCount += 1
+                    discoveredFilePaths.insert(item.standardizedFileURL.path)
+                }
+            }
+            let metadata = CostUsageScanner.codexFileMetadata(fileURL: directory)
+            directoryPaths.append(path)
+            directoryStamps[path] = CostUsageCodexSessionDiscovery.DirectoryStamp(
+                mtimeUnixMs: metadata.mtimeUnixMs,
+                jsonlFileCount: jsonlFileCount)
+        }
+        directoryPaths.sort()
+        return CostUsageCodexSessionDiscovery(
+            roots: rootPaths,
+            generation: nil,
+            directoryStamps: directoryStamps,
+            directoryPaths: directoryPaths,
+            nextDirectoryIndex: directoryPaths.count,
+            filePaths: discoveredFilePaths.sorted(),
+            nextFileIndex: 0,
+            fileStamps: [:],
+            headScan: nil,
+            filePathBySessionId: [:],
+            missingSessionIds: [],
+            pendingSessionIds: [],
+            validationDirectoryIndex: 0,
+            isComplete: false)
+    }
+
+    private static func incompleteMetadataDiscovery(
+        roots: [URL],
+        filePaths: [String]) -> CostUsageCodexSessionDiscovery
+    {
+        let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
+        return CostUsageCodexSessionDiscovery(
+            roots: rootPaths,
+            generation: nil,
+            directoryStamps: [:],
+            directoryPaths: rootPaths,
+            nextDirectoryIndex: 0,
+            filePaths: filePaths,
+            nextFileIndex: 0,
+            fileStamps: [:],
+            headScan: nil,
+            filePathBySessionId: [:],
+            missingSessionIds: [],
+            pendingSessionIds: [],
+            validationDirectoryIndex: 0,
+            isComplete: false)
     }
 }

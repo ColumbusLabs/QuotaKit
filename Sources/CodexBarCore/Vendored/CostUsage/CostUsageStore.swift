@@ -82,6 +82,7 @@ actor CostUsageStore {
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "398d5964ff82286a", // QuotaKit 0.32.4.21; current-day publication changes scheduling only.
         "f22371c47d2e006f", // QuotaKit main before retained-report scoping; persisted rows remain compatible.
         "295616a4e7dcfc3f", // Catch-up queue/status scheduling only; persisted parser rows remain compatible.
         "238791b3f1229c6b", // Stable equal-mtime scan ordering changes no persisted parser rows.
