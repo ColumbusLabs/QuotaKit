@@ -469,6 +469,7 @@ struct SnapshotCache: Sendable {
         var result = incoming
         result.costSummary = incomingCost.reconcilingHistory(
             with: previous?.costSummary,
+            incomingFallbackUpdatedAt: incoming.lastUpdated,
             previousFallbackUpdatedAt: previous?.lastUpdated)
         return result
     }

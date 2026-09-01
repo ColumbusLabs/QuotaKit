@@ -445,6 +445,8 @@ final class CloudSyncReader: @unchecked Sendable {
             isEstimated: summary.isEstimated,
             historyDays: summary.historyDays,
             historyCoverageIsEstablished: summary.historyCoverageIsEstablished,
+            historySinceDayKey: summary.historySinceDayKey,
+            historyUntilDayKey: summary.historyUntilDayKey,
             sessionRequests: summary.sessionRequests,
             last30DaysRequests: summary.last30DaysRequests,
             currencyCode: summary.currencyCode,
@@ -752,12 +754,16 @@ final class CloudSyncReader: @unchecked Sendable {
         for point in mergedDaily {
             mergedIsEstimated = self.mergeEstimatedFlags(mergedIsEstimated, point.isEstimated)
         }
+        let mergedHistoryBounds = Self.mergedEstablishedHistoryBounds(summaries)
         let mergedHistoryCoverage: Bool? = if summaries.contains(where: {
             $0.historyCoverageIsEstablished == false
         }) {
             false
         } else if summaries.allSatisfy({ $0.historyCoverageIsEstablished == true }) {
-            true
+            // Unioned rows are authoritative only when every contributing Mac
+            // proves the exact same complete window. Different windows leave
+            // edge days missing another device's contribution.
+            mergedHistoryBounds == nil ? false : true
         } else {
             nil
         }
@@ -800,6 +806,8 @@ final class CloudSyncReader: @unchecked Sendable {
             isEstimated: mergedIsEstimated,
             historyDays: mergedHistoryDays,
             historyCoverageIsEstablished: mergedHistoryCoverage,
+            historySinceDayKey: mergedHistoryBounds?.since,
+            historyUntilDayKey: mergedHistoryBounds?.until,
             sessionRequests: summaries.contains(where: { $0.sessionRequests != nil })
                 ? mergedSessionRequests
                 : nil,
@@ -810,6 +818,32 @@ final class CloudSyncReader: @unchecked Sendable {
             costUpdatedAt: mergedCostUpdatedAt,
             totalCostUpdatedAt: mergedTotalCostUpdatedAt,
             sourceRevisions: mergedSourceRevisions.isEmpty ? nil : mergedSourceRevisions)
+    }
+
+    /// Merged daily rows are a union. They are complete only when every
+    /// contributor proves the same exact window; otherwise edge days omit at
+    /// least one device and must remain partial.
+    private static func mergedEstablishedHistoryBounds(
+        _ summaries: [SyncCostSummary]) -> (since: String, until: String)?
+    {
+        guard !summaries.isEmpty,
+              summaries.allSatisfy({
+                  guard $0.historyCoverageIsEstablished == true else { return false }
+                  guard let since = $0.historySinceDayKey,
+                        let until = $0.historyUntilDayKey
+                  else { return false }
+                  return !since.isEmpty && !until.isEmpty && since <= until
+              })
+        else { return nil }
+
+        guard let first = summaries.first,
+              let since = first.historySinceDayKey,
+              let until = first.historyUntilDayKey,
+              summaries.allSatisfy({
+                  $0.historySinceDayKey == since && $0.historyUntilDayKey == until
+              })
+        else { return nil }
+        return (since, until)
     }
 
     // MARK: - Utilization History Merge + Hourly Dedup

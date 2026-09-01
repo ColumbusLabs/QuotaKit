@@ -186,7 +186,19 @@ extension CostUsageStore {
                 Self.saveCycleCheckpointForTesting?(persistedFiles)
             }
             _ = self.replaceDayAggregates(Self.globalAggregates(cache: cache, pricing: aggregatePricing))
-            _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
+            var metadata = Self.metadata(
+                cache: cache,
+                calendar: calendar,
+                preservingVerifiedCoverageFrom: previous.metadata)
+            if Self.verifiedScopeChanged(
+                previous: previous.metadata,
+                timeZoneIdentifier: calendar.timeZone.identifier,
+                rootPaths: cache.roots?.keys.sorted())
+            {
+                try Self.clearVerifiedDayAggregates(self.activeSaveDatabase())
+                Self.clearVerifiedCoverage(&metadata)
+            }
+            _ = self.setMetadata(metadata)
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
             _ = self.retainDayWindow(
@@ -248,6 +260,10 @@ extension CostUsageStore {
             let database = try self.activeSaveDatabase()
             let timeZoneChanged = previousMetadata.timeZoneIdentifier != nil
                 && previousMetadata.timeZoneIdentifier != calendar.timeZone.identifier
+            let verifiedScopeChanged = timeZoneChanged || Self.verifiedScopeChanged(
+                previous: previousMetadata,
+                timeZoneIdentifier: calendar.timeZone.identifier,
+                rootPaths: cache.roots?.keys.sorted())
             if timeZoneChanged {
                 // Day keys are calendar-derived. Keeping even one unhydrated file from the old
                 // zone while relabeling metadata would mix incompatible buckets, so invalidate
@@ -256,6 +272,9 @@ extension CostUsageStore {
                 try Self.execute(database, "DELETE FROM day_aggregates")
                 try Self.execute(database, "DELETE FROM discovery_state")
                 try Self.execute(database, "DELETE FROM lookback_state")
+            }
+            if verifiedScopeChanged {
+                try Self.clearVerifiedDayAggregates(database)
             }
             var persistedPathsByIdentity: [String: [String]] = [:]
             for value in try Self.readCodexFileIdentities(database) {
@@ -306,7 +325,14 @@ extension CostUsageStore {
             // Nested writes retain their original SQLite error in activeTransactionError.
             // Do not replace BUSY/FULL/NOMEM with synthetic SQLITE_ERROR here: the outer
             // transaction uses the original code to preserve the database rather than rebuild.
-            _ = self.setMetadata(Self.metadata(cache: cache, calendar: calendar))
+            var metadata = Self.metadata(
+                cache: cache,
+                calendar: calendar,
+                preservingVerifiedCoverageFrom: previousMetadata)
+            if verifiedScopeChanged {
+                Self.clearVerifiedCoverage(&metadata)
+            }
+            _ = self.setMetadata(metadata)
             _ = self.setDiscoveryState(Self.discoveryState(cache.codexSessionDiscovery))
             _ = self.setLookbackState(Self.lookbackState(cache.codexActiveLookbackState))
             _ = self.retainDayWindow(
@@ -1173,8 +1199,13 @@ extension CostUsageStore {
 // MARK: - Aggregate and metadata conversion
 
 extension CostUsageStore {
-    private static func metadata(cache: CostUsageCache, calendar: Calendar) -> CostUsageStoreMetadata {
-        CostUsageStoreMetadata(
+    private static func metadata(
+        cache: CostUsageCache,
+        calendar: Calendar,
+        preservingVerifiedCoverageFrom prior: CostUsageStoreMetadata? = nil)
+        -> CostUsageStoreMetadata
+    {
+        var metadata = CostUsageStoreMetadata(
             lastScanUnixMs: cache.lastScanUnixMs,
             scanSinceDay: cache.scanSinceKey,
             scanUntilDay: cache.scanUntilKey,
@@ -1192,6 +1223,34 @@ extension CostUsageStore {
             previousReportPayload: cache.codexPreviousReport.flatMap { try? JSONEncoder().encode($0) },
             priorityTurnStatePayload: self.priorityTurnStatePayload(cache: cache),
             projectMetadataVersion: cache.codexProjectMetadataVersion)
+        metadata.verifiedScanSinceDay = prior?.verifiedScanSinceDay
+        metadata.verifiedScanUntilDay = prior?.verifiedScanUntilDay
+        metadata.verifiedUpdatedAtUnixMs = prior?.verifiedUpdatedAtUnixMs
+        metadata.verifiedTimeZoneIdentifier = prior?.verifiedTimeZoneIdentifier
+        metadata.verifiedRootPaths = prior?.verifiedRootPaths
+        return metadata
+    }
+
+    static func verifiedScopeChanged(
+        previous: CostUsageStoreMetadata,
+        timeZoneIdentifier: String,
+        rootPaths: [String]?) -> Bool
+    {
+        guard previous.verifiedLedgerVersion == verifiedLedgerVersion
+            || previous.verifiedScanSinceDay != nil
+            || previous.verifiedScanUntilDay != nil
+        else { return false }
+        return previous.verifiedTimeZoneIdentifier != timeZoneIdentifier
+            || previous.verifiedRootPaths != rootPaths
+    }
+
+    static func clearVerifiedCoverage(_ metadata: inout CostUsageStoreMetadata) {
+        metadata.verifiedScanSinceDay = nil
+        metadata.verifiedScanUntilDay = nil
+        metadata.verifiedUpdatedAtUnixMs = nil
+        metadata.verifiedTimeZoneIdentifier = nil
+        metadata.verifiedRootPaths = nil
+        metadata.verifiedLedgerVersion = nil
     }
 
     private static func priorityTurnStatePayload(cache: CostUsageCache) -> Data? {

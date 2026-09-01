@@ -78,6 +78,41 @@ struct CloudKitMergeTests {
     }
 
     @Test
+    func `Complete correction can reduce a previously published total`() {
+        let establishedAt = self.olderDate
+        let correctedAt = self.newerDate
+        let established = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 130, totalTokens: 13000)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: establishedAt,
+            totalCostUpdatedAt: establishedAt)
+        let correction = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: correctedAt,
+            totalCostUpdatedAt: correctedAt)
+
+        let reconciled = correction.reconcilingHistory(
+            with: established,
+            incomingFallbackUpdatedAt: correctedAt,
+            previousFallbackUpdatedAt: establishedAt)
+
+        #expect(reconciled.last30DaysCostUSD == 8)
+        #expect(reconciled.daily.first?.costUSD == 8)
+        #expect(reconciled.totalCostUpdatedAt == correctedAt)
+    }
+
+    @Test
     func `Local cost merge propagates the newest independent cost freshness`() throws {
         let olderCostFreshness = self.olderDate
         let newerCostFreshness = self.newerDate
@@ -482,7 +517,10 @@ struct CloudKitMergeTests {
         email: String? = nil,
         lastUpdated: Date,
         sessionCost: Double,
-        daily: [SyncDailyPoint]) -> ProviderUsageSnapshot
+        daily: [SyncDailyPoint],
+        historyCoverageIsEstablished: Bool? = nil,
+        historySinceDayKey: String? = nil,
+        historyUntilDayKey: String? = nil) -> ProviderUsageSnapshot
     {
         let totalCost = daily.reduce(0) { $0 + $1.costUSD }
         let totalTokens = daily.reduce(0) { $0 + $1.totalTokens }
@@ -501,7 +539,137 @@ struct CloudKitMergeTests {
                 sessionTokens: nil,
                 last30DaysCostUSD: totalCost,
                 last30DaysTokens: totalTokens,
-                daily: daily))
+                daily: daily,
+                historyCoverageIsEstablished: historyCoverageIsEstablished,
+                historySinceDayKey: historySinceDayKey,
+                historyUntilDayKey: historyUntilDayKey))
+    }
+
+    @Test
+    func `Merged bounds are omitted with an unknown legacy contributor`() throws {
+        let legacy = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.olderDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-08-01", costUSD: 2, totalTokens: 20)])
+        let modern = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.newerDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-08-01", costUSD: 3, totalTokens: 30)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-07-03",
+            historyUntilDayKey: "2026-08-01")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [legacy]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [modern]),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.historyCoverageIsEstablished == nil)
+        #expect(cost.historySinceDayKey == nil)
+        #expect(cost.historyUntilDayKey == nil)
+    }
+
+    @Test
+    func `Merged bounds are omitted when an established legacy contributor lacks bounds`() throws {
+        let legacyEstablished = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.olderDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-08-01", costUSD: 2, totalTokens: 20)],
+            historyCoverageIsEstablished: true)
+        let modern = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.newerDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-08-01", costUSD: 3, totalTokens: 30)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-07-03",
+            historyUntilDayKey: "2026-08-01")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [legacyEstablished]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [modern]),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historySinceDayKey == nil)
+        #expect(cost.historyUntilDayKey == nil)
+    }
+
+    @Test
+    func `Merged bounds are omitted for disjoint established windows`() throws {
+        let first = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.olderDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-01-15", costUSD: 2, totalTokens: 20)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-01-01",
+            historyUntilDayKey: "2026-01-31")
+        let second = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.newerDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-02-15", costUSD: 3, totalTokens: 30)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-02-01",
+            historyUntilDayKey: "2026-02-28")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [first]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [second]),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historySinceDayKey == nil)
+        #expect(cost.historyUntilDayKey == nil)
+    }
+
+    @Test
+    func `Merged overlapping but different established windows remain partial`() throws {
+        let first = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.olderDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-01-20", costUSD: 2, totalTokens: 20)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-01-01",
+            historyUntilDayKey: "2026-01-31")
+        let second = self.makeProviderWithCost(
+            id: "codex",
+            name: "Codex",
+            email: "user@example.com",
+            lastUpdated: self.newerDate,
+            sessionCost: 0,
+            daily: [SyncDailyPoint(dayKey: "2026-01-20", costUSD: 3, totalTokens: 30)],
+            historyCoverageIsEstablished: true,
+            historySinceDayKey: "2026-01-15",
+            historyUntilDayKey: "2026-02-14")
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [first]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [second]),
+        ]))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.historyCoverageIsEstablished == false)
+        #expect(cost.historySinceDayKey == nil)
+        #expect(cost.historyUntilDayKey == nil)
     }
 
     @Test

@@ -22,9 +22,6 @@ enum CostUsageCodexReportProjectionBuilder {
         let paths = Set(projection.cache.files.keys.filter {
             CostUsageScanner.isWithinCodexRoots(fileURL: URL(fileURLWithPath: $0), roots: roots)
         })
-        let aggregatesByPath = Dictionary(grouping: projection.fileDayAggregates.filter {
-            paths.contains($0.path)
-        }, by: \.path)
         let scopedCache = CostUsageScanner.codexCache(projection.cache, scopedTo: roots)
         let report = self.report(
             aggregates: projection.fileDayAggregates.lazy
@@ -36,6 +33,9 @@ enum CostUsageCodexReportProjectionBuilder {
         guard includeBreakdowns else {
             return CostUsageCodexProjectedReport(report: report, projects: [], sessions: [])
         }
+        let aggregatesByPath = Dictionary(grouping: projection.fileDayAggregates.filter {
+            paths.contains($0.path)
+        }, by: \.path)
         return CostUsageCodexProjectedReport(
             report: report,
             projects: self.projects(
@@ -57,6 +57,21 @@ enum CostUsageCodexReportProjectionBuilder {
     {
         self.report(
             aggregates: projection.fileDayAggregates.map(\.aggregate),
+            cache: projection.cache,
+            range: range,
+            cacheRoot: cacheRoot)
+    }
+
+    /// Builds an established report from the compact, range-independent verified ledger. This
+    /// intentionally has no file/session breakdowns: those are not part of the publication
+    /// safety boundary while the source ledger is still catching up.
+    static func buildVerifiedReport(
+        projection: CostUsageStoreCodexReportProjection,
+        range: CostUsageScanner.CostUsageDayRange,
+        cacheRoot: URL?) -> CostUsageDailyReport
+    {
+        self.report(
+            aggregates: projection.verifiedDayAggregates,
             cache: projection.cache,
             range: range,
             cacheRoot: cacheRoot)
@@ -253,6 +268,7 @@ enum CostUsageCodexReportProjectionBuilder {
                 aggregates: (aggregatesByPath[value.0] ?? []).map(\.aggregate),
                 cache: self.cache(cache, paths: [value.0]), range: range, cacheRoot: cacheRoot)
             guard !report.data.isEmpty else { return nil }
+            let requestCounts = report.data.compactMap(\.requestCount)
             return CostUsageSessionBreakdown(
                 sessionID: id, lastActivity: Date(timeIntervalSince1970: Double(value.1.mtimeUnixMs) / 1000),
                 inputTokens: report.summary?.totalInputTokens,
@@ -260,7 +276,7 @@ enum CostUsageCodexReportProjectionBuilder {
                 outputTokens: report.summary?.totalOutputTokens,
                 reasoningTokens: report.summary?.reasoningTokens,
                 totalTokens: report.summary?.totalTokens,
-                requestCount: report.data.compactMap(\.requestCount).reduce(0, +),
+                requestCount: requestCounts.isEmpty ? nil : requestCounts.reduce(0, +),
                 costUSD: report.summary?.totalCostUSD,
                 modelBreakdowns: self.mergedModelBreakdowns(report.data) ?? [])
         }.sorted { lhs, rhs in

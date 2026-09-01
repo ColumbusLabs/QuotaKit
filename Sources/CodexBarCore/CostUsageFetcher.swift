@@ -409,6 +409,35 @@ public struct CostUsageFetcher: Sendable {
         return true
     }
 
+    private static func codexVerifiedHistoryCoverageContains(
+        projection: CostUsageStoreCodexReportProjection,
+        cache: CostUsageCache,
+        range: CostUsageScanner.CostUsageDayRange,
+        rootsFingerprint: [String: Int64]) -> Bool
+    {
+        guard cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+              cache.roots == rootsFingerprint,
+              projection.verifiedTimeZoneIdentifier == range.calendar.timeZone.identifier,
+              projection.verifiedRootPaths == rootsFingerprint.keys.sorted(),
+              let since = projection.verifiedScanSinceKey,
+              let until = projection.verifiedScanUntilKey
+        else { return false }
+        if projection.verifiedDayAggregates.isEmpty {
+            guard !cache.files.values.contains(where: {
+                $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
+            }) else { return false }
+            guard let updatedAt = projection.verifiedUpdatedAtUnixMs, updatedAt > 0 else {
+                return false
+            }
+            let updatedDate = Date(timeIntervalSince1970: TimeInterval(updatedAt) / 1000)
+            let updatedDay = CostUsageScanner.CostUsageDayRange.dayKey(
+                from: updatedDate,
+                calendar: range.calendar)
+            guard updatedDay == range.untilKey else { return false }
+        }
+        return since <= range.sinceKey && until >= range.untilKey
+    }
+
     private static func resolvedScannerOptions(
         _ override: CostUsageScanner.Options?,
         provider: UsageProvider,
@@ -579,6 +608,8 @@ public struct CostUsageFetcher: Sendable {
             historyDays: clampedHistoryDays,
             calendar: scanOptions.calendar,
             historyCoverageIsEstablished: scanResult.historyCoverageIsEstablished,
+            historySinceDayKey: scanResult.historySinceDayKey,
+            historyUntilDayKey: scanResult.historyUntilDayKey,
             costProvenance: .listPriceEstimate,
             projects: scanResult.projects,
             sessions: scanResult.sessions,
@@ -591,6 +622,8 @@ public struct CostUsageFetcher: Sendable {
         let sessions: [CostUsageSessionBreakdown]
         let staleSnapshotUpdatedAt: Date?
         let historyCoverageIsEstablished: Bool
+        let historySinceDayKey: String
+        let historyUntilDayKey: String
     }
 
     private struct LocalTokenScanOptions: Sendable {
@@ -608,6 +641,18 @@ public struct CostUsageFetcher: Sendable {
         options: LocalTokenScanOptions) async throws -> LocalTokenScanResult
     {
         try Task.checkCancellation()
+        var configuredScanOptions = options.scanOptions
+        if provider == .codex {
+            // Routine Codex refreshes need only the compact manifest and selected delta paths.
+            // The scanner's working-set loader preserves exact aggregate/report semantics while
+            // avoiding materialization of the persisted token and usage-row ledgers.
+            configuredScanOptions.useCodexCatchUpWorkingSet = true
+        }
+        let scanOptions = configuredScanOptions
+        let historyRange = CostUsageScanner.CostUsageDayRange(
+            since: since,
+            until: now,
+            calendar: scanOptions.calendar)
         // Provider-specific by design: Codex owns project/session attribution and optional Pi merge state, while
         // Claude/Vertex share the transcript scanner with mutually exclusive filters.
         // These synchronous scans can run for minutes on large archives. The dedicated queue keeps
@@ -618,16 +663,16 @@ public struct CostUsageFetcher: Sendable {
                 since: since,
                 until: now,
                 now: now,
-                options: options.scanOptions,
+                options: scanOptions,
                 checkCancellation: checkCancellation)
             try checkCancellation()
 
             if provider == .vertexai,
                !options.allowVertexClaudeFallback,
-               options.scanOptions.claudeLogProviderFilter == .vertexAIOnly,
+               scanOptions.claudeLogProviderFilter == .vertexAIOnly,
                daily.data.isEmpty
             {
-                var fallback = options.scanOptions
+                var fallback = scanOptions
                 fallback.claudeLogProviderFilter = .all
                 daily = try CostUsageScanner.loadDailyReportCancellable(
                     provider: provider,
@@ -644,30 +689,42 @@ public struct CostUsageFetcher: Sendable {
             var piDaily: CostUsageDailyReport?
             var staleSnapshotUpdatedAt: Date?
             if provider == .codex {
-                let roots = CostUsageScanner.codexSessionsRoots(options: options.scanOptions)
+                let roots = CostUsageScanner.codexSessionsRoots(options: scanOptions)
+                let projection = CostUsageStore(cacheRoot: scanOptions.cacheRoot)
+                    .syncReadCodexReportProjection(calendar: scanOptions.calendar)
                 let cache = CostUsageScanner.codexCache(
-                    CostUsageStoreAccess.read(
-                        cacheRoot: options.scanOptions.cacheRoot,
-                        calendar: options.scanOptions.calendar),
+                    projection.cache,
                     scopedTo: roots)
                 let range = CostUsageScanner.CostUsageDayRange(
-                    since: since, until: now, calendar: options.scanOptions.calendar)
+                    since: since, until: now, calendar: scanOptions.calendar)
                 if let previous = CostUsageScanner.codexPreviousReport(
                     cache: cache,
                     range: range,
-                    rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: options.scanOptions))
+                    rootsFingerprint: CostUsageScanner.codexRootsFingerprint(options: scanOptions))
                 {
-                    staleSnapshotUpdatedAt = previous.updatedAt
+                    let retained = Self.cachedCodexPreviousReportProjection(
+                        CachedCodexPreviousReportProjectionInput(
+                            previous: previous,
+                            projection: projection,
+                            cache: cache,
+                            roots: roots,
+                            range: range,
+                            cacheRoot: scanOptions.cacheRoot,
+                            includeBreakdowns: true,
+                            now: now))
+                    daily = retained.report
+                    projects = retained.projects
+                    sessions = retained.sessions
+                    staleSnapshotUpdatedAt = retained.updatedAt
                 } else {
-                    projects = CostUsageScanner.buildCodexProjectBreakdownsFromCache(
-                        cache: cache,
+                    let projected = CostUsageCodexReportProjectionBuilder.build(
+                        projection: projection,
+                        roots: roots,
                         range: range,
-                        modelsDevCacheRoot: options.scanOptions.cacheRoot)
-                    sessions = CostUsageScanner.buildCodexSessionBreakdownsFromCache(
-                        cache: cache,
-                        range: range,
-                        modelsDevCacheRoot: options.scanOptions.cacheRoot,
-                        sessionRoots: roots)
+                        cacheRoot: scanOptions.cacheRoot,
+                        includeBreakdowns: true)
+                    projects = projected.projects
+                    sessions = projected.sessions
                 }
             }
             if options.includePiSessions,
@@ -699,7 +756,9 @@ public struct CostUsageFetcher: Sendable {
                 sessions: sessions,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,
                 historyCoverageIsEstablished: provider != .codex
-                    || Self.codexHistoryCoverageIsEstablished(options: options.scanOptions))
+                    || Self.codexHistoryCoverageIsEstablished(options: scanOptions),
+                historySinceDayKey: historyRange.sinceKey,
+                historyUntilDayKey: historyRange.untilKey)
         }
     }
 
@@ -964,8 +1023,34 @@ public struct CostUsageFetcher: Sendable {
                 cache: cache,
                 range: range,
                 rootsFingerprint: rootsFingerprint)
+            let verifiedHistoryCoverageIsEstablished = Self.codexVerifiedHistoryCoverageContains(
+                projection: persistedProjection,
+                cache: cache,
+                range: range,
+                rootsFingerprint: rootsFingerprint)
 
-            if let previous = CostUsageScanner.codexPreviousReport(
+            if cache.codexScanCatchUpPending == true,
+               verifiedHistoryCoverageIsEstablished,
+               CostUsageScanner.codexPreviousReport(
+                   cache: cache,
+                   range: range,
+                   rootsFingerprint: rootsFingerprint) == nil
+            {
+                let retained = Self.cachedCodexVerifiedReportProjection(.init(
+                    projection: persistedProjection,
+                    cache: cache,
+                    roots: roots,
+                    range: range,
+                    cacheRoot: options.cacheRoot,
+                    now: now))
+                reports.append(retained.report)
+                if let updatedAt = retained.updatedAt {
+                    scanTimes.append(updatedAt)
+                }
+                nativeScanAt = retained.nativeScanAt
+                staleSnapshotUpdatedAt = retained.updatedAt
+                currentDayIsFullyVerified = retained.currentDayIsFullyVerified
+            } else if let previous = CostUsageScanner.codexPreviousReport(
                 cache: cache,
                 range: range,
                 rootsFingerprint: rootsFingerprint)
@@ -988,7 +1073,8 @@ public struct CostUsageFetcher: Sendable {
                 nativeScanAt = retained.nativeScanAt
                 staleSnapshotUpdatedAt = previous.updatedAt
                 currentDayIsFullyVerified = retained.currentDayIsFullyVerified
-            } else if cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
+            } else if cache.codexScanCatchUpPending != true,
+                      cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
                       !cache.days.isEmpty,
                       cache.roots == rootsFingerprint,
                       !CostUsageScanner.requestedWindowExpandsCache(range: range, cache: cache)
@@ -1029,10 +1115,13 @@ public struct CostUsageFetcher: Sendable {
             // A completed scan can legitimately have no rows (a fresh account or a quiet
             // window). Keep that established-empty state across app restarts instead of
             // collapsing it back to "unavailable" merely because the cache has no day map.
-            if reports.isEmpty, nativeHistoryCoverageIsEstablished {
+            if reports.isEmpty, nativeHistoryCoverageIsEstablished || verifiedHistoryCoverageIsEstablished {
                 reports.append(Self.establishedEmptyCodexDailyReport)
-                if cache.lastScanUnixMs > 0 {
-                    let scanAt = Date(timeIntervalSince1970: TimeInterval(cache.lastScanUnixMs) / 1000)
+                let establishedAt = verifiedHistoryCoverageIsEstablished
+                    ? persistedProjection.verifiedUpdatedAtUnixMs
+                    : cache.lastScanUnixMs
+                if let establishedAt, establishedAt > 0 {
+                    let scanAt = Date(timeIntervalSince1970: TimeInterval(establishedAt) / 1000)
                     nativeScanAt = scanAt
                     scanTimes.append(scanAt)
                 }
@@ -1074,6 +1163,7 @@ public struct CostUsageFetcher: Sendable {
             // pending. Its rows remain established even though native catch-up is still active;
             // `staleSnapshotUpdatedAt` keeps refresh scheduling and stale presentation explicit.
             let displayedHistoryCoverageIsEstablished = nativeHistoryCoverageIsEstablished
+                || verifiedHistoryCoverageIsEstablished
                 || staleSnapshotUpdatedAt != nil
             // updatedAt keeps the caches' real (oldest) scan time; stamping the hydration time
             // would let stale token rows inherit app-start freshness (#1964). lastRefreshAt
@@ -1086,6 +1176,8 @@ public struct CostUsageFetcher: Sendable {
                     historyDays: clampedHistoryDays,
                     calendar: options.calendar,
                     historyCoverageIsEstablished: displayedHistoryCoverageIsEstablished,
+                    historySinceDayKey: range.sinceKey,
+                    historyUntilDayKey: range.untilKey,
                     costProvenance: .listPriceEstimate,
                     projects: Self.mergedProjectBreakdowns(projects),
                     sessions: sessions,
@@ -1129,9 +1221,74 @@ public struct CostUsageFetcher: Sendable {
         let currentDayIsFullyVerified: Bool
     }
 
+    private struct CachedCodexVerifiedReportProjectionInput {
+        let projection: CostUsageStoreCodexReportProjection
+        let cache: CostUsageCache
+        let roots: [URL]
+        let range: CostUsageScanner.CostUsageDayRange
+        let cacheRoot: URL?
+        let now: Date
+    }
+
+    private static func cachedCodexVerifiedReportProjection(
+        _ input: CachedCodexVerifiedReportProjectionInput) -> CachedCodexPreviousReportProjectionResult
+    {
+        let established = CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+            projection: input.projection,
+            range: input.range,
+            cacheRoot: input.cacheRoot)
+        let currentDayKey = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: input.now,
+            calendar: input.range.calendar)
+        let projected = CostUsageCodexReportProjectionBuilder.build(
+            projection: input.projection,
+            roots: input.roots,
+            range: input.range,
+            cacheRoot: input.cacheRoot,
+            includeBreakdowns: false)
+        let freshCurrentDay = projected.report.data.first { $0.date == currentDayKey }
+        let verifiedUpdatedAt = input.projection.verifiedUpdatedAtUnixMs.flatMap { timestamp -> Date? in
+            guard timestamp > 0 else { return nil }
+            return Date(timeIntervalSince1970: TimeInterval(timestamp) / 1000)
+        }
+        let canPublishFreshCurrentDay = freshCurrentDay?.costUSD != nil
+            && input.cache.lastScanUnixMs > (input.projection.verifiedUpdatedAtUnixMs ?? 0)
+            && CostUsageScanner.codexCurrentDayProjectionCanPublish(
+                cache: input.cache,
+                roots: input.roots,
+                dayKey: currentDayKey,
+                calendar: input.range.calendar)
+        guard canPublishFreshCurrentDay, let freshCurrentDay else {
+            return CachedCodexPreviousReportProjectionResult(
+                report: established,
+                projects: [],
+                sessions: [],
+                updatedAt: verifiedUpdatedAt,
+                nativeScanAt: nil,
+                currentDayIsFullyVerified: false)
+        }
+
+        let scanAt = Date(timeIntervalSince1970: TimeInterval(input.cache.lastScanUnixMs) / 1000)
+        return CachedCodexPreviousReportProjectionResult(
+            report: Self.replacingDay(currentDayKey, in: established, with: freshCurrentDay),
+            projects: [],
+            sessions: [],
+            updatedAt: scanAt,
+            nativeScanAt: scanAt,
+            currentDayIsFullyVerified: true)
+    }
+
     private static func cachedCodexPreviousReportProjection(
         _ input: CachedCodexPreviousReportProjectionInput) -> CachedCodexPreviousReportProjectionResult
     {
+        let retainedReport = CostUsageDailyReport(
+            data: input.previous.report.data.filter {
+                CostUsageScanner.CostUsageDayRange.isInRange(
+                    dayKey: $0.date,
+                    since: input.range.sinceKey,
+                    until: input.range.untilKey)
+            },
+            summary: nil)
         let projected = CostUsageCodexReportProjectionBuilder.build(
             projection: input.projection,
             roots: input.roots,
@@ -1142,16 +1299,21 @@ public struct CostUsageFetcher: Sendable {
             from: input.now,
             calendar: input.range.calendar)
         let freshCurrentDay = projected.report.data.first { $0.date == currentDayKey }
-        let canPublishFreshCurrentDay = freshCurrentDay?.costUSD != nil
-            && input.cache.lastScanUnixMs > input.previous.updatedAtUnixMs
+        let currentDayIsFullyVerified = freshCurrentDay?.costUSD != nil
             && CostUsageScanner.codexCurrentDayProjectionCanPublish(
                 cache: input.cache,
                 roots: input.roots,
                 dayKey: currentDayKey,
                 calendar: input.range.calendar)
+        let retainedCurrentDay = retainedReport.data.first { $0.date == currentDayKey }
+        let hasNewerEvidence = input.cache.lastScanUnixMs > input.previous.updatedAtUnixMs
+            || (currentDayIsFullyVerified && freshCurrentDay != retainedCurrentDay)
+        let canPublishFreshCurrentDay = freshCurrentDay?.costUSD != nil
+            && hasNewerEvidence
+            && currentDayIsFullyVerified
         guard canPublishFreshCurrentDay, let freshCurrentDay else {
             return CachedCodexPreviousReportProjectionResult(
-                report: input.previous.report,
+                report: retainedReport,
                 projects: [],
                 sessions: [],
                 updatedAt: input.previous.updatedAt,
@@ -1165,12 +1327,12 @@ public struct CostUsageFetcher: Sendable {
             ? projected.projects
             : []
         return CachedCodexPreviousReportProjectionResult(
-            report: Self.replacingDay(currentDayKey, in: input.previous.report, with: freshCurrentDay),
+            report: Self.replacingDay(currentDayKey, in: retainedReport, with: freshCurrentDay),
             projects: projects,
             sessions: input.includeBreakdowns ? projected.sessions : [],
             updatedAt: scanAt,
             nativeScanAt: scanAt,
-            currentDayIsFullyVerified: true)
+            currentDayIsFullyVerified: currentDayIsFullyVerified)
     }
 
     /// Providers whose token-cost snapshot `loadTokenSnapshot` can produce. Cursor is
@@ -1386,6 +1548,8 @@ public struct CostUsageFetcher: Sendable {
         useCurrentLocalDayForSession: Bool = true,
         calendar: Calendar = .current,
         historyCoverageIsEstablished: Bool = true,
+        historySinceDayKey: String? = nil,
+        historyUntilDayKey: String? = nil,
         meteredCostUSD: Double? = nil,
         costProvenance: CostProvenance = .unknown,
         credentialScopeFingerprint: String? = nil,
@@ -1443,6 +1607,8 @@ public struct CostUsageFetcher: Sendable {
             last30DaysCostUSD: last30DaysCostUSD,
             historyDays: historyDays,
             historyCoverageIsEstablished: historyCoverageIsEstablished,
+            historySinceDayKey: historySinceDayKey,
+            historyUntilDayKey: historyUntilDayKey,
             historyLabel: historyLabel,
             meteredCostUSD: meteredCostUSD,
             costProvenance: costProvenance,

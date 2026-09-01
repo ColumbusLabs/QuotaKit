@@ -1317,6 +1317,13 @@ extension CostUsageStoreTests {
             "1ad1e41af7f25b3e",
             "be0bb04e9e92b697",
             "398d5964ff82286a",
+            "4c26d7b4f3200869",
+            "776fe64ed298f47a",
+            "ae84207057847ef9",
+            "b68130304db92645",
+            "f2bac4d17b6e80b7",
+            "3053f2f21b526cb2",
+            "794d08208e8b4be3",
         ])
         let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -1369,6 +1376,27 @@ extension CostUsageStoreTests {
         let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
         #expect(try connection.scalarInt(
             "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
+    }
+
+    @Test
+    func `current live parser hash is an explicitly compatible predecessor`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let predecessorHash = "4c26d7b4f3200869"
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: predecessorHash)
+        let predecessor = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: predecessorVersion,
+            parserHash: predecessorHash)
+        let file = Self.file(path: "/rollouts/live-hash.jsonl", day: "2026-08-01")
+        #expect(await predecessor.upsertFile(file))
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+        #expect(await current.fetchFile(path: file.path) == file)
+        #expect(await current.rebuildCount == 0)
+        #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
     }
 
     @Test(arguments: ["f22371c47d2e006f", "8050a4faf4fddb96", "dd19ffa2dcfa8d47"])

@@ -38,7 +38,8 @@ public struct PoeUsageFetcher: Sendable {
 
     static func _fetchUsage(
         apiKey: String,
-        transport: any ProviderHTTPTransport) async throws -> PoeUsageSnapshot
+        transport: any ProviderHTTPTransport,
+        now: Date = Date()) async throws -> PoeUsageSnapshot
     {
         let trimmed = apiKey.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !trimmed.isEmpty else {
@@ -57,7 +58,7 @@ public struct PoeUsageFetcher: Sendable {
         // history failure cost the user the current balance display.
         let history: PoeUsageHistorySnapshot?
         do {
-            history = try await self.fetchHistory(apiKey: trimmed, transport: transport)
+            history = try await self.fetchHistory(apiKey: trimmed, transport: transport, now: now)
         } catch {
             Self.log.error("Poe points_history fetch failed; returning balance only: \(error)")
             history = nil
@@ -65,7 +66,7 @@ public struct PoeUsageFetcher: Sendable {
         return PoeUsageSnapshot(
             currentPointBalance: balance,
             history: history,
-            updatedAt: Date())
+            updatedAt: now)
     }
 
     static func _parseSnapshotForTesting(_ data: Data) throws -> PoeUsageSnapshot {
@@ -97,11 +98,12 @@ public struct PoeUsageFetcher: Sendable {
 
     private static func fetchHistory(
         apiKey: String,
-        transport: any ProviderHTTPTransport) async throws -> PoeUsageHistorySnapshot?
+        transport: any ProviderHTTPTransport,
+        now: Date) async throws -> PoeUsageHistorySnapshot?
     {
         var cursor: String?
         var entries: [PoeUsageHistorySnapshot.Entry] = []
-        let cutoff = Date().addingTimeInterval(-30 * 24 * 3600)
+        let cutoff = now.addingTimeInterval(-30 * 24 * 3600)
         var page = 0
 
         while page < 5 {
@@ -127,15 +129,19 @@ public struct PoeUsageFetcher: Sendable {
             entries.append(contentsOf: parsed.entries)
             cursor = parsed.nextCursor
 
-            if parsed.entries.last?.createdAt ?? .distantPast < cutoff { break }
-            if cursor == nil { break }
+            if parsed.entries.last?.createdAt ?? .distantPast < cutoff {
+                break
+            }
+            if cursor == nil {
+                break
+            }
         }
 
         guard !entries.isEmpty else { return nil }
         let filtered = entries.filter { $0.createdAt >= cutoff }
         guard !filtered.isEmpty else { return nil }
         let daily = self.buildDailyBuckets(entries: filtered)
-        return PoeUsageHistorySnapshot(entries: filtered, daily: daily, updatedAt: Date())
+        return PoeUsageHistorySnapshot(entries: filtered, daily: daily, updatedAt: now)
     }
 
     private static func buildDailyBuckets(entries: [PoeUsageHistorySnapshot.Entry])

@@ -230,6 +230,15 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
     var scanInventoryPaths: [String]?
     var rootMtimes: [String: Int64]?
     var previousReportPayload: Data?
+    /// Coverage of the last complete, consumer-safe aggregate snapshot. This is deliberately
+    /// independent of the currently requested report window so a bounded catch-up cannot make
+    /// another consumer's established history unavailable.
+    var verifiedScanSinceDay: String?
+    var verifiedScanUntilDay: String?
+    var verifiedUpdatedAtUnixMs: Int64?
+    var verifiedTimeZoneIdentifier: String?
+    var verifiedRootPaths: [String]?
+    var verifiedLedgerVersion: Int?
     var priorityTurnStatePayload: Data?
     var projectMetadataVersion: Int?
 
@@ -249,6 +258,12 @@ struct CostUsageStoreMetadata: Codable, Equatable, Sendable {
         scanInventoryPaths: nil,
         rootMtimes: nil,
         previousReportPayload: nil,
+        verifiedScanSinceDay: nil,
+        verifiedScanUntilDay: nil,
+        verifiedUpdatedAtUnixMs: nil,
+        verifiedTimeZoneIdentifier: nil,
+        verifiedRootPaths: nil,
+        verifiedLedgerVersion: nil,
         priorityTurnStatePayload: nil,
         projectMetadataVersion: nil)
 }
@@ -314,6 +329,7 @@ struct CostUsageStoreSnapshot: Equatable, Sendable {
     var usageRows: [CostUsageStoreUsageRow] = []
     var fileDayAggregates: [CostUsageStoreFileDayAggregate]
     var dayAggregates: [CostUsageStoreDayAggregate]
+    var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
     var forkLineage: [CostUsageStoreForkLineage]
     var bufferedLines: [CostUsageStoreBufferedLine]
     var discoveryState: CostUsageStoreDiscoveryState?

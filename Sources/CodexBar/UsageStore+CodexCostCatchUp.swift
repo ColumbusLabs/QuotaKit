@@ -6,6 +6,7 @@ private struct CodexCostCatchUpContext {
     let codexHomePath: String?
     let historyDays: Int
     let scopeSignature: String
+    let pauseScopeSignature: String
     let providerConfigRevision: UInt64
     let costUsageSettingsRevision: UInt64
 }
@@ -13,20 +14,56 @@ private struct CodexCostCatchUpContext {
 extension UsageStore {
     func startCodexCostCatchUpIfNeeded(afterRefreshing provider: UsageProvider) {
         guard provider == .codex else { return }
-        self.startCodexCostCatchUpIfNeeded(mode: .automatic)
+        self.startCodexCostCatchUpIfNeeded(mode: .automatic, resumePaused: false)
     }
 
-    func startCodexCostCatchUpIfNeeded(mode: CodexCostCatchUpMode = .automatic) {
+    func startCodexCostCatchUpIfNeeded(
+        mode: CodexCostCatchUpMode = .automatic,
+        requestedHistoryDays: Int? = nil,
+        resumePaused: Bool = false)
+    {
         let scope = self.tokenCostScope(for: .codex)
         let scopeSignature = self.tokenSnapshotScopeSignature(for: .codex)
+        let providerConfigRevision = self.settings.providerConfigRevision(for: .codex)
+        let pauseScopeSignature = "\(scopeSignature)\u{0}providerConfig=\(providerConfigRevision)"
+        let historyDays = max(self.settings.costUsageHistoryDays, requestedHistoryDays ?? 0)
+        guard !self.codexCostCatchUpStopRequested || resumePaused else { return }
+        if !resumePaused,
+           self.codexCostCatchUpTask == nil,
+           self.codexCostCatchUpPausedScopeSignature == pauseScopeSignature
+        {
+            self.scheduleCodexCostCatchUpProgressProbe(
+                codexHomePath: scope.codexHomePath,
+                historyDays: max(historyDays, self.codexCostCatchUpHistoryDays),
+                mode: mode,
+                pauseScopeSignature: pauseScopeSignature)
+            return
+        }
         if self.codexCostCatchUpTask != nil,
            self.codexCostCatchUpScopeSignature == scopeSignature
         {
-            if self.codexCostCatchUpMode == mode {
-                // Hydration can observe a complete cache while the foreground refresh that follows it
-                // creates new tail work. Keep one restart queued so that refresh cannot lose the race
-                // with the existing task's completion cleanup.
-                self.codexCostCatchUpRestartRequested = true
+            let modeIsUnchanged = self.codexCostCatchUpMode == mode
+            if historyDays > self.codexCostCatchUpHistoryDays {
+                self.codexCostCatchUpHistoryDays = historyDays
+                if self.codexCostCatchUpPassIsRunning {
+                    self.codexCostCatchUpRestartRequested = true
+                    self.codexCostCatchUpMode = mode
+                    return
+                }
+                if modeIsUnchanged {
+                    self.cancelCodexCostCatchUp()
+                    self.startCodexCostCatchUpIfNeeded(
+                        mode: mode,
+                        requestedHistoryDays: historyDays,
+                        resumePaused: false)
+                    return
+                }
+            }
+            if modeIsUnchanged {
+                // Repeated refresh/configuration observations are coalesced. A worker that has
+                // already paused on an unchanged semantic progress key must wait for a real
+                // source change or explicit user/configuration event instead of rebuilding the
+                // same cache again.
                 return
             }
             self.codexCostCatchUpMode = mode
@@ -42,15 +79,19 @@ extension UsageStore {
         let context = CodexCostCatchUpContext(
             token: token,
             codexHomePath: scope.codexHomePath,
-            historyDays: self.settings.costUsageHistoryDays,
+            historyDays: historyDays,
             scopeSignature: scopeSignature,
-            providerConfigRevision: self.settings.providerConfigRevision(for: .codex),
+            pauseScopeSignature: pauseScopeSignature,
+            providerConfigRevision: providerConfigRevision,
             costUsageSettingsRevision: self.settings.costUsageSettingsRevision)
         self.codexCostCatchUpToken = token
         self.codexCostCatchUpScopeSignature = scopeSignature
         self.codexCostCatchUpMode = mode
         self.codexCostCatchUpStopRequested = false
         self.codexCostCatchUpPassIsRunning = false
+        self.codexCostCatchUpHistoryDays = historyDays
+        self.codexCostCatchUpPausedScopeSignature = nil
+        self.codexCostCatchUpPausedProgressKey = nil
         let priority: TaskPriority = mode == .accelerated ? .utility : .background
         self.codexCostCatchUpTask = Task(priority: priority) { @MainActor [weak self] in
             guard let self else { return }
@@ -63,8 +104,15 @@ extension UsageStore {
                     self.codexCostCatchUpToken = nil
                     self.codexCostCatchUpScopeSignature = nil
                     if self.codexCostCatchUpRestartRequested {
+                        let restartHistoryDays = max(
+                            self.settings.costUsageHistoryDays,
+                            self.codexCostCatchUpHistoryDays)
+                        let restartMode = self.codexCostCatchUpMode
                         self.codexCostCatchUpRestartRequested = false
-                        self.startCodexCostCatchUpIfNeeded(mode: self.codexCostCatchUpMode)
+                        self.startCodexCostCatchUpIfNeeded(
+                            mode: restartMode,
+                            requestedHistoryDays: restartHistoryDays,
+                            resumePaused: false)
                     }
                 }
             }
@@ -75,6 +123,7 @@ extension UsageStore {
     func cancelCodexCostCatchUp() {
         let hadWorker = self.codexCostCatchUpTask != nil
         self.codexCostCatchUpTask?.cancel()
+        self.codexCostCatchUpProgressProbeTask?.cancel()
         if hadWorker {
             self.scheduleMemoryPressureRelief()
         }
@@ -84,25 +133,52 @@ extension UsageStore {
         self.codexCostCatchUpStopRequested = false
         self.codexCostCatchUpPassIsRunning = false
         self.codexCostCatchUpRestartRequested = false
+        self.codexCostCatchUpHistoryDays = 0
+        self.codexCostCatchUpPausedScopeSignature = nil
+        self.codexCostCatchUpPausedProgressKey = nil
+        self.codexCostCatchUpProgressProbeTask = nil
         self.codexCostCatchUpActivity = nil
     }
 
     func startAcceleratedCodexCostCatchUp() {
-        self.startCodexCostCatchUpIfNeeded(mode: .accelerated)
+        self.startCodexCostCatchUpIfNeeded(mode: .accelerated, resumePaused: true)
     }
 
     func returnCodexCostCatchUpToBackground() {
-        self.startCodexCostCatchUpIfNeeded(mode: .automatic)
+        self.startCodexCostCatchUpIfNeeded(mode: .automatic, resumePaused: true)
     }
 
     func stopCodexCostCatchUp() {
-        guard self.codexCostCatchUpTask != nil else { return }
+        guard self.codexCostCatchUpTask != nil
+            || self.codexCostCatchUpProgressProbeTask != nil
+        else { return }
+        guard self.codexCostCatchUpTask != nil else {
+            self.codexCostCatchUpProgressProbeTask?.cancel()
+            self.codexCostCatchUpProgressProbeTask = nil
+            self.codexCostCatchUpStopRequested = true
+            if let activity = self.codexCostCatchUpActivity {
+                let pausedActivity = CodexCostCatchUpActivity(
+                    phase: .paused,
+                    mode: activity.mode,
+                    processedBytes: activity.processedBytes,
+                    totalBytes: activity.totalBytes,
+                    completedFiles: activity.completedFiles,
+                    totalFiles: activity.totalFiles,
+                    pauseReason: .user,
+                    staleSnapshotUpdatedAt: activity.staleSnapshotUpdatedAt)
+                self.codexCostCatchUpActivity = pausedActivity
+                if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
+                    self.spendDashboardCodexCostCatchUpActivity = pausedActivity
+                }
+            }
+            return
+        }
         self.codexCostCatchUpStopRequested = true
         self.codexCostCatchUpRestartRequested = false
         self.scheduleMemoryPressureRelief()
         guard !self.codexCostCatchUpPassIsRunning else { return }
         if let activity = self.codexCostCatchUpActivity {
-            self.codexCostCatchUpActivity = CodexCostCatchUpActivity(
+            let pausedActivity = CodexCostCatchUpActivity(
                 phase: .paused,
                 mode: activity.mode,
                 processedBytes: activity.processedBytes,
@@ -111,6 +187,10 @@ extension UsageStore {
                 totalFiles: activity.totalFiles,
                 pauseReason: .user,
                 staleSnapshotUpdatedAt: activity.staleSnapshotUpdatedAt)
+            self.codexCostCatchUpActivity = pausedActivity
+            if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
+                self.spendDashboardCodexCostCatchUpActivity = pausedActivity
+            }
         }
         self.codexCostCatchUpTask?.cancel()
         self.codexCostCatchUpTask = nil
@@ -118,6 +198,9 @@ extension UsageStore {
         self.codexCostCatchUpScopeSignature = nil
     }
 
+    // This is an explicit checkpointed state machine; keeping its exit paths together prevents
+    // cancellation, restart, and publication transitions from drifting apart.
+    // swiftlint:disable:next cyclomatic_complexity
     private func runCodexCostCatchUp(context: CodexCostCatchUpContext) async {
         while self.codexCostCatchUpContextIsCurrent(context) {
             var status = await self.loadCodexCostCatchUpStatus(codexHomePath: context.codexHomePath)
@@ -193,6 +276,11 @@ extension UsageStore {
                         Double(durationComponents.seconds)
                             + Double(durationComponents.attoseconds) / 1_000_000_000_000_000_000)
                     didAdvance = true
+                    if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker,
+                       nextStatus.progressKey != status.progressKey
+                    {
+                        self.spendDashboardCodexCostCatchUpRevision &+= 1
+                    }
                     guard self.codexCostCatchUpContextIsCurrent(context) else { return }
                     self.publishCodexCostCatchUpActivity(
                         status: nextStatus,
@@ -200,6 +288,9 @@ extension UsageStore {
                         phase: nextStatus.pending ? .indexing : .complete)
                     if nextStatus.pending {
                         await self.publishPendingCodexCostCatchUpSnapshotIfChanged(context: context)
+                    }
+                    if self.codexCostCatchUpRestartRequested {
+                        return
                     }
                     if self.codexCostCatchUpStopRequested {
                         self.publishCodexCostCatchUpActivity(
@@ -210,6 +301,8 @@ extension UsageStore {
                         return
                     }
                     if nextStatus.pending, !seenProgressKeys.insert(nextStatus.progressKey).inserted {
+                        self.codexCostCatchUpPausedScopeSignature = context.pauseScopeSignature
+                        self.codexCostCatchUpPausedProgressKey = nextStatus.progressKey
                         self.publishCodexCostCatchUpActivity(
                             status: nextStatus,
                             context: context,
@@ -477,7 +570,7 @@ extension UsageStore {
             && self.codexCostCatchUpToken == context.token
             && self.settings.providerConfigRevision(for: .codex) == context.providerConfigRevision
             && self.settings.costUsageSettingsRevision == context.costUsageSettingsRevision
-            && self.settings.costUsageHistoryDays == context.historyDays
+            && self.settings.costUsageHistoryDays <= context.historyDays
             && self.settings.isCostUsageEffectivelyEnabled(for: .codex)
             && self.isEnabled(.codex)
             && self.tokenCostScope(for: .codex).codexHomePath == context.codexHomePath
@@ -493,6 +586,41 @@ extension UsageStore {
         return await self.costUsageFetcher.codexScanCatchUpStatus(
             codexHomePath: codexHomePath,
             calendar: self.settings.costUsageBucketCalendar)
+    }
+
+    private func scheduleCodexCostCatchUpProgressProbe(
+        codexHomePath: String?,
+        historyDays: Int,
+        mode: CodexCostCatchUpMode,
+        pauseScopeSignature: String)
+    {
+        guard self.codexCostCatchUpProgressProbeTask == nil,
+              let stalledProgressKey = self.codexCostCatchUpPausedProgressKey
+        else { return }
+
+        self.codexCostCatchUpProgressProbeTask = Task(priority: .background) { @MainActor [weak self] in
+            guard let self else { return }
+            defer { self.codexCostCatchUpProgressProbeTask = nil }
+
+            let status = await self.loadCodexCostCatchUpStatus(codexHomePath: codexHomePath)
+            guard !Task.isCancelled,
+                  self.codexCostCatchUpTask == nil,
+                  self.codexCostCatchUpPausedScopeSignature == pauseScopeSignature,
+                  self.codexCostCatchUpPausedProgressKey == stalledProgressKey
+            else { return }
+            guard status.progressKey != stalledProgressKey else { return }
+
+            // Clear the pause before re-entering the normal start path. This lets the existing
+            // scope/mode coalescing rules resume the authoritative worker without creating a
+            // second scan pass for the same cache.
+            self.codexCostCatchUpPausedScopeSignature = nil
+            self.codexCostCatchUpPausedProgressKey = nil
+            self.codexCostCatchUpProgressProbeTask = nil
+            self.startCodexCostCatchUpIfNeeded(
+                mode: mode,
+                requestedHistoryDays: historyDays,
+                resumePaused: false)
+        }
     }
 
     private func advanceCodexCostCatchUp(
@@ -533,7 +661,7 @@ extension UsageStore {
         pauseReason: CodexCostCatchUpPauseReason? = nil)
     {
         guard self.codexCostCatchUpToken == context.token else { return }
-        self.codexCostCatchUpActivity = CodexCostCatchUpActivity(
+        let activity = CodexCostCatchUpActivity(
             phase: phase,
             mode: self.codexCostCatchUpMode,
             processedBytes: status.processedBytes,
@@ -542,6 +670,10 @@ extension UsageStore {
             totalFiles: status.totalFiles,
             pauseReason: pauseReason,
             staleSnapshotUpdatedAt: status.staleSnapshotUpdatedAt)
+        self.codexCostCatchUpActivity = activity
+        if self.spendDashboardCodexCostCatchUpUsesPrimaryWorker {
+            self.spendDashboardCodexCostCatchUpActivity = activity
+        }
     }
 
     private func sleepBetweenCodexCostCatchUpPasses(seconds: TimeInterval) async throws {

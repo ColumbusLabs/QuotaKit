@@ -4,6 +4,14 @@ import Foundation
 struct CostUsageStoreCodexReportProjection: Sendable {
     var cache: CostUsageCache
     var fileDayAggregates: [CostUsageStoreFileDayAggregate]
+    /// Aggregates copied only after a complete scan. Unlike `fileDayAggregates`, these rows
+    /// remain stable while a bounded catch-up replaces individual files.
+    var verifiedDayAggregates: [CostUsageStoreDayAggregate] = []
+    var verifiedScanSinceKey: String?
+    var verifiedScanUntilKey: String?
+    var verifiedUpdatedAtUnixMs: Int64?
+    var verifiedTimeZoneIdentifier: String?
+    var verifiedRootPaths: [String]?
 }
 
 extension CostUsageStore {
@@ -16,7 +24,13 @@ extension CostUsageStore {
         }
         return CostUsageStoreCodexReportProjection(
             cache: Self.codexManifestCache(from: snapshot),
-            fileDayAggregates: snapshot.fileDayAggregates)
+            fileDayAggregates: snapshot.fileDayAggregates,
+            verifiedDayAggregates: snapshot.verifiedDayAggregates,
+            verifiedScanSinceKey: snapshot.metadata.verifiedScanSinceDay,
+            verifiedScanUntilKey: snapshot.metadata.verifiedScanUntilDay,
+            verifiedUpdatedAtUnixMs: snapshot.metadata.verifiedUpdatedAtUnixMs,
+            verifiedTimeZoneIdentifier: snapshot.metadata.verifiedTimeZoneIdentifier,
+            verifiedRootPaths: snapshot.metadata.verifiedRootPaths)
     }
 }
 

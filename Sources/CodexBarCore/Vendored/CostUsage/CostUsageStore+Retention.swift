@@ -274,7 +274,14 @@ extension CostUsageStore {
         calendar: Calendar = .current,
         previousReportPayload: Data? = nil) -> CostUsageStoreBudgetResult
     {
-        let fallback = CostUsageStoreBudgetResult(deletedRows: 0, rowCount: 0, fileBytes: 0)
+        // A failed retention/migration pass must never look like a successful empty
+        // publication. Callers use this bit to keep the prior verified ledger and
+        // schedule a catch-up retry.
+        let fallback = CostUsageStoreBudgetResult(
+            deletedRows: 0,
+            rowCount: 0,
+            fileBytes: 0,
+            catchUpRequired: true)
         return self.withDatabase(default: fallback) { database in
             var result = try Self.inTransaction(database) {
                 let initialRows = try Self.rowCount(database)
@@ -340,6 +347,47 @@ extension CostUsageStore {
                         }
                     }
                     try Self.markCatchUpRequired(database)
+                } else if let metadata,
+                          !metadata.catchUpPending
+                {
+                    // Publish the complete normalized view only after pruning/budget checks
+                    // succeed. A pending pass must leave the prior verified ledger untouched.
+                    let aggregates = try Self.readDayAggregates(
+                        database,
+                        sinceDay: nil,
+                        untilDay: nil)
+                    var updatedMetadata = metadata
+                    let existingVerified = try Self.readVerifiedDayAggregates(database)
+                    if existingVerified != aggregates {
+                        try Self.replaceVerifiedDayAggregates(database, aggregates: aggregates)
+                        updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
+                        updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
+                        updatedMetadata.verifiedUpdatedAtUnixMs = metadata.lastScanUnixMs > 0
+                            ? metadata.lastScanUnixMs : nil
+                        updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
+                        updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
+                        try Self.writeVerifiedLedgerMarker(database)
+                    } else if updatedMetadata.verifiedScanSinceDay == nil,
+                              updatedMetadata.verifiedScanUntilDay == nil
+                    {
+                        // A complete empty scan still establishes a coverage marker, but an
+                        // identical later pass must not rewrite the verified timestamp.
+                        updatedMetadata.verifiedScanSinceDay = metadata.scanSinceDay
+                        updatedMetadata.verifiedScanUntilDay = metadata.scanUntilDay
+                        updatedMetadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
+                        updatedMetadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
+                        try Self.writeVerifiedLedgerMarker(database)
+                    }
+                    if updatedMetadata != metadata {
+                        let payload = try JSONEncoder().encode(updatedMetadata)
+                        let statement = try Self.prepare(database, """
+                        INSERT INTO scan_metadata(id, payload) VALUES (1, ?)
+                        ON CONFLICT(id) DO UPDATE SET payload = excluded.payload
+                        """)
+                        defer { sqlite3_finalize(statement) }
+                        Self.bind(payload, to: statement, at: 1)
+                        try Self.stepDone(statement, database: database)
+                    }
                 }
                 let finalRows = try Self.rowCount(database)
                 return CostUsageStoreBudgetResult(

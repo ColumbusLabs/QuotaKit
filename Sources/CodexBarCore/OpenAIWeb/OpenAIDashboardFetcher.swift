@@ -253,10 +253,25 @@ public struct OpenAIDashboardFetcher {
         let deadline = Self.deadline(startingAt: startedAt, timeout: timeout)
         let logLine: (String) -> Void = { logger?($0) }
         logLine("dashboard phase=api_preflight")
-        let preflight = try await Self.fetchDashboardAPIPreflight(
-            websiteDataStore: websiteDataStore,
-            deadline: deadline,
-            logger: logLine)
+        let preflight: (
+            apiData: DashboardAPIData?,
+            verifiedSignedInEmail: String?,
+            subscription: OpenAISubscriptionMetadata?)
+        do {
+            preflight = try await Self.fetchDashboardAPIPreflight(
+                websiteDataStore: websiteDataStore,
+                deadline: deadline,
+                logger: logLine)
+        } catch {
+            // Cookie/API preflight is an optimization and cannot make the DOM fallback unreachable.
+            // Preserve cancellation and let the shared deadline decide whether a page scrape still
+            // has time to run.
+            try Task.checkCancellation()
+            logLine(
+                "usage API preflight unavailable; falling back to serialized WebView scrape: "
+                    + error.localizedDescription)
+            preflight = (nil, nil, nil)
+        }
         try Task.checkCancellation()
         let (apiData, verifiedSignedInEmail, subscription) =
             (preflight.apiData, preflight.verifiedSignedInEmail, preflight.subscription)
@@ -271,11 +286,10 @@ public struct OpenAIDashboardFetcher {
                     subscription: subscription,
                     previous: previousSnapshot)
             }
-            if let previousSnapshot {
-                logLine("page scrape disabled; returning previous dashboard snapshot")
-                return previousSnapshot
-            }
-            throw FetchError.noDashboardData(body: "OpenAI dashboard APIs unavailable and page scrape disabled.")
+            // A background caller may prefer the API, but a missing/insufficient preflight must
+            // still recover page-only fields from the serialized DOM fallback. The page gate is a
+            // cadence policy, not permission to silently return stale data when the API is unusable.
+            logLine("usage API preflight incomplete; falling back to serialized WebView scrape")
         }
 
         let remainingTimeout = try Self.requiredRemainingTimeout(until: deadline)

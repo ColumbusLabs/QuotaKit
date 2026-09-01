@@ -29,6 +29,7 @@ struct SyncWireFormatRoundTripTests {
         coverage: Bool?,
         days: [(String, Double, Int)],
         sessionCost: Double? = nil,
+        historyDays: Int? = nil,
         costUpdatedAt: Date? = nil,
         totalCostUpdatedAt: Date? = nil,
         sourceRevisions: [String: Date]? = nil) -> SyncCostSummary
@@ -41,6 +42,7 @@ struct SyncWireFormatRoundTripTests {
             daily: days.map {
                 SyncDailyPoint(dayKey: $0.0, costUSD: $0.1, totalTokens: $0.2)
             },
+            historyDays: historyDays,
             historyCoverageIsEstablished: coverage,
             costUpdatedAt: costUpdatedAt,
             totalCostUpdatedAt: totalCostUpdatedAt,
@@ -267,6 +269,66 @@ struct SyncWireFormatRoundTripTests {
     }
 
     @Test
+    func `partial 30-day scope retains established 365-day history`() {
+        let establishedAt = Date(timeIntervalSince1970: 1_700_000_100)
+        let partialAt = Date(timeIntervalSince1970: 1_700_000_200)
+        let established = self.costSummary(
+            coverage: true,
+            days: [("2026-08-11", 120, 12000), ("2026-08-12", 10, 1000)],
+            sessionCost: 130,
+            historyDays: 365,
+            costUpdatedAt: establishedAt,
+            totalCostUpdatedAt: establishedAt)
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-12", 8, 800)],
+            sessionCost: 8,
+            historyDays: 30,
+            costUpdatedAt: partialAt,
+            totalCostUpdatedAt: partialAt)
+
+        let reconciled = partial.reconcilingHistory(
+            with: established,
+            incomingFallbackUpdatedAt: partialAt,
+            previousFallbackUpdatedAt: establishedAt)
+
+        #expect(reconciled.last30DaysCostUSD == 130)
+        #expect(reconciled.historyDays == 365)
+        #expect(reconciled.historyCoverageIsEstablished == true)
+        #expect(reconciled.daily.map(\.costUSD) == [120, 10])
+    }
+
+    @Test
+    func `partial 365-day scope retains established 30-day history`() {
+        let establishedAt = Date(timeIntervalSince1970: 1_700_000_100)
+        let partialAt = Date(timeIntervalSince1970: 1_700_000_200)
+        let established = self.costSummary(
+            coverage: true,
+            days: [("2026-08-11", 120, 12000), ("2026-08-12", 10, 1000)],
+            sessionCost: 130,
+            historyDays: 30,
+            costUpdatedAt: establishedAt,
+            totalCostUpdatedAt: establishedAt)
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-12", 8, 800)],
+            sessionCost: 8,
+            historyDays: 365,
+            costUpdatedAt: partialAt,
+            totalCostUpdatedAt: partialAt)
+
+        let reconciled = partial.reconcilingHistory(
+            with: established,
+            incomingFallbackUpdatedAt: partialAt,
+            previousFallbackUpdatedAt: establishedAt)
+
+        #expect(reconciled.last30DaysCostUSD == 130)
+        #expect(reconciled.historyDays == 30)
+        #expect(reconciled.historyCoverageIsEstablished == true)
+        #expect(reconciled.daily.map(\.costUSD) == [120, 10])
+    }
+
+    @Test
     func `later complete history is authoritative over retained partial history`() {
         let partial = self.costSummary(
             coverage: false,
@@ -278,6 +340,31 @@ struct SyncWireFormatRoundTripTests {
         let reconciled = complete.reconcilingHistory(with: partial)
 
         #expect(reconciled == complete)
+    }
+
+    @Test
+    func `older complete history cannot replace a newer partial revision`() {
+        let completeAt = Date(timeIntervalSince1970: 1_700_000_100)
+        let partialAt = Date(timeIntervalSince1970: 1_700_000_200)
+        let complete = self.costSummary(
+            coverage: true,
+            days: [("2026-08-10", 130, 13000)],
+            historyDays: 30,
+            costUpdatedAt: completeAt,
+            totalCostUpdatedAt: completeAt)
+        let partial = self.costSummary(
+            coverage: false,
+            days: [("2026-08-11", 8, 800)],
+            historyDays: 30,
+            costUpdatedAt: partialAt,
+            totalCostUpdatedAt: partialAt)
+
+        let reconciled = complete.reconcilingHistory(
+            with: partial,
+            incomingFallbackUpdatedAt: completeAt,
+            previousFallbackUpdatedAt: partialAt)
+
+        #expect(reconciled == partial)
     }
 
     @Test

@@ -50,6 +50,28 @@ final class SyncCoordinator {
     /// sync with what's actually on CloudKit.
     private var lastProviderHashes: [String: Int] = [:]
 
+    /// Last cost summary made canonical for each provider during this process.
+    /// A refresh can expose a newer partial candidate while the scanner is
+    /// still catching up; keeping the canonical summary separate from the
+    /// latest candidate lets the wire payload retain established daily rows.
+    /// The persisted Codex scanner cache restores this invariant after a
+    /// process restart. The scope travels with the value so an account,
+    /// history-window, or provider-config switch cannot inherit another
+    /// account's retained rows.
+    private var retainedCanonicalCostSummaries: [ProviderInstanceID: RetainedCanonicalCostSummary] = [:]
+
+    private struct CanonicalCostScope: Equatable {
+        let providerConfigRevision: UInt64
+        let tokenSnapshotScopeSignature: String
+        let credentialScopeFingerprint: String?
+        let accountIdentity: String?
+    }
+
+    private struct RetainedCanonicalCostSummary {
+        let scope: CanonicalCostScope
+        let summary: SyncCostSummary
+    }
+
     /// Composite recordNames pushed to `DeviceProvidersZone` last cycle.
     /// Used to detect provider-disable transitions and account-identity
     /// drift: anything in `lastPushedRecordNames` that is NOT in this
@@ -1559,7 +1581,27 @@ final class SyncCoordinator {
     private func makeCostSummary(for provider: UsageProvider) -> SyncCostSummary? {
         // Machine-global local caches have no trustworthy account owner. They remain available to
         // the Mac spend dashboard, but never travel in an account-keyed CloudKit provider record.
-        let storedTokenSnapshot = self.store.tokenSnapshots[provider.instanceID]
+        // Prefer the current publication slot: it is the stable candidate that survives
+        // transient refresh failures and rejects an incomplete Codex replacement. Falling
+        // back to the raw dictionary keeps this mapper compatible with provider-derived
+        // paths that do not install a publication wrapper.
+        let storedTokenSnapshot = self.store.tokenSnapshotPublicationForCurrentProviderConfig(
+            for: provider)?.snapshot ?? self.store.tokenSnapshots[provider.instanceID]
+        let canonicalScope = self.canonicalCostScope(
+            for: provider,
+            tokenSnapshot: storedTokenSnapshot)
+        let retained: SyncCostSummary?
+        if let retainedEntry = self.retainedCanonicalCostSummaries[provider.instanceID],
+           retainedEntry.scope == canonicalScope
+        {
+            retained = retainedEntry.summary
+        } else {
+            // Scope changes deliberately discard the old retained value before
+            // evaluating a new candidate. This is essential for account
+            // switches where the first result for account B is partial.
+            self.retainedCanonicalCostSummaries.removeValue(forKey: provider.instanceID)
+            retained = nil
+        }
         let tokenSnapshot = storedTokenSnapshot?.ownership == .machineLocalUnowned
             ? nil
             : storedTokenSnapshot
@@ -1612,8 +1654,11 @@ final class SyncCoordinator {
 
         let totalDailyCost = daily.reduce(0) { $0 + $1.costUSD }
         let summaryIsEstimated = daily.contains(where: { $0.isEstimated == true })
+        let authoritativeHistoryWindow = tokenSnapshot.flatMap {
+            self.authoritativeHistoryWindow(for: $0)
+        }
 
-        return SyncCostSummary(
+        let candidate = SyncCostSummary(
             sessionCostUSD: tokenSnapshot?.sessionCostUSD,
             sessionTokens: tokenSnapshot?.sessionTokens,
             last30DaysCostUSD: tokenSnapshot?.last30DaysCostUSD ?? (daily.isEmpty ? nil : totalDailyCost),
@@ -1622,6 +1667,8 @@ final class SyncCoordinator {
             isEstimated: summaryIsEstimated ? true : nil,
             historyDays: tokenSnapshot?.historyDays,
             historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
+            historySinceDayKey: authoritativeHistoryWindow?.since,
+            historyUntilDayKey: authoritativeHistoryWindow?.until,
             sessionRequests: tokenSnapshot?.sessionRequests,
             last30DaysRequests: tokenSnapshot?.last30DaysRequests,
             currencyCode: tokenSnapshot?.currencyCode,
@@ -1631,6 +1678,54 @@ final class SyncCoordinator {
             // payload revision without making that scanner total newer.
             totalCostUpdatedAt: tokenSnapshot?.updatedAt ?? dashboardCostUpdatedAt,
             sourceRevisions: sourceRevisions)
+
+        // Keep the sync payload monotonic with respect to history quality even
+        // if an upstream/provider-derived path hands us a partial candidate
+        // directly. Complete corrections still flow through the shared
+        // revision-aware helper and may legitimately reduce the total.
+        let canonical = candidate.reconcilingHistory(
+            with: retained,
+            incomingFallbackUpdatedAt: tokenSnapshot?.updatedAt ?? dashboardCostUpdatedAt,
+            previousFallbackUpdatedAt: retained?.totalCostUpdatedAt)
+        self.retainedCanonicalCostSummaries[provider.instanceID] = RetainedCanonicalCostSummary(
+            scope: canonicalScope,
+            summary: canonical)
+        return canonical
+    }
+
+    private func authoritativeHistoryWindow(
+        for snapshot: CostUsageTokenSnapshot) -> (since: String, until: String)?
+    {
+        guard snapshot.historyCoverageIsEstablished,
+              let since = snapshot.historySinceDayKey,
+              let until = snapshot.historyUntilDayKey,
+              !since.isEmpty,
+              !until.isEmpty,
+              since <= until
+        else { return nil }
+        return (since, until)
+    }
+
+    private func canonicalCostScope(
+        for provider: UsageProvider,
+        tokenSnapshot: CostUsageTokenSnapshot?) -> CanonicalCostScope
+    {
+        let identity = self.store.snapshots[provider.instanceID]?.identity
+        let normalizedEmail = identity?.accountEmail?
+            .trimmingCharacters(in: .whitespacesAndNewlines)
+            .lowercased()
+        let accountIdentity = [
+            identity?.accountID.map { "accountID:\($0)" },
+            normalizedEmail.flatMap { $0.isEmpty ? nil : "email:\($0)" },
+        ]
+            .compactMap(\.self)
+            .joined(separator: "|")
+
+        return CanonicalCostScope(
+            providerConfigRevision: self.settings.providerConfigRevision(for: provider),
+            tokenSnapshotScopeSignature: self.store.tokenSnapshotScopeSignature(for: provider),
+            credentialScopeFingerprint: tokenSnapshot?.credentialScopeFingerprint,
+            accountIdentity: accountIdentity.isEmpty ? nil : accountIdentity)
     }
 
     static func mapXAICostSummary(

@@ -66,7 +66,7 @@ defineProvider({
     const entries = [];
     try {
       let cursor = null;
-      const cutoff = Date.now() - 30 * 86400000;
+      const cutoff = ctx.date.nowMillis() - 30 * 86400000;
       for (let page = 0; page < 5; page += 1) {
         const query = cursor ? `?limit=100&starting_after=${encodeURIComponent(cursor)}` : "?limit=100";
         const response = await ctx.http.getJSON(`https://api.poe.com/usage/points_history${query}`);
@@ -119,7 +119,7 @@ defineProvider({
     }, { points: 0, requests: 0, cost: 0, hasCost: false });
     const seven = summarize(7);
     const thirty = summarize(30);
-    const now = new Date(Date.now());
+    const now = ctx.date.now();
     const todayUTC = now.toISOString().slice(0, 10);
     const todayEntries = entries.filter(entry => entry.date.toISOString().slice(0, 10) === todayUTC);
     const today = todayEntries.reduce((sum, entry) => {

@@ -11,6 +11,8 @@ current Columbus Labs product surface and recent release history.
 
 - Daily Spend keeps the last complete cost and model breakdown while the Mac is
   rebuilding Codex history, avoiding a temporary reduced total.
+- Complete Codex history revisions now reconcile by day and account, so partial
+  30- or 365-day publications cannot replace established iPhone cost history.
 - Today's spend refreshes independently from quota usage and reports delayed or
   missing Mac data as unavailable or partial rather than a false `$0.00`.
 - Fireworks and IBM Bob now receive restored provider presentation and synced-card

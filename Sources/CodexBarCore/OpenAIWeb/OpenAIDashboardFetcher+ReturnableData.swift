@@ -27,7 +27,8 @@ extension OpenAIDashboardFetcher {
         hasReturnableData || creditsHeaderPresent
     }
 
-    /// Skip the hidden ChatGPT WebView unless the caller asked for a DOM scrape.
+    /// Prefer the API without a DOM scrape unless the caller asked for page reconciliation. When
+    /// the API is incomplete, the fetcher still falls through to its serialized DOM fallback.
     nonisolated static func shouldSkipPageScrape(allowPageScrape: Bool) -> Bool {
         !allowPageScrape
     }

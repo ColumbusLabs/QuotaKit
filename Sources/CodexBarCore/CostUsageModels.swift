@@ -122,6 +122,10 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let currencyCode: String
     public let historyDays: Int
     public let historyCoverageIsEstablished: Bool
+    /// Exact producer-local day-key bounds for the history window. These are
+    /// optional so snapshots created by older providers remain compatible.
+    public let historySinceDayKey: String?
+    public let historyUntilDayKey: String?
     public let historyLabel: String?
     /// Provider-metered spend over the same window as `last30DaysCostUSD` — what the plan
     /// actually deducts, as opposed to the API-rate estimate. Only some providers (e.g. Cursor)
@@ -152,6 +156,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         currencyCode: String = "USD",
         historyDays: Int = 30,
         historyCoverageIsEstablished: Bool = true,
+        historySinceDayKey: String? = nil,
+        historyUntilDayKey: String? = nil,
         historyLabel: String? = nil,
         meteredCostUSD: Double? = nil,
         costProvenance: CostProvenance = .unknown,
@@ -173,6 +179,8 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.currencyCode = normalizedCurrencyCode.isEmpty ? "XXX" : normalizedCurrencyCode
         self.historyDays = historyDays
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.historySinceDayKey = historySinceDayKey
+        self.historyUntilDayKey = historyUntilDayKey
         self.historyLabel = historyLabel
         self.meteredCostUSD = meteredCostUSD
         self.costProvenance = costProvenance

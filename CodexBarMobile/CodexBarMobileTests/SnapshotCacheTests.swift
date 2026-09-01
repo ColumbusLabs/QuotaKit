@@ -211,6 +211,326 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `Cold receiver retains complete 130 history after newer partial 8 candidate`() throws {
+        let complete = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+            ],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+
+        // This is the canonical wire value the Mac publishes after
+        // reconciling its partial refresh against the established cache.
+        let canonical = partial.reconcilingHistory(
+            with: complete,
+            incomingFallbackUpdatedAt: self.t2,
+            previousFallbackUpdatedAt: self.t1)
+        var coldReceiver = SnapshotCache()
+        coldReceiver.seedFromColdStart([self.snapshot(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providers: [self.provider(
+                id: "codex",
+                lastUpdated: self.t2,
+                costSummary: canonical)],
+            timestamp: self.t2)])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots(coldReceiver.buildDeviceSnapshots()))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.daily.map(\.dayKey) == ["2026-08-11", "2026-08-12"])
+        #expect(cost.daily.last?.costUSD == 10)
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Warm cache retains established 365-day history after newer 30-day partial`() throws {
+        let established = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+            ],
+            historyDays: 365,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1, costSummary: established)],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: partial)],
+                timestamp: self.t2)],
+            legacySnapshots: [])
+
+        let cost = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.historyDays == 365)
+        #expect(cost.daily.map(\.costUSD) == [120, 10])
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Warm cache rejects an older established payload after a newer partial revision`() throws {
+        let newerPartial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+        let staleEstablished = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [SyncDailyPoint(dayKey: "2026-08-11", costUSD: 130, totalTokens: 13000)],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: newerPartial)],
+                timestamp: self.t2)],
+            legacySnapshots: [])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1, costSummary: staleEstablished)],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+
+        let cost = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(cost == newerPartial)
+    }
+
+    @Test
+    func `Cold receiver retains established 365-day history after newer 30-day partial`() throws {
+        let established = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+            ],
+            historyDays: 365,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 30,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+        let canonical = partial.reconcilingHistory(
+            with: established,
+            incomingFallbackUpdatedAt: self.t2,
+            previousFallbackUpdatedAt: self.t1)
+        var coldReceiver = SnapshotCache()
+        coldReceiver.seedFromColdStart([self.snapshot(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: canonical)],
+            timestamp: self.t2)])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots(coldReceiver.buildDeviceSnapshots()))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.historyDays == 365)
+        #expect(cost.daily.map(\.costUSD) == [120, 10])
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Warm cache retains established 30-day history after newer 365-day partial`() throws {
+        let established = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+            ],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 365,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t1, costSummary: established)],
+                timestamp: self.t1)],
+            legacySnapshots: [])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: partial)],
+                timestamp: self.t2)],
+            legacySnapshots: [])
+
+        let cost = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.historyDays == 30)
+        #expect(cost.daily.map(\.costUSD) == [120, 10])
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Cold receiver retains established 30-day history after newer 365-day partial`() throws {
+        let established = SyncCostSummary(
+            sessionCostUSD: 130,
+            sessionTokens: 13000,
+            last30DaysCostUSD: 130,
+            last30DaysTokens: 13000,
+            daily: [
+                SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+            ],
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: self.t1,
+            totalCostUpdatedAt: self.t1)
+        let partial = SyncCostSummary(
+            sessionCostUSD: 8,
+            sessionTokens: 800,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 800,
+            daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+            historyDays: 365,
+            historyCoverageIsEstablished: false,
+            costUpdatedAt: self.t2,
+            totalCostUpdatedAt: self.t2)
+        let canonical = partial.reconcilingHistory(
+            with: established,
+            incomingFallbackUpdatedAt: self.t2,
+            previousFallbackUpdatedAt: self.t1)
+        var coldReceiver = SnapshotCache()
+        coldReceiver.seedFromColdStart([self.snapshot(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providers: [self.provider(id: "codex", lastUpdated: self.t2, costSummary: canonical)],
+            timestamp: self.t2)])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots(coldReceiver.buildDeviceSnapshots()))
+        let cost = try #require(merged.providers.first?.costSummary)
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.historyDays == 30)
+        #expect(cost.daily.map(\.costUSD) == [120, 10])
+        #expect(cost.historyCoverageIsEstablished == true)
+    }
+
+    @Test
+    func `Newer partial update adds days without deleting omitted history`() throws {
+        let first = self.provider(
+            id: "codex",
+            lastUpdated: self.t1,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 3,
+                sessionTokens: 300,
+                last30DaysCostUSD: 3,
+                last30DaysTokens: 300,
+                daily: [SyncDailyPoint(dayKey: "2026-08-11", costUSD: 3, totalTokens: 300)],
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                costUpdatedAt: self.t1,
+                totalCostUpdatedAt: self.t1))
+        let second = self.provider(
+            id: "codex",
+            lastUpdated: self.t2,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 5,
+                sessionTokens: 500,
+                last30DaysCostUSD: 5,
+                last30DaysTokens: 500,
+                daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 5, totalTokens: 500)],
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                costUpdatedAt: self.t2,
+                totalCostUpdatedAt: self.t2))
+        var cache = SnapshotCache()
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [first], timestamp: self.t1)],
+            legacySnapshots: [])
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A", deviceName: "Mac A", providers: [second], timestamp: self.t2)],
+            legacySnapshots: [])
+
+        let cost = try #require(cache.buildDeviceSnapshots().first?.providers.first?.costSummary)
+        #expect(cost.daily.map(\.dayKey) == ["2026-08-11", "2026-08-12"])
+        #expect(cost.last30DaysCostUSD == 8)
+        #expect(cost.historyCoverageIsEstablished == false)
+    }
+
+    @Test
     func `Same full fetch reconciles partial per-provider against complete legacy history`() throws {
         var cache = SnapshotCache()
         let complete = self.provider(

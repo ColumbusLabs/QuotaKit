@@ -504,7 +504,7 @@ struct OpenAIDashboardWebViewCacheTests {
     // MARK: - Busy WebView Tests
 
     @Test
-    func `Busy WebView should create temporary WebView for concurrent access`() async throws {
+    func `Busy WebView waits for the active scrape instead of creating a temporary WebView`() async throws {
         if self.shouldSkipOnCI() {
             return
         }
@@ -522,20 +522,151 @@ struct OpenAIDashboardWebViewCacheTests {
             logger: logger)
         let webView1 = lease1.webView
 
-        // Try to acquire again while first is busy
-        let lease2 = try await cache.acquire(
-            websiteDataStore: store,
-            usageURL: url,
-            logger: logger)
-        let webView2 = lease2.webView
-
-        #expect(webView1 !== webView2, "Should create temporary WebView when cached one is busy")
-        #expect(
-            logMessages.contains { $0.contains("Cached WebView busy") },
-            "Should log that cached WebView is busy")
+        // Try to acquire again while first is busy. The second caller must remain pending until the
+        // first lease releases; this proves the cache cannot construct a temporary parallel WebView.
+        let pendingWebViewID = Task { @MainActor in
+            let lease = try await cache.acquire(
+                websiteDataStore: store,
+                usageURL: url,
+                logger: logger)
+            let identifier = ObjectIdentifier(lease.webView)
+            lease.release()
+            return identifier
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(!pendingWebViewID.isCancelled)
+        #expect(cache.entryCount == 1, "A queued request must not add a parallel WebView")
 
         lease1.release()
-        lease2.release()
+        let webView2ID = try await pendingWebViewID.value
+
+        // The default lease policy evicts on release, so this is a fresh WebView created only after
+        // the first scrape completed, rather than a temporary WebView running in parallel.
+        #expect(
+            ObjectIdentifier(webView1) != webView2ID,
+            "The queued caller should acquire only after the active lease releases")
+        #expect(
+            logMessages.contains { $0.contains("Cached WebView busy; waiting for release") },
+            "Should log that the cached WebView is busy and being serialized")
+
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `Distinct data stores share one active WebView fallback`() async throws {
+        if self.shouldSkipOnCI() {
+            return
+        }
+        let cache = OpenAIDashboardWebViewCache()
+        let store1 = WKWebsiteDataStore.nonPersistent()
+        let store2 = WKWebsiteDataStore.nonPersistent()
+        let url = try #require(URL(string: "about:blank"))
+
+        let lease1 = try await cache.acquire(
+            websiteDataStore: store1,
+            usageURL: url,
+            logger: nil)
+        let webView1ID = ObjectIdentifier(lease1.webView)
+
+        let pendingWebViewID = Task { @MainActor in
+            let lease = try await cache.acquire(
+                websiteDataStore: store2,
+                usageURL: url,
+                logger: nil)
+            let identifier = ObjectIdentifier(lease.webView)
+            lease.release()
+            return identifier
+        }
+        try await Task.sleep(for: .milliseconds(50))
+
+        #expect(!pendingWebViewID.isCancelled)
+        #expect(cache.entryCount == 1, "A different store must wait instead of creating a parallel WebView")
+
+        lease1.release()
+        let webView2ID = try await pendingWebViewID.value
+
+        #expect(webView1ID != webView2ID)
+        #expect(cache.entryCount == 0)
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `Busy eviction defers removal until the active lease releases`() async throws {
+        if self.shouldSkipOnCI() {
+            return
+        }
+        let cache = OpenAIDashboardWebViewCache()
+        let store1 = WKWebsiteDataStore.nonPersistent()
+        let store2 = WKWebsiteDataStore.nonPersistent()
+        let url = try #require(URL(string: "about:blank"))
+
+        let lease1 = try await cache.acquire(
+            websiteDataStore: store1,
+            usageURL: url,
+            logger: nil)
+        let webView1ID = ObjectIdentifier(lease1.webView)
+
+        cache.evict(websiteDataStore: store1)
+        #expect(cache.hasCachedEntry(for: store1), "Busy eviction must retain the active entry until release")
+
+        let pendingWebViewID = Task { @MainActor in
+            let lease = try await cache.acquire(
+                websiteDataStore: store2,
+                usageURL: url,
+                logger: nil)
+            let identifier = ObjectIdentifier(lease.webView)
+            lease.release()
+            return identifier
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        #expect(cache.entryCount == 1, "Busy eviction must not permit a replacement WebView")
+
+        lease1.release()
+        let webView2ID = try await pendingWebViewID.value
+
+        #expect(webView1ID != webView2ID)
+        #expect(!cache.hasCachedEntry(for: store1))
+        #expect(cache.entryCount == 0)
+        cache.clearAllForTesting()
+    }
+
+    @Test
+    func `Cancelled waiter leaves the active WebView lease untouched`() async throws {
+        if self.shouldSkipOnCI() {
+            return
+        }
+        let cache = OpenAIDashboardWebViewCache()
+        let store1 = WKWebsiteDataStore.nonPersistent()
+        let store2 = WKWebsiteDataStore.nonPersistent()
+        let url = try #require(URL(string: "about:blank"))
+
+        let lease1 = try await cache.acquire(
+            websiteDataStore: store1,
+            usageURL: url,
+            logger: nil)
+        let pending = Task { @MainActor () throws -> ObjectIdentifier in
+            let lease = try await cache.acquire(
+                websiteDataStore: store2,
+                usageURL: url,
+                logger: nil)
+            let identifier = ObjectIdentifier(lease.webView)
+            lease.release()
+            return identifier
+        }
+        try await Task.sleep(for: .milliseconds(50))
+        pending.cancel()
+
+        do {
+            _ = try await pending.value
+            Issue.record("Expected the queued fallback request to be cancelled")
+        } catch is CancellationError {
+            // Expected: cancellation while waiting must not evict or release the active lease.
+        }
+
+        #expect(cache.entryCount == 1)
+        #expect(cache.hasCachedEntry(for: store1))
+        lease1.release()
+        #expect(cache.entryCount == 0)
         cache.clearAllForTesting()
     }
 

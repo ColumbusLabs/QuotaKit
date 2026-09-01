@@ -49,6 +49,37 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
+    func `Codex transient failures retain the established snapshot for publication`() async throws {
+        let store = try Self.makeStore(suite: "transient-failure-retention")
+        var loadCount = 0
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            loadCount += 1
+            if loadCount == 1 {
+                return Self.tokenSnapshot(cost: 130, now: now)
+            }
+            throw NSError(domain: "UsageStoreCodexCostCatchUpTests", code: 1)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: false, progressKey: "complete")
+        }
+
+        await store.refreshTokenUsage(.codex, force: true)
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 130)
+
+        // The failure gate suppresses the first stale-data error and surfaces
+        // the repeated failure. Neither attempt is allowed to clear Codex's
+        // complete publication.
+        await store.refreshTokenUsage(.codex, force: true)
+        await store.refreshTokenUsage(.codex, force: true)
+
+        #expect(loadCount == 3)
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 130)
+        #expect(store.tokenSnapshot(for: .codex)?.historyCoverageIsEstablished == true)
+        #expect(store.tokenError(for: .codex) != nil)
+    }
+
+    @Test
     func `verified current day overlays established history without adopting partial coverage`() throws {
         var calendar = Calendar(identifier: .gregorian)
         calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
@@ -316,7 +347,7 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
-    func `a same-mode refresh queues a worker after the completing task`() async throws {
+    func `a same-mode refresh does not queue a worker after the completing task`() async throws {
         let store = try Self.makeStore(suite: "same-mode-restart")
         var statusLoadCount = 0
         var advanceCount = 0
@@ -345,11 +376,86 @@ struct UsageStoreCodexCostCatchUpTests {
         store.startCodexCostCatchUpIfNeeded()
         store.startCodexCostCatchUpIfNeeded()
         await Self.waitUntil {
-            store.codexCostCatchUpTask == nil && statusLoadCount == 3
+            store.codexCostCatchUpTask == nil && statusLoadCount == 1
         }
 
-        #expect(statusLoadCount == 3)
+        #expect(statusLoadCount == 1)
+        #expect(advanceCount == 0)
+        #expect(store.codexCostCatchUpActivity?.phase == .complete)
+    }
+
+    @Test
+    func `an ordinary refresh does not restart an unchanged no-progress key`() async throws {
+        let store = try Self.makeStore(suite: "no-progress-refresh")
+        var advanceCount = 0
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            CostUsageFetcher.CodexScanCatchUpStatus(pending: true, progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount += 1
+            return CostUsageFetcher.CodexScanCatchUpStatus(
+                pending: true,
+                progressKey: "unchanged")
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        store.startCodexCostCatchUpIfNeeded()
+        await Task.yield()
+
         #expect(advanceCount == 1)
+        #expect(store.codexCostCatchUpTask == nil)
+        #expect(store.codexCostCatchUpActivity?.pauseReason == .noProgress)
+    }
+
+    @Test
+    func `an ordinary refresh resumes only after a stalled progress key changes`() async throws {
+        let store = try Self.makeStore(suite: "no-progress-key-change")
+        let progressKey = LockIsolated("A")
+        let bStatusLoadCount = LockIsolated(0)
+        let advanceCount = LockIsolated(0)
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            Self.tokenSnapshot(cost: 1, now: now)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            if progressKey.value == "B" {
+                bStatusLoadCount.setValue(bStatusLoadCount.value + 1)
+            }
+            return CostUsageFetcher.CodexScanCatchUpStatus(
+                pending: progressKey.value == "A" || bStatusLoadCount.value < 3,
+                progressKey: progressKey.value)
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount.setValue(advanceCount.value + 1)
+            return CostUsageFetcher.CodexScanCatchUpStatus(
+                pending: progressKey.value == "A",
+                progressKey: progressKey.value)
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(advanceCount.value == 1)
+        #expect(store.codexCostCatchUpPausedProgressKey == "A")
+
+        // The status probe observes the same semantic state and must not rebuild the cache.
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil { store.codexCostCatchUpProgressProbeTask == nil }
+        #expect(advanceCount.value == 1)
+        #expect(store.codexCostCatchUpPausedProgressKey == "A")
+
+        // A real source change releases the pause and allows the existing worker to converge.
+        progressKey.setValue("B")
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil {
+            store.codexCostCatchUpTask == nil && advanceCount.value == 2
+        }
+
+        #expect(advanceCount.value == 2)
+        #expect(store.codexCostCatchUpPausedProgressKey == nil)
         #expect(store.codexCostCatchUpActivity?.phase == .complete)
     }
 

@@ -467,6 +467,9 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         #expect(snapshot.codeReviewRemainingPercent == 81)
         #expect(snapshot.creditsPurchaseURL == "https://chatgpt.com/checkout")
         #expect(snapshot.subscriptionRenewsAt != nil)
+        #expect(
+            snapshot.updatedAt == Date(timeIntervalSince1970: 2),
+            "API freshness must remain the snapshot timestamp")
     }
 
     @Test

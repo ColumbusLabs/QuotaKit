@@ -195,6 +195,110 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Codex complete history publishes exact Mac local day bounds`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-local-history-bounds")
+        settings.iCloudSyncEnabled = true
+        settings.costUsageBucketTimeZoneIdentifier = "America/Indiana/Indianapolis"
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        var utc = Calendar(identifier: .gregorian)
+        utc.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let updatedAt = try #require(utc.date(from: DateComponents(
+            year: 2026, month: 8, day: 12, hour: 1)))
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: updatedAt),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 0,
+                sessionCostUSD: 0,
+                last30DaysTokens: 0,
+                last30DaysCostUSD: 0,
+                historyDays: 30,
+                historyCoverageIsEstablished: true,
+                historySinceDayKey: "2026-07-13",
+                historyUntilDayKey: "2026-08-11",
+                daily: [],
+                updatedAt: updatedAt),
+            provider: .codex)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let summary = try #require(mock.lastSnapshot?.providers.first?.costSummary)
+        #expect(summary.historySinceDayKey == "2026-07-13")
+        #expect(summary.historyUntilDayKey == "2026-08-11")
+    }
+
+    @Test
+    func `Codex account switch does not retain the previous account's partial cost history`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-cost-account-scope")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let establishedAt = Date(timeIntervalSince1970: 1_800_000_000)
+        let partialAt = establishedAt.addingTimeInterval(60)
+        func usageSnapshot(email: String, accountID: String, updatedAt: Date) -> UsageSnapshot {
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                updatedAt: updatedAt,
+                identity: ProviderIdentitySnapshot(
+                    providerID: UsageProvider.codex.instanceID,
+                    accountEmail: email,
+                    accountOrganization: nil,
+                    loginMethod: "oauth",
+                    accountID: accountID))
+        }
+        func costSnapshot(cost: Double, complete: Bool, updatedAt: Date) -> CostUsageTokenSnapshot {
+            CostUsageTokenSnapshot(
+                sessionTokens: Int(cost * 100),
+                sessionCostUSD: cost,
+                last30DaysTokens: Int(cost * 100),
+                last30DaysCostUSD: cost,
+                historyDays: 30,
+                historyCoverageIsEstablished: complete,
+                daily: [],
+                updatedAt: updatedAt)
+        }
+
+        store._setSnapshotForTesting(
+            usageSnapshot(email: "alice@example.com", accountID: "account-a", updatedAt: establishedAt),
+            provider: .codex)
+        store._setTokenSnapshotForTesting(
+            costSnapshot(cost: 130, complete: true, updatedAt: establishedAt),
+            provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.lastSnapshot?.providers.first?.costSummary?.last30DaysCostUSD == 130)
+
+        // B's first result is partial. B must start cold rather than inheriting
+        // A's retained complete total merely because both use the Codex slot.
+        store._setSnapshotForTesting(
+            usageSnapshot(email: "bob@example.com", accountID: "account-b", updatedAt: partialAt),
+            provider: .codex)
+        store.installCachedTokenSnapshot(
+            costSnapshot(cost: 8, complete: false, updatedAt: partialAt),
+            for: .codex)
+        await coordinator.pushCurrentSnapshot()
+
+        let codex = try #require(mock.lastSnapshot?.providers.first { $0.providerID == "codex" })
+        #expect(codex.accountEmail == "bob@example.com")
+        #expect(codex.costSummary?.last30DaysCostUSD == 8)
+        #expect(codex.costSummary?.historyCoverageIsEstablished == false)
+    }
+
+    @Test
     func `Cursor machine local fallback stays standalone and out of account sync`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-unowned-local-cost")
         settings.iCloudSyncEnabled = true

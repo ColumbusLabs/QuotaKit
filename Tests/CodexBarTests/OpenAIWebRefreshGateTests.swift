@@ -201,7 +201,21 @@ struct OpenAIWebRefreshGateTests {
     }
 
     @Test
-    func `page scrape stays on when history has never been collected`() {
+    func `required page scrape stays on when history has never been collected`() {
+        let shouldScrape = UsageStore.shouldAllowOpenAIDashboardPageScrape(.init(
+            force: true,
+            userInitiated: true,
+            hasHistory: false,
+            lastPageScrapeAt: nil,
+            historyUpdatedAt: nil,
+            now: Date(),
+            refreshInterval: 300))
+
+        #expect(shouldScrape)
+    }
+
+    @Test
+    func `background refresh keeps page history when it has not been collected yet`() {
         let shouldScrape = UsageStore.shouldAllowOpenAIDashboardPageScrape(.init(
             force: false,
             userInitiated: false,
@@ -211,6 +225,8 @@ struct OpenAIWebRefreshGateTests {
             now: Date(),
             refreshInterval: 300))
 
+        // The fetcher may still use the DOM when API preflight cannot provide the required page-only
+        // fields; this gate is the explicit/background intent boundary.
         #expect(shouldScrape)
     }
 
@@ -245,14 +261,14 @@ struct OpenAIWebRefreshGateTests {
     }
 
     @Test
-    func `background force refresh does not scrape recent history`() {
+    func `background force refresh does not scrape stale history`() {
         let now = Date()
         let shouldScrape = UsageStore.shouldAllowOpenAIDashboardPageScrape(.init(
             force: true,
             userInitiated: false,
             hasHistory: true,
-            lastPageScrapeAt: now.addingTimeInterval(-60),
-            historyUpdatedAt: now.addingTimeInterval(-60),
+            lastPageScrapeAt: now.addingTimeInterval(-301),
+            historyUpdatedAt: now.addingTimeInterval(-301),
             now: now,
             refreshInterval: 300))
 
@@ -260,7 +276,7 @@ struct OpenAIWebRefreshGateTests {
     }
 
     @Test
-    func `page scrape returns after the dashboard interval`() {
+    func `background page scrape remains disabled inside the infrequent reconciliation TTL`() {
         let now = Date()
         let shouldScrape = UsageStore.shouldAllowOpenAIDashboardPageScrape(.init(
             force: false,
@@ -268,6 +284,24 @@ struct OpenAIWebRefreshGateTests {
             hasHistory: true,
             lastPageScrapeAt: now.addingTimeInterval(-301),
             historyUpdatedAt: now.addingTimeInterval(-301),
+            now: now,
+            refreshInterval: 300))
+
+        #expect(!shouldScrape)
+    }
+
+    @Test
+    func `background page scrape resumes after the infrequent reconciliation TTL`() {
+        let now = Date()
+        let ttl = max(
+            UsageStore.openAIWebBackgroundPageScrapeTTL,
+            300)
+        let shouldScrape = UsageStore.shouldAllowOpenAIDashboardPageScrape(.init(
+            force: false,
+            userInitiated: false,
+            hasHistory: true,
+            lastPageScrapeAt: now.addingTimeInterval(-(ttl + 1)),
+            historyUpdatedAt: now.addingTimeInterval(-(ttl + 1)),
             now: now,
             refreshInterval: 300))
 

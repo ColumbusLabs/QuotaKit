@@ -6,6 +6,50 @@ import Testing
 // swiftlint:disable:next type_body_length
 struct CostUsageFetcherCacheSnapshotTests {
     @Test
+    func `routine codex refresh uses query backed working set without a full snapshot read`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        try Self.writeCodexSessionFile(
+            homeRoot: env.codexHomeRoot,
+            env: env,
+            day: now,
+            filename: "routine-working-set.jsonl",
+            tokens: 42)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        options.refreshMinIntervalSeconds = 0
+
+        #if DEBUG
+        let databaseURL = CostUsageStore(cacheRoot: env.cacheRoot).databaseURL
+        var fullSnapshotReads = 0
+        CostUsageStore.snapshotReadForTesting = { readURL in
+            if readURL == databaseURL {
+                fullSnapshotReads += 1
+            }
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
+        #endif
+
+        let snapshot = try await CostUsageFetcher.loadTokenSnapshot(
+            provider: .codex,
+            now: now,
+            historyDays: 1,
+            allowPricingRefresh: false,
+            refreshPricingInBackground: false,
+            includePiSessions: false,
+            scannerOptions: options)
+
+        #expect(snapshot.sessionTokens == 42)
+        #expect(snapshot.sessions.count == 1)
+        #if DEBUG
+        #expect(fullSnapshotReads == 0)
+        #endif
+    }
+
+    @Test
     func `cached projection preserves exact report evidence without a full snapshot hydration`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -99,6 +143,50 @@ struct CostUsageFetcherCacheSnapshotTests {
         #if DEBUG
         #expect(fullSnapshotReads == 0)
         #endif
+    }
+
+    @Test
+    func `compact session projection preserves unknown request counts`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let day = "2026-04-08"
+        let fileURL = env.codexSessionsRoot.appendingPathComponent("compatibility.jsonl")
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: now,
+            until: now,
+            calendar: .current)
+        var aggregate = CostUsageStoreDayAggregate.zero(day: day, model: "gpt-5.4")
+        aggregate.inputTokens = 42
+        aggregate.standardInputTokens = 42
+        aggregate.standardTokens = 42
+        var cache = CostUsageCache()
+        cache.days = [day: ["gpt-5.4": [42, 0, 0]]]
+        cache.files[fileURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: Int64(now.timeIntervalSince1970 * 1000),
+            size: 1,
+            days: cache.days,
+            parsedBytes: 1,
+            sessionId: "compatibility-session",
+            codexScanComplete: true)
+
+        let compact = CostUsageCodexReportProjectionBuilder.build(
+            projection: CostUsageStoreCodexReportProjection(
+                cache: cache,
+                fileDayAggregates: [.init(path: fileURL.path, aggregate: aggregate)]),
+            roots: [env.codexSessionsRoot],
+            range: range,
+            cacheRoot: env.cacheRoot,
+            includeBreakdowns: true)
+        let compatibility = CostUsageScanner.buildCodexSessionBreakdownsFromCache(
+            cache: cache,
+            range: range,
+            sessionRoots: [env.codexSessionsRoot])
+
+        #expect(compact.report.data.first?.requestCount == nil)
+        #expect(compact.sessions.first?.requestCount == compatibility.first?.requestCount)
+        #expect(compact.sessions.first?.requestCount == nil)
     }
 
     @Test
@@ -665,6 +753,95 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `verified codex history projects alternating pending windows after reload`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 2, day: 7)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let wideSince = try #require(options.calendar.date(byAdding: .day, value: -364, to: now))
+        let wideRange = CostUsageScanner.CostUsageDayRange(
+            since: wideSince,
+            until: now,
+            calendar: options.calendar)
+        let currentKey = wideRange.untilKey
+        let oldKey = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: oldDay,
+            calendar: options.calendar)
+        let sessionURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "verified-history.jsonl",
+            contents: "{}\n")
+        let fileMetadata = CostUsageScanner.codexFileMetadata(fileURL: sessionURL)
+        let days = [
+            oldKey: ["gpt-5.4": [11, 0, 2]],
+            currentKey: ["gpt-5.4": [42, 0, 8]],
+        ]
+        var established = CostUsageCache()
+        established.lastScanUnixMs = Int64(now.timeIntervalSince1970 * 1000)
+        established.scanSinceKey = wideRange.sinceKey
+        established.scanUntilKey = wideRange.untilKey
+        established.timeZoneIdentifier = options.calendar.timeZone.identifier
+        established.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        established.days = days
+        established.files[sessionURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: fileMetadata.mtimeUnixMs,
+            size: fileMetadata.size,
+            days: days,
+            parsedBytes: fileMetadata.size,
+            codexScanFileId: fileMetadata.fileId,
+            codexScanTargetSize: fileMetadata.size,
+            codexScanComplete: true)
+        let establishedResult = CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: established,
+            calendar: options.calendar)
+        #expect(!establishedResult.catchUpRequired)
+
+        // A bounded 365-day pass can replace the visible working set while the complete
+        // report remains the publication baseline. This intentionally has no old payload.
+        var pending = established
+        pending.lastScanUnixMs += 10000
+        pending.codexScanCatchUpPending = true
+        pending.days = [currentKey: days[currentKey] ?? [:]]
+        let pendingResult = CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: pending,
+            calendar: options.calendar)
+        #expect(!pendingResult.catchUpRequired)
+
+        let reloadedProjection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        #expect(reloadedProjection.verifiedScanSinceKey == wideRange.sinceKey)
+        #expect(reloadedProjection.verifiedScanUntilKey == wideRange.untilKey)
+        #expect(reloadedProjection.verifiedDayAggregates.count == 2)
+
+        // Requesting the narrow projection first must not collapse the durable wide history.
+        let narrow = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(narrow?.snapshot.daily.map(\.date) == [currentKey])
+        #expect(narrow?.snapshot.last30DaysTokens == 50)
+        #expect(narrow?.snapshot.historyCoverageIsEstablished == true)
+
+        // A fresh store read of the reverse projection still sees its own complete range.
+        let wide = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 365,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(wide?.snapshot.daily.map(\.date) == [oldKey, currentKey])
+        #expect(wide?.snapshot.last30DaysTokens == 63)
+        #expect(wide?.snapshot.historyCoverageIsEstablished == true)
+    }
+
+    @Test
     func `pending historical catch-up replaces only a fully indexed current day`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -945,6 +1122,290 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `metadata inventory resumes legacy cursors and begins a second bounded sweep`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let oldDay = try env.makeLocalNoon(year: 2026, month: 4, day: 5)
+        func initialSession(turnID: String) throws -> String {
+            try env.jsonl([
+                [
+                    "type": "turn_context",
+                    "timestamp": env.isoString(for: oldDay),
+                    "payload": ["model": "openai/gpt-5.4"],
+                ],
+                [
+                    "type": "event_msg",
+                    "timestamp": env.isoString(for: oldDay.addingTimeInterval(1)),
+                    "payload": [
+                        "type": "token_count",
+                        "turn_id": turnID,
+                        "info": [
+                            "last_token_usage": [
+                                "input_tokens": 1,
+                                "cached_input_tokens": 0,
+                                "output_tokens": 0,
+                            ],
+                            "model": "openai/gpt-5.4",
+                        ],
+                    ],
+                ],
+            ])
+        }
+        let firstURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "legacy-cursor-first.jsonl",
+            contents: initialSession(turnID: "first-old"))
+        let secondURL = try env.writeCodexSessionFile(
+            day: oldDay,
+            filename: "legacy-cursor-second.jsonl",
+            contents: initialSession(turnID: "second-old"))
+        try FileManager.default.setAttributes([.modificationDate: oldDay], ofItemAtPath: firstURL.path)
+        try FileManager.default.setAttributes([.modificationDate: oldDay], ofItemAtPath: secondURL.path)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            useCodexCatchUpWorkingSet: true)
+        options.refreshMinIntervalSeconds = 0
+
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: oldDay,
+            until: now,
+            now: now,
+            options: options)
+        var legacyCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        var legacyDiscovery = try #require(legacyCache.codexSessionDiscovery)
+        legacyDiscovery.metadataCandidateIndex = nil
+        legacyDiscovery.nextFileIndex = legacyDiscovery.filePaths.count
+        legacyCache.codexSessionDiscovery = legacyDiscovery
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: legacyCache,
+            calendar: options.calendar)
+
+        func appendCurrentUsage(to fileURL: URL, turnID: String, tokens: Int) throws {
+            let handle = try FileHandle(forWritingTo: fileURL)
+            try handle.seekToEnd()
+            try handle.write(contentsOf: Data(env.jsonl([[
+                "type": "event_msg",
+                "timestamp": env.isoString(for: now.addingTimeInterval(TimeInterval(tokens))),
+                "payload": [
+                    "type": "token_count",
+                    "turn_id": turnID,
+                    "info": [
+                        "last_token_usage": [
+                            "input_tokens": tokens,
+                            "cached_input_tokens": 0,
+                            "output_tokens": 0,
+                        ],
+                        "model": "openai/gpt-5.4",
+                    ],
+                ],
+            ]]).utf8))
+            try handle.close()
+            try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: fileURL.path)
+        }
+
+        try appendCurrentUsage(to: firstURL, turnID: "first-current", tokens: 9)
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: now,
+            until: now,
+            now: now.addingTimeInterval(20),
+            options: options)
+        let afterLegacyCursor = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(afterLegacyCursor.files[firstURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 9)
+        #expect(afterLegacyCursor.codexSessionDiscovery?.metadataCandidateIndex
+            == afterLegacyCursor.codexSessionDiscovery?.filePaths.count)
+
+        try appendCurrentUsage(to: secondURL, turnID: "second-current", tokens: 11)
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: now,
+            until: now,
+            now: now.addingTimeInterval(30),
+            options: options)
+        let afterSecondSweep = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(afterSecondSweep.files[secondURL.path]?.days["2026-04-08"]?["gpt-5.4"]?.first == 11)
+        #expect(afterSecondSweep.codexSessionDiscovery?.metadataCandidateIndex
+            == afterSecondSweep.codexSessionDiscovery?.filePaths.count)
+    }
+
+    @Test
+    func `metadata sweep applies completed historical append and deletion across refreshes`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 4, day: 5)
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        func session(turnID: String, input: Int) throws -> String {
+            try env.jsonl([
+                [
+                    "type": "turn_context",
+                    "timestamp": env.isoString(for: historicalDay),
+                    "payload": ["model": "openai/gpt-5.4"],
+                ],
+                [
+                    "type": "event_msg",
+                    "timestamp": env.isoString(for: historicalDay.addingTimeInterval(1)),
+                    "payload": [
+                        "type": "token_count",
+                        "turn_id": turnID,
+                        "info": [
+                            "last_token_usage": [
+                                "input_tokens": input,
+                                "cached_input_tokens": 0,
+                                "output_tokens": 0,
+                            ],
+                            "model": "openai/gpt-5.4",
+                        ],
+                    ],
+                ],
+            ])
+        }
+        let appendedURL = try env.writeCodexSessionFile(
+            day: historicalDay,
+            filename: "historical-append.jsonl",
+            contents: session(turnID: "initial-append", input: 3))
+        let deletedURL = try env.writeCodexSessionFile(
+            day: historicalDay,
+            filename: "historical-delete.jsonl",
+            contents: session(turnID: "initial-delete", input: 5))
+        try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: appendedURL.path)
+        try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: deletedURL.path)
+
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            useCodexCatchUpWorkingSet: true)
+        options.refreshMinIntervalSeconds = 0
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: now,
+            now: now,
+            options: options)
+        let initial = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(initial.codexSessionDiscovery?.metadataInventoryEstablished == true)
+        #expect(initial.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 3)
+        #expect(initial.files[deletedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 5)
+
+        let handle = try FileHandle(forWritingTo: appendedURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data(session(turnID: "historical-append", input: 7).utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: historicalDay], ofItemAtPath: appendedURL.path)
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: now,
+            now: now.addingTimeInterval(10),
+            options: options)
+        let afterAppend = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(afterAppend.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 10)
+
+        try FileManager.default.removeItem(at: deletedURL)
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: now,
+            now: now.addingTimeInterval(20),
+            options: options)
+        let afterDeletion = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(afterDeletion.files[deletedURL.path] == nil)
+        #expect(afterDeletion.files[appendedURL.path]?.days["2026-04-05"]?["gpt-5.4"]?.first == 10)
+    }
+
+    @Test
+    func `narrow refresh drains retained-window metadata overflow after cache reloads`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 2, day: 8)
+        let wideSince = try env.makeLocalNoon(year: 2025, month: 4, day: 9)
+        let narrowSince = try env.makeLocalNoon(year: 2026, month: 3, day: 10)
+
+        func session(day: Date, turnID: String, input: Int) throws -> String {
+            try env.jsonl([[
+                "type": "event_msg",
+                "timestamp": env.isoString(for: day),
+                "payload": [
+                    "type": "token_count",
+                    "turn_id": turnID,
+                    "info": [
+                        "last_token_usage": [
+                            "input_tokens": input,
+                            "cached_input_tokens": 0,
+                            "output_tokens": 0,
+                        ],
+                        "model": "openai/gpt-5.4",
+                    ],
+                ],
+            ]])
+        }
+
+        _ = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: session(day: now, turnID: "current", input: 2))
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            useCodexCatchUpWorkingSet: true)
+        options.refreshMinIntervalSeconds = 0
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: wideSince,
+            until: now,
+            now: now,
+            options: options)
+
+        // Six files deliberately exceed the four-path immediate hydration cap. The overflow
+        // is persisted and drained by later refreshes, which reload the cache from SQLite.
+        let historicalURLs = try (0..<6).map { index in
+            let url = try env.writeCodexSessionFile(
+                day: historicalDay,
+                filename: "new-retained-history-\(index).jsonl",
+                contents: session(
+                    day: historicalDay,
+                    turnID: "historical-\(index)",
+                    input: 7))
+            try FileManager.default.setAttributes(
+                [.modificationDate: historicalDay],
+                ofItemAtPath: url.path)
+            return url
+        }
+
+        var afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        for pass in 1...12 where !historicalURLs.allSatisfy({
+            afterNarrowRefresh.files[$0.path] != nil
+        }) {
+            _ = CostUsageScanner.loadDailyReport(
+                provider: .codex,
+                since: narrowSince,
+                until: now,
+                now: now.addingTimeInterval(TimeInterval(pass * 10)),
+                options: options)
+            afterNarrowRefresh = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        }
+        #expect(afterNarrowRefresh.scanSinceKey == "2025-04-10")
+        #expect(historicalURLs.allSatisfy {
+            afterNarrowRefresh.files[$0.path]?.days["2026-02-08"]?["gpt-5.4"]?.first == 7
+        })
+
+        let wideReport = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: wideSince,
+            until: now,
+            now: now.addingTimeInterval(20),
+            options: options)
+        #expect(wideReport.data.first(where: { $0.date == "2026-02-08" })?.totalTokens == 42)
+    }
+
+    @Test
     func `current day proof rejects an appended cached session from an older partition`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -1006,7 +1467,6 @@ struct CostUsageFetcherCacheSnapshotTests {
         try handle.write(contentsOf: Data("{}\n".utf8))
         try handle.close()
         try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: resumedURL.path)
-
         #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
             cache: cache,
             roots: roots,
@@ -1057,7 +1517,6 @@ struct CostUsageFetcherCacheSnapshotTests {
         try FileManager.default.setAttributes(
             [.modificationDate: now],
             ofItemAtPath: newOldPartitionURL.path)
-
         #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
             cache: cache,
             roots: roots,
@@ -1627,6 +2086,7 @@ struct CostUsageFetcherCacheSnapshotTests {
             nextDirectoryIndex: directoryPaths.count,
             filePaths: discoveredFilePaths.sorted(),
             nextFileIndex: 0,
+            metadataCandidateIndex: discoveredFilePaths.count,
             fileStamps: [:],
             headScan: nil,
             filePathBySessionId: [:],

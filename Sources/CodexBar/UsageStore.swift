@@ -369,6 +369,10 @@ final class UsageStore {
     @ObservationIgnored var codexCostCatchUpStopRequested = false
     @ObservationIgnored var codexCostCatchUpPassIsRunning = false
     @ObservationIgnored var codexCostCatchUpRestartRequested = false
+    @ObservationIgnored var codexCostCatchUpHistoryDays = 0
+    @ObservationIgnored var codexCostCatchUpPausedScopeSignature: String?
+    @ObservationIgnored var codexCostCatchUpPausedProgressKey: String?
+    @ObservationIgnored var codexCostCatchUpProgressProbeTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpTask: Task<Void, Never>?
     @ObservationIgnored var spendDashboardCodexCostCatchUpToken: UUID?
     @ObservationIgnored var spendDashboardCodexCostCatchUpScopeSignature: String?
@@ -376,6 +380,10 @@ final class UsageStore {
     @ObservationIgnored var spendDashboardCodexCostCatchUpStopRequested = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpPassIsRunning = false
     @ObservationIgnored var spendDashboardCodexCostCatchUpRestartRequested = false
+    @ObservationIgnored var spendDashboardCodexCostCatchUpPausedScopeSignature: String?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpPausedProgressKey: String?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpProgressProbeTask: Task<Void, Never>?
+    @ObservationIgnored var spendDashboardCodexCostCatchUpUsesPrimaryWorker = false
     @ObservationIgnored var forcedRefreshEnrichmentTask: Task<Void, Never>?
     @ObservationIgnored var forcedRefreshEnrichmentToken: UUID?
     @ObservationIgnored var pendingForcedRefreshEnrichmentTask: Task<Void, Never>?
@@ -966,6 +974,9 @@ final class UsageStore {
         self.timerTask?.cancel()
         self.tokenRefreshSequenceTask?.cancel()
         self.codexCostCatchUpTask?.cancel()
+        self.codexCostCatchUpProgressProbeTask?.cancel()
+        self.spendDashboardCodexCostCatchUpTask?.cancel()
+        self.spendDashboardCodexCostCatchUpProgressProbeTask?.cancel()
         self.forcedRefreshEnrichmentTask?.cancel()
         self.pendingForcedRefreshEnrichmentTask?.cancel()
         self.requiredRefreshTask?.cancel()
@@ -1596,7 +1607,13 @@ extension UsageStore {
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
             if shouldSurface {
                 self.tokenErrors[provider.instanceID] = error.localizedDescription
-                self.clearTokenSnapshot(for: provider)
+                // Codex's bounded scan can fail after a complete snapshot has
+                // already been established. Keep that snapshot published so a
+                // transient error cannot turn the next Mac sync into an empty
+                // or partial replacement. The persisted Codex cache restores
+                // the same state after a process restart; other token-cost
+                // providers retain their historical failure behavior.
+                self.clearTokenSnapshotAfterFailedRefresh(for: provider)
             } else {
                 self.tokenErrors[provider.instanceID] = nil
             }

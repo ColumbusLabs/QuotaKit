@@ -96,6 +96,8 @@ struct CostUsageCodexSessionDiscovery: Codable, Equatable {
     var nextDirectoryIndex: Int
     var filePaths: [String]
     var nextFileIndex: Int
+    var metadataCandidateIndex: Int?
+    var metadataInventoryEstablished: Bool?
     var fileStamps: [String: FileStamp]
     var headScan: HeadScan?
     var filePathBySessionId: [String: String]

@@ -40,6 +40,10 @@ extension UsageStore {
     }
 
     private static let openAIWebRefreshMultiplier: TimeInterval = 5
+    /// Keep routine background page reconciliation materially less frequent than the API refresh.
+    /// The API remains the normal source; this only permits an occasional DOM refresh so page-only
+    /// history can recover without making every background refresh start WebKit.
+    nonisolated static let openAIWebBackgroundPageScrapeTTL: TimeInterval = 60 * 60
     private static let openAIWebPrimaryFetchTimeout: TimeInterval = 25
     private static let openAIWebRetryFetchTimeout: TimeInterval = 8
     private static let openAIWebPostImportFetchTimeout: TimeInterval = 25
@@ -1519,10 +1523,15 @@ extension UsageStore {
         if gate.force, gate.userInitiated {
             return true
         }
-        guard let lastPageScrapeAt = gate.lastPageScrapeAt ?? gate.historyUpdatedAt else {
+
+        // Keep page-only history fresh, but only on a materially infrequent background cadence. The
+        // API remains the normal source between these reconciliations. Use the prior snapshot time
+        // after relaunch when the in-memory page-scrape stamp is unavailable.
+        guard let lastPageDataAt = gate.lastPageScrapeAt ?? gate.historyUpdatedAt else {
             return false
         }
-        return gate.now.timeIntervalSince(lastPageScrapeAt) >= gate.refreshInterval
+        let ttl = max(gate.refreshInterval, Self.openAIWebBackgroundPageScrapeTTL)
+        return gate.now.timeIntervalSince(lastPageDataAt) >= ttl
     }
 
     nonisolated static func dashboardHasPageHistory(_ snapshot: OpenAIDashboardSnapshot?) -> Bool {

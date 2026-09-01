@@ -218,6 +218,12 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// history window. Optional for wire compatibility: `nil` identifies a
     /// legacy producer that predates explicit completeness metadata.
     public let historyCoverageIsEstablished: Bool?
+    /// Exact producer-local day-key bounds for an authoritative history
+    /// window. These avoid reconstructing Mac-local buckets from a UTC
+    /// timestamp on iOS, especially for complete empty/downward corrections.
+    /// Optional for compatibility with older producers.
+    public let historySinceDayKey: String?
+    public let historyUntilDayKey: String?
     /// iOS 1.10.0 / Mac 0.31.0 (025) — upstream #1163: request counts +
     /// currency for the shared cost cards. Optional; nil for pre-0.31
     /// payloads. iOS shows "N requests" + the right currency symbol.
@@ -247,6 +253,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         isEstimated: Bool? = nil,
         historyDays: Int? = nil,
         historyCoverageIsEstablished: Bool? = nil,
+        historySinceDayKey: String? = nil,
+        historyUntilDayKey: String? = nil,
         sessionRequests: Int? = nil,
         last30DaysRequests: Int? = nil,
         currencyCode: String? = nil,
@@ -262,6 +270,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.isEstimated = isEstimated
         self.historyDays = historyDays
         self.historyCoverageIsEstablished = historyCoverageIsEstablished
+        self.historySinceDayKey = historySinceDayKey
+        self.historyUntilDayKey = historyUntilDayKey
         self.sessionRequests = sessionRequests
         self.last30DaysRequests = last30DaysRequests
         self.currencyCode = currencyCode
@@ -275,11 +285,14 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     /// higher-confidence daily history.
     ///
     /// Completeness precedence is: established (`true`) > legacy (`nil`) >
-    /// known partial (`false`). An incoming summary of equal or higher quality
-    /// is authoritative. A lower-quality summary keeps previous values for
-    /// overlapping days, retains previous missing days, and may add new days.
+    /// known partial (`false`). An incoming summary of higher quality is
+    /// authoritative. Equal-quality partial/legacy summaries merge by day so
+    /// omitted days remain retained; a lower-quality summary keeps previous
+    /// values for overlapping days, retains previous missing days, and may add
+    /// new days.
     public func reconcilingHistory(
         with previous: SyncCostSummary?,
+        incomingFallbackUpdatedAt: Date? = nil,
         previousFallbackUpdatedAt: Date? = nil) -> SyncCostSummary
     {
         guard let previous else {
@@ -295,25 +308,73 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         let incomingRank = Self.historyCoverageRank(self.historyCoverageIsEstablished)
         let previousRank = Self.historyCoverageRank(previous.historyCoverageIsEstablished)
 
-        // An equal- or higher-quality incoming history is authoritative, but
-        // the freshness marker still represents the newest cost source known
-        // across both summaries.
-        guard incomingRank < previousRank else {
+        // A complete correction is allowed to reduce a previously published
+        // total, but an older complete payload must not roll a newer one
+        // back. The explicit total revision is preferred over the payload
+        // revision because a newer dashboard breakdown can arrive without a
+        // newer scanner total. Equal partial/legacy payloads continue through
+        // the day merge below: omission is not deletion.
+        if incomingRank > previousRank {
+            guard Self.isAtLeastAsFresh(
+                self,
+                as: previous,
+                incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+                previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+            else {
+                return previous
+            }
+            return self.withFreshness(
+                costUpdatedAt: reconciledCostUpdatedAt,
+                totalCostUpdatedAt: self.totalCostUpdatedAt,
+                sourceRevisions: self.sourceRevisions)
+        }
+        if incomingRank == previousRank,
+           incomingRank == Self.establishedHistoryRank
+        {
+            guard Self.isAtLeastAsFresh(
+                self,
+                as: previous,
+                incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+                previousFallbackUpdatedAt: previousFallbackUpdatedAt)
+            else {
+                return previous
+            }
             return self.withFreshness(
                 costUpdatedAt: reconciledCostUpdatedAt,
                 totalCostUpdatedAt: self.totalCostUpdatedAt,
                 sourceRevisions: self.sourceRevisions)
         }
 
+        // A lower-quality payload from a different history window cannot
+        // replace the retained window. A historyDays change is common while
+        // settings are being applied, and the first bounded scan for the new
+        // scope may contain only a fraction of its rows. Keep the established
+        // summary until that new scope is complete; otherwise a 365-day $130
+        // history can regress to a 30-day partial $8 payload. Complete
+        // corrections are handled above and remain authoritative.
+        guard Self.sameHistoryScope(self, previous) else {
+            return previous
+        }
+
         let reconciledSourceRevisions = Self.mergingSourceRevisions(
             self.sourceRevisions,
             previous.sourceRevisions)
 
+        // Missing days in a partial update are no-ops. For two partial
+        // revisions, newer points may replace older points; when the prior
+        // summary is established (or legacy/unknown), its overlapping points
+        // remain authoritative while a partial scan may only add a new day.
+        let incomingWinsOverlappingDays = incomingRank == previousRank
+            && Self.isAtLeastAsFresh(
+                self,
+                as: previous,
+                incomingFallbackUpdatedAt: incomingFallbackUpdatedAt,
+                previousFallbackUpdatedAt: previousFallbackUpdatedAt)
         var dailyByDayKey: [String: SyncDailyPoint] = [:]
-        for point in self.daily {
+        for point in previous.daily {
             dailyByDayKey[point.dayKey] = point
         }
-        for point in previous.daily {
+        for point in self.daily where incomingWinsOverlappingDays || dailyByDayKey[point.dayKey] == nil {
             dailyByDayKey[point.dayKey] = point
         }
         let reconciledDaily = dailyByDayKey.values.sorted { $0.dayKey < $1.dayKey }
@@ -330,19 +391,23 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         }
 
         return SyncCostSummary(
-            sessionCostUSD: self.sessionCostUSD,
-            sessionTokens: self.sessionTokens,
+            sessionCostUSD: self.sessionCostUSD ?? previous.sessionCostUSD,
+            sessionTokens: self.sessionTokens ?? previous.sessionTokens,
             last30DaysCostUSD: reconciledDaily.isEmpty ? previous.last30DaysCostUSD : reconciledCost,
             last30DaysTokens: reconciledDaily.isEmpty ? previous.last30DaysTokens : reconciledTokens,
             daily: reconciledDaily,
             isEstimated: reconciledIsEstimated,
-            historyDays: previous.historyDays ?? self.historyDays,
+            historyDays: self.historyDays ?? previous.historyDays,
             historyCoverageIsEstablished: previous.historyCoverageIsEstablished,
-            sessionRequests: self.sessionRequests,
+            historySinceDayKey: previous.historySinceDayKey,
+            historyUntilDayKey: previous.historyUntilDayKey,
+            sessionRequests: self.sessionRequests ?? previous.sessionRequests,
             // Daily points do not carry request counts, so a mixed history
             // cannot safely derive this aggregate. Retain the higher-quality
             // value rather than publishing an inconsistent incoming total.
-            last30DaysRequests: previous.last30DaysRequests,
+            last30DaysRequests: incomingWinsOverlappingDays
+                ? self.last30DaysRequests ?? previous.last30DaysRequests
+                : previous.last30DaysRequests,
             currencyCode: self.currencyCode ?? previous.currencyCode,
             costUpdatedAt: reconciledCostUpdatedAt,
             // The higher-quality prior history remains authoritative for
@@ -373,6 +438,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             isEstimated: self.isEstimated,
             historyDays: self.historyDays,
             historyCoverageIsEstablished: self.historyCoverageIsEstablished,
+            historySinceDayKey: self.historySinceDayKey,
+            historyUntilDayKey: self.historyUntilDayKey,
             sessionRequests: self.sessionRequests,
             last30DaysRequests: self.last30DaysRequests,
             currencyCode: self.currencyCode,
@@ -387,6 +454,53 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         case nil: 1
         case false: 0
         }
+    }
+
+    private static let establishedHistoryRank = 2
+
+    private static func sameHistoryScope(
+        _ lhs: SyncCostSummary,
+        _ rhs: SyncCostSummary) -> Bool
+    {
+        guard let lhsDays = lhs.historyDays,
+              let rhsDays = rhs.historyDays
+        else {
+            // A missing historyDays field is a legacy payload. It cannot
+            // prove that the scopes differ, so retain compatibility.
+            return true
+        }
+        return lhsDays == rhsDays
+    }
+
+    private static func isAtLeastAsFresh(
+        _ incoming: SyncCostSummary,
+        as previous: SyncCostSummary,
+        incomingFallbackUpdatedAt: Date?,
+        previousFallbackUpdatedAt: Date?) -> Bool
+    {
+        let incomingRevision = Self.totalRevision(
+            for: incoming,
+            fallbackUpdatedAt: incomingFallbackUpdatedAt)
+        let previousRevision = Self.totalRevision(
+            for: previous,
+            fallbackUpdatedAt: previousFallbackUpdatedAt)
+        guard let incomingRevision, let previousRevision else {
+            // Old payloads have no revision metadata. Preserve their
+            // historical arrival-order semantics rather than making a
+            // correction impossible merely because both dates are absent.
+            return true
+        }
+        return incomingRevision >= previousRevision
+    }
+
+    private static func totalRevision(
+        for summary: SyncCostSummary,
+        fallbackUpdatedAt: Date?) -> Date?
+    {
+        summary.totalCostUpdatedAt
+            ?? summary.costUpdatedAt
+            ?? summary.sourceRevisions?.values.max()
+            ?? fallbackUpdatedAt
     }
 
     private static func latestCostUpdatedAt(_ lhs: Date?, _ rhs: Date?) -> Date? {

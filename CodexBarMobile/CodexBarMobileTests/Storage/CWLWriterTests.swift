@@ -499,6 +499,246 @@ struct CWLWriterTests {
     }
 
     @Test
+    func `upsertFromSnapshot: partial history never overwrites established days`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let establishedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let partialAt = establishedAt.addingTimeInterval(60)
+
+        func snapshot(
+            cost: Double,
+            days: [SyncDailyPoint],
+            coverage: Bool,
+            updatedAt: Date) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: Int(cost * 100),
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: Int(cost * 100),
+                    daily: days,
+                    historyDays: 30,
+                    historyCoverageIsEstablished: coverage,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 130,
+                days: [
+                    SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                    SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+                ],
+                coverage: true,
+                updatedAt: establishedAt),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 8,
+                days: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+                coverage: false,
+                updatedAt: partialAt),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        #expect(rows.count == 2)
+        let byDay = Dictionary(uniqueKeysWithValues: rows.map { ($0.dayKey, $0) })
+        #expect(byDay["2026-08-11"]?.costUSD == 120)
+        #expect(byDay["2026-08-12"]?.costUSD == 10)
+        #expect(byDay.values.reduce(0) { $0 + $1.costUSD } == 130)
+    }
+
+    @Test
+    func `upsertFromSnapshot: newer complete correction may reduce total`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let establishedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let correctedAt = establishedAt.addingTimeInterval(60)
+
+        func snapshot(cost: Double, updatedAt: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: cost,
+                    sessionTokens: Int(cost * 100),
+                    last30DaysCostUSD: cost,
+                    last30DaysTokens: Int(cost * 100),
+                    daily: [SyncDailyPoint(
+                        dayKey: "2026-08-12",
+                        costUSD: cost,
+                        totalTokens: Int(cost * 100))],
+                    historyDays: 30,
+                    historyCoverageIsEstablished: true,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 130, updatedAt: establishedAt),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(cost: 8, updatedAt: correctedAt),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let row = try #require(context.fetch(FetchDescriptor<DailyCostPoint>()).first)
+        #expect(row.costUSD == 8)
+        #expect(row.totalUpdatedAt == correctedAt)
+    }
+
+    @Test
+    func `upsertFromSnapshot: newer complete history removes omitted days only inside its window`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let establishedAt = try #require(calendar.date(from: DateComponents(
+            year: 2026, month: 8, day: 11, hour: 12)))
+        let correctedAt = try #require(calendar.date(from: DateComponents(
+            year: 2026, month: 8, day: 12, hour: 12)))
+
+        func snapshot(
+            days: [SyncDailyPoint],
+            historyDays: Int,
+            updatedAt: Date) -> ProviderUsageSnapshot
+        {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: days.reduce(0) { $0 + $1.costUSD },
+                    sessionTokens: days.reduce(0) { $0 + $1.totalTokens },
+                    last30DaysCostUSD: days.reduce(0) { $0 + $1.costUSD },
+                    last30DaysTokens: days.reduce(0) { $0 + $1.totalTokens },
+                    daily: days,
+                    historyDays: historyDays,
+                    historyCoverageIsEstablished: true,
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+
+        // The first complete 365-day snapshot establishes A and B, plus an
+        // older row outside the later 30-day authoritative window.
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                days: [
+                    SyncDailyPoint(dayKey: "2026-01-01", costUSD: 5, totalTokens: 500),
+                    SyncDailyPoint(dayKey: "2026-08-11", costUSD: 120, totalTokens: 12000),
+                    SyncDailyPoint(dayKey: "2026-08-12", costUSD: 10, totalTokens: 1000),
+                ],
+                historyDays: 365,
+                updatedAt: establishedAt),
+            deviceID: "dev-A",
+            in: context)
+        // A newer complete correction omits A and changes B. A is inside the
+        // 30-day window and must be removed; the January row is outside it
+        // and must remain available to a longer-window reader.
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                days: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+                historyDays: 30,
+                updatedAt: correctedAt),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let byDay = Dictionary(uniqueKeysWithValues: rows.map { ($0.dayKey, $0) })
+        #expect(rows.count == 2)
+        #expect(byDay["2026-01-01"]?.costUSD == 5)
+        #expect(byDay["2026-08-11"] == nil)
+        #expect(byDay["2026-08-12"]?.costUSD == 8)
+    }
+
+    @Test
+    func `upsertFromSnapshot: complete empty history uses Mac local authoritative day keys`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let establishedAt = try #require(calendar.date(from: DateComponents(
+            year: 2026, month: 8, day: 11, hour: 0)))
+        // 01:00 UTC is still August 11 in America/Indiana. A UTC-derived
+        // 30-day cutoff would start on July 14 and fail to delete July 13.
+        let correctedAt = try #require(calendar.date(from: DateComponents(
+            year: 2026, month: 8, day: 12, hour: 1)))
+
+        func snapshot(days: [SyncDailyPoint], updatedAt: Date) -> ProviderUsageSnapshot {
+            ProviderUsageSnapshot(
+                providerID: "codex",
+                providerName: "Codex",
+                primary: nil,
+                secondary: nil,
+                accountEmail: nil,
+                loginMethod: nil,
+                statusMessage: nil,
+                isError: false,
+                lastUpdated: updatedAt,
+                costSummary: SyncCostSummary(
+                    sessionCostUSD: days.reduce(0) { $0 + $1.costUSD },
+                    sessionTokens: days.reduce(0) { $0 + $1.totalTokens },
+                    last30DaysCostUSD: days.reduce(0) { $0 + $1.costUSD },
+                    last30DaysTokens: days.reduce(0) { $0 + $1.totalTokens },
+                    daily: days,
+                    historyDays: 30,
+                    historyCoverageIsEstablished: true,
+                    historySinceDayKey: "2026-07-13",
+                    historyUntilDayKey: "2026-08-11",
+                    costUpdatedAt: updatedAt,
+                    totalCostUpdatedAt: updatedAt))
+        }
+
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                days: [SyncDailyPoint(dayKey: "2026-07-13", costUSD: 130, totalTokens: 13000)],
+                updatedAt: establishedAt),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(days: [], updatedAt: correctedAt),
+            deviceID: "dev-A",
+            in: context)
+        try context.save()
+
+        #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+    }
+
+    @Test
     func `upsertFromSnapshot: nil costSummary → no rows written`() throws {
         let url = self.makeTempStoreURL()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }

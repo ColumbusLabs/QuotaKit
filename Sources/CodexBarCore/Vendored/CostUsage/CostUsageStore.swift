@@ -81,6 +81,7 @@ actor CostUsageStore {
         base: CostUsageStore.baseSchemaVersion,
         parserHash: CodexParserHash.value)
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
+    static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
         "398d5964ff82286a", // QuotaKit 0.32.4.21; current-day publication changes scheduling only.
         "f22371c47d2e006f", // QuotaKit main before retained-report scoping; persisted rows remain compatible.
@@ -100,6 +101,14 @@ actor CostUsageStore {
         "2d17f4981b78d07f", // Persisted priority-turn cursor; parser and persisted row shape unchanged.
         "1ad1e41af7f25b3e", // Trace-priority ownership evidence fix; parser and persisted row shape unchanged.
         "be0bb04e9e92b697", // QuotaKit pre-OpenCodex optimization producer; persisted row shape unchanged.
+        "4c26d7b4f3200869", // Compatible parser producer; persisted rows remain valid for additive migration.
+        "776fe64ed298f47a", // Metadata sweep bookkeeping only; persisted parser rows remain compatible.
+        "ae84207057847ef9", // Historical mismatch/deletion scheduling only; persisted parser rows remain compatible.
+        "b68130304db92645", // Metadata range scoping changes discovery only; persisted parser rows remain compatible.
+        "f2bac4d17b6e80b7", // Retained-window discovery context changes scheduling only; persisted rows remain
+        // compatible.
+        "3053f2f21b526cb2", // Catch-up scans now use the retained window; persisted parser rows remain compatible.
+        "794d08208e8b4be3", // Formatter-only successor; persisted parser rows remain byte-compatible.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "f22371c47d2e006f",
@@ -128,6 +137,10 @@ actor CostUsageStore {
     nonisolated(unsafe) static var codexCatchUpDeltaFailureForTesting: ((URL) throws -> Void)?
     /// Test-only failure injection after a budget deletion but before aggregate/metadata repair.
     nonisolated(unsafe) static var budgetMutationFailureForTesting: ((URL) throws -> Void)?
+    /// Test-only migration failure injection. Never set in production.
+    nonisolated(unsafe) static var verifiedLedgerMigrationFailureForTesting: ((URL) throws -> Void)?
+    /// Test-only observation of migration attempts; completed stores should never call it.
+    nonisolated(unsafe) static var verifiedLedgerMigrationAttemptForTesting: ((URL) -> Void)?
 
     #if DEBUG
     /// Test-only proof that catch-up status does not hydrate the full persisted usage snapshot.
@@ -281,6 +294,7 @@ extension CostUsageStore {
         case sqlite(Int32)
         case invalidData
         case incompatibleSchema
+        case migration(Error)
     }
 
     func withDatabase<T>(default fallback: T, _ operation: (OpaquePointer) throws -> T) -> T {
@@ -370,6 +384,9 @@ extension CostUsageStore {
     /// out of memory, a constraint violation from bad input) must not delete user history:
     /// the old JSON path kept the previous artifact on a failed write, and so do we.
     static func shouldRebuild(after error: Error) -> Bool {
+        if case StoreError.migration = error {
+            return false
+        }
         guard case let StoreError.sqlite(code) = error else { return true }
         switch code & 0xFF {
         case SQLITE_PERM, SQLITE_BUSY, SQLITE_LOCKED, SQLITE_NOMEM, SQLITE_READONLY,
@@ -407,7 +424,9 @@ extension CostUsageStore {
                     }
                     self.activeTransactionDatabase = database
                     let value = try operation()
-                    if let failure = self.activeTransactionError { throw failure }
+                    if let failure = self.activeTransactionError {
+                        throw failure
+                    }
                     if ownsTransaction {
                         try Self.execute(database, "COMMIT")
                     }
@@ -473,6 +492,16 @@ extension CostUsageStore {
             try Self.configure(opened)
             if existed {
                 try self.validateExistingDatabase(opened)
+                // The verified aggregate ledger is an additive migration. Keep the existing
+                // database usable if a transient filesystem/SQLite failure prevents creating
+                // it; the legacy metadata payload remains readable as a compatibility fallback.
+                if try Self.verifiedLedgerMigrationNeeded(opened) {
+                    do {
+                        try self.migrateVerifiedDayAggregates(opened)
+                    } catch {
+                        Self.log.warning("verified Codex aggregate migration deferred: \(error)")
+                    }
+                }
             } else {
                 try Self.execute(opened, "PRAGMA auto_vacuum=INCREMENTAL")
                 try Self.execute(opened, "VACUUM")
@@ -733,6 +762,34 @@ extension CostUsageStore {
     CREATE INDEX day_aggregates_day_idx ON day_aggregates(day);
     CREATE INDEX day_aggregates_model_idx ON day_aggregates(model);
     CREATE INDEX day_aggregates_model_day_idx ON day_aggregates(model, day);
+    CREATE TABLE verified_day_aggregates (
+        day TEXT NOT NULL,
+        model TEXT NOT NULL,
+        input_tokens INTEGER NOT NULL,
+        cached_tokens INTEGER NOT NULL,
+        output_tokens INTEGER NOT NULL,
+        reasoning_tokens INTEGER NOT NULL,
+        request_count INTEGER NOT NULL,
+        unpriced_request_count INTEGER NOT NULL,
+        authoritative_cost_nanos INTEGER NOT NULL,
+        standard_authoritative_cost_nanos INTEGER NOT NULL,
+        priority_authoritative_cost_nanos INTEGER NOT NULL,
+        standard_input_tokens INTEGER NOT NULL,
+        standard_cached_tokens INTEGER NOT NULL,
+        standard_output_tokens INTEGER NOT NULL,
+        priority_input_tokens INTEGER NOT NULL,
+        priority_cached_tokens INTEGER NOT NULL,
+        priority_output_tokens INTEGER NOT NULL,
+        standard_tokens INTEGER NOT NULL,
+        priority_tokens INTEGER NOT NULL,
+        standard_resolved_cost_nanos INTEGER NOT NULL,
+        priority_resolved_cost_nanos INTEGER NOT NULL,
+        standard_unresolved_pricing_count INTEGER NOT NULL,
+        priority_unresolved_pricing_count INTEGER NOT NULL,
+        PRIMARY KEY(day, model)
+    );
+    CREATE INDEX verified_day_aggregates_day_idx ON verified_day_aggregates(day);
+    CREATE INDEX verified_day_aggregates_model_day_idx ON verified_day_aggregates(model, day);
     CREATE TABLE fork_lineage (
         file_id INTEGER PRIMARY KEY REFERENCES files(id) ON DELETE CASCADE,
         session_id TEXT,

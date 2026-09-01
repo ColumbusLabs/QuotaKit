@@ -21,8 +21,10 @@ import SwiftData
 //      skipped only when both stored dimensions are at least as fresh. Cost
 //      summaries carry optional split freshness timestamps; legacy payloads
 //      fall back to the provider's quota/status `lastUpdated`.
-//   4. The writer never deletes ledger rows. Clearing is a separate
-//      explicit action (P4 + P6).
+//   4. Partial snapshots never delete omitted rows. A complete snapshot with
+//      a known history window may remove omitted rows inside that authoritative
+//      window when its total revision is newer; rows outside the window stay.
+//      Clearing everything is still a separate explicit action (P4 + P6).
 
 // MARK: - Aggregate output types (Round 3 / P3)
 
@@ -126,13 +128,19 @@ enum CostLedgerService {
         in context: ModelContext) throws
     {
         guard let summary = provider.costSummary else { return }
-        guard !summary.daily.isEmpty else { return }
 
         let costUpdatedAt = summary.costUpdatedAt ?? provider.lastUpdated
         let totalCostUpdatedAt = summary.totalCostUpdatedAt ?? costUpdatedAt
-        let sourceRevisionKey = summary.mobileRevisionKey(
+        let sourceRevisionKey = Self.ledgerSourceRevisionKey(
+            summary,
             providerLastUpdated: provider.lastUpdated)
         let encoder = CloudSyncConstants.makeJSONEncoder()
+        try Self.deleteOmittedCompleteHistoryRowsIfNeeded(
+            summary: summary,
+            provider: provider,
+            deviceID: deviceID,
+            totalUpdatedAt: totalCostUpdatedAt,
+            in: context)
         for point in summary.daily {
             try Self.upsertDayPoint(
                 deviceID: deviceID,
@@ -194,6 +202,19 @@ enum CostLedgerService {
             : try? enc.encode(serviceBreakdowns)
 
         if let existing = try context.fetch(descriptor).first {
+            // A partial Codex history update is allowed to add previously
+            // absent days, but it must never overwrite a day established by
+            // a complete (or legacy/unknown) history revision. The ledger has
+            // no omission context at this per-day granularity; the wrapper's
+            // complete-window deletion pass handles that separately. The
+            // coverage marker keeps this writer from turning a newer partial
+            // row into a lower total after the cache/blob path is bypassed.
+            let incomingCoverage = Self.historyCoverage(from: sourceRevisionKey)
+            let existingCoverage = Self.historyCoverage(from: existing.sourceRevisionKey)
+            if incomingCoverage == false, existingCoverage != false {
+                return
+            }
+
             // A newer dashboard breakdown revision can be ahead of the local
             // scanner total. Compare the full two-dimensional revision so a
             // scanner advance cannot be hidden behind an unchanged max
@@ -476,6 +497,9 @@ enum CostLedgerService {
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
                     lastUpdated: summary.costUpdatedAt ?? row.lastUpdated,
+                    sourceRevisionKey: Self.ledgerSourceRevisionKey(
+                        summary,
+                        providerLastUpdated: row.lastUpdated),
                     encoder: encoder,
                     in: context)
             }
@@ -484,6 +508,90 @@ enum CostLedgerService {
     }
 
     // MARK: - Helpers
+
+    /// Removes rows omitted by a newer complete history snapshot, but only
+    /// inside that snapshot's known trailing window. A partial scan must not
+    /// call this path: omission from a partial result is explicitly a no-op.
+    private static func deleteOmittedCompleteHistoryRowsIfNeeded(
+        summary: SyncCostSummary,
+        provider: ProviderUsageSnapshot,
+        deviceID: String,
+        totalUpdatedAt: Date,
+        in context: ModelContext) throws
+    {
+        guard summary.historyCoverageIsEstablished == true,
+              let historyDays = summary.historyDays,
+              historyDays > 0
+        else {
+            return
+        }
+
+        // Cost freshness is the closest available as-of marker. Legacy
+        // callers still fall back to the provider timestamp, which is also
+        // what the writer uses when materializing the row revisions.
+        let asOf = summary.costUpdatedAt ?? provider.lastUpdated
+        let authoritativeBounds = Self.authoritativeHistoryBounds(
+            summary: summary,
+            historyDays: historyDays,
+            fallbackAsOf: asOf)
+        let cutoffKey = authoritativeBounds.since
+        let asOfKey = authoritativeBounds.until
+        let providerID = provider.providerID
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate { row in
+                row.deviceID == deviceID
+                    && row.providerID == providerID
+                    && row.dayKey >= cutoffKey
+                    && row.dayKey <= asOfKey
+            })
+        let existingRows = try context.fetch(descriptor).filter {
+            $0.accountEmail == provider.accountEmail
+        }
+        guard !existingRows.isEmpty else { return }
+
+        // Never delete from a window that has a newer or equal aggregate
+        // revision already present. This keeps stale complete payloads from
+        // deleting rows established by a later correction on the same key.
+        let hasNewerExistingTotal = existingRows.contains {
+            ($0.totalUpdatedAt ?? $0.lastUpdated) >= totalUpdatedAt
+        }
+        guard !hasNewerExistingTotal else { return }
+
+        let incomingDayKeys = Set(summary.daily.map(\.dayKey))
+        for row in existingRows where !incomingDayKeys.contains(row.dayKey) {
+            context.delete(row)
+        }
+    }
+
+    /// Adds history completeness to the revision vector stored alongside a
+    /// daily row. This is intentionally kept in the existing string field so
+    /// older SwiftData stores migrate without a schema change.
+    private static func ledgerSourceRevisionKey(
+        _ summary: SyncCostSummary,
+        providerLastUpdated: Date) -> String
+    {
+        let coverage = switch summary.historyCoverageIsEstablished {
+        case true: "established"
+        case false: "partial"
+        case nil: "legacy"
+        }
+        return "\(summary.mobileRevisionKey(providerLastUpdated: providerLastUpdated))|historyCoverage=\(coverage)"
+    }
+
+    private static func historyCoverage(from revisionKey: String?) -> Bool? {
+        guard let revisionKey,
+              let marker = revisionKey.split(separator: "|").last(where: {
+                  $0.hasPrefix("historyCoverage=")
+              })
+        else {
+            return nil
+        }
+        switch marker.dropFirst("historyCoverage=".count) {
+        case "established": return true
+        case "partial": return false
+        default: return nil
+        }
+    }
 
     /// `[asOf - (windowDays - 1) days, asOf]` lower bound as a `YYYY-MM-DD`
     /// UTC dayKey string. Comparison against `DailyCostPoint.dayKey` works
@@ -495,6 +603,42 @@ enum CostLedgerService {
             byAdding: .day,
             value: -(windowDays - 1),
             to: asOf) ?? asOf
+        return Self.utcDayKeyFormatter.string(from: cutoff)
+    }
+
+    /// Resolves deletion bounds from producer-authored day keys whenever
+    /// available. Day keys are calendar dates, so subtracting in UTC is safe
+    /// once the Mac-local end date has already been serialized as a key.
+    private static func authoritativeHistoryBounds(
+        summary: SyncCostSummary,
+        historyDays: Int,
+        fallbackAsOf: Date) -> (since: String, until: String)
+    {
+        if let since = summary.historySinceDayKey,
+           let until = summary.historyUntilDayKey,
+           since <= until
+        {
+            return (since, until)
+        }
+        if let until = summary.historyUntilDayKey
+            ?? summary.daily.map(\.dayKey).max(),
+            let since = Self.cutoffDayKey(windowDays: historyDays, endingAtDayKey: until)
+        {
+            return (since, until)
+        }
+        return (
+            Self.cutoffDayKey(windowDays: historyDays, asOf: fallbackAsOf),
+            Self.utcDayKeyFormatter.string(from: fallbackAsOf))
+    }
+
+    private static func cutoffDayKey(windowDays: Int, endingAtDayKey: String) -> String? {
+        guard let end = utcDayKeyFormatter.date(from: endingAtDayKey) else { return nil }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(identifier: "UTC") ?? .gmt
+        let cutoff = calendar.date(
+            byAdding: .day,
+            value: -(windowDays - 1),
+            to: end) ?? end
         return Self.utcDayKeyFormatter.string(from: cutoff)
     }
 

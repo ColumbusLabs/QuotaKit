@@ -197,7 +197,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
     }
 
     @Test
-    func `a same-mode dashboard reload queues a worker after the completing task`() async throws {
+    func `a same-mode dashboard reload does not queue a worker after the completing task`() async throws {
         let store = try Self.makeStore(suite: "same-mode-restart")
         let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
         var statusLoadCount = 0
@@ -223,12 +223,72 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts)
         store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts)
         await Self.waitUntil {
-            store.spendDashboardCodexCostCatchUpTask == nil && statusLoadCount == 2
+            store.spendDashboardCodexCostCatchUpTask == nil && statusLoadCount == 1
         }
 
-        #expect(statusLoadCount == 2)
-        #expect(advanceCount == 1)
+        #expect(statusLoadCount == 1)
+        #expect(advanceCount == 0)
         #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
+    }
+
+    @Test
+    func `normal and dashboard requests share the primary cache worker`() async throws {
+        let store = try Self.makeStore(suite: "primary-cache-worker")
+        let account = Self.account(
+            id: "live",
+            cacheIdentity: "live-cache",
+            source: .liveSystem)
+        store.settings.codexActiveSource = .liveSystem
+        var advanceCount = 0
+        var receivedHistoryDays: Int?
+        var completed = false
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            CostUsageTokenSnapshot(
+                sessionTokens: 10,
+                sessionCostUSD: 1,
+                last30DaysTokens: 10,
+                last30DaysCostUSD: 1,
+                historyCoverageIsEstablished: true,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-07-30",
+                    inputTokens: 4,
+                    outputTokens: 6,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                updatedAt: now)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            Self.status(
+                pending: !completed,
+                key: completed ? "complete" : "pending",
+                processedBytes: completed ? 100 : 25)
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            advanceCount += 1
+            receivedHistoryDays = historyDays
+            completed = true
+            return Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startCodexCostCatchUpIfNeeded(mode: .automatic)
+        store.synchronizeSpendDashboardCodexCostCatchUp(
+            accounts: [account],
+            preferredMode: .accelerated)
+        await Self.waitUntil {
+            store.codexCostCatchUpTask == nil
+                && receivedHistoryDays == SpendDashboardSource.scanDays
+        }
+
+        #expect(advanceCount == 1)
+        #expect(store.spendDashboardCodexCostCatchUpTask == nil)
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
+        #expect(store.spendDashboardCodexCostCatchUpRevision == 1)
+        store.cancelSpendDashboardCodexCostCatchUp()
+        store.cancelCodexCostCatchUp()
     }
 
     @Test
@@ -412,11 +472,16 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         return try #require(receivedHistoryDays)
     }
 
-    private static func account(id: String, cacheIdentity: String) -> CodexSpendScanRequest {
+    private static func account(
+        id: String,
+        cacheIdentity: String,
+        source: CodexActiveSource = .profileHome(path: "/synthetic/default"))
+        -> CodexSpendScanRequest
+    {
         CodexSpendScanRequest(
             id: id,
             displayName: "Codex · \(id)",
-            source: .profileHome(path: "/synthetic/\(id)"),
+            source: source,
             homePath: "/synthetic/\(id)",
             authFingerprint: nil,
             authFileWasReadable: false,

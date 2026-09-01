@@ -266,7 +266,10 @@ struct ProviderPluginDetailsParityTests {
             }
         }
         let now = Date(timeIntervalSince1970: 1_785_816_000)
-        let swift = try await PoeUsageFetcher._fetchUsage(apiKey: "fixture-key", transport: transport).toUsageSnapshot()
+        let swift = try await PoeUsageFetcher._fetchUsage(
+            apiKey: "fixture-key",
+            transport: transport,
+            now: now).toUsageSnapshot()
         let script = try await ProviderPluginRuntime(bundledPlugin: "poe", transport: transport)
             .fetchUsage(secrets: ["POE_API_KEY": "fixture-key"], now: now)
 

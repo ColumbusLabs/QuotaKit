@@ -543,7 +543,7 @@ struct CostUsagePerformanceGateTests {
         print("[retention-proof] stale-coverage file retained after over-budget prune: \(retained.path)")
 
         let warmCounter = HeadParseCounter()
-        _ = CostUsageScanner.withCodexSessionHeadParseObserverForTesting {
+        CostUsageScanner.withCodexSessionHeadParseObserverForTesting {
             warmCounter.increment()
         } operation: {
             _ = CostUsageScanner.loadDailyReport(
@@ -1373,7 +1373,10 @@ struct CostUsagePerformanceGateTests {
         options.maxCodexScanDurationPerRefresh = 60
         var cache = CostUsageCache()
         var maxHydratedFiles = 0
-        for pass in 1...8 {
+        // The production hydration cap is intentionally small. Deep fork chains can admit
+        // fewer candidates than hydrated paths because each candidate may need its direct
+        // parent, so allow one pass per file while still proving every pass stays bounded.
+        for pass in 1...fileCount {
             let recorder = CostUsageScanner.CodexScanWorkRecorder()
             options.codexScanWorkRecorderForTesting = recorder
             _ = CostUsageScanner.loadDailyReport(
@@ -1401,6 +1404,15 @@ struct CostUsagePerformanceGateTests {
             now: day.addingTimeInterval(9),
             options: options)
         #expect(completed.summary?.totalTokens == expectedTokens)
+    }
+
+    @Test
+    func `default Codex scan memory budgets remain bounded`() {
+        let options = CostUsageScanner.Options()
+
+        #expect(options.maxCodexSessionFileBytes == 16 * 1024 * 1024)
+        #expect(options.maxCodexScanBytesPerRefresh == 64 * 1024 * 1024)
+        #expect(CostUsageScanner.codexCatchUpHydrationPathLimit == 4)
     }
 
     @Test

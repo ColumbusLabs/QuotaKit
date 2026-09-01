@@ -230,6 +230,7 @@ extension CostUsageStore {
                         database,
                         sinceDay: nil,
                         untilDay: nil),
+                    verifiedDayAggregates: Self.readVerifiedDayAggregates(database),
                     forkLineage: Self.readForkLineage(database, path: nil),
                     bufferedLines: Self.readBufferedLines(
                         database,
