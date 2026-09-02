@@ -723,6 +723,7 @@ public struct CostUsageFetcher: Sendable {
                         range: range,
                         cacheRoot: scanOptions.cacheRoot,
                         includeBreakdowns: true)
+                    daily = projected.report
                     projects = projected.projects
                     sessions = projected.sessions
                 }
@@ -1038,8 +1039,8 @@ public struct CostUsageFetcher: Sendable {
             shouldMergePiUsage = shouldMergePiUsage && !pendingWithoutNativeHistoryBaseline
 
             if cache.codexScanCatchUpPending == true,
-               verifiedHistoryCoverageIsEstablished,
-               previousReport == nil
+               previousReport == nil,
+               verifiedHistoryCoverageIsEstablished || !persistedProjection.verifiedDayAggregates.isEmpty
             {
                 let retained = Self.cachedCodexVerifiedReportProjection(.init(
                     projection: persistedProjection,
@@ -1182,7 +1183,10 @@ public struct CostUsageFetcher: Sendable {
             // `staleSnapshotUpdatedAt` keeps refresh scheduling and stale presentation explicit.
             let displayedHistoryCoverageIsEstablished = nativeHistoryCoverageIsEstablished
                 || verifiedHistoryCoverageIsEstablished
-                || staleSnapshotUpdatedAt != nil
+                // A previous report is an established snapshot retained across a pending
+                // refresh. Sparse verified day rows use the same stale timestamp plumbing for
+                // freshness, but must not turn their partial window into complete coverage.
+                || (previousReport != nil && staleSnapshotUpdatedAt != nil)
             // updatedAt keeps the caches' real (oldest) scan time; stamping the hydration time
             // would let stale token rows inherit app-start freshness (#1964). lastRefreshAt
             // drives TTL suppression and stays native-only: a merged load must never delay a
@@ -1648,11 +1652,20 @@ public struct CostUsageFetcher: Sendable {
         // to zero; keep nil only for genuinely missing values.
         let totalFromSummary = daily.summary?.totalCostUSD
         let totalFromEntries = daily.data.compactMap(\.costUSD).reduce(0, +)
-        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy { $0.costUSD != nil }
-        let last30DaysCostUSD = totalFromSummary
-            ?? (allEntriesCarryCost
-                ? totalFromEntries
-                : establishedEmptyHistory ? 0 : nil)
+        let allEntriesCarryCost = !daily.data.isEmpty && daily.data.allSatisfy {
+            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+        }
+        // A bounded Codex refresh may expose an explicitly partial projection. Keep its compact
+        // subtotal useful when every materialized day is priced, while the coverage flag above
+        // tells consumers that the subtotal is not an established window total. Never let a
+        // known subset beside an unpriced day masquerade as a complete cost.
+        let last30DaysCostUSD: Double? = if allEntriesCarryCost {
+            totalFromSummary ?? totalFromEntries
+        } else if establishedEmptyHistory {
+            0
+        } else {
+            nil
+        }
         let totalTokensFromSummary = daily.summary?.totalTokens
         let totalTokensFromEntries = daily.data.compactMap(\.totalTokens).reduce(0, +)
         let allEntriesCarryTokens = !daily.data.isEmpty && daily.data.allSatisfy { $0.totalTokens != nil }

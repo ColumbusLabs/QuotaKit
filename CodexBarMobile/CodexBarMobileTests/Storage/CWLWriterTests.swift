@@ -505,6 +505,7 @@ struct CWLWriterTests {
         let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
         let establishedAt = Date(timeIntervalSince1970: 1_700_000_000)
         let partialAt = establishedAt.addingTimeInterval(60)
+        let secondPartialAt = partialAt.addingTimeInterval(60)
 
         func snapshot(
             cost: Double,
@@ -548,9 +549,21 @@ struct CWLWriterTests {
         try CostLedgerService.upsertFromSnapshot(
             snapshot(
                 cost: 8,
-                days: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 8, totalTokens: 800)],
+                days: [SyncDailyPoint(
+                    dayKey: "2026-08-12",
+                    costUSD: 8,
+                    totalTokens: 1400,
+                    costIsKnown: false)],
                 coverage: false,
                 updatedAt: partialAt),
+            deviceID: "dev-A",
+            in: context)
+        try CostLedgerService.upsertFromSnapshot(
+            snapshot(
+                cost: 3,
+                days: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: 3, totalTokens: 300)],
+                coverage: false,
+                updatedAt: secondPartialAt),
             deviceID: "dev-A",
             in: context)
         try context.save()
@@ -560,6 +573,9 @@ struct CWLWriterTests {
         let byDay = Dictionary(uniqueKeysWithValues: rows.map { ($0.dayKey, $0) })
         #expect(byDay["2026-08-11"]?.costUSD == 120)
         #expect(byDay["2026-08-12"]?.costUSD == 10)
+        #expect(byDay["2026-08-12"]?.totalTokens == 1400)
+        #expect(byDay["2026-08-12"]?.sourceRevisionKey?.contains("historyCoverage=established") == true)
+        #expect(byDay["2026-08-12"]?.sourceRevisionKey?.contains("costKnown=unknown") == true)
         #expect(byDay.values.reduce(0) { $0 + $1.costUSD } == 130)
     }
 
@@ -736,6 +752,75 @@ struct CWLWriterTests {
         try context.save()
 
         #expect(try context.fetch(FetchDescriptor<DailyCostPoint>()).isEmpty)
+    }
+
+    @Test
+    func `nil-email migration keeps established history over emailed partial row`() throws {
+        let url = self.makeTempStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+        let context = ModelContext(ModelContainerFactory.makeContainer(at: url))
+        let establishedAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let partialAt = establishedAt.addingTimeInterval(60)
+
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "codex",
+            dayKey: "2026-08-12",
+            costUSD: 130,
+            totalTokens: 13000,
+            isEstimated: nil,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: establishedAt,
+            sourceRevisionKey: "historyCoverage=established",
+            in: context)
+        try CostLedgerService.upsertDayPoint(
+            deviceID: "dev-A",
+            providerID: "codex",
+            accountEmail: "user@example.com",
+            dayKey: "2026-08-12",
+            costUSD: 8,
+            totalTokens: 800,
+            isEstimated: nil,
+            modelBreakdowns: [],
+            serviceBreakdowns: [],
+            lastUpdated: partialAt,
+            sourceRevisionKey: "historyCoverage=partial",
+            in: context)
+
+        let snapshot = ProviderUsageSnapshot(
+            providerID: "codex",
+            providerName: "Codex",
+            primary: nil,
+            secondary: nil,
+            accountEmail: "user@example.com",
+            loginMethod: nil,
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: partialAt,
+            costSummary: SyncCostSummary(
+                sessionCostUSD: 8,
+                sessionTokens: 800,
+                last30DaysCostUSD: 8,
+                last30DaysTokens: 800,
+                daily: [SyncDailyPoint(
+                    dayKey: "2026-08-12",
+                    costUSD: 8,
+                    totalTokens: 800)],
+                historyDays: 30,
+                historyCoverageIsEstablished: false,
+                costUpdatedAt: partialAt,
+                totalCostUpdatedAt: partialAt))
+        try CostLedgerService.upsertFromSnapshot(snapshot, deviceID: "dev-A", in: context)
+        try context.save()
+
+        let rows = try context.fetch(FetchDescriptor<DailyCostPoint>())
+        let row = try #require(rows.first)
+        #expect(rows.count == 1)
+        #expect(row.accountEmail == "user@example.com")
+        #expect(row.costUSD == 130)
+        #expect(row.totalTokens == 13000)
+        #expect(row.sourceRevisionKey?.contains("historyCoverage=established") == true)
     }
 
     @Test

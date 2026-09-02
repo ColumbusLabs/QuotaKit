@@ -9,9 +9,10 @@ import CSQLite3
 /// Persistence and compatibility helpers for the last complete Codex aggregate view.
 ///
 /// `day_aggregates` is intentionally allowed to move while a bounded scan replaces files. The
-/// verified table is the publication baseline: it changes only after the current scan and
-/// retention pass have reached a complete state, so a pending 365-day pass cannot invalidate an
-/// established 30-day (or vice versa) consumer projection.
+/// verified table is the publication baseline: complete scans replace it atomically, while a
+/// pending pass may update only independently verified day rows. Coverage markers distinguish
+/// the complete baseline from that sparse evidence, so a pending 365-day pass cannot invalidate
+/// an established 30-day (or vice versa) consumer projection.
 extension CostUsageStore {
     private static let verifiedLedgerMarkerKey = "verified_ledger_version"
 
@@ -174,6 +175,86 @@ extension CostUsageStore {
         else { throw CostUsageStore.StoreError.migration(CostUsageStore.StoreError.invalidData) }
         try execute(database, "DELETE FROM verified_day_aggregates")
         try self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+    }
+
+    /// Replaces the independently verified evidence for one local day without changing the
+    /// complete-history coverage markers. A bounded catch-up pass can therefore retain a sparse
+    /// set of safe day rows while its full inventory proof is still pending.
+    static func replaceVerifiedDayAggregates(
+        _ database: OpaquePointer,
+        day: String,
+        aggregates: [CostUsageStoreDayAggregate]) throws
+    {
+        guard try scalarInt(
+            database,
+            "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
+        else { throw CostUsageStore.StoreError.migration(CostUsageStore.StoreError.invalidData) }
+        let delete = try Self.prepare(database, "DELETE FROM verified_day_aggregates WHERE day = ?")
+        defer { sqlite3_finalize(delete) }
+        Self.bind(day, to: delete, at: 1)
+        try Self.stepDone(delete, database: database)
+        try self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+    }
+
+    /// Persists one independently verified day from the compact aggregate table. This method
+    /// deliberately never reads token snapshots, usage rows, or session payloads.
+    @discardableResult
+    func recordVerifiedCodexDay(day: String, calendar: Calendar) -> Bool {
+        self.withDatabase(default: false) { database in
+            do {
+                try Self.inTransaction(database) {
+                    var metadata = try Self.readSingleton(
+                        CostUsageStoreMetadata.self,
+                        database: database,
+                        table: "scan_metadata") ?? .empty
+                    guard metadata.timeZoneIdentifier == nil
+                        || metadata.timeZoneIdentifier == calendar.timeZone.identifier
+                    else { throw StoreError.invalidData }
+                    let aggregates = try Self.readDayAggregates(
+                        database,
+                        sinceDay: day,
+                        untilDay: day)
+                    try Self.replaceVerifiedDayAggregates(
+                        database,
+                        day: day,
+                        aggregates: aggregates)
+                    metadata.verifiedUpdatedAtUnixMs = max(
+                        metadata.verifiedUpdatedAtUnixMs ?? 0,
+                        metadata.lastScanUnixMs > 0 ? metadata.lastScanUnixMs : 0)
+                    metadata.verifiedTimeZoneIdentifier = metadata.timeZoneIdentifier
+                        ?? calendar.timeZone.identifier
+                    metadata.verifiedRootPaths = metadata.rootMtimes?.keys.sorted()
+                    guard self.setMetadata(metadata) else { throw StoreError.invalidData }
+                    try Self.writeVerifiedLedgerMarker(database)
+                }
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
+    /// Removes sparse verification rows for days whose hydrated source files changed. Complete
+    /// coverage markers are left to the caller because a complete baseline may still be valid.
+    static func clearVerifiedDayAggregates(
+        _ database: OpaquePointer,
+        days: Set<String>) throws
+    {
+        guard !days.isEmpty,
+              try scalarInt(
+                  database,
+                  "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
+        else { return }
+        let sortedDays = days.sorted()
+        let placeholders = sortedDays.map { _ in "?" }.joined(separator: ",")
+        let statement = try Self.prepare(
+            database,
+            "DELETE FROM verified_day_aggregates WHERE day IN (\(placeholders))")
+        defer { sqlite3_finalize(statement) }
+        for (index, day) in sortedDays.enumerated() {
+            Self.bind(day, to: statement, at: Int32(index + 1))
+        }
+        try Self.stepDone(statement, database: database)
     }
 
     /// Creates the additive table and imports the last old JSON report when that is the only

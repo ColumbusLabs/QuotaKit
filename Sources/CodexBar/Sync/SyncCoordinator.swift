@@ -1632,11 +1632,15 @@ final class SyncCoordinator {
             let modelBreakdowns = self.modelBreakdowns(from: entry, provider: provider)
             let serviceBreakdowns = serviceBreakdownsByDay[dayKey] ?? []
 
-            let fallbackCost =
-                entry?.costUSD
-                    ?? self.breakdownTotal(modelBreakdowns)
-                    ?? self.breakdownTotal(serviceBreakdowns)
-                    ?? 0
+            let resolvedCost = entry?.costUSD
+                ?? self.breakdownTotal(modelBreakdowns)
+                ?? self.breakdownTotal(serviceBreakdowns)
+            // Keep the historical numeric wire field for old iPhone builds,
+            // but explicitly distinguish an unpriced day from a measured
+            // zero. This matters when a bounded Codex history scan has token
+            // rows but pricing for one or more models is not available yet.
+            let costIsKnown = resolvedCost != nil
+                && (entry?.unpricedRequestCount ?? 0) == 0
 
             // Day is estimated iff any of its model breakdowns is. Service
             // breakdowns never go through the fallback resolver (they come
@@ -1645,11 +1649,12 @@ final class SyncCoordinator {
             let dayIsEstimated = modelBreakdowns.contains(where: { $0.isEstimated == true })
             return SyncDailyPoint(
                 dayKey: dayKey,
-                costUSD: fallbackCost,
+                costUSD: resolvedCost ?? 0,
                 totalTokens: entry?.totalTokens ?? 0,
                 modelBreakdowns: modelBreakdowns,
                 serviceBreakdowns: serviceBreakdowns,
-                isEstimated: dayIsEstimated ? true : nil)
+                isEstimated: dayIsEstimated ? true : nil,
+                costIsKnown: costIsKnown)
         }
 
         let totalDailyCost = daily.reduce(0) { $0 + $1.costUSD }
@@ -1665,6 +1670,8 @@ final class SyncCoordinator {
             last30DaysTokens: tokenSnapshot?.last30DaysTokens,
             daily: daily,
             isEstimated: summaryIsEstimated ? true : nil,
+            costIsKnown: (tokenSnapshot?.historyCoverageIsEstablished ?? true)
+                && daily.allSatisfy { $0.costIsKnown != false },
             historyDays: tokenSnapshot?.historyDays,
             historyCoverageIsEstablished: tokenSnapshot?.historyCoverageIsEstablished,
             historySinceDayKey: authoritativeHistoryWindow?.since,
@@ -1749,7 +1756,8 @@ final class SyncCoordinator {
                     dayKey: entry.date,
                     costUSD: entry.costUSD ?? 0,
                     totalTokens: 0,
-                    isEstimated: isEstimated)
+                    isEstimated: isEstimated,
+                    costIsKnown: entry.costUSD != nil)
             },
             isEstimated: isEstimated,
             historyDays: projected.historyDays,

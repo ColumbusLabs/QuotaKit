@@ -443,6 +443,7 @@ final class CloudSyncReader: @unchecked Sendable {
             last30DaysTokens: summary.last30DaysTokens,
             daily: summary.daily,
             isEstimated: summary.isEstimated,
+            costIsKnown: summary.costIsKnown,
             historyDays: summary.historyDays,
             historyCoverageIsEstablished: summary.historyCoverageIsEstablished,
             historySinceDayKey: summary.historySinceDayKey,
@@ -676,14 +677,23 @@ final class CloudSyncReader: @unchecked Sendable {
             totalTokens: Int,
             modelBreakdowns: [SyncCostBreakdown],
             serviceBreakdowns: [SyncCostBreakdown],
-            isEstimated: Bool?)] = [:]
+            isEstimated: Bool?,
+            costIsKnown: Bool?)] = [:]
 
         for summary in summaries {
             for point in summary.daily {
                 if var existing = dailyByKey[point.dayKey] {
+                    // An explicitly unknown point is still a numeric lower
+                    // bound. Add it once while retaining the false marker so
+                    // the combined day cannot be mistaken for complete.
                     existing.costUSD += point.costUSD
                     existing.totalTokens += point.totalTokens
                     existing.isEstimated = self.mergeEstimatedFlags(existing.isEstimated, point.isEstimated)
+                    if point.costIsKnown == false || existing.costIsKnown == false {
+                        existing.costIsKnown = false
+                    } else {
+                        existing.costIsKnown = existing.costIsKnown ?? point.costIsKnown
+                    }
 
                     // Combine model breakdowns by label while preserving each
                     // optional metadata field. Legacy payloads may omit any of
@@ -721,7 +731,8 @@ final class CloudSyncReader: @unchecked Sendable {
                         point.totalTokens,
                         point.modelBreakdowns,
                         point.serviceBreakdowns,
-                        point.isEstimated)
+                        point.isEstimated,
+                        point.costIsKnown)
                 }
             }
         }
@@ -734,12 +745,48 @@ final class CloudSyncReader: @unchecked Sendable {
                 totalTokens: entry.totalTokens,
                 modelBreakdowns: entry.modelBreakdowns,
                 serviceBreakdowns: entry.serviceBreakdowns,
-                isEstimated: entry.isEstimated)
+                isEstimated: entry.isEstimated,
+                costIsKnown: entry.costIsKnown)
         }
 
-        // Recalculate totals from merged daily data
-        let totalCost = mergedDaily.reduce(0) { $0 + $1.costUSD }
-        let totalTokens = mergedDaily.reduce(0) { $0 + $1.totalTokens }
+        // Each local-provider summary belongs to one distinct Mac. Prefer its
+        // explicit aggregate exactly once; an unknown aggregate is still a
+        // valid lower bound and remains additive. Fall back to that Mac's
+        // daily points only when the aggregate is absent.
+        var knownCostContributions: [Double] = []
+        var hasKnownCostContribution = false
+        for summary in summaries {
+            if let explicit = summary.last30DaysCostUSD {
+                knownCostContributions.append(explicit)
+                hasKnownCostContribution = true
+                continue
+            }
+
+            if !summary.daily.isEmpty {
+                knownCostContributions.append(summary.daily.reduce(0) { $0 + $1.costUSD })
+                hasKnownCostContribution = true
+            }
+        }
+        let totalCost: Double = if hasKnownCostContribution {
+            knownCostContributions.reduce(0, +)
+        } else {
+            // No cost row is known (for example a cold partial Codex scan).
+            // Keep the producer number only as a lower-bound compatibility
+            // value; `mergedCostIsKnown` below makes that distinction explicit.
+            summaries.compactMap(\.last30DaysCostUSD).max()
+                ?? mergedDaily.reduce(0) { $0 + $1.costUSD }
+        }
+        // Legacy payloads may carry only the aggregate token total. Count
+        // each device's explicit aggregate once and use daily rows only as
+        // that device's fallback, matching the cost aggregation above.
+        let totalTokens = summaries.reduce(0) { partial, summary in
+            partial + (summary.last30DaysTokens
+                ?? summary.daily.reduce(0) { $0 + $1.totalTokens })
+        }
+        let hasCostData = !mergedDaily.isEmpty
+            || summaries.contains(where: { $0.last30DaysCostUSD != nil })
+        let hasTokenData = !mergedDaily.isEmpty
+            || summaries.contains(where: { $0.last30DaysTokens != nil })
 
         // Sum session costs across devices (each device has its own session)
         let sessionCost = summaries.compactMap(\.sessionCostUSD).reduce(0, +)
@@ -753,6 +800,16 @@ final class CloudSyncReader: @unchecked Sendable {
         }
         for point in mergedDaily {
             mergedIsEstimated = self.mergeEstimatedFlags(mergedIsEstimated, point.isEstimated)
+        }
+        let mergedCostIsKnown: Bool? = if summaries.contains(where: {
+            $0.costIsKnown == false
+                || $0.daily.contains(where: { $0.costIsKnown == false })
+        }) {
+            false
+        } else if summaries.contains(where: { $0.costIsKnown != nil }) {
+            true
+        } else {
+            nil
         }
         let mergedHistoryBounds = Self.mergedEstablishedHistoryBounds(summaries)
         let mergedHistoryCoverage: Bool? = if summaries.contains(where: {
@@ -800,10 +857,11 @@ final class CloudSyncReader: @unchecked Sendable {
         return SyncCostSummary(
             sessionCostUSD: sessionCost > 0 ? sessionCost : nil,
             sessionTokens: sessionTokens > 0 ? sessionTokens : nil,
-            last30DaysCostUSD: mergedDaily.isEmpty ? nil : totalCost,
-            last30DaysTokens: mergedDaily.isEmpty ? nil : totalTokens,
+            last30DaysCostUSD: hasCostData ? totalCost : nil,
+            last30DaysTokens: hasTokenData ? totalTokens : nil,
             daily: mergedDaily,
             isEstimated: mergedIsEstimated,
+            costIsKnown: mergedCostIsKnown,
             historyDays: mergedHistoryDays,
             historyCoverageIsEstablished: mergedHistoryCoverage,
             historySinceDayKey: mergedHistoryBounds?.since,

@@ -154,6 +154,12 @@ public struct SyncCostBreakdown: Codable, Sendable, Equatable {
 public struct SyncDailyPoint: Codable, Sendable, Equatable {
     public let dayKey: String
     public let costUSD: Double
+    /// Whether `costUSD` is a measured/known value for this day. This is
+    /// optional so older Mac payloads remain wire-compatible; `nil` means
+    /// the legacy producer had no explicit unknown-cost marker and is treated
+    /// as known. A numeric zero is therefore never used to imply that an
+    /// unpriced day's cost was actually zero.
+    public let costIsKnown: Bool?
     public let totalTokens: Int
     public let modelBreakdowns: [SyncCostBreakdown]
     public let serviceBreakdowns: [SyncCostBreakdown]
@@ -168,10 +174,12 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         totalTokens: Int,
         modelBreakdowns: [SyncCostBreakdown] = [],
         serviceBreakdowns: [SyncCostBreakdown] = [],
-        isEstimated: Bool? = nil)
+        isEstimated: Bool? = nil,
+        costIsKnown: Bool? = nil)
     {
         self.dayKey = dayKey
         self.costUSD = costUSD
+        self.costIsKnown = costIsKnown
         self.totalTokens = totalTokens
         self.modelBreakdowns = modelBreakdowns
         self.serviceBreakdowns = serviceBreakdowns
@@ -182,6 +190,7 @@ public struct SyncDailyPoint: Codable, Sendable, Equatable {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.dayKey = try container.decode(String.self, forKey: .dayKey)
         self.costUSD = try container.decode(Double.self, forKey: .costUSD)
+        self.costIsKnown = try container.decodeIfPresent(Bool.self, forKey: .costIsKnown)
         self.totalTokens = try container.decode(Int.self, forKey: .totalTokens)
         // `?? []` backward-compat fallback: Mac builds prior to 0.18 didn't
         // write `modelBreakdowns` / `serviceBreakdowns`. Those old payloads
@@ -202,6 +211,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
     public let sessionCostUSD: Double?
     public let sessionTokens: Int?
     public let last30DaysCostUSD: Double?
+    /// Whether the aggregate cost fields are known rather than a lower bound
+    /// assembled from only priced daily rows. Optional for wire compatibility
+    /// with older producers; `nil` retains their historical semantics.
+    public let costIsKnown: Bool?
     public let last30DaysTokens: Int?
     public let daily: [SyncDailyPoint]
     /// Summary-level OR aggregate of `daily[*].isEstimated`. `nil` for
@@ -251,6 +264,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         last30DaysTokens: Int?,
         daily: [SyncDailyPoint],
         isEstimated: Bool? = nil,
+        costIsKnown: Bool? = nil,
         historyDays: Int? = nil,
         historyCoverageIsEstablished: Bool? = nil,
         historySinceDayKey: String? = nil,
@@ -265,6 +279,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         self.sessionCostUSD = sessionCostUSD
         self.sessionTokens = sessionTokens
         self.last30DaysCostUSD = last30DaysCostUSD
+        self.costIsKnown = costIsKnown
         self.last30DaysTokens = last30DaysTokens
         self.daily = daily
         self.isEstimated = isEstimated
@@ -313,7 +328,10 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
         // back. The explicit total revision is preferred over the payload
         // revision because a newer dashboard breakdown can arrive without a
         // newer scanner total. Equal partial/legacy payloads continue through
-        // the day merge below: omission is not deletion.
+        // the day merge below: omission is not deletion. Even an otherwise
+        // authoritative payload must reconcile an explicitly unknown day
+        // against an older known value; complete scan coverage does not make
+        // an unpriced day a measured zero.
         if incomingRank > previousRank {
             guard Self.isAtLeastAsFresh(
                 self,
@@ -323,7 +341,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             else {
                 return previous
             }
-            return self.withFreshness(
+            return self.reconcilingUnknownDailyCosts(
+                with: previous,
                 costUpdatedAt: reconciledCostUpdatedAt,
                 totalCostUpdatedAt: self.totalCostUpdatedAt,
                 sourceRevisions: self.sourceRevisions)
@@ -339,7 +358,8 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             else {
                 return previous
             }
-            return self.withFreshness(
+            return self.reconcilingUnknownDailyCosts(
+                with: previous,
                 costUpdatedAt: reconciledCostUpdatedAt,
                 totalCostUpdatedAt: self.totalCostUpdatedAt,
                 sourceRevisions: self.sourceRevisions)
@@ -375,7 +395,9 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             dailyByDayKey[point.dayKey] = point
         }
         for point in self.daily where incomingWinsOverlappingDays || dailyByDayKey[point.dayKey] == nil {
-            dailyByDayKey[point.dayKey] = point
+            dailyByDayKey[point.dayKey] = Self.reconcilingUnknownDailyCost(
+                incoming: point,
+                previous: dailyByDayKey[point.dayKey])
         }
         let reconciledDaily = dailyByDayKey.values.sorted { $0.dayKey < $1.dayKey }
         let reconciledCost = reconciledDaily.reduce(0) { $0 + $1.costUSD }
@@ -390,6 +412,11 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             self.isEstimated ?? previous.isEstimated
         }
 
+        let reconciledCostIsKnown = Self.reconciledCostIsKnown(
+            incoming: self,
+            previous: previous,
+            daily: reconciledDaily)
+
         return SyncCostSummary(
             sessionCostUSD: self.sessionCostUSD ?? previous.sessionCostUSD,
             sessionTokens: self.sessionTokens ?? previous.sessionTokens,
@@ -397,6 +424,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             last30DaysTokens: reconciledDaily.isEmpty ? previous.last30DaysTokens : reconciledTokens,
             daily: reconciledDaily,
             isEstimated: reconciledIsEstimated,
+            costIsKnown: reconciledCostIsKnown,
             historyDays: self.historyDays ?? previous.historyDays,
             historyCoverageIsEstablished: previous.historyCoverageIsEstablished,
             historySinceDayKey: previous.historySinceDayKey,
@@ -415,6 +443,106 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             // with the newer partial scan's timestamp.
             totalCostUpdatedAt: previousTotalCostUpdatedAt,
             sourceRevisions: reconciledSourceRevisions)
+    }
+
+    /// Reconciles a payload that is allowed to replace the previous history
+    /// (for example a newer complete report), while retaining a prior known
+    /// cost for any overlapping day whose new numeric value is only a
+    /// placeholder. The incoming token count and other provider metadata are
+    /// still allowed to advance.
+    private func reconcilingUnknownDailyCosts(
+        with previous: SyncCostSummary,
+        costUpdatedAt: Date?,
+        totalCostUpdatedAt: Date?,
+        sourceRevisions: [String: Date]?) -> SyncCostSummary
+    {
+        let previousByDay = Dictionary(uniqueKeysWithValues: previous.daily.map { ($0.dayKey, $0) })
+        let daily = self.daily.map { point in
+            Self.reconcilingUnknownDailyCost(
+                incoming: point,
+                previous: previousByDay[point.dayKey])
+        }
+        let hasUnknownCost = daily.contains(where: { $0.costIsKnown == false })
+        // Keep the producer's numeric aggregate for an unresolved partial
+        // payload for legacy readers, while the additive marker below tells
+        // new readers that it is only a lower bound. Once every day is
+        // repaired from established history, recompute from those days.
+        let cost = if daily.isEmpty {
+            self.last30DaysCostUSD
+        } else if hasUnknownCost {
+            max(
+                self.last30DaysCostUSD ?? 0,
+                daily.reduce(0) { $0 + $1.costUSD })
+        } else {
+            daily.reduce(0) { $0 + $1.costUSD }
+        }
+        let tokens = daily.isEmpty ? self.last30DaysTokens : daily.reduce(0) { $0 + $1.totalTokens }
+        return SyncCostSummary(
+            sessionCostUSD: self.sessionCostUSD,
+            sessionTokens: self.sessionTokens,
+            last30DaysCostUSD: cost,
+            last30DaysTokens: tokens,
+            daily: daily,
+            isEstimated: self.isEstimated,
+            costIsKnown: Self.reconciledCostIsKnown(
+                incoming: self,
+                previous: previous,
+                daily: daily),
+            historyDays: self.historyDays,
+            historyCoverageIsEstablished: self.historyCoverageIsEstablished,
+            historySinceDayKey: self.historySinceDayKey,
+            historyUntilDayKey: self.historyUntilDayKey,
+            sessionRequests: self.sessionRequests,
+            last30DaysRequests: self.last30DaysRequests,
+            currencyCode: self.currencyCode,
+            costUpdatedAt: costUpdatedAt,
+            totalCostUpdatedAt: totalCostUpdatedAt,
+            sourceRevisions: sourceRevisions)
+    }
+
+    private static func reconcilingUnknownDailyCost(
+        incoming: SyncDailyPoint,
+        previous: SyncDailyPoint?) -> SyncDailyPoint
+    {
+        guard incoming.costIsKnown == false,
+              let previous,
+              previous.costIsKnown != false
+        else {
+            return incoming
+        }
+
+        // Preserve the established cost and its breakdowns, but keep the
+        // incoming token total so token freshness can progress independently
+        // from pricing coverage.
+        return SyncDailyPoint(
+            dayKey: incoming.dayKey,
+            costUSD: previous.costUSD,
+            totalTokens: incoming.totalTokens,
+            modelBreakdowns: previous.modelBreakdowns,
+            serviceBreakdowns: previous.serviceBreakdowns,
+            isEstimated: previous.isEstimated ?? incoming.isEstimated,
+            costIsKnown: false)
+    }
+
+    private static func reconciledCostIsKnown(
+        incoming: SyncCostSummary,
+        previous: SyncCostSummary,
+        daily: [SyncDailyPoint]) -> Bool?
+    {
+        if daily.contains(where: { $0.costIsKnown == false }) {
+            return false
+        }
+        // A summary-level false marker can describe an incomplete source
+        // whose overlapping unknown days were repaired from `previous`.
+        // Once every retained day has a known cost, the resulting aggregate
+        // is known even though its history coverage may still be partial.
+        if daily.isEmpty, incoming.costIsKnown == false {
+            return false
+        }
+        if incoming.costIsKnown != nil || previous.costIsKnown != nil {
+            return true
+        }
+        return nil
     }
 
     private func withFreshness(
@@ -436,6 +564,7 @@ public struct SyncCostSummary: Codable, Sendable, Equatable {
             last30DaysTokens: self.last30DaysTokens,
             daily: self.daily,
             isEstimated: self.isEstimated,
+            costIsKnown: self.costIsKnown,
             historyDays: self.historyDays,
             historyCoverageIsEstablished: self.historyCoverageIsEstablished,
             historySinceDayKey: self.historySinceDayKey,

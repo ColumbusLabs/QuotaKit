@@ -58,7 +58,12 @@ struct CloudKitMergeTests {
                 sessionTokens: 100,
                 last30DaysCostUSD: cost,
                 last30DaysTokens: 100,
-                daily: [SyncDailyPoint(dayKey: "2026-08-12", costUSD: cost, totalTokens: 100)],
+                daily: [SyncDailyPoint(
+                    dayKey: "2026-08-12",
+                    costUSD: cost,
+                    totalTokens: 100,
+                    costIsKnown: coverage == false ? false : true)],
+                costIsKnown: coverage == false ? false : true,
                 historyCoverageIsEstablished: coverage)
         }
         let complete = self.makeProvider(
@@ -74,7 +79,33 @@ struct CloudKitMergeTests {
         ]))
         let cost = try #require(merged.providers.first?.costSummary)
         #expect(cost.last30DaysCostUSD == 13)
+        #expect(cost.costIsKnown == false)
         #expect(cost.historyCoverageIsEstablished == false)
+    }
+
+    @Test
+    func `Local legacy aggregate-only token totals remain additive across Macs`() throws {
+        func summary(tokens: Int) -> SyncCostSummary {
+            SyncCostSummary(
+                sessionCostUSD: nil,
+                sessionTokens: tokens,
+                last30DaysCostUSD: nil,
+                last30DaysTokens: tokens,
+                daily: [])
+        }
+        let first = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: self.olderDate, costSummary: summary(tokens: 100))
+        let second = self.makeProvider(
+            id: "codex", name: "Codex", email: "user@example.com",
+            lastUpdated: self.newerDate, costSummary: summary(tokens: 250))
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([
+            self.makeSnapshot(deviceName: "Mac A", deviceID: "uuid-a", providers: [first]),
+            self.makeSnapshot(deviceName: "Mac B", deviceID: "uuid-b", providers: [second]),
+        ]))
+
+        #expect(merged.providers.first?.costSummary?.last30DaysTokens == 350)
     }
 
     @Test

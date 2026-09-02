@@ -211,6 +211,44 @@ struct SnapshotCacheTests {
     }
 
     @Test
+    func `emailed partial record adopts stronger nil-email legacy history across buckets`() throws {
+        var cache = SnapshotCache()
+        let established = self.provider(
+            id: "codex",
+            email: nil,
+            lastUpdated: self.t1,
+            costSummary: self.costSummary(cost: 130, tokens: 13000, coverage: true))
+        let partial = self.provider(
+            id: "codex",
+            email: "user@example.com",
+            lastUpdated: self.t2,
+            costSummary: self.costSummary(
+                cost: 8,
+                tokens: 800,
+                coverage: false,
+                model: "gpt-5.6-terra"))
+
+        cache.replaceFromFullFetch(
+            perProviderSnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [partial],
+                timestamp: self.t2)],
+            legacySnapshots: [self.snapshot(
+                deviceID: "mac-A",
+                deviceName: "Mac A",
+                providers: [established],
+                timestamp: self.t1)])
+
+        let provider = try #require(cache.buildDeviceSnapshots().first?.providers.first)
+        let cost = try #require(provider.costSummary)
+        #expect(provider.accountEmail == "user@example.com")
+        #expect(cost.last30DaysCostUSD == 130)
+        #expect(cost.historyCoverageIsEstablished == true)
+        #expect(cost.daily.first?.modelBreakdowns.first?.label == "gpt-5.5")
+    }
+
+    @Test
     func `Cold receiver retains complete 130 history after newer partial 8 candidate`() throws {
         let complete = SyncCostSummary(
             sessionCostUSD: 130,

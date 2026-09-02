@@ -991,6 +991,12 @@ extension CostUsageDailyReport {
             }
         }
 
+        // A merged report can contain a priced subset beside one or more unpriced days. The
+        // known rows are still retained for daily presentation, but their sum is not a complete
+        // aggregate for the merged window.
+        let completeCostCoverage = !entries.isEmpty && entries.allSatisfy {
+            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+        }
         return Summary(
             totalInputTokens: sawTotalInputTokens ? totalInputTokens : nil,
             totalOutputTokens: sawTotalOutputTokens ? totalOutputTokens : nil,
@@ -998,7 +1004,7 @@ extension CostUsageDailyReport {
             cacheCreationTokens: sawTotalCacheCreationTokens ? totalCacheCreationTokens : nil,
             reasoningTokens: sawTotalReasoningTokens ? totalReasoningTokens : nil,
             totalTokens: sawTotalTokens ? totalTokens : nil,
-            totalCostUSD: sawTotalCostUSD ? totalCostUSD : nil)
+            totalCostUSD: completeCostCoverage && sawTotalCostUSD ? totalCostUSD : nil)
     }
 
     private static func sortedModelBreakdowns(_ breakdowns: [ModelBreakdown]) -> [ModelBreakdown] {

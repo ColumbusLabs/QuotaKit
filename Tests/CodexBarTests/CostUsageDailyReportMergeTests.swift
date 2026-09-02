@@ -178,4 +178,55 @@ struct CostUsageDailyReportMergeTests {
         #expect(merged.summary?.totalTokens == 120)
         #expect(abs((merged.data.first?.costUSD ?? 0) - 1.25) < 0.000001)
     }
+
+    @Test
+    func `merged report with an unpriced day keeps aggregate cost unavailable`() {
+        let merged = CostUsageDailyReport.merged([
+            CostUsageDailyReport(data: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-04-04",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ], summary: nil),
+            CostUsageDailyReport(data: [
+                CostUsageDailyReport.Entry(
+                    date: "2026-04-05",
+                    inputTokens: nil,
+                    outputTokens: nil,
+                    totalTokens: 20,
+                    costUSD: nil,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil),
+            ], summary: nil),
+        ])
+
+        #expect(merged.data.map(\.costUSD) == [1, nil])
+        #expect(merged.summary?.totalCostUSD == nil)
+    }
+
+    @Test
+    func `priced subtotal with unpriced requests is not a complete aggregate`() {
+        let report = CostUsageDailyReport(data: [
+            CostUsageDailyReport.Entry(
+                date: "2026-04-05",
+                inputTokens: 10,
+                outputTokens: 5,
+                totalTokens: 15,
+                requestCount: 2,
+                costUSD: 1.25,
+                modelsUsed: ["gpt-5.4"],
+                modelBreakdowns: nil,
+                unpricedRequestCount: 1),
+        ], summary: nil)
+
+        let merged = CostUsageDailyReport.merged([report])
+
+        #expect(merged.data.first?.costUSD == 1.25)
+        #expect(merged.data.first?.unpricedRequestCount == 1)
+        #expect(merged.summary?.totalCostUSD == nil)
+    }
 }

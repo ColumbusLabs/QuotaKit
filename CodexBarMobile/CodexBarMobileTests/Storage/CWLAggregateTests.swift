@@ -62,7 +62,8 @@ struct CWLAggregateTests {
         daysAgo: Int,
         cost: Double,
         tokens: Int,
-        lastUpdated: Date) throws
+        lastUpdated: Date,
+        costIsKnown: Bool? = nil) throws
     {
         try CostLedgerService.upsertDayPoint(
             deviceID: device,
@@ -71,6 +72,7 @@ struct CWLAggregateTests {
             dayKey: self.dayKey(daysAgo: daysAgo),
             costUSD: cost,
             totalTokens: tokens,
+            costIsKnown: costIsKnown,
             isEstimated: nil,
             modelBreakdowns: [],
             serviceBreakdowns: [],
@@ -160,7 +162,7 @@ struct CWLAggregateTests {
     // MARK: - T5
 
     @Test
-    func `T5: cross-device same (providerID, dayKey) → max lastUpdated wins (not sum)`() throws {
+    func `T5: local-history provider keeps distinct-device contributions`() throws {
         let (url, context) = self.makeContext()
         defer { ModelContainerFactory.deleteStoreFiles(at: url) }
 
@@ -189,12 +191,61 @@ struct CWLAggregateTests {
         let agg = try CostLedgerService.aggregate(
             windowDays: 7, in: context, asOf: Self.asOf)
 
-        // Latest (dev-B, 9.0) wins. Sum (10.0) would be the WRONG answer.
-        #expect(agg.totalCostUSD == 9.0)
-        #expect(agg.totalTokens == 900)
+        // Local Codex histories cover independent activity on each Mac, so
+        // both device contributions must survive instead of newest-row dedup.
+        #expect(agg.totalCostUSD == 10.0)
+        #expect(agg.totalTokens == 1000)
         #expect(agg.activeDayCount == 1)
         let codex = try #require(agg.providerRollups["codex|_"])
-        #expect(codex.totalCostUSD == 9.0)
+        #expect(codex.totalCostUSD == 10.0)
+    }
+
+    @Test
+    func `unknown cost rows retain lower bound spend while zero placeholders add nothing`() throws {
+        let (url, context) = self.makeContext()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        let t = Date(timeIntervalSince1970: 1_700_000_000)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 0,
+            cost: 0,
+            tokens: 400,
+            lastUpdated: t,
+            costIsKnown: false)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 1,
+            cost: 10,
+            tokens: 500,
+            lastUpdated: t,
+            costIsKnown: false)
+        try self.insert(
+            context,
+            device: "dev-A",
+            provider: "codex",
+            daysAgo: 2,
+            cost: 3,
+            tokens: 600,
+            lastUpdated: t,
+            costIsKnown: true)
+        try context.save()
+
+        let aggregate = try CostLedgerService.aggregate(
+            windowDays: 7,
+            in: context,
+            asOf: Self.asOf)
+
+        #expect(aggregate.totalCostUSD == 13)
+        #expect(aggregate.totalTokens == 1500)
+        #expect(aggregate.activeDayCount == 2)
+        #expect(aggregate.dailyPoints.first(where: {
+            $0.dayKey == self.dayKey(daysAgo: 0)
+        })?.costIsKnown == false)
     }
 
     @Test

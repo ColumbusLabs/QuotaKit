@@ -291,6 +291,15 @@ extension CostUsageStore {
                 hydratedPaths: hydratedPaths)
         }
     }
+
+    nonisolated func syncRecordVerifiedCodexDay(
+        day: String,
+        calendar: Calendar) -> Bool
+    {
+        self.syncWithStoreIsolation { store in
+            store.recordVerifiedCodexDay(day: day, calendar: calendar)
+        }
+    }
 }
 
 // MARK: - Connection lifecycle

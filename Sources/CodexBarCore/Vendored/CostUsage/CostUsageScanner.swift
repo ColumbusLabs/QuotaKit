@@ -6344,7 +6344,8 @@ enum CostUsageScanner {
         store: CostUsageStore,
         range: CostUsageDayRange,
         previousReport: CostUsageCodexPreviousReport?,
-        hydratedPaths: Set<String>? = nil)
+        hydratedPaths: Set<String>? = nil,
+        independentlyVerifiedDayKey: String? = nil)
     {
         // The serial scan queue remains the per-process writer boundary. The store actor owns
         // the sole writable connection; app and CLI readers take independent WAL snapshots.
@@ -6368,7 +6369,29 @@ enum CostUsageScanner {
         if saveResult.catchUpRequired {
             cache.codexScanCatchUpPending = true
             cache.codexPreviousReport = previousReport
+        } else if let independentlyVerifiedDayKey {
+            // Persist sparse day evidence only after the cache save commits. The proof is
+            // computed from the final in-memory working set and never hydrates unrelated rows.
+            _ = CostUsageStoreAccess.recordVerifiedCodexDay(
+                store: store,
+                day: independentlyVerifiedDayKey,
+                calendar: range.calendar)
         }
+    }
+
+    private static func independentlyVerifiedCodexDayKey(
+        cache: CostUsageCache,
+        roots: [URL],
+        now: Date,
+        calendar: Calendar) -> String?
+    {
+        guard cache.codexScanCatchUpPending == true else { return nil }
+        let dayKey = CostUsageDayRange.dayKey(from: now, calendar: calendar)
+        return Self.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: dayKey,
+            calendar: calendar) ? dayKey : nil
     }
 
     private struct CodexExactValidationResult {
@@ -6831,11 +6854,17 @@ enum CostUsageScanner {
                 cache.codexScanCatchUpPending = !exact.isComplete
                 cache.codexPreviousReport = exact.isComplete ? nil : previousReport
                 cache.lastScanUnixMs = nowMs
+                let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+                    cache: cache,
+                    roots: plan.roots,
+                    now: now,
+                    calendar: range.calendar)
                 Self.saveCodexCache(
                     &cache,
                     store: loadedCache.store,
                     range: range,
-                    previousReport: previousReport)
+                    previousReport: previousReport,
+                    independentlyVerifiedDayKey: independentlyVerifiedDayKey)
                 if let previous = Self.codexPreviousReport(
                     cache: cache,
                     range: range,
@@ -7442,6 +7471,11 @@ enum CostUsageScanner {
             }
             cache.lastScanUnixMs = nowMs
             try checkCancellation?()
+            let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+                cache: cache,
+                roots: plan.roots,
+                now: now,
+                calendar: range.calendar)
             Self.saveCodexCache(
                 &cache,
                 store: loadedCache.store,
@@ -7451,7 +7485,8 @@ enum CostUsageScanner {
                     ? hydratedCodexPaths.union(scanResult.scannedPaths.map {
                         Self.codexResolvedPath(URL(fileURLWithPath: $0))
                     })
-                    : nil)
+                    : nil,
+                independentlyVerifiedDayKey: independentlyVerifiedDayKey)
         }
 
         if let previous = Self.codexPreviousReport(

@@ -1,6 +1,6 @@
 # Codex ledger memory and publication repair
 
-Status: done
+Status: implementing final runtime verification
 
 ## Goal
 
@@ -67,18 +67,24 @@ keeping QuotaKit's idle aggregate memory in the low hundreds of megabytes.
 - The current scale class (6,156 files, including 92 files over 16 MiB, and at
   least 411,000 usage rows) remains
   bounded per pass.
-- Focused Mac and mobile suites, lint, the full sharded suite, release build,
-  and diff checks pass.
+- Focused Mac and mobile suites, lint, release build, and diff checks pass. A
+  full repository suite is intentionally not required when the focused suites
+  directly cover the changed seams.
 - Packaged runtime acceptance, when separately authorized, is median aggregate
   footprint at or below 250 MiB, p95 at or below 350 MiB, no more than 50 MiB
   first-to-final-hour growth in an eight-hour soak, and zero background WebKit
   launches when direct API refresh succeeds.
 
-## Runtime boundary
+## Regression found during live qualification
 
-This implementation does not launch or replace the installed app, access real
-provider credentials, or perform a release. Packaged runtime profiling remains
-pending until the existing do-not-reopen constraint is lifted.
+The compact SQLite projection populated projects and sessions but failed to
+assign its projected daily report to the publication value. That left the
+sync layer consuming a stale or tiny fallback even though the durable database
+contained the correct spend. Separately, explicitly unknown costs could still
+enter the iPhone ledger as numeric placeholders. The repair makes the compact
+daily projection canonical, persists independently verified days across local
+midnight while catch-up continues, and carries cost-known state through the
+Mac wire payload, mobile cache, CloudKit merge, and durable ledger.
 
 ## Completed implementation
 
@@ -99,6 +105,10 @@ pending until the existing do-not-reopen constraint is lifted.
 - OpenAI background refresh is API-first. Page reconciliation is limited to one
   serialized WebView, expires after one hour, and cancels and evicts idle page
   state.
+- Incremental mobile refreshes now persist their merged state (including an
+  empty authoritative result) so relaunch cannot resurrect stale spend data.
+- Nil-email to email account identity transitions preserve only demonstrably
+  better history, without conflating two known accounts.
 
 ## Verification evidence
 

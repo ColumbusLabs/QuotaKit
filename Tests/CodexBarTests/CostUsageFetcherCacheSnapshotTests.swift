@@ -1134,6 +1134,85 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `independently verified day survives local rollover while catch up remains pending`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let verifiedDay = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let nextDay = try env.makeLocalNoon(year: 2026, month: 4, day: 9)
+        let dayKey = "2026-04-08"
+        let sessionURL = try env.writeCodexSessionFile(
+            day: verifiedDay,
+            filename: "verified-day.jsonl",
+            contents: "{}\n")
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: verifiedDay,
+            until: verifiedDay,
+            calendar: options.calendar)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: sessionURL)
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = Int64(verifiedDay.timeIntervalSince1970 * 1000)
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.codexScanCatchUpPending = true
+        cache.days = [dayKey: ["gpt-5.4": [20, 0, 0]]]
+        cache.files[sessionURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: cache.days,
+            parsedBytes: metadata.size,
+            codexRows: [CostUsageScanner.CodexUsageRow(
+                day: dayKey,
+                model: "gpt-5.4",
+                turnID: "verified-day",
+                eventIndex: 0,
+                input: 20,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                pricingModel: "gpt-5.4",
+                pricingMode: "standard")],
+            codexScanFileId: metadata.fileId,
+            codexScanTargetSize: metadata.size,
+            codexScanComplete: true)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: CostUsageScanner.codexSessionsRoots(options: options),
+            filePaths: [sessionURL.path])
+        let saved = CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+        #expect(!saved.catchUpRequired)
+
+        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        #expect(CostUsageStoreAccess.recordVerifiedCodexDay(
+            store: store,
+            day: dayKey,
+            calendar: options.calendar))
+        let persisted = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        #expect(persisted.verifiedDayAggregates.map(\.day) == [dayKey])
+        #expect(persisted.verifiedScanSinceKey == nil)
+        #expect(persisted.verifiedScanUntilKey == nil)
+
+        let reconstructed = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: nextDay,
+            historyDays: 30,
+            includePiSessions: false,
+            scannerOptions: options)
+        #expect(reconstructed?.snapshot.daily.map(\.date) == [dayKey])
+        #expect(reconstructed?.snapshot.daily.first?.costUSD == 2)
+        #expect(reconstructed?.snapshot.last30DaysCostUSD == 2)
+        #expect(reconstructed?.snapshot.historyCoverageIsEstablished == false)
+    }
+
+    @Test
     func `bounded refresh advances metadata inventory without session head discovery`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

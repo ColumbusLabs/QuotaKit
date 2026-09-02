@@ -256,6 +256,8 @@ extension CostUsageStore {
             requestedScanWindow: requestedScanWindow)
         let previousMetadata = self.fetchMetadata()
         let aggregatePricing = self.aggregatePricingContext()
+        let maintainsSparseVerifiedDays = previousMetadata.verifiedScanSinceDay == nil
+            || previousMetadata.verifiedScanUntilDay == nil
         let saved = self.withSaveTransaction(default: false) {
             let database = try self.activeSaveDatabase()
             let timeZoneChanged = previousMetadata.timeZoneIdentifier != nil
@@ -283,6 +285,7 @@ extension CostUsageStore {
             }
             let canReuseStoredRows = !timeZoneChanged
             var processedPaths = Set<String>()
+            var invalidatedVerifiedDays: Set<String> = []
             for path in hydratedPaths.sorted() {
                 guard processedPaths.insert(path).inserted else { continue }
                 let oldFile = self.fetchFile(path: path)
@@ -316,10 +319,22 @@ extension CostUsageStore {
                     let newAggregates = Self.fileAggregates(usage, pricing: aggregatePricing)
                     _ = self.mergeDayAggregates(
                         oldAggregates.map(Self.negated) + newAggregates)
+                    if maintainsSparseVerifiedDays {
+                        invalidatedVerifiedDays.formUnion(oldAggregates.map(\.day))
+                        invalidatedVerifiedDays.formUnion(newAggregates.map(\.day))
+                    }
                 } else {
                     _ = self.deleteFile(path: path)
                     _ = self.mergeDayAggregates(oldAggregates.map(Self.negated))
+                    if maintainsSparseVerifiedDays {
+                        invalidatedVerifiedDays.formUnion(oldAggregates.map(\.day))
+                    }
                 }
+            }
+            if maintainsSparseVerifiedDays {
+                try Self.clearVerifiedDayAggregates(
+                    database,
+                    days: invalidatedVerifiedDays)
             }
             try Self.codexCatchUpDeltaFailureForTesting?(self.databaseURL)
             // Nested writes retain their original SQLite error in activeTransactionError.
@@ -1239,6 +1254,8 @@ extension CostUsageStore {
         guard previous.verifiedLedgerVersion == verifiedLedgerVersion
             || previous.verifiedScanSinceDay != nil
             || previous.verifiedScanUntilDay != nil
+            || previous.verifiedTimeZoneIdentifier != nil
+            || previous.verifiedRootPaths != nil
         else { return false }
         return previous.verifiedTimeZoneIdentifier != timeZoneIdentifier
             || previous.verifiedRootPaths != rootPaths
@@ -1798,6 +1815,15 @@ enum CostUsageStoreAccess {
         calendar: Calendar = .current) -> CostUsageStoreCatchUpProjection
     {
         CostUsageStore(cacheRoot: cacheRoot).syncReadCodexCatchUpProjection(calendar: calendar)
+    }
+
+    @discardableResult
+    static func recordVerifiedCodexDay(
+        store: CostUsageStore,
+        day: String,
+        calendar: Calendar) -> Bool
+    {
+        store.syncRecordVerifiedCodexDay(day: day, calendar: calendar)
     }
 
     /// Test and maintenance mutation seam for metadata-only edits. Scanner writes should keep

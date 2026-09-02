@@ -20,7 +20,9 @@ This repository is the Columbus Labs QuotaKit codebase. QuotaKit tracks AI quota
 - Add/extend Swift Testing or XCTest cases under `Tests/CodexBarTests/*Tests.swift` (`FeatureNameTests` with descriptive test methods).
 - Swift Testing: prefer backticked sentence names; no camelCase.
 - Model names in tests/code: released models or clearly fictitious names only; never expose unreleased names.
-- Always run `make test` before handoff; add focused `swift test --filter ...` runs for parser/provider fixes when possible.
+- Run only the smallest test set that directly validates the changed behavior. Prefer focused `swift test --filter ...` or an equally narrow target; do not run `make test`, the complete Swift package suite, or a full Xcode test plan by default.
+- Broaden testing only when the change is genuinely cross-cutting or high-risk, focused tests cannot provide adequate confidence, a required release/CI gate demands it, or the user explicitly requests it. State the concrete reason before starting an expensive broad suite.
+- Do not rerun already-passing tests or checks unless subsequent edits could affect their result. At handoff, report which targeted tests ran and which broader suites were intentionally omitted.
 - After any code change, run the relevant lint/build checks and fix reported format/lint issues before handoff.
 - Prefer CLI/focused tests over app-bundle live tests when behavior can be verified without relaunching CodexBar.
 - Never run tests/checks or ad-hoc validation that can display macOS Keychain prompts. Live provider probes, browser-cookie imports, `codexbar usage` against real accounts, and real SecItem reads must be explicitly requested; otherwise use parser tests, stubs, test stores, or `KeychainNoUIQuery`.

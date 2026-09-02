@@ -110,9 +110,16 @@ struct SnapshotCache: Sendable {
                     let key = Self.compositeKey(for: provider)
                     byComposite[key] = Self.reconcileCostHistory(
                         incoming: provider,
-                        previous: previousByDevice[deviceID]?[key]
-                            ?? Self.provider(in: incomingLegacyByDevice[deviceID], matching: key)
-                            ?? Self.provider(in: previousLegacyByDevice[deviceID], matching: key))
+                        previous: Self.historyProvider(
+                            for: provider,
+                            in: previousByDevice[deviceID],
+                            fallback: Self.historyProvider(
+                                for: provider,
+                                in: incomingLegacyByDevice[deviceID],
+                                fallback: Self.historyProvider(
+                                    for: provider,
+                                    in: previousLegacyByDevice[deviceID],
+                                    fallback: nil))))
                 }
                 guard !byComposite.isEmpty else { continue }
                 self.perProviderByDevice[deviceID] = byComposite
@@ -157,8 +164,13 @@ struct SnapshotCache: Sendable {
             let key = Self.compositeKey(for: envelope.provider)
             byComposite[key] = Self.reconcileCostHistory(
                 incoming: envelope.provider,
-                previous: byComposite[key]
-                    ?? Self.provider(in: self.legacyByDevice[envelope.deviceID], matching: key))
+                previous: Self.historyProvider(
+                    for: envelope.provider,
+                    in: byComposite,
+                    fallback: Self.historyProvider(
+                        for: envelope.provider,
+                        in: self.legacyByDevice[envelope.deviceID],
+                        fallback: nil)))
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
             self.deviceMetadata[envelope.deviceID] = Metadata(
@@ -200,8 +212,13 @@ struct SnapshotCache: Sendable {
             let key = Self.compositeKey(for: envelope.provider)
             byComposite[key] = Self.reconcileCostHistory(
                 incoming: envelope.provider,
-                previous: previousByDevice[envelope.deviceID]?[key]
-                    ?? Self.provider(in: self.legacyByDevice[envelope.deviceID], matching: key))
+                previous: Self.historyProvider(
+                    for: envelope.provider,
+                    in: previousByDevice[envelope.deviceID],
+                    fallback: Self.historyProvider(
+                        for: envelope.provider,
+                        in: self.legacyByDevice[envelope.deviceID],
+                        fallback: nil)))
             self.perProviderByDevice[envelope.deviceID] = byComposite
 
             self.deviceMetadata[envelope.deviceID] = Metadata(
@@ -481,17 +498,125 @@ struct SnapshotCache: Sendable {
         snapshot?.providers.first { Self.compositeKey(for: $0) == compositeKey }
     }
 
+    /// Finds the prior provider row whose cost history can be carried through
+    /// an identity transition. Mac records may first arrive without an email
+    /// while credentials load, then move to a new CloudKit composite key once
+    /// the email is known. Treating those keys as unrelated would discard an
+    /// established history on the iPhone. Exact identity always wins; the
+    /// nil-email fallback is deliberately one-way so two known accounts can
+    /// never be conflated.
+    private static func historyProvider(
+        for incoming: ProviderUsageSnapshot,
+        in snapshot: SyncedUsageSnapshot?,
+        fallback: ProviderUsageSnapshot?) -> ProviderUsageSnapshot?
+    {
+        let exact = Self.provider(
+            in: snapshot,
+            matching: Self.compositeKey(for: incoming))
+        let primary = Self.historyProvider(
+            for: incoming,
+            exact: exact,
+            candidates: snapshot?.providers ?? [])
+        return Self.strongerHistory(primary, fallback: fallback)
+    }
+
+    private static func historyProvider(
+        for incoming: ProviderUsageSnapshot,
+        in providers: [String: ProviderUsageSnapshot]?,
+        fallback: ProviderUsageSnapshot?) -> ProviderUsageSnapshot?
+    {
+        let exact = providers?[Self.compositeKey(for: incoming)]
+        let primary = Self.historyProvider(
+            for: incoming,
+            exact: exact,
+            candidates: providers.map { Array($0.values) } ?? [])
+        return Self.strongerHistory(primary, fallback: fallback)
+    }
+
+    private static func historyProvider(
+        for incoming: ProviderUsageSnapshot,
+        exact: ProviderUsageSnapshot?,
+        candidates: [ProviderUsageSnapshot]) -> ProviderUsageSnapshot?
+    {
+        guard let email = incoming.accountEmail,
+              !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else {
+            return exact
+        }
+        let nilEmailCandidate = candidates.first(where: {
+            $0.providerID == incoming.providerID
+                && ($0.accountEmail == nil
+                    || $0.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true)
+        })
+        guard let exact else { return nilEmailCandidate }
+        guard let nilEmailCandidate,
+              Self.hasMateriallyBetterCostHistory(
+                  nilEmailCandidate.costSummary,
+                  than: exact.costSummary)
+        else {
+            return exact
+        }
+        return nilEmailCandidate
+    }
+
+    private static func strongerHistory(
+        _ primary: ProviderUsageSnapshot?,
+        fallback: ProviderUsageSnapshot?) -> ProviderUsageSnapshot?
+    {
+        guard let primary else { return fallback }
+        guard let fallback,
+              Self.hasMateriallyBetterCostHistory(
+                  fallback.costSummary,
+                  than: primary.costSummary)
+        else {
+            return primary
+        }
+        return fallback
+    }
+
+    /// A stale nil-email row can coexist with the new email-keyed row during
+    /// an identity transition. Prefer it only when it demonstrably carries a
+    /// better cost window; otherwise the exact email identity wins so two
+    /// legitimate accounts cannot be conflated.
+    private static func hasMateriallyBetterCostHistory(
+        _ candidate: SyncCostSummary?,
+        than existing: SyncCostSummary?) -> Bool
+    {
+        guard let candidate else { return false }
+        guard let existing else { return true }
+        let candidateCoverage = Self.historyCoverageRank(candidate.historyCoverageIsEstablished)
+        let existingCoverage = Self.historyCoverageRank(existing.historyCoverageIsEstablished)
+        if candidateCoverage != existingCoverage {
+            return candidateCoverage > existingCoverage
+        }
+        if candidate.costIsKnown != false, existing.costIsKnown == false {
+            return true
+        }
+        if candidate.costIsKnown == false, existing.costIsKnown != false {
+            return false
+        }
+        let candidateKnownDays = candidate.daily.count { $0.costIsKnown != false }
+        let existingKnownDays = existing.daily.count { $0.costIsKnown != false }
+        return candidateKnownDays > existingKnownDays
+    }
+
+    private static func historyCoverageRank(_ value: Bool?) -> Int {
+        switch value {
+        case true: 2
+        case nil: 1
+        case false: 0
+        }
+    }
+
     private static func reconcileCostHistory(
         incoming: SyncedUsageSnapshot,
         previous: SyncedUsageSnapshot?) -> SyncedUsageSnapshot
     {
         guard let previous else { return incoming }
-        let previousByKey = Dictionary(
-            uniqueKeysWithValues: previous.providers.map { (Self.compositeKey(for: $0), $0) })
         let providers = incoming.providers.map { provider in
             Self.reconcileCostHistory(
                 incoming: provider,
-                previous: previousByKey[Self.compositeKey(for: provider)])
+                previous: Self.historyProvider(for: provider, in: previous, fallback: nil))
         }
         return SyncedUsageSnapshot(
             providers: providers,

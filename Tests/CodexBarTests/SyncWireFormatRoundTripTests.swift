@@ -658,6 +658,54 @@ struct SyncWireFormatRoundTripTests {
         let emptyJSON = try self.encoder().encode(withEmpty)
         #expect(nilJSON != emptyJSON, "nil and empty-string accountEmail must serialize distinguishably")
     }
+
+    @Test
+    func `newer unpriced tokens retain prior cost only as an unknown lower bound`() {
+        let olderDate = Date(timeIntervalSince1970: 1_700_000_000)
+        let newerDate = olderDate.addingTimeInterval(60)
+        let older = SyncCostSummary(
+            sessionCostUSD: 10,
+            sessionTokens: 100,
+            last30DaysCostUSD: 10,
+            last30DaysTokens: 100,
+            daily: [SyncDailyPoint(
+                dayKey: "2026-08-12",
+                costUSD: 10,
+                totalTokens: 100,
+                costIsKnown: true)],
+            costIsKnown: true,
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: olderDate,
+            totalCostUpdatedAt: olderDate)
+        let newer = SyncCostSummary(
+            sessionCostUSD: nil,
+            sessionTokens: 200,
+            last30DaysCostUSD: 8,
+            last30DaysTokens: 200,
+            daily: [SyncDailyPoint(
+                dayKey: "2026-08-12",
+                costUSD: 0,
+                totalTokens: 200,
+                costIsKnown: false)],
+            costIsKnown: false,
+            historyDays: 30,
+            historyCoverageIsEstablished: true,
+            costUpdatedAt: newerDate,
+            totalCostUpdatedAt: newerDate)
+
+        let reconciled = newer.reconcilingHistory(
+            with: older,
+            incomingFallbackUpdatedAt: newerDate,
+            previousFallbackUpdatedAt: olderDate)
+
+        #expect(reconciled.last30DaysCostUSD == 10)
+        #expect(reconciled.last30DaysTokens == 200)
+        #expect(reconciled.costIsKnown == false)
+        #expect(reconciled.daily.first?.costUSD == 10)
+        #expect(reconciled.daily.first?.totalTokens == 200)
+        #expect(reconciled.daily.first?.costIsKnown == false)
+    }
 }
 
 // swiftlint:enable multiline_arguments

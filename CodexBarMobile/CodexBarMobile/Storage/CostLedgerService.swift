@@ -89,6 +89,12 @@ struct CostLedgerDiagnostics: Equatable {
 // MARK: - CostLedgerService
 
 enum CostLedgerService {
+    /// These providers read per-machine local histories. Their ledger rows
+    /// are independent contributions and must all survive aggregation; API
+    /// backed providers instead represent one account-level total and use
+    /// newest-row deduplication below.
+    private static let localCostProviders: Set<String> = ["claude", "codex", "vertexai"]
+
     /// `YYYY-MM-DD` UTC formatter, matches the wire format's `SyncDailyPoint.dayKey`.
     /// Static so we don't reallocate per call; `DateFormatter` is reentrant-safe
     /// for read-only use after configuration.
@@ -135,6 +141,10 @@ enum CostLedgerService {
             summary,
             providerLastUpdated: provider.lastUpdated)
         let encoder = CloudSyncConstants.makeJSONEncoder()
+        try Self.migrateNilEmailRowsIfNeeded(
+            provider: provider,
+            deviceID: deviceID,
+            in: context)
         try Self.deleteOmittedCompleteHistoryRowsIfNeeded(
             summary: summary,
             provider: provider,
@@ -149,6 +159,7 @@ enum CostLedgerService {
                 dayKey: point.dayKey,
                 costUSD: point.costUSD,
                 totalTokens: point.totalTokens,
+                costIsKnown: point.costIsKnown,
                 isEstimated: point.isEstimated,
                 modelBreakdowns: point.modelBreakdowns,
                 serviceBreakdowns: point.serviceBreakdowns,
@@ -176,6 +187,7 @@ enum CostLedgerService {
         dayKey: String,
         costUSD: Double,
         totalTokens: Int,
+        costIsKnown: Bool? = nil,
         isEstimated: Bool?,
         modelBreakdowns: [SyncCostBreakdown],
         serviceBreakdowns: [SyncCostBreakdown],
@@ -200,6 +212,9 @@ enum CostLedgerService {
         let serviceData: Data? = serviceBreakdowns.isEmpty
             ? nil
             : try? enc.encode(serviceBreakdowns)
+        let normalizedSourceRevisionKey = Self.withCostKnown(
+            sourceRevisionKey,
+            known: costIsKnown != false)
 
         if let existing = try context.fetch(descriptor).first {
             // A partial Codex history update is allowed to add previously
@@ -212,8 +227,26 @@ enum CostLedgerService {
             let incomingCoverage = Self.historyCoverage(from: sourceRevisionKey)
             let existingCoverage = Self.historyCoverage(from: existing.sourceRevisionKey)
             if incomingCoverage == false, existingCoverage != false {
+                // A lower-coverage update may advance token counts, but it
+                // cannot replace or re-certify the established cost. Once a
+                // partial update exposes unpriced activity, only a complete
+                // revision can restore knownness.
+                let existingCostIsKnown = Self.costIsKnown(
+                    from: existing.sourceRevisionKey) != false
+                existing.totalTokens = max(existing.totalTokens, totalTokens)
+                existing.lastUpdated = max(existing.lastUpdated, lastUpdated)
+                // Keep the established row's coverage identity. Replacing it
+                // with the incoming partial revision would make the next
+                // partial update look eligible to overwrite the protected
+                // cost. Cost-known state may advance independently.
+                existing.sourceRevisionKey = Self.withCostKnown(
+                    existing.sourceRevisionKey,
+                    known: existingCostIsKnown && costIsKnown != false)
                 return
             }
+
+            let incomingCostIsKnown = costIsKnown != false
+            let existingCostIsKnown = Self.costIsKnown(from: existing.sourceRevisionKey) != false
 
             // A newer dashboard breakdown revision can be ahead of the local
             // scanner total. Compare the full two-dimensional revision so a
@@ -225,18 +258,24 @@ enum CostLedgerService {
                existingTotalUpdatedAt >= incomingTotalUpdatedAt,
                existing.lastUpdated > lastUpdated
                || existingTotalUpdatedAt > incomingTotalUpdatedAt
-               || existing.sourceRevisionKey == sourceRevisionKey
+               || existing.sourceRevisionKey == normalizedSourceRevisionKey
             {
                 return
             }
-            existing.costUSD = costUSD
+            if incomingCostIsKnown || !existingCostIsKnown {
+                existing.costUSD = costUSD
+            }
             existing.totalTokens = totalTokens
-            existing.isEstimated = isEstimated
-            existing.modelBreakdownsData = modelData
-            existing.serviceBreakdownsData = serviceData
+            if incomingCostIsKnown || !existingCostIsKnown {
+                existing.isEstimated = isEstimated
+                existing.modelBreakdownsData = modelData
+                existing.serviceBreakdownsData = serviceData
+            }
             existing.lastUpdated = max(existing.lastUpdated, lastUpdated)
             existing.totalUpdatedAt = max(existingTotalUpdatedAt, incomingTotalUpdatedAt)
-            existing.sourceRevisionKey = sourceRevisionKey
+            existing.sourceRevisionKey = Self.withCostKnown(
+                normalizedSourceRevisionKey,
+                known: incomingCostIsKnown || existingCostIsKnown)
         } else {
             let point = DailyCostPoint(
                 deviceID: deviceID,
@@ -250,7 +289,7 @@ enum CostLedgerService {
                 serviceBreakdownsData: serviceData,
                 lastUpdated: lastUpdated,
                 totalUpdatedAt: totalUpdatedAt ?? lastUpdated,
-                sourceRevisionKey: sourceRevisionKey)
+                sourceRevisionKey: normalizedSourceRevisionKey)
             context.insert(point)
         }
     }
@@ -281,12 +320,17 @@ enum CostLedgerService {
             predicate: #Predicate { $0.dayKey >= cutoffKey })
         let rows = try context.fetch(descriptor)
 
-        // Cross-device merge: group by (providerID, accountEmail, dayKey), keep
-        // latest lastUpdated. accountEmail is part of the key so multi-account
-        // providers stay distinct (matching the blob path's cardIdentityKey).
+        // Cross-device merge: account-level providers group by
+        // (providerID, accountEmail, dayKey) and keep the newest row. Local
+        // history providers retain device identity in the survivor key so
+        // distinct Macs are summed rather than one newest Mac masking the
+        // other's spend.
         var survivors: [String: DailyCostPoint] = [:]
         for row in rows {
-            let key = "\(row.providerID)|\(row.accountEmail ?? "_")|\(row.dayKey)"
+            let accountKey = "\(row.providerID)|\(row.accountEmail ?? "_")|\(row.dayKey)"
+            let key = Self.localCostProviders.contains(row.providerID)
+                ? "\(row.deviceID)|\(accountKey)"
+                : accountKey
             if let existing = survivors[key] {
                 let rowTotalUpdatedAt = row.totalUpdatedAt ?? row.lastUpdated
                 let existingTotalUpdatedAt = existing.totalUpdatedAt ?? existing.lastUpdated
@@ -321,14 +365,17 @@ enum CostLedgerService {
         var perService: [String: Double] = [:]
 
         for survivor in survivors.values {
+            let costIsKnown = Self.costIsKnown(from: survivor.sourceRevisionKey) != false
             let rollupKey = "\(survivor.providerID)|\(survivor.accountEmail ?? "_")"
             var acc = perProvider[rollupKey] ?? ProviderAccumulator(
                 providerID: survivor.providerID,
                 accountEmail: survivor.accountEmail)
-            acc.ingest(survivor, decoder: decoder)
+            acc.ingest(survivor, costIsKnown: costIsKnown, decoder: decoder)
             perProvider[rollupKey] = acc
 
-            perDay[survivor.dayKey, default: .init()].ingest(survivor)
+            perDay[survivor.dayKey, default: .init()].ingest(
+                survivor,
+                costIsKnown: costIsKnown)
             if let data = survivor.modelBreakdownsData,
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
             {
@@ -370,7 +417,8 @@ enum CostLedgerService {
                     totalTokens: acc.totalTokens,
                     modelBreakdowns: [],
                     serviceBreakdowns: [],
-                    isEstimated: nil)
+                    isEstimated: nil,
+                    costIsKnown: acc.costIsKnown)
             }
 
         let modelMix = perModel
@@ -493,6 +541,7 @@ enum CostLedgerService {
                     dayKey: point.dayKey,
                     costUSD: point.costUSD,
                     totalTokens: point.totalTokens,
+                    costIsKnown: point.costIsKnown,
                     isEstimated: point.isEstimated,
                     modelBreakdowns: point.modelBreakdowns,
                     serviceBreakdowns: point.serviceBreakdowns,
@@ -508,6 +557,94 @@ enum CostLedgerService {
     }
 
     // MARK: - Helpers
+
+    /// Carries ledger rows written before the Mac knew the provider email
+    /// into the email-keyed row used by newer snapshots. SnapshotCache does
+    /// the same reconciliation for the live view; doing the lightweight
+    /// identity migration here keeps the persisted Cost Window Ledger from
+    /// retaining a second, hidden copy of the established history.
+    private static func migrateNilEmailRowsIfNeeded(
+        provider: ProviderUsageSnapshot,
+        deviceID: String,
+        in context: ModelContext) throws
+    {
+        guard let email = provider.accountEmail,
+              !email.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+        else { return }
+
+        let providerID = provider.providerID
+        let descriptor = FetchDescriptor<DailyCostPoint>(
+            predicate: #Predicate { row in
+                row.deviceID == deviceID && row.providerID == providerID
+            })
+        let legacyRows = try context.fetch(descriptor).filter {
+            $0.accountEmail == nil
+                || $0.accountEmail?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty == true
+        }
+        guard !legacyRows.isEmpty else { return }
+
+        for legacy in legacyRows {
+            let targetKey = DailyCostPoint.makeCompositeKey(
+                deviceID: deviceID,
+                providerID: providerID,
+                accountEmail: email,
+                dayKey: legacy.dayKey)
+            let targetDescriptor = FetchDescriptor<DailyCostPoint>(
+                predicate: #Predicate { $0.compositeKey == targetKey })
+            if let target = try context.fetch(targetDescriptor).first {
+                if Self.ledgerRow(legacy, isStrongerThan: target) {
+                    target.costUSD = legacy.costUSD
+                    target.isEstimated = legacy.isEstimated
+                    target.modelBreakdownsData = legacy.modelBreakdownsData
+                    target.serviceBreakdownsData = legacy.serviceBreakdownsData
+                    target.totalUpdatedAt = legacy.totalUpdatedAt
+                    target.sourceRevisionKey = legacy.sourceRevisionKey
+                }
+                target.totalTokens = max(target.totalTokens, legacy.totalTokens)
+                target.lastUpdated = max(target.lastUpdated, legacy.lastUpdated)
+                context.delete(legacy)
+            } else {
+                legacy.accountEmail = email
+                legacy.compositeKey = targetKey
+            }
+        }
+    }
+
+    /// Selects the row with the strongest proof, not merely the newest
+    /// identity spelling. Established history outranks legacy history, which
+    /// outranks partial history; known pricing then outranks unknown pricing.
+    /// Revision timestamps break ties within the same proof class.
+    private static func ledgerRow(
+        _ candidate: DailyCostPoint,
+        isStrongerThan existing: DailyCostPoint) -> Bool
+    {
+        func coverageRank(_ row: DailyCostPoint) -> Int {
+            switch Self.historyCoverage(from: row.sourceRevisionKey) {
+            case true: 2
+            case nil: 1
+            case false: 0
+            }
+        }
+
+        let candidateCoverage = coverageRank(candidate)
+        let existingCoverage = coverageRank(existing)
+        if candidateCoverage != existingCoverage {
+            return candidateCoverage > existingCoverage
+        }
+
+        let candidateKnown = Self.costIsKnown(from: candidate.sourceRevisionKey) != false
+        let existingKnown = Self.costIsKnown(from: existing.sourceRevisionKey) != false
+        if candidateKnown != existingKnown {
+            return candidateKnown
+        }
+
+        let candidateTotalRevision = candidate.totalUpdatedAt ?? candidate.lastUpdated
+        let existingTotalRevision = existing.totalUpdatedAt ?? existing.lastUpdated
+        if candidateTotalRevision != existingTotalRevision {
+            return candidateTotalRevision > existingTotalRevision
+        }
+        return candidate.lastUpdated > existing.lastUpdated
+    }
 
     /// Removes rows omitted by a newer complete history snapshot, but only
     /// inside that snapshot's known trailing window. A partial scan must not
@@ -576,6 +713,30 @@ enum CostLedgerService {
         case nil: "legacy"
         }
         return "\(summary.mobileRevisionKey(providerLastUpdated: providerLastUpdated))|historyCoverage=\(coverage)"
+    }
+
+    private static func withCostKnown(_ revisionKey: String?, known: Bool) -> String? {
+        guard let revisionKey else {
+            return known ? "costKnown=known" : "costKnown=unknown"
+        }
+        let withoutMarker = revisionKey
+            .split(separator: "|", omittingEmptySubsequences: false)
+            .filter { !$0.hasPrefix("costKnown=") }
+            .joined(separator: "|")
+        return "\(withoutMarker)|costKnown=\(known ? "known" : "unknown")"
+    }
+
+    private static func costIsKnown(from revisionKey: String?) -> Bool? {
+        guard let revisionKey,
+              let marker = revisionKey.split(separator: "|").last(where: {
+                  $0.hasPrefix("costKnown=")
+              })
+        else {
+            // Rows written before the marker was introduced contain numeric
+            // cost and are therefore treated as known for compatibility.
+            return nil
+        }
+        return marker.dropFirst("costKnown=".count) == "known"
     }
 
     private static func historyCoverage(from revisionKey: String?) -> Bool? {
@@ -647,8 +808,12 @@ enum CostLedgerService {
     private struct DayAccumulator {
         var costUSD: Double = 0
         var totalTokens: Int = 0
-        mutating func ingest(_ row: DailyCostPoint) {
+        var costIsKnown = true
+        mutating func ingest(_ row: DailyCostPoint, costIsKnown: Bool) {
             self.costUSD += row.costUSD
+            if !costIsKnown {
+                self.costIsKnown = false
+            }
             self.totalTokens += row.totalTokens
         }
     }
@@ -658,7 +823,7 @@ enum CostLedgerService {
         let accountEmail: String?
         var costUSD: Double = 0
         var totalTokens: Int = 0
-        var perDay: [String: (cost: Double, tokens: Int)] = [:]
+        var perDay: [String: (cost: Double, tokens: Int, costIsKnown: Bool)] = [:]
         var perModel: [String: Double] = [:]
 
         init(providerID: String, accountEmail: String?) {
@@ -666,11 +831,21 @@ enum CostLedgerService {
             self.accountEmail = accountEmail
         }
 
-        mutating func ingest(_ row: DailyCostPoint, decoder: JSONDecoder) {
+        mutating func ingest(
+            _ row: DailyCostPoint,
+            costIsKnown: Bool,
+            decoder: JSONDecoder)
+        {
             self.costUSD += row.costUSD
             self.totalTokens += row.totalTokens
-            self.perDay[row.dayKey, default: (0, 0)].cost += row.costUSD
-            self.perDay[row.dayKey, default: (0, 0)].tokens += row.totalTokens
+            if self.perDay[row.dayKey] == nil {
+                self.perDay[row.dayKey] = (0, 0, true)
+            }
+            self.perDay[row.dayKey]?.cost += row.costUSD
+            if !costIsKnown {
+                self.perDay[row.dayKey]?.costIsKnown = false
+            }
+            self.perDay[row.dayKey, default: (0, 0, true)].tokens += row.totalTokens
             if let data = row.modelBreakdownsData,
                let decoded = try? decoder.decode([SyncCostBreakdown].self, from: data)
             {
@@ -695,7 +870,8 @@ enum CostLedgerService {
                             totalTokens: vals.tokens,
                             modelBreakdowns: [],
                             serviceBreakdowns: [],
-                            isEstimated: nil)
+                            isEstimated: nil,
+                            costIsKnown: vals.costIsKnown)
                     },
                 modelBreakdowns: self.perModel
                     .map { SyncCostBreakdown(label: $0.key, costUSD: $0.value) }

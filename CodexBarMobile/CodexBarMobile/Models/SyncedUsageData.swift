@@ -64,7 +64,9 @@ final class SyncedUsageData {
 
     /// True while a user-visible full refresh is in flight.
     var isRefreshing: Bool {
-        if case .syncing = self.syncStatus { return true }
+        if case .syncing = self.syncStatus {
+            return true
+        }
         return false
     }
 
@@ -588,6 +590,17 @@ final class SyncedUsageData {
         self.deviceSnapshots = deviceSnapshots
 
         if deviceSnapshots.isEmpty {
+            // Incremental deletes (including a replay that legitimately
+            // returns an empty provider zone) must be reflected in the
+            // durable mirror as well as the in-memory view. Otherwise a
+            // relaunch hydrates the deleted provider back from SwiftData.
+            let context = ModelContainerFactory.sharedMainContext()
+            BackgroundExecutionLease.withExtendedTime(name: "Persist synced usage") {
+                CloudSyncReader.persistToSwiftData(
+                    deviceSnapshots: [],
+                    merged: nil,
+                    context: context)
+            }
             self.snapshot = nil
             WidgetSnapshotPublisher.clear()
             if case .syncing = self.syncStatus {
@@ -603,6 +616,13 @@ final class SyncedUsageData {
             self.snapshot = merged
             self.syncStatus = .synced(lastConfirmedSync: merged.syncTimestamp)
             WidgetSnapshotPublisher.publish(from: merged)
+            let context = ModelContainerFactory.sharedMainContext()
+            BackgroundExecutionLease.withExtendedTime(name: "Persist synced usage") {
+                CloudSyncReader.persistToSwiftData(
+                    deviceSnapshots: deviceSnapshots,
+                    merged: merged,
+                    context: context)
+            }
         } else {
             self.syncStatus = .incompatibleData
         }
