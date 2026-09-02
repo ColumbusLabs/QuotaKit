@@ -2411,9 +2411,16 @@ enum CostUsageScanner {
         }
 
         for fileURL in directlyDiscovered {
-            guard let cached = cachedEntry(for: fileURL),
-                  matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
-            else { return false }
+            if let cached = cachedEntry(for: fileURL) {
+                guard matchesPersistedSnapshot(fileURL: fileURL, usage: cached) else { return false }
+            } else {
+                // The adjacent partition is searched for sessions resumed today. An
+                // unchanged, uncached file from yesterday cannot affect today's ledger;
+                // a current-day file or resumed adjacent file has a current mtime and
+                // continues to fail closed until indexed.
+                let metadata = Self.codexFileMetadata(fileURL: fileURL)
+                guard metadata.mtimeUnixMs < dayStartMs else { return false }
+            }
         }
 
         // Stream the persisted inventory rather than normalizing it into another dictionary
@@ -2454,14 +2461,12 @@ enum CostUsageScanner {
         if let pendingFilePaths = cache.codexActiveLookbackState?.pendingFilePaths {
             for pendingPath in pendingFilePaths {
                 let fileURL = URL(fileURLWithPath: pendingPath)
-                let pathKey = Self.codexPathKey(fileURL)
                 let metadata = Self.codexFileMetadata(fileURL: fileURL)
                 let cached = cachedEntry(for: fileURL)
-                let pendingCanAffectDay = directlyDiscoveredPathKeys.contains(pathKey)
-                    || cached?.touchesCodexScanWindow(
-                        sinceKey: dayKey,
-                        untilKey: dayKey,
-                        calendar: calendar) == true
+                let pendingCanAffectDay = cached?.touchesCodexScanWindow(
+                    sinceKey: dayKey,
+                    untilKey: dayKey,
+                    calendar: calendar) == true
                     || metadata.mtimeUnixMs >= dayStartMs
                 if pendingCanAffectDay {
                     guard let cached,

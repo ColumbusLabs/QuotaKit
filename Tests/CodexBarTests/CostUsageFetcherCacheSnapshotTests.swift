@@ -1632,6 +1632,70 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `current day proof ignores an unchanged uncached file in the adjacent partition`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let yesterday = try env.makeLocalNoon(year: 2026, month: 4, day: 7)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: "{}\n")
+        let adjacentURL = try env.writeCodexSessionFile(
+            day: yesterday,
+            filename: "adjacent.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes(
+            [.modificationDate: yesterday],
+            ofItemAtPath: adjacentURL.path)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: ["2026-04-08": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: metadata.size,
+            codexTokenIndexAnchor: CostUsageScanner.codexTokenIndexAnchor(
+                fileURL: currentURL,
+                indexedBytes: metadata.size),
+            codexScanFileId: metadata.fileId,
+            codexScanTargetSize: metadata.size,
+            codexScanComplete: true)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path, adjacentURL.path])
+        cache.codexActiveLookbackState = CostUsageCodexActiveLookbackState(
+            scanSinceKey: "2025-04-08",
+            rootPaths: roots.map(\.path),
+            pendingFilePaths: [adjacentURL.path])
+
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+
+        let handle = try FileHandle(forWritingTo: adjacentURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{}\n".utf8))
+        try handle.close()
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: adjacentURL.path)
+
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
     func `cached codex token snapshot keeps the cache scan time as updatedAt`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
