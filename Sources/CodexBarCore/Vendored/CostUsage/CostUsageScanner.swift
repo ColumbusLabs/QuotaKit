@@ -6974,8 +6974,13 @@ enum CostUsageScanner {
 
             if options.useCodexCatchUpWorkingSet {
                 let currentDayKey = CostUsageDayRange.dayKey(from: now, calendar: range.calendar)
+                let currentDayPendingPathKeys = activeLookbackState.pendingFilePaths.lazy.compactMap { path in
+                    Self.dayKeyFromFilename(URL(fileURLWithPath: path).lastPathComponent) == currentDayKey
+                        ? Self.codexPathKey(URL(fileURLWithPath: path))
+                        : nil
+                }
                 Self.reseedCodexActiveLookbackPathKeys(
-                    Self.codexChangedCurrentDayCachedFiles(
+                    currentDayPendingPathKeys + Self.codexChangedCurrentDayCachedFiles(
                         cache: cache,
                         roots: plan.roots,
                         dayKey: currentDayKey,

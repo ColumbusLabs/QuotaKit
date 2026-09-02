@@ -782,6 +782,57 @@ struct CostUsageBoundedProgressTests {
     }
 
     @Test
+    func `current day discovery jumps ahead of a historical bounded queue`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit * 2 + 1
+        try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
+
+        var options = Self.boundedOptions(env: env)
+        options.preferNewestCodexSessionsFirst = false
+        options.useCodexCatchUpWorkingSet = true
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: historicalDay,
+            options: options)
+
+        let iso = env.isoString(for: currentDay)
+        let currentURL = try env.writeCodexSessionFile(
+            day: currentDay,
+            filename: "rollout-2026-05-10-current-priority.jsonl",
+            contents: [
+                #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"current-priority"}}"#,
+                #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"openai/gpt-5.2-codex"}}"#,
+                #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
+                    + #"{"total_token_usage":{"input_tokens":300,"cached_input_tokens":40,"output_tokens":20},"#
+                    + #""model":"openai/gpt-5.2-codex"}}}"#,
+            ].joined(separator: "\n") + "\n")
+
+        var queuedCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        queuedCache.codexActiveLookbackState?.pendingFilePaths.append(currentURL.path)
+        queuedCache.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: queuedCache)
+
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanWorkRecorderForTesting = recorder
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: historicalDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(recorder.snapshot().codexFileScanAttempts <= CostUsageScanner.codexCatchUpScanCandidateLimit)
+        #expect(cache.files[currentURL.path]?.codexScanComplete == true)
+        #expect(cache.codexActiveLookbackState?.pendingFilePaths.contains(currentURL.path) == false)
+    }
+
+    @Test
     func `exact validation requeues a completed prefix path rewritten after its slice`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
