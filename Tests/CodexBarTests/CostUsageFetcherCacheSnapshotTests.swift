@@ -1005,6 +1005,135 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `verified current day publishes while historical catch up has no baseline`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let olderDay = try env.makeLocalNoon(year: 2026, month: 4, day: 1)
+        let currentDayKey = "2026-04-08"
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current.jsonl",
+            contents: "{}\n")
+        let olderURL = try env.writeCodexSessionFile(
+            day: olderDay,
+            filename: "older.jsonl",
+            contents: "{}\n")
+        try FileManager.default.setAttributes([.modificationDate: now], ofItemAtPath: currentURL.path)
+        try FileManager.default.setAttributes([.modificationDate: olderDay], ofItemAtPath: olderURL.path)
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let range = CostUsageScanner.CostUsageDayRange(
+            since: options.calendar.date(byAdding: .day, value: -29, to: now) ?? now,
+            until: now,
+            calendar: options.calendar)
+        let currentMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let olderMetadata = CostUsageScanner.codexFileMetadata(fileURL: olderURL)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = Int64(now.timeIntervalSince1970 * 1000)
+        cache.scanSinceKey = range.scanSinceKey
+        cache.scanUntilKey = range.scanUntilKey
+        cache.timeZoneIdentifier = options.calendar.timeZone.identifier
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.codexProjectMetadataVersion = CostUsageScanner.codexProjectMetadataVersion
+        cache.codexScanCatchUpPending = true
+        cache.days = [currentDayKey: ["gpt-5.4": [20, 0, 0]]]
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: currentMetadata.mtimeUnixMs,
+            size: currentMetadata.size,
+            days: cache.days,
+            parsedBytes: currentMetadata.size,
+            codexRows: [CostUsageScanner.CodexUsageRow(
+                day: currentDayKey,
+                model: "gpt-5.4",
+                turnID: "verified-current-day",
+                eventIndex: 0,
+                input: 20,
+                cached: 0,
+                output: 0,
+                knownCostNanos: 2_000_000_000,
+                pricingModel: "gpt-5.4",
+                pricingMode: "standard")],
+            codexScanFileId: currentMetadata.fileId,
+            codexScanTargetSize: currentMetadata.size,
+            codexScanComplete: true)
+        cache.files[olderURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: olderMetadata.mtimeUnixMs,
+            size: olderMetadata.size,
+            days: ["2026-04-01": ["gpt-5.4": [7, 0, 0]]],
+            parsedBytes: 0,
+            codexScanFileId: olderMetadata.fileId,
+            codexScanTargetSize: olderMetadata.size,
+            codexScanComplete: false)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path, olderURL.path])
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: cache,
+            calendar: options.calendar)
+
+        // The production-default Pi merge must not add either current or historical rows
+        // to a native recovery snapshot whose proof covers only the native current day.
+        try Self.writePiCodexSessionFile(env: env, day: now, tokens: 165)
+        let piOptions = PiSessionCostScanner.Options(
+            piSessionsRoot: env.piSessionsRoot,
+            cacheRoot: env.cacheRoot,
+            refreshMinIntervalSeconds: 0)
+        _ = PiSessionCostScanner.loadDailyReport(
+            provider: .codex,
+            since: olderDay,
+            until: now,
+            now: now,
+            options: piOptions)
+
+        let projection = await CostUsageStoreAccess.readCodexReportProjection(
+            cacheRoot: env.cacheRoot,
+            calendar: options.calendar)
+        #expect(projection.verifiedDayAggregates.isEmpty)
+        #expect(projection.cache.codexPreviousReport == nil)
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: projection.cache,
+            roots: roots,
+            dayKey: currentDayKey,
+            calendar: options.calendar))
+        let projected = CostUsageCodexReportProjectionBuilder.build(
+            projection: projection,
+            roots: roots,
+            range: range,
+            cacheRoot: options.cacheRoot,
+            includeBreakdowns: false)
+        #expect(projected.report.data.map(\.date) == ["2026-04-01", currentDayKey])
+        #expect(projected.report.data.first(where: { $0.date == currentDayKey })?.costUSD == 2)
+
+        let published = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            scannerOptions: options)
+
+        #expect(published?.snapshot.daily.map(\.date) == [currentDayKey])
+        #expect(published?.snapshot.daily.first?.totalTokens == 20)
+        #expect(published?.snapshot.daily.first?.costUSD == 2)
+        #expect(published?.snapshot.last30DaysCostUSD == 2)
+        #expect(published?.snapshot.historyCoverageIsEstablished == false)
+        #expect(published?.currentDayIsFullyVerified == true)
+
+        let handle = try FileHandle(forWritingTo: currentURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{\"changed\":true}\n".utf8))
+        try handle.close()
+        let blocked = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
+            now: now,
+            historyDays: 30,
+            scannerOptions: options)
+        #expect(blocked == nil)
+    }
+
+    @Test
     func `bounded refresh advances metadata inventory without session head discovery`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }

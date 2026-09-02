@@ -1002,7 +1002,7 @@ public struct CostUsageFetcher: Sendable {
                 since: since,
                 until: until,
                 calendar: options.calendar)
-            let shouldMergePiUsage = scopedCodexHomePath?.isEmpty != false
+            var shouldMergePiUsage = scopedCodexHomePath?.isEmpty != false
             let roots = CostUsageScanner.codexSessionsRoots(options: options)
             let rootsFingerprint = CostUsageScanner.codexRootsFingerprint(options: options)
             let loadedCache = persistedProjection.cache
@@ -1028,18 +1028,24 @@ public struct CostUsageFetcher: Sendable {
                 cache: cache,
                 range: range,
                 rootsFingerprint: rootsFingerprint)
+            let previousReport = CostUsageScanner.codexPreviousReport(
+                cache: cache,
+                range: range,
+                rootsFingerprint: rootsFingerprint)
+            let pendingWithoutNativeHistoryBaseline = cache.codexScanCatchUpPending == true
+                && !verifiedHistoryCoverageIsEstablished
+                && previousReport == nil
+            shouldMergePiUsage = shouldMergePiUsage && !pendingWithoutNativeHistoryBaseline
 
             if cache.codexScanCatchUpPending == true,
                verifiedHistoryCoverageIsEstablished,
-               CostUsageScanner.codexPreviousReport(
-                   cache: cache,
-                   range: range,
-                   rootsFingerprint: rootsFingerprint) == nil
+               previousReport == nil
             {
                 let retained = Self.cachedCodexVerifiedReportProjection(.init(
                     projection: persistedProjection,
                     cache: cache,
                     roots: roots,
+                    rootsFingerprint: rootsFingerprint,
                     range: range,
                     cacheRoot: options.cacheRoot,
                     now: now))
@@ -1050,11 +1056,7 @@ public struct CostUsageFetcher: Sendable {
                 nativeScanAt = retained.nativeScanAt
                 staleSnapshotUpdatedAt = retained.updatedAt
                 currentDayIsFullyVerified = retained.currentDayIsFullyVerified
-            } else if let previous = CostUsageScanner.codexPreviousReport(
-                cache: cache,
-                range: range,
-                rootsFingerprint: rootsFingerprint)
-            {
+            } else if let previous = previousReport {
                 let retained = Self.cachedCodexPreviousReportProjection(.init(
                     previous: previous,
                     projection: persistedProjection,
@@ -1073,6 +1075,22 @@ public struct CostUsageFetcher: Sendable {
                 nativeScanAt = retained.nativeScanAt
                 staleSnapshotUpdatedAt = previous.updatedAt
                 currentDayIsFullyVerified = retained.currentDayIsFullyVerified
+            } else if let currentDay = Self.cachedCodexIndependentlyVerifiedCurrentDay(
+                CachedCodexVerifiedReportProjectionInput(
+                    projection: persistedProjection,
+                    cache: cache,
+                    roots: roots,
+                    rootsFingerprint: rootsFingerprint,
+                    range: range,
+                    cacheRoot: options.cacheRoot,
+                    now: now))
+            {
+                reports.append(currentDay.report)
+                nativeScanAt = currentDay.nativeScanAt
+                currentDayIsFullyVerified = currentDay.currentDayIsFullyVerified
+                if let scanAt = currentDay.nativeScanAt {
+                    scanTimes.append(scanAt)
+                }
             } else if cache.codexScanCatchUpPending != true,
                       cache.timeZoneIdentifier == range.calendar.timeZone.identifier,
                       !cache.days.isEmpty,
@@ -1225,9 +1243,52 @@ public struct CostUsageFetcher: Sendable {
         let projection: CostUsageStoreCodexReportProjection
         let cache: CostUsageCache
         let roots: [URL]
+        let rootsFingerprint: [String: Int64]
         let range: CostUsageScanner.CostUsageDayRange
         let cacheRoot: URL?
         let now: Date
+    }
+
+    private static func cachedCodexIndependentlyVerifiedCurrentDay(
+        _ input: CachedCodexVerifiedReportProjectionInput) -> CachedCodexPreviousReportProjectionResult?
+    {
+        guard input.cache.codexScanCatchUpPending == true,
+              input.cache.timeZoneIdentifier == input.range.calendar.timeZone.identifier,
+              !input.cache.days.isEmpty,
+              input.cache.roots == input.rootsFingerprint
+        else { return nil }
+
+        // A parser-compatible upgrade can inherit a durable ledger whose older verification
+        // baseline predates the normalized verified table. Never publish incomplete history,
+        // but do publish today's independently proven aggregate instead of returning nil.
+        let projected = CostUsageCodexReportProjectionBuilder.build(
+            projection: input.projection,
+            roots: input.roots,
+            range: input.range,
+            cacheRoot: input.cacheRoot,
+            includeBreakdowns: false)
+        let currentDayKey = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: input.now,
+            calendar: input.range.calendar)
+        guard let currentDay = projected.report.data.first(where: {
+            $0.date == currentDayKey && $0.costUSD != nil
+        }), CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: input.cache,
+            roots: input.roots,
+            dayKey: currentDayKey,
+            calendar: input.range.calendar)
+        else { return nil }
+
+        let scanAt = input.cache.lastScanUnixMs > 0
+            ? Date(timeIntervalSince1970: TimeInterval(input.cache.lastScanUnixMs) / 1000)
+            : nil
+        return CachedCodexPreviousReportProjectionResult(
+            report: CostUsageDailyReport(data: [currentDay], summary: nil),
+            projects: [],
+            sessions: [],
+            updatedAt: scanAt,
+            nativeScanAt: scanAt,
+            currentDayIsFullyVerified: true)
     }
 
     private static func cachedCodexVerifiedReportProjection(
