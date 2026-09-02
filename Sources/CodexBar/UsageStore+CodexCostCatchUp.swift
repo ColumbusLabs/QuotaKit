@@ -356,8 +356,7 @@ extension UsageStore {
     private func publishPendingCodexCostCatchUpSnapshotIfChanged(
         context: CodexCostCatchUpContext) async
     {
-        guard let current = self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex)?.snapshot,
-              current.historyCoverageIsEstablished
+        guard let current = self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex)?.snapshot
         else { return }
         let publicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
         do {
@@ -379,10 +378,17 @@ extension UsageStore {
             {
                 if cached.snapshot.historyCoverageIsEstablished {
                     cached.snapshot
-                } else if cached.currentDayIsFullyVerified {
+                } else if current.historyCoverageIsEstablished,
+                          cached.currentDayIsFullyVerified
+                {
                     Self.codexCostSnapshotOverlayingVerifiedCurrentDay(
                         cached.snapshot,
                         onto: current,
+                        calendar: self.settings.costUsageBucketCalendar)
+                } else if !current.historyCoverageIsEstablished {
+                    Self.codexCostSnapshotAdvancingPartialLowerBound(
+                        cached.snapshot,
+                        over: current,
                         calendar: self.settings.costUsageBucketCalendar)
                 } else {
                     nil
@@ -394,7 +400,6 @@ extension UsageStore {
             guard self.codexCostCatchUpContextIsCurrent(context),
                   self.tokenSnapshotPublicationRevision(for: .codex) == publicationRevision,
                   let snapshot,
-                  snapshot.historyCoverageIsEstablished,
                   !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil
             else { return }
             let publicationSnapshot = Self.codexCostSnapshot(
@@ -509,6 +514,48 @@ extension UsageStore {
             sessions: established.sessions,
             hourly: established.hourly,
             updatedAt: candidate.updatedAt)
+    }
+
+    /// A cold cache has no complete baseline to protect yet. Publish bounded
+    /// scan progress only when every already-visible lower bound remains
+    /// present and non-decreasing. Complete snapshots use the authoritative
+    /// path above and may still apply legitimate downward corrections.
+    static func codexCostSnapshotAdvancingPartialLowerBound(
+        _ candidate: CostUsageTokenSnapshot,
+        over current: CostUsageTokenSnapshot,
+        calendar: Calendar) -> CostUsageTokenSnapshot?
+    {
+        let sameSessionDay = calendar.isDate(
+            candidate.updatedAt,
+            inSameDayAs: current.updatedAt)
+        guard !candidate.historyCoverageIsEstablished,
+              !current.historyCoverageIsEstablished,
+              candidate.updatedAt > current.updatedAt,
+              !sameSessionDay
+              || self.optionalLowerBound(candidate.sessionCostUSD, covers: current.sessionCostUSD),
+              !sameSessionDay
+              || self.optionalLowerBound(candidate.sessionTokens, covers: current.sessionTokens),
+              self.optionalLowerBound(candidate.last30DaysCostUSD, covers: current.last30DaysCostUSD),
+              self.optionalLowerBound(candidate.last30DaysTokens, covers: current.last30DaysTokens)
+        else { return nil }
+
+        let candidateByDay = Dictionary(uniqueKeysWithValues: candidate.daily.map { ($0.date, $0) })
+        for existing in current.daily {
+            guard let incoming = candidateByDay[existing.date],
+                  Self.optionalLowerBound(incoming.costUSD, covers: existing.costUSD),
+                  Self.optionalLowerBound(incoming.totalTokens, covers: existing.totalTokens)
+            else { return nil }
+        }
+        return candidate
+    }
+
+    private static func optionalLowerBound<Value: Comparable>(
+        _ candidate: Value?,
+        covers current: Value?) -> Bool
+    {
+        guard let current else { return true }
+        guard let candidate else { return false }
+        return candidate >= current
     }
 
     private func publishStableCodexCostCatchUpSnapshot(

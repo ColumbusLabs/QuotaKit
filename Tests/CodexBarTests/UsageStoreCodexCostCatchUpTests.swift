@@ -142,6 +142,70 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
+    func `cold partial catch-up publishes only monotonic lower-bound progress`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let firstAt = Date(timeIntervalSince1970: 1_700_000_000)
+        let current = Self.tokenSnapshot(
+            cost: 8,
+            now: firstAt,
+            historyCoverageIsEstablished: false)
+        let advanced = Self.tokenSnapshot(
+            cost: 130,
+            now: firstAt.addingTimeInterval(1),
+            historyCoverageIsEstablished: false)
+        let regressed = Self.tokenSnapshot(
+            cost: 3,
+            now: firstAt.addingTimeInterval(2),
+            historyCoverageIsEstablished: false)
+
+        #expect(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            advanced,
+            over: current,
+            calendar: calendar)?.last30DaysCostUSD == 130)
+        #expect(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            regressed,
+            over: advanced,
+            calendar: calendar) == nil)
+    }
+
+    @Test
+    func `cold partial catch-up accepts a new-day session reset`() throws {
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let beforeMidnight = try #require(calendar.date(from: DateComponents(
+            year: 2026,
+            month: 9,
+            day: 1,
+            hour: 23,
+            minute: 59)))
+        let current = Self.tokenSnapshot(
+            cost: 130,
+            now: beforeMidnight,
+            historyCoverageIsEstablished: false)
+        let afterMidnight = CostUsageTokenSnapshot(
+            sessionTokens: 1,
+            sessionCostUSD: 1,
+            last30DaysTokens: 20,
+            last30DaysCostUSD: 131,
+            historyCoverageIsEstablished: false,
+            daily: current.daily + [CostUsageDailyReport.Entry(
+                date: "2026-09-02",
+                inputTokens: 1,
+                outputTokens: 0,
+                totalTokens: 1,
+                costUSD: 1,
+                modelsUsed: nil,
+                modelBreakdowns: nil)],
+            updatedAt: beforeMidnight.addingTimeInterval(120))
+
+        #expect(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            afterMidnight,
+            over: current,
+            calendar: calendar)?.sessionCostUSD == 1)
+    }
+
+    @Test
     func `bounded catch-up publishes a changed current day before final history completes`() async throws {
         let store = try Self.makeStore(suite: "publishes-final")
         var snapshotLoadCount = 0
