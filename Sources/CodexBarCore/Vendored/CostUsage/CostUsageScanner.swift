@@ -7748,7 +7748,7 @@ enum CostUsageScanner {
         CodexFileScanContext(
             range: range,
             forceFullScan: options.forceRescan || plan.windowExpanded
-                || plan.priorityMetadataChanged || plan.needsProjectMetadataMigration,
+                || plan.needsProjectMetadataMigration,
             dropDeferredCodexRows: options.forceRescan || plan.needsTurnIDCacheMigration,
             requiresTurnIDCache: plan.needsTurnIDCacheMigration,
             changedPriorityTurnIDs: plan.changedPriorityTurnIDs,
