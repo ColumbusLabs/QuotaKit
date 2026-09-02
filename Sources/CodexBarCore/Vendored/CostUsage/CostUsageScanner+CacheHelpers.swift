@@ -774,7 +774,7 @@ extension CostUsageScanner {
               !context.forceFullScan
         else { return false }
 
-        guard !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) else { return false }
+        let needsPriorityReclassification = Self.cachedCodexFileNeedsPriorityRescan(cached, context: context)
 
         let sessionAlreadyContributed = cached.sessionId.map { state.contributingSessionIds.contains($0) } ?? false
         let cachedRows = cached.codexRows ?? []
@@ -815,7 +815,9 @@ extension CostUsageScanner {
             return true
         }
 
-        let current = if Self.needsCodexPricingMetadata(cached, range: context.range) {
+        let current = if needsPriorityReclassification
+            || Self.needsCodexPricingMetadata(cached, range: context.range)
+        {
             Self.codexFileUsageWithPricingMetadata(cached, context: context)
         } else {
             cached
@@ -902,7 +904,6 @@ extension CostUsageScanner {
     {
         try context.checkCancellation?()
         guard let cached = input.cached, cached.sessionId != nil, !context.forceFullScan else { return false }
-        guard !Self.cachedCodexFileNeedsPriorityRescan(cached, context: context) else { return false }
         if Self.cachedCodexRowsNeedIdentityRescan(cached) {
             return false
         }

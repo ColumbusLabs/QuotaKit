@@ -83,6 +83,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "a7f3e991314d5fde", // Priority reclassification only; persisted parser rows remain compatible.
         "0538726d9c715433", // Adjacent-day publication proof only; persisted parser rows remain compatible.
         "6ae28ea91dc80dcb", // Current-day queue ordering only; persisted parser rows remain compatible.
         "996599f964eaba11", // Earlier publication-proof build; persisted parser rows remain compatible.

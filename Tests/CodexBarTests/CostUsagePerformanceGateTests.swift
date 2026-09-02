@@ -1156,7 +1156,7 @@ struct CostUsagePerformanceGateTests {
     }
 
     @Test
-    func `priority metadata rebuild automatically retains complete report until bounded scan converges`() throws {
+    func `priority metadata reprices cached rows while scanning only an appended tail`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
@@ -1172,7 +1172,7 @@ struct CostUsagePerformanceGateTests {
                 + #"{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"#
                 + #""model":"\#(model)"}}}"#,
         ].joined(separator: "\n") + "\n"
-        _ = try env.writeCodexSessionFile(
+        let sessionURL = try env.writeCodexSessionFile(
             day: day,
             filename: "priority-rebuild.jsonl",
             contents: sessionBody)
@@ -1202,47 +1202,31 @@ struct CostUsagePerformanceGateTests {
             timestamp: iso,
             body: "thread_id=thread turn.id=priority-turn websocket request: "
                 + #"{"type":"response.create","model":"gpt-5.5","service_tier":"priority"}"#)
+        let appendedTokenCount = #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
+            + #"{"total_token_usage":{"input_tokens":200,"cached_input_tokens":40,"output_tokens":20},"#
+            + #""model":"\#(model)"}}}"#
+        let handle = try FileHandle(forWritingTo: sessionURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data((appendedTokenCount + "\n").utf8))
+        try handle.close()
         options.maxCodexSessionFileBytes = 1024
         options.maxCodexScanBytesPerRefresh = 1024
 
-        let range = CostUsageScanner.CostUsageDayRange(
-            since: day,
-            until: day,
-            calendar: options.calendar)
-        var report = CostUsageScanner.loadDailyReport(
+        let report = CostUsageScanner.loadDailyReport(
             provider: .codex,
             since: day,
             until: day,
             now: day.addingTimeInterval(1),
             options: options)
-        var cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-        let incomplete = CostUsageScanner.buildCodexReportFromCache(cache: cache, range: range)
-
-        #expect(cache.codexScanCatchUpPending == true)
-        #expect(cache.codexPreviousReport != nil)
-        #expect(incomplete.summary?.totalTokens != complete.summary?.totalTokens)
-        #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
-        #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
-
-        for pass in 2...16 where cache.codexScanCatchUpPending == true {
-            report = CostUsageScanner.loadDailyReport(
-                provider: .codex,
-                since: day,
-                until: day,
-                now: day.addingTimeInterval(TimeInterval(pass)),
-                options: options)
-            cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
-            if cache.codexScanCatchUpPending == true {
-                #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
-                #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
-            }
-        }
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let cachedFile = try #require(cache.files[sessionURL.path])
 
         #expect(cache.codexScanCatchUpPending == false)
         #expect(cache.codexPreviousReport == nil)
-        #expect(report.summary?.totalTokens == complete.summary?.totalTokens)
-        #expect(report.data.map(\.totalTokens) == complete.data.map(\.totalTokens))
-        #expect(report.data.first?.modelBreakdowns?.first?.priorityTokens == 110)
+        #expect(cachedFile.codexScanComplete == true)
+        #expect(cachedFile.parsedBytes == cachedFile.size)
+        #expect(report.summary?.totalTokens == 220)
+        #expect(report.data.first?.modelBreakdowns?.first?.priorityTokens == 220)
     }
 
     @Test
