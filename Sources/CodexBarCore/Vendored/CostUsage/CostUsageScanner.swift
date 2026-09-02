@@ -2383,12 +2383,31 @@ enum CostUsageScanner {
             let metadata = Self.codexFileMetadata(fileURL: fileURL)
             guard usage.codexScanComplete == true,
                   !usage.hasBufferedCodexForkRetryLines,
-                  usage.mtimeUnixMs == metadata.mtimeUnixMs,
-                  usage.size == metadata.size,
                   usage.codexScanFileId == metadata.fileId,
-                  (usage.parsedBytes ?? usage.size) >= metadata.size
+                  (usage.parsedBytes ?? usage.size) >= usage.size
             else { return false }
-            return true
+
+            if usage.mtimeUnixMs == metadata.mtimeUnixMs,
+               usage.size == metadata.size
+            {
+                return true
+            }
+
+            // Active Codex JSONL files normally grow between the scanner's commit and
+            // the next publication read. The indexed prefix is still a valid, merely
+            // slightly stale snapshot when its identity and trailing integrity anchor
+            // remain unchanged. Rewrites, truncations, and legacy rows without an
+            // anchor continue to fail closed.
+            guard usage.size < metadata.size,
+                  usage.mtimeUnixMs <= metadata.mtimeUnixMs,
+                  usage.codexTokenIndexAnchor?.indexedBytes == usage.size
+            else { return false }
+            return usage.codexTokenIndexAnchor.map {
+                Self.codexTokenIndexAnchorMatches(
+                    $0,
+                    fileURL: fileURL,
+                    metadata: metadata)
+            } == true
         }
 
         for fileURL in directlyDiscovered {
@@ -2444,7 +2463,11 @@ enum CostUsageScanner {
                         untilKey: dayKey,
                         calendar: calendar) == true
                     || metadata.mtimeUnixMs >= dayStartMs
-                guard !pendingCanAffectDay else { return false }
+                if pendingCanAffectDay {
+                    guard let cached,
+                          matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
+                    else { return false }
+                }
             }
         }
         return true

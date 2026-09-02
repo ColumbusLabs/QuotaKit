@@ -1525,6 +1525,113 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
+    func `current day proof accepts an integrity checked append after the indexed snapshot`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "active.jsonl",
+            contents: "{\"indexed\":true}\n")
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let indexedMetadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: indexedMetadata.mtimeUnixMs,
+            size: indexedMetadata.size,
+            days: ["2026-04-08": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: indexedMetadata.size,
+            codexTokenIndexAnchor: CostUsageScanner.codexTokenIndexAnchor(
+                fileURL: currentURL,
+                indexedBytes: indexedMetadata.size),
+            codexScanFileId: indexedMetadata.fileId,
+            codexScanTargetSize: indexedMetadata.size,
+            codexScanComplete: true)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path])
+
+        let handle = try FileHandle(forWritingTo: currentURL)
+        try handle.seekToEnd()
+        try handle.write(contentsOf: Data("{\"new\":true}\n".utf8))
+        try handle.close()
+
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+
+        let rewriteHandle = try FileHandle(forWritingTo: currentURL)
+        try rewriteHandle.seek(toOffset: 0)
+        try rewriteHandle.write(contentsOf: Data("X".utf8))
+        try rewriteHandle.close()
+
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
+    func `current day proof accepts a fully indexed file still queued for historical migration`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+
+        let now = try env.makeLocalNoon(year: 2026, month: 4, day: 8)
+        let currentURL = try env.writeCodexSessionFile(
+            day: now,
+            filename: "current-pending.jsonl",
+            contents: "{}\n")
+        let options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            cacheRoot: env.cacheRoot)
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: currentURL)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+
+        var cache = CostUsageCache()
+        cache.roots = CostUsageScanner.codexRootsFingerprint(options: options)
+        cache.files[currentURL.path] = CostUsageScanner.makeFileUsage(
+            mtimeUnixMs: metadata.mtimeUnixMs,
+            size: metadata.size,
+            days: ["2026-04-08": ["gpt-5.4": [1, 0, 0]]],
+            parsedBytes: metadata.size,
+            codexTokenIndexAnchor: CostUsageScanner.codexTokenIndexAnchor(
+                fileURL: currentURL,
+                indexedBytes: metadata.size),
+            codexScanFileId: metadata.fileId,
+            codexScanTargetSize: metadata.size,
+            codexScanComplete: true)
+        cache.codexSessionDiscovery = Self.completeMetadataDiscovery(
+            roots: roots,
+            filePaths: [currentURL.path])
+        cache.codexActiveLookbackState = CostUsageCodexActiveLookbackState(
+            scanSinceKey: "2025-04-08",
+            rootPaths: roots.map(\.path),
+            pendingFilePaths: [currentURL.path])
+
+        #expect(CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+
+        cache.files[currentURL.path]?.codexScanComplete = false
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: cache,
+            roots: roots,
+            dayKey: "2026-04-08",
+            calendar: options.calendar))
+    }
+
+    @Test
     func `cached codex token snapshot keeps the cache scan time as updatedAt`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
