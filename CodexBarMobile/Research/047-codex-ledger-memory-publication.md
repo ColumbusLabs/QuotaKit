@@ -1,6 +1,6 @@
 # Codex ledger memory and publication repair
 
-Status: implementing final runtime verification
+Status: done
 
 ## Goal
 
@@ -109,6 +109,10 @@ Mac wire payload, mobile cache, CloudKit merge, and durable ledger.
   empty authoritative result) so relaunch cannot resurrect stale spend data.
 - Nil-email to email account identity transitions preserve only demonstrably
   better history, without conflating two known accounts.
+- A cold partial catch-up publishes increasing cost/token lower bounds after
+  each bounded pass instead of withholding them until the entire history is
+  indexed. Session totals may reset across the configured midnight boundary,
+  while rolling and already-visible daily bounds remain non-regressive.
 
 ## Verification evidence
 
@@ -120,6 +124,11 @@ Mac wire payload, mobile cache, CloudKit merge, and durable ledger.
 - Post-format Mac store, cache, and architecture rerun passed 155 tests.
 - `swift build -c release`, parser-hash validation, SwiftFormat, SwiftLint,
   localization, branding, package, and repository audits passed.
-- Runtime RSS claims remain deliberately unmeasured because QuotaKit was not
-  reopened. The packaged eight-hour acceptance gate above is still required
-  before assigning a measured memory number to this repair.
+- The signed `/Applications/QuotaKit.app` build was installed and launched.
+  During active Codex catch-up, 13 RSS samples ranged from 173.6 MiB to
+  211.7 MiB with a 187.3 MiB median, versus the reported 2 GiB failure.
+- Live publication advanced the stale widget/phone-bound Codex values from
+  `$37.72` / `$10.63` today to the compact SQLite lower bounds of `$146.19` /
+  `$11.78` today while catch-up was still pending.
+- The short live run proves bounded launch/catch-up behavior, not the separate
+  eight-hour no-growth acceptance gate. That soak remains future qualification.

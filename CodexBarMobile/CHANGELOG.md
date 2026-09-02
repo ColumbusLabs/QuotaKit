@@ -11,6 +11,8 @@ current Columbus Labs product surface and recent release history.
 
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
   while the Mac is incrementally rebuilding its historical cache.
+- A fresh historical rebuild now publishes monotonic partial progress to the
+  iPhone instead of leaving it on the first small subtotal until indexing ends.
 - Cost history survives Mac account-identity changes, iPhone relaunches, and
   incremental CloudKit updates without restoring deleted or stale snapshots.
 - Unpriced token activity is carried as explicitly unknown instead of being
