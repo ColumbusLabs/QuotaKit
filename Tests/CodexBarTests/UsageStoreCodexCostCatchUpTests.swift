@@ -24,10 +24,11 @@ struct UsageStoreCodexCostCatchUpTests {
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == establishedRevision)
 
         store.publishTokenSnapshot(
-            Self.tokenSnapshot(cost: 4, now: Date().addingTimeInterval(2)),
+            Self.tokenSnapshot(cost: 2, now: Date().addingTimeInterval(2)),
             for: .codex)
 
-        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 4)
+        // Completion is authoritative: it may correct an inflated partial estimate downward.
+        #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 2)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == establishedRevision + 1)
     }
 

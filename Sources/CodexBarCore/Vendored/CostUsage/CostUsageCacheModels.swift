@@ -323,6 +323,9 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexScanFileId: String?
     var codexScanTargetSize: Int64?
     var codexScanComplete: Bool?
+    /// A bounded full scan is building a replacement generation. While set, the persisted
+    /// event ledger remains the last committed generation; only parser progress is staged.
+    var codexReplacementScanPending: Bool?
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?

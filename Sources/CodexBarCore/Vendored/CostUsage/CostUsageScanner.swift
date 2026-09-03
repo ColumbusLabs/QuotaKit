@@ -4867,6 +4867,7 @@ enum CostUsageScanner {
         initialLastAcceptedTokenTimestampUnixMs: Int64? = nil,
         initialBufferedSubagentLines: [CodexBufferedFastLine]? = nil,
         initialBufferedUnresolvedForkLines: [CodexBufferedFastLine]? = nil,
+        includeInitialBufferedTokenSnapshots: Bool = false,
         initialJSONLResumeState: CostUsageJsonl.ResumeState? = nil,
         maxBytesToRead: Int64? = nil,
         shouldStopReading: ((Int64) -> Bool)? = nil,
@@ -5342,6 +5343,25 @@ enum CostUsageScanner {
 
         var pendingSubagentLines = initialBufferedSubagentLines
         var bufferedUnresolvedForkLines = initialBufferedUnresolvedForkLines
+
+        // A staged full replacement does not persist event snapshots until it commits. Restore
+        // snapshots from the buffered prefix so the completion pass can atomically replace the
+        // previous snapshot generation rather than appending only the newly read suffix.
+        if includeInitialBufferedTokenSnapshots {
+            let initialSnapshotBuffers = (initialBufferedSubagentLines ?? [])
+                + (initialBufferedUnresolvedForkLines ?? [])
+            tokenSnapshots.reserveCapacity(initialSnapshotBuffers.count)
+            for buffered in initialSnapshotBuffers {
+                guard case let .tokenCount(record) = buffered.line,
+                      record.last != nil || record.total != nil
+                else { continue }
+                tokenSnapshots.append(CostUsageCodexTokenSnapshot(
+                    timestamp: record.timestamp,
+                    last: record.last,
+                    total: record.total,
+                    endOffset: buffered.endOffset))
+            }
+        }
 
         if let initialBufferedSubagentLines, startOffset > 0 {
             for buffered in initialBufferedSubagentLines {

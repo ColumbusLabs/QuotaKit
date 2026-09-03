@@ -404,7 +404,9 @@ extension CostUsageStore {
                json_extract(f.scan_state, '$.fileIdentity'),
                f.parsed_bytes, f.scan_target_size,
                CASE WHEN f.scan_complete = 0 THEN f.scan_state ELSE NULL END,
-               f.scan_complete, l.forked_from_id, l.dependency_key,
+               f.scan_complete,
+               CASE WHEN json_extract(f.scan_state, '$.replacementScanPending') = 1 THEN 1 ELSE 0 END,
+               l.forked_from_id, l.dependency_key,
                EXISTS (
                    SELECT 1 FROM buffered_lines b
                    WHERE b.file_id = f.id AND b.kind = 'subagent'
@@ -439,10 +441,11 @@ extension CostUsageStore {
                 scanTargetSize: self.columnInt64(statement, at: 6),
                 resumeOffset: resumeOffset,
                 scanComplete: sqlite3_column_int(statement, 8) == 1,
-                forkedFromID: self.columnText(statement, at: 9),
-                forkBaselineDependencyKey: self.columnText(statement, at: 10),
-                hasBufferedSubagentLines: sqlite3_column_int(statement, 11) == 1,
-                hasBufferedUnresolvedForkLines: sqlite3_column_int(statement, 12) == 1))
+                replacementScanPending: sqlite3_column_int(statement, 9) == 1,
+                forkedFromID: self.columnText(statement, at: 10),
+                forkBaselineDependencyKey: self.columnText(statement, at: 11),
+                hasBufferedSubagentLines: sqlite3_column_int(statement, 12) == 1,
+                hasBufferedUnresolvedForkLines: sqlite3_column_int(statement, 13) == 1))
             result = sqlite3_step(statement)
         }
         guard result == SQLITE_DONE else { throw StoreError.sqlite(result) }

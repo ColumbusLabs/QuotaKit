@@ -238,6 +238,32 @@ extension CostUsageStore {
                     Self.bindAggregateValues(delta, to: statement, startingAt: 3)
                     try Self.stepDone(statement, database: database)
                 }
+                // Replacing the last file contributing a model can net its aggregate to zero.
+                // Do not retain an empty key: reloads hydrate aggregate keys into modelsUsed.
+                try Self.execute(database, """
+                DELETE FROM day_aggregates
+                WHERE input_tokens = 0
+                  AND cached_tokens = 0
+                  AND output_tokens = 0
+                  AND reasoning_tokens = 0
+                  AND request_count = 0
+                  AND unpriced_request_count = 0
+                  AND authoritative_cost_nanos = 0
+                  AND standard_authoritative_cost_nanos = 0
+                  AND priority_authoritative_cost_nanos = 0
+                  AND standard_input_tokens = 0
+                  AND standard_cached_tokens = 0
+                  AND standard_output_tokens = 0
+                  AND priority_input_tokens = 0
+                  AND priority_cached_tokens = 0
+                  AND priority_output_tokens = 0
+                  AND standard_tokens = 0
+                  AND priority_tokens = 0
+                  AND standard_resolved_cost_nanos = 0
+                  AND priority_resolved_cost_nanos = 0
+                  AND standard_unresolved_pricing_count = 0
+                  AND priority_unresolved_pricing_count = 0
+                """)
             }
             return true
         }

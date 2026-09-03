@@ -21,6 +21,9 @@ struct CostUsageStoreScanState: Codable, Equatable, Sendable {
     var resumePayload: Data?
     var tokenTimestampsMonotonic: Bool?
     var nextUsageRowIndex: Int?
+    /// True while a bounded full scan is staging a replacement for this file. Detail tables and
+    /// file aggregates must remain on their previously committed generation until completion.
+    var replacementScanPending: Bool?
     var lastModel: String?
     var lastTurnID: String?
     var fileIdentity: String?
@@ -285,6 +288,7 @@ struct CostUsageStoreCatchUpFile: Equatable, Sendable {
     var scanTargetSize: Int64?
     var resumeOffset: Int64?
     var scanComplete: Bool
+    var replacementScanPending: Bool = false
     var forkedFromID: String?
     var forkBaselineDependencyKey: String?
     var hasBufferedSubagentLines: Bool

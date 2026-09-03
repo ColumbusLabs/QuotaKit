@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.24 — 2026-09-03
+
+### Fixed
+
+- Codex: prevent growing subagent session rescans from duplicating usage rows and inflating cost estimates.
+
 ## 0.32.4.23 / iOS 1.11.3 — 2026-08-29
 
 ### Fixed

@@ -240,6 +240,7 @@ extension CostUsageScanner {
         codexScanFileId: String? = nil,
         codexScanTargetSize: Int64? = nil,
         codexScanComplete: Bool? = nil,
+        codexReplacementScanPending: Bool? = nil,
         codexJSONLResumeState: CostUsageJsonl.ResumeState? = nil,
         codexBufferedSubagentLines: [CodexBufferedFastLine]? = nil,
         codexBufferedUnresolvedForkLines: [CodexBufferedFastLine]? = nil) -> CostUsageFileUsage
@@ -281,6 +282,7 @@ extension CostUsageScanner {
             codexScanFileId: codexScanFileId,
             codexScanTargetSize: codexScanTargetSize,
             codexScanComplete: codexScanComplete,
+            codexReplacementScanPending: codexReplacementScanPending,
             codexJSONLResumeState: codexJSONLResumeState,
             codexBufferedSubagentLines: codexBufferedSubagentLines,
             codexBufferedUnresolvedForkLines: codexBufferedUnresolvedForkLines)
@@ -612,6 +614,7 @@ extension CostUsageScanner {
             codexScanFileId: usage.codexScanFileId,
             codexScanTargetSize: usage.codexScanTargetSize,
             codexScanComplete: usage.codexScanComplete,
+            codexReplacementScanPending: usage.codexReplacementScanPending,
             codexJSONLResumeState: usage.codexJSONLResumeState,
             codexBufferedSubagentLines: usage.codexBufferedSubagentLines,
             codexBufferedUnresolvedForkLines: usage.codexBufferedUnresolvedForkLines)
@@ -904,6 +907,10 @@ extension CostUsageScanner {
     {
         try context.checkCancellation?()
         guard let cached = input.cached, cached.sessionId != nil, !context.forceFullScan else { return false }
+        // A bounded full replacement has its own staged generation. Re-enter the full parser so
+        // the buffered prefix is replayed from a neutral row index; merging it through this
+        // incremental path would append the replay with fresh indexes.
+        guard cached.codexReplacementScanPending != true else { return false }
         if Self.cachedCodexRowsNeedIdentityRescan(cached) {
             return false
         }
@@ -1135,143 +1142,6 @@ extension CostUsageScanner {
             context: context,
             state: &state)
         return true
-    }
-
-    static func rescanCodexFile(
-        input: CodexFileScanInput,
-        context: CodexFileScanContext,
-        cache: inout CostUsageCache,
-        state: inout CodexScanState,
-        maxBytesToRead: Int64? = nil) throws
-    {
-        try context.checkCancellation?()
-        if let cached = input.cached {
-            self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
-        }
-        let migratedCached = input.cached.map { Self.codexFileUsageWithPricingMetadata($0, context: context) }
-        var usageDays = context.dropDeferredCodexRows
-            ? [:]
-            : Self.fileDaysOutsideScanWindow(migratedCached?.days ?? [:], range: context.range)
-
-        let parsed = try Self.parseCodexFileCancellable(
-            fileURL: input.fileURL,
-            range: context.range,
-            maxBytesToRead: maxBytesToRead,
-            shouldStopReading: context.scanBudget.map { budget in
-                { bytesRead in budget.shouldYield(additionalBytes: bytesRead) }
-            },
-            inheritedTotalsResolver: context.resources.inheritedResolver.inheritedTotals(for:atOrBefore:),
-            checkCancellation: context.checkCancellation)
-        let forkBaselineDependencyKey = Self.codexForkBaselineDependencyKey(
-            parentSessionId: parsed.forkedFromId,
-            dependsOnParentTotals: parsed.dependsOnParentTotals,
-            inheritedResolver: context.resources.inheritedResolver)
-        let cachedSessionMetadata = input.cached?.codexSession ?? CostUsageCodexSessionMetadata(
-            sessionId: input.cached?.sessionId,
-            forkedFromId: input.cached?.forkedFromId,
-            cwd: nil,
-            title: nil,
-            startedAtUnixMs: nil,
-            latestActivityUnixMs: nil)
-        let parsedCodexSession = cachedSessionMetadata.merging(parsed.codexSession)
-        let sessionId = parsedCodexSession.sessionId ?? parsed.sessionId ?? input.cached?.sessionId
-        let projectPath = parsed.projectPath ?? input.cached?.projectPath
-        let canonicalProjectPath = parsed.projectPath.map {
-            context.resources.projectPathResolver.canonicalProjectPath(for: $0)
-        } ?? input.cached?.canonicalProjectPath ?? context.resources.projectPathResolver
-            .canonicalProjectPath(for: projectPath)
-        let uniqueRows = Self.uniqueCodexRows(
-            rows: parsed.rows,
-            sessionId: sessionId,
-            fileIdentity: input.metadata.path,
-            state: &state)
-        context.workRecorder?.record(processed: uniqueRows.count, repriced: uniqueRows.count)
-        if let sessionId,
-           state.contributingSessionIds.contains(sessionId),
-           uniqueRows.isEmpty,
-           usageDays.isEmpty,
-           parsed.bufferedSubagentLines == nil,
-           parsed.bufferedUnresolvedForkLines == nil
-        {
-            cache.files.removeValue(forKey: input.metadata.path)
-            return
-        }
-        let uniqueDays = Self.codexFileDays(rows: uniqueRows)
-        Self.mergeFileDays(existing: &usageDays, delta: uniqueDays)
-        let modeTokens = Self.codexModeTokenMaps(
-            rows: uniqueRows,
-            range: context.range,
-            priorityTurns: context.resources.priorityTurns)
-
-        cache.files[input.metadata.path] = Self.makeFileUsage(
-            mtimeUnixMs: input.metadata.mtimeUnixMs,
-            size: input.metadata.size,
-            days: usageDays,
-            parsedBytes: parsed.parsedBytes,
-            lastModel: parsed.lastModel,
-            lastTotals: parsed.lastTotals,
-            lastCountedTotals: parsed.lastCountedTotals,
-            lastRawTotalsBaseline: parsed.lastRawTotalsBaseline,
-            lastRawTotalsWatermark: parsed.lastRawTotalsWatermark,
-            seenRawTotals: parsed.seenRawTotals,
-            hasDivergentTotals: parsed.hasDivergentTotals,
-            hasInterleavedTotals: parsed.hasInterleavedTotals,
-            lastCodexTurnID: parsed.lastCodexTurnID,
-            sessionId: sessionId,
-            forkedFromId: parsedCodexSession.forkedFromId ?? parsed.forkedFromId,
-            forkBaselineDependencyKey: forkBaselineDependencyKey,
-            projectPath: projectPath,
-            canonicalProjectPath: canonicalProjectPath,
-            codexSession: parsedCodexSession.isEmpty ? nil : parsedCodexSession,
-            codexCostNanos: Self.mergeCostMaps(
-                context.dropDeferredCodexRows
-                    ? nil
-                    : Self.costMapOutsideScanWindow(migratedCached?.codexCostNanos, range: context.range),
-                Self.codexCostNanos(rows: uniqueRows, range: context.range)),
-            codexPrioritySurchargeNanos: nil,
-            codexStandardCostNanos: nil,
-            codexPriorityCostNanos: nil,
-            codexStandardTokens: Self.mergeIntMaps(
-                context.dropDeferredCodexRows
-                    ? nil
-                    : Self.intMapOutsideScanWindow(migratedCached?.codexStandardTokens, range: context.range),
-                modeTokens.standard),
-            codexPriorityTokens: Self.mergeIntMaps(
-                context.dropDeferredCodexRows
-                    ? nil
-                    : Self.intMapOutsideScanWindow(migratedCached?.codexPriorityTokens, range: context.range),
-                modeTokens.priority),
-            codexTurnIDs: context.dropDeferredCodexRows
-                ? Self.codexTurnIDs(rows: uniqueRows)
-                : Self.mergeCodexTurnIDs(migratedCached?.codexTurnIDs, rows: uniqueRows),
-            codexRows: Self.codexRowsWithPricingMetadata(
-                context.dropDeferredCodexRows
-                    ? uniqueRows
-                    : Self.mergeCodexRows(
-                        migratedCached?.codexRows,
-                        rows: uniqueRows,
-                        sessionId: sessionId) ?? [],
-                priorityTurns: context.resources.priorityTurns),
-            codexTokenSnapshots: parsed.tokenSnapshots,
-            codexTokenCheckpoints: Self.codexTokenCheckpoints(for: parsed.tokenSnapshots),
-            codexTokenTimestampsMonotonic: Self.codexTokenTimestampsAreMonotonic(parsed.tokenSnapshots),
-            codexTokenIndexAnchor: Self.codexTokenIndexAnchor(
-                fileURL: input.fileURL,
-                indexedBytes: parsed.parsedBytes),
-            codexScanFileId: input.metadata.fileId,
-            codexScanTargetSize: input.metadata.size,
-            codexScanComplete: parsed.parsedBytes >= input.metadata.size && parsed.jsonlResumeState == nil,
-            codexJSONLResumeState: parsed.jsonlResumeState,
-            codexBufferedSubagentLines: parsed.bufferedSubagentLines,
-            codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
-            .refreshingCodexWorkspaceUsageFingerprint()
-        Self.applyFileDays(cache: &cache, fileDays: cache.files[input.metadata.path]?.days ?? [:], sign: 1)
-        Self.rememberScannedCodexFile(
-            input: input,
-            session: CodexScannedSession(id: sessionId, days: usageDays),
-            rows: uniqueRows,
-            context: context,
-            state: &state)
     }
 
     static func codexForkBaselineDependencyKey(

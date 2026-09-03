@@ -292,6 +292,22 @@ extension CostUsageStore {
                 let oldDetailCounts = self.fetchDetailCounts(path: path)
                 let oldAggregates = self.fetchFileDayAggregates(path: path)
                 if let usage = cache.files[path] {
+                    if usage.codexReplacementScanPending == true {
+                        // Staging updates only the manifest, accumulator, and buffers. Keep the
+                        // committed file rows, snapshots, aliases, and aggregate contribution
+                        // untouched until the replacement generation completes.
+                        self.persistFile(
+                            path: path,
+                            usage: usage,
+                            baseline: PersistedFileBaseline(
+                                file: oldFile,
+                                snapshotCount: oldDetailCounts.snapshotCount,
+                                rowCount: oldDetailCounts.rowCount,
+                                canReuseRows: canReuseStoredRows),
+                            calendar: calendar,
+                            aggregatePricing: aggregatePricing)
+                        continue
+                    }
                     // A session can move between active and archived roots without changing
                     // identity. The in-memory alias reconciliation removes the stale spelling;
                     // mirror that migration explicitly on disk so its aggregate contribution
@@ -728,6 +744,7 @@ extension CostUsageStore {
                 codexScanFileId: restoredScanState.identity,
                 codexScanTargetSize: file.scanState.targetSize,
                 codexScanComplete: restoredScanState.isComplete,
+                codexReplacementScanPending: file.scanState.replacementScanPending,
                 codexInventoryValidationGeneration: file.scanState.inventoryValidationGeneration,
                 codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
@@ -1101,7 +1118,11 @@ extension CostUsageStore {
         let sourceRows = usage.codexRows ?? []
         let snapshotCount = sourceSnapshots.count
         let rowCount = sourceRows.count
-        let details = StoredFileDetails(
+        let replacementPending = usage.codexReplacementScanPending == true
+        let committedDetails = baseline.file?.scanState.detailsPayload.flatMap {
+            try? JSONDecoder().decode(StoredFileDetails.self, from: $0)
+        }
+        var details = StoredFileDetails(
             lastTotals: usage.lastTotals,
             projectPath: usage.projectPath,
             canonicalProjectPath: usage.canonicalProjectPath,
@@ -1114,6 +1135,13 @@ extension CostUsageStore {
             hasSeenRawTotals: usage.seenRawTotals != nil,
             divergentTotals: usage.hasDivergentTotals,
             interleavedTotals: usage.hasInterleavedTotals)
+        if replacementPending {
+            // Keep the committed generation's hydration markers. The staged parser state is
+            // carried by the accumulator/buffers, while old rows and snapshots stay in place.
+            details.hasRows = committedDetails?.hasRows ?? (baseline.rowCount > 0)
+            details.hasTurnIDs = committedDetails?.hasTurnIDs ?? (baseline.rowCount > 0)
+            details.hasTokenSnapshots = committedDetails?.hasTokenSnapshots ?? (baseline.snapshotCount > 0)
+        }
         let file = CostUsageStoreFile(
             path: path,
             inode: Self.inode(from: usage.codexScanFileId),
@@ -1131,7 +1159,10 @@ extension CostUsageStore {
                 isComplete: usage.codexScanComplete != false,
                 resumePayload: usage.codexJSONLResumeState.flatMap { try? JSONEncoder().encode($0) },
                 tokenTimestampsMonotonic: usage.codexTokenTimestampsMonotonic,
-                nextUsageRowIndex: CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
+                nextUsageRowIndex: replacementPending
+                    ? 0
+                    : CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
+                replacementScanPending: replacementPending ? true : nil,
                 lastModel: usage.lastModel,
                 lastTurnID: usage.lastCodexTurnID,
                 fileIdentity: usage.codexScanFileId,
@@ -1140,21 +1171,45 @@ extension CostUsageStore {
             sessionID: usage.sessionId,
             coverageSinceDay: usage.days.keys.min(),
             coverageUntilDay: usage.days.keys.max(),
-            updatedAtUnixMs: max(usage.mtimeUnixMs, usage.codexSession?.latestActivityUnixMs ?? 0))
+            updatedAtUnixMs: max(usage.mtimeUnixMs, usage.codexSession?.latestActivityUnixMs ?? 0),
+            hasBufferedSubagentLines: usage.codexBufferedSubagentLines?.isEmpty == false,
+            hasBufferedUnresolvedForkLines: usage.codexBufferedUnresolvedForkLines?.isEmpty == false)
         _ = self.upsertFile(file)
+
+        if replacementPending {
+            // Only resumable parser state is mutable during a partial replacement. In particular,
+            // do not touch usage_rows, token_snapshots, file_day_aggregates, or fork lineage.
+            self.persistBuffers(path: path, usage: usage)
+            _ = self.upsertAccumulator(CostUsageStoreAccumulator(
+                path: path,
+                eventCount: snapshotCount,
+                nextUsageRowIndex: 0,
+                countedTotals: Self.totals(usage.lastCountedTotals),
+                rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
+                rawTotalsWatermark: Self.totals(usage.lastRawTotalsWatermark),
+                sawDivergentTotals: usage.hasDivergentTotals ?? false,
+                sawInterleavedTotals: usage.hasInterleavedTotals ?? false,
+                seenRawTotals: (usage.seenRawTotals ?? []).map(Self.totals),
+                updatedAtUnixMs: file.updatedAtUnixMs))
+            return
+        }
 
         let oldParsedBytes = baseline.file?.parsedBytes ?? 0
         let newParsedBytes = file.parsedBytes ?? 0
+        let replacingStagedGeneration = usage.codexReplacementScanPending == false
+            || baseline.file?.scanState.replacementScanPending == true
         let appendSafe = baseline.canReuseRows
             && baseline.file?.scanState.fileIdentity == file.scanState.fileIdentity
             && oldParsedBytes < newParsedBytes
         let stableCursor = oldParsedBytes == newParsedBytes
-        let snapshotAction = CostUsagePersistencePlanner.action(
-            canReuse: baseline.canReuseRows,
-            stableCursor: stableCursor,
-            appendSafe: appendSafe,
-            persistedCount: baseline.snapshotCount,
-            sourceCount: snapshotCount)
+        let snapshotAction: CostUsagePersistenceAction = replacingStagedGeneration
+            ? .replace
+            : CostUsagePersistencePlanner.action(
+                canReuse: baseline.canReuseRows,
+                stableCursor: stableCursor,
+                appendSafe: appendSafe,
+                persistedCount: baseline.snapshotCount,
+                sourceCount: snapshotCount)
         let snapshots = snapshotAction.materialize(sourceSnapshots) { index, snapshot in
             Self.tokenSnapshot(path: path, eventIndex: index, snapshot: snapshot, calendar: calendar)
         }
@@ -1167,12 +1222,14 @@ extension CostUsageStore {
             _ = self.replaceTokenSnapshots(path: path, snapshots: snapshots)
         }
 
-        let rowAction = CostUsagePersistencePlanner.action(
-            canReuse: baseline.canReuseRows,
-            stableCursor: stableCursor,
-            appendSafe: appendSafe,
-            persistedCount: baseline.rowCount,
-            sourceCount: rowCount)
+        let rowAction: CostUsagePersistenceAction = replacingStagedGeneration
+            ? .replace
+            : CostUsagePersistencePlanner.action(
+                canReuse: baseline.canReuseRows,
+                stableCursor: stableCursor,
+                appendSafe: appendSafe,
+                persistedCount: baseline.rowCount,
+                sourceCount: rowCount)
         let rows: [CostUsageStoreUsageRow] = rowAction.materialize(sourceRows) { index, row in
             guard let payload = try? JSONEncoder().encode(row) else { return nil }
             return CostUsageStoreUsageRow(path: path, rowIndex: index, payload: payload)
@@ -1431,6 +1488,10 @@ extension CostUsageStore {
             }
         }
         for usage in cache.files.values {
+            // A bounded full replacement has not committed its event ledger yet. Its parser
+            // progress may be present in the in-memory cache, but report aggregates must continue
+            // to reflect the previously committed file generation.
+            guard usage.codexReplacementScanPending != true else { continue }
             for aggregate in self.fileAggregates(usage, pricing: pricing) {
                 let key = DayModelKey(day: aggregate.day, model: aggregate.model)
                 guard var value = values[key] else { continue }
