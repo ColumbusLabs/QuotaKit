@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.27 — 2026-09-04
+
+### Fixed
+
+- Codex: prioritize and independently publish the most recent closed day so current live sessions and older backlog cannot delay yesterday's corrected estimate.
+
 ## 0.32.4.26 — 2026-09-04
 
 ### Fixed

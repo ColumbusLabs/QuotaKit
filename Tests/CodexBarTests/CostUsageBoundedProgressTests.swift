@@ -785,7 +785,7 @@ struct CostUsageBoundedProgressTests {
     func `current day discovery jumps ahead of a historical bounded queue`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
-        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
+        let historicalDay = try env.makeLocalNoon(year: 2026, month: 5, day: 8)
         let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
         let corpusSize = CostUsageScanner.codexCatchUpScanCandidateLimit * 2 + 1
         try Self.writeSyntheticCorpus(env: env, day: historicalDay, fileCount: corpusSize)
@@ -830,6 +830,151 @@ struct CostUsageBoundedProgressTests {
         #expect(recorder.snapshot().codexFileScanAttempts <= CostUsageScanner.codexCatchUpScanCandidateLimit)
         #expect(cache.files[currentURL.path]?.codexScanComplete == true)
         #expect(cache.codexActiveLookbackState?.pendingFilePaths.contains(currentURL.path) == false)
+    }
+
+    @Test
+    func `most recent closed day jumps ahead of a growing current day queue`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let closedDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let currentURLs = try Self.writeSyntheticCorpus(
+            env: env,
+            day: currentDay,
+            fileCount: CostUsageScanner.codexCatchUpScanCandidateLimit + 1)
+        let closedURL = try #require(
+            Self.writeSyntheticCorpus(env: env, day: closedDay, fileCount: 1).first)
+        try FileManager.default.setAttributes(
+            [.modificationDate: closedDay],
+            ofItemAtPath: closedURL.path)
+
+        var options = Self.boundedOptions(env: env)
+        options.maxCodexScanDurationPerRefresh = nil
+        options.preferNewestCodexSessionsFirst = false
+        options.useCodexCatchUpWorkingSet = true
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: closedDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+
+        var pendingCache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+            .map { $0.resolvingSymlinksInPath().standardizedFileURL.path }
+            .sorted()
+        pendingCache.codexActiveLookbackState = try CostUsageCodexActiveLookbackState(
+            scanSinceKey: #require(pendingCache.scanSinceKey),
+            rootPaths: roots,
+            completedRootPaths: roots,
+            pendingFilePaths: currentURLs.map(\.path.resolvingTemporaryPath)
+                + [closedURL.path.resolvingTemporaryPath],
+            currentWindowNextDayKeyByRoot: [:],
+            currentWindowDirectoryOffsetByRoot: [:],
+            completedCurrentWindowRootPaths: roots,
+            currentWindowFlatDirectoryOffsetByRoot: [:],
+            completedCurrentWindowFlatRootPaths: roots,
+            directoryCursorVersion: 3)
+        pendingCache.codexScanInventoryPaths = nil
+        pendingCache.codexScanCatchUpPending = true
+        CostUsageStoreAccess.replace(
+            cacheRoot: env.cacheRoot,
+            cache: pendingCache,
+            calendar: options.calendar)
+
+        options.maxCodexScanDurationPerRefresh = 60
+        let recorder = CostUsageScanner.CodexScanWorkRecorder()
+        options.codexScanWorkRecorderForTesting = recorder
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: closedDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+
+        let attemptedPaths = recorder.attemptedCodexFilePaths()
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(attemptedPaths.contains(closedURL.path.resolvingTemporaryPath))
+        #expect(cache.codexActiveLookbackState?.pendingFilePaths.contains(
+            closedURL.path.resolvingTemporaryPath) == false)
+        #expect(cache.codexActiveLookbackState?.pendingFilePaths.isEmpty == false)
+    }
+
+    @Test
+    func `closed day verification ignores current day growth but fails closed for a changed closed day`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let closedDay = try env.makeLocalNoon(year: 2026, month: 5, day: 9)
+        let currentDay = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let currentURL = try #require(Self.writeSyntheticCorpus(
+            env: env,
+            day: currentDay,
+            fileCount: 1).first)
+        let closedURL = try #require(Self.writeSyntheticCorpus(
+            env: env,
+            day: closedDay,
+            fileCount: 1).first)
+        try FileManager.default.setAttributes(
+            [.modificationDate: currentDay],
+            ofItemAtPath: currentURL.path)
+        try FileManager.default.setAttributes(
+            [.modificationDate: closedDay],
+            ofItemAtPath: closedURL.path)
+
+        var options = Self.boundedOptions(env: env)
+        options.maxCodexScanDurationPerRefresh = nil
+        _ = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: closedDay,
+            until: currentDay,
+            now: currentDay,
+            options: options)
+
+        let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        let roots = CostUsageScanner.codexSessionsRoots(options: options)
+        let closedPath = try #require(cache.files.keys.first {
+            $0.hasSuffix(closedURL.lastPathComponent)
+        })
+        let closedUsage = try #require(cache.files[closedPath])
+        #expect(closedUsage.codexScanComplete == true)
+        #expect(closedUsage.parsedBytes == closedUsage.size)
+
+        let closedDayKey = CostUsageScanner.CostUsageDayRange.dayKey(
+            from: closedDay,
+            calendar: options.calendar)
+        let canPublish = {
+            CostUsageScanner.codexCurrentDayProjectionCanPublish(
+                cache: cache,
+                roots: roots,
+                dayKey: closedDayKey,
+                calendar: options.calendar)
+        }
+        #expect(canPublish())
+
+        let iso = env.isoString(for: currentDay.addingTimeInterval(1))
+        let appendedRow =
+            #"{"type":"event_msg","timestamp":"\#(iso)","payload":{"type":"token_count","info":"#
+                + #"{"total_token_usage":{"input_tokens":200,"cached_input_tokens":20,"output_tokens":10},"#
+                + #""model":"openai/gpt-5.2-codex"}}}"#
+        let currentHandle = try FileHandle(forWritingTo: currentURL)
+        try currentHandle.seekToEnd()
+        try currentHandle.write(contentsOf: Data((appendedRow + "\n").utf8))
+        try currentHandle.close()
+        try FileManager.default.setAttributes(
+            [.modificationDate: currentDay.addingTimeInterval(1)],
+            ofItemAtPath: currentURL.path)
+        #expect(canPublish())
+
+        let original = try String(contentsOf: closedURL, encoding: .utf8)
+        let rewritten = original.replacingOccurrences(
+            of: #""input_tokens":100"#,
+            with: #""input_tokens":900"#)
+        #expect(rewritten != original)
+        try rewritten.write(to: closedURL, atomically: false, encoding: .utf8)
+        try FileManager.default.setAttributes(
+            [.modificationDate: closedDay.addingTimeInterval(1)],
+            ofItemAtPath: closedURL.path)
+        #expect(!canPublish())
     }
 
     @Test
