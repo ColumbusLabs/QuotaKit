@@ -739,39 +739,6 @@ extension CostUsageScanner {
         cache.files.removeValue(forKey: path)
     }
 
-    static func dropStaleCodexSessionAliases(
-        sessionId: String?,
-        currentPath: String,
-        currentMtimeUnixMs: Int64,
-        currentSize: Int64,
-        cache: inout CostUsageCache) -> Bool
-    {
-        guard let sessionId, !sessionId.isEmpty else { return false }
-        var currentIsStale = false
-        let aliases = cache.files.filter { path, usage in
-            path != currentPath && usage.sessionId == sessionId
-        }
-        for (path, usage) in aliases {
-            let currentIsPreferred = currentMtimeUnixMs > usage.mtimeUnixMs
-                || (currentMtimeUnixMs == usage.mtimeUnixMs && currentSize > usage.size)
-                || (currentMtimeUnixMs == usage.mtimeUnixMs
-                    && currentSize == usage.size
-                    && currentPath < path)
-            if currentIsPreferred {
-                Self.dropCachedCodexFile(path: path, cached: usage, cache: &cache)
-            } else {
-                currentIsStale = true
-            }
-        }
-        if currentIsStale {
-            Self.dropCachedCodexFile(
-                path: currentPath,
-                cached: cache.files[currentPath],
-                cache: &cache)
-        }
-        return currentIsStale
-    }
-
     static func rememberScannedCodexFile(
         input: CodexFileScanInput,
         session: CodexScannedSession,

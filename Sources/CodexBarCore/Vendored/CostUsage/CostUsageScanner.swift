@@ -6456,6 +6456,18 @@ enum CostUsageScanner {
         }
     }
 
+    private static func codexExactValidationNeedsCheck(
+        path: String,
+        usage: CostUsageFileUsage,
+        sinceKey: String,
+        untilKey: String,
+        roots: [URL]) -> Bool
+    {
+        guard self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots) else { return false }
+        return self.codexUsageTouchesWindow(usage, sinceKey: sinceKey, untilKey: untilKey)
+            || !FileManager.default.fileExists(atPath: path)
+    }
+
     private static func codexExactValidationSummary(
         cache: CostUsageCache,
         generation: String,
@@ -6671,8 +6683,12 @@ enum CostUsageScanner {
         let candidates = cache.files.keys.filter { path in
             guard lastPath.map({ path > $0 }) ?? true else { return false }
             guard let usage = cache.files[path] else { return false }
-            return Self.codexUsageTouchesWindow(usage, sinceKey: scanSinceKey, untilKey: scanUntilKey)
-                && Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
+            return Self.codexExactValidationNeedsCheck(
+                path: path,
+                usage: usage,
+                sinceKey: scanSinceKey,
+                untilKey: scanUntilKey,
+                roots: roots)
         }.sorted().prefix(remainingWorkVisits)
         for path in candidates where !scanBudget.shouldStopBeforeNextFile() {
             try checkCancellation?()
@@ -6697,8 +6713,12 @@ enum CostUsageScanner {
         }
         let hasRemainingCachedValidation = cache.files.contains { path, usage in
             (state.exactCachedValidationLastPath.map { path > $0 } ?? true)
-                && Self.codexUsageTouchesWindow(usage, sinceKey: scanSinceKey, untilKey: scanUntilKey)
-                && Self.isWithinCodexRoots(fileURL: URL(fileURLWithPath: path), roots: roots)
+                && Self.codexExactValidationNeedsCheck(
+                    path: path,
+                    usage: usage,
+                    sinceKey: scanSinceKey,
+                    untilKey: scanUntilKey,
+                    roots: roots)
         }
         let summary = Self.codexExactValidationSummary(
             cache: cache,
