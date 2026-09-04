@@ -40,6 +40,17 @@ extension CostUsageScanner {
             input: input,
             context: context,
             maxBytesToRead: maxBytesToRead)
+        if plan.replacementGeneration,
+           !plan.replacementPending,
+           Self.dropStaleCodexSessionAliases(
+               sessionId: plan.parsed.codexSession.sessionId ?? plan.parsed.sessionId ?? input.cached?.sessionId,
+               currentPath: input.metadata.path,
+               currentMtimeUnixMs: input.metadata.mtimeUnixMs,
+               currentSize: input.metadata.size,
+               cache: &cache)
+        {
+            return
+        }
         if !plan.replacementPending, let cached = plan.cached {
             Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
         }
@@ -164,6 +175,12 @@ extension CostUsageScanner {
         let replacementResume: (offset: Int64, usage: CostUsageFileUsage)? = {
             guard replacementWasPending,
                   let cached,
+                  // A complete subagent replacement can change attribution when appended lineage
+                  // metadata arrives, so restart it from byte zero and keep the per-refresh bound
+                  // effective. Once that bounded cold start is itself partial, its staged prefix
+                  // is safe to resume; ordinary unresolved-fork buffers are append-safe.
+                  cached.codexScanComplete == false
+                  || cached.codexBufferedSubagentLines?.isEmpty != false,
                   let parsedBytes = cached.parsedBytes,
                   parsedBytes > 0,
                   parsedBytes <= input.metadata.size,
@@ -217,7 +234,7 @@ extension CostUsageScanner {
         // Unresolved lineage is still staged work. Do not replace a committed subagent ledger
         // with an empty/partial replay while its parent snapshots are unavailable.
         let replacementPending = replacementGeneration && (!sourceScanComplete || hasReplayBuffer)
-        let scanComplete = sourceScanComplete && !replacementPending
+        let scanComplete = sourceScanComplete
         // A pending replacement retains the committed aggregate contribution in memory. The
         // staged parser state is persisted separately and is invisible to report aggregation.
         let retainedCommittedDays = context.dropDeferredCodexRows
@@ -329,7 +346,7 @@ extension CostUsageScanner {
                 : Self.codexRowsWithPricingMetadata(
                     accounting.persistedRows,
                     priorityTurns: context.resources.priorityTurns),
-            codexTokenSnapshots: plan.replacementPending ? nil : parsed.tokenSnapshots,
+            codexTokenSnapshots: parsed.tokenSnapshots,
             codexTokenCheckpoints: plan.replacementPending
                 ? nil
                 : Self.codexTokenCheckpoints(for: parsed.tokenSnapshots),

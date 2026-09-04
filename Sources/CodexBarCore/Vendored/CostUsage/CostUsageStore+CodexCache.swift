@@ -528,6 +528,7 @@ extension CostUsageStore {
         var hasSeenRawTotals: Bool
         var divergentTotals: Bool?
         var interleavedTotals: Bool?
+        var replacementScanColdStart: Bool?
     }
 
     private struct StoredPriorityState: Codable {
@@ -1107,6 +1108,7 @@ extension CostUsageStore {
             metadata: metadata)
     }
 
+    // swiftlint:disable:next function_body_length
     private func persistFile(
         path: String,
         usage: CostUsageFileUsage,
@@ -1122,6 +1124,12 @@ extension CostUsageStore {
         let committedDetails = baseline.file?.scanState.detailsPayload.flatMap {
             try? JSONDecoder().decode(StoredFileDetails.self, from: $0)
         }
+        let coldStartStaging = replacementPending && (
+            committedDetails?.replacementScanColdStart == true
+                || (baseline.rowCount == 0 && baseline.snapshotCount == 0))
+        let persistedEventCount = coldStartStaging
+            ? max(snapshotCount, baseline.snapshotCount)
+            : snapshotCount
         var details = StoredFileDetails(
             lastTotals: usage.lastTotals,
             projectPath: usage.projectPath,
@@ -1134,13 +1142,16 @@ extension CostUsageStore {
             hasTokenSnapshots: usage.codexTokenSnapshots != nil,
             hasSeenRawTotals: usage.seenRawTotals != nil,
             divergentTotals: usage.hasDivergentTotals,
-            interleavedTotals: usage.hasInterleavedTotals)
+            interleavedTotals: usage.hasInterleavedTotals,
+            replacementScanColdStart: coldStartStaging ? true : nil)
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
             // carried by the accumulator/buffers, while old rows and snapshots stay in place.
             details.hasRows = committedDetails?.hasRows ?? (baseline.rowCount > 0)
             details.hasTurnIDs = committedDetails?.hasTurnIDs ?? (baseline.rowCount > 0)
-            details.hasTokenSnapshots = committedDetails?.hasTokenSnapshots ?? (baseline.snapshotCount > 0)
+            details.hasTokenSnapshots = coldStartStaging
+                ? snapshotCount > 0 || baseline.snapshotCount > 0
+                : committedDetails?.hasTokenSnapshots ?? (baseline.snapshotCount > 0)
         }
         let file = CostUsageStoreFile(
             path: path,
@@ -1177,12 +1188,30 @@ extension CostUsageStore {
         _ = self.upsertFile(file)
 
         if replacementPending {
-            // Only resumable parser state is mutable during a partial replacement. In particular,
-            // do not touch usage_rows, token_snapshots, file_day_aggregates, or fork lineage.
+            // Only resumable parser state is mutable during a partial replacement. Existing
+            // detail rows, snapshots, aggregates, and lineage remain untouched; a cold start
+            // may seed its snapshots and structural lineage so the staged generation survives
+            // reload.
+            if coldStartStaging {
+                let snapshots = sourceSnapshots.enumerated().compactMap { index, snapshot in
+                    Self.tokenSnapshot(path: path, eventIndex: index, snapshot: snapshot, calendar: calendar)
+                }
+                _ = self.replaceTokenSnapshots(path: path, snapshots: snapshots)
+            }
+            if self.fetchForkLineage(path: path) == nil {
+                _ = self.upsertForkLineage(CostUsageStoreForkLineage(
+                    path: path,
+                    sessionID: usage.sessionId,
+                    forkedFromID: usage.forkedFromId,
+                    forkTimestamp: nil,
+                    dependencyKey: usage.forkBaselineDependencyKey,
+                    subagentState: nil,
+                    accountingState: nil))
+            }
             self.persistBuffers(path: path, usage: usage)
             _ = self.upsertAccumulator(CostUsageStoreAccumulator(
                 path: path,
-                eventCount: snapshotCount,
+                eventCount: persistedEventCount,
                 nextUsageRowIndex: 0,
                 countedTotals: Self.totals(usage.lastCountedTotals),
                 rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
