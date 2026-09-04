@@ -343,6 +343,7 @@ struct CostUsageFileUsage: Codable, Equatable {
 
 struct CostUsageCodexSessionMetadata: Codable, Equatable {
     var sessionId: String?
+    var concreteSessionId: String?
     var forkedFromId: String?
     var cwd: String?
     var title: String?
@@ -352,6 +353,7 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
 
     init(
         sessionId: String?,
+        concreteSessionId: String? = nil,
         forkedFromId: String?,
         cwd: String?,
         title: String?,
@@ -360,6 +362,7 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
         latestAcceptedUsageUnixMs: Int64? = nil)
     {
         self.sessionId = sessionId
+        self.concreteSessionId = concreteSessionId
         self.forkedFromId = forkedFromId
         self.cwd = cwd
         self.title = title
@@ -369,7 +372,8 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
     }
 
     var isEmpty: Bool {
-        self.sessionId == nil && self.forkedFromId == nil && self.cwd == nil && self.title == nil
+        self.sessionId == nil && self.concreteSessionId == nil && self.forkedFromId == nil
+            && self.cwd == nil && self.title == nil
             && self.startedAtUnixMs == nil && self.latestActivityUnixMs == nil
             && self.latestAcceptedUsageUnixMs == nil
     }
@@ -377,6 +381,7 @@ struct CostUsageCodexSessionMetadata: Codable, Equatable {
     func merging(_ newer: CostUsageCodexSessionMetadata) -> CostUsageCodexSessionMetadata {
         CostUsageCodexSessionMetadata(
             sessionId: newer.sessionId ?? self.sessionId,
+            concreteSessionId: newer.concreteSessionId ?? self.concreteSessionId,
             forkedFromId: newer.forkedFromId ?? self.forkedFromId,
             cwd: newer.cwd ?? self.cwd,
             title: newer.title ?? self.title,

@@ -3955,6 +3955,7 @@ enum CostUsageScanner {
 
     struct CodexSessionMetadata: Codable, Equatable {
         let sessionId: String?
+        var concreteSessionId: String?
         let forkedFromId: String?
         let forkTimestamp: String?
         let projectPath: String?
@@ -4165,13 +4166,16 @@ enum CostUsageScanner {
         in rootRange: Range<Int>,
         payloadRange: Range<Int>?) -> String?
     {
-        // `session_id` identifies the shared multi-agent tree. `id` identifies this rollout/thread,
-        // and both fields have appeared at either metadata level.
+        if let concreteSessionId = codexConcreteSessionId(
+            from: bytes,
+            in: rootRange,
+            payloadRange: payloadRange)
+        {
+            return concreteSessionId
+        }
+        // `session_id` identifies the shared multi-agent tree. It remains the accounting key when
+        // a legacy file has no concrete rollout id, but it must not be used for alias cleanup.
         let candidates: [String?] = [
-            payloadRange.flatMap {
-                Self.extractJSONByteStringField(Self.codexJSONFieldId, from: bytes, in: $0, atDepth: 1)
-            },
-            Self.extractJSONByteStringField(Self.codexJSONFieldId, from: bytes, in: rootRange, atDepth: 1),
             payloadRange.flatMap {
                 Self.extractJSONByteStringField(Self.codexJSONFieldSessionId, from: bytes, in: $0, atDepth: 1)
             },
@@ -4185,6 +4189,25 @@ enum CostUsageScanner {
             return value
         }
         return nil
+    }
+
+    private static func codexConcreteSessionId(
+        from bytes: UnsafeBufferPointer<UInt8>,
+        in rootRange: Range<Int>,
+        payloadRange: Range<Int>?) -> String?
+    {
+        let payloadID = payloadRange.flatMap {
+            Self.extractJSONByteStringField(Self.codexJSONFieldId, from: bytes, in: $0, atDepth: 1)
+        }
+        if let payloadID, !payloadID.isEmpty {
+            return payloadID
+        }
+        let rootID = Self.extractJSONByteStringField(
+            Self.codexJSONFieldId,
+            from: bytes,
+            in: rootRange,
+            atDepth: 1)
+        return rootID?.isEmpty == false ? rootID : nil
     }
 
     static func normalizedCodexProjectPath(_ rawPath: String?) -> String? {
@@ -4277,6 +4300,10 @@ enum CostUsageScanner {
                     atDepth: 1)
                 return .sessionMeta(CodexSessionMetadata(
                     sessionId: Self.codexSessionId(from: rawBuffer, in: objectRange, payloadRange: payloadRange),
+                    concreteSessionId: Self.codexConcreteSessionId(
+                        from: rawBuffer,
+                        in: objectRange,
+                        payloadRange: payloadRange),
                     forkedFromId: payloadRange.flatMap { Self.codexForkParentId(from: rawBuffer, in: $0) },
                     forkTimestamp: payloadRange.flatMap {
                         Self.extractJSONByteStringField(
@@ -4549,13 +4576,14 @@ enum CostUsageScanner {
     private static func codexSessionMetadata(from obj: [String: Any]) -> CodexSessionMetadata? {
         guard obj["type"] as? String == "session_meta" else { return nil }
         let payload = obj["payload"] as? [String: Any]
+        let concreteSessionId = payload?["id"] as? String ?? obj["id"] as? String
         return CodexSessionMetadata(
-            sessionId: payload?["id"] as? String
-                ?? obj["id"] as? String
+            sessionId: concreteSessionId
                 ?? payload?["session_id"] as? String
                 ?? payload?["sessionId"] as? String
                 ?? obj["session_id"] as? String
                 ?? obj["sessionId"] as? String,
+            concreteSessionId: concreteSessionId,
             forkedFromId: Self.codexForkParentId(from: payload),
             forkTimestamp: payload?["timestamp"] as? String
                 ?? obj["timestamp"] as? String,
@@ -5061,6 +5089,9 @@ enum CostUsageScanner {
                     forkTimestamp = metadata.forkTimestamp ?? forkTimestamp
                     try configureForkAccountingIfReady()
                 }
+                if codexSession.concreteSessionId == nil {
+                    codexSession.concreteSessionId = metadata.concreteSessionId
+                }
                 if projectPath == nil {
                     projectPath = metadata.projectPath
                 }
@@ -5080,6 +5111,7 @@ enum CostUsageScanner {
             projectPath = metadata.projectPath
             subagentHistoryStartOrdinal = metadata.subagentHistoryStartOrdinal
             codexSession.sessionId = metadata.sessionId
+            codexSession.concreteSessionId = metadata.concreteSessionId
             codexSession.forkedFromId = metadata.forkedFromId
             observeTimestamp(metadata.forkTimestamp)
             observeCwd(metadata.projectPath)
@@ -5472,6 +5504,7 @@ enum CostUsageScanner {
                                     try routeFastLine(
                                         .sessionMeta(CodexSessionMetadata(
                                             sessionId: truncatedMetadata.sessionID,
+                                            concreteSessionId: nil,
                                             forkedFromId: nil,
                                             forkTimestamp: nil,
                                             projectPath: nil,

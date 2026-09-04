@@ -16,7 +16,8 @@ struct CostUsageCatchUpCompletionTests {
             day: oldDay,
             filename: "rollout-old.jsonl",
             contents: [
-                #"{"type":"session_meta","timestamp":"\#(oldISO)","payload":{"session_id":"resumed-session"}}"#,
+                #"{"type":"session_meta","timestamp":"\#(oldISO)","payload":{"id":"resumed-rollout","#
+                    + #""session_id":"resumed-session"}}"#,
                 #"{"type":"turn_context","timestamp":"\#(oldISO)","payload":{"model":"openai/gpt-5.2-codex"}}"#,
                 #"{"type":"event_msg","timestamp":"\#(oldISO)","payload":{"type":"token_count","info":"#
                     + #"{"total_token_usage":{"input_tokens":50,"cached_input_tokens":10,"output_tokens":5},"#
@@ -26,7 +27,8 @@ struct CostUsageCatchUpCompletionTests {
             day: day,
             filename: "rollout-current.jsonl",
             contents: [
-                #"{"type":"session_meta","timestamp":"\#(currentISO)","payload":{"session_id":"resumed-session"}}"#,
+                #"{"type":"session_meta","timestamp":"\#(currentISO)","payload":{"id":"resumed-rollout","#
+                    + #""session_id":"resumed-session"}}"#,
                 #"{"type":"turn_context","timestamp":"\#(currentISO)","payload":{"model":"openai/gpt-5.2-codex"}}"#,
                 #"{"type":"event_msg","timestamp":"\#(currentISO)","payload":{"type":"token_count","info":"#
                     + #"{"total_token_usage":{"input_tokens":100,"cached_input_tokens":20,"output_tokens":10},"#
