@@ -5,6 +5,22 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.27</title>
+            <pubDate>Fri, 04 Sep 2026 08:49:10 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.27.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.27</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.27 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: prioritize and independently publish the most recent closed day so current live sessions and older backlog cannot delay yesterday's corrected estimate.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.27/QuotaKit-macos-universal-0.32.4.27.zip" length="81297822" type="application/octet-stream" sparkle:edSignature="MYfqvkrrFxDBv2tWSS8KH1yjpx1HBpLUbJUD84ab5S4HLXMWTlWLEgWlaNvT+JtTaUkbfDQM/vpK00ncp7+CCQ=="/>
+        </item>
+        <item>
             <title>0.32.4.26</title>
             <pubDate>Fri, 04 Sep 2026 07:21:14 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -37,22 +53,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.25/QuotaKit-macos-universal-0.32.4.25.zip" length="81300938" type="application/octet-stream" sparkle:edSignature="VoDnRXimkP+0HSlj8p2eVjWewjQAmoARohI0106BZF21B3Ub28i2Qopgb2StI1euuEl6oxb8oYpQrfDYk75bDQ=="/>
-        </item>
-        <item>
-            <title>0.32.4.24</title>
-            <pubDate>Thu, 03 Sep 2026 23:29:05 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.24.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.24</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.24 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: prevent growing subagent session rescans from duplicating usage rows and inflating cost estimates.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.24/QuotaKit-macos-universal-0.32.4.24.zip" length="81236669" type="application/octet-stream" sparkle:edSignature="Mqh8dIrRuYivlfmSWEvMHtsR/ze1Vy7XvkiRnyQfLE9aMUI7gXkBNClYAIahngSBlbdIdFNY0Jd7bV/fJ7RCBA=="/>
         </item>
     </channel>
 </rss>
