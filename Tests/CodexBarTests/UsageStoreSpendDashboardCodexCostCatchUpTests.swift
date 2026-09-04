@@ -69,6 +69,36 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
     }
 
     @Test
+    func `startup ambient dashboard load uses configured history until primary catch-up completes`() throws {
+        let store = try Self.makeStore(suite: "startup-history-selector")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+
+        #expect(store.spendDashboardCodexHistoryDays == 30)
+
+        store.codexCostCatchUpActivity = CodexCostCatchUpActivity(
+            phase: .complete,
+            mode: .automatic,
+            processedBytes: 100,
+            totalBytes: 100,
+            completedFiles: 1,
+            totalFiles: 1,
+            pauseReason: nil,
+            staleSnapshotUpdatedAt: nil)
+
+        #expect(store.spendDashboardCodexHistoryDays == SpendDashboardSource.scanDays)
+    }
+
+    @Test
+    func `managed dashboard cache keeps the full history window`() throws {
+        let store = try Self.makeStore(suite: "managed-history-selector")
+        store.settings.codexActiveSource = .managedAccount(id: UUID())
+        store.settings.costUsageHistoryDays = 30
+
+        #expect(store.spendDashboardCodexHistoryDays == SpendDashboardSource.scanDays)
+    }
+
+    @Test
     func `history days below the scan window keep the active catch-up context`() throws {
         let store = try Self.makeStore(suite: "history-context")
         let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]

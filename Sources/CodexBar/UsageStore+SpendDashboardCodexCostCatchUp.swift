@@ -16,7 +16,12 @@ extension UsageStore {
     /// worker is still converging. The full dashboard window is safe once that worker reports a
     /// stable snapshot, and remains available for independent account caches immediately.
     var spendDashboardCodexHistoryDays: Int {
-        guard self.spendDashboardCodexCostCatchUpUsesPrimaryWorker,
+        // This is captured before dashboard synchronization marks the shared worker as owned.
+        // Resolve the scope from settings so the first startup load cannot widen the primary
+        // scan to the dashboard window. Local session-ledger mode still has to honor a managed
+        // or profile selection, whose dashboard cache is independent of the ambient worker.
+        guard self.tokenCostScope(for: .codex).codexHomePath == nil,
+              self.settings.codexResolvedActiveSource == .liveSystem,
               self.codexCostCatchUpActivity?.phase != .complete
         else { return SpendDashboardSource.scanDays }
         return max(1, min(SpendDashboardSource.scanDays, self.settings.costUsageHistoryDays))

@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.26 — 2026-09-04
+
+### Fixed
+
+- Codex: honor the configured recent history window on the first startup and dashboard load, preventing a 365-day repair from being reseeded before synchronization.
+
 ## 0.32.4.25 — 2026-09-04
 
 ### Fixed
