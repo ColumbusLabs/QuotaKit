@@ -5,6 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.25 — 2026-09-04
+
+### Fixed
+
+- Codex: prioritize and independently publish the configured recent cost window while older history continues catching up.
+- Spend Dashboard: respect the configured 30-day window instead of expanding shared repairs to 365 days.
+- Codex: retry transient bounded no-progress passes without replacing newer foreground totals.
+
 ## 0.32.4.24 — 2026-09-03
 
 ### Fixed

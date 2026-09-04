@@ -1,7 +1,7 @@
 import CodexBarCore
 import Foundation
 
-private struct CodexCostCatchUpContext {
+private final class CodexCostCatchUpContext {
     let token: UUID
     let codexHomePath: String?
     let historyDays: Int
@@ -9,6 +9,39 @@ private struct CodexCostCatchUpContext {
     let pauseScopeSignature: String
     let providerConfigRevision: UInt64
     let costUsageSettingsRevision: UInt64
+    var workerTokenSnapshotPublicationRevision: UInt64?
+
+    init(
+        token: UUID,
+        codexHomePath: String?,
+        historyDays: Int,
+        scopeSignature: String,
+        pauseScopeSignature: String,
+        providerConfigRevision: UInt64,
+        costUsageSettingsRevision: UInt64,
+        workerTokenSnapshotPublicationRevision: UInt64?)
+    {
+        self.token = token
+        self.codexHomePath = codexHomePath
+        self.historyDays = historyDays
+        self.scopeSignature = scopeSignature
+        self.pauseScopeSignature = pauseScopeSignature
+        self.providerConfigRevision = providerConfigRevision
+        self.costUsageSettingsRevision = costUsageSettingsRevision
+        self.workerTokenSnapshotPublicationRevision = workerTokenSnapshotPublicationRevision
+    }
+}
+
+private enum CodexCostCatchUpNoProgressPolicy {
+    // A bounded scanner pass can legitimately discover no new work (for example, while the
+    // session tail is being appended). Give it a few chances before recording a stalled pause.
+    static let maxConsecutiveNoProgressPasses = 3
+    static let retryDelays: [TimeInterval] = [5, 15, 60]
+
+    static func retryDelay(after passCount: Int) -> TimeInterval {
+        let index = min(max(0, passCount - 1), self.retryDelays.count - 1)
+        return self.retryDelays[index]
+    }
 }
 
 extension UsageStore {
@@ -83,7 +116,8 @@ extension UsageStore {
             scopeSignature: scopeSignature,
             pauseScopeSignature: pauseScopeSignature,
             providerConfigRevision: providerConfigRevision,
-            costUsageSettingsRevision: self.settings.costUsageSettingsRevision)
+            costUsageSettingsRevision: self.settings.costUsageSettingsRevision,
+            workerTokenSnapshotPublicationRevision: nil)
         self.codexCostCatchUpToken = token
         self.codexCostCatchUpScopeSignature = scopeSignature
         self.codexCostCatchUpMode = mode
@@ -200,7 +234,7 @@ extension UsageStore {
 
     // This is an explicit checkpointed state machine; keeping its exit paths together prevents
     // cancellation, restart, and publication transitions from drifting apart.
-    // swiftlint:disable:next cyclomatic_complexity
+    // swiftlint:disable:next cyclomatic_complexity function_body_length
     private func runCodexCostCatchUp(context: CodexCostCatchUpContext) async {
         while self.codexCostCatchUpContextIsCurrent(context) {
             var status = await self.loadCodexCostCatchUpStatus(codexHomePath: context.codexHomePath)
@@ -211,6 +245,8 @@ extension UsageStore {
             var didAdvance = false
             var (previousActiveDuration, seenProgressKeys): (TimeInterval?, Set<String>) =
                 (nil, [status.progressKey])
+            var consecutiveNoProgressPasses = 0
+            var pendingNoProgressRetryDelay: TimeInterval?
             while status.pending {
                 do {
                     guard self.codexCostCatchUpContextIsCurrent(context) else { return }
@@ -240,7 +276,10 @@ extension UsageStore {
                             status: status,
                             context: context,
                             phase: .indexing)
-                        try await self.sleepBetweenCodexCostCatchUpPasses(seconds: delay)
+                        let retryDelay = pendingNoProgressRetryDelay ?? 0
+                        pendingNoProgressRetryDelay = nil
+                        try await self.sleepBetweenCodexCostCatchUpPasses(
+                            seconds: max(delay, retryDelay))
                     }
 
                     try Task.checkCancellation()
@@ -300,17 +339,43 @@ extension UsageStore {
                             pauseReason: .user)
                         return
                     }
-                    if nextStatus.pending, !seenProgressKeys.insert(nextStatus.progressKey).inserted {
-                        self.codexCostCatchUpPausedScopeSignature = context.pauseScopeSignature
-                        self.codexCostCatchUpPausedProgressKey = nextStatus.progressKey
-                        self.publishCodexCostCatchUpActivity(
-                            status: nextStatus,
-                            context: context,
-                            phase: .paused,
-                            pauseReason: .noProgress)
-                        CodexBarLog.logger(LogCategories.tokenCost).warning(
-                            "Codex cost catch-up stopped because a bounded pass made no progress")
-                        return
+                    if nextStatus.pending {
+                        if nextStatus.progressKey == status.progressKey {
+                            consecutiveNoProgressPasses += 1
+                            if consecutiveNoProgressPasses
+                                >= CodexCostCatchUpNoProgressPolicy.maxConsecutiveNoProgressPasses
+                            {
+                                self.codexCostCatchUpPausedScopeSignature = context.pauseScopeSignature
+                                self.codexCostCatchUpPausedProgressKey = nextStatus.progressKey
+                                self.publishCodexCostCatchUpActivity(
+                                    status: nextStatus,
+                                    context: context,
+                                    phase: .paused,
+                                    pauseReason: .noProgress)
+                                CodexBarLog.logger(LogCategories.tokenCost).warning(
+                                    "Codex cost catch-up stopped after bounded no-progress retries")
+                                return
+                            }
+                            pendingNoProgressRetryDelay = CodexCostCatchUpNoProgressPolicy.retryDelay(
+                                after: consecutiveNoProgressPasses)
+                        } else {
+                            // A real state transition makes a subsequent same-key result a new
+                            // consecutive stall, while a revisit of any earlier state remains an
+                            // infinite-cycle guard.
+                            consecutiveNoProgressPasses = 0
+                            guard seenProgressKeys.insert(nextStatus.progressKey).inserted else {
+                                self.codexCostCatchUpPausedScopeSignature = context.pauseScopeSignature
+                                self.codexCostCatchUpPausedProgressKey = nextStatus.progressKey
+                                self.publishCodexCostCatchUpActivity(
+                                    status: nextStatus,
+                                    context: context,
+                                    phase: .paused,
+                                    pauseReason: .noProgress)
+                                CodexBarLog.logger(LogCategories.tokenCost).warning(
+                                    "Codex cost catch-up stopped because progress revisited an earlier state")
+                                return
+                            }
+                        }
                     }
                     status = nextStatus
                 } catch is CancellationError {
@@ -358,7 +423,7 @@ extension UsageStore {
     {
         guard let current = self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex)?.snapshot
         else { return }
-        let publicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
+        let publicationRevision = self.codexCostCatchUpWorkerPublicationRevision(context: context)
         do {
             let now = Date()
             let snapshot: CostUsageTokenSnapshot? = if self._test_tokenUsageSnapshotLoaderOverride != nil {
@@ -412,6 +477,8 @@ extension UsageStore {
             self.lastTokenFetchAt[.codex] = now
             self.lastTokenFetchScope[.codex] = context.scopeSignature
             self.publishTokenSnapshot(publicationSnapshot, for: .codex)
+            context.workerTokenSnapshotPublicationRevision = self.tokenSnapshotPublicationRevision(
+                for: .codex)
             self.tokenErrors[.codex] = nil
             self.tokenFailureGates[.codex]?.recordSuccess()
             self.persistWidgetSnapshot(reason: "token-usage-catch-up-tail")
@@ -562,7 +629,7 @@ extension UsageStore {
         context: CodexCostCatchUpContext) async throws -> CostUsageFetcher.CodexScanCatchUpStatus
     {
         let now = Date()
-        let publicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
+        let publicationRevision = self.codexCostCatchUpWorkerPublicationRevision(context: context)
         // Catch-up has already completed the authoritative scan. Publish from the compact
         // persisted report projection instead of forcing another scan and hydrating the entire
         // usage ledger a second time merely to build project/session breakdowns.
@@ -599,6 +666,8 @@ extension UsageStore {
             self.tokenErrors[.codex] = Self.tokenCostNoDataMessage(for: .codex)
         } else {
             self.publishTokenSnapshot(snapshot, for: .codex)
+            context.workerTokenSnapshotPublicationRevision = self.tokenSnapshotPublicationRevision(
+                for: .codex)
             self.tokenErrors[.codex] = nil
         }
         self.tokenFailureGates[.codex]?.recordSuccess()
@@ -610,6 +679,23 @@ extension UsageStore {
             context: context,
             phase: status.pending ? .indexing : .complete)
         return status
+    }
+
+    private func codexCostCatchUpWorkerPublicationRevision(
+        context: CodexCostCatchUpContext) -> UInt64
+    {
+        if let workerRevision = context.workerTokenSnapshotPublicationRevision {
+            return workerRevision
+        }
+
+        // The normal foreground refresh schedules catch-up before it publishes its first
+        // snapshot. Anchor on the revision visible when the worker first attempts a publication,
+        // so that foreground publication is treated as the worker's initial baseline. Once the
+        // baseline is set, every later pass must observe either that revision or the worker's own
+        // latest publication; a newer foreground revision cannot become a stale-worker baseline.
+        let revision = self.tokenSnapshotPublicationRevision(for: .codex)
+        context.workerTokenSnapshotPublicationRevision = revision
+        return revision
     }
 
     private func codexCostCatchUpContextIsCurrent(_ context: CodexCostCatchUpContext) -> Bool {

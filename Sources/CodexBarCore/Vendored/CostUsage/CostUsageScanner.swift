@@ -2478,6 +2478,133 @@ enum CostUsageScanner {
         return true
     }
 
+    /// Proves that one requested report window is safe to publish while a separate, wider
+    /// cache migration remains pending. This deliberately relies on the requested date
+    /// partitions and the persisted file snapshots, not on completion of the unrelated global
+    /// metadata sweep.
+    static func codexRequestedWindowProjectionCanPublish(
+        cache: CostUsageCache,
+        roots: [URL],
+        sinceKey: String,
+        untilKey: String,
+        calendar: Calendar) -> Bool
+    {
+        guard let since = self.parseDayKey(sinceKey, calendar: calendar),
+              let until = self.parseDayKey(untilKey, calendar: calendar),
+              since <= until
+        else { return false }
+        let range = CostUsageDayRange(since: since, until: until, calendar: calendar)
+        let rootPaths = roots.map(\.standardizedFileURL.path).sorted()
+        if let lookback = cache.codexActiveLookbackState {
+            guard lookback.scanSinceKey == range.scanSinceKey,
+                  Set(lookback.completedCurrentWindowRootPaths ?? []) == Set(rootPaths),
+                  Set(lookback.completedCurrentWindowFlatRootPaths ?? []) == Set(rootPaths)
+            else { return false }
+        } else if cache.codexScanCatchUpPending == true {
+            // A pending state without the current-window cursors cannot prove that no new
+            // requested-window file exists outside the persisted manifest.
+            return false
+        }
+        guard cache.roots == Self.codexRootsFingerprint(roots) else { return false }
+
+        guard cache.codexActiveLookbackState?.pendingFilePaths.contains(where: {
+            Self.codexPendingPathCanAffectRequestedWindow(
+                $0,
+                cache: cache,
+                sinceKey: range.scanSinceKey,
+                untilKey: range.scanUntilKey,
+                calendar: range.calendar)
+        }) != true else { return false }
+
+        let windowStartMs = Int64(since.timeIntervalSince1970 * 1000)
+        let windowEnd = calendar.date(byAdding: .day, value: 1, to: until) ?? until
+        let windowEndMs = Int64(windowEnd.timeIntervalSince1970 * 1000)
+        let directlyDiscovered = roots.flatMap {
+            self.listCodexSessionFiles(
+                root: $0,
+                scanSinceKey: range.scanSinceKey,
+                scanUntilKey: range.scanUntilKey,
+                includeRecursive: false,
+                calendar: calendar)
+        }
+        let directlyDiscoveredPathKeys = Set(directlyDiscovered.map(Self.codexPathKey))
+
+        func cachedEntry(for fileURL: URL) -> CostUsageFileUsage? {
+            cache.files[Self.codexResolvedPath(fileURL)]
+                ?? cache.files[Self.codexPathKey(fileURL)]
+                ?? cache.files[fileURL.standardizedFileURL.path]
+        }
+
+        func matchesPersistedSnapshot(fileURL: URL, usage: CostUsageFileUsage) -> Bool {
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            guard usage.codexScanComplete == true,
+                  !usage.hasBufferedCodexForkRetryLines,
+                  usage.codexScanFileId == metadata.fileId,
+                  (usage.parsedBytes ?? usage.size) >= usage.size
+            else { return false }
+            guard usage.mtimeUnixMs <= metadata.mtimeUnixMs else { return false }
+            if usage.mtimeUnixMs == metadata.mtimeUnixMs,
+               usage.size == metadata.size
+            {
+                return true
+            }
+            guard usage.size < metadata.size,
+                  usage.codexTokenIndexAnchor?.indexedBytes == usage.size
+            else { return false }
+            return usage.codexTokenIndexAnchor.map {
+                Self.codexTokenIndexAnchorMatches(
+                    $0,
+                    fileURL: fileURL,
+                    metadata: metadata)
+            } == true
+        }
+
+        // Every file in the requested date partitions must have a complete persisted snapshot.
+        // An absent row is not safe to treat as zero: it may be a newly-created session that the
+        // bounded manifest has not yet committed.
+        for fileURL in directlyDiscovered {
+            guard let cached = cachedEntry(for: fileURL),
+                  matchesPersistedSnapshot(fileURL: fileURL, usage: cached)
+            else { return false }
+        }
+
+        for (path, usage) in cache.files {
+            let fileURL = URL(fileURLWithPath: path)
+            guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { continue }
+            let sessionTimestamps = [
+                usage.codexSession?.startedAtUnixMs,
+                usage.codexSession?.latestActivityUnixMs,
+                usage.codexSession?.latestAcceptedUsageUnixMs,
+            ].compactMap(\.self)
+            let canAffectWindow = usage.touchesCodexScanWindow(
+                sinceKey: range.scanSinceKey,
+                untilKey: range.scanUntilKey,
+                calendar: calendar)
+                || sessionTimestamps.contains { $0 >= windowStartMs && $0 < windowEndMs }
+                || usage.mtimeUnixMs >= windowStartMs
+                || directlyDiscoveredPathKeys.contains(Self.codexPathKey(fileURL))
+            guard !canAffectWindow || matchesPersistedSnapshot(fileURL: fileURL, usage: usage)
+            else { return false }
+        }
+
+        // Old migration paths are intentionally ignored unless their persisted usage or current
+        // metadata says they can contribute to the requested window.
+        for pendingPath in cache.codexActiveLookbackState?.pendingFilePaths ?? [] {
+            let fileURL = URL(fileURLWithPath: pendingPath)
+            let metadata = Self.codexFileMetadata(fileURL: fileURL)
+            guard let cached = cachedEntry(for: fileURL) else { return false }
+            let pendingCanAffectWindow = cached.touchesCodexScanWindow(
+                sinceKey: range.scanSinceKey,
+                untilKey: range.scanUntilKey,
+                calendar: calendar)
+                || metadata.mtimeUnixMs >= windowStartMs
+            if pendingCanAffectWindow {
+                guard matchesPersistedSnapshot(fileURL: fileURL, usage: cached) else { return false }
+            }
+        }
+        return true
+    }
+
     private static func cachedCodexSessionFiles(
         cache: CostUsageCache,
         range: CostUsageDayRange,
@@ -3750,6 +3877,66 @@ enum CostUsageScanner {
             ? inventoryPathKeys
             : plan.cacheWideMigrationPendingPathKeys.intersection(inventoryPathKeys)
         return !requiredPathKeys.isSubset(of: queuedPathKeys)
+    }
+
+    private static func codexPendingPathCanAffectRequestedWindow(
+        _ path: String,
+        cache: CostUsageCache,
+        sinceKey: String,
+        untilKey: String,
+        calendar: Calendar) -> Bool
+    {
+        let fileURL = URL(fileURLWithPath: path)
+        let cached = cache.files[Self.codexResolvedPath(fileURL)]
+            ?? cache.files[Self.codexPathKey(fileURL)]
+            ?? cache.files[fileURL.standardizedFileURL.path]
+        guard let cached else { return true }
+
+        let metadata = Self.codexFileMetadata(fileURL: fileURL)
+        guard metadata.fileId != nil else { return true }
+        let filenameTouchesWindow = Self.dayKeyFromFilename(fileURL.lastPathComponent).map {
+            CostUsageDayRange.isInRange(dayKey: $0, since: sinceKey, until: untilKey)
+        } ?? false
+        guard let since = Self.parseDayKey(sinceKey, calendar: calendar),
+              let until = Self.parseDayKey(untilKey, calendar: calendar),
+              since <= until,
+              let windowEnd = calendar.date(byAdding: .day, value: 1, to: until)
+        else { return true }
+        let mtime = Date(timeIntervalSince1970: TimeInterval(metadata.mtimeUnixMs) / 1000)
+        let metadataTouchesWindow = mtime >= since && mtime < windowEnd
+        return cached.touchesCodexScanWindow(
+            sinceKey: sinceKey,
+            untilKey: untilKey,
+            calendar: calendar)
+            || filenameTouchesWindow
+            || metadataTouchesWindow
+    }
+
+    private static func prioritizeCodexRequestedWindowPendingPaths(
+        cache: CostUsageCache,
+        range: CostUsageDayRange,
+        state: inout CostUsageCodexActiveLookbackState)
+    {
+        guard !state.pendingFilePaths.isEmpty else { return }
+        let pendingPaths = state.pendingFilePaths
+        var prioritizedPaths: [String] = []
+        var unrelatedPaths: [String] = []
+        prioritizedPaths.reserveCapacity(pendingPaths.count)
+        unrelatedPaths.reserveCapacity(pendingPaths.count)
+        for path in pendingPaths {
+            if Self.codexPendingPathCanAffectRequestedWindow(
+                path,
+                cache: cache,
+                sinceKey: range.scanSinceKey,
+                untilKey: range.scanUntilKey,
+                calendar: range.calendar)
+            {
+                prioritizedPaths.append(path)
+            } else {
+                unrelatedPaths.append(path)
+            }
+        }
+        state.pendingFilePaths = prioritizedPaths + unrelatedPaths
     }
 
     private struct CodexPendingLookbackAppendContext {
@@ -6398,6 +6585,7 @@ enum CostUsageScanner {
         range: CostUsageDayRange,
         previousReport: CostUsageCodexPreviousReport?,
         hydratedPaths: Set<String>? = nil,
+        independentlyVerifiedCodexWindow: (sinceKey: String, untilKey: String)? = nil,
         independentlyVerifiedDayKey: String? = nil)
     {
         // The serial scan queue remains the per-process writer boundary. The store actor owns
@@ -6422,14 +6610,38 @@ enum CostUsageScanner {
         if saveResult.catchUpRequired {
             cache.codexScanCatchUpPending = true
             cache.codexPreviousReport = previousReport
-        } else if let independentlyVerifiedDayKey {
-            // Persist sparse day evidence only after the cache save commits. The proof is
+        } else if let independentlyVerifiedCodexWindow {
+            // Persist sparse window evidence only after the cache save commits. The proof is
             // computed from the final in-memory working set and never hydrates unrelated rows.
+            _ = CostUsageStoreAccess.recordVerifiedCodexWindow(
+                store: store,
+                sinceDay: independentlyVerifiedCodexWindow.sinceKey,
+                untilDay: independentlyVerifiedCodexWindow.untilKey,
+                calendar: range.calendar)
+        } else if let independentlyVerifiedDayKey {
+            // Preserve the single-day fallback for older callers that have not adopted the
+            // requested-window proof yet.
             _ = CostUsageStoreAccess.recordVerifiedCodexDay(
                 store: store,
                 day: independentlyVerifiedDayKey,
                 calendar: range.calendar)
         }
+    }
+
+    private static func independentlyVerifiedCodexWindow(
+        cache: CostUsageCache,
+        roots: [URL],
+        range: CostUsageDayRange) -> (sinceKey: String, untilKey: String)?
+    {
+        guard cache.codexScanCatchUpPending == true,
+              self.codexRequestedWindowProjectionCanPublish(
+                  cache: cache,
+                  roots: roots,
+                  sinceKey: range.sinceKey,
+                  untilKey: range.untilKey,
+                  calendar: range.calendar)
+        else { return nil }
+        return (sinceKey: range.sinceKey, untilKey: range.untilKey)
     }
 
     private static func independentlyVerifiedCodexDayKey(
@@ -6927,17 +7139,16 @@ enum CostUsageScanner {
                 cache.codexScanCatchUpPending = !exact.isComplete
                 cache.codexPreviousReport = exact.isComplete ? nil : previousReport
                 cache.lastScanUnixMs = nowMs
-                let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+                let independentlyVerifiedCodexWindow = Self.independentlyVerifiedCodexWindow(
                     cache: cache,
                     roots: plan.roots,
-                    now: now,
-                    calendar: range.calendar)
+                    range: range)
                 Self.saveCodexCache(
                     &cache,
                     store: loadedCache.store,
                     range: range,
                     previousReport: previousReport,
-                    independentlyVerifiedDayKey: independentlyVerifiedDayKey)
+                    independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow)
                 if let previous = Self.codexPreviousReport(
                     cache: cache,
                     range: range,
@@ -7153,6 +7364,10 @@ enum CostUsageScanner {
                     previousDiscovery: cache.codexSessionDiscovery,
                     shouldBoundCatchUp: shouldBoundCatchUp,
                     shouldSeedBoundedQueue: shouldSeedBoundedQueue),
+                state: &activeLookbackState)
+            Self.prioritizeCodexRequestedWindowPendingPaths(
+                cache: cache,
+                range: range,
                 state: &activeLookbackState)
             let boundedQueuePathCount = shouldSeedBoundedQueue
                 ? min(Self.codexCatchUpScanCandidateLimit, activeLookbackState.pendingFilePaths.count)
@@ -7544,11 +7759,10 @@ enum CostUsageScanner {
             }
             cache.lastScanUnixMs = nowMs
             try checkCancellation?()
-            let independentlyVerifiedDayKey = Self.independentlyVerifiedCodexDayKey(
+            let independentlyVerifiedCodexWindow = Self.independentlyVerifiedCodexWindow(
                 cache: cache,
                 roots: plan.roots,
-                now: now,
-                calendar: range.calendar)
+                range: range)
             Self.saveCodexCache(
                 &cache,
                 store: loadedCache.store,
@@ -7559,7 +7773,7 @@ enum CostUsageScanner {
                         Self.codexResolvedPath(URL(fileURLWithPath: $0))
                     })
                     : nil,
-                independentlyVerifiedDayKey: independentlyVerifiedDayKey)
+                independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow)
         }
 
         if let previous = Self.codexPreviousReport(

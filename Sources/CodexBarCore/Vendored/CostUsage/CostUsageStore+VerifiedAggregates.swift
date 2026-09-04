@@ -234,6 +234,66 @@ extension CostUsageStore {
         }
     }
 
+    /// Persists a sparse, independently verified report window while another wider cache
+    /// migration remains pending. The coverage markers are intentionally unchanged: callers
+    /// must treat these rows as overlays, not as proof that the complete retained history is
+    /// current.
+    @discardableResult
+    func recordVerifiedCodexWindow(
+        sinceDay: String,
+        untilDay: String,
+        calendar: Calendar) -> Bool
+    {
+        self.withDatabase(default: false) { database in
+            do {
+                try Self.inTransaction(database) {
+                    var metadata = try Self.readSingleton(
+                        CostUsageStoreMetadata.self,
+                        database: database,
+                        table: "scan_metadata") ?? .empty
+                    let dayCalendar = CostUsageScanner.CostUsageDayRange
+                        .localGregorianCalendar(matching: calendar)
+                    guard sinceDay <= untilDay,
+                          let since = CostUsageScanner.parseDayKey(sinceDay, calendar: dayCalendar),
+                          let until = CostUsageScanner.parseDayKey(untilDay, calendar: dayCalendar),
+                          CostUsageScanner.CostUsageDayRange.dayKey(
+                              from: since,
+                              calendar: dayCalendar) == sinceDay,
+                          CostUsageScanner.CostUsageDayRange.dayKey(
+                              from: until,
+                              calendar: dayCalendar) == untilDay,
+                          since <= until,
+                          metadata.timeZoneIdentifier == nil
+                          || metadata.timeZoneIdentifier == calendar.timeZone.identifier,
+                          metadata.verifiedTimeZoneIdentifier == nil
+                          || metadata.verifiedTimeZoneIdentifier == calendar.timeZone.identifier
+                    else { throw StoreError.invalidData }
+                    let aggregates = try Self.readDayAggregates(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay)
+                    try Self.clearVerifiedDayAggregates(
+                        database,
+                        sinceDay: sinceDay,
+                        untilDay: untilDay)
+                    try Self.insertVerifiedDayAggregates(database, aggregates: aggregates)
+                    metadata.verifiedUpdatedAtUnixMs = max(
+                        metadata.verifiedUpdatedAtUnixMs ?? 0,
+                        metadata.lastScanUnixMs > 0 ? metadata.lastScanUnixMs : 0)
+                    metadata.verifiedTimeZoneIdentifier = metadata.verifiedTimeZoneIdentifier
+                        ?? calendar.timeZone.identifier
+                    metadata.verifiedRootPaths = metadata.verifiedRootPaths
+                        ?? metadata.rootMtimes?.keys.sorted()
+                    guard self.setMetadata(metadata) else { throw StoreError.invalidData }
+                    try Self.writeVerifiedLedgerMarker(database)
+                }
+                return true
+            } catch {
+                return false
+            }
+        }
+    }
+
     /// Removes sparse verification rows for days whose hydrated source files changed. Complete
     /// coverage markers are left to the caller because a complete baseline may still be valid.
     static func clearVerifiedDayAggregates(
@@ -254,6 +314,25 @@ extension CostUsageStore {
         for (index, day) in sortedDays.enumerated() {
             Self.bind(day, to: statement, at: Int32(index + 1))
         }
+        try Self.stepDone(statement, database: database)
+    }
+
+    static func clearVerifiedDayAggregates(
+        _ database: OpaquePointer,
+        sinceDay: String,
+        untilDay: String) throws
+    {
+        guard sinceDay <= untilDay,
+              try scalarInt(
+                  database,
+                  "SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'verified_day_aggregates'") > 0
+        else { return }
+        let statement = try Self.prepare(
+            database,
+            "DELETE FROM verified_day_aggregates WHERE day >= ? AND day <= ?")
+        defer { sqlite3_finalize(statement) }
+        Self.bind(sinceDay, to: statement, at: 1)
+        Self.bind(untilDay, to: statement, at: 2)
         try Self.stepDone(statement, database: database)
     }
 

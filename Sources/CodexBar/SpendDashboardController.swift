@@ -90,6 +90,10 @@ struct SpendDashboardLoadRequest: Sendable {
     let unavailableSourceIDs: Set<String>
     let confirmedEmptySourceIDs: Set<String>
     let codexRequests: [CodexSpendScanRequest]
+    /// The dashboard may start with the configured primary window while that shared cache is
+    /// still converging. Once the primary worker is stable, requests use the full dashboard
+    /// window for All-view enrichment.
+    let codexHistoryDays: Int
     let now: Date
     let force: Bool
 
@@ -99,6 +103,7 @@ struct SpendDashboardLoadRequest: Sendable {
         unavailableSourceIDs: Set<String>,
         confirmedEmptySourceIDs: Set<String> = [],
         codexRequests: [CodexSpendScanRequest],
+        codexHistoryDays: Int = SpendDashboardSource.scanDays,
         now: Date,
         force: Bool)
     {
@@ -107,6 +112,7 @@ struct SpendDashboardLoadRequest: Sendable {
         self.unavailableSourceIDs = unavailableSourceIDs
         self.confirmedEmptySourceIDs = confirmedEmptySourceIDs
         self.codexRequests = codexRequests
+        self.codexHistoryDays = max(1, min(SpendDashboardSource.scanDays, codexHistoryDays))
         self.now = now
         self.force = force
     }
@@ -223,6 +229,7 @@ enum SpendDashboardSource {
                 capturedInputs: [],
                 unavailableSourceIDs: [],
                 codexRequests: [],
+                codexHistoryDays: SpendDashboardSource.scanDays,
                 now: now ?? nowProvider(),
                 force: mode.forcesLoader)
         }
@@ -259,6 +266,7 @@ enum SpendDashboardSource {
             ? self.codexSources(settings: settings, store: store)
             : []
         let codexRequests = codexSources.compactMap(\.request)
+        let codexHistoryDays = store.spendDashboardCodexHistoryDays
         let configuration = self.configuration(
             settings: settings,
             store: store,
@@ -270,6 +278,7 @@ enum SpendDashboardSource {
                 capturedInputs: [],
                 unavailableSourceIDs: [],
                 codexRequests: [],
+                codexHistoryDays: codexHistoryDays,
                 now: captureNow,
                 force: mode.forcesLoader)
         }
@@ -329,6 +338,7 @@ enum SpendDashboardSource {
             unavailableSourceIDs: unavailableSourceIDs,
             confirmedEmptySourceIDs: confirmedEmptySourceIDs,
             codexRequests: codexRequests,
+            codexHistoryDays: codexHistoryDays,
             now: captureNow,
             force: mode.forcesLoader)
     }
@@ -401,7 +411,7 @@ enum SpendDashboardSource {
                 cacheRoot: cacheRootResolver(account),
                 request: request,
                 force: false,
-                historyDays: Self.scanDays))
+                historyDays: request.codexHistoryDays))
             guard !Task.isCancelled,
                   let snapshot,
                   self.currentAuthFingerprint(for: account) == account.authFingerprint
@@ -478,7 +488,7 @@ enum SpendDashboardSource {
                                         cacheRoot: cacheRoot,
                                         request: request,
                                         force: request.force,
-                                        historyDays: Self.scanDays))
+                                        historyDays: request.codexHistoryDays))
                                     try Task.checkCancellation()
                                     let tokenActivityCache = await codexActivityLoader(self.snapshotContext(
                                         account: account,

@@ -253,7 +253,7 @@ struct UsageStoreCodexCostCatchUpTests {
     }
 
     @Test
-    func `catch-up stops after one bounded pass that makes no progress`() async throws {
+    func `catch-up retries bounded no-progress passes before pausing`() async throws {
         let store = try Self.makeStore(suite: "no-progress")
         var snapshotLoadCount = 0
         var advanceCount = 0
@@ -277,15 +277,53 @@ struct UsageStoreCodexCostCatchUpTests {
 
         await store.refreshTokenUsage(.codex, force: true)
         await Self.waitUntil {
-            store.codexCostCatchUpTask == nil && advanceCount == 1
+            store.codexCostCatchUpTask == nil && advanceCount == 3
         }
 
-        #expect(advanceCount == 1)
-        #expect(snapshotLoadCount == 2)
+        #expect(advanceCount == 3)
+        #expect(snapshotLoadCount == 4)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 1)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 1)
         #expect(store.codexCostCatchUpActivity?.phase == .paused)
         #expect(store.codexCostCatchUpActivity?.pauseReason == .noProgress)
+    }
+
+    @Test
+    func `catch-up recovers when a no-progress retry eventually advances`() async throws {
+        let store = try Self.makeStore(suite: "no-progress-recovery")
+        var statusLoadCount = 0
+        var advanceCount = 0
+        var sleepDurations: [TimeInterval] = []
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            Self.tokenSnapshot(cost: 1, now: now)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            statusLoadCount += 1
+            return CostUsageFetcher.CodexScanCatchUpStatus(
+                pending: statusLoadCount == 1,
+                progressKey: statusLoadCount == 1 ? "stalled" : "advanced")
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount += 1
+            return CostUsageFetcher.CodexScanCatchUpStatus(
+                pending: advanceCount == 1,
+                progressKey: advanceCount == 1 ? "stalled" : "advanced")
+        }
+        store._test_codexCostCatchUpSleepOverride = { duration in
+            sleepDurations.append(duration)
+            await Task.yield()
+        }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        store.startCodexCostCatchUpIfNeeded(mode: .accelerated)
+        await Self.waitUntil {
+            store.codexCostCatchUpTask == nil
+        }
+
+        #expect(advanceCount == 2)
+        #expect(sleepDurations == [0, 5])
+        #expect(store.codexCostCatchUpPausedProgressKey == nil)
+        #expect(store.codexCostCatchUpActivity?.phase == .complete)
     }
 
     @Test
@@ -311,7 +349,7 @@ struct UsageStoreCodexCostCatchUpTests {
         await store.refreshTokenUsage(.codex, force: true)
         await Self.waitUntil { store.codexCostCatchUpTask == nil }
 
-        #expect(snapshotLoadCount == 2)
+        #expect(snapshotLoadCount == 4)
         #expect(store.tokenSnapshot(for: .codex)?.last30DaysCostUSD == 99)
         #expect(store.tokenSnapshotPublicationRevision(for: .codex) == 2)
     }
@@ -470,7 +508,7 @@ struct UsageStoreCodexCostCatchUpTests {
         store.startCodexCostCatchUpIfNeeded()
         await Task.yield()
 
-        #expect(advanceCount == 1)
+        #expect(advanceCount == 3)
         #expect(store.codexCostCatchUpTask == nil)
         #expect(store.codexCostCatchUpActivity?.pauseReason == .noProgress)
     }
@@ -503,23 +541,23 @@ struct UsageStoreCodexCostCatchUpTests {
 
         store.startCodexCostCatchUpIfNeeded()
         await Self.waitUntil { store.codexCostCatchUpTask == nil }
-        #expect(advanceCount.value == 1)
+        #expect(advanceCount.value == 3)
         #expect(store.codexCostCatchUpPausedProgressKey == "A")
 
         // The status probe observes the same semantic state and must not rebuild the cache.
         store.startCodexCostCatchUpIfNeeded()
         await Self.waitUntil { store.codexCostCatchUpProgressProbeTask == nil }
-        #expect(advanceCount.value == 1)
+        #expect(advanceCount.value == 3)
         #expect(store.codexCostCatchUpPausedProgressKey == "A")
 
         // A real source change releases the pause and allows the existing worker to converge.
         progressKey.setValue("B")
         store.startCodexCostCatchUpIfNeeded()
         await Self.waitUntil {
-            store.codexCostCatchUpTask == nil && advanceCount.value == 2
+            store.codexCostCatchUpTask == nil && advanceCount.value == 4
         }
 
-        #expect(advanceCount.value == 2)
+        #expect(advanceCount.value == 4)
         #expect(store.codexCostCatchUpPausedProgressKey == nil)
         #expect(store.codexCostCatchUpActivity?.phase == .complete)
     }

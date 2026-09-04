@@ -1916,6 +1916,19 @@ enum CostUsageStoreAccess {
         store.syncRecordVerifiedCodexDay(day: day, calendar: calendar)
     }
 
+    @discardableResult
+    static func recordVerifiedCodexWindow(
+        store: CostUsageStore,
+        sinceDay: String,
+        untilDay: String,
+        calendar: Calendar) -> Bool
+    {
+        store.syncRecordVerifiedCodexWindow(
+            sinceDay: sinceDay,
+            untilDay: untilDay,
+            calendar: calendar)
+    }
+
     /// Test and maintenance mutation seam for metadata-only edits. Scanner writes should keep
     /// using the loaded store instance so one actor owns the full read/scan/write cycle.
     @discardableResult

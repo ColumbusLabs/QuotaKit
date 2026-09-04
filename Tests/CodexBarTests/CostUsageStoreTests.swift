@@ -1331,6 +1331,7 @@ extension CostUsageStoreTests {
             "f2bac4d17b6e80b7",
             "3053f2f21b526cb2",
             "794d08208e8b4be3",
+            "a9e63a41a2306504",
         ])
         let predecessorHash = "295616a4e7dcfc3f"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
@@ -1389,7 +1390,7 @@ extension CostUsageStoreTests {
     func `current live parser hash is an explicitly compatible predecessor`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
-        let predecessorHash = "4c26d7b4f3200869"
+        let predecessorHash = "a9e63a41a2306504"
         let predecessorVersion = CostUsageStore.combinedSchemaVersion(
             base: CostUsageStore.baseSchemaVersion,
             parserHash: predecessorHash)

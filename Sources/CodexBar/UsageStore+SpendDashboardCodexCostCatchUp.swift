@@ -12,6 +12,16 @@ private struct SpendDashboardCodexCostCatchUpContext {
 }
 
 extension UsageStore {
+    /// Shared dashboard loads start with the normal token-cost window while its primary cache
+    /// worker is still converging. The full dashboard window is safe once that worker reports a
+    /// stable snapshot, and remains available for independent account caches immediately.
+    var spendDashboardCodexHistoryDays: Int {
+        guard self.spendDashboardCodexCostCatchUpUsesPrimaryWorker,
+              self.codexCostCatchUpActivity?.phase != .complete
+        else { return SpendDashboardSource.scanDays }
+        return max(1, min(SpendDashboardSource.scanDays, self.settings.costUsageHistoryDays))
+    }
+
     private func codexCostCatchUpUsesPrimaryCache(_ account: CodexSpendScanRequest) -> Bool {
         // The primary worker owns the ambient Codex cache only when the normal token-cost
         // scope is ambient as well. A managed/profile selection can still coexist with the
@@ -62,7 +72,7 @@ extension UsageStore {
             self.spendDashboardCodexCostCatchUpActivity = self.codexCostCatchUpActivity
             self.startCodexCostCatchUpIfNeeded(
                 mode: mode,
-                requestedHistoryDays: SpendDashboardSource.scanDays,
+                requestedHistoryDays: self.settings.costUsageHistoryDays,
                 resumePaused: false)
         } else {
             self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = false
@@ -101,7 +111,7 @@ extension UsageStore {
             }
             self.startCodexCostCatchUpIfNeeded(
                 mode: mode,
-                requestedHistoryDays: SpendDashboardSource.scanDays,
+                requestedHistoryDays: self.settings.costUsageHistoryDays,
                 resumePaused: resumePaused)
         } else {
             self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = false

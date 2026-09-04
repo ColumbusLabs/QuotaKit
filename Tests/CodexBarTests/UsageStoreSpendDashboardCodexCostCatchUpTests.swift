@@ -280,7 +280,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
             preferredMode: .accelerated)
         await Self.waitUntil {
             store.codexCostCatchUpTask == nil
-                && receivedHistoryDays == SpendDashboardSource.scanDays
+                && receivedHistoryDays == store.settings.costUsageHistoryDays
         }
 
         #expect(advanceCount == 1)

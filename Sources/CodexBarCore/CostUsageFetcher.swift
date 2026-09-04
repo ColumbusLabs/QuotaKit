@@ -1223,6 +1223,17 @@ public struct CostUsageFetcher: Sendable {
         return CostUsageDailyReport.merged([retained, currentDay])
     }
 
+    private static func replacingVerifiedDays(
+        in established: CostUsageDailyReport,
+        with verified: CostUsageDailyReport) -> CostUsageDailyReport
+    {
+        let verifiedDays = Set(verified.data.map(\.date))
+        let retained = CostUsageDailyReport(
+            data: established.data.filter { !verifiedDays.contains($0.date) },
+            summary: nil)
+        return CostUsageDailyReport.merged([retained, verified])
+    }
+
     private struct CachedCodexPreviousReportProjectionInput {
         let previous: CostUsageCodexPreviousReport
         let projection: CostUsageStoreCodexReportProjection
@@ -1346,7 +1357,7 @@ public struct CostUsageFetcher: Sendable {
     private static func cachedCodexPreviousReportProjection(
         _ input: CachedCodexPreviousReportProjectionInput) -> CachedCodexPreviousReportProjectionResult
     {
-        let retainedReport = CostUsageDailyReport(
+        var retainedReport = CostUsageDailyReport(
             data: input.previous.report.data.filter {
                 CostUsageScanner.CostUsageDayRange.isInRange(
                     dayKey: $0.date,
@@ -1354,6 +1365,20 @@ public struct CostUsageFetcher: Sendable {
                     until: input.range.untilKey)
             },
             summary: nil)
+        if let verifiedUpdatedAt = input.projection.verifiedUpdatedAtUnixMs,
+           verifiedUpdatedAt > input.previous.updatedAtUnixMs,
+           !input.projection.verifiedDayAggregates.isEmpty
+        {
+            let verified = CostUsageCodexReportProjectionBuilder.buildVerifiedReport(
+                projection: input.projection,
+                range: input.range,
+                cacheRoot: input.cacheRoot)
+            if !verified.data.isEmpty {
+                retainedReport = Self.replacingVerifiedDays(
+                    in: retainedReport,
+                    with: verified)
+            }
+        }
         let projected = CostUsageCodexReportProjectionBuilder.build(
             projection: input.projection,
             roots: input.roots,

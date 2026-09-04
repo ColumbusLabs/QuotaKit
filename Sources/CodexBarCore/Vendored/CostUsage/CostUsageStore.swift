@@ -115,6 +115,8 @@ actor CostUsageStore {
         // compatible.
         "3053f2f21b526cb2", // Catch-up scans now use the retained window; persisted parser rows remain compatible.
         "794d08208e8b4be3", // Formatter-only successor; persisted parser rows remain byte-compatible.
+        "a9e63a41a2306504", // Shipped live parser hash before scanner scheduling changes;
+        // persisted rows remain compatible.
     ]
     static let incompatibleRetainedReportPredecessorParserHashes: Set<String> = [
         "f22371c47d2e006f",
@@ -298,6 +300,19 @@ extension CostUsageStore {
     {
         self.syncWithStoreIsolation { store in
             store.recordVerifiedCodexDay(day: day, calendar: calendar)
+        }
+    }
+
+    nonisolated func syncRecordVerifiedCodexWindow(
+        sinceDay: String,
+        untilDay: String,
+        calendar: Calendar) -> Bool
+    {
+        self.syncWithStoreIsolation { store in
+            store.recordVerifiedCodexWindow(
+                sinceDay: sinceDay,
+                untilDay: untilDay,
+                calendar: calendar)
         }
     }
 }
