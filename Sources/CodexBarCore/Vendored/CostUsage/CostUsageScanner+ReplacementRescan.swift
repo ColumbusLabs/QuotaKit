@@ -40,6 +40,17 @@ extension CostUsageScanner {
             input: input,
             context: context,
             maxBytesToRead: maxBytesToRead)
+        if plan.replacementGeneration,
+           !plan.replacementPending,
+           Self.dropStaleCodexSessionAliases(
+               currentSession: plan.parsed.codexSession,
+               currentPath: input.metadata.path,
+               currentMtimeUnixMs: input.metadata.mtimeUnixMs,
+               currentSize: input.metadata.size,
+               cache: &cache)
+        {
+            return
+        }
         if !plan.replacementPending, let cached = plan.cached {
             Self.applyFileDays(cache: &cache, fileDays: cached.days, sign: -1)
         }

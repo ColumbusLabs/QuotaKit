@@ -739,6 +739,76 @@ extension CostUsageScanner {
         cache.files.removeValue(forKey: path)
     }
 
+    static func dropStaleCodexSessionAliases(
+        currentSession: CostUsageCodexSessionMetadata?,
+        currentPath: String,
+        currentMtimeUnixMs: Int64,
+        currentSize: Int64,
+        cache: inout CostUsageCache) -> Bool
+    {
+        guard let sessionId = currentSession?.sessionId, !sessionId.isEmpty else { return false }
+        var currentIsStale = false
+        let aliases = cache.files.filter { path, usage in
+            path != currentPath
+                && usage.sessionId == sessionId
+                && Self.isCodexDatedSessionRolloutAlias(
+                    currentPath: currentPath,
+                    currentSession: currentSession,
+                    aliasPath: path,
+                    aliasUsage: usage)
+        }
+        for (path, usage) in aliases {
+            let currentIsPreferred = currentMtimeUnixMs > usage.mtimeUnixMs
+                || (currentMtimeUnixMs == usage.mtimeUnixMs && currentSize > usage.size)
+                || (currentMtimeUnixMs == usage.mtimeUnixMs
+                    && currentSize == usage.size
+                    && currentPath < path)
+            if currentIsPreferred {
+                Self.dropCachedCodexFile(path: path, cached: usage, cache: &cache)
+            } else {
+                currentIsStale = true
+            }
+        }
+        if currentIsStale {
+            Self.dropCachedCodexFile(
+                path: currentPath,
+                cached: cache.files[currentPath],
+                cache: &cache)
+        }
+        return currentIsStale
+    }
+
+    private static func isCodexDatedSessionRolloutAlias(
+        currentPath: String,
+        currentSession: CostUsageCodexSessionMetadata?,
+        aliasPath: String,
+        aliasUsage: CostUsageFileUsage) -> Bool
+    {
+        guard self.isCodexDatedSessionRolloutPath(currentPath),
+              self.isCodexDatedSessionRolloutPath(aliasPath),
+              let currentActivity = currentSession?.latestActivityUnixMs,
+              let aliasActivity = aliasUsage.codexSession?.latestActivityUnixMs
+        else { return false }
+        // Distinct dated rollout files with the same concrete session ID and different observed
+        // activity are replacement snapshots. Compare activity in either direction so cleanup is
+        // independent of which file the bounded scheduler visits first. Same-day active/archive
+        // copies and synthetic files therefore remain independent row sources.
+        return currentActivity != aliasActivity
+    }
+
+    private static func isCodexDatedSessionRolloutPath(_ path: String) -> Bool {
+        let components = URL(fileURLWithPath: path).standardizedFileURL.pathComponents
+        guard components.last?.hasPrefix("rollout-") == true,
+              let sessionsIndex = components.lastIndex(of: "sessions")
+        else { return false }
+        let dateComponents = components.dropFirst(sessionsIndex + 1).prefix(3)
+        guard dateComponents.count == 3 else { return false }
+        let date = Array(dateComponents)
+        return date[0].count == 4 && Int(date[0]) != nil
+            && date[1].count == 2 && Int(date[1]) != nil
+            && date[2].count == 2 && Int(date[2]) != nil
+    }
+
     static func rememberScannedCodexFile(
         input: CodexFileScanInput,
         session: CodexScannedSession,
