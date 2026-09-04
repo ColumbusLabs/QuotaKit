@@ -2357,7 +2357,7 @@ enum CostUsageScanner {
         }
         let hasCompleteDirectoryInventory = discovery.nextDirectoryIndex == discovery.directoryPaths.count
             && discovery.directoryPaths.count == discovery.directoryStamps.count
-            && discovery.directoryPaths.allSatisfy({ discovery.directoryStamps[$0] != nil })
+            && discovery.directoryPaths.allSatisfy { discovery.directoryStamps[$0] != nil }
         if hasCompleteDirectoryInventory {
             guard discovery.directoryPaths.allSatisfy(directoryMatchesInventory) else { return false }
         }
@@ -4184,7 +4184,7 @@ enum CostUsageScanner {
     }
 
     private static func codexDayKeyFromPath(_ fileURL: URL) -> String? {
-        if let filenameDayKey = Self.dayKeyFromFilename(fileURL.lastPathComponent) {
+        if let filenameDayKey = dayKeyFromFilename(fileURL.lastPathComponent) {
             return filenameDayKey
         }
         let components = fileURL.standardizedFileURL.pathComponents
@@ -7388,7 +7388,7 @@ enum CostUsageScanner {
                     range: range,
                     roots: plan.roots,
                     excludingPaths: seenPaths)
-                    .sorted(by: { $0.path < $1.path })
+                .sorted(by: { $0.path < $1.path })
                 : []
             let queueSeedFiles = files + cachedCodexFilesForQueue
             let preMaterializationInventoryPathKeys = Set(cache.files.keys.map {
@@ -7426,7 +7426,8 @@ enum CostUsageScanner {
             let mostRecentClosedDayKey = range.calendar.date(
                 byAdding: .day,
                 value: -1,
-                to: now).map {
+                to: now)
+                .map {
                     CostUsageDayRange.dayKey(from: $0, calendar: range.calendar)
                 }
             let priorityDayKey = mostRecentClosedDayKey.flatMap {
