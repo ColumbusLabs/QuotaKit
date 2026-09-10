@@ -9,7 +9,10 @@ extension StatusItemController {
         selectedProvider: UsageProvider?,
         descriptor: MenuDescriptor) -> CGFloat
     {
-        let sectionSets: [[MenuDescriptor.Section]] = if self.shouldMergeIcons, providers.count > 1 {
+        let usesMergedSwitcherWidth = self.shouldMergeIcons &&
+            self.switcherProviderIDs(enabledFirstPartyProviders: providers).count > 1
+        let sectionSets: [[MenuDescriptor.Section]] = if usesMergedSwitcherWidth, !providers.isEmpty
+        {
             providers.map { provider in
                 if provider == selectedProvider {
                     return descriptor.sections
