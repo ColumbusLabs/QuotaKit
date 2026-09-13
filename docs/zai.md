@@ -133,8 +133,9 @@ Copy each value once, on one line. Multi-line or duplicated IDs can make the API
   - `data.limits[]` → each limit entry.
   - `data.planName` (or `plan`, `plan_type`, `packageName`) → plan label.
 - Limit types:
-  - `TOKENS_LIMIT` → primary (tokens window).
-  - `TIME_LIMIT` → secondary (MCP/time window) if tokens also present.
+  - `TOKENS_LIMIT` and `CREDIT_LIMIT` → the first Coding Plan limit is primary; the last is secondary when multiple limits are present.
+  - `TIME_LIMIT` → a separate MCP window when a Coding Plan window is available, otherwise the primary window.
+- Empty or unrecognized limits remain unavailable; they do not imply 0% usage. Explicit zero usage remains visible.
 - Window duration:
   - Unit + number → minutes/hours/days.
 - Reset:

@@ -19,6 +19,7 @@ Code subscription credentials.
 - Displays weekly request quota (from membership tier)
 - Shows current 5-hour rate limit usage
 - Enriches Code API/CLI usage with the monthly membership pool when a web session is available
+- Automatic menu-bar usage prioritizes an exhausted monthly Total usage pool over reset Code windows; explicit window selections remain authoritative
 - API-key, Kimi Code CLI, automatic cookie, and manual cookie authentication methods
 - Automatic refresh countdown
 
