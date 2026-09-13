@@ -1295,10 +1295,143 @@ extension CostUsageStoreTests {
 
 extension CostUsageStoreTests {
     @Test
+    func `legacy rowless duplicate reparses after contributor removal without rebuilding store`() async throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 5, day: 10)
+        let iso = env.isoString(for: day)
+        let contents = #"{"type":"session_meta","timestamp":"\#(iso)","payload":{"session_id":"shared"}}"# + "\n"
+            + #"{"type":"turn_context","timestamp":"\#(iso)","payload":{"model":"gpt-5.5"}}"# + "\n"
+            + #"{"timestamp":"\#(iso)","usage":{"input_tokens":100,"output_tokens":10}}"# + "\n"
+        let contributor = try env.writeCodexSessionFile(
+            day: day,
+            filename: "a-contributor.jsonl",
+            contents: contents)
+        let duplicate = try env.writeCodexSessionFile(
+            day: day,
+            filename: "b-duplicate.jsonl",
+            contents: contents)
+        var options = CostUsageScanner.Options(
+            codexSessionsRoot: env.codexSessionsRoot,
+            claudeProjectsRoots: nil,
+            cacheRoot: env.cacheRoot,
+            codexTraceDatabaseURL: env.root.appendingPathComponent("missing.sqlite"),
+            maxCodexSessionFileBytes: 0,
+            maxCodexScanBytesPerRefresh: 0)
+        options.refreshMinIntervalSeconds = 0
+        options.preferNewestCodexSessionsFirst = false
+        let first = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day,
+            options: options)
+        #expect(first.summary?.totalTokens == 110)
+
+        let store = CostUsageStore(cacheRoot: env.cacheRoot)
+        var cache = store.syncLoadCodexCache(calendar: .current)
+        var staleDuplicate = try #require(cache.files[contributor.path])
+        let metadata = CostUsageScanner.codexFileMetadata(fileURL: duplicate)
+        staleDuplicate.mtimeUnixMs = metadata.mtimeUnixMs
+        staleDuplicate.codexScanFileId = metadata.fileId
+        staleDuplicate.days = [:]
+        staleDuplicate.codexRows = []
+        staleDuplicate.codexTokenSnapshots = []
+        staleDuplicate.codexTokenCheckpoints = []
+        staleDuplicate.codexParserRevision = 2
+        cache.files[duplicate.path] = staleDuplicate
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        _ = store.syncSaveCodexCache(
+            cache,
+            calendar: .current,
+            requestedScanWindow: (sinceKey: dayKey, untilKey: dayKey))
+        #expect(CostUsageStoreAccess.read(cacheRoot: env.cacheRoot).files[duplicate.path]?.codexRows?.isEmpty == true)
+
+        let predecessorHash = "606a690018e2845e"
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: predecessorHash)
+        let connection = try SQLiteTestConnection(url: store.databaseURL)
+        try connection.execute("UPDATE meta SET value = '\(predecessorHash)' WHERE key = 'parser_hash'")
+        try connection.execute("PRAGMA user_version = \(predecessorVersion)")
+        let migrated = CostUsageStore(cacheRoot: env.cacheRoot)
+        let migratedCache = migrated.syncLoadCodexCache(calendar: .current)
+        #expect(await migrated.rebuildCount == 0)
+        #expect(migratedCache.files[duplicate.path]?.codexParserRevision == 2)
+        #expect(migratedCache.files[duplicate.path]?.hasCurrentCodexParser == false)
+
+        try FileManager.default.removeItem(at: contributor)
+        let recovered = CostUsageScanner.loadDailyReport(
+            provider: .codex,
+            since: day,
+            until: day,
+            now: day.addingTimeInterval(1),
+            options: options)
+        #expect(recovered.summary?.totalTokens == 110)
+        let after = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
+        #expect(after.files[duplicate.path]?.codexParserRevision == CostUsageFileUsage.currentCodexParserRevision)
+        #expect(after.files[duplicate.path]?.codexRows?.count == 1)
+    }
+
+    @Test
+    func `lf span parser adopts persisted partial checkpoint without rebuilding`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let previousHash = "606a690018e2845e"
+        let previousVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: previousHash)
+        let previous = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: previousVersion,
+            parserHash: previousHash)
+        let input = fixture.root.appendingPathComponent("partial.jsonl")
+        let partial = Data("{}\n{\"body\":\"unfinished".utf8)
+        try partial.write(to: input)
+        let progress = try CostUsageJsonl.scanBounded(
+            fileURL: input,
+            maxLineBytes: 1024,
+            prefixBytes: 1024,
+            maxBytesToRead: nil,
+            resumeState: nil,
+            onLine: { _ in })
+        let checkpoint = try #require(progress.resumeState)
+        var file = Self.file(path: input.path, day: "2026-08-01")
+        file.size = Int64(partial.count)
+        file.parsedBytes = progress.committedOffset
+        file.scanState.targetSize = file.size
+        file.scanState.isComplete = false
+        file.scanState.resumePayload = try JSONEncoder().encode(checkpoint)
+        #expect(await previous.upsertFile(file))
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+        let adopted = try #require(await current.fetchFile(path: file.path))
+        #expect(await current.rebuildCount == 0)
+        let adoptedCheckpoint = try JSONDecoder().decode(
+            CostUsageJsonl.ResumeState.self,
+            from: #require(adopted.scanState.resumePayload))
+        #expect(adoptedCheckpoint == checkpoint)
+
+        try (partial + Data("\"}\n".utf8)).write(to: input)
+        var resumedLines: [Data] = []
+        let resumed = try CostUsageJsonl.scanBounded(
+            fileURL: input,
+            maxLineBytes: 1024,
+            prefixBytes: 1024,
+            maxBytesToRead: nil,
+            resumeState: adoptedCheckpoint,
+            onLine: { resumedLines.append($0.bytes) })
+        #expect(resumedLines == [Data(#"{"body":"unfinished"}"#.utf8)])
+        #expect(resumed.committedOffset == Int64(partial.count + 3))
+        #expect(resumed.resumeState == nil)
+    }
+
+    @Test
     func `compatible predecessor parser hash adopts without rebuilding`() async throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "606a690018e2845e",
             "91a311c1117c5d33",
             "39536f87a26d851e",
             "a7f3e991314d5fde",

@@ -83,6 +83,7 @@ actor CostUsageStore {
     static let cacheGeneration = "sqlite:\(CostUsageStore.schemaVersion)"
     static let verifiedLedgerVersion = 1
     static let compatiblePredecessorParserHashes: Set<String> = [
+        "606a690018e2845e", // LF scanning and empty-fragment retention preserve rows and checkpoints.
         "91a311c1117c5d33", // Parser revisions reparse older native files without rebuilding the store.
         "39536f87a26d851e", // Priority metadata scheduling only; persisted parser rows remain compatible.
         "a7f3e991314d5fde", // Priority reclassification only; persisted parser rows remain compatible.

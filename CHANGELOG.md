@@ -13,6 +13,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Privacy mode: mask project and source identity in cost history and the spend dashboard, including already-open menu charts.
 - Claude: make the capped Extra Usage progress fill follow the used/remaining display preference while preserving spend and percentage labels.
 - Codex: let older local cost scans advance under a steady stream of new sessions while keeping recent costs prioritized.
+- Codex: retain completed empty session fragments, recover duplicate cost rows after their original file disappears, and preserve waiting scans during cache migration.
 - Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.
 - OpenCode Go: preserve API percentage units, including values between zero and one percent.
 - Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.
