@@ -589,8 +589,12 @@ extension SettingsStore {
     var codexLocalSessionCostLedgerEnabled: Bool {
         get { self.defaultsState.codexLocalSessionCostLedgerEnabled }
         set {
+            let changed = self.defaultsState.codexLocalSessionCostLedgerEnabled != newValue
             self.defaultsState.codexLocalSessionCostLedgerEnabled = newValue
             self.userDefaults.set(newValue, forKey: "codexLocalSessionCostLedgerEnabled")
+            if changed {
+                self.costUsageSettingsRevision &+= 1
+            }
             self.noteBackgroundWorkSettingsChanged()
         }
     }

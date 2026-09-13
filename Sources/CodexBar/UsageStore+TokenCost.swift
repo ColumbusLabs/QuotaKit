@@ -432,7 +432,7 @@ extension UsageStore {
     {
         guard self.providerPublicationRevisionIsCurrent(publicationRevision, for: provider),
               self.settings.providerConfigRevision(for: provider) == providerConfigRevision,
-              self.settings.costUsageEnabled,
+              self.settings.isCostUsageEffectivelyEnabled(for: provider),
               self.isEnabled(provider),
               self.settings.costUsageHistoryDays == historyDays
         else {
