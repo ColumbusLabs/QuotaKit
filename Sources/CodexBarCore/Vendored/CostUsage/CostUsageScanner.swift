@@ -3849,7 +3849,8 @@ enum CostUsageScanner {
         guard context.shouldBoundCatchUp else { return }
         if context.shouldSeedBoundedQueue {
             if let migrationSeedPathKeys = context.migrationSeedPathKeys {
-                self.reseedCodexActiveLookbackPathKeys(migrationSeedPathKeys, state: &state)
+                self.reseedCodexActiveLookbackPathKeys(
+                    migrationSeedPathKeys, prioritizeExisting: true, state: &state)
             } else {
                 self.appendCodexActiveLookbackPaths(
                     context.preferNewest ? self.sortedCodexSessionFilesNewestFirst(context.seedFiles) : context
@@ -3883,6 +3884,7 @@ enum CostUsageScanner {
 
     private static func reseedCodexActiveLookbackPathKeys(
         _ pathKeys: some Sequence<String>,
+        prioritizeExisting: Bool = false,
         state: inout CostUsageCodexActiveLookbackState)
     {
         var queuedPaths: Set<String> = []
@@ -3892,11 +3894,22 @@ enum CostUsageScanner {
             guard queuedPaths.insert(pathKey).inserted else { return }
             reseededPaths.append(pathKey)
         }
-        for path in pathKeys {
-            append(path)
-        }
-        for path in state.pendingFilePaths {
-            append(path)
+        // A migration must drain its existing waiters; newly discovered metadata can still
+        // take priority over the backlog when admission debt permits it.
+        if prioritizeExisting {
+            for path in state.pendingFilePaths {
+                append(path)
+            }
+            for path in pathKeys {
+                append(path)
+            }
+        } else {
+            for path in pathKeys {
+                append(path)
+            }
+            for path in state.pendingFilePaths {
+                append(path)
+            }
         }
         state.pendingFilePaths = reseededPaths
     }
