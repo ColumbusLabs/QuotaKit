@@ -164,6 +164,46 @@ struct SyncCodexMultiAccountIntegrationTests {
         #expect(percents == [10, 50, 80])
     }
 
+    // MARK: - Cached cost scope
+
+    @Test
+    func `cached Codex accounts do not sync opted out local cost`() async throws {
+        let alice = self.makeManagedAccount(email: "alice@example.com", homeSuffix: "alice-cost")
+        let bob = self.makeManagedAccount(email: "bob@example.com", homeSuffix: "bob-cost")
+        let (settings, store, mock, coordinator) = try self.setupCoordinator(
+            suite: "R5-Cached-Local-Cost-Opt-Out",
+            managedAccounts: [alice, bob])
+        // Account-scoped cost remains enabled after the local-ledger toggle.
+        // The cached ambient cost must still be invalidated by the revision change.
+        settings.costUsageEnabled = true
+        settings.codexLocalSessionCostLedgerEnabled = true
+
+        settings.codexActiveSource = .managedAccount(id: alice.id)
+        store._setSnapshotForTesting(self.makeCodexUsageSnapshot(for: alice), provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 300,
+                sessionCostUSD: 3,
+                last30DaysTokens: 300,
+                last30DaysCostUSD: 3,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+        await coordinator.pushCurrentSnapshot()
+        let firstAlice = try #require(mock.lastSnapshot?.providers.first { $0.accountEmail == alice.email })
+        #expect(firstAlice.costSummary?.sessionCostUSD == 3)
+
+        settings.codexActiveSource = .managedAccount(id: bob.id)
+        store._setSnapshotForTesting(self.makeCodexUsageSnapshot(for: bob), provider: .codex)
+        settings.codexLocalSessionCostLedgerEnabled = false
+        await coordinator.pushCurrentSnapshot()
+
+        let codexSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "codex" } ?? []
+        #expect(Set(codexSnapshots.compactMap(\.accountEmail)) == [alice.email, bob.email])
+        #expect(codexSnapshots.allSatisfy { $0.costSummary == nil })
+        #expect(codexSnapshots.allSatisfy { $0.primary != nil })
+    }
+
     // MARK: - Active source = .liveSystem
 
     @Test

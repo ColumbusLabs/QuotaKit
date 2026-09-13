@@ -199,7 +199,7 @@ struct CodexProfileHomeAccountTests {
 
     @Test
     @MainActor
-    func `ambient codex ledger remains visible when profile home selection changes`() throws {
+    func `ambient codex ledger remains visible when profile home selection changes`() async throws {
         let fixture = try Self.makeProfileHomeCostFixture(
             suite: "CodexProfileHomeAccountTests-ambient-ledger",
             localLedgerEnabled: true)
@@ -216,8 +216,19 @@ struct CodexProfileHomeAccountTests {
         let model = ProvidersPane(settings: fixture.settings, store: fixture.store)
             ._test_menuCardModel(for: .codex)
         #expect(fixture.store.tokenSnapshot(for: .codex) == ambientSnapshot)
+        #expect(fixture.store.tokenSnapshotForCurrentProviderConfig(for: .codex)?.snapshot == ambientSnapshot)
         #expect(model.tokenUsage?.sessionLine.contains("$56") == true)
         #expect(model.inlineUsageDashboard?.points.map(\.value) == [56])
+
+        await fixture.store.widgetSnapshotPersistTask?.value
+        fixture.store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .codex)
+        var widgetSnapshots: [WidgetSnapshot] = []
+        fixture.store._test_widgetSnapshotSaveOverride = { widgetSnapshots.append($0) }
+        defer { fixture.store._test_widgetSnapshotSaveOverride = nil }
+        fixture.store.persistWidgetSnapshot(reason: "ambient-account-switch")
+        await fixture.store.widgetSnapshotPersistTask?.value
+        #expect(widgetSnapshots.last?.entries.first { $0.provider == .codex }?.tokenUsage?.sessionCostUSD == 56)
     }
 
     @Test

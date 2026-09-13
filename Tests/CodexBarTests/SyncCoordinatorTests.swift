@@ -299,6 +299,72 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Codex local ledger opt out does not sync a stale cost snapshot`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-local-cost-opt-out")
+        settings.iCloudSyncEnabled = true
+        settings.codexLocalSessionCostLedgerEnabled = true
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 300,
+                sessionCostUSD: 3,
+                last30DaysTokens: 300,
+                last30DaysCostUSD: 3,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        #expect(mock.lastSnapshot?.providers.first?.costSummary?.sessionCostUSD == 3)
+
+        settings.codexLocalSessionCostLedgerEnabled = false
+        await coordinator.pushCurrentSnapshot()
+        #expect(store.tokenSnapshots[.codex] != nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) == nil)
+        #expect(mock.lastSnapshot?.providers.first?.costSummary == nil)
+    }
+
+    @Test
+    func `managed Codex cost does not sync as ambient before local scan`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-codex-managed-to-local")
+        settings.iCloudSyncEnabled = true
+        settings.costUsageEnabled = true
+        settings.codexActiveSource = .managedAccount(id: UUID())
+        try settings.setProviderEnabled(
+            provider: .codex,
+            metadata: #require(ProviderDefaults.metadata[.codex]),
+            enabled: true)
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, updatedAt: Date()), provider: .codex)
+        store._setTokenSnapshotForTesting(
+            CostUsageTokenSnapshot(
+                sessionTokens: 1200,
+                sessionCostUSD: 12,
+                last30DaysTokens: 1200,
+                last30DaysCostUSD: 12,
+                daily: [],
+                updatedAt: Date()),
+            provider: .codex)
+        #expect(store.tokenSnapshotScopeSignature(for: .codex).hasPrefix("codex:managed:"))
+
+        settings.codexLocalSessionCostLedgerEnabled = true
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+        #expect(store.tokenSnapshots[.codex] != nil)
+        #expect(store.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) == nil)
+        #expect(mock.lastSnapshot?.providers.first?.costSummary == nil)
+    }
+
+    @Test
     func `Cursor machine local fallback stays standalone and out of account sync`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-cursor-unowned-local-cost")
         settings.iCloudSyncEnabled = true

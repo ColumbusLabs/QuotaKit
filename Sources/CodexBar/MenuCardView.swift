@@ -160,6 +160,7 @@ struct UsageMenuCardView: View {
             var personalSpendLine: String?
             var presentation: Presentation = .detail
             var showsInProviderDetails = true
+            var percentStyle: PercentStyle = .used
         }
 
         let provider: UsageProvider
@@ -981,6 +982,7 @@ extension UsageMenuCardView.Model {
             Self.providerCostSection(
                 cost: input.snapshot?.providerCost,
                 style: providerCostStyle,
+                percentStyle: input.usageBarsShowUsed ? .used : .left,
                 isClaudeAdminAPI: isClaudeAdminAPI,
                 preferredCurrencyCode: input.preferredCurrencyCode)
         }
