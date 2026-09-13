@@ -19,6 +19,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.
 - Poe and OpenRouter: correct weekly usage totals and reject invalid dates or overflowing token totals.
 - Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.
+- Menu bar: normalize status-window coordinates across displays before detecting a blocked status item.
 - Mac packaging: sign nested Sparkle components before their enclosing bundles.
 
 ## 0.32.4.27 — 2026-09-04
