@@ -20,6 +20,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Kimi: surface an exhausted monthly membership quota in automatic menu-bar usage.
 - Devin: hide daily quota when the service explicitly marks it hidden while preserving weekly usage.
 - Z.ai: keep unavailable quota limits unknown instead of displaying a fabricated zero-usage window.
+- Poe and OpenRouter: correct weekly usage totals and reject invalid dates or overflowing token totals.
 - Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.
 - Mac packaging: sign nested Sparkle components before their enclosing bundles.
 
