@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Claude: make the capped Extra Usage progress fill follow the used/remaining display preference while preserving spend and percentage labels.
 - Codex: let older local cost scans advance under a steady stream of new sessions while keeping recent costs prioritized.
 - Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.
 - OpenCode Go: preserve API percentage units, including values between zero and one percent.
