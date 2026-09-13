@@ -834,7 +834,7 @@ extension CostUsageScanner {
             }
         }
 
-        if sessionAlreadyContributed {
+        if sessionAlreadyContributed, !Self.isCompleteEmptyCodexFragment(cached) {
             guard !cachedRows.isEmpty else { return false }
             let uniqueRows = Self.uniqueCodexRows(
                 rows: cachedRows,
@@ -873,6 +873,27 @@ extension CostUsageScanner {
             context: context,
             state: &state)
         return true
+    }
+
+    /// A completed rowless fragment can retain inventory evidence without suppressing
+    /// another file's usage. Growth must reparse it from the start: even out-of-window bare
+    /// usage can advance append ordinals without leaving cached rows.
+    static func isCompleteEmptyCodexFragment(_ usage: CostUsageFileUsage) -> Bool {
+        usage.days.isEmpty
+            && usage.codexRows?.isEmpty == true
+            && usage.codexTokenSnapshots?.isEmpty == true
+            && usage.codexTokenCheckpoints?.isEmpty != false
+            && usage.lastTotals == nil
+            && usage.lastCountedTotals == nil
+            && usage.lastRawTotalsBaseline == nil
+            && usage.lastRawTotalsWatermark == nil
+            && usage.seenRawTotals?.isEmpty != false
+            && usage.codexScanComplete == true
+            && usage.codexReplacementScanPending != true
+            && usage.parsedBytes == usage.size
+            && usage.codexScanTargetSize == usage.size
+            && usage.codexJSONLResumeState == nil
+            && !usage.hasBufferedCodexForkRetryLines
     }
 
     static func cachedCodexFileNeedsPriorityRescan(
@@ -1090,7 +1111,11 @@ extension CostUsageScanner {
         let migratedCached = sessionAlreadyContributed
             ? Self.codexFileUsageByFilteringRows(migrated, rows: retainedCachedRows, context: context)
             : migrated
-        if sessionAlreadyContributed, migratedCached.days.isEmpty, uniqueRows.isEmpty {
+        if sessionAlreadyContributed,
+           migratedCached.days.isEmpty,
+           uniqueRows.isEmpty,
+           !Self.isCompleteEmptyCodexFragment(migratedCached)
+        {
             Self.dropCachedCodexFile(path: input.metadata.path, cached: cached, cache: &cache)
             return true
         }
