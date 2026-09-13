@@ -64,6 +64,15 @@ struct CostUsageRequestedWindowProjectionTests {
             untilKey: range.untilKey,
             calendar: range.calendar))
 
+        var legacyRequestedCache = cache
+        legacyRequestedCache.files[requestedURL.path]?.codexParserRevision = nil
+        #expect(!CostUsageScanner.codexRequestedWindowProjectionCanPublish(
+            cache: legacyRequestedCache,
+            roots: roots,
+            sinceKey: range.sinceKey,
+            untilKey: range.untilKey,
+            calendar: range.calendar))
+
         var incompleteRequestedCache = cache
         incompleteRequestedCache.files[requestedURL.path]?.codexScanComplete = false
         #expect(!CostUsageScanner.codexRequestedWindowProjectionCanPublish(

@@ -6,6 +6,7 @@ extension CostUsageScanner {
         let migratedCached: CostUsageFileUsage?
         let parsed: CodexParseResult
         let replacementWasPending: Bool
+        let parserRevisionNeedsReplacement: Bool
         let replacementGeneration: Bool
         let replacementPending: Bool
         let scanComplete: Bool
@@ -170,7 +171,11 @@ extension CostUsageScanner {
     {
         try context.checkCancellation?()
         let cached = input.cached
-        let migratedCached = cached.map { Self.codexFileUsageWithPricingMetadata($0, context: context) }
+        // Older rows may combine events split by the corrected parser or include inherited
+        // subagent history. A replacement must never merge those rows back into the new ledger.
+        let parserRevisionNeedsReplacement = cached?.hasCurrentCodexParser == false
+        let migratedCached = parserRevisionNeedsReplacement
+            ? nil : cached.map { Self.codexFileUsageWithPricingMetadata($0, context: context) }
         let replacementWasPending = cached?.codexReplacementScanPending == true
         let replacementResume: (offset: Int64, usage: CostUsageFileUsage)? = {
             guard replacementWasPending,
@@ -230,6 +235,9 @@ extension CostUsageScanner {
         // Only a replayable lineage prefix needs staged replacement. Ordinary bounded rescans
         // retain the established partial-resume accounting until append can continue them. A
         // complete pass is replacement-shaped even without buffers so stale rows are removed.
+        // Ordinary bounded migrations persist their parsed prefix, then append the remaining
+        // events. Staging only the offset would discard that prefix because the committed ledger
+        // is intentionally not replaced while a lineage replay buffer is unresolved.
         let replacementGeneration = replacementWasPending || hasReplayBuffer || sourceScanComplete
         // Unresolved lineage is still staged work. Do not replace a committed subagent ledger
         // with an empty/partial replay while its parent snapshots are unavailable.
@@ -248,6 +256,7 @@ extension CostUsageScanner {
             migratedCached: migratedCached,
             parsed: parsed,
             replacementWasPending: replacementWasPending,
+            parserRevisionNeedsReplacement: parserRevisionNeedsReplacement,
             replacementGeneration: replacementGeneration,
             replacementPending: replacementPending,
             scanComplete: scanComplete,
@@ -364,6 +373,11 @@ extension CostUsageScanner {
             codexReplacementScanPending: plan.replacementGeneration
                 ? plan.replacementPending
                 : nil,
+            // Keep the old marker until the full replacement commits. A resumed bounded pass
+            // must still discard superseded rows outside its current report window.
+            codexParserRevision: plan.replacementPending && plan.parserRevisionNeedsReplacement
+                ? input.cached?.codexParserRevision
+                : CostUsageFileUsage.currentCodexParserRevision,
             codexJSONLResumeState: parsed.jsonlResumeState,
             codexBufferedSubagentLines: parsed.bufferedSubagentLines,
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)

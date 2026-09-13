@@ -1291,7 +1291,8 @@ enum CostUsageScanner {
                             sinceKey: dayKey,
                             untilKey: dayKey,
                             calendar: calendar)
-                    let matchesPersistedSnapshot = usage.codexScanComplete == true
+                    let matchesPersistedSnapshot = usage.hasCurrentCodexParser
+                        && usage.codexScanComplete == true
                         && !usage.hasBufferedCodexForkRetryLines
                         && usage.mtimeUnixMs == metadata.mtimeUnixMs
                         && usage.size == metadata.size
@@ -2096,6 +2097,7 @@ enum CostUsageScanner {
             let standardizedPath = fileURL.standardizedFileURL.path
             let cachedUsage = self.cachedFiles[fileURL.path] ?? self.cachedFiles[standardizedPath]
             guard let usage = cachedUsage,
+                  usage.hasCurrentCodexParser,
                   usage.sessionId == sessionId,
                   usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId,
                   let cachedSnapshots = usage.codexTokenSnapshots
@@ -2415,7 +2417,8 @@ enum CostUsageScanner {
 
         func matchesPersistedSnapshot(fileURL: URL, usage: CostUsageFileUsage) -> Bool {
             let metadata = Self.codexFileMetadata(fileURL: fileURL)
-            guard usage.codexScanComplete == true,
+            guard usage.hasCurrentCodexParser,
+                  usage.codexScanComplete == true,
                   !usage.hasBufferedCodexForkRetryLines,
                   usage.codexScanFileId == metadata.fileId,
                   (usage.parsedBytes ?? usage.size) >= usage.size
@@ -2559,7 +2562,8 @@ enum CostUsageScanner {
 
         func matchesPersistedSnapshot(fileURL: URL, usage: CostUsageFileUsage) -> Bool {
             let metadata = Self.codexFileMetadata(fileURL: fileURL)
-            guard usage.codexScanComplete == true,
+            guard usage.hasCurrentCodexParser,
+                  usage.codexScanComplete == true,
                   !usage.hasBufferedCodexForkRetryLines,
                   usage.codexScanFileId == metadata.fileId,
                   (usage.parsedBytes ?? usage.size) >= usage.size
@@ -3783,7 +3787,8 @@ enum CostUsageScanner {
         }
 
         let cachedPendingPaths = cache.files.compactMap { path, usage -> String? in
-            guard usage.codexScanComplete == false || usage.hasBufferedCodexForkRetryLines else { return nil }
+            guard usage.codexScanComplete == false || usage.hasBufferedCodexForkRetryLines
+                || !usage.hasCurrentCodexParser else { return nil }
             let fileURL = URL(fileURLWithPath: path)
             guard Self.isWithinCodexRoots(fileURL: fileURL, roots: roots) else { return nil }
             return Self.codexResolvedPath(fileURL)
@@ -3873,6 +3878,7 @@ enum CostUsageScanner {
         return usage.size != metadata.size
             || usage.mtimeUnixMs != metadata.mtimeUnixMs
             || usage.codexScanFileId != metadata.fileId
+            || !usage.hasCurrentCodexParser
     }
 
     private static func reseedCodexActiveLookbackPathKeys(
@@ -4201,6 +4207,7 @@ enum CostUsageScanner {
                 return resolvedPath
             }
             guard let usage = cache.files[fileURL.path],
+                  usage.hasCurrentCodexParser,
                   usage.codexScanComplete == true,
                   !usage.hasBufferedCodexForkRetryLines,
                   usage.codexScanFileId == metadata.fileId,
@@ -5882,6 +5889,7 @@ enum CostUsageScanner {
 
                     guard
                         line.bytes.containsAscii(#""type":"event_msg""#)
+                        || line.bytes.containsAscii(#""event_msg""#)
                         || line.bytes.containsAscii(#""type":"turn_context""#)
                         || line.bytes.containsAscii(#""turn_context""#)
                         || line.bytes.containsAscii(#""type":"session_meta""#)
@@ -6105,8 +6113,9 @@ enum CostUsageScanner {
                 if forkedFromId == nil {
                     forkedFromId = shape.inferredParentSessionID
                 }
+                let explicitStartOrdinal = subagentHistoryStartOrdinal.flatMap { $0 >= 0 ? $0 : nil }
                 let explicitOwnedSuffix: CodexSubagentRolloutShape.CodexSubagentOwnedSuffix? = {
-                    guard let startOrdinal = subagentHistoryStartOrdinal,
+                    guard let startOrdinal = explicitStartOrdinal,
                           let firstOwnedLine = pendingSubagentLines.first(where: {
                               ($0.ordinal ?? Int.min) >= startOrdinal
                           })
@@ -6143,9 +6152,11 @@ enum CostUsageScanner {
                         rawTotalsBaseline: rawTotalsBaseline)
                 }()
 
-                var ownedSuffix = explicitOwnedSuffix ?? shape.ownedSuffix
+                // The explicit ordinal excludes earlier inferred markers even before owned records arrive.
+                let hasExplicitBoundary = explicitStartOrdinal != nil
+                var ownedSuffix = hasExplicitBoundary ? explicitOwnedSuffix : shape.ownedSuffix
                 var locallyConfirmedBoundary = explicitOwnedSuffix != nil
-                if explicitOwnedSuffix != nil {
+                if hasExplicitBoundary {
                     subagentCounterSemantics = .copiedPrefix
                 } else if let candidate = shape.ownedSuffixCandidate {
                     if candidate.isLocallyConfirmed {
@@ -6168,11 +6179,11 @@ enum CostUsageScanner {
                         }
                     }
                 }
+                usesLocalSubagentBoundary = hasExplicitBoundary || ownedSuffix != nil
                 suppressUnownedCopiedPrefix = subagentCounterSemantics == .copiedPrefix
                     && ownedSuffix == nil
-                    && forkedFromId == nil
+                    && (hasExplicitBoundary || forkedFromId == nil)
                 if let ownedSuffix {
-                    usesLocalSubagentBoundary = true
                     previousTotals = nil
                     // Keep totals-derived accounting after the boundary. Real flat-total rows
                     // repeat the previous token payload with a fresh outer timestamp; their
@@ -6363,7 +6374,7 @@ enum CostUsageScanner {
         // Called only after keepCachedCodexFileIfFresh failed. Forced rescans, priority invalidation,
         // and other paths that reread JSONL must still charge the file; the sole zero-work exception
         // is a validated same-size buffered replay.
-        guard let cached else { return max(0, metadata.size) }
+        guard let cached, cached.hasCurrentCodexParser else { return max(0, metadata.size) }
         if Self.isValidatedSameSizeBufferedCodexForkRetry(metadata: metadata, cached: cached) {
             return 0
         }
@@ -6420,6 +6431,9 @@ enum CostUsageScanner {
                     : nil
             })
         let needsPricingMetadataMigration = !pricingMetadataMigrationPathKeys.isEmpty
+        let parserMigrationPathKeys = Set(cache.files.compactMap { path, usage in
+            usage.hasCurrentCodexParser ? nil : Self.codexPathKey(URL(fileURLWithPath: path))
+        })
         let needsProjectMetadataMigration = cache.codexProjectMetadataVersion != Self.codexProjectMetadataVersion
         let modelsDevLoad = ModelsDevCache.load(now: now, cacheRoot: options.cacheRoot)
         let modelsDevCatalog = modelsDevLoad.artifact?.catalog
@@ -6492,9 +6506,11 @@ enum CostUsageScanner {
                 || priorityTurnsChanged)
         let cacheWideMigrationPendingPathKeys = pricingMetadataMigrationPathKeys
             .union(turnIDCacheMigrationPathKeys)
+            .union(parserMigrationPathKeys)
         let requiresCacheWideFileReprocessing = requiresAllFilesForCacheWideMigration
             || !cacheWideMigrationPendingPathKeys.isEmpty
         let shouldRefresh = options.forceRescan
+            || !parserMigrationPathKeys.isEmpty
             || windowExpanded
             || rootsChanged
             || needsPricingMetadataMigration
@@ -6910,6 +6926,7 @@ enum CostUsageScanner {
             return true
         }
         guard var usage = cache.files[path],
+              usage.hasCurrentCodexParser,
               usage.codexScanComplete != false,
               !usage.hasBufferedCodexForkRetryLines,
               usage.codexScanFileId == identity,
@@ -7209,6 +7226,11 @@ enum CostUsageScanner {
 
             let cachedSinceKey = cache.scanSinceKey
             let cachedUntilKey = cache.scanUntilKey
+            // Once a bounded migration starts, its marker becomes current while the file is
+            // incomplete. Retain both cached window edges until that prefix finishes parsing.
+            let parserMigrationPending = cache.files.values.contains {
+                !$0.hasCurrentCodexParser || $0.codexScanComplete == false
+            }
             let shouldRunColdCacheLookback = cache.files.isEmpty || plan.rootsChanged
             let coldCacheLookbackStart = Self.localStartOfDay(range.scanSinceKey, calendar: options.calendar)
             let scanBudget = options.codexScanBudgetForTesting ?? CodexScanBudget(
@@ -7664,7 +7686,9 @@ enum CostUsageScanner {
                 cachedUntilKey: options.forceRescan ? nil : cachedUntilKey,
                 cachedRetainedLookbackDays: options.forceRescan ? nil : cache.codexRetainedLookbackDays,
                 requestedSinceKey: range.scanSinceKey,
-                requestedUntilKey: range.scanUntilKey,
+                requestedUntilKey: parserMigrationPending
+                    ? max(range.scanUntilKey, cachedUntilKey ?? range.scanUntilKey)
+                    : range.scanUntilKey,
                 calendar: range.calendar)
             let metadataScanRange: CostUsageDayRange = if
                 let retainedSince = Self.parseDayKey(
@@ -7681,7 +7705,10 @@ enum CostUsageScanner {
             } else {
                 range
             }
-            let catchUpScanRange = options.useCodexCatchUpWorkingSet ? metadataScanRange : range
+            // A parser migration must cover both ends of retained history. A narrow historical
+            // request must not discard newer cached days when its file is reparsed.
+            let catchUpScanRange = options.useCodexCatchUpWorkingSet || parserMigrationPending
+                ? metadataScanRange : range
             let scanContext = Self.codexFileScanContext(
                 range: catchUpScanRange,
                 options: options,
@@ -7901,7 +7928,9 @@ enum CostUsageScanner {
                 cachedUntilKey: shouldRetainWiderWindow ? cachedUntilKey : nil,
                 cachedRetainedLookbackDays: shouldRetainWiderWindow ? cache.codexRetainedLookbackDays : nil,
                 requestedSinceKey: range.scanSinceKey,
-                requestedUntilKey: range.scanUntilKey,
+                requestedUntilKey: parserMigrationPending
+                    ? max(range.scanUntilKey, cachedUntilKey ?? range.scanUntilKey)
+                    : range.scanUntilKey,
                 calendar: range.calendar)
             let retainedSinceKey = retainedWindow.sinceKey
             let retainedUntilKey = retainedWindow.untilKey
@@ -8153,6 +8182,7 @@ enum CostUsageScanner {
         paths.reduce(into: [String: Bool]()) { result, path in
             let standardizedPath = URL(fileURLWithPath: path).standardizedFileURL.path
             guard let usage = cache.files[path] ?? cache.files[standardizedPath],
+                  usage.hasCurrentCodexParser,
                   !usage.hasBufferedCodexForkRetryLines
             else {
                 result[path] = false
@@ -8189,6 +8219,7 @@ enum CostUsageScanner {
             guard let usage else { continue }
             let identityMatches = usage.codexScanFileId == nil || usage.codexScanFileId == metadata.fileId
             guard identityMatches,
+                  usage.hasCurrentCodexParser,
                   usage.mtimeUnixMs == metadata.mtimeUnixMs,
                   usage.size == metadata.size
             else { continue }

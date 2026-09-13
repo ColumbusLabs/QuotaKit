@@ -241,6 +241,7 @@ extension CostUsageScanner {
         codexScanTargetSize: Int64? = nil,
         codexScanComplete: Bool? = nil,
         codexReplacementScanPending: Bool? = nil,
+        codexParserRevision: Int? = CostUsageFileUsage.currentCodexParserRevision,
         codexJSONLResumeState: CostUsageJsonl.ResumeState? = nil,
         codexBufferedSubagentLines: [CodexBufferedFastLine]? = nil,
         codexBufferedUnresolvedForkLines: [CodexBufferedFastLine]? = nil) -> CostUsageFileUsage
@@ -285,7 +286,8 @@ extension CostUsageScanner {
             codexReplacementScanPending: codexReplacementScanPending,
             codexJSONLResumeState: codexJSONLResumeState,
             codexBufferedSubagentLines: codexBufferedSubagentLines,
-            codexBufferedUnresolvedForkLines: codexBufferedUnresolvedForkLines)
+            codexBufferedUnresolvedForkLines: codexBufferedUnresolvedForkLines,
+            codexParserRevision: codexParserRevision)
     }
 
     static func needsCodexPricingMetadata(_ usage: CostUsageFileUsage) -> Bool {
@@ -806,7 +808,7 @@ extension CostUsageScanner {
         cache: inout CostUsageCache,
         state: inout CodexScanState) throws -> Bool
     {
-        guard let cached = input.cached else { return false }
+        guard let cached = input.cached, cached.hasCurrentCodexParser else { return false }
         let needsSessionId = cached.sessionId == nil
         guard cached.mtimeUnixMs == input.metadata.mtimeUnixMs,
               cached.size == input.metadata.size,
@@ -944,7 +946,8 @@ extension CostUsageScanner {
         maxBytesToRead: Int64? = nil) throws -> Bool
     {
         try context.checkCancellation?()
-        guard let cached = input.cached, cached.sessionId != nil, !context.forceFullScan else { return false }
+        guard let cached = input.cached, cached.hasCurrentCodexParser,
+              cached.sessionId != nil, !context.forceFullScan else { return false }
         // A bounded full replacement has its own staged generation. Re-enter the full parser so
         // the buffered prefix is replayed from a neutral row index; merging it through this
         // incremental path would append the replay with fresh indexes.

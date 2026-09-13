@@ -529,6 +529,7 @@ extension CostUsageStore {
         var divergentTotals: Bool?
         var interleavedTotals: Bool?
         var replacementScanColdStart: Bool?
+        var parserRevision: Int?
     }
 
     private struct StoredPriorityState: Codable {
@@ -755,7 +756,8 @@ extension CostUsageStore {
                 codexBufferedUnresolvedForkLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .unresolvedFork) : nil,
                 codexHasBufferedSubagentLines: file.hasBufferedSubagentLines,
-                codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines)
+                codexHasBufferedUnresolvedForkLines: file.hasBufferedUnresolvedForkLines,
+                codexParserRevision: details.parserRevision)
             cache.files[file.path] = usage
         }
         Self.enqueueDeferredCodexIdentityValidation(
@@ -996,6 +998,7 @@ extension CostUsageStore {
         guard !discoveryHasPendingWork else { return }
         let filesHavePendingWork = cache.files.values.contains {
             $0.codexScanComplete == false || $0.hasBufferedCodexForkRetryLines
+                || !$0.hasCurrentCodexParser
         }
         guard !filesHavePendingWork else { return }
         let expectedTotalFiles = max(0, cache.codexScanTotalFiles ?? 0)
@@ -1069,6 +1072,7 @@ extension CostUsageStore {
                 ?? cachedFilesByNormalizedPath[Self.normalizedCodexPath(path)]
                 ?? cachedFilesByIdentity[fileId],
                 usage.codexScanComplete != false,
+                usage.hasCurrentCodexParser,
                 !usage.hasBufferedCodexForkRetryLines,
                 Self.matchesCompletedCodexFileSnapshot(
                     usage: usage,
@@ -1087,7 +1091,8 @@ extension CostUsageStore {
         metadata: CostUsageScanner.CodexFileMetadata,
         fileURL: URL) -> Bool
     {
-        guard usage.mtimeUnixMs == metadata.mtimeUnixMs,
+        guard usage.hasCurrentCodexParser,
+              usage.mtimeUnixMs == metadata.mtimeUnixMs,
               usage.size == metadata.size,
               let cachedIdentity = usage.codexScanFileId,
               let currentIdentity = metadata.fileId
@@ -1124,6 +1129,8 @@ extension CostUsageStore {
         let committedDetails = baseline.file?.scanState.detailsPayload.flatMap {
             try? JSONDecoder().decode(StoredFileDetails.self, from: $0)
         }
+        let parserStateChanged = committedDetails?.parserRevision != usage.codexParserRevision
+        let canReuseRows = baseline.canReuseRows && !parserStateChanged
         let coldStartStaging = replacementPending && (
             committedDetails?.replacementScanColdStart == true
                 || (baseline.rowCount == 0 && baseline.snapshotCount == 0))
@@ -1143,7 +1150,8 @@ extension CostUsageStore {
             hasSeenRawTotals: usage.seenRawTotals != nil,
             divergentTotals: usage.hasDivergentTotals,
             interleavedTotals: usage.hasInterleavedTotals,
-            replacementScanColdStart: coldStartStaging ? true : nil)
+            replacementScanColdStart: coldStartStaging ? true : nil,
+            parserRevision: usage.codexParserRevision)
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
             // carried by the accumulator/buffers, while old rows and snapshots stay in place.
@@ -1227,14 +1235,14 @@ extension CostUsageStore {
         let newParsedBytes = file.parsedBytes ?? 0
         let replacingStagedGeneration = usage.codexReplacementScanPending == false
             || baseline.file?.scanState.replacementScanPending == true
-        let appendSafe = baseline.canReuseRows
+        let appendSafe = canReuseRows
             && baseline.file?.scanState.fileIdentity == file.scanState.fileIdentity
             && oldParsedBytes < newParsedBytes
         let stableCursor = oldParsedBytes == newParsedBytes
         let snapshotAction: CostUsagePersistenceAction = replacingStagedGeneration
             ? .replace
             : CostUsagePersistencePlanner.action(
-                canReuse: baseline.canReuseRows,
+                canReuse: canReuseRows,
                 stableCursor: stableCursor,
                 appendSafe: appendSafe,
                 persistedCount: baseline.snapshotCount,
@@ -1254,7 +1262,7 @@ extension CostUsageStore {
         let rowAction: CostUsagePersistenceAction = replacingStagedGeneration
             ? .replace
             : CostUsagePersistencePlanner.action(
-                canReuse: baseline.canReuseRows,
+                canReuse: canReuseRows,
                 stableCursor: stableCursor,
                 appendSafe: appendSafe,
                 persistedCount: baseline.rowCount,
