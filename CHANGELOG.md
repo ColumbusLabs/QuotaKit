@@ -13,6 +13,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.
 - OpenCode Go: preserve API percentage units, including values between zero and one percent.
 - Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.
+- Poe and OpenRouter: correct weekly usage totals and reject invalid dates or overflowing token totals.
 - Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.
 - Mac packaging: sign nested Sparkle components before their enclosing bundles.
 
