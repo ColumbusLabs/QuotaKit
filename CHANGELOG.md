@@ -9,6 +9,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex: publish local-only cost scans and clear stale account cost when switching ledger scope or opting out.
+- Privacy mode: mask project and source identity in cost history and the spend dashboard, including already-open menu charts.
 - Claude: make the capped Extra Usage progress fill follow the used/remaining display preference while preserving spend and percentage labels.
 - Codex: let older local cost scans advance under a steady stream of new sessions while keeping recent costs prioritized.
 - Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.

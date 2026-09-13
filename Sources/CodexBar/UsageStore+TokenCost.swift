@@ -121,9 +121,19 @@ extension UsageStore {
         for provider: UsageProvider) -> CurrentProviderConfigTokenPublication?
     {
         guard let publication = self.tokenSnapshotPublications[provider.instanceID],
-              publication.providerConfigRevision == self.settings.providerConfigRevision(for: provider),
               publication.scopeSignature == self.tokenSnapshotScopeSignature(for: provider)
         else { return nil }
+        let currentProviderConfig = publication.providerConfigRevision ==
+            self.settings.providerConfigRevision(for: provider)
+        // Local Codex cost belongs to this Mac, not the selected Codex account. Account selection
+        // may advance provider config while the ambient cost scope remains unchanged.
+        // Provider-specific by design: Codex local ledger publications use an ambient scope.
+        let currentLocalCodexScope = provider == .codex &&
+            self.settings.codexLocalSessionCostLedgerEnabled &&
+            self.settings.isCostUsageEffectivelyEnabled(for: .codex) &&
+            self.isEnabled(.codex) &&
+            publication.scopeSignature.hasPrefix("codex:ambient|")
+        guard currentProviderConfig || currentLocalCodexScope else { return nil }
         return CurrentProviderConfigTokenPublication(
             snapshot: publication.snapshot, publicationRevision: publication.publicationRevision)
     }

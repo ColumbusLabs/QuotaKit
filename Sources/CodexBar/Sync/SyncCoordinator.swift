@@ -1388,7 +1388,8 @@ final class SyncCoordinator {
             self.multiAccountCache.record(
                 activeSnap,
                 providerID: codexProviderID,
-                accountID: activeAccountID)
+                accountID: activeAccountID,
+                costSettingsRevision: self.settings.costUsageSettingsRevision)
         }
 
         // Append every cached non-active Codex snapshot so this push covers
@@ -1398,7 +1399,11 @@ final class SyncCoordinator {
         // in the L1 cleanup diff during the refresh race window.
         let cachedNonActive = self.multiAccountCache.cachedSnapshots(
             providerID: codexProviderID,
-            excludingAccountID: activeAccountID)
+            excludingAccountID: activeAccountID,
+            currentCostSettingsRevision: self.settings.costUsageSettingsRevision,
+            // Provider-specific by design: only Codex has an ambient local cost ledger.
+            redactCost: self.settings.codexLocalSessionCostLedgerEnabled ||
+                !self.settings.isCostUsageEffectivelyEnabled(for: .codex))
         providerSnapshots.append(contentsOf: cachedNonActive)
     }
 
@@ -1585,8 +1590,14 @@ final class SyncCoordinator {
         // transient refresh failures and rejects an incomplete Codex replacement. Falling
         // back to the raw dictionary keeps this mapper compatible with provider-derived
         // paths that do not install a publication wrapper.
-        let storedTokenSnapshot = self.store.tokenSnapshotPublicationForCurrentProviderConfig(
-            for: provider)?.snapshot ?? self.store.tokenSnapshots[provider.instanceID]
+        let currentPublication = self.store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)
+        // Codex scanner results always have a publication slot. A raw fallback after its scope
+        // changes could attach an opted-out local ledger or a prior account's cost to CloudKit.
+        // Provider-specific by design: Codex scanner snapshots require a current publication.
+        let rawFallback = provider == .codex && self.store.tokenSnapshotPublications[provider.instanceID] != nil
+            ? nil
+            : self.store.tokenSnapshots[provider.instanceID]
+        let storedTokenSnapshot = currentPublication?.snapshot ?? rawFallback
         let canonicalScope = self.canonicalCostScope(
             for: provider,
             tokenSnapshot: storedTokenSnapshot)
