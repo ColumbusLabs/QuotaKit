@@ -293,16 +293,13 @@ extension CostUsageScanner {
             state: &state)
         context.workRecorder?.record(processed: uniqueRows.count, repriced: uniqueRows.count)
         let usageDays = plan.usageDays
-        if !plan.replacementGeneration,
-           let sessionId,
-           state.contributingSessionIds.contains(sessionId),
-           uniqueRows.isEmpty,
-           usageDays.isEmpty,
-           parsed.bufferedSubagentLines == nil,
-           parsed.bufferedUnresolvedForkLines == nil
-        {
-            return nil
-        }
+        let duplicateWithoutUniqueUsage = plan.scanComplete
+            && !plan.replacementPending
+            && sessionId.map { state.contributingSessionIds.contains($0) } == true
+            && uniqueRows.isEmpty
+            && usageDays.isEmpty
+            && parsed.bufferedSubagentLines == nil
+            && parsed.bufferedUnresolvedForkLines == nil
         let accounting = Self.codexRescanAccounting(
             plan: plan,
             context: context,
@@ -382,6 +379,11 @@ extension CostUsageScanner {
             codexBufferedSubagentLines: parsed.bufferedSubagentLines,
             codexBufferedUnresolvedForkLines: parsed.bufferedUnresolvedForkLines)
             .refreshingCodexWorkspaceUsageFingerprint()
+        if duplicateWithoutUniqueUsage,
+           !parsed.rows.isEmpty || !Self.isCompleteEmptyCodexFragment(usage)
+        {
+            return nil
+        }
         let session = CodexScannedSession(
             id: sessionId,
             days: plan.replacementPending ? [:] : accounting.usageDays)
