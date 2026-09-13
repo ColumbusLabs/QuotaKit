@@ -292,6 +292,56 @@ struct ProviderPluginDetailsParityTests {
             ]))])
     }
 
+    @Test(arguments: [false, true])
+    func `zai unknown limits do not fabricate an unused quota`(unknownLimit: Bool) async throws {
+        let limits: [[String: Any]] = unknownLimit
+            ? [["type": "FUTURE_LIMIT", "unit": 3, "number": 5, "percentage": 40]] : []
+        let payload: [String: Any] = [
+            "code": 200,
+            "success": true,
+            "data": ["planName": "Pro", "limits": limits],
+        ]
+        let fixtureData = try JSONSerialization.data(withJSONObject: payload)
+        let fixture = try #require(String(data: fixtureData, encoding: .utf8))
+        let transport = Self.transport { request in
+            guard request.url?.path.hasSuffix("/quota/limit") == true else {
+                throw FixtureError.unexpectedURL(request.url)
+            }
+            return fixture
+        }
+        let snapshot = try await ProviderPluginRuntime(bundledPlugin: "zai", transport: transport)
+            .fetchUsage(secrets: ["Z_AI_API_KEY": "fixture-key"])
+
+        #expect(snapshot.primary == nil)
+        #expect(snapshot.secondary == nil)
+        #expect(snapshot.extraRateWindows?.isEmpty != false)
+        #expect(snapshot.identity?.loginMethod == "Pro")
+        #expect(snapshot.details.map(\.title) == ["Quota details"])
+    }
+
+    @Test(arguments: ["TOKENS_LIMIT", "CREDIT_LIMIT", "TIME_LIMIT"])
+    func `zai explicit zero usage remains a measured quota`(limitType: String) async throws {
+        let payload: [String: Any] = [
+            "code": 200,
+            "success": true,
+            "data": ["limits": [["type": limitType, "unit": 3, "number": 5, "percentage": 0]]],
+        ]
+        let fixtureData = try JSONSerialization.data(withJSONObject: payload)
+        let fixture = try #require(String(data: fixtureData, encoding: .utf8))
+        let transport = Self.transport { request in
+            guard request.url?.path.hasSuffix("/quota/limit") == true else {
+                throw FixtureError.unexpectedURL(request.url)
+            }
+            return fixture
+        }
+        let snapshot = try await ProviderPluginRuntime(bundledPlugin: "zai", transport: transport)
+            .fetchUsage(secrets: ["Z_AI_API_KEY": "fixture-key"])
+
+        #expect(snapshot.primary?.usedPercent == 0)
+        #expect(snapshot.primary?.windowMinutes == 300)
+        #expect(snapshot.secondary == nil)
+    }
+
     @Test
     func `zai fixture has Swift core parity and stable details`() async throws {
         let transport = Self.transport { request in
