@@ -53,7 +53,8 @@ public struct CodexOAuthCredentials: Equatable, Sendable {
             return false
         }
         if let expiresAt {
-            return expiresAt.timeIntervalSinceNow <= 60
+            let refreshWindow: TimeInterval = self.source == .codexHome ? 5 * 60 : 60
+            return expiresAt.timeIntervalSinceNow <= refreshWindow
         }
         guard let lastRefresh else { return true }
         let eightDays: TimeInterval = 8 * 24 * 60 * 60
@@ -90,6 +91,10 @@ public enum CodexOAuthCredentialsError: LocalizedError, Sendable {
 }
 
 public enum CodexOAuthCredentialsStore {
+    /// Chrono 0.4 accepts UTC timestamps from year -262143 through year 262142.
+    private static let codexJWTExpirationRange: ClosedRange<Int64> =
+        -8_334_601_228_800...8_210_266_876_799
+
     private static func authFilePath(
         env: [String: String] = ProcessInfo.processInfo.environment,
         fileManager: FileManager = .default,
@@ -283,6 +288,7 @@ public enum CodexOAuthCredentialsStore {
                 Self.stringValue(in: tokens, snakeCaseKey: "account_id", camelCaseKey: "accountId"))
             ?? Self.accountIDFromJWT(idToken: idToken, accessToken: accessToken)
         let lastRefresh = Self.parseLastRefresh(from: json["last_refresh"])
+        let expiresAt = source == .codexHome ? Self.expirationFromJWT(accessToken: accessToken) : nil
 
         return CodexOAuthCredentials(
             accessToken: accessToken,
@@ -290,6 +296,7 @@ public enum CodexOAuthCredentialsStore {
             idToken: idToken,
             accountId: accountId,
             lastRefresh: lastRefresh,
+            expiresAt: expiresAt,
             source: source)
     }
 
@@ -506,6 +513,49 @@ public enum CodexOAuthCredentialsStore {
             }
         }
         return nil
+    }
+
+    /// Best-effort scheduling hint only: the service still authenticates the unchanged bearer token.
+    private static func expirationFromJWT(accessToken: String) -> Date? {
+        let parts = accessToken.split(separator: ".", omittingEmptySubsequences: false)
+        guard parts.count == 3, parts.allSatisfy({ !$0.isEmpty }) else { return nil }
+        var encoded = String(parts[1])
+            .replacingOccurrences(of: "-", with: "+")
+            .replacingOccurrences(of: "_", with: "/")
+        encoded += String(repeating: "=", count: (4 - encoded.count % 4) % 4)
+        guard let payloadData = Data(base64Encoded: encoded),
+              let expiration = Self.integerExpirationClaim(in: payloadData),
+              Self.codexJWTExpirationRange.contains(expiration)
+        else { return nil }
+        return Date(timeIntervalSince1970: TimeInterval(expiration))
+    }
+
+    private static func integerExpirationClaim(in data: Data) -> Int64? {
+        guard let payload = String(data: data, encoding: .utf8),
+              (try? JSONSerialization.jsonObject(with: data)) is [String: Any],
+              let lexer = try? NSRegularExpression(pattern: #""(?:[^"\\]|\\.)*"|[{}\[\]:,]|[^\s{}\[\]:,]+"#)
+        else { return nil }
+
+        // Foundation validates JSON above. Inspect raw tokens only to retain integer spelling:
+        // NSNumber/JSONDecoder can normalize 1.0 or 1e0 to integers differently across platforms.
+        let tokens = lexer.matches(in: payload, range: NSRange(payload.startIndex..., in: payload))
+            .compactMap { Range($0.range, in: payload).map { String(payload[$0]) } }
+        var depth = 0
+        var expiration: Int64?
+        for (index, token) in tokens.enumerated() {
+            switch token {
+            case "{", "[": depth += 1
+            case "}", "]": depth -= 1
+            default:
+                guard depth == 1, index + 2 < tokens.count, tokens[index + 1] == ":",
+                      (try? JSONDecoder().decode(String.self, from: Data(token.utf8))) == "exp"
+                else { continue }
+                // Duplicate claims are ambiguous; keep the existing age fallback instead.
+                guard expiration == nil, let integer = Int64(tokens[index + 2]) else { return nil }
+                expiration = integer
+            }
+        }
+        return expiration
     }
 }
 

@@ -933,7 +933,8 @@ struct CostUsageBoundedProgressTests {
         let cache = CostUsageStoreAccess.read(cacheRoot: env.cacheRoot)
         let roots = CostUsageScanner.codexSessionsRoots(options: options)
         let closedPath = try #require(cache.files.keys.first {
-            $0.hasSuffix(closedURL.lastPathComponent)
+            URL(fileURLWithPath: $0).resolvingSymlinksInPath().standardizedFileURL.path
+                == closedURL.resolvingSymlinksInPath().standardizedFileURL.path
         })
         let closedUsage = try #require(cache.files[closedPath])
         #expect(closedUsage.codexScanComplete == true)
@@ -950,6 +951,14 @@ struct CostUsageBoundedProgressTests {
                 calendar: options.calendar)
         }
         #expect(canPublish())
+
+        var legacyClosed = cache
+        legacyClosed.files[closedPath]?.codexParserRevision = nil
+        #expect(!CostUsageScanner.codexCurrentDayProjectionCanPublish(
+            cache: legacyClosed,
+            roots: roots,
+            dayKey: closedDayKey,
+            calendar: options.calendar))
 
         let iso = env.isoString(for: currentDay.addingTimeInterval(1))
         let appendedRow =

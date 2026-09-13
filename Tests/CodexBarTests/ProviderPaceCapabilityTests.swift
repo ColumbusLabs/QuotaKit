@@ -43,11 +43,11 @@ struct ProviderPaceCapabilityTests {
                     "Reset-window pace changed for \(provider.rawValue), window=\(String(describing: window)).")
 
                 let actualMonthlyInference = capability.usesInferredMonthlyDuration(window: window)
-                let legacyMonthlyInference = Self.legacyUsesInferredMonthlyDuration(
+                let expectedMonthlyInference = Self.expectedUsesInferredMonthlyDuration(
                     provider: provider,
                     window: window)
                 #expect(
-                    actualMonthlyInference == legacyMonthlyInference,
+                    actualMonthlyInference == expectedMonthlyInference,
                     "Monthly inference changed for \(provider.rawValue), window=\(String(describing: window)).")
             }
         }
@@ -159,14 +159,15 @@ struct ProviderPaceCapabilityTests {
         case .zai:
             return window.windowMinutes == self.monthlyWindowSentinelMinutes
                 && window.resetDescription == "MCP"
-        case .alibaba, .alibabatokenplan, .amp, .commandcode, .doubao, .mimo, .notion, .opencodego, .stepfun:
+        case .alibaba, .alibabatokenplan, .amp, .commandcode, .doubao, .mimo, .notion, .ollama, .opencodego,
+             .stepfun:
             return window.windowMinutes == self.monthlyWindowSentinelMinutes
         default:
             return false
         }
     }
 
-    private static func legacyUsesInferredMonthlyDuration(
+    private static func expectedUsesInferredMonthlyDuration(
         provider: UsageProvider,
         window: RateWindow) -> Bool
     {
@@ -176,7 +177,8 @@ struct ProviderPaceCapabilityTests {
         case .zai:
             window.windowMinutes == self.monthlyWindowSentinelMinutes
                 && window.resetDescription == "MCP"
-        case .alibaba, .alibabatokenplan, .amp, .commandcode, .doubao, .mimo, .notion, .opencodego, .stepfun:
+        case .alibaba, .alibabatokenplan, .amp, .commandcode, .doubao, .mimo, .notion, .ollama, .opencodego,
+             .stepfun:
             window.windowMinutes == self.monthlyWindowSentinelMinutes
         default:
             false

@@ -16,6 +16,7 @@ Usage:
 import json
 import os
 import sys
+import uuid
 from pathlib import Path
 from datetime import datetime, timedelta, timezone
 
@@ -154,9 +155,17 @@ def write_cache(windows, sessions_scanned, last_activity):
         "source": "local-jsonl-scan",
         "note": "Local token accounting from cc-mimo session jsonl. Not a quota; mimo platform.xiaomimimo.com SSO cookie required for real quota.",
     }
-    tmp = CACHE_PATH.with_suffix(".json.tmp")
-    tmp.write_text(json.dumps(payload, indent=2))
-    tmp.replace(CACHE_PATH)
+    # Each invocation owns its staging file. A fixed sibling path lets
+    # overlapping wrapper invocations overwrite one another before either
+    # reaches the atomic publication boundary.
+    tmp = CACHE_PATH.with_name(f".{CACHE_PATH.name}.{uuid.uuid4().hex}.tmp")
+    try:
+        tmp.write_text(json.dumps(payload, indent=2))
+        tmp.replace(CACHE_PATH)
+    finally:
+        # Keep cleanup scoped to this invocation so another writer's staged
+        # payload cannot be removed after a failed publication.
+        tmp.unlink(missing_ok=True)
     return payload
 
 

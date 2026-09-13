@@ -9,15 +9,19 @@ extension UsageStore {
         let pendingCandidate: CodexWeeklyResetPublicationCandidate?
         /// Keeps a confirmed early rolling window from emitting a premature weekly-reset event.
         let suppressesWeeklyResetCelebration: Bool
+        /// A nil publication alone cannot distinguish a withheld success from a failed confirmation.
+        let withheldSuccess: ProviderFetchResult?
 
         init(
             outcome: ProviderFetchOutcome?,
             pendingCandidate: CodexWeeklyResetPublicationCandidate?,
-            suppressesWeeklyResetCelebration: Bool = false)
+            suppressesWeeklyResetCelebration: Bool = false,
+            withheldSuccess: ProviderFetchResult? = nil)
         {
             self.outcome = outcome
             self.pendingCandidate = pendingCandidate
             self.suppressesWeeklyResetCelebration = suppressesWeeklyResetCelebration
+            self.withheldSuccess = withheldSuccess
         }
     }
 
@@ -97,7 +101,8 @@ extension UsageStore {
                     previousSnapshot: previousSnapshot,
                     initialSnapshot: rawInitialSnapshot,
                     initialResult: rawInitialResult,
-                    observedAt: observedAt))
+                    observedAt: observedAt),
+                withheldSuccess: rawInitialResult)
         case .requiresConfirmation:
             break
         }
@@ -126,7 +131,8 @@ extension UsageStore {
             case .retainCandidate:
                 return CodexWeeklyResetPublicationAdmission(
                     outcome: nil,
-                    pendingCandidate: pendingCandidate)
+                    pendingCandidate: pendingCandidate,
+                    withheldSuccess: rawInitialResult)
             case .discardCandidate:
                 candidateForRetry = nil
             }
@@ -229,7 +235,8 @@ extension UsageStore {
                 observedAt: observedAt)
             return CodexWeeklyResetPublicationAdmission(
                 outcome: nil,
-                pendingCandidate: candidate)
+                pendingCandidate: candidate,
+                withheldSuccess: confirmationResult)
         }
     }
 
@@ -237,6 +244,13 @@ extension UsageStore {
         input: CodexMissingWeeklyAdmissionInput) -> CodexWeeklyResetPublicationAdmission
     {
         let rawInitialSnapshot = input.rawInitialSnapshot
+        let withheldSuccess: ProviderFetchResult? = if case let .success(result) = input.publicationInitialOutcome
+            .result
+        {
+            result
+        } else {
+            nil
+        }
         guard rawInitialSnapshot.updatedAt.timeIntervalSinceReferenceDate.isFinite,
               input.previousSnapshot.map({
                   $0.updatedAt.timeIntervalSinceReferenceDate.isFinite &&
@@ -249,7 +263,8 @@ extension UsageStore {
         else {
             return CodexWeeklyResetPublicationAdmission(
                 outcome: nil,
-                pendingCandidate: input.pendingCandidate)
+                pendingCandidate: input.pendingCandidate,
+                withheldSuccess: withheldSuccess)
         }
         if CodexConsumerProjection.sourceRateWindow(for: .weekly, snapshot: input.publicationBaseline) != nil,
            case let .success(publicationResult) = input.publicationInitialOutcome.result,
@@ -259,7 +274,8 @@ extension UsageStore {
         {
             return CodexWeeklyResetPublicationAdmission(
                 outcome: nil,
-                pendingCandidate: input.pendingCandidate)
+                pendingCandidate: input.pendingCandidate,
+                withheldSuccess: withheldSuccess)
         }
         return CodexWeeklyResetPublicationAdmission(
             outcome: input.publicationInitialOutcome,

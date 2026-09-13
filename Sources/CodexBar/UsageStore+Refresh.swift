@@ -458,6 +458,7 @@ extension UsageStore {
                     generation: generation)
                 return nil
             }
+            guard self.codexRefreshStillCurrent(generation) else { return nil }
             let admission = await Self.codexOutcomeAdmittedForPublication(
                 initialOutcome: initialOutcome,
                 previousSnapshot: previousCodexSnapshot,
@@ -465,16 +466,14 @@ extension UsageStore {
                 missingWindowBackfillSnapshot: codexMissingWindowBackfillSnapshot,
                 pendingCandidate: codexPreparation?.pendingWeeklyResetCandidate,
                 fetchConfirmation: fetchOutcome)
+            guard self.codexRefreshStillCurrent(generation) else { return nil }
             self.persistCodexWeeklyResetPublicationCandidate(
                 admission.pendingCandidate,
                 expectedGuard: codexExpectedGuard,
                 previousSnapshot: previousCodexSnapshot)
             guard let admittedOutcome = admission.outcome else {
-                if let codexExpectedGuard {
-                    self.retireCodexStateIfRefreshOwnerChanged(
-                        expectedGuard: codexExpectedGuard,
-                        generation: generation)
-                }
+                self.handleCodexWithheldAdmission(
+                    admission, expectedGuard: codexExpectedGuard, generation: generation)
                 return nil
             }
             if case let .success(result) = admittedOutcome.result,

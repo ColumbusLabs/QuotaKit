@@ -287,6 +287,9 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
+    /// Older or absent revisions require bounded reparsing before cached rows can be reused.
+    static let currentCodexParserRevision = 2
+
     var mtimeUnixMs: Int64
     var size: Int64
     var days: [String: [String: [Int]]]
@@ -333,6 +336,11 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?
     var codexHasBufferedUnresolvedForkLines: Bool?
+    var codexParserRevision: Int? = CostUsageFileUsage.currentCodexParserRevision
+
+    var hasCurrentCodexParser: Bool {
+        self.codexParserRevision == Self.currentCodexParserRevision
+    }
 
     var hasBufferedCodexForkRetryLines: Bool {
         self.codexBufferedSubagentLines?.isEmpty == false
