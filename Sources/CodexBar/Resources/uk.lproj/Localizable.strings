@@ -1370,6 +1370,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Компактно у два рядки";
 "menu_bar_layout_preset_custom" = "Користувацький";
 "menu_bar_layout_live_preview" = "Попередній перегляд";
+"menu_bar_layout_default_preview" = "Перегляд типового макета";
+"menu_bar_layout_overrides_notice" = "Ці ввімкнені провайдери використовують власні збережені макети:";
+"menu_bar_layout_use_all_accessibility" = "%@: Використовувати макет для всіх провайдерів";
 "menu_bar_layout_strip" = "Смуга меню";
 "menu_bar_layout_remove_line_break" = "Видалити розрив рядка";
 "menu_bar_layout_chip_hint" = "Виберіть, перетягніть для зміни порядку або скористайтеся дією видалення.";

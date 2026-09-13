@@ -1371,6 +1371,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Empilhado compacto";
 "menu_bar_layout_preset_custom" = "Personalizado";
 "menu_bar_layout_live_preview" = "Prévia ao vivo";
+"menu_bar_layout_default_preview" = "Prévia do layout padrão";
+"menu_bar_layout_overrides_notice" = "Estes provedores ativados usam seus próprios layouts salvos:";
+"menu_bar_layout_use_all_accessibility" = "%@: Usar o layout de todos os provedores";
 "menu_bar_layout_strip" = "Faixa da barra de menus";
 "menu_bar_layout_remove_line_break" = "Remover quebra de linha";
 "menu_bar_layout_chip_hint" = "Selecione, arraste para reordenar ou use a ação Remover.";

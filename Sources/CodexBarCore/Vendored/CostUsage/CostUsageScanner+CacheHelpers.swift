@@ -606,7 +606,9 @@ extension CostUsageScanner {
                 Self.intMapOutsideScanWindow(usage.codexPriorityTokens, range: context.range),
                 modeTokens.priority),
             codexTurnIDs: Self.mergeCodexTurnIDs(nil, rows: rows),
-            codexRows: rows,
+            codexRows: Self.codexRowsWithPricingMetadata(
+                rows,
+                priorityTurns: context.resources.priorityTurns),
             codexTokenSnapshots: usage.codexTokenSnapshots,
             codexTokenCheckpoints: usage.codexTokenCheckpoints,
             codexTokenTimestampsMonotonic: usage.codexTokenTimestampsMonotonic,
@@ -1149,7 +1151,7 @@ extension CostUsageScanner {
                 modeTokens.priority),
             codexTurnIDs: Self.mergeCodexTurnIDs(migratedCached.codexTurnIDs, rows: uniqueRows),
             codexRows: Self.mergeCodexRows(
-                retainedCachedRows,
+                migratedCached.codexRows,
                 rows: classifiedUniqueRows,
                 sessionId: sessionId),
             codexTokenSnapshots: mergedTokenSnapshots,

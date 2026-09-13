@@ -17,6 +17,7 @@ for name in (
     'resolve_package_signing_mode',
     'verify_no_quarantine_attribute',
     'verify_packaged_app_integrity',
+    'resign_sparkle_framework',
 ):
     start = script.index(f'{name}() {{')
     end = script.index('\n}\n', start) + 3
@@ -75,5 +76,24 @@ if verify_packaged_app_integrity "$APP" 2>/dev/null; then
   exit 1
 fi
 unset MOCK_CODESIGN_STATUS
+
+resign() {
+  printf '%s\n' "$1"
+}
+
+SPARKLE="$TEMP_DIR/Sparkle.framework"
+sparkle_targets=$(resign_sparkle_framework "$SPARKLE")
+expected_sparkle_targets=$(printf '%s\n' \
+  "$SPARKLE/Versions/B/Autoupdate" \
+  "$SPARKLE/Versions/B/Updater.app/Contents/MacOS/Updater" \
+  "$SPARKLE/Versions/B/Updater.app" \
+  "$SPARKLE/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader" \
+  "$SPARKLE/Versions/B/XPCServices/Downloader.xpc" \
+  "$SPARKLE/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer" \
+  "$SPARKLE/Versions/B/XPCServices/Installer.xpc" \
+  "$SPARKLE/Versions/B/Sparkle" \
+  "$SPARKLE/Versions/B" \
+  "$SPARKLE")
+[[ "$sparkle_targets" == "$expected_sparkle_targets" ]]
 
 echo "Package signing tests passed."

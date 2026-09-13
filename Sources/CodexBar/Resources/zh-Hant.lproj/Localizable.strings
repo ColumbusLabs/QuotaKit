@@ -1401,6 +1401,9 @@
 "menu_bar_layout_preset_compact_stacked" = "緊湊堆疊";
 "menu_bar_layout_preset_custom" = "自訂";
 "menu_bar_layout_live_preview" = "即時預覽";
+"menu_bar_layout_default_preview" = "預設佈局預覽";
+"menu_bar_layout_overrides_notice" = "以下已啟用的供應商使用各自儲存的佈局：";
+"menu_bar_layout_use_all_accessibility" = "%@：使用所有供應商的佈局";
 "menu_bar_layout_strip" = "選單列條帶";
 "menu_bar_layout_remove_line_break" = "移除換行";
 "menu_bar_layout_chip_hint" = "選取、拖曳以重新排序，或使用移除動作。";

@@ -1371,6 +1371,9 @@
 "menu_bar_layout_preset_compact_stacked" = "紧凑堆叠";
 "menu_bar_layout_preset_custom" = "自定义";
 "menu_bar_layout_live_preview" = "实时预览";
+"menu_bar_layout_default_preview" = "默认布局预览";
+"menu_bar_layout_overrides_notice" = "以下已启用的提供商使用各自保存的布局：";
+"menu_bar_layout_use_all_accessibility" = "%@：使用所有提供商的布局";
 "menu_bar_layout_strip" = "菜单栏条带";
 "menu_bar_layout_remove_line_break" = "移除换行";
 "menu_bar_layout_chip_hint" = "选择、拖动以重新排序，或使用移除操作。";

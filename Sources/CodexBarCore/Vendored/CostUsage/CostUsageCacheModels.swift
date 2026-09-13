@@ -69,6 +69,7 @@ struct CostUsageCodexActiveLookbackState: Codable, Equatable {
     var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
     var priorityMigrationGenerationKey: String?
+    var priorityAdmissionDebt: Int?
 }
 
 struct CostUsageCodexSessionDiscovery: Codable, Equatable {

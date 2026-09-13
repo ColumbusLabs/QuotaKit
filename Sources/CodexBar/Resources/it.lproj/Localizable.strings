@@ -1374,6 +1374,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Compatto su due righe";
 "menu_bar_layout_preset_custom" = "Personalizzato";
 "menu_bar_layout_live_preview" = "Anteprima dal vivo";
+"menu_bar_layout_default_preview" = "Anteprima del layout predefinito";
+"menu_bar_layout_overrides_notice" = "Questi provider abilitati usano i propri layout salvati:";
+"menu_bar_layout_use_all_accessibility" = "%@: Usa il layout di tutti i provider";
 "menu_bar_layout_strip" = "Striscia della barra dei menu";
 "menu_bar_layout_remove_line_break" = "Rimuovi interruzione di riga";
 "menu_bar_layout_chip_hint" = "Seleziona, trascina per riordinare o usa l’azione Rimuovi.";

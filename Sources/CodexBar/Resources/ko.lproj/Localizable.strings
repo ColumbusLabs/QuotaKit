@@ -1340,6 +1340,9 @@
 "menu_bar_layout_preset_compact_stacked" = "압축 스택";
 "menu_bar_layout_preset_custom" = "사용자 설정";
 "menu_bar_layout_live_preview" = "실시간 미리보기";
+"menu_bar_layout_default_preview" = "기본 레이아웃 미리보기";
+"menu_bar_layout_overrides_notice" = "다음 활성 제공자는 별도로 저장한 레이아웃을 사용합니다:";
+"menu_bar_layout_use_all_accessibility" = "%@: 모든 제공자 레이아웃 사용";
 "menu_bar_layout_strip" = "메뉴 막대 스트립";
 "menu_bar_layout_remove_line_break" = "줄 바꿈 제거";
 "menu_bar_layout_chip_hint" = "선택하거나 드래그해 순서를 바꾸거나 제거 동작을 사용하세요.";
