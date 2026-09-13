@@ -5,6 +5,17 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Fixed
+
+- Codex: let older local cost scans advance under a steady stream of new sessions while keeping recent costs prioritized.
+- Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.
+- OpenCode Go: preserve API percentage units, including values between zero and one percent.
+- Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.
+- Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.
+- Mac packaging: sign nested Sparkle components before their enclosing bundles.
+
 ## 0.32.4.27 — 2026-09-04
 
 ### Fixed

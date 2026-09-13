@@ -1369,6 +1369,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Kompakt staplad";
 "menu_bar_layout_preset_custom" = "Anpassat";
 "menu_bar_layout_live_preview" = "Liveförhandsvisning";
+"menu_bar_layout_default_preview" = "Förhandsvisning av standardlayout";
+"menu_bar_layout_overrides_notice" = "Dessa aktiverade leverantörer använder egna sparade layouter:";
+"menu_bar_layout_use_all_accessibility" = "%@: Använd layouten för alla leverantörer";
 "menu_bar_layout_strip" = "Menyradsremsa";
 "menu_bar_layout_remove_line_break" = "Ta bort radbrytning";
 "menu_bar_layout_chip_hint" = "Markera, dra för att ändra ordning eller använd åtgärden Ta bort.";

@@ -38,4 +38,23 @@ struct GroqUsageFetcherTests {
         #expect(snapshot.secondary?.resetDescription == "9000 tok/min")
         #expect(snapshot.tertiary?.resetDescription == "180 cache/min")
     }
+
+    @Test(arguments: [
+        #"{"status":"success"}"#,
+        #"{"status":"success","data":{"result":[{"value":[1,"NaN"]}]}}"#,
+        #"{"status":"success","data":{"result":[{"value":[1,"-1"]}]}}"#,
+        #"{"status":"success","data":{"result":[{"value":[1,"invalid"]}]}}"#,
+    ])
+    func `rejects unavailable or invalid metric samples`(json: String) {
+        #expect(throws: GroqUsageError.self) {
+            try GroqUsageFetcher._parseScalarForTesting(Data(json.utf8))
+        }
+    }
+
+    @Test
+    func `retains an empty successful metric vector as zero`() throws {
+        let value = try GroqUsageFetcher._parseScalarForTesting(
+            Data(#"{"status":"success","data":{"result":[]}}"#.utf8))
+        #expect(value == 0)
+    }
 }

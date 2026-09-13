@@ -202,6 +202,7 @@ struct CostUsageStoreLookbackState: Codable, Equatable, Sendable {
     var exactCachedValidationLastPath: String?
     var cacheWideMigrationQueueActive: Bool?
     var priorityMigrationGenerationKey: String?
+    var priorityAdmissionDebt: Int?
 }
 
 struct CostUsageStoreAccumulator: Codable, Equatable, Sendable {

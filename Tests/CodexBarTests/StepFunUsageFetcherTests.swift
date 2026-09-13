@@ -370,7 +370,13 @@ struct StepFunUsageFetcherParsingTests {
         {"status":1,"five_hour_usage_left_rate":0,"five_hour_usage_reset_time":"0",\
         "weekly_usage_left_rate":0,"weekly_usage_reset_time":"0","plan_family":1}
         """
-        #expect(try StepFunUsageFetcher._parseSnapshotForTesting(Data(creditFamily.utf8)).isCreditPlan == true)
+        let creditSnapshot = try StepFunUsageFetcher._parseSnapshotForTesting(Data(creditFamily.utf8))
+        #expect(creditSnapshot.isCreditPlan == true)
+        let usage = creditSnapshot.toUsageSnapshot()
+        #expect(usage.primary == nil)
+        #expect(usage.secondary == nil)
+        #expect(usage.identity?.providerID == .stepfun)
+        #expect(usage.updatedAt == creditSnapshot.updatedAt)
         #expect(try StepFunUsageFetcher._parseSnapshotForTesting(Data(windowFamily.utf8)).isCreditPlan == false)
     }
 
@@ -678,136 +684,147 @@ struct StepFunTokenRefreshTests {
 
     @Test
     func `stale cached token falls back to configured env token`() async throws {
-        CookieHeaderCache.store(provider: .stepfun, cookieHeader: "stale-access...stale-refresh", sourceLabel: "test")
-        defer { CookieHeaderCache.clear(provider: .stepfun) }
+        try await self.withIsolatedCookieCache {
+            CookieHeaderCache.store(
+                provider: .stepfun,
+                cookieHeader: "stale-access...stale-refresh",
+                sourceLabel: "test")
+            defer { CookieHeaderCache.clear(provider: .stepfun) }
 
-        try await self.withStubProtocol { recorder in
-            StepFunStubURLProtocol.handler = { request in
-                let path = request.url?.path ?? ""
-                if path.contains("QueryStepPlanRateLimit") {
-                    let call = recorder.recordUsageCall()
-                    if call == 1 {
+            try await self.withStubProtocol { recorder in
+                StepFunStubURLProtocol.handler = { request in
+                    let path = request.url?.path ?? ""
+                    if path.contains("QueryStepPlanRateLimit") {
+                        let call = recorder.recordUsageCall()
+                        if call == 1 {
+                            #expect(request.value(forHTTPHeaderField: "Cookie")?
+                                .contains("stale-access...stale-refresh") == true)
+                            return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
+                        }
+
                         #expect(request.value(forHTTPHeaderField: "Cookie")?
-                            .contains("stale-access...stale-refresh") == true)
-                        return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
+                            .contains("env-access...env-refresh") == true)
+                        return Self.usageResponse(for: request)
                     }
 
-                    #expect(request.value(forHTTPHeaderField: "Cookie")?.contains("env-access...env-refresh") == true)
-                    return Self.usageResponse(for: request)
+                    if path.contains("RefreshToken") {
+                        recorder.recordRefreshCall()
+                        return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"expired"}"#)
+                    }
+
+                    if path.contains("GetStepPlanStatus") {
+                        return Self.jsonResponse(
+                            for: request,
+                            body: #"{"status":1,"subscription":{"name":"Plus","plan_type":1,"status":1}}"#)
+                    }
+
+                    return Self.jsonResponse(for: request, statusCode: 404, body: #"{"error":"unexpected"}"#)
                 }
 
-                if path.contains("RefreshToken") {
-                    recorder.recordRefreshCall()
-                    return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"expired"}"#)
-                }
+                let settings = ProviderSettingsSnapshot.make(
+                    stepfun: ProviderSettingsSnapshot.StepFunProviderSettings(cookieSource: .auto))
+                let context = self.makeContext(
+                    settings: settings,
+                    env: ["STEPFUN_TOKEN": "env-access...env-refresh"])
 
-                if path.contains("GetStepPlanStatus") {
-                    return Self.jsonResponse(
-                        for: request,
-                        body: #"{"status":1,"subscription":{"name":"Plus","plan_type":1,"status":1}}"#)
-                }
+                _ = try await StepFunWebFetchStrategy().fetch(context)
 
-                return Self.jsonResponse(for: request, statusCode: 404, body: #"{"error":"unexpected"}"#)
+                #expect(recorder.usageCallCount == 2)
+                #expect(recorder.refreshCallCount == 1)
+                #expect(CookieHeaderCache.load(provider: .stepfun) == nil)
             }
-
-            let settings = ProviderSettingsSnapshot.make(
-                stepfun: ProviderSettingsSnapshot.StepFunProviderSettings(cookieSource: .auto))
-            let context = self.makeContext(
-                settings: settings,
-                env: ["STEPFUN_TOKEN": "env-access...env-refresh"])
-
-            _ = try await StepFunWebFetchStrategy().fetch(context)
-
-            #expect(recorder.usageCallCount == 2)
-            #expect(recorder.refreshCallCount == 1)
-            #expect(CookieHeaderCache.load(provider: .stepfun) == nil)
         }
     }
 
     @Test
     func `stale cached and env tokens fall back to env login credentials`() async throws {
-        CookieHeaderCache.store(provider: .stepfun, cookieHeader: "stale-access...stale-refresh", sourceLabel: "test")
-        defer { CookieHeaderCache.clear(provider: .stepfun) }
+        try await self.withIsolatedCookieCache {
+            CookieHeaderCache.store(
+                provider: .stepfun,
+                cookieHeader: "stale-access...stale-refresh",
+                sourceLabel: "test")
+            defer { CookieHeaderCache.clear(provider: .stepfun) }
 
-        try await self.withStubProtocol { recorder in
-            StepFunStubURLProtocol.handler = { request in
-                let path = request.url?.path ?? ""
-                if path.isEmpty || path == "/" {
-                    return Self.jsonResponse(
-                        for: request,
-                        body: "{}",
-                        headers: ["Set-Cookie": "INGRESSCOOKIE=ingress-cookie; Path=/"])
-                }
-
-                if path.contains("RegisterDevice") {
-                    return Self.jsonResponse(
-                        for: request,
-                        body: """
-                        {
-                            "accessToken": {"raw": "anon-access"},
-                            "refreshToken": {"raw": "anon-refresh"}
-                        }
-                        """)
-                }
-
-                if path.contains("SignInByPassword") {
-                    return Self.jsonResponse(
-                        for: request,
-                        body: """
-                        {
-                            "accessToken": {"raw": "login-access"},
-                            "refreshToken": {"raw": "login-refresh"}
-                        }
-                        """)
-                }
-
-                if path.contains("QueryStepPlanRateLimit") {
-                    let call = recorder.recordUsageCall()
-                    if call == 1 {
-                        #expect(request.value(forHTTPHeaderField: "Cookie")?
-                            .contains("stale-access...stale-refresh") == true)
-                        return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
-                    }
-                    if call == 2 {
-                        #expect(request.value(forHTTPHeaderField: "Cookie")?
-                            .contains("env-access...env-refresh") == true)
-                        return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
+            try await self.withStubProtocol { recorder in
+                StepFunStubURLProtocol.handler = { request in
+                    let path = request.url?.path ?? ""
+                    if path.isEmpty || path == "/" {
+                        return Self.jsonResponse(
+                            for: request,
+                            body: "{}",
+                            headers: ["Set-Cookie": "INGRESSCOOKIE=ingress-cookie; Path=/"])
                     }
 
-                    #expect(request.value(forHTTPHeaderField: "Cookie")?
-                        .contains("login-access...login-refresh") == true)
-                    return Self.usageResponse(for: request)
+                    if path.contains("RegisterDevice") {
+                        return Self.jsonResponse(
+                            for: request,
+                            body: """
+                            {
+                                "accessToken": {"raw": "anon-access"},
+                                "refreshToken": {"raw": "anon-refresh"}
+                            }
+                            """)
+                    }
+
+                    if path.contains("SignInByPassword") {
+                        return Self.jsonResponse(
+                            for: request,
+                            body: """
+                            {
+                                "accessToken": {"raw": "login-access"},
+                                "refreshToken": {"raw": "login-refresh"}
+                            }
+                            """)
+                    }
+
+                    if path.contains("QueryStepPlanRateLimit") {
+                        let call = recorder.recordUsageCall()
+                        if call == 1 {
+                            #expect(request.value(forHTTPHeaderField: "Cookie")?
+                                .contains("stale-access...stale-refresh") == true)
+                            return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
+                        }
+                        if call == 2 {
+                            #expect(request.value(forHTTPHeaderField: "Cookie")?
+                                .contains("env-access...env-refresh") == true)
+                            return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"unauthorized"}"#)
+                        }
+
+                        #expect(request.value(forHTTPHeaderField: "Cookie")?
+                            .contains("login-access...login-refresh") == true)
+                        return Self.usageResponse(for: request)
+                    }
+
+                    if path.contains("RefreshToken") {
+                        recorder.recordRefreshCall()
+                        return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"expired"}"#)
+                    }
+
+                    if path.contains("GetStepPlanStatus") {
+                        return Self.jsonResponse(
+                            for: request,
+                            body: #"{"status":1,"subscription":{"name":"Plus","plan_type":1,"status":1}}"#)
+                    }
+
+                    return Self.jsonResponse(for: request, statusCode: 404, body: #"{"error":"unexpected"}"#)
                 }
 
-                if path.contains("RefreshToken") {
-                    recorder.recordRefreshCall()
-                    return Self.jsonResponse(for: request, statusCode: 401, body: #"{"error":"expired"}"#)
-                }
+                let settings = ProviderSettingsSnapshot.make(
+                    stepfun: ProviderSettingsSnapshot.StepFunProviderSettings(cookieSource: .auto))
+                let context = self.makeContext(
+                    settings: settings,
+                    env: [
+                        "STEPFUN_TOKEN": "env-access...env-refresh",
+                        "STEPFUN_USERNAME": "user@example.com",
+                        "STEPFUN_PASSWORD": "password",
+                    ])
 
-                if path.contains("GetStepPlanStatus") {
-                    return Self.jsonResponse(
-                        for: request,
-                        body: #"{"status":1,"subscription":{"name":"Plus","plan_type":1,"status":1}}"#)
-                }
+                _ = try await StepFunWebFetchStrategy().fetch(context)
 
-                return Self.jsonResponse(for: request, statusCode: 404, body: #"{"error":"unexpected"}"#)
+                #expect(recorder.usageCallCount == 3)
+                #expect(recorder.refreshCallCount == 1)
+                #expect(CookieHeaderCache.load(provider: .stepfun)?.cookieHeader == "login-access...login-refresh")
             }
-
-            let settings = ProviderSettingsSnapshot.make(
-                stepfun: ProviderSettingsSnapshot.StepFunProviderSettings(cookieSource: .auto))
-            let context = self.makeContext(
-                settings: settings,
-                env: [
-                    "STEPFUN_TOKEN": "env-access...env-refresh",
-                    "STEPFUN_USERNAME": "user@example.com",
-                    "STEPFUN_PASSWORD": "password",
-                ])
-
-            _ = try await StepFunWebFetchStrategy().fetch(context)
-
-            #expect(recorder.usageCallCount == 3)
-            #expect(recorder.refreshCallCount == 1)
-            #expect(CookieHeaderCache.load(provider: .stepfun)?.cookieHeader == "login-access...login-refresh")
         }
     }
 
@@ -1014,6 +1031,22 @@ struct StepFunTokenRefreshTests {
             selectedTokenAccountID: selectedTokenAccountID,
             tokenAccountTokenUpdater: tokenUpdater,
             providerManualTokenUpdater: manualTokenUpdater)
+    }
+
+    private func withIsolatedCookieCache<T>(_ operation: () async throws -> T) async rethrows -> T {
+        let legacyBase = FileManager.default.temporaryDirectory
+            .appendingPathComponent("stepfun-token-refresh-\(UUID().uuidString)", isDirectory: true)
+        return try await KeychainCacheStore.withServiceOverrideForTesting(
+            "stepfun-token-refresh-\(UUID().uuidString)")
+        {
+            try await CookieHeaderCache.withLegacyBaseURLOverrideForTesting(legacyBase) {
+                KeychainCacheStore.setTestStoreForTesting(true)
+                defer { KeychainCacheStore.setTestStoreForTesting(false) }
+                CookieHeaderCache.resetDisplayCacheForTesting()
+                defer { CookieHeaderCache.resetDisplayCacheForTesting() }
+                return try await operation()
+            }
+        }
     }
 
     private func withStubProtocol(

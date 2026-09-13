@@ -7,6 +7,32 @@ import UniformTypeIdentifiers
 
 struct MenuBarLayoutEditorTests {
     @Test
+    @MainActor
+    func `all scope discloses enabled saved overrides and targeted reset preserves other overrides`() throws {
+        let settings = testSettingsStore(suiteName: "MenuBarLayoutEditorTests-overrides")
+        let claude = try #require(ProviderDefaults.metadata[.claude])
+        let cursor = try #require(ProviderDefaults.metadata[.cursor])
+        settings.setProviderEnabled(provider: .claude, metadata: claude, enabled: true)
+        settings.setProviderEnabled(provider: .cursor, metadata: cursor, enabled: true)
+        let global = MenuBarLayout(lines: [[.providerName]])
+        let override = MenuBarLayout(lines: [[.percent(window: .weekly)]])
+        settings.setMenuBarLayout(global, for: nil)
+        settings.setMenuBarLayout(override, for: .claude)
+        settings.setMenuBarLayout(global, for: .cursor)
+        settings.setMenuBarLayout(override, for: .codex)
+
+        #expect(MenuBarLayoutEditorScope.all.providersWithOverrides(settings: settings) == [.codex, .claude, .cursor])
+        #expect(MenuBarLayoutEditorScope.provider(.claude).providersWithOverrides(settings: settings).isEmpty)
+        #expect(MenuBarLayoutEditorScope.all.previewLabel == L("menu_bar_layout_default_preview"))
+
+        MenuBarLayoutEditorPersistence.useAllProvidersLayout(for: .claude, settings: settings)
+
+        #expect(settings.menuBarLayout(for: .claude) == global)
+        #expect(settings.menuBarLayoutOverrides == [.cursor: global, .codex: override])
+        #expect(MenuBarLayoutEditorScope.all.providersWithOverrides(settings: settings) == [.codex, .cursor])
+    }
+
+    @Test
     func `palette tokens append and insert at a drop index`() {
         let initial = MenuBarLayout(lines: [[.icon, .resetCountdown]])
 

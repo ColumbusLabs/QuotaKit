@@ -1371,6 +1371,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Compact stacked";
 "menu_bar_layout_preset_custom" = "Custom";
 "menu_bar_layout_live_preview" = "Live preview";
+"menu_bar_layout_default_preview" = "Default layout preview";
+"menu_bar_layout_overrides_notice" = "These enabled providers use their own saved layouts:";
+"menu_bar_layout_use_all_accessibility" = "%@: Use all-providers layout";
 "menu_bar_layout_strip" = "Menu bar strip";
 "menu_bar_layout_remove_line_break" = "Remove line break";
 "menu_bar_layout_chip_hint" = "Select, drag to reorder, or use the Remove action.";

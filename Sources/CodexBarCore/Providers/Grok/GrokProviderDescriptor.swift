@@ -231,8 +231,8 @@ struct GrokOAuthFetchStrategy: ProviderFetchStrategy {
     }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        try await GrokWebFetchStrategy().fetch(context) {
-            let credentials = try GrokWebFetchStrategy.resolvedCredentialsResult(context: context).get()
+        try await GrokWebFetchStrategy().fetch(context) { capturedCredentials in
+            let credentials = try capturedCredentials.get()
             guard !credentials.isExpired else {
                 throw GrokWebBillingError.missingCredentials
             }
@@ -321,9 +321,18 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
     /// Supplies the billing cadence the grok.com payload omits. Injectable so tests exercise the
     /// mapping without touching the real Application Support file.
     var cadenceStore: GrokBillingCadenceStore = .init()
+    var loadCredentials: @Sendable (ProviderFetchContext) -> Result<GrokCredentials, Error> = {
+        Self.resolvedCredentialsResult(context: $0)
+    }
+
+    var localSummary: @Sendable ([String: String]) async throws -> GrokLocalSessionSummary? = {
+        try await GrokLocalSessionScanner.summarizeOffMainThread(env: $0)
+    }
+
+    var cliVersion: @Sendable ([String: String]) -> String? = { GrokStatusProbe.detectVersion(env: $0) }
     typealias ProxyBillingFetch = @Sendable (GrokCredentials) async throws -> GrokWebBillingSnapshot
     typealias WebBillingFetch =
-        @Sendable () async throws -> (
+        @Sendable (Result<GrokCredentials, Error>) async throws -> (
             snapshot: GrokWebBillingSnapshot,
             sourceLabel: String,
             authenticatedByAuthFile: Bool)
@@ -363,7 +372,7 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         try await self.fetch(
             context,
-            webBilling: { [self] in
+            webBilling: { [self] _ in
                 try await self.fetchWebBilling(context: context)
             })
     }
@@ -373,7 +382,10 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
         webBilling fetchWebBilling: @escaping WebBillingFetch,
         settingsTier loadSettingsTier: SettingsTierFetch? = nil) async throws -> ProviderFetchResult
     {
-        let authCredentials = GrokSettingsReader.resolvedCredentials(environment: context.env).flatMap { credentials in
+        // Billing and enrichment use one credential capture even if `grok login`
+        // replaces auth.json while a billing request is in flight.
+        let capturedCredentials = self.loadCredentials(context)
+        let authCredentials = (try? capturedCredentials.get()).flatMap { credentials in
             credentials.isExpired ? nil : credentials
         }
         let resolveSettingsTier =
@@ -385,7 +397,7 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
         let sourceLabel: String
         let authenticatedByAuthFile: Bool
         do {
-            (webBilling, sourceLabel, authenticatedByAuthFile) = try await fetchWebBilling()
+            (webBilling, sourceLabel, authenticatedByAuthFile) = try await fetchWebBilling(capturedCredentials)
         } catch GrokWebBillingError.teamUsageUnsupported {
             guard let authState = authCredentials, authState.isTeamPrincipal else {
                 throw GrokWebBillingError.teamUsageUnsupported
@@ -393,8 +405,8 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
             let subscriptionTier = try await resolveSettingsTier(authState)
             let identitySnapshot = try await GrokStatusProbe.identityOnlySnapshot(
                 credentials: authState,
-                localSummary: GrokLocalSessionScanner.summarizeOffMainThread(env: context.env),
-                cliVersion: GrokStatusProbe.detectVersion(env: context.env),
+                localSummary: self.localSummary(context.env),
+                cliVersion: self.cliVersion(context.env),
                 subscriptionTier: subscriptionTier)
             return self.makeResult(
                 usage: identitySnapshot.toUsageSnapshot(),
@@ -402,7 +414,7 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
                 diagnostic: identitySnapshot.diagnostic)
         }
         let credentials = Self.credentialsForWebBillingSnapshot(
-            credentials: GrokSettingsReader.resolvedCredentials(environment: context.env),
+            credentials: try? capturedCredentials.get(),
             authenticatedByAuthFile: authenticatedByAuthFile)
         // Cookie/gRPC fallback is a different browser session. Never attach the
         // auth.json account's settings tier onto that usage.
@@ -420,8 +432,8 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
                 credentials: credentials,
                 billing: nil,
                 webBilling: enrichedBilling),
-            localSummary: GrokLocalSessionScanner.summarizeOffMainThread(env: context.env),
-            cliVersion: GrokStatusProbe.detectVersion(env: context.env),
+            localSummary: self.localSummary(context.env),
+            cliVersion: self.cliVersion(context.env),
             updatedAt: Date(),
             subscriptionTier: subscriptionTier ?? enrichedBilling.subscriptionTier)
         return self.makeResult(
@@ -543,7 +555,7 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
     static func resolvedCredentialsResult(context: ProviderFetchContext) -> Result<
         GrokCredentials, Error,
     > {
-        if let credentials = GrokSettingsReader.resolvedCredentials(environment: context.env) {
+        if let credentials = GrokSettingsReader.pastedCredentials(environment: context.env) {
             return .success(credentials)
         }
         return Result {

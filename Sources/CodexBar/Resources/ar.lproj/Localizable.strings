@@ -1374,6 +1374,9 @@
 "menu_bar_layout_preset_compact_stacked" = "مكدّس مضغوط";
 "menu_bar_layout_preset_custom" = "العرف";
 "menu_bar_layout_live_preview" = "معاينة مباشرة";
+"menu_bar_layout_default_preview" = "معاينة التخطيط الافتراضي";
+"menu_bar_layout_overrides_notice" = "يستخدم هؤلاء المزوّدون المفعّلون تخطيطاتهم المحفوظة الخاصة:";
+"menu_bar_layout_use_all_accessibility" = "%@: استخدام تخطيط جميع المزوّدين";
 "menu_bar_layout_strip" = "شريط القوائم";
 "menu_bar_layout_remove_line_break" = "إزالة فاصل السطر";
 "menu_bar_layout_chip_hint" = "حدّد أو اسحب لإعادة الترتيب أو استخدم إجراء الإزالة.";

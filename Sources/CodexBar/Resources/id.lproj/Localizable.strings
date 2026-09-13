@@ -1374,6 +1374,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Tumpukan ringkas";
 "menu_bar_layout_preset_custom" = "Kustom";
 "menu_bar_layout_live_preview" = "Pratinjau langsung";
+"menu_bar_layout_default_preview" = "Pratinjau tata letak default";
+"menu_bar_layout_overrides_notice" = "Penyedia aktif ini menggunakan tata letak tersimpan sendiri:";
+"menu_bar_layout_use_all_accessibility" = "%@: Gunakan tata letak semua penyedia";
 "menu_bar_layout_strip" = "Strip bar menu";
 "menu_bar_layout_remove_line_break" = "Hapus pemisah baris";
 "menu_bar_layout_chip_hint" = "Pilih, seret untuk mengurutkan ulang, atau gunakan tindakan Hapus.";

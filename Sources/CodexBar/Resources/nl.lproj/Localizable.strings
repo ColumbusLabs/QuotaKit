@@ -1370,6 +1370,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Compact gestapeld";
 "menu_bar_layout_preset_custom" = "Aangepast";
 "menu_bar_layout_live_preview" = "Livevoorvertoning";
+"menu_bar_layout_default_preview" = "Voorbeeld van standaardindeling";
+"menu_bar_layout_overrides_notice" = "Deze ingeschakelde providers gebruiken hun eigen opgeslagen indelingen:";
+"menu_bar_layout_use_all_accessibility" = "%@: Indeling voor alle providers gebruiken";
 "menu_bar_layout_strip" = "Menubalkstrook";
 "menu_bar_layout_remove_line_break" = "Regeleinde verwijderen";
 "menu_bar_layout_chip_hint" = "Selecteer, sleep om te herschikken of gebruik de actie Verwijderen.";

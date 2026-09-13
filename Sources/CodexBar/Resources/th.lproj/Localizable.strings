@@ -1374,6 +1374,9 @@
 "menu_bar_layout_preset_compact_stacked" = "ซ้อนแบบกะทัดรัด";
 "menu_bar_layout_preset_custom" = "กําหนดเอง";
 "menu_bar_layout_live_preview" = "ตัวอย่างสด";
+"menu_bar_layout_default_preview" = "ตัวอย่างเค้าโครงเริ่มต้น";
+"menu_bar_layout_overrides_notice" = "ผู้ให้บริการที่เปิดใช้งานเหล่านี้ใช้เค้าโครงที่บันทึกไว้ของตนเอง:";
+"menu_bar_layout_use_all_accessibility" = "%@: ใช้เค้าโครงสำหรับผู้ให้บริการทั้งหมด";
 "menu_bar_layout_strip" = "แถบเมนู";
 "menu_bar_layout_remove_line_break" = "ลบการขึ้นบรรทัดใหม่";
 "menu_bar_layout_chip_hint" = "เลือก ลากเพื่อจัดลำดับใหม่ หรือใช้การทำงานลบ";

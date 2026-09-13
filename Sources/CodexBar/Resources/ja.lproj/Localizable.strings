@@ -1371,6 +1371,9 @@
 "menu_bar_layout_preset_compact_stacked" = "コンパクトな2段表示";
 "menu_bar_layout_preset_custom" = "カスタム";
 "menu_bar_layout_live_preview" = "ライブプレビュー";
+"menu_bar_layout_default_preview" = "デフォルトレイアウトのプレビュー";
+"menu_bar_layout_overrides_notice" = "次の有効なプロバイダーは独自の保存済みレイアウトを使用しています：";
+"menu_bar_layout_use_all_accessibility" = "%@：全プロバイダーのレイアウトを使用";
 "menu_bar_layout_strip" = "メニューバー表示";
 "menu_bar_layout_remove_line_break" = "改行を削除";
 "menu_bar_layout_chip_hint" = "選択、ドラッグで並べ替え、または削除アクションを使用します。";

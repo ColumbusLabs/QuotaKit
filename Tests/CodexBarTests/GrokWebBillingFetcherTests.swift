@@ -383,7 +383,7 @@ struct GrokWebBillingFetcherTests {
             claudeFetcher: ClaudeUsageFetcher(browserDetection: browserDetection),
             browserDetection: browserDetection)
 
-        let result = try await GrokWebFetchStrategy().fetch(context) {
+        let result = try await GrokWebFetchStrategy().fetch(context) { _ in
             throw GrokWebBillingError.teamUsageUnsupported
         } settingsTier: { _ in
             "SuperGrok Heavy"
@@ -402,7 +402,7 @@ struct GrokWebBillingFetcherTests {
         let asked = LockIsolated(false)
         let result = try await GrokWebFetchStrategy().fetch(
             Self.webContext(grokHome: nil),
-            webBilling: {
+            webBilling: { _ in
                 (
                     GrokWebBillingSnapshot(
                         usedPercent: 0,
@@ -425,7 +425,7 @@ struct GrokWebBillingFetcherTests {
     func `web strategy applies settings tier when billing used the auth file`() async throws {
         let result = try await GrokWebFetchStrategy().fetch(
             Self.webContext(grokHome: nil),
-            webBilling: {
+            webBilling: { _ in
                 (
                     GrokWebBillingSnapshot(
                         usedPercent: 0,
@@ -461,7 +461,7 @@ struct GrokWebBillingFetcherTests {
 
         let result = try await GrokWebFetchStrategy().fetch(
             Self.webContext(grokHome: grokHome),
-            webBilling: {
+            webBilling: { _ in
                 (
                     GrokWebBillingSnapshot(
                         usedPercent: nil,
@@ -483,7 +483,7 @@ struct GrokWebBillingFetcherTests {
     func `web strategy keeps credits when settings enrichment fails`() async throws {
         let result = try await GrokWebFetchStrategy().fetch(
             Self.webContext(grokHome: nil),
-            webBilling: {
+            webBilling: { _ in
                 (
                     GrokWebBillingSnapshot(
                         usedPercent: 18,

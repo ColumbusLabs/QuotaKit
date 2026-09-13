@@ -1374,6 +1374,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Kompaktowy stos";
 "menu_bar_layout_preset_custom" = "Niestandardowe";
 "menu_bar_layout_live_preview" = "Podgląd na żywo";
+"menu_bar_layout_default_preview" = "Podgląd układu domyślnego";
+"menu_bar_layout_overrides_notice" = "Ci włączeni dostawcy używają własnych zapisanych układów:";
+"menu_bar_layout_use_all_accessibility" = "%@: Użyj układu dla wszystkich dostawców";
 "menu_bar_layout_strip" = "Pasek menu";
 "menu_bar_layout_remove_line_break" = "Usuń podział wiersza";
 "menu_bar_layout_chip_hint" = "Zaznacz, przeciągnij, aby zmienić kolejność, lub użyj akcji Usuń.";

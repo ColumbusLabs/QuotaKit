@@ -1372,6 +1372,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Kompakt yığın";
 "menu_bar_layout_preset_custom" = "Özel";
 "menu_bar_layout_live_preview" = "Canlı önizleme";
+"menu_bar_layout_default_preview" = "Varsayılan düzen önizlemesi";
+"menu_bar_layout_overrides_notice" = "Bu etkin sağlayıcılar kendi kayıtlı düzenlerini kullanır:";
+"menu_bar_layout_use_all_accessibility" = "%@: Tüm sağlayıcıların düzenini kullan";
 "menu_bar_layout_strip" = "Menü çubuğu şeridi";
 "menu_bar_layout_remove_line_break" = "Satır sonunu kaldır";
 "menu_bar_layout_chip_hint" = "Seçin, yeniden sıralamak için sürükleyin veya kaldırma eylemini kullanın.";

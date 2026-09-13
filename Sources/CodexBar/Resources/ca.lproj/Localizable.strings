@@ -1373,6 +1373,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Apilat compacte";
 "menu_bar_layout_preset_custom" = "Personalitzat";
 "menu_bar_layout_live_preview" = "Previsualització en directe";
+"menu_bar_layout_default_preview" = "Previsualització del disseny per defecte";
+"menu_bar_layout_overrides_notice" = "Aquests proveïdors activats fan servir els seus propis dissenys desats:";
+"menu_bar_layout_use_all_accessibility" = "%@: Fes servir el disseny de tots els proveïdors";
 "menu_bar_layout_strip" = "Franja de la barra de menús";
 "menu_bar_layout_remove_line_break" = "Elimina el salt de línia";
 "menu_bar_layout_chip_hint" = "Selecciona, arrossega per reordenar o usa l’acció Elimina.";

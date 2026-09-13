@@ -1370,6 +1370,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Empilement compact";
 "menu_bar_layout_preset_custom" = "Personnalisé";
 "menu_bar_layout_live_preview" = "Aperçu en direct";
+"menu_bar_layout_default_preview" = "Aperçu de la disposition par défaut";
+"menu_bar_layout_overrides_notice" = "Ces fournisseurs activés utilisent leurs propres dispositions enregistrées :";
+"menu_bar_layout_use_all_accessibility" = "%@ : Utiliser la disposition de tous les fournisseurs";
 "menu_bar_layout_strip" = "Bande de la barre des menus";
 "menu_bar_layout_remove_line_break" = "Supprimer le saut de ligne";
 "menu_bar_layout_chip_hint" = "Sélectionnez, faites glisser pour réorganiser ou utilisez l’action Supprimer.";

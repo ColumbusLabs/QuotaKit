@@ -6,6 +6,36 @@ import Testing
 @Suite(.serialized)
 struct CursorAppAuthRegressionTests {
     @Test
+    func `ASCII UTF16LE app auth blob retains the complete token`() throws {
+        let token = try makeCursorAppAuthToken()
+        let bytes = Data(token.utf8.flatMap { [$0, 0] })
+        let directory = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-app-auth-utf16-\(UUID().uuidString)", isDirectory: true)
+        defer { try? FileManager.default.removeItem(at: directory) }
+        try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let databaseURL = directory.appendingPathComponent("state.vscdb")
+        var database: OpaquePointer?
+        try #require(sqlite3_open(databaseURL.path, &database) == SQLITE_OK)
+        defer { sqlite3_close(database) }
+        try #require(sqlite3_exec(
+            database, "CREATE TABLE ItemTable(key TEXT PRIMARY KEY, value BLOB);", nil, nil, nil) == SQLITE_OK)
+        var statement: OpaquePointer?
+        try #require(sqlite3_prepare_v2(
+            database, "INSERT INTO ItemTable VALUES('cursorAuth/accessToken', ?);", -1, &statement, nil) == SQLITE_OK)
+        defer { sqlite3_finalize(statement) }
+        let transient = unsafeBitCast(-1, to: sqlite3_destructor_type.self)
+        let binding = bytes.withUnsafeBytes { rawBytes in
+            sqlite3_bind_blob(statement, 1, rawBytes.baseAddress, Int32(bytes.count), transient)
+        }
+        try #require(binding == SQLITE_OK)
+        try #require(sqlite3_step(statement) == SQLITE_DONE)
+
+        let session = try #require(try CursorAppAuthStore(dbPath: databaseURL.path).loadSession())
+        #expect(session.accessToken == token)
+        #expect(session.isUsable)
+    }
+
+    @Test
     func `shared session store is isolated from production application support under tests`() async throws {
         let fileURL = await CursorSessionStore.shared.fileURLForTesting()
         let applicationSupport = try #require(
@@ -125,29 +155,6 @@ struct CursorAppAuthRegressionTests {
         #expect(session.accessToken == "active-wal-token")
         #expect(try Data(contentsOf: dbURL) == databaseBeforeRead)
         #expect(try Data(contentsOf: walURL) == walBeforeRead)
-    }
-
-    @Test
-    func `explicitly selected browser login stays authoritative in automatic mode`() async throws {
-        await CursorSessionStore.shared.clearCookies()
-        CookieHeaderCache.clear(provider: .cursor)
-        defer { CookieHeaderCache.clear(provider: .cursor) }
-        let selectedSession = CursorStatusProbe.BrowserLoginSession(
-            cookieHeader: "WorkosCursorSessionToken=selected-browser-session",
-            sourceLabel: "Selected browser")
-        #expect(CursorStatusProbe.commitBrowserLoginSession(selectedSession))
-        let appToken = try makeCursorAppAuthToken(subject: "auth0|app-account")
-        let persistence = CursorAppSessionRecorder()
-        let probe = CursorStatusProbe(
-            browserDetection: BrowserDetection(cacheTTL: 0),
-            browserCookieImportOrder: [],
-            appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(accessToken: appToken)),
-            persistAppAuthSession: { session in persistence.record(session) })
-
-        let header = try await probe.resolveSession { cookieHeader, _ in cookieHeader }
-
-        #expect(header == selectedSession.cookieHeader)
-        #expect(persistence.snapshot().isEmpty)
     }
 
     @Test

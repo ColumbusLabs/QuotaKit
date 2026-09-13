@@ -272,11 +272,21 @@ struct ManusProviderTests {
 
     @Test
     func `parse response rejects payload without credits fields`() {
-        let data = Data(#"{"error":"unauthorized","message":"session expired"}"#.utf8)
-
-        #expect(throws: ManusAPIError.self) {
-            try ManusUsageFetcher.parseResponse(data)
+        for body in [
+            #"{"error":"unauthorized","message":"session expired"}"#,
+            #"{"data":{},"result":{"totalCredits":5}}"#,
+            #"{"data":{},"totalCredits":5}"#,
+        ] {
+            #expect(throws: ManusAPIError.parseFailed("response missing expected credits fields")) {
+                try ManusUsageFetcher.parseResponse(Data(body.utf8))
+            }
         }
+    }
+
+    @Test
+    func `parse response preserves sparse zero-credit payload`() throws {
+        let response = try ManusUsageFetcher.parseResponse(Data(#"{"availableCredits":{"totalCredits":0}}"#.utf8))
+        #expect(response.totalCredits == 0)
     }
 
     @Test

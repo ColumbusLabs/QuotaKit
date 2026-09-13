@@ -548,6 +548,23 @@ function resign() {
   fi
 }
 
+resign_sparkle_framework() {
+  local sparkle="$1"
+  local version_dir="${sparkle}/Versions/B"
+
+  # Sign nested code before its containing bundles seal their resources.
+  resign "$version_dir/Autoupdate"
+  resign "$version_dir/Updater.app/Contents/MacOS/Updater"
+  resign "$version_dir/Updater.app"
+  resign "$version_dir/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
+  resign "$version_dir/XPCServices/Downloader.xpc"
+  resign "$version_dir/XPCServices/Installer.xpc/Contents/MacOS/Installer"
+  resign "$version_dir/XPCServices/Installer.xpc"
+  resign "$version_dir/Sparkle"
+  resign "$version_dir"
+  resign "$sparkle"
+}
+
 copy_app_bundle() {
   local source="$1"
   local destination="$2"
@@ -565,17 +582,7 @@ seal_app_bundle_copy() {
   if [[ "$SIGNING_MODE" == "adhoc" ]]; then
     xattr -cr "$bundle" 2>/dev/null || true
     if [[ -d "$sparkle" ]]; then
-      resign "$sparkle"
-      resign "$sparkle/Versions/B/Sparkle"
-      resign "$sparkle/Versions/B/Autoupdate"
-      resign "$sparkle/Versions/B/Updater.app"
-      resign "$sparkle/Versions/B/Updater.app/Contents/MacOS/Updater"
-      resign "$sparkle/Versions/B/XPCServices/Downloader.xpc"
-      resign "$sparkle/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-      resign "$sparkle/Versions/B/XPCServices/Installer.xpc"
-      resign "$sparkle/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-      resign "$sparkle/Versions/B"
-      resign "$sparkle"
+      resign_sparkle_framework "$sparkle"
     fi
 
     if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
@@ -602,17 +609,7 @@ seal_app_bundle_copy() {
   fi
 
   if [[ -d "$sparkle" ]]; then
-    resign "$sparkle"
-    resign "$sparkle/Versions/B/Sparkle"
-    resign "$sparkle/Versions/B/Autoupdate"
-    resign "$sparkle/Versions/B/Updater.app"
-    resign "$sparkle/Versions/B/Updater.app/Contents/MacOS/Updater"
-    resign "$sparkle/Versions/B/XPCServices/Downloader.xpc"
-    resign "$sparkle/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-    resign "$sparkle/Versions/B/XPCServices/Installer.xpc"
-    resign "$sparkle/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-    resign "$sparkle/Versions/B"
-    resign "$sparkle"
+    resign_sparkle_framework "$sparkle"
   fi
 
   if [[ -f "${bundle}/Contents/Helpers/${CLI_EXECUTABLE_NAME}" ]]; then
@@ -636,18 +633,7 @@ seal_app_bundle_copy() {
     --entitlements "$APP_ENTITLEMENTS" \
     "$bundle"
 }
-  # Sign innermost binaries first, then the framework root to seal resources
-  resign "$SPARKLE"
-  resign "$SPARKLE/Versions/B/Sparkle"
-  resign "$SPARKLE/Versions/B/Autoupdate"
-  resign "$SPARKLE/Versions/B/Updater.app"
-  resign "$SPARKLE/Versions/B/Updater.app/Contents/MacOS/Updater"
-  resign "$SPARKLE/Versions/B/XPCServices/Downloader.xpc"
-  resign "$SPARKLE/Versions/B/XPCServices/Downloader.xpc/Contents/MacOS/Downloader"
-  resign "$SPARKLE/Versions/B/XPCServices/Installer.xpc"
-  resign "$SPARKLE/Versions/B/XPCServices/Installer.xpc/Contents/MacOS/Installer"
-  resign "$SPARKLE/Versions/B"
-  resign "$SPARKLE"
+  resign_sparkle_framework "$SPARKLE"
 fi
 
 if [[ -f "$ICON_TARGET" ]]; then

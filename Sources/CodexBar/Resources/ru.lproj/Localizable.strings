@@ -1372,6 +1372,9 @@
 "menu_bar_layout_preset_compact_stacked" = "Компактно в две строки";
 "menu_bar_layout_preset_custom" = "Пользовательский";
 "menu_bar_layout_live_preview" = "Предпросмотр";
+"menu_bar_layout_default_preview" = "Предпросмотр макета по умолчанию";
+"menu_bar_layout_overrides_notice" = "Эти включённые провайдеры используют собственные сохранённые макеты:";
+"menu_bar_layout_use_all_accessibility" = "%@: Использовать макет для всех провайдеров";
 "menu_bar_layout_strip" = "Строка меню";
 "menu_bar_layout_remove_line_break" = "Удалить разрыв строки";
 "menu_bar_layout_chip_hint" = "Выберите, перетащите для изменения порядка или используйте действие удаления.";
