@@ -17,6 +17,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.
 - OpenCode Go: preserve API percentage units, including values between zero and one percent.
 - Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.
+- Kimi: surface an exhausted monthly membership quota in automatic menu-bar usage.
+- Devin: hide daily quota when the service explicitly marks it hidden while preserving weekly usage.
+- Z.ai: keep unavailable quota limits unknown instead of displaying a fabricated zero-usage window.
 - Poe and OpenRouter: correct weekly usage totals and reject invalid dates or overflowing token totals.
 - Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.
 - Menu bar: normalize status-window coordinates across displays before detecting a blocked status item.
