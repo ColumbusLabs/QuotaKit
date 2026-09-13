@@ -43,31 +43,49 @@ import Foundation
 final class SyncMultiAccountSnapshotCache {
     /// Composite key `"<providerID>|<accountID>"` → most recent snapshot
     /// captured for that account.
-    private var snapshotByCompositeKey: [String: ProviderUsageSnapshot] = [:]
+    private struct Entry {
+        var snapshot: ProviderUsageSnapshot
+        var costSettingsRevision: UInt64?
+    }
+
+    private var snapshotByCompositeKey: [String: Entry] = [:]
 
     /// Records `snapshot` against `(providerID, accountID)`. Replaces any
     /// previous entry for that pair.
     func record(
         _ snapshot: ProviderUsageSnapshot,
         providerID: String,
-        accountID: String)
+        accountID: String,
+        costSettingsRevision: UInt64? = nil)
     {
         let key = Self.compositeKey(providerID: providerID, accountID: accountID)
-        self.snapshotByCompositeKey[key] = snapshot
+        self.snapshotByCompositeKey[key] = Entry(
+            snapshot: snapshot, costSettingsRevision: costSettingsRevision)
     }
 
     /// Returns all cached snapshots for `providerID` whose accountID is NOT
     /// equal to `excludingAccountID`. Use this to merge cached non-active
     /// snapshots alongside the freshly-built active snapshot during a push.
+    /// Codex can preserve quota rows while dropping cost from an older
+    /// settings revision or an accountless local ledger.
     func cachedSnapshots(
         providerID: String,
-        excludingAccountID: String) -> [ProviderUsageSnapshot]
+        excludingAccountID: String,
+        currentCostSettingsRevision: UInt64? = nil,
+        redactCost: Bool = false) -> [ProviderUsageSnapshot]
     {
         let prefix = "\(providerID)|"
         let exclude = Self.compositeKey(
             providerID: providerID, accountID: excludingAccountID)
-        return self.snapshotByCompositeKey.compactMap { key, snapshot in
+        return self.snapshotByCompositeKey.compactMap { key, entry in
             guard key.hasPrefix(prefix), key != exclude else { return nil }
+            var snapshot = entry.snapshot
+            if redactCost ||
+                (currentCostSettingsRevision != nil &&
+                    entry.costSettingsRevision != currentCostSettingsRevision)
+            {
+                snapshot.costSummary = nil
+            }
             return snapshot
         }
     }

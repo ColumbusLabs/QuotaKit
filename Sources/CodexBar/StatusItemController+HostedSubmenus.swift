@@ -314,7 +314,9 @@ extension StatusItemController {
             .text(Self.dashboardBreakdownReadinessSignature(self.store.openAIDashboard?.dailyBreakdown ?? []))
         case Self.costHistoryChartID:
             if let provider = identity.provider {
-                self.costHistoryRenderFingerprint(for: provider)
+                self.costHistoryRenderFingerprint(
+                    for: provider,
+                    hidePersonalInfo: self.settings.hidePersonalInfo)
             } else {
                 .text("missing-provider")
             }
@@ -334,7 +336,10 @@ extension StatusItemController {
             content: contentSignature)
     }
 
-    private func costHistoryRenderFingerprint(for provider: UsageProvider) -> HostedSubviewContentFingerprint {
+    private func costHistoryRenderFingerprint(
+        for provider: UsageProvider,
+        hidePersonalInfo: Bool) -> HostedSubviewContentFingerprint
+    {
         guard let snapshot = self.tokenSnapshotForCostHistorySubmenu(provider: provider) else {
             return .text("none")
         }
@@ -342,6 +347,7 @@ extension StatusItemController {
         return .costHistory(CostHistoryChartMenuView.renderFingerprint(
             from: snapshot,
             provider: provider,
+            hidePersonalInfo: hidePersonalInfo,
             displayCurrencyCode: displayConversion.currencyCode,
             displayCostMultiplier: displayConversion.multiplier))
     }
@@ -493,6 +499,7 @@ extension StatusItemController {
             windowLabel: tokenSnapshot.historyLabel,
             projects: provider == .codex ? tokenSnapshot.projects : [],
             sessions: provider == .codex ? tokenSnapshot.sessions : [],
+            hidePersonalInfo: self.settings.hidePersonalInfo,
             width: width)
         let hosting = MenuHostingView(rootView: chartView)
         hosting.applyMeasuredHeight(

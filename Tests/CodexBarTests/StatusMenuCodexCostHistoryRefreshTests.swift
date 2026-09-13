@@ -80,6 +80,51 @@ struct StatusMenuCodexCostHistoryRefreshTests {
         #expect(controller._storedHostedSubviewRenderSignatureForTesting(menu: submenu) == recomputed)
     }
 
+    @Test
+    func `codex cost history render signature changes when privacy setting changes`() throws {
+        let previousMenuCardRendering = StatusItemController.menuCardRenderingEnabled
+        StatusItemController.menuCardRenderingEnabled = true
+        defer { StatusItemController.menuCardRenderingEnabled = previousMenuCardRendering }
+
+        let settings = Self.makeSettings()
+        settings.costUsageEnabled = true
+        settings.hidePersonalInfo = false
+        Self.enableOnly(settings, provider: .codex)
+
+        let fetcher = UsageFetcher()
+        let store = UsageStore(fetcher: fetcher, browserDetection: BrowserDetection(cacheTTL: 0), settings: settings)
+        store._setTokenSnapshotForTesting(Self.makeCodexCostSnapshot(), provider: .codex)
+
+        let controller = StatusItemController(
+            store: store,
+            settings: settings,
+            account: fetcher.loadAccountInfo(),
+            updater: DisabledUpdaterController(),
+            preferencesSelection: PreferencesSelection(),
+            statusBar: .system)
+        defer { controller.releaseStatusItemsForTesting() }
+
+        let width = StatusItemController.menuCardBaseWidth
+        let submenu = controller.makeHostedSubviewPlaceholderMenu(
+            chartID: StatusItemController.costHistoryChartID,
+            provider: .codex,
+            width: width)
+        let visible = try #require(controller._hostedSubviewRenderSignatureForTesting(menu: submenu, width: width))
+
+        settings.hidePersonalInfo = true
+        let hidden = try #require(controller._hostedSubviewRenderSignatureForTesting(menu: submenu, width: width))
+
+        guard case let .costHistory(visibleFingerprint) = visible.content,
+              case let .costHistory(hiddenFingerprint) = hidden.content
+        else {
+            Issue.record("Expected cost-history render fingerprints")
+            return
+        }
+        #expect(!visibleFingerprint.hidePersonalInfo)
+        #expect(hiddenFingerprint.hidePersonalInfo)
+        #expect(hidden != visible)
+    }
+
     private func assertCodexCostHistoryPreservesIdentity(
         mutate: (CostUsageTokenSnapshot) -> CostUsageTokenSnapshot) throws
     {
