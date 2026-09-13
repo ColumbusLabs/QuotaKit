@@ -4,8 +4,8 @@ import Testing
 @testable import CodexBar
 
 struct ClaudeMenuCardCostTests {
-    @Test
-    func `claude extra usage card shows balance above monthly cap`() throws {
+    @Test(arguments: [false, true])
+    func `claude extra usage card shows balance above monthly cap`(showUsed: Bool) throws {
         let now = Date()
         let metadata = try #require(ProviderDefaults.metadata[.claude])
         let snapshot = UsageSnapshot(
@@ -35,7 +35,7 @@ struct ClaudeMenuCardCostTests {
             account: AccountInfo(email: nil, plan: nil),
             isRefreshing: false,
             lastError: nil,
-            usageBarsShowUsed: false,
+            usageBarsShowUsed: showUsed,
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
@@ -46,9 +46,71 @@ struct ClaudeMenuCardCostTests {
         #expect(model.providerCost?.balanceLine == "Balance: $100.00")
         #expect(model.providerCost?.spendLine == "Monthly cap: $5.00 / $20.00")
         #expect(model.providerCost?.percentUsed == 25)
+        #expect(model.providerCost?.displayPercent == (showUsed ? 25 : 75))
+        #expect(model.providerCost?.percentStyle == (showUsed ? .used : .left))
         #expect(model.providerCost?.percentLine == "25% used")
         #expect(model.providerCost?.presentation == .detail)
         #expect(model.providerCost?.showsInProviderDetails == false)
+    }
+
+    @Test
+    func `claude extra usage progress label follows display preference`() throws {
+        let now = Date()
+        let metadata = try #require(ProviderDefaults.metadata[.claude])
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            providerCost: ProviderCostSnapshot(
+                used: 25,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly cap",
+                updatedAt: now),
+            updatedAt: now)
+
+        for showUsed in [false, true] {
+            let model = UsageMenuCardView.Model.make(.init(
+                provider: .claude,
+                metadata: metadata,
+                snapshot: snapshot,
+                credits: nil,
+                creditsError: nil,
+                dashboard: nil,
+                dashboardError: nil,
+                tokenSnapshot: nil,
+                tokenError: nil,
+                account: AccountInfo(email: nil, plan: nil),
+                isRefreshing: false,
+                lastError: nil,
+                usageBarsShowUsed: showUsed,
+                resetTimeDisplayStyle: .countdown,
+                tokenCostUsageEnabled: false,
+                showOptionalCreditsAndExtraUsage: true,
+                hidePersonalInfo: false,
+                now: now))
+            #expect(model.providerCost?.displayPercent == (showUsed ? 25 : 75))
+            #expect(model.providerCost?.progressAccessibilityLabel ==
+                (showUsed ? "Extra usage spent" : "Usage remaining"))
+            #expect(model.providerCost?.spendLine == "Monthly cap: $25.00 / $100.00")
+        }
+    }
+
+    @Test(arguments: [false, true])
+    func `other capped provider cost keeps used fill`(showUsed: Bool) throws {
+        let section = try #require(UsageMenuCardView.Model.providerCostSection(
+            cost: ProviderCostSnapshot(
+                used: 25,
+                limit: 100,
+                currencyCode: "USD",
+                period: "Monthly cap",
+                updatedAt: Date()),
+            style: .generic,
+            percentStyle: showUsed ? .used : .left,
+            preferredCurrencyCode: "USD"))
+
+        #expect(section.percentStyle == .used)
+        #expect(section.displayPercent == 25)
+        #expect(section.progressAccessibilityLabel == "Extra usage spent")
     }
 
     @Test

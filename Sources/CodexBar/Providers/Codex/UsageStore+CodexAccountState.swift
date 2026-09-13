@@ -31,7 +31,7 @@ struct CodexAccountScopedRefreshGuard: Equatable {
 @MainActor
 extension UsageStore {
     func accountScopedTokenSnapshot(for provider: UsageProvider) -> CostUsageTokenSnapshot? {
-        if provider == .codex, !self.settings.codexLocalSessionCostLedgerEnabled {
+        if provider == .codex {
             return self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
         }
         guard let snapshot = self.tokenSnapshots[provider.instanceID],
