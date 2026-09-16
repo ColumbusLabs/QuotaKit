@@ -61,10 +61,20 @@ currency, hidden source IDs, native-Codex/OpenCodex presentation flag, selected
 day, and the semantic build key. Source/publication state is still published
 immediately; it is not held behind model derivation.
 
-The request is evaluated by Task.detached(priority: .userInitiated). An
-explicit main-actor wrapper only applies the completed model. The injected
-model-builder test seam records Thread.isMainThread == false for the
-production controller path.
+The request is evaluated by a cache-owned
+Task.detached(priority: .userInitiated). Only the completion callback hops
+back to MainActor to validate and apply the result. The injected model-builder
+test seam records Thread.isMainThread == false for the production controller
+path.
+
+The detached task is deliberately not wrapped in a separately cancellable
+Task. Cancelling the old wrapper did not cancel synchronous SpendDashboardModel
+work, so rapid changes could leave A, B, and C consuming CPU concurrently.
+The cache now owns a single-flight scheduler: one active build, one latest
+pending controller request, and at most one pending publication-only request.
+Replacing pending B with C drops B and increments the coalesced counter. A is
+allowed to finish, its stale result is discarded when appropriate, and C is
+the only next controller build.
 
 ## Memoization key and lifetime
 
@@ -93,31 +103,55 @@ a new key.
 
 Each controller owns one SpendDashboardModelCache with a bounded capacity of
 four entries. The controller passes that same cache to its current
-SpendDashboardPublication, so an exact publication model request reuses the
-controller result. The cache is controller/publication lifetime and uses a
-small recency order; it is not a process-wide cache. Manually constructed
-publications use their publication revision as their default input identity
-unless a caller supplies a specific loaded-input revision.
+SpendDashboardPublication. The cache is controller/publication lifetime and
+uses a small recency order; it is not a process-wide cache. Manually
+constructed publications use their publication revision as their default
+input identity unless a caller supplies a specific loaded-input revision.
+
+The cache also owns the single-flight queues. Controller work has priority
+over a pending publication-only scope, so a menu request cannot create a
+second concurrent aggregation or cause rapid controller changes to fan out
+into multiple detached jobs.
 
 ## Stale-build protection
 
 Every scheduled model request advances a model-derivation generation separate
 from the source-load generation. A completion is applied only when both its
 generation and active semantic key still match the current request. Task
-cancellation is only an optimization; it is not correctness protection.
-Older detached work may finish and populate the bounded cache, but it is
-discarded for presentation and increments the stale-completion counter.
+cancellation is not used as CPU-work cancellation or correctness protection.
+An older active build may finish and populate the bounded cache, but its
+controller completion is discarded when stale and increments the
+stale-completion counter. Pending superseded requests never start.
 
 ## Publication model reuse
 
 The production publication consumer is
 StatusItemController.overviewSpendDashboardModel(...). Its exact
-controller/publication request now hits the shared cache instead of executing
-another full build. A provider scope, stale-source filter, day window,
-currency, hidden-source set, selected day, or other semantic difference
-produces a different key and remains independent and correct. A genuinely
-different request may still use the synchronous publication API for its first
-result; it is not confused with the controller's exact model.
+controller/publication request now uses the shared cache instead of executing
+another full build. The controller publishes its current request key and
+applied model key alongside source state. If the exact key is still pending,
+SpendDashboardPublication.model(...) returns immediately without building or
+waiting; the controller republishes after the cache completion makes the exact
+model available. This fixes the publish-before-detached-completion race that
+the previous publication-reuse test missed because it waited for the
+controller build before asking the publication for its model.
+
+The status-menu consumer supplies providerScope. When that scope, stale-source
+filter, day window, currency, hidden-source set, selected day, and all other
+key inputs are exactly equivalent to the controller request, it follows the
+exact-key path. A genuinely different provider-scoped request is queued as a
+publication-priority job on the same single-flight cache and returns a
+non-blocking empty placeholder until completion; completion republishes the
+current publication, after which the request is a bounded-cache hit. It never
+performs an uncontrolled synchronous full build on the production UI path.
+
+When a controller request itself hits the bounded cache, the controller applies
+that model and republishes immediately as well, so the publication's exact-key
+state cannot remain marked pending after a cache hit.
+
+Standalone publications created without the controller-owned asynchronous
+completion handler retain the existing synchronous fallback for compatibility;
+the traced production path always uses the controller-owned cache and handler.
 
 ## Invalidation and observability
 
@@ -141,7 +175,9 @@ The lightweight counters are:
 - the process-local, lock-protected fingerprint-computation counter exposed by
   SpendDashboardSnapshotRevisionEncoder;
 - model build starts, executions, completions, cache hits, and stale
-  completions discarded.
+  completions discarded;
+- pending builds coalesced, exact publication requests deferred, and maximum
+  concurrent cache-owned builds.
 
 They are lock-protected. Model counters are observation-ignored on the
 controller, and the process-local fingerprint counter is not store state, so
@@ -149,25 +185,35 @@ counter updates cannot cause dashboard observation churn.
 
 ## Targeted verification
 
-The new SpendDashboardRecalculationPerformanceTests suite has 9 passing
-tests covering one fingerprint per publication, new-publication invalidation and
-scope isolation, deterministic fingerprints, cache reuse, non-main execution,
-stale completion discard, the invalidation matrix, publication reuse, and
-ownership isolation.
+The SpendDashboardRecalculationPerformanceTests suite has 10 passing tests.
+In addition to the accepted fingerprint and model-key coverage, it now proves
+the immediate-publication race and single-flight replacement behavior:
+
+- gated controller request K plus an immediate exact provider-scoped
+  publication request records one builder invocation, no additional build
+  execution, one deferred publication request, and maximum concurrency one;
+- gated A followed by 90-day B, 365-day C, and selected-day churn records
+  actual builder requests `[30, 365]`, two coalesced pending requests, one
+  stale discard, and maximum concurrency one;
+- exact publication reuse after completion remains a cache hit; a distinct
+  provider scope executes once asynchronously and then reuses its result;
+- changed ownership cannot reuse the old cached model.
 
 Additional focused results:
 
-- swift test --filter SpendDashboardRecalculationPerformanceTests: 9/9;
+- swift test --filter SpendDashboardRecalculationPerformanceTests: 10/10;
 - swift test --filter SpendDashboardPublicationTests: 19/19;
 - swift test --filter SpendDashboardControllerTests: 24/24;
+- swift test --filter StatusMenuOverviewSpendTests: 6/6;
 - swift test --filter SpendDashboardModelTests: 47/47;
 - swift test --filter SpendDashboardDateTruthTests: 23/23;
 - swift test --filter SpendDashboardLoadLivenessTests: 15/15;
 - swift test --filter SpendDashboardCodexHistoryHorizonTests: 20/20.
 
-The liveness tests were updated only to await deterministic model-derivation
-completion after source-load completion; their behavioral assertions remain
-the #159 contract. No full project suite or ./Scripts/test.sh was run.
+Publication/controller tests use deterministic model-generation gates rather
+than arbitrary sleeps for the new race checks. The liveness tests' behavioral
+assertions remain the #159 contract. No full project suite or ./Scripts/test.sh
+was run.
 
 ## Structural performance proof
 
@@ -177,12 +223,14 @@ model builds, and controller derivation ran on the main actor.
 
 After this change, one immutable publication performs one fingerprint
 calculation, one semantic model key performs one actual build with subsequent
-cache hits, and the controller's expensive builder runs outside the main
-actor. A stale completion is explicitly discarded rather than allowed to
-overwrite a newer model. The fingerprint regression test observes one
-publication computation across repeated configuration captures; the
-new-publication test observes exactly one additional computation for the new
-publication.
+cache hits, the controller's expensive builder runs outside the main actor,
+and one active scheduler prevents duplicate CPU work during churn. The
+immediate-publication test proves that publication-before-completion does not
+add a build; the churn test proves A→B→C becomes A→C. A stale completion is
+explicitly discarded rather than allowed to overwrite a newer model. The
+fingerprint regression test observes one publication computation across
+repeated configuration captures; the new-publication test observes exactly
+one additional computation for the new publication.
 
 No CPU percentage is claimed. Native Instruments profiling on a representative
 large archive is deferred to the final integration/performance phase.

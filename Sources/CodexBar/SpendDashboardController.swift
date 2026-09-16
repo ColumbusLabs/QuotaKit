@@ -942,6 +942,7 @@ struct SpendDashboardLoadLivenessCounters: Sendable, Equatable {
 
 @MainActor
 @Observable
+// swiftlint:disable:next type_body_length
 final class SpendDashboardController {
     typealias RequestBuilder = @MainActor @Sendable (SpendDashboardRequestBuildMode) async
         -> SpendDashboardLoadRequest
@@ -1060,7 +1061,6 @@ final class SpendDashboardController {
     @ObservationIgnored private let modelCache: SpendDashboardModelCache
     @ObservationIgnored private(set) var modelDerivationCounters: SpendDashboardModelDerivationCounters
     private var loadTask: Task<Void, Never>?
-    @ObservationIgnored private var modelBuildTask: Task<Void, Never>?
     @ObservationIgnored private var modelBuildGeneration: UInt64 = 0
     @ObservationIgnored private var activeModelBuildKey: SpendDashboardModelBuildKey?
     @ObservationIgnored private var appliedModelBuildKey: SpendDashboardModelBuildKey?
@@ -1095,7 +1095,9 @@ final class SpendDashboardController {
         self.nowProvider = nowProvider
         self.publicationHandler = publicationHandler
         self.modelBuilder = modelBuilder
-        self.modelCache = SpendDashboardModelCache(counters: modelDerivationCounters)
+        self.modelCache = SpendDashboardModelCache(
+            counters: modelDerivationCounters,
+            supportsAsynchronousBuilds: true)
         self.modelDerivationCounters = modelDerivationCounters
         self.selectedDays = Self.normalizedDays(userDefaults.integer(forKey: Self.daysDefaultsKey))
     }
@@ -1609,7 +1611,7 @@ final class SpendDashboardController {
     /// trigger UI refreshes on their own.
     @ObservationIgnored private(set) var loadLivenessCounters = SpendDashboardLoadLivenessCounters()
 
-    private func publishCurrentState() {
+    private func publishCurrentState(modelRequest: SpendDashboardModelBuildRequest? = nil) {
         self.publicationRevision &+= 1
         let inputByID = Dictionary(uniqueKeysWithValues: self.loadedInputs.map { ($0.id, $0) })
         let sourceIDs = self.orderedSourceIDs(inputByID: inputByID)
@@ -1653,6 +1655,7 @@ final class SpendDashboardController {
                 role: .enrichment,
                 state: state))
         }
+        let currentModelRequest = modelRequest ?? self.modelBuildRequest()
         let publication = SpendDashboardPublication(
             revision: self.publicationRevision,
             generation: self.generation,
@@ -1662,7 +1665,13 @@ final class SpendDashboardController {
             inputs: self.loadedInputs,
             inputRevision: self.loadedInputsRevision,
             sources: sources,
-            modelCache: self.modelCache)
+            modelCache: self.modelCache,
+            controllerModelBuildKey: currentModelRequest.key,
+            appliedModelBuildKey: self.appliedModelBuildKey,
+            controllerModel: self.model,
+            modelReadyHandler: { [weak self] in
+                self?.publishCurrentState()
+            })
         self.publication = publication
         self.publicationHandler?(publication)
     }
@@ -1864,7 +1873,7 @@ extension SpendDashboardController {
     private func rebuildModel(publish: Bool = true) {
         let request = self.modelBuildRequest()
         if publish {
-            self.publishCurrentState()
+            self.publishCurrentState(modelRequest: request)
         }
         self.scheduleModelBuild(request)
     }
@@ -1889,19 +1898,9 @@ extension SpendDashboardController {
     private func scheduleModelBuild(_ request: SpendDashboardModelBuildRequest) {
         if self.appliedModelBuildKey == request.key {
             self.modelBuildGeneration &+= 1
-            self.modelBuildTask?.cancel()
-            self.modelBuildTask = nil
+            self.modelCache.discardPendingControllerBuild()
             self.activeModelBuildKey = nil
             self.modelDerivationCounters.recordCacheHit()
-            return
-        }
-        if let cached = self.modelCache.model(for: request.key) {
-            self.modelBuildGeneration &+= 1
-            self.modelBuildTask?.cancel()
-            self.modelBuildTask = nil
-            self.activeModelBuildKey = nil
-            self.model = cached
-            self.appliedModelBuildKey = request.key
             return
         }
         if self.activeModelBuildKey == request.key {
@@ -1910,19 +1909,22 @@ extension SpendDashboardController {
 
         self.modelBuildGeneration &+= 1
         let generation = self.modelBuildGeneration
-        self.modelBuildTask?.cancel()
         self.activeModelBuildKey = request.key
-        self.modelDerivationCounters.recordBuildStart()
-        let counters = self.modelDerivationCounters
         let modelBuilder = self.modelBuilder
-        let detachedTask = Task.detached(priority: .userInitiated) {
-            counters.recordBuildExecuted()
-            return modelBuilder(request)
-        }
-        self.modelBuildTask = Task { @MainActor [weak self] in
-            let model = await detachedTask.value
-            guard let self else { return }
-            self.finishModelBuild(model, request: request, generation: generation)
+        let result = self.modelCache.enqueue(
+            request: request,
+            priority: .controller,
+            builder: modelBuilder,
+            completion: { [weak self] model in
+                Task { @MainActor [weak self] in
+                    self?.finishModelBuild(model, request: request, generation: generation)
+                }
+            })
+        if case let .cached(model) = result {
+            self.model = model
+            self.appliedModelBuildKey = request.key
+            self.activeModelBuildKey = nil
+            self.publishCurrentState()
         }
     }
 
@@ -1931,8 +1933,6 @@ extension SpendDashboardController {
         request: SpendDashboardModelBuildRequest,
         generation: UInt64)
     {
-        self.modelDerivationCounters.recordBuildCompletion()
-        self.modelCache.insert(model, for: request.key)
         guard generation == self.modelBuildGeneration,
               self.activeModelBuildKey == request.key
         else {
@@ -1942,7 +1942,7 @@ extension SpendDashboardController {
         self.model = model
         self.appliedModelBuildKey = request.key
         self.activeModelBuildKey = nil
-        self.modelBuildTask = nil
+        self.publishCurrentState()
     }
 }
 
@@ -1977,8 +1977,7 @@ extension SpendDashboardController {
         self.loadTask?.cancel()
         self.loadTask = nil
         self.modelBuildGeneration &+= 1
-        self.modelBuildTask?.cancel()
-        self.modelBuildTask = nil
+        self.modelCache.discardPendingControllerBuild()
         self.activeModelBuildKey = nil
         self.configuration = nil
         self.loadedInputs = []

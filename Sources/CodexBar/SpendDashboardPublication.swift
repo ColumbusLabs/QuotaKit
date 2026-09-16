@@ -32,6 +32,10 @@ struct SpendDashboardPublication: Sendable {
     let sources: [SpendSourcePublication]
     let inputRevision: UInt64
     let modelCache: SpendDashboardModelCache
+    let controllerModelBuildKey: SpendDashboardModelBuildKey?
+    let appliedModelBuildKey: SpendDashboardModelBuildKey?
+    let controllerModel: SpendDashboardModel?
+    let modelReadyHandler: (@MainActor @Sendable () -> Void)?
 
     init(
         revision: UInt64,
@@ -42,7 +46,11 @@ struct SpendDashboardPublication: Sendable {
         inputs: [SpendDashboardModel.ProviderInput],
         inputRevision: UInt64? = nil,
         sources: [SpendSourcePublication],
-        modelCache: SpendDashboardModelCache = SpendDashboardModelCache())
+        modelCache: SpendDashboardModelCache = SpendDashboardModelCache(),
+        controllerModelBuildKey: SpendDashboardModelBuildKey? = nil,
+        appliedModelBuildKey: SpendDashboardModelBuildKey? = nil,
+        controllerModel: SpendDashboardModel? = nil,
+        modelReadyHandler: (@MainActor @Sendable () -> Void)? = nil)
     {
         self.revision = revision
         self.generation = generation
@@ -53,6 +61,10 @@ struct SpendDashboardPublication: Sendable {
         self.sources = sources
         self.inputRevision = inputRevision ?? revision
         self.modelCache = modelCache
+        self.controllerModelBuildKey = controllerModelBuildKey
+        self.appliedModelBuildKey = appliedModelBuildKey
+        self.controllerModel = controllerModel
+        self.modelReadyHandler = modelReadyHandler
     }
 
     static let empty = SpendDashboardPublication(
@@ -95,6 +107,43 @@ struct SpendDashboardPublication: Sendable {
         if let cached = self.modelCache.model(for: request.key) {
             return cached
         }
+
+        if self.controllerModelBuildKey == request.key {
+            self.modelCache.counters.recordPublicationRequestDeferred()
+            if self.appliedModelBuildKey == request.key, let controllerModel = self.controllerModel {
+                return controllerModel
+            }
+            // The controller owns the exact request but has not finished it.
+            // Keep this synchronous API non-blocking; the controller republishes
+            // after its cache completion makes the exact model available.
+            return SpendDashboardModel(requestedDays: requestedDays, groups: [])
+        }
+
+        if self.modelCache.supportsAsynchronousBuilds, let modelReadyHandler = self.modelReadyHandler {
+            let enqueueResult = self.modelCache.enqueue(
+                request: request,
+                priority: .publication,
+                builder: { $0.build() },
+                completion: { _ in
+                    Task { @MainActor in
+                        modelReadyHandler()
+                    }
+                })
+            switch enqueueResult {
+            case let .cached(model):
+                return model
+            case .scheduled, .alreadyScheduled:
+                if self.appliedModelBuildKey == request.key, let controllerModel = self.controllerModel {
+                    return controllerModel
+                }
+                // A provider-scoped or stale-source request is genuinely
+                // different from the controller request. It is queued through
+                // the same single-flight coordinator instead of rebuilding on
+                // the main actor.
+                return SpendDashboardModel(requestedDays: requestedDays, groups: [])
+            }
+        }
+
         self.modelCache.counters.recordBuildStart()
         self.modelCache.counters.recordBuildExecuted()
         let model = request.build()

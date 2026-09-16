@@ -5,6 +5,7 @@ import Testing
 
 @MainActor
 @Suite(.serialized)
+// swiftlint:disable:next type_body_length
 struct SpendDashboardPublicationTests {
     @Test
     func `shared source observation follows regular Codex publication and bucket ownership`() async {
@@ -208,6 +209,7 @@ struct SpendDashboardPublicationTests {
 
         controller.update(configuration: fixture.request.configuration)
         await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
 
         let publication = controller.publication
         let sources = Dictionary(uniqueKeysWithValues: publication.sources.map { ($0.id, $0) })
@@ -225,11 +227,21 @@ struct SpendDashboardPublicationTests {
         #expect(sources["codex:second"]?.state == .available)
         #expect(inputs["codex:second"]?.id == "codex:second")
         #expect(publication.subscriptionCount(providerScope: [.codex, .openai, .claude, .gemini]) == 5)
-        let model = publication.model(
+        var model = publication.model(
             requestedDays: 30,
             now: Self.now,
             calendar: Self.calendar,
             preferredCurrencyCode: "USD")
+        await Self.waitUntil {
+            model = publication.model(
+                requestedDays: 30,
+                now: Self.now,
+                calendar: Self.calendar,
+                preferredCurrencyCode: "USD")
+            return publication.knownCostSubscriptionCount(
+                model: model,
+                providerScope: [.codex, .openai, .claude, .gemini]) == 4
+        }
         #expect(publication.knownCostSubscriptionCount(
             model: model,
             providerScope: [.codex, .openai, .claude, .gemini]) == 4)
@@ -732,14 +744,27 @@ struct SpendDashboardPublicationTests {
 
         controller.update(configuration: fixture.request.configuration)
         await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
         let callsBeforeProjection = await calls.count
 
-        let model = controller.publication.model(
+        var model = controller.publication.model(
             requestedDays: 30,
             now: Self.now,
             calendar: Self.calendar,
             preferredCurrencyCode: "USD",
             providerScope: [.codex])
+        await Self.waitUntil {
+            model = controller.publication.model(
+                requestedDays: 30,
+                now: Self.now,
+                calendar: Self.calendar,
+                preferredCurrencyCode: "USD",
+                providerScope: [.codex])
+            let providerIDs = model.groups.flatMap { group in
+                group.providers.map(\.id)
+            }
+            return Set(providerIDs) == ["codex:first", "codex:second"]
+        }
         let providerIDs = model.groups.flatMap { group in
             group.providers.map(\.id)
         }

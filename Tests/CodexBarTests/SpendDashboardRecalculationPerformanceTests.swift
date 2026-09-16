@@ -115,7 +115,54 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
-    func `a stale background model cannot replace a newer selection`() async {
+    func `immediate publication consumption does not duplicate a pending controller build`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        let controller = Self.controller(
+            configuration: Self.configuration(),
+            input: Self.input(),
+            probe: nil,
+            modelBuilder: { request in
+                gate.build(request)
+            })
+        defer { gate.releaseFirstBuild() }
+
+        controller.update(configuration: Self.configuration())
+        await Self.waitUntil {
+            gate.firstBuildStarted.value && controller.publication.inputs.contains { $0.id == "claude" }
+        }
+
+        let publication = controller.publication
+        let before = controller.modelDerivationCounters.snapshot
+        let pending = publication.model(
+            requestedDays: controller.selectedDays,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD",
+            providerScope: [.claude])
+        let during = controller.modelDerivationCounters.snapshot
+
+        #expect(pending.groups.isEmpty)
+        #expect(gate.invocationCount == 1)
+        #expect(gate.maxConcurrentBuilds == 1)
+        #expect(during.buildsExecuted == before.buildsExecuted)
+        #expect(during.publicationRequestsDeferred == before.publicationRequestsDeferred + 1)
+        #expect(during.maxConcurrentBuilds == 1)
+
+        gate.releaseFirstBuild()
+        await Self.waitForBuilds(before.buildCompletions + 1, controller: controller)
+        let completed = publication.model(
+            requestedDays: controller.selectedDays,
+            now: Self.now,
+            calendar: Self.configuration().bucketCalendar,
+            preferredCurrencyCode: "USD",
+            providerScope: [.claude])
+
+        #expect(completed == controller.model)
+        #expect(gate.invocationCount == 1)
+    }
+
+    @Test
+    func `controller model derivation is single flight under replacement churn`() async {
         let gate = SpendDashboardRecalculationBuildGate()
         let controller = Self.controller(
             configuration: Self.configuration(),
@@ -128,20 +175,33 @@ struct SpendDashboardRecalculationPerformanceTests {
 
         controller.update(configuration: Self.configuration())
         await Self.waitUntil { gate.firstBuildStarted.value }
+        let before = controller.modelDerivationCounters.snapshot
 
         controller.selectDays(90)
-        await Self.waitUntil {
-            controller.model.requestedDays == 90 &&
-                controller.modelDerivationCounters.snapshot.buildCompletions >= 1
-        }
+        controller.selectDays(365)
+        controller.selectDay(Self.now)
+        await Task.yield()
+
+        let during = controller.modelDerivationCounters.snapshot
+        #expect(gate.invocationCount == 1)
+        #expect(gate.maxConcurrentBuilds == 1)
+        #expect(during.buildsExecuted == before.buildsExecuted)
+        #expect(during.buildsCoalesced >= before.buildsCoalesced + 2)
+
         gate.releaseFirstBuild()
         await Self.waitUntil {
-            controller.model.requestedDays == 90 &&
-                controller.modelDerivationCounters.snapshot.staleCompletionsDiscarded >= 1
+            controller.model.requestedDays == 365 &&
+                gate.recordedRequests.last?.selectedDay != nil &&
+                controller.modelDerivationCounters.snapshot.buildCompletions >= before.buildCompletions + 2 &&
+                !controller.isModelDerivationInFlight
         }
 
-        #expect(controller.model.requestedDays == 90)
-        #expect(controller.modelDerivationCounters.snapshot.staleCompletionsDiscarded == 1)
+        #expect(gate.recordedRequests.map(\.requestedDays) == [30, 365])
+        #expect(gate.maxConcurrentBuilds == 1)
+        #expect(controller.modelDerivationCounters.snapshot.maxConcurrentBuilds == 1)
+        #expect(controller.modelDerivationCounters.snapshot.staleCompletionsDiscarded ==
+            before.staleCompletionsDiscarded + 1)
+        #expect(controller.modelDerivationCounters.snapshot.buildsExecuted == before.buildsExecuted + 1)
     }
 
     @Test
@@ -265,6 +325,16 @@ struct SpendDashboardRecalculationPerformanceTests {
         #expect(controller.modelDerivationCounters.snapshot.buildsExecuted == before.buildsExecuted)
         #expect(controller.modelDerivationCounters.snapshot.cacheHits > before.cacheHits)
 
+        let pendingScoped = publication.model(
+            requestedDays: controller.selectedDays,
+            now: Self.now,
+            calendar: configuration.bucketCalendar,
+            preferredCurrencyCode: configuration.preferredCurrencyCode,
+            providerScope: [])
+        let duringScopedBuild = controller.modelDerivationCounters.snapshot
+        #expect(pendingScoped.groups.isEmpty)
+        #expect(duringScopedBuild.buildsExecuted == before.buildsExecuted)
+        await Self.waitForBuilds(before.buildCompletions + 1, controller: controller)
         let scoped = publication.model(
             requestedDays: controller.selectedDays,
             now: Self.now,
@@ -279,7 +349,6 @@ struct SpendDashboardRecalculationPerformanceTests {
             preferredCurrencyCode: configuration.preferredCurrencyCode,
             providerScope: [])
 
-        #expect(scoped.groups.isEmpty)
         #expect(scopedAgain == scoped)
         #expect(afterScopedBuild.buildsExecuted == before.buildsExecuted + 1)
         #expect(controller.modelDerivationCounters.snapshot.buildsExecuted == afterScopedBuild.buildsExecuted)
@@ -424,7 +493,8 @@ struct SpendDashboardRecalculationPerformanceTests {
 
     private static func waitForBuilds(_ count: Int, controller: SpendDashboardController) async {
         await self.waitUntil {
-            controller.modelDerivationCounters.snapshot.buildCompletions >= count
+            controller.modelDerivationCounters.snapshot.buildCompletions >= count &&
+                !controller.isModelDerivationInFlight
         }
     }
 
@@ -471,9 +541,41 @@ private final class SpendDashboardRecalculationControllerBox {
 
 private final class SpendDashboardRecalculationBuildGate: @unchecked Sendable {
     let firstBuildStarted = LockIsolated(false)
+    private let lock = NSLock()
     private let releaseSemaphore = DispatchSemaphore(value: 0)
+    private var activeBuilds = 0
+    private var maxConcurrentBuildsValue = 0
+    private var requests: [SpendDashboardModelBuildRequest] = []
+
+    var invocationCount: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.requests.count
+    }
+
+    var maxConcurrentBuilds: Int {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.maxConcurrentBuildsValue
+    }
+
+    var recordedRequests: [SpendDashboardModelBuildRequest] {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.requests
+    }
 
     func build(_ request: SpendDashboardModelBuildRequest) -> SpendDashboardModel {
+        self.lock.lock()
+        self.requests.append(request)
+        self.activeBuilds += 1
+        self.maxConcurrentBuildsValue = max(self.maxConcurrentBuildsValue, self.activeBuilds)
+        self.lock.unlock()
+        defer {
+            self.lock.lock()
+            self.activeBuilds -= 1
+            self.lock.unlock()
+        }
         if request.requestedDays == 30, !self.firstBuildStarted.value {
             self.firstBuildStarted.setValue(true)
             self.releaseSemaphore.wait()

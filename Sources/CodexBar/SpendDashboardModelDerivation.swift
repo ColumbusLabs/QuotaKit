@@ -307,6 +307,9 @@ struct SpendDashboardModelDerivationCounterSnapshot: Sendable, Equatable {
     let buildCompletions: Int
     let cacheHits: Int
     let staleCompletionsDiscarded: Int
+    let buildsCoalesced: Int
+    let publicationRequestsDeferred: Int
+    let maxConcurrentBuilds: Int
 }
 
 final class SpendDashboardModelDerivationCounters: @unchecked Sendable {
@@ -316,6 +319,10 @@ final class SpendDashboardModelDerivationCounters: @unchecked Sendable {
     private var buildCompletions = 0
     private var cacheHits = 0
     private var staleCompletionsDiscarded = 0
+    private var buildsCoalesced = 0
+    private var publicationRequestsDeferred = 0
+    private var activeBuilds = 0
+    private var maxConcurrentBuilds = 0
 
     var snapshot: SpendDashboardModelDerivationCounterSnapshot {
         self.lock.lock()
@@ -325,12 +332,17 @@ final class SpendDashboardModelDerivationCounters: @unchecked Sendable {
             buildsExecuted: self.buildsExecuted,
             buildCompletions: self.buildCompletions,
             cacheHits: self.cacheHits,
-            staleCompletionsDiscarded: self.staleCompletionsDiscarded)
+            staleCompletionsDiscarded: self.staleCompletionsDiscarded,
+            buildsCoalesced: self.buildsCoalesced,
+            publicationRequestsDeferred: self.publicationRequestsDeferred,
+            maxConcurrentBuilds: self.maxConcurrentBuilds)
     }
 
     func recordBuildStart() {
         self.lock.lock()
         self.buildStarts += 1
+        self.activeBuilds += 1
+        self.maxConcurrentBuilds = max(self.maxConcurrentBuilds, self.activeBuilds)
         self.lock.unlock()
     }
 
@@ -343,6 +355,7 @@ final class SpendDashboardModelDerivationCounters: @unchecked Sendable {
     func recordBuildCompletion() {
         self.lock.lock()
         self.buildCompletions += 1
+        self.activeBuilds = max(0, self.activeBuilds - 1)
         self.lock.unlock()
     }
 
@@ -357,29 +370,77 @@ final class SpendDashboardModelDerivationCounters: @unchecked Sendable {
         self.staleCompletionsDiscarded += 1
         self.lock.unlock()
     }
+
+    func recordBuildCoalesced() {
+        self.lock.lock()
+        self.buildsCoalesced += 1
+        self.lock.unlock()
+    }
+
+    func recordPublicationRequestDeferred() {
+        self.lock.lock()
+        self.publicationRequestsDeferred += 1
+        self.lock.unlock()
+    }
+}
+
+enum SpendDashboardModelBuildPriority: Sendable {
+    case controller
+    case publication
+}
+
+enum SpendDashboardModelBuildEnqueueResult {
+    case cached(SpendDashboardModel)
+    case scheduled
+    case alreadyScheduled
+}
+
+private final class SpendDashboardModelBuildJob: @unchecked Sendable {
+    let request: SpendDashboardModelBuildRequest
+    let builder: @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel
+    var completions: [@Sendable (SpendDashboardModel) -> Void]
+
+    init(
+        request: SpendDashboardModelBuildRequest,
+        builder: @escaping @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel,
+        completion: @escaping @Sendable (SpendDashboardModel) -> Void)
+    {
+        self.request = request
+        self.builder = builder
+        self.completions = [completion]
+    }
 }
 
 final class SpendDashboardModelCache: @unchecked Sendable {
     private let lock = NSLock()
     private let capacity: Int
+    let supportsAsynchronousBuilds: Bool
     let counters: SpendDashboardModelDerivationCounters
     private var models: [SpendDashboardModelBuildKey: SpendDashboardModel] = [:]
     private var order: [SpendDashboardModelBuildKey] = []
+    private var activeJob: SpendDashboardModelBuildJob?
+    private var pendingControllerJob: SpendDashboardModelBuildJob?
+    private var pendingPublicationJob: SpendDashboardModelBuildJob?
 
     init(
         capacity: Int = 4,
-        counters: SpendDashboardModelDerivationCounters = SpendDashboardModelDerivationCounters())
+        counters: SpendDashboardModelDerivationCounters = SpendDashboardModelDerivationCounters(),
+        supportsAsynchronousBuilds: Bool = false)
     {
         self.capacity = max(1, capacity)
+        self.supportsAsynchronousBuilds = supportsAsynchronousBuilds
         self.counters = counters
     }
 
     func model(for key: SpendDashboardModelBuildKey) -> SpendDashboardModel? {
         self.lock.lock()
-        defer { self.lock.unlock() }
-        guard let model = self.models[key] else { return nil }
+        guard let model = self.models[key] else {
+            self.lock.unlock()
+            return nil
+        }
         self.order.removeAll { $0 == key }
         self.order.append(key)
+        self.lock.unlock()
         self.counters.recordCacheHit()
         return model
     }
@@ -393,6 +454,140 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         while self.order.count > self.capacity {
             let evicted = self.order.removeFirst()
             self.models.removeValue(forKey: evicted)
+        }
+    }
+
+    @discardableResult
+    func enqueue(
+        request: SpendDashboardModelBuildRequest,
+        priority: SpendDashboardModelBuildPriority,
+        builder: @escaping @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel,
+        completion: @escaping @Sendable (SpendDashboardModel) -> Void) -> SpendDashboardModelBuildEnqueueResult
+    {
+        if let cached = self.model(for: request.key) {
+            return .cached(cached)
+        }
+
+        let newJob = SpendDashboardModelBuildJob(
+            request: request,
+            builder: builder,
+            completion: completion)
+        var result: SpendDashboardModelBuildEnqueueResult = .scheduled
+        var jobToStart: SpendDashboardModelBuildJob?
+        var didCoalesce = false
+
+        self.lock.lock()
+        if let activeJob = self.activeJob, activeJob.request.key == request.key {
+            activeJob.completions.append(completion)
+            self.lock.unlock()
+            return .alreadyScheduled
+        }
+
+        switch priority {
+        case .controller:
+            if let pendingPublicationJob = self.pendingPublicationJob,
+               pendingPublicationJob.request.key == request.key
+            {
+                newJob.completions.append(contentsOf: pendingPublicationJob.completions)
+                self.pendingPublicationJob = nil
+            }
+            if let pendingControllerJob = self.pendingControllerJob {
+                if pendingControllerJob.request.key == request.key {
+                    pendingControllerJob.completions.append(contentsOf: newJob.completions)
+                    result = .alreadyScheduled
+                } else {
+                    self.pendingControllerJob = newJob
+                    didCoalesce = true
+                }
+            } else {
+                self.pendingControllerJob = newJob
+            }
+        case .publication:
+            if let pendingControllerJob = self.pendingControllerJob,
+               pendingControllerJob.request.key == request.key
+            {
+                pendingControllerJob.completions.append(completion)
+                result = .alreadyScheduled
+            } else if let pendingPublicationJob = self.pendingPublicationJob {
+                if pendingPublicationJob.request.key == request.key {
+                    pendingPublicationJob.completions.append(completion)
+                    result = .alreadyScheduled
+                } else {
+                    self.pendingPublicationJob = newJob
+                    didCoalesce = true
+                }
+            } else {
+                self.pendingPublicationJob = newJob
+            }
+        }
+
+        if self.activeJob == nil {
+            jobToStart = self.promoteNextJobLocked()
+        }
+        self.lock.unlock()
+
+        if didCoalesce {
+            self.counters.recordBuildCoalesced()
+        }
+        if let jobToStart {
+            self.start(jobToStart)
+        }
+        return result
+    }
+
+    /// Drops a controller request that has become unnecessary because its key is
+    /// already applied or the controller has stopped. An active build is left
+    /// alone; its completion is still serialized before any later job starts.
+    func discardPendingControllerBuild() {
+        self.lock.lock()
+        self.pendingControllerJob = nil
+        self.lock.unlock()
+    }
+
+    private func promoteNextJobLocked() -> SpendDashboardModelBuildJob? {
+        guard self.activeJob == nil else { return nil }
+        let next: SpendDashboardModelBuildJob?
+        if let controllerJob = self.pendingControllerJob {
+            self.pendingControllerJob = nil
+            next = controllerJob
+        } else if let publicationJob = self.pendingPublicationJob {
+            self.pendingPublicationJob = nil
+            next = publicationJob
+        } else {
+            next = nil
+        }
+        self.activeJob = next
+        return next
+    }
+
+    private func start(_ job: SpendDashboardModelBuildJob) {
+        self.counters.recordBuildStart()
+        Task.detached(priority: .userInitiated) { [cache = self] in
+            cache.counters.recordBuildExecuted()
+            let model = job.builder(job.request)
+            cache.complete(job, model: model)
+        }
+    }
+
+    private func complete(_ job: SpendDashboardModelBuildJob, model: SpendDashboardModel) {
+        self.counters.recordBuildCompletion()
+        self.insert(model, for: job.request.key)
+
+        self.lock.lock()
+        guard self.activeJob === job else {
+            self.lock.unlock()
+            return
+        }
+        self.activeJob = nil
+        let completions = job.completions
+        let next = self.promoteNextJobLocked()
+        self.lock.unlock()
+
+        if let next {
+            self.start(next)
+        }
+        for completion in completions {
+            completion(model)
         }
     }
 }
