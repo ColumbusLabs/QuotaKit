@@ -1278,6 +1278,14 @@ final class SpendDashboardController {
 
         self.isRefreshing = true
         self.publishCurrentState()
+        switch phase {
+        case .ordinary:
+            self.loadLivenessCounters.ordinaryLoadsStarted &+= 1
+        case .forcing:
+            self.loadLivenessCounters.forcedLoadsStarted &+= 1
+        case .reconciling:
+            self.loadLivenessCounters.reconciliationsStarted &+= 1
+        }
         self.loadTask = Task { [weak self] in
             guard let self else { return }
             if shouldPrimeCachedCodex, let cachedLoader = self.cachedLoader {
@@ -1369,6 +1377,32 @@ final class SpendDashboardController {
                 // The request owns an atomic newer same-owner capture. Adopt it even when the
                 // external observation callback has not delivered that revision yet.
                 self.configuration = request.configuration
+            } else if case let .reconciling(incorporated) = phase,
+                      Self.sameSourceOwnership(incorporated.request.configuration, targetConfiguration),
+                      Self.sameSourceOwnership(request.configuration, targetConfiguration)
+            {
+                // Progress-safe barrier (#159): the capture drifted under same-owner
+                // revision churn, but the forced outcome is still identity-safe.
+                // Publish the merged result instead of restarting captures
+                // without visible progress, then coalesce at most one follow-up
+                // capture for the newest known revision.
+                let reconciled = Self.merge(outcome: incorporated, capture: request)
+                self.apply(
+                    request: request,
+                    result: reconciled.result,
+                    invalidatedSourceIDs: incorporated.invalidatedSourceIDs,
+                    confirmedEmptySourceIDs: reconciled.confirmedEmptySourceIDs,
+                    desiredConfiguration: targetConfiguration)
+                self.loadLivenessCounters.completedResultsApplied &+= 1
+                self.loadLivenessCounters.sameOwnerDriftCoalesced &+= 1
+                if Self.reconciliationIsRequired(
+                    requestConfiguration: request.configuration,
+                    latest: targetConfiguration)
+                {
+                    self.loadLivenessCounters.followUpLoadsScheduled &+= 1
+                    self.startLoad(configuration: targetConfiguration, phase: .reconciling(incorporated))
+                }
+                return
             } else {
                 let nextConfiguration = targetConfiguration == startConfiguration
                     ? request.configuration
@@ -1385,15 +1419,36 @@ final class SpendDashboardController {
                   generation == self.generation,
                   let latestConfiguration = self.configuration
             else { return }
-            guard request.configuration == latestConfiguration else {
+            guard Self.sameSourceOwnership(request.configuration, latestConfiguration) else {
+                // Hard invalidation (#159): the completed result belongs to an
+                // incompatible source identity and must not publish.
+                self.loadLivenessCounters.completedResultsDiscardedForOwnership &+= 1
                 self.startLoad(configuration: latestConfiguration, phase: .ordinary)
                 return
+            }
+            // Soft freshness change (#159): same-owner revision churn must not
+            // discard the identity-safe completed result. Publish it against
+            // the newest desired configuration, then coalesce at most one
+            // follow-up for the revisions that arrived while it ran.
+            let drifted = request.configuration != latestConfiguration
+            if drifted {
+                self.loadLivenessCounters.sameOwnerDriftCoalesced &+= 1
             }
             self.apply(
                 request: request,
                 result: result,
                 invalidatedSourceIDs: invalidatedSourceIDs,
-                confirmedEmptySourceIDs: request.confirmedEmptySourceIDs)
+                confirmedEmptySourceIDs: request.confirmedEmptySourceIDs,
+                desiredConfiguration: latestConfiguration)
+            self.loadLivenessCounters.completedResultsApplied &+= 1
+            if drifted,
+               Self.reconciliationIsRequired(
+                   requestConfiguration: request.configuration,
+                   latest: latestConfiguration)
+            {
+                self.loadLivenessCounters.followUpLoadsScheduled &+= 1
+                self.startLoad(configuration: latestConfiguration, phase: .ordinary)
+            }
 
         case .forcing:
             let result = await self.loader(request)
@@ -1420,7 +1475,9 @@ final class SpendDashboardController {
                 request: request,
                 result: reconciled.result,
                 invalidatedSourceIDs: outcome.invalidatedSourceIDs,
-                confirmedEmptySourceIDs: reconciled.confirmedEmptySourceIDs)
+                confirmedEmptySourceIDs: reconciled.confirmedEmptySourceIDs,
+                desiredConfiguration: self.configuration ?? request.configuration)
+            self.loadLivenessCounters.completedResultsApplied &+= 1
         }
     }
 
@@ -1444,7 +1501,8 @@ final class SpendDashboardController {
         request: SpendDashboardLoadRequest,
         result: SpendDashboardLoadResult,
         invalidatedSourceIDs: Set<String>,
-        confirmedEmptySourceIDs: Set<String>)
+        confirmedEmptySourceIDs: Set<String>,
+        desiredConfiguration: SpendDashboardConfiguration)
     {
         let codexDisplayNames = request.configuration.codexAccountDisplayNames
         self.refreshRetainedCodexDisplayNames(codexDisplayNames)
@@ -1487,7 +1545,11 @@ final class SpendDashboardController {
                 nextInputScopes[input.id] = self.loadedInputScopes[input.id]
             }
         }
-        self.configuration = request.configuration
+        // Result provenance stays with the request's configuration (loaded-input
+        // scopes and invalidation decisions describe what was actually
+        // captured), while the controller keeps the newest desired
+        // configuration so revision churn is never hidden by rolling back.
+        self.configuration = desiredConfiguration
         self.loadedInputs = Self.stableUniqueInputs(nextInputs)
         self.loadedInputScopes = nextInputScopes
         self.loadedAt = request.now
@@ -1799,6 +1861,20 @@ final class SpendDashboardController {
             lhs.hideNativeCodexCostWhenOpenCodexPresent != rhs.hideNativeCodexCostWhenOpenCodexPresent ||
             lhs.menuOwnershipFingerprint != rhs.menuOwnershipFingerprint ||
             lhs.codexAccountDisplayNames != rhs.codexAccountDisplayNames
+    }
+
+    /// Whether a completed same-owner result still needs a follow-up load for
+    /// the newest desired configuration (#159). Display-only drift is already
+    /// reflected by rebuilding the published inputs against that
+    /// configuration, so it must not schedule source work.
+    private static func reconciliationIsRequired(
+        requestConfiguration: SpendDashboardConfiguration,
+        latest latestConfiguration: SpendDashboardConfiguration) -> Bool
+    {
+        guard requestConfiguration != latestConfiguration else { return false }
+        guard !self.isDisplayOnlyConfigurationChange(from: requestConfiguration, to: latestConfiguration)
+        else { return false }
+        return true
     }
 
     private static func invalidatedSourceIDs(
