@@ -131,8 +131,10 @@ The focused matrix covers:
 - loaded input/source revision changes;
 - provider/account ownership changes;
 - Codex display-name changes;
-- native-Codex/OpenCodex filtering;
 - menu-only ownership/display churn, which does not rebuild the model.
+
+The key also includes native-Codex/OpenCodex filtering; its model behavior
+continues to be covered by the existing SpendDashboardModelTests.
 
 The lightweight counters are:
 
