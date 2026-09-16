@@ -494,7 +494,8 @@ struct SpendDashboardLoadLivenessTests {
         currency: String = "USD",
         hiddenSourceIDs: [String] = [],
         hideNativeCodex: Bool = false,
-        displayNames: [String: String] = [:]) -> SpendDashboardConfiguration
+        displayNames: [String: String] = [:],
+        historyDays: Int = SpendDashboardSource.scanDays) -> SpendDashboardConfiguration
     {
         SpendDashboardConfiguration(
             costUsageEnabled: true,
@@ -505,20 +506,164 @@ struct SpendDashboardLoadLivenessTests {
             sourceOwnershipFingerprints: ["claude:\(owner)"],
             sourceRevisions: [revision],
             hideNativeCodexCostWhenOpenCodexPresent: hideNativeCodex,
-            hiddenSourceIDs: hiddenSourceIDs)
+            hiddenSourceIDs: hiddenSourceIDs,
+            codexHistoryDays: historyDays)
+    }
+
+    @Test
+    func `history scope change during ordinary load invalidates the old scope`() async throws {
+        let scope30 = Self.configuration(revision: "rev-A", historyDays: 30)
+        let scope365 = Self.configuration(revision: "rev-A", historyDays: 365)
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(scope30, mode: .refreshMissing, historyDays: 30)),
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(scope365, mode: .refreshMissing, historyDays: 365)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: scope30)
+        await Self.waitForPendingCount(1, gate: loader)
+        controller.update(configuration: scope365)
+        await Self.waitForPendingCount(2, gate: loader)
+
+        // The stale 30-day completion must not publish as satisfying the
+        // 365-day scope.
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitForPendingCount(1, gate: loader)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.isRefreshing)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.configuration == scope365)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing])
+        #expect(await loader.historyDays == [30, 365])
+    }
+
+    @Test
+    func `history scope change while request builder is gated never loads stale scope`() async throws {
+        let scope30 = Self.configuration(revision: "rev-A", historyDays: 30)
+        let scope365 = Self.configuration(revision: "rev-A", historyDays: 365)
+        let buildGate = SpendDashboardLivenessBuildGate()
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(scope30, mode: .refreshMissing, historyDays: 30),
+                gate: buildGate),
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(scope365, mode: .refreshMissing, historyDays: 365)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: scope30)
+        await Self.waitForBuildGate(buildGate)
+        controller.update(configuration: scope365)
+        await Self.waitForPendingCount(1, gate: loader)
+        await buildGate.resume()
+        await Self.waitForPendingCount(1, gate: loader)
+
+        // The released 30-day request belongs to a stale generation and must
+        // never reach the loader as current-scope work.
+        #expect(await loader.historyDays == [365])
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.configuration == scope365)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing])
+    }
+
+    @Test
+    func `same history scope revision churn still publishes and coalesces`() async throws {
+        let revisionA = Self.configuration(revision: "rev-A", historyDays: 30)
+        let revisionB = Self.configuration(revision: "rev-B", historyDays: 30)
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(revisionA, mode: .refreshMissing, historyDays: 30)),
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(revisionB, mode: .refreshMissing, historyDays: 30)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: revisionA)
+        await Self.waitForPendingCount(1, gate: loader)
+        controller.update(configuration: revisionB)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitForPendingCount(1, gate: loader)
+        #expect(controller.model.groups.first?.totalCost == 5)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing])
+        #expect(await loader.historyDays == [30, 30])
+    }
+
+    @Test
+    func `built request history depth matches its configuration scope`() async {
+        let (settings, store) = Self.historyScopeStore(suiteName: "SpendDashboardLoadLivenessTests-scope")
+        let request = await SpendDashboardSource.makeRequest(
+            settings: settings,
+            store: store,
+            mode: .refreshMissing,
+            now: Date(timeIntervalSince1970: 1_784_179_200))
+
+        #expect(request.codexHistoryDays == request.configuration.codexHistoryDays)
+    }
+
+    private static func historyScopeStore(suiteName: String) -> (SettingsStore, UsageStore) {
+        let settings = testSettingsStore(suiteName: suiteName)
+        settings.costUsageEnabled = true
+        for provider in UsageProvider.allCases {
+            guard let metadata = ProviderRegistry.shared.metadata[provider] else { continue }
+            settings.setProviderEnabled(provider: provider, metadata: metadata, enabled: provider == .codex)
+        }
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing,
+            environmentBase: [:])
+        return (settings, store)
     }
 
     private static func request(
         _ configuration: SpendDashboardConfiguration,
         mode: SpendDashboardRequestBuildMode,
         inputs: [SpendDashboardModel.ProviderInput] = [],
-        codexAccount: Bool = false) -> SpendDashboardLoadRequest
+        codexAccount: Bool = false,
+        historyDays: Int? = nil) -> SpendDashboardLoadRequest
     {
         SpendDashboardLoadRequest(
             configuration: configuration,
             capturedInputs: inputs,
             unavailableSourceIDs: [],
             codexRequests: codexAccount ? [self.codexRequest()] : [],
+            codexHistoryDays: historyDays ?? configuration.codexHistoryDays,
             now: Date(timeIntervalSince1970: 1_784_179_200),
             force: mode.forcesLoader)
     }
@@ -665,6 +810,7 @@ private actor SpendDashboardLivenessLoaderGate {
     private var continuations: [CheckedContinuation<SpendDashboardLoadResult, Never>] = []
     private(set) var configurations: [SpendDashboardConfiguration] = []
     private(set) var forces: [Bool] = []
+    private(set) var historyDays: [Int] = []
 
     var pendingCount: Int {
         self.continuations.count
@@ -673,6 +819,7 @@ private actor SpendDashboardLivenessLoaderGate {
     func load(_ request: SpendDashboardLoadRequest) async -> SpendDashboardLoadResult {
         self.configurations.append(request.configuration)
         self.forces.append(request.force)
+        self.historyDays.append(request.codexHistoryDays)
         return await withCheckedContinuation { continuation in
             self.continuations.append(continuation)
         }

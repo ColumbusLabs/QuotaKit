@@ -16,6 +16,10 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
     let hideNativeCodexCostWhenOpenCodexPresent: Bool
     let hiddenSourceIDs: [String]
     let menuOwnershipFingerprint: String
+    /// Effective Codex history horizon (days) for snapshot/activity loading.
+    /// Part of hard source scope: a request scoped to one horizon must never
+    /// publish as satisfying another.
+    let codexHistoryDays: Int
 
     init(
         costUsageEnabled: Bool,
@@ -29,7 +33,8 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
         openCodexUsageLogsEnabled: Bool = false,
         hideNativeCodexCostWhenOpenCodexPresent: Bool = false,
         hiddenSourceIDs: [String] = [],
-        menuOwnershipFingerprint: String = "")
+        menuOwnershipFingerprint: String = "",
+        codexHistoryDays: Int = SpendDashboardSource.scanDays)
     {
         self.costUsageEnabled = costUsageEnabled
         self.preferredCurrencyCode = preferredCurrencyCode
@@ -43,6 +48,7 @@ struct SpendDashboardConfiguration: Equatable, Sendable {
         self.hideNativeCodexCostWhenOpenCodexPresent = hideNativeCodexCostWhenOpenCodexPresent
         self.hiddenSourceIDs = hiddenSourceIDs
         self.menuOwnershipFingerprint = menuOwnershipFingerprint
+        self.codexHistoryDays = codexHistoryDays
     }
 
     var bucketCalendar: Calendar {
@@ -210,7 +216,8 @@ enum SpendDashboardSource {
             hiddenSourceIDs: settings.spendDashboardHiddenSourceIDs,
             menuOwnershipFingerprint: self.menuOwnershipFingerprint(
                 settings: settings,
-                providers: providers))
+                providers: providers),
+            codexHistoryDays: max(1, min(SpendDashboardSource.scanDays, store.spendDashboardCodexHistoryDays)))
     }
 
     @MainActor
@@ -224,12 +231,13 @@ enum SpendDashboardSource {
         store.discardSpendDashboardTokenPublicationsIfCostUsageDisabled()
         let initialProviders = self.costCapableProviders(store: store)
         guard self.spendCollectionEnabled(settings: settings, providers: initialProviders) else {
+            let configuration = self.configuration(settings: settings, store: store)
             return SpendDashboardLoadRequest(
-                configuration: self.configuration(settings: settings, store: store),
+                configuration: configuration,
                 capturedInputs: [],
                 unavailableSourceIDs: [],
                 codexRequests: [],
-                codexHistoryDays: SpendDashboardSource.scanDays,
+                codexHistoryDays: configuration.codexHistoryDays,
                 now: now ?? nowProvider(),
                 force: mode.forcesLoader)
         }
@@ -266,12 +274,15 @@ enum SpendDashboardSource {
             ? self.codexSources(settings: settings, store: store)
             : []
         let codexRequests = codexSources.compactMap(\.request)
-        let codexHistoryDays = store.spendDashboardCodexHistoryDays
+        // The request's history depth is the configuration's captured horizon:
+        // request.configuration always describes the exact source scope the
+        // request will load, so the two cannot diverge.
         let configuration = self.configuration(
             settings: settings,
             store: store,
             providers: providers,
             codexSources: codexSources)
+        let codexHistoryDays = configuration.codexHistoryDays
         guard configuration.costUsageEnabled else {
             return SpendDashboardLoadRequest(
                 configuration: configuration,
@@ -1841,11 +1852,13 @@ final class SpendDashboardController {
     /// True source ownership/scope identity (#159). Only data-identity and
     /// semantic-scope fields participate: provider/source identities, Codex
     /// account/home/auth ownership captured by those identities, credential
-    /// scope fingerprints, bucket/calendar semantics, and the source-set
-    /// membership switch. Presentation-only fields (preferred currency, hidden
-    /// sources, native-Codex visibility, account display names, menu state)
-    /// and freshness revisions are deliberately excluded so display drift can
-    /// never invalidate an identity-safe load or repeat a provider force.
+    /// scope fingerprints, bucket/calendar semantics, the source-set
+    /// membership switch, and the effective Codex history horizon (a 30-day
+    /// scan scope cannot satisfy a 365-day desired scope). Presentation-only
+    /// fields (preferred currency, hidden sources, native-Codex visibility,
+    /// account display names, menu state) and freshness revisions are
+    /// deliberately excluded so display drift can never invalidate an
+    /// identity-safe load or repeat a provider force.
     private static func sameSourceOwnership(
         _ lhs: SpendDashboardConfiguration,
         _ rhs: SpendDashboardConfiguration) -> Bool
@@ -1855,7 +1868,8 @@ final class SpendDashboardController {
             lhs.codexAccountIdentities == rhs.codexAccountIdentities &&
             lhs.sourceOwnershipFingerprints == rhs.sourceOwnershipFingerprints &&
             lhs.bucketTimeZoneIdentifier == rhs.bucketTimeZoneIdentifier &&
-            lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled
+            lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled &&
+            lhs.codexHistoryDays == rhs.codexHistoryDays
     }
 
     private static func isDisplayOnlyConfigurationChange(
@@ -1863,13 +1877,15 @@ final class SpendDashboardController {
         to rhs: SpendDashboardConfiguration) -> Bool
     {
         // Only presentation-layer fields changed; no provider scan or token capture needed.
+        // A Codex history-horizon change is hard source scope, never display-only.
         guard lhs.costUsageEnabled == rhs.costUsageEnabled,
               lhs.providerIDs == rhs.providerIDs,
               lhs.codexAccountIdentities == rhs.codexAccountIdentities,
               lhs.sourceOwnershipFingerprints == rhs.sourceOwnershipFingerprints,
               lhs.sourceRevisions == rhs.sourceRevisions,
               lhs.bucketTimeZoneIdentifier == rhs.bucketTimeZoneIdentifier,
-              lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled
+              lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled,
+              lhs.codexHistoryDays == rhs.codexHistoryDays
         else { return false }
         return lhs.hiddenSourceIDs != rhs.hiddenSourceIDs ||
             lhs.preferredCurrencyCode != rhs.preferredCurrencyCode ||
@@ -1906,10 +1922,8 @@ final class SpendDashboardController {
         target targetConfiguration: SpendDashboardConfiguration) -> Bool
     {
         guard case .ordinary = phase else { return false }
-        guard self.sameSourceOwnership(startConfiguration, requestConfiguration),
-              self.sameSourceOwnership(requestConfiguration, targetConfiguration)
-        else { return false }
-        return true
+        return self.sameSourceOwnership(startConfiguration, requestConfiguration) &&
+            self.sameSourceOwnership(requestConfiguration, targetConfiguration)
     }
 
     private static func invalidatedSourceIDs(
