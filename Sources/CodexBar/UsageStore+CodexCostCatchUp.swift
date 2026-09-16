@@ -59,7 +59,8 @@ extension UsageStore {
         let scopeSignature = self.tokenSnapshotScopeSignature(for: .codex)
         let providerConfigRevision = self.settings.providerConfigRevision(for: .codex)
         let pauseScopeSignature = "\(scopeSignature)\u{0}providerConfig=\(providerConfigRevision)"
-        let historyDays = max(self.settings.costUsageHistoryDays, requestedHistoryDays ?? 0)
+        let historyDays = self.effectiveCodexCostCatchUpHistoryDays(
+            requestedHistoryDays: requestedHistoryDays)
         guard !self.codexCostCatchUpStopRequested || resumePaused else { return }
         if !resumePaused,
            self.codexCostCatchUpTask == nil,
@@ -74,7 +75,6 @@ extension UsageStore {
             } else {
                 self.scheduleCodexCostCatchUpProgressProbe(
                     codexHomePath: scope.codexHomePath,
-                    historyDays: max(historyDays, self.codexCostCatchUpHistoryDays),
                     mode: mode,
                     pauseScopeSignature: pauseScopeSignature)
                 return
@@ -895,7 +895,6 @@ extension UsageStore {
 
     private func scheduleCodexCostCatchUpProgressProbe(
         codexHomePath: String?,
-        historyDays: Int,
         mode: CodexCostCatchUpMode,
         pauseScopeSignature: String)
     {
@@ -923,7 +922,6 @@ extension UsageStore {
             self.codexCostCatchUpProgressProbeTask = nil
             self.startCodexCostCatchUpIfNeeded(
                 mode: mode,
-                requestedHistoryDays: historyDays,
                 resumePaused: false)
         }
     }
@@ -991,5 +989,17 @@ extension UsageStore {
             return
         }
         try await Task.sleep(for: .seconds(seconds))
+    }
+
+    /// Resolve the primary worker's current consumers at its single authority. In particular,
+    /// generic refreshes omit `requestedHistoryDays`, but must not withdraw an active dashboard
+    /// horizon while that dashboard still shares the primary cache.
+    private func effectiveCodexCostCatchUpHistoryDays(requestedHistoryDays: Int?) -> Int {
+        let activeDashboardHistoryDays = self.spendDashboardCodexCostCatchUpUsesPrimaryWorker
+            ? self.spendDashboardCodexHistoryDays
+            : 0
+        return max(
+            self.settings.costUsageHistoryDays,
+            max(requestedHistoryDays ?? 0, activeDashboardHistoryDays))
     }
 }

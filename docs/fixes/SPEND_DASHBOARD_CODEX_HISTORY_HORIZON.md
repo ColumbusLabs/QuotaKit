@@ -319,7 +319,7 @@ Phase 1 files, no unrelated #159 modifications, no broad formatting.
 
 #161 was not implemented in this phase. No code or tests reference it.
 
-## 13. Final independent-review correction (shared primary + close re-scope)
+## 13. Final independent-review correction (shared primary + close re-scope + generic arbitration)
 
 Independent review of `46639580d1601741870cdc901f1061a1d13bc86d` found two
 remaining #160 gaps; this section corrects the record (in particular the
@@ -354,13 +354,17 @@ single policy — the shared-primary worker did not).
    also clears `isHistoryDemandActive` as a fail-safe (persisted
    `selectedDays` untouched); it lives in the same-file extension for the
    800-line `type_body_length` budget.
-4. **Final primary-worker demand semantics.** `startCodexCostCatchUpIfNeeded`
-   callers were fully traced: routine refreshes, accelerated/background
-   toggles, and internal restarts pass `nil`/already-desired horizons; the
-   only wider consumer is dashboard sharing, which now passes the policy
-   value. No generalized demand registry was added. The invariant is
-   `primary = max(routine, active-if-shared)`: shared + visible 90 → 90,
-   shared + visible All → 365, closed (or independent-only) → routine.
+4. **Final primary-worker demand semantics.** The earlier report's claim that
+   callers were fully traced and that nil/generic callers could not affect a
+   wider dashboard worker was incomplete. Normal refreshes, stale-token
+   hydration, and mode-only entry points can all re-enter the primary authority
+   without an explicit horizon; once narrowing was enabled, their old
+   settings-only calculation could withdraw a still-visible shared 90/365
+   demand. The final resolver accounts for the active shared dashboard at the
+   primary authority, while the probe re-entry no longer carries a captured
+   horizon. No generalized demand registry was added. The invariant is
+   `primary = max(routine, explicit, active-if-shared)`: shared + visible 90 →
+   90, shared + visible All → 365, closed (or independent-only) → routine.
    When the dashboard stops sharing a previously shared cache, the primary
    is reconciled to the routine window only if a primary task/probe exists,
    so dashboard syncs never spawn routine work. No second scanner, no
@@ -410,3 +414,86 @@ single policy — the shared-primary worker did not).
   condition. If a future feature (e.g. annual export, reconciliation) needs
   extended history, it should set demand through this predicate/policy rather
   than adding a new escalation site.
+
+## 14. Final review — current-demand arbitration
+
+The prior correction correctly widened the shared primary worker for visible
+90/All and added checkpoint-safe narrowing. Enabling narrowing exposed one
+remaining arbitration gap: a generic primary start computed only
+`max(settings.costUsageHistoryDays, requestedHistoryDays ?? 0)`. A generic
+refresh after visible shared All therefore looked like a withdrawal from 365
+to 30 even though the dashboard was still visible. This section supersedes
+the earlier nil/generic-caller conclusion in §13.4.
+
+The primary authority now resolves exactly:
+
+```text
+effectivePrimaryHistory = max(
+    configuredRoutineHistory,
+    explicitRequestedHistory,
+    spendDashboardCodexCostCatchUpUsesPrimaryWorker
+        ? spendDashboardCodexHistoryDays
+        : 0
+)
+```
+
+`spendDashboardCodexHistoryDays` is already `max(routine,
+activeDashboardRequestedDays)`, with closed demand reading as routine. The
+shared-primary boolean is set before the dashboard-to-primary call and is
+cleared before independent-profile reconciliation. Thus generic calls observe
+current shared demand without every caller manually forwarding it, while an
+independent visible All worker cannot widen the ambient primary worker.
+
+### Complete primary-worker production caller inventory
+
+| Location | Classification | Current-demand proof |
+| --- | --- | --- |
+| `UsageStore.swift:1555` → `afterRefreshing` | Routine refresh bridge | For Codex, forwards with no explicit horizon; the authority re-reads current shared demand. |
+| `UsageStore+TokenCost.swift:300` | Routine stale-cache hydration | No-argument start; cannot withdraw a current shared 90/365 demand. |
+| `UsageStore+CodexCostCatchUp.swift:50` | `afterRefreshing` forwarding wrapper | Passes nil horizon and automatic mode. |
+| `UsageStore+CodexCostCatchUp.swift:96` | Immediate internal widening restart | Carries the just-computed current target after cancellation; no suspension occurs before re-entry. |
+| `UsageStore+CodexCostCatchUp.swift:116` | Immediate internal narrowing restart | Carries the just-computed current target after withdrawal; checkpoint-safe narrowing is unchanged. |
+| `UsageStore+CodexCostCatchUp.swift:174` | Post-pass checkpoint restart | Uses the latest target recorded by the running-worker arbitration; a withdrawal records routine before this defer path. |
+| `UsageStore+CodexCostCatchUp.swift:206` | Accelerated mode-only entry point | No explicit horizon; resolver preserves active shared demand. |
+| `UsageStore+CodexCostCatchUp.swift:210` | Background mode-only entry point | No explicit horizon; resolver preserves active shared demand. |
+| `UsageStore+CodexCostCatchUp.swift:923` | Internal paused-progress probe | Re-enters without its captured old horizon so removed demand cannot be resurrected. |
+| `UsageStore+SpendDashboardCodexCostCatchUp.swift:92` | Shared dashboard demand | Sets shared-primary state first, then passes the policy horizon. |
+| `UsageStore+SpendDashboardCodexCostCatchUp.swift:120` | Shared-cache withdrawal/reconciliation | Clears shared-primary state first, then requests configured routine history. |
+| `UsageStore+SpendDashboardCodexCostCatchUp.swift:150` | Shared dashboard start/resume | Sets shared-primary state first, then passes the policy horizon. |
+
+The branch-wide search also found the direct test invocations in
+`SpendDashboardCodexHistoryHorizonTests`, `UsageStoreCodexCostCatchUpTests`,
+and `UsageStoreSpendDashboardCodexCostCatchUpTests`; they exercise routine,
+explicit, mode-only, withdrawal, probe, shared-dashboard, and independent
+paths. No additional production caller was found.
+
+### Exact arbitration regression sequences
+
+- Visible shared All + `afterRefreshing: .codex`: primary advances
+  `[365, 365]`; no 30-day restart, no independent dashboard advance.
+- Visible shared 90 + no-argument stale-cache-equivalent start: primary
+  advances `[90, 90]`; no 30-day restart.
+- Visible shared All + accelerated then background mode change: primary
+  advances `[365, 365, 365]`; mode changes accelerated → automatic without
+  collapsing the horizon.
+- Closing visible shared All: retained withdrawal coverage advances
+  `[365, 30]` and ends at routine 30.
+- Switching visible All to an independent/profile cache: independent worker
+  advances `[365]`; the ambient primary re-arbitrates `[365, 30]` and remains
+  routine after the switch.
+
+Targeted results in this final correction:
+
+- Each of the four new arbitration regressions passed individually.
+- `swift test --filter SpendDashboardCodexHistoryHorizonTests` — 20/20 pass.
+- `swift test --filter UsageStoreCodexCostCatchUpArbitrationTests` — 1/1
+  pass (independent/profile transition).
+- `swift test --filter UsageStoreCodexCostCatchUpTests` — 18/18 pass.
+- `swift test --filter SpendDashboardLoadLivenessTests` — 15/15 pass; #159
+  hard-scope/liveness behavior remains green.
+- `swiftformat --lint` passed for the three changed Swift files. SwiftLint
+  passed on each changed Swift file.
+
+#161 remains untouched. The aggregate background-work budget remains an
+explicitly deferred broader acceptance item; this correction only fixes
+current primary history-demand arbitration.

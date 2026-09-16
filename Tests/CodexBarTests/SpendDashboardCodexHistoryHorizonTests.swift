@@ -452,6 +452,147 @@ struct SpendDashboardCodexHistoryHorizonTests {
         store.cancelSpendDashboardCodexCostCatchUp()
     }
 
+    // MARK: - Test F — generic primary refresh preserves visible All demand
+
+    @Test
+    func `generic Codex refresh preserves visible shared All demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-all-generic-refresh")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(
+            for: store,
+            suite: "primary-shared-all-generic-refresh")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        let independentRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await independentRecorder.recordAdvance(historyDays)
+            return Self.status(pending: false, key: "independent", processedBytes: 100)
+        }
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(await primaryRecorder.advanceHistoryDays == [SpendDashboardSource.scanDays])
+        #expect(store.codexCostCatchUpHistoryDays == SpendDashboardSource.scanDays)
+
+        // A normal refresh carries no explicit dashboard horizon. The primary authority must
+        // still include the currently visible shared All demand.
+        completed = false
+        store.startCodexCostCatchUpIfNeeded(afterRefreshing: .codex)
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        #expect(await primaryRecorder.advanceHistoryDays == [
+            SpendDashboardSource.scanDays,
+            SpendDashboardSource.scanDays,
+        ])
+        #expect(await independentRecorder.advanceHistoryDays == [])
+        #expect(store.codexCostCatchUpHistoryDays == SpendDashboardSource.scanDays)
+        #expect(store.spendDashboardCodexCostCatchUpUsesPrimaryWorker)
+        controller.deactivateHistoryDemand()
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test G — generic primary start preserves visible 90 demand
+
+    @Test
+    func `generic Codex start preserves visible shared 90 demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-90-generic-start")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(
+            for: store,
+            suite: "primary-shared-90-generic-start")
+        controller.selectDays(90)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        let independentRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await independentRecorder.recordAdvance(historyDays)
+            return Self.status(pending: false, key: "independent", processedBytes: 100)
+        }
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(await primaryRecorder.advanceHistoryDays == [90])
+        #expect(store.codexCostCatchUpHistoryDays == 90)
+
+        // This is the no-argument path used by stale cached-token hydration.
+        completed = false
+        store.startCodexCostCatchUpIfNeeded()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        #expect(await primaryRecorder.advanceHistoryDays == [90, 90])
+        #expect(await independentRecorder.advanceHistoryDays == [])
+        #expect(store.codexCostCatchUpHistoryDays == 90)
+        controller.deactivateHistoryDemand()
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test H — mode transitions preserve visible shared All demand
+
+    @Test
+    func `primary mode transitions preserve visible shared All demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-all-mode-transition")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(
+            for: store,
+            suite: "primary-shared-all-mode-transition")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        completed = false
+        store.startAcceleratedCodexCostCatchUp()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(store.codexCostCatchUpMode == .accelerated)
+
+        completed = false
+        store.returnCodexCostCatchUpToBackground()
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        #expect(await primaryRecorder.advanceHistoryDays == [
+            SpendDashboardSource.scanDays,
+            SpendDashboardSource.scanDays,
+            SpendDashboardSource.scanDays,
+        ])
+        #expect(store.codexCostCatchUpHistoryDays == SpendDashboardSource.scanDays)
+        #expect(store.codexCostCatchUpMode == .automatic)
+        controller.deactivateHistoryDemand()
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
     // MARK: - Test C — closing All withdraws shared primary demand
 
     @Test
