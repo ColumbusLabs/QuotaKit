@@ -220,13 +220,292 @@ struct SpendDashboardLoadLivenessTests {
         #expect(controller.generation == 2)
     }
 
-    private static func configuration(owner: String = "owner", revision: String) -> SpendDashboardConfiguration {
+    @Test
+    func `display-only change during ordinary load publishes without a replacement load`() async {
+        let revisionA = Self.configuration(revision: "rev-A")
+        let displayDrift = Self.configuration(
+            revision: "rev-A",
+            currency: "auto",
+            hiddenSourceIDs: ["claude"],
+            hideNativeCodex: true)
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(mode: .refreshMissing, request: Self.request(revisionA, mode: .refreshMissing)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: revisionA)
+        await Self.waitForPendingCount(1, gate: loader)
+
+        // Currency, hidden-source, and native-Codex visibility state are
+        // presentation-only: they rebuild locally and start no source work.
+        controller.update(configuration: displayDrift)
+        await Task.yield()
+        #expect(await loader.pendingCount == 1)
+        #expect(builder.modes == [.refreshMissing])
+
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        // The identity-safe result publishes; no replacement source load runs
+        // solely because of display drift, and newest presentation survives.
+        #expect(controller.model.groups.first?.totalCost == 5)
+        #expect(controller.configuration == displayDrift)
+        #expect(controller.configuration?.preferredCurrencyCode == "auto")
+        #expect(controller.configuration?.hiddenSourceIDs == ["claude"])
+        #expect(controller.configuration?.hideNativeCodexCostWhenOpenCodexPresent == true)
+        #expect(controller.generation == 1)
+        #expect(builder.modes == [.refreshMissing])
+        #expect(await loader.configurations.count == 1)
+    }
+
+    @Test
+    func `display-only change during forced reconciliation does not force again`() async {
+        let initial = Self.configuration(revision: "rev-R")
+        let displayDrift = Self.configuration(revision: "rev-R", currency: "auto")
+        let captureGate = SpendDashboardLivenessBuildGate()
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .forceRefresh,
+                request: Self.request(initial, mode: .forceRefresh, codexAccount: true)),
+            .init(
+                mode: .captureOnly,
+                request: Self.request(
+                    initial,
+                    mode: .captureOnly,
+                    inputs: [Self.input(id: "claude", provider: .claude, cost: 7)]),
+                gate: captureGate),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: initial, force: true)
+        await Self.waitForPendingCount(1, gate: loader)
+        await loader.resume(at: 0, result: .init(
+            inputs: [Self.input(id: "codex:a", provider: .codex, cost: 5)],
+            failedSourceIDs: []))
+        await Self.waitForBuildGate(captureGate)
+
+        controller.update(configuration: displayDrift)
+        await Task.yield()
+        // A presentation-only change must not start another provider force;
+        // the capture build already in flight is the only expected addition.
+        #expect(builder.modes == [.forceRefresh, .captureOnly])
+
+        await captureGate.resume()
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(builder.modes == [.forceRefresh, .captureOnly])
+        #expect(await loader.forces == [true])
+        #expect(controller.configuration == displayDrift)
+        #expect(controller.model.groups.first?.totalCost == 12)
+    }
+
+    @Test
+    func `codex display-name drift keeps newest label without a source reload`() async {
+        let oldName = Self.configuration(revision: "rev-A", displayNames: ["codex:a": "Old"])
+        let newName = Self.configuration(revision: "rev-A", displayNames: ["codex:a": "New"])
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(mode: .refreshMissing, request: Self.request(oldName, mode: .refreshMissing)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: oldName)
+        await Self.waitForPendingCount(1, gate: loader)
+
+        controller.update(configuration: newName)
+        await Task.yield()
+        #expect(await loader.pendingCount == 1)
+        #expect(builder.modes == [.refreshMissing])
+
+        await loader.resume(at: 0, result: .init(
+            inputs: [Self.input(id: "codex:a", provider: .codex, cost: 5)],
+            failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 5)
+        // No source follow-up is required solely for the label.
+        #expect(builder.modes == [.refreshMissing])
+        #expect(await loader.configurations.count == 1)
+        #expect(controller.configuration == newName)
+        // Visible presentation uses the newest label ...
+        let visibleNames = Dictionary(
+            uniqueKeysWithValues: controller.publication.inputs.map { ($0.id, $0.displayName) })
+        #expect(visibleNames["codex:a"] == "New")
+        // ... while provenance still describes the request that produced data.
+        #expect(controller.lastSuccessfulConfiguration == oldName)
+    }
+
+    @Test
+    func `same-owner churn while request builder is gated still reaches the loader`() async throws {
+        let revisionA = Self.configuration(revision: "rev-A")
+        let revisionB = Self.configuration(revision: "rev-B")
+        let revisionC = Self.configuration(revision: "rev-C")
+        let buildGate = SpendDashboardLivenessBuildGate()
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(revisionA, mode: .refreshMissing),
+                gate: buildGate),
+            .init(mode: .refreshMissing, request: Self.request(revisionC, mode: .refreshMissing)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: revisionA)
+        await Self.waitForBuildGate(buildGate)
+        controller.update(configuration: revisionB)
+        controller.update(configuration: revisionC)
+        await buildGate.resume()
+
+        // Revision churn during request construction must not starve the
+        // builder: the identity-safe A request proceeds to the loader.
+        await Self.waitForPendingCount(1, gate: loader)
+        let firstLoaded = await loader.configurations.map(\.sourceRevisions)
+        #expect(firstLoaded == [revisionA.sourceRevisions])
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitForPendingCount(1, gate: loader)
+        #expect(controller.model.groups.first?.totalCost == 5)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing])
+        let loadedRevisions = await loader.configurations.map(\.sourceRevisions)
+        #expect(loadedRevisions == [revisionA.sourceRevisions, revisionC.sourceRevisions])
+    }
+
+    @Test
+    func `hard ownership change while request builder is gated never loads stale owner`() async throws {
+        let firstOwner = Self.configuration(owner: "owner-one", revision: "rev-R")
+        let secondOwner = Self.configuration(owner: "owner-two", revision: "rev-R")
+        let buildGate = SpendDashboardLivenessBuildGate()
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(firstOwner, mode: .refreshMissing),
+                gate: buildGate),
+            .init(mode: .refreshMissing, request: Self.request(secondOwner, mode: .refreshMissing)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: firstOwner)
+        await Self.waitForBuildGate(buildGate)
+        controller.update(configuration: secondOwner)
+        await Self.waitForPendingCount(1, gate: loader)
+        await buildGate.resume()
+        await Task.yield()
+
+        // The released owner-1 request belongs to a stale generation and must
+        // never reach the loader as current-owner data.
+        let loadedOwners = await loader.configurations.map(\.codexAccountIdentities)
+        #expect(loadedOwners == [secondOwner.codexAccountIdentities])
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 2)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 2)
+        #expect(controller.configuration == secondOwner)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing])
+    }
+
+    @Test
+    func `churn through gated follow-up build still publishes each safe result`() async throws {
+        let revisionA = Self.configuration(revision: "rev-A")
+        let revisionB = Self.configuration(revision: "rev-B")
+        let revisionC = Self.configuration(revision: "rev-C")
+        let revisionD = Self.configuration(revision: "rev-D")
+        let revisionE = Self.configuration(revision: "rev-E")
+        let firstBuildGate = SpendDashboardLivenessBuildGate()
+        let followUpBuildGate = SpendDashboardLivenessBuildGate()
+        let builder = SpendDashboardLivenessBuildScript([
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(revisionA, mode: .refreshMissing),
+                gate: firstBuildGate),
+            .init(
+                mode: .refreshMissing,
+                request: Self.request(revisionC, mode: .refreshMissing),
+                gate: followUpBuildGate),
+            .init(mode: .refreshMissing, request: Self.request(revisionE, mode: .refreshMissing)),
+        ])
+        let loader = SpendDashboardLivenessLoaderGate()
+        let controller = SpendDashboardController(
+            requestBuilder: { mode in await builder.next(mode) },
+            loader: { request in await loader.load(request) })
+
+        controller.update(configuration: revisionA)
+        await Self.waitForBuildGate(firstBuildGate)
+        controller.update(configuration: revisionB)
+        controller.update(configuration: revisionC)
+        await firstBuildGate.resume()
+        await Self.waitForPendingCount(1, gate: loader)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitForBuildGate(followUpBuildGate)
+        #expect(controller.model.groups.first?.totalCost == 5)
+
+        controller.update(configuration: revisionD)
+        controller.update(configuration: revisionE)
+        await followUpBuildGate.resume()
+        await Self.waitForPendingCount(1, gate: loader)
+
+        // The C follow-up still runs and publishes although E arrived.
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 7)], failedSourceIDs: []))
+        await Self.waitForPendingCount(1, gate: loader)
+        #expect(controller.model.groups.first?.totalCost == 7)
+
+        try #require(await loader.pendingCount == 1)
+        await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 11)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+
+        #expect(controller.model.groups.first?.totalCost == 11)
+        #expect(builder.modes == [.refreshMissing, .refreshMissing, .refreshMissing])
+        let loadedRevisions = await loader.configurations.map(\.sourceRevisions)
+        #expect(loadedRevisions == [
+            revisionA.sourceRevisions,
+            revisionC.sourceRevisions,
+            revisionE.sourceRevisions,
+        ])
+    }
+
+    private static func configuration(
+        owner: String = "owner",
+        revision: String,
+        currency: String = "USD",
+        hiddenSourceIDs: [String] = [],
+        hideNativeCodex: Bool = false,
+        displayNames: [String: String] = [:]) -> SpendDashboardConfiguration
+    {
         SpendDashboardConfiguration(
             costUsageEnabled: true,
+            preferredCurrencyCode: currency,
             providerIDs: [UsageProvider.codex.rawValue, UsageProvider.claude.rawValue],
             codexAccountIdentities: ["a|\(owner)"],
+            codexAccountDisplayNames: displayNames,
             sourceOwnershipFingerprints: ["claude:\(owner)"],
-            sourceRevisions: [revision])
+            sourceRevisions: [revision],
+            hideNativeCodexCostWhenOpenCodexPresent: hideNativeCodex,
+            hiddenSourceIDs: hiddenSourceIDs)
     }
 
     private static func request(
@@ -283,6 +562,16 @@ struct SpendDashboardLoadLivenessTests {
             snapshot: snapshot)
     }
 
+    private static func waitForBuildGate(_ gate: SpendDashboardLivenessBuildGate) async {
+        for _ in 0..<1000 {
+            if await gate.isSuspended {
+                return
+            }
+            await Task.yield()
+        }
+        Issue.record("Timed out waiting for dashboard build gate")
+    }
+
     private static func waitForPendingCount(_ count: Int, gate: SpendDashboardLivenessLoaderGate) async {
         for _ in 0..<1000 {
             if await gate.pendingCount == count {
@@ -309,6 +598,17 @@ private final class SpendDashboardLivenessBuildScript {
     struct Step {
         let mode: SpendDashboardRequestBuildMode
         let request: SpendDashboardLoadRequest
+        let gate: SpendDashboardLivenessBuildGate?
+
+        init(
+            mode: SpendDashboardRequestBuildMode,
+            request: SpendDashboardLoadRequest,
+            gate: SpendDashboardLivenessBuildGate? = nil)
+        {
+            self.mode = mode
+            self.request = request
+            self.gate = gate
+        }
     }
 
     private var steps: [Step]
@@ -335,7 +635,29 @@ private final class SpendDashboardLivenessBuildScript {
         let step = self.steps.removeFirst()
         self.modes.append(mode)
         #expect(mode == step.mode)
+        if let gate = step.gate {
+            await gate.suspend()
+        }
         return step.request
+    }
+}
+
+private actor SpendDashboardLivenessBuildGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+
+    var isSuspended: Bool {
+        self.continuation != nil
+    }
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume() {
+        self.continuation?.resume()
+        self.continuation = nil
     }
 }
 

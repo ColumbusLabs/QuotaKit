@@ -1153,7 +1153,7 @@ final class SpendDashboardController {
     private var loadedInputs: [SpendDashboardModel.ProviderInput] = []
     private var loadedInputScopes: [String: SpendDashboardLoadedInputScope] = [:]
     private var loadedAt = Date()
-    private var lastSuccessfulConfiguration: SpendDashboardConfiguration?
+    private(set) var lastSuccessfulConfiguration: SpendDashboardConfiguration?
     private var phase = LoadPhase.ordinary
     // Throttle high-frequency date-window refreshes (didBecomeActive bursts).
     private var lastRefreshDateWindowAt: Date?
@@ -1403,7 +1403,12 @@ final class SpendDashboardController {
                     self.startLoad(configuration: targetConfiguration, phase: .reconciling(incorporated))
                 }
                 return
-            } else {
+            } else if !Self.ordinaryStaleCaptureIsSafe(
+                phase: phase,
+                start: startConfiguration,
+                request: request.configuration,
+                target: targetConfiguration)
+            {
                 let nextConfiguration = targetConfiguration == startConfiguration
                     ? request.configuration
                     : targetConfiguration
@@ -1504,9 +1509,14 @@ final class SpendDashboardController {
         confirmedEmptySourceIDs: Set<String>,
         desiredConfiguration: SpendDashboardConfiguration)
     {
-        let codexDisplayNames = request.configuration.codexAccountDisplayNames
+        // Old source provenance + newest compatible presentation (#159): visible
+        // Codex labels come from the desired configuration so an older
+        // in-flight load cannot roll a newer display name backward, while
+        // loaded-input scopes and lastSuccessfulConfiguration below stay tied
+        // to the request that actually produced the data.
+        let codexDisplayNames = desiredConfiguration.codexAccountDisplayNames
         self.refreshRetainedCodexDisplayNames(codexDisplayNames)
-        var nextInputs = result.inputs
+        var nextInputs = result.inputs.map { Self.relabelCodexInput($0, displayNamesByID: codexDisplayNames) }
         var nextInputScopes = Dictionary(uniqueKeysWithValues: nextInputs.map { input in
             (input.id, SpendDashboardLoadedInputScope(configuration: request.configuration, input: input))
         })
@@ -1828,6 +1838,14 @@ final class SpendDashboardController {
             sourceKind: input.sourceKind)
     }
 
+    /// True source ownership/scope identity (#159). Only data-identity and
+    /// semantic-scope fields participate: provider/source identities, Codex
+    /// account/home/auth ownership captured by those identities, credential
+    /// scope fingerprints, bucket/calendar semantics, and the source-set
+    /// membership switch. Presentation-only fields (preferred currency, hidden
+    /// sources, native-Codex visibility, account display names, menu state)
+    /// and freshness revisions are deliberately excluded so display drift can
+    /// never invalidate an identity-safe load or repeat a provider force.
     private static func sameSourceOwnership(
         _ lhs: SpendDashboardConfiguration,
         _ rhs: SpendDashboardConfiguration) -> Bool
@@ -1837,10 +1855,7 @@ final class SpendDashboardController {
             lhs.codexAccountIdentities == rhs.codexAccountIdentities &&
             lhs.sourceOwnershipFingerprints == rhs.sourceOwnershipFingerprints &&
             lhs.bucketTimeZoneIdentifier == rhs.bucketTimeZoneIdentifier &&
-            lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled &&
-            lhs.hideNativeCodexCostWhenOpenCodexPresent == rhs.hideNativeCodexCostWhenOpenCodexPresent &&
-            lhs.hiddenSourceIDs == rhs.hiddenSourceIDs &&
-            lhs.preferredCurrencyCode == rhs.preferredCurrencyCode
+            lhs.openCodexUsageLogsEnabled == rhs.openCodexUsageLogsEnabled
     }
 
     private static func isDisplayOnlyConfigurationChange(
@@ -1873,6 +1888,26 @@ final class SpendDashboardController {
     {
         guard requestConfiguration != latestConfiguration else { return false }
         guard !self.isDisplayOnlyConfigurationChange(from: requestConfiguration, to: latestConfiguration)
+        else { return false }
+        return true
+    }
+
+    /// Whether an ordinary built request may proceed to the loader even though
+    /// its configuration is older than the newest desired configuration
+    /// (#159). When the generation's start, the built request, and the current
+    /// target share the same true source ownership/scope, freshness drift
+    /// during request construction must not restart the builder: the ordinary
+    /// completion path publishes the safe result and coalesces at most one
+    /// follow-up. Any hard ownership change still restarts.
+    private static func ordinaryStaleCaptureIsSafe(
+        phase: LoadPhase,
+        start startConfiguration: SpendDashboardConfiguration,
+        request requestConfiguration: SpendDashboardConfiguration,
+        target targetConfiguration: SpendDashboardConfiguration) -> Bool
+    {
+        guard case .ordinary = phase else { return false }
+        guard self.sameSourceOwnership(startConfiguration, requestConfiguration),
+              self.sameSourceOwnership(requestConfiguration, targetConfiguration)
         else { return false }
         return true
     }
