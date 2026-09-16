@@ -2527,7 +2527,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+CodexCostCatchUp.swift",
-            line: 639,
+            line: 739,
             anchor: "provider: .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2535,7 +2535,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Stable Codex catch-up publication compares the Codex revision before replacing the provider snapshot."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+CodexCostCatchUp.swift",
-            line: 657,
+            line: 757,
             anchor: "self.tokenSnapshotPublicationRevision(for: .codex) == publicationRevision",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 10,
@@ -2546,7 +2546,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+CodexCostCatchUp.swift",
-            line: 704,
+            line: 804,
             anchor: "&& self.settings.providerConfigRevision(for: .codex) == context.providerConfigRevision",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 6,

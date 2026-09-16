@@ -332,6 +332,7 @@ struct CodexRollingCostWindowOverlayTests {
             calendar: calendar,
             established: false,
             currencyCode: "EUR",
+            historyLabel: "candidate window",
             costProvenance: .listPriceEstimate,
             credentialScopeFingerprint: "fingerprint-a",
             ownership: .machineLocalUnowned)
@@ -344,7 +345,9 @@ struct CodexRollingCostWindowOverlayTests {
         #expect(overlaid.historySinceDayKey == "2026-08-18")
         #expect(overlaid.historyUntilDayKey == "2026-09-16")
         #expect(overlaid.currencyCode == "EUR")
-        #expect(overlaid.historyLabel == "30 days")
+        // A history label describes the window it was produced for, so a rollover uses the
+        // candidate's label instead of the established window's stale one.
+        #expect(overlaid.historyLabel == "candidate window")
         #expect(overlaid.costProvenance == .listPriceEstimate)
         #expect(overlaid.credentialScopeFingerprint == "fingerprint-a")
         #expect(overlaid.ownership == .machineLocalUnowned)
@@ -371,6 +374,7 @@ struct CodexRollingCostWindowOverlayTests {
             endDate: establishedEnd,
             calendar: calendar,
             established: true,
+            historyLabel: "30 days",
             meteredCostUSD: 12)
         let candidate = CodexRollingCostWindowFixture.snapshot(
             rows: [CodexRollingCostWindowFixture.row("2026-09-15", cost: 9, tokens: 900)],
@@ -384,6 +388,7 @@ struct CodexRollingCostWindowOverlayTests {
             calendar: calendar))
 
         #expect(overlaid.meteredCostUSD == 12)
+        #expect(overlaid.historyLabel == "30 days")
     }
 
     @Test

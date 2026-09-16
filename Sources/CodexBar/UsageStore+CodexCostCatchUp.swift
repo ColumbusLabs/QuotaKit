@@ -608,9 +608,11 @@ extension UsageStore {
             historyCoverageIsEstablished: true,
             historySinceDayKey: candidateWindow.sinceKey,
             historyUntilDayKey: candidateWindow.untilKey,
-            historyLabel: established.historyLabel,
-            // Provider-metered spend describes the exact window it was fetched for, so it
-            // cannot be carried across a rollover.
+            // Both a history label and provider-metered spend describe the exact window they
+            // were produced for, so a rollover cannot carry them into the new window.
+            historyLabel: candidateWindow == establishedWindow
+                ? established.historyLabel
+                : candidate.historyLabel,
             meteredCostUSD: candidateWindow == establishedWindow ? established.meteredCostUSD : nil,
             costProvenance: established.costProvenance,
             credentialScopeFingerprint: established.credentialScopeFingerprint,

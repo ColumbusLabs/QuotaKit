@@ -492,6 +492,117 @@ struct CodexRollingCostWindowPartialTests {
     }
 
     @Test
+    func `partial rollover follows the Los Angeles midnight boundary`() throws {
+        let calendar = try CodexRollingCostWindowFixture.losAngelesCalendar()
+        let priorEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, hour: 23, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 9, 16, hour: 1, calendar: calendar)
+        let current = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: priorEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: priorEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: candidateEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: candidateEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+
+        let accepted = try #require(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            candidate,
+            over: current,
+            calendar: calendar))
+
+        #expect(accepted.historySinceDayKey == "2026-09-10")
+        #expect(accepted.historyUntilDayKey == "2026-09-16")
+    }
+
+    @Test
+    func `partial rollover accepts the expired day across the DST spring-forward transition`() throws {
+        let calendar = try CodexRollingCostWindowFixture.losAngelesCalendar()
+        let priorEnd = try CodexRollingCostWindowFixture.date(2026, 3, 7, hour: 23, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 3, 8, hour: 12, calendar: calendar)
+        let current = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: priorEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: priorEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: candidateEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: candidateEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+
+        let accepted = try #require(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            candidate,
+            over: current,
+            calendar: calendar))
+
+        #expect(accepted.historySinceDayKey == "2026-03-02")
+        #expect(accepted.historyUntilDayKey == "2026-03-08")
+    }
+
+    @Test
+    func `partial rollover accepts the expired day across the DST fall-back transition`() throws {
+        let calendar = try CodexRollingCostWindowFixture.losAngelesCalendar()
+        let priorEnd = try CodexRollingCostWindowFixture.date(2026, 10, 31, hour: 23, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 11, 1, hour: 12, calendar: calendar)
+        let current = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: priorEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: priorEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: CodexRollingCostWindowFixture.uniformRows(
+                endingAt: candidateEnd,
+                days: 7,
+                calendar: calendar,
+                cost: 1,
+                tokens: 100),
+            endDate: candidateEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+
+        let accepted = try #require(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            candidate,
+            over: current,
+            calendar: calendar))
+
+        #expect(accepted.historySinceDayKey == "2026-10-26")
+        #expect(accepted.historyUntilDayKey == "2026-11-01")
+    }
+
+    @Test
     func `partial rejects a window that moved backwards`() throws {
         let calendar = try CodexRollingCostWindowFixture.utcCalendar()
         let priorEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)
@@ -614,7 +725,7 @@ struct CodexRollingCostWindowPartialTests {
         var bounds: [(since: String, until: String)] = []
         store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
             loadCount += 1
-            let end = now.addingTimeInterval(Double(loadCount - 1) * 86400)
+            let end = calendar.date(byAdding: .day, value: loadCount - 1, to: now) ?? now
             let window = CodexRollingCostWindowFixture.window(endingAt: end, days: 30, calendar: calendar)
             bounds.append((window.sinceKey, window.untilKey))
             return CodexRollingCostWindowFixture.snapshot(
