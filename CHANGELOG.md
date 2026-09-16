@@ -5,10 +5,14 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
-## Unreleased
+## 0.32.4.28 — 2026-09-16
 
 ### Fixed
 
+- Codex: correct rolling usage and cost calculations as days enter and leave the active history window.
+- Spend Dashboard: eliminate reload and recalculation loops during revision churn.
+- Codex: prevent background dashboard refreshes from unintentionally expanding into long-range history scans.
+- Spend Dashboard: reduce repeated CPU-heavy hashing and model derivation during refreshes.
 - Codex: publish local-only cost scans and clear stale account cost when switching ledger scope or opting out.
 - Privacy mode: mask project and source identity in cost history and the spend dashboard, including already-open menu charts.
 - Claude: make the capped Extra Usage progress fill follow the used/remaining display preference while preserving spend and percentage labels.
