@@ -5,6 +5,40 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.28</title>
+            <pubDate>Wed, 16 Sep 2026 15:26:01 -0500</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.28.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.28</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.28 Mobile 1.11.3</h2>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: correct rolling usage and cost calculations as days enter and leave the active history window.</li>
+<li>Spend Dashboard: eliminate reload and recalculation loops during revision churn.</li>
+<li>Codex: prevent background dashboard refreshes from unintentionally expanding into long-range history scans.</li>
+<li>Spend Dashboard: reduce repeated CPU-heavy hashing and model derivation during refreshes.</li>
+<li>Codex: publish local-only cost scans and clear stale account cost when switching ledger scope or opting out.</li>
+<li>Privacy mode: mask project and source identity in cost history and the spend dashboard, including already-open menu charts.</li>
+<li>Claude: make the capped Extra Usage progress fill follow the used/remaining display preference while preserving spend and percentage labels.</li>
+<li>Codex: let older local cost scans advance under a steady stream of new sessions while keeping recent costs prioritized.</li>
+<li>Codex: retain completed empty session fragments, recover duplicate cost rows after their original file disappears, and preserve waiting scans during cache migration.</li>
+<li>Claude: refresh changed default-profile credentials, preserve account warning episodes, and show account-switch errors promptly.</li>
+<li>OpenCode Go: preserve API percentage units, including values between zero and one percent.</li>
+<li>Cursor, Grok, Groq, Manus, and StepFun: improve malformed-response handling and keep available usage or credit details intact.</li>
+<li>Kimi: surface an exhausted monthly membership quota in automatic menu-bar usage.</li>
+<li>Devin: hide daily quota when the service explicitly marks it hidden while preserving weekly usage.</li>
+<li>Z.ai: keep unavailable quota limits unknown instead of displaying a fabricated zero-usage window.</li>
+<li>Poe and OpenRouter: correct weekly usage totals and reject invalid dates or overflowing token totals.</li>
+<li>Menu bar: disclose saved layout overrides, reject invalid item positions, and keep live forecast text within its row.</li>
+<li>Menu bar: normalize status-window coordinates across displays before detecting a blocked status item.</li>
+<li>Mac packaging: sign nested Sparkle components before their enclosing bundles.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.28/QuotaKit-macos-universal-0.32.4.28.zip" length="80905158" type="application/octet-stream" sparkle:edSignature="/JqQ7oJOchuCv63nq2WPflOhROtZxppdoNQLEvirzxZzvsG17oFtOU0Kvk6rFuFBpCkWs8Cz4dQUN7ENFhuoDg=="/>
+        </item>
+        <item>
             <title>0.32.4.27</title>
             <pubDate>Fri, 04 Sep 2026 08:49:10 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -35,24 +69,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.26/QuotaKit-macos-universal-0.32.4.26.zip" length="81302083" type="application/octet-stream" sparkle:edSignature="pTOlRmVqTurdC3CRfS8Lv4tdNz1TQU8qoQ5dgO8GBbzhp3m59jgDJlS8gv6O/KJiQHS5r9B9hw3YtrCpzMzDCg=="/>
-        </item>
-        <item>
-            <title>0.32.4.25</title>
-            <pubDate>Fri, 04 Sep 2026 07:06:18 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.25.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.25</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.25 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: prioritize and independently publish the configured recent cost window while older history continues catching up.</li>
-<li>Spend Dashboard: respect the configured 30-day window instead of expanding shared repairs to 365 days.</li>
-<li>Codex: retry transient bounded no-progress passes without replacing newer foreground totals.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.25/QuotaKit-macos-universal-0.32.4.25.zip" length="81300938" type="application/octet-stream" sparkle:edSignature="VoDnRXimkP+0HSlj8p2eVjWewjQAmoARohI0106BZF21B3Ub28i2Qopgb2StI1euuEl6oxb8oYpQrfDYk75bDQ=="/>
         </item>
     </channel>
 </rss>
