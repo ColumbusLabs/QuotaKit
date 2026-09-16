@@ -252,6 +252,12 @@ before and after:
 | `swift test --filter 'CodexRollingCostWindowPartialTests\|CodexRollingCostWindowOverlayTests'` | 36 tests in 2 suites passed |
 | SwiftFormat + SwiftLint on the four modified files | 0 violations |
 
+Follow-up: the correction commit inserted code above three exact-line gatekeeper constructs in
+`UsageStore+CodexCostCatchUp.swift`. The `ProviderArchitectureGatekeeperTests` catalog was
+refreshed for those anchors only (lines 739/757/804 to 783/801/848) with provider IDs,
+reference counts, fingerprints, and reasons unchanged, and
+`cross provider case clusters are derived or specifically justified` passed.
+
 The fixture now mirrors the canonical completeness rule and supports
 `unpricedRequestCount` rows. Two focused self-review loops covered the modified helpers, the
 new tests, and the complete diff from `8e8eaac62`; no further corrections were needed.
