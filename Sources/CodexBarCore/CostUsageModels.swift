@@ -283,17 +283,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     }
 
     private static func localDayKey(for rawDate: String, calendar: Calendar) -> String? {
-        let trimmed = rawDate.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmed.count >= 10 {
-            let prefix = String(trimmed.prefix(10))
-            if prefix.count == 10, prefix[prefix.index(prefix.startIndex, offsetBy: 4)] == "-",
-               prefix[prefix.index(prefix.startIndex, offsetBy: 7)] == "-"
-            {
-                return prefix
-            }
-        }
-        guard let parsed = CostUsageDateParser.parse(trimmed) else { return nil }
-        return CostUsageLocalDay.key(from: parsed, calendar: calendar)
+        CostUsageLocalDay.key(fromEntryDate: rawDate, calendar: calendar)
     }
 }
 
@@ -1331,5 +1321,21 @@ enum CostUsageLocalDay {
         let month = components.month ?? 0
         let day = components.day ?? 0
         return String(format: "%04d-%02d-%02d", year, month, day)
+    }
+
+    /// Normalizes a daily entry's raw date — a day key or a parseable timestamp — to the local
+    /// day key, or `nil` when the value cannot be interpreted.
+    static func key(fromEntryDate rawDate: String, calendar: Calendar = .current) -> String? {
+        let trimmed = rawDate.trimmingCharacters(in: .whitespacesAndNewlines)
+        if trimmed.count >= 10 {
+            let prefix = String(trimmed.prefix(10))
+            if prefix.count == 10, prefix[prefix.index(prefix.startIndex, offsetBy: 4)] == "-",
+               prefix[prefix.index(prefix.startIndex, offsetBy: 7)] == "-"
+            {
+                return prefix
+            }
+        }
+        guard let parsed = CostUsageDateParser.parse(trimmed) else { return nil }
+        return Self.key(from: parsed, calendar: calendar)
     }
 }

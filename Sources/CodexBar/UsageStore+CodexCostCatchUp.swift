@@ -503,6 +503,8 @@ extension UsageStore {
             && lhs.currencyCode == rhs.currencyCode
             && lhs.historyDays == rhs.historyDays
             && lhs.historyCoverageIsEstablished == rhs.historyCoverageIsEstablished
+            && lhs.historySinceDayKey == rhs.historySinceDayKey
+            && lhs.historyUntilDayKey == rhs.historyUntilDayKey
             && lhs.historyLabel == rhs.historyLabel
             && lhs.meteredCostUSD == rhs.meteredCostUSD
             && lhs.costProvenance == rhs.costProvenance
@@ -528,6 +530,8 @@ extension UsageStore {
             currencyCode: snapshot.currencyCode,
             historyDays: snapshot.historyDays,
             historyCoverageIsEstablished: snapshot.historyCoverageIsEstablished,
+            historySinceDayKey: snapshot.historySinceDayKey,
+            historyUntilDayKey: snapshot.historyUntilDayKey,
             historyLabel: snapshot.historyLabel,
             meteredCostUSD: snapshot.meteredCostUSD,
             costProvenance: snapshot.costProvenance,
@@ -540,19 +544,50 @@ extension UsageStore {
             updatedAt: snapshot.updatedAt)
     }
 
+    /// Overlays the candidate's independently verified current day onto an established history.
+    ///
+    /// Both snapshots are normalized to the candidate's producer rolling window first. The
+    /// established rows that fell outside that window expire, and the result may only keep
+    /// `historyCoverageIsEstablished` when the established window plus the one verified day
+    /// cover the candidate window without leaving unverified gap days (for example after a
+    /// multi-day sleep). Totals are recomputed from the trimmed rows so a stored aggregate can
+    /// never span N+1 days while claiming an N-day window.
     static func codexCostSnapshotOverlayingVerifiedCurrentDay(
         _ candidate: CostUsageTokenSnapshot,
         onto established: CostUsageTokenSnapshot,
         calendar: Calendar) -> CostUsageTokenSnapshot?
     {
-        guard candidate.updatedAt > established.updatedAt,
-              let currentDay = candidate.currentDayEntry(calendar: calendar),
+        guard candidate.updatedAt > established.updatedAt else { return nil }
+
+        let candidateWindow = candidate.historyDayWindow(calendar: calendar)
+        let establishedWindow = established.historyDayWindow(calendar: calendar)
+        guard candidateWindow.untilKey >= establishedWindow.untilKey,
+              candidateWindow.sinceKey >= establishedWindow.sinceKey,
+              let adjacentDayKey = CostUsageDayWindow.dayKey(
+                  establishedWindow.untilKey,
+                  advancedBy: 1,
+                  calendar: calendar),
+              candidateWindow.untilKey <= adjacentDayKey,
+              let currentDay = candidate.daily.first(where: { entry in
+                  candidateWindow.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
+                      == candidateWindow.untilKey
+              }),
               currentDay.costUSD != nil
         else { return nil }
 
-        var daily = established.daily.filter { $0.date != currentDay.date }
+        var daily = established.daily.filter { entry in
+            guard candidateWindow.contains(entryDate: entry.date, calendar: calendar) else { return false }
+            return candidateWindow.normalizedDayKey(forEntryDate: entry.date, calendar: calendar)
+                != candidateWindow.untilKey
+        }
         daily.append(currentDay)
-        daily.sort { $0.date < $1.date }
+        daily.sort { lhs, rhs in
+            let lhsKey = candidateWindow.normalizedDayKey(forEntryDate: lhs.date, calendar: calendar)
+                ?? lhs.date
+            let rhsKey = candidateWindow.normalizedDayKey(forEntryDate: rhs.date, calendar: calendar)
+                ?? rhs.date
+            return lhsKey < rhsKey
+        }
 
         let allEntriesCarryTokens = daily.allSatisfy { $0.totalTokens != nil }
         let allEntriesCarryCost = daily.allSatisfy { $0.costUSD != nil }
@@ -569,10 +604,14 @@ extension UsageStore {
             last30DaysCostUSD: totalCost,
             last30DaysRequests: totalRequests,
             currencyCode: established.currencyCode,
-            historyDays: established.historyDays,
+            historyDays: candidate.historyDays,
             historyCoverageIsEstablished: true,
+            historySinceDayKey: candidateWindow.sinceKey,
+            historyUntilDayKey: candidateWindow.untilKey,
             historyLabel: established.historyLabel,
-            meteredCostUSD: established.meteredCostUSD,
+            // Provider-metered spend describes the exact window it was fetched for, so it
+            // cannot be carried across a rollover.
+            meteredCostUSD: candidateWindow == establishedWindow ? established.meteredCostUSD : nil,
             costProvenance: established.costProvenance,
             credentialScopeFingerprint: established.credentialScopeFingerprint,
             ownership: established.ownership,
@@ -587,6 +626,11 @@ extension UsageStore {
     /// scan progress only when every already-visible lower bound remains
     /// present and non-decreasing. Complete snapshots use the authoritative
     /// path above and may still apply legitimate downward corrections.
+    ///
+    /// Prior rows are compared inside the candidate's producer rolling window. Rows that
+    /// legitimately expire outside that window stop constraining the candidate; their known
+    /// values become the only aggregate decrease the candidate may explain. Rows still inside
+    /// the window keep strict presence and non-decreasing cost/token requirements.
     static func codexCostSnapshotAdvancingPartialLowerBound(
         _ candidate: CostUsageTokenSnapshot,
         over current: CostUsageTokenSnapshot,
@@ -601,18 +645,54 @@ extension UsageStore {
               !sameSessionDay
               || self.optionalLowerBound(candidate.sessionCostUSD, covers: current.sessionCostUSD),
               !sameSessionDay
-              || self.optionalLowerBound(candidate.sessionTokens, covers: current.sessionTokens),
-              self.optionalLowerBound(candidate.last30DaysCostUSD, covers: current.last30DaysCostUSD),
-              self.optionalLowerBound(candidate.last30DaysTokens, covers: current.last30DaysTokens)
+              || self.optionalLowerBound(candidate.sessionTokens, covers: current.sessionTokens)
         else { return nil }
 
-        let candidateByDay = Dictionary(uniqueKeysWithValues: candidate.daily.map { ($0.date, $0) })
-        for existing in current.daily {
-            guard let incoming = candidateByDay[existing.date],
-                  Self.optionalLowerBound(incoming.costUSD, covers: existing.costUSD),
-                  Self.optionalLowerBound(incoming.totalTokens, covers: existing.totalTokens)
+        let candidateWindow = candidate.historyDayWindow(calendar: calendar)
+        let currentWindow = current.historyDayWindow(calendar: calendar)
+        // A newer partial snapshot may advance its rolling window but never move it backwards;
+        // a shrinking window would silently drop visible in-window rows from comparison.
+        guard candidateWindow.untilKey >= currentWindow.untilKey else { return nil }
+
+        var candidateByDay: [String: CostUsageDailyReport.Entry] = [:]
+        for entry in candidate.daily {
+            guard let dayKey = candidateWindow.normalizedDayKey(
+                forEntryDate: entry.date,
+                calendar: calendar)
             else { return nil }
+            candidateByDay[dayKey] = entry
         }
+
+        var expiredCost: Double? = 0
+        var expiredTokens: Int? = 0
+        for existing in current.daily {
+            guard let dayKey = candidateWindow.normalizedDayKey(
+                forEntryDate: existing.date,
+                calendar: calendar)
+            else { return nil }
+            if candidateWindow.contains(dayKey) {
+                guard let incoming = candidateByDay[dayKey],
+                      Self.optionalLowerBound(incoming.costUSD, covers: existing.costUSD),
+                      Self.optionalLowerBound(incoming.totalTokens, covers: existing.totalTokens)
+                else { return nil }
+            } else if dayKey < candidateWindow.sinceKey {
+                expiredCost = Self.adding(expiredCost, existing.costUSD)
+                expiredTokens = Self.adding(expiredTokens, existing.totalTokens)
+            }
+            // A prior row beyond the candidate window end cannot belong to the requested
+            // window and does not constrain the candidate; the window rollback guard above
+            // already rejects a candidate that moves its end backwards.
+        }
+
+        guard Self.optionalLowerBoundAfterExpiry(
+            candidate.last30DaysCostUSD,
+            covers: current.last30DaysCostUSD,
+            expiring: expiredCost),
+            Self.optionalLowerBoundAfterExpiry(
+                candidate.last30DaysTokens,
+                covers: current.last30DaysTokens,
+                expiring: expiredTokens)
+        else { return nil }
         return candidate
     }
 
@@ -623,6 +703,24 @@ extension UsageStore {
         guard let current else { return true }
         guard let candidate else { return false }
         return candidate >= current
+    }
+
+    /// A window rollover legitimately reduces the aggregate by the value of the expired days.
+    /// When any expired row's contribution is unknown the strict same-window lower bound still
+    /// applies instead of granting unverifiable credit.
+    private static func optionalLowerBoundAfterExpiry<Value: Comparable & AdditiveArithmetic>(
+        _ candidate: Value?,
+        covers current: Value?,
+        expiring expired: Value?) -> Bool
+    {
+        guard let current else { return true }
+        guard let candidate else { return false }
+        return candidate >= current - (expired ?? .zero)
+    }
+
+    private static func adding<Value: AdditiveArithmetic>(_ total: Value?, _ value: Value?) -> Value? {
+        guard let total, let value else { return nil }
+        return total + value
     }
 
     private func publishStableCodexCostCatchUpSnapshot(
