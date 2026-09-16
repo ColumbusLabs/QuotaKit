@@ -162,6 +162,90 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
+    func `returning to the active controller request drops obsolete pending work`() async {
+        let gate = SpendDashboardRecalculationBuildGate()
+        let controller = Self.controller(
+            configuration: Self.configuration(),
+            input: Self.input(),
+            probe: nil,
+            modelBuilder: { request in
+                gate.build(request)
+            })
+        defer { gate.releaseFirstBuild() }
+
+        controller.update(configuration: Self.configuration())
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        let before = controller.modelDerivationCounters.snapshot
+
+        controller.selectDays(90)
+        controller.selectDays(30)
+        await Task.yield()
+
+        #expect(gate.invocationCount == 1)
+        #expect(gate.recordedRequests.map(\.requestedDays) == [30])
+        #expect(gate.maxConcurrentBuilds == 1)
+
+        gate.releaseFirstBuild()
+        await Self.waitUntil {
+            controller.model.requestedDays == 30 &&
+                controller.modelDerivationCounters.snapshot.buildCompletions >= before.buildCompletions + 1 &&
+                !controller.isModelDerivationInFlight
+        }
+
+        let after = controller.modelDerivationCounters.snapshot
+        #expect(gate.recordedRequests.map(\.requestedDays) == [30])
+        #expect(controller.model.requestedDays == 30)
+        #expect(gate.maxConcurrentBuilds == 1)
+        #expect(after.maxConcurrentBuilds == 1)
+        #expect(after.buildsExecuted == before.buildsExecuted)
+        #expect(after.buildsCoalesced == before.buildsCoalesced + 1)
+        #expect(after.staleCompletionsDiscarded == before.staleCompletionsDiscarded + 1)
+    }
+
+    @Test
+    func `cached latest controller request drops obsolete pending work`() async {
+        let gate = SpendDashboardRecalculationBuildGate(gatedRequestedDays: 365)
+        let controller = Self.controller(
+            configuration: Self.configuration(),
+            input: Self.input(),
+            probe: nil,
+            modelBuilder: { request in
+                gate.build(request)
+            })
+        defer { gate.releaseFirstBuild() }
+
+        controller.update(configuration: Self.configuration())
+        await Self.waitForBuilds(1, controller: controller)
+        controller.selectDays(7)
+        await Self.waitForBuilds(2, controller: controller)
+        let beforeChurn = controller.modelDerivationCounters.snapshot
+        let baselineRequestCount = gate.recordedRequests.count
+
+        controller.selectDays(365)
+        await Self.waitUntil { gate.firstBuildStarted.value }
+        controller.selectDays(90)
+        controller.selectDays(30)
+        await Task.yield()
+
+        #expect(controller.model.requestedDays == 30)
+        #expect(gate.recordedRequests.count == baselineRequestCount + 1)
+        #expect(gate.recordedRequests.dropFirst(baselineRequestCount).map(\.requestedDays) == [365])
+        #expect(gate.maxConcurrentBuilds == 1)
+
+        gate.releaseFirstBuild()
+        await Self.waitUntil {
+            controller.modelDerivationCounters.snapshot.buildCompletions >= beforeChurn.buildCompletions + 1
+        }
+
+        let after = controller.modelDerivationCounters.snapshot
+        #expect(gate.recordedRequests.dropFirst(baselineRequestCount).map(\.requestedDays) == [365])
+        #expect(controller.model.requestedDays == 30)
+        #expect(gate.maxConcurrentBuilds == 1)
+        #expect(after.maxConcurrentBuilds == 1)
+        #expect(after.buildsCoalesced == beforeChurn.buildsCoalesced + 1)
+    }
+
+    @Test
     func `controller model derivation is single flight under replacement churn`() async {
         let gate = SpendDashboardRecalculationBuildGate()
         let controller = Self.controller(
@@ -355,6 +439,58 @@ struct SpendDashboardRecalculationPerformanceTests {
     }
 
     @Test
+    func `cache admission observes a concurrent cache insertion atomically`() async {
+        let configuration = Self.configuration()
+        let request = SpendDashboardModelBuildRequest(
+            configuration: configuration,
+            inputs: [Self.input()],
+            requestedDays: 30,
+            now: Self.now,
+            calendar: configuration.bucketCalendar,
+            preferredCurrencyCode: configuration.preferredCurrencyCode,
+            hiddenSourceIDs: [],
+            hideNativeCodexWhenOpenCodexPresent: false,
+            selectedDay: nil)
+        let cache = SpendDashboardModelCache(supportsAsynchronousBuilds: true)
+        let admissionReached = LockIsolated(false)
+        let releaseAdmission = DispatchSemaphore(value: 0)
+        let resultWasCached = LockIsolated(false)
+        let admissionFinished = LockIsolated(false)
+        let builderProbe = SpendDashboardRecalculationBuildProbe()
+        cache.beforeAdmissionHook = {
+            admissionReached.setValue(true)
+            releaseAdmission.wait()
+        }
+        defer {
+            releaseAdmission.signal()
+            cache.beforeAdmissionHook = nil
+        }
+
+        let admissionTask = Task.detached {
+            let result = cache.enqueue(
+                request: request,
+                priority: .controller,
+                builder: { request in
+                    builderProbe.record(request)
+                    return request.build()
+                },
+                completion: { _ in })
+            if case .cached = result {
+                resultWasCached.setValue(true)
+            }
+            admissionFinished.setValue(true)
+        }
+
+        await Self.waitUntil { admissionReached.value }
+        cache.insert(SpendDashboardModel(requestedDays: 30, groups: []), for: request.key)
+        releaseAdmission.signal()
+        await Self.waitUntil { admissionFinished.value }
+
+        #expect(resultWasCached.value)
+        #expect(builderProbe.isEmpty)
+    }
+
+    @Test
     func `source ownership changes cannot reuse an old cached model`() async {
         let originalConfiguration = Self.configuration(sourceOwnership: "owner-a")
         let input = Self.input()
@@ -520,6 +656,12 @@ private final class SpendDashboardRecalculationBuildProbe: @unchecked Sendable {
         return self.recordedRequests.count
     }
 
+    var isEmpty: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.recordedRequests.isEmpty
+    }
+
     var mainThreadFlags: [Bool] {
         self.lock.lock()
         defer { self.lock.unlock() }
@@ -543,9 +685,14 @@ private final class SpendDashboardRecalculationBuildGate: @unchecked Sendable {
     let firstBuildStarted = LockIsolated(false)
     private let lock = NSLock()
     private let releaseSemaphore = DispatchSemaphore(value: 0)
+    private let gatedRequestedDays: Int
     private var activeBuilds = 0
     private var maxConcurrentBuildsValue = 0
     private var requests: [SpendDashboardModelBuildRequest] = []
+
+    init(gatedRequestedDays: Int = 30) {
+        self.gatedRequestedDays = gatedRequestedDays
+    }
 
     var invocationCount: Int {
         self.lock.lock()
@@ -576,7 +723,7 @@ private final class SpendDashboardRecalculationBuildGate: @unchecked Sendable {
             self.activeBuilds -= 1
             self.lock.unlock()
         }
-        if request.requestedDays == 30, !self.firstBuildStarted.value {
+        if request.requestedDays == self.gatedRequestedDays, !self.firstBuildStarted.value {
             self.firstBuildStarted.setValue(true)
             self.releaseSemaphore.wait()
         }

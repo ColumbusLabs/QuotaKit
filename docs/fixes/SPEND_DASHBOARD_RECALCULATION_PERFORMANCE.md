@@ -113,6 +113,36 @@ over a pending publication-only scope, so a menu request cannot create a
 second concurrent aggregation or cause rapid controller changes to fan out
 into multiple detached jobs.
 
+## Final pending-work arbitration correction
+
+The first single-flight implementation had two controller-only supersession
+gaps. A→B→A could attach a new completion to active A while leaving obsolete
+pending B queued. Likewise, when the latest controller request was already in
+the four-entry cache, the controller could apply cached A while leaving a
+pending B queued behind a different active build. Both cases caused CPU work
+that could never become the current model.
+
+The cache now treats `pendingControllerJob` as only the latest controller
+request that still needs computation. A controller request matching active A
+merges completions into A and drops a different pending controller job. A
+controller request satisfied from cache drops any pending controller job before
+returning the cached model. A different uncached controller request replaces
+the pending controller job. Pending publication work is never discarded by
+these controller-only operations, and controller priority over publication
+work remains unchanged.
+
+Cache lookup and admission are now one lock-protected operation: the cache
+entry is checked and its LRU position touched under the same lock used to
+inspect active and pending jobs. No builder, counter callback, or completion
+callback runs while that lock is held. This closes the window in which a build
+could insert a key after an initial miss but before queue arbitration, causing
+a second build for the same key.
+
+The active build remains allowed to finish because the synchronous builder is
+not cooperatively cancellable, but obsolete pending controller work never
+starts. The maximum number of concurrent expensive model builds therefore
+remains exactly one.
+
 ## Stale-build protection
 
 Every scheduled model request advances a model-derivation generation separate
@@ -185,7 +215,7 @@ counter updates cannot cause dashboard observation churn.
 
 ## Targeted verification
 
-The SpendDashboardRecalculationPerformanceTests suite has 10 passing tests.
+The SpendDashboardRecalculationPerformanceTests suite has 13 passing tests.
 In addition to the accepted fingerprint and model-key coverage, it now proves
 the immediate-publication race and single-flight replacement behavior:
 
@@ -195,20 +225,32 @@ the immediate-publication race and single-flight replacement behavior:
 - gated A followed by 90-day B, 365-day C, and selected-day churn records
   actual builder requests `[30, 365]`, two coalesced pending requests, one
   stale discard, and maximum concurrency one;
+- gated A→B→A records exactly `[30]`: B is discarded before it executes, the
+  original A completion is stale, and the newest A completion applies;
+- after seeding cached 30 and making 7 current, gated 365 followed by pending
+  90 and cached latest 30 executes only `[365]` for the churn; 90 never runs;
+- the admission-boundary gate inserts a key while admission is paused and
+  receives a cache hit with zero builder invocations;
 - exact publication reuse after completion remains a cache hit; a distinct
   provider scope executes once asynchronously and then reuses its result;
 - changed ownership cannot reuse the old cached model.
 
 Additional focused results:
 
-- swift test --filter SpendDashboardRecalculationPerformanceTests: 10/10;
+- swift test --filter 'returning to the active controller request drops obsolete pending work': 1/1;
+- swift test --filter 'cached latest controller request drops obsolete pending work': 1/1;
+- swift test --filter 'cache admission observes a concurrent cache insertion atomically': 1/1;
+- swift test --filter SpendDashboardRecalculationPerformanceTests: 13/13;
 - swift test --filter SpendDashboardPublicationTests: 19/19;
 - swift test --filter SpendDashboardControllerTests: 24/24;
 - swift test --filter StatusMenuOverviewSpendTests: 6/6;
+- swift build: passed;
 - swift test --filter SpendDashboardModelTests: 47/47;
 - swift test --filter SpendDashboardDateTruthTests: 23/23;
 - swift test --filter SpendDashboardLoadLivenessTests: 15/15;
 - swift test --filter SpendDashboardCodexHistoryHorizonTests: 20/20.
+- SwiftFormat on all five changed Swift files: 0/5 formatted;
+- SwiftLint strict on all five changed Swift files: 0 violations.
 
 Publication/controller tests use deterministic model-generation gates rather
 than arbitrary sleeps for the new race checks. The liveness tests' behavioral

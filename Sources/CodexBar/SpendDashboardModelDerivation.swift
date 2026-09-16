@@ -421,6 +421,9 @@ final class SpendDashboardModelCache: @unchecked Sendable {
     private var activeJob: SpendDashboardModelBuildJob?
     private var pendingControllerJob: SpendDashboardModelBuildJob?
     private var pendingPublicationJob: SpendDashboardModelBuildJob?
+    #if DEBUG
+    var beforeAdmissionHook: (@Sendable () -> Void)?
+    #endif
 
     init(
         capacity: Int = 4,
@@ -464,10 +467,9 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         builder: @escaping @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel,
         completion: @escaping @Sendable (SpendDashboardModel) -> Void) -> SpendDashboardModelBuildEnqueueResult
     {
-        if let cached = self.model(for: request.key) {
-            return .cached(cached)
-        }
-
+        #if DEBUG
+        self.beforeAdmissionHook?()
+        #endif
         let newJob = SpendDashboardModelBuildJob(
             request: request,
             builder: builder,
@@ -475,57 +477,80 @@ final class SpendDashboardModelCache: @unchecked Sendable {
         var result: SpendDashboardModelBuildEnqueueResult = .scheduled
         var jobToStart: SpendDashboardModelBuildJob?
         var didCoalesce = false
+        var cachedModel: SpendDashboardModel?
 
         self.lock.lock()
-        if let activeJob = self.activeJob, activeJob.request.key == request.key {
-            activeJob.completions.append(completion)
-            self.lock.unlock()
-            return .alreadyScheduled
-        }
-
-        switch priority {
-        case .controller:
-            if let pendingPublicationJob = self.pendingPublicationJob,
-               pendingPublicationJob.request.key == request.key
-            {
-                newJob.completions.append(contentsOf: pendingPublicationJob.completions)
-                self.pendingPublicationJob = nil
+        if let cached = self.models[request.key] {
+            self.order.removeAll { $0 == request.key }
+            self.order.append(request.key)
+            cachedModel = cached
+            if priority == .controller, self.pendingControllerJob != nil {
+                self.pendingControllerJob = nil
+                didCoalesce = true
             }
-            if let pendingControllerJob = self.pendingControllerJob {
+        } else if let activeJob = self.activeJob, activeJob.request.key == request.key {
+            if priority == .controller, let pendingControllerJob = self.pendingControllerJob {
                 if pendingControllerJob.request.key == request.key {
-                    pendingControllerJob.completions.append(contentsOf: newJob.completions)
-                    result = .alreadyScheduled
+                    activeJob.completions.append(contentsOf: pendingControllerJob.completions)
+                } else {
+                    didCoalesce = true
+                }
+                self.pendingControllerJob = nil
+            }
+            activeJob.completions.append(completion)
+            result = .alreadyScheduled
+        } else {
+            switch priority {
+            case .controller:
+                if let pendingPublicationJob = self.pendingPublicationJob,
+                   pendingPublicationJob.request.key == request.key
+                {
+                    newJob.completions.append(contentsOf: pendingPublicationJob.completions)
+                    self.pendingPublicationJob = nil
+                }
+                if let pendingControllerJob = self.pendingControllerJob {
+                    if pendingControllerJob.request.key == request.key {
+                        pendingControllerJob.completions.append(contentsOf: newJob.completions)
+                        result = .alreadyScheduled
+                    } else {
+                        self.pendingControllerJob = newJob
+                        didCoalesce = true
+                    }
                 } else {
                     self.pendingControllerJob = newJob
-                    didCoalesce = true
                 }
-            } else {
-                self.pendingControllerJob = newJob
-            }
-        case .publication:
-            if let pendingControllerJob = self.pendingControllerJob,
-               pendingControllerJob.request.key == request.key
-            {
-                pendingControllerJob.completions.append(completion)
-                result = .alreadyScheduled
-            } else if let pendingPublicationJob = self.pendingPublicationJob {
-                if pendingPublicationJob.request.key == request.key {
-                    pendingPublicationJob.completions.append(completion)
+            case .publication:
+                if let pendingControllerJob = self.pendingControllerJob,
+                   pendingControllerJob.request.key == request.key
+                {
+                    pendingControllerJob.completions.append(completion)
                     result = .alreadyScheduled
+                } else if let pendingPublicationJob = self.pendingPublicationJob {
+                    if pendingPublicationJob.request.key == request.key {
+                        pendingPublicationJob.completions.append(completion)
+                        result = .alreadyScheduled
+                    } else {
+                        self.pendingPublicationJob = newJob
+                        didCoalesce = true
+                    }
                 } else {
                     self.pendingPublicationJob = newJob
-                    didCoalesce = true
                 }
-            } else {
-                self.pendingPublicationJob = newJob
             }
-        }
 
-        if self.activeJob == nil {
-            jobToStart = self.promoteNextJobLocked()
+            if self.activeJob == nil {
+                jobToStart = self.promoteNextJobLocked()
+            }
         }
         self.lock.unlock()
 
+        if let cachedModel {
+            self.counters.recordCacheHit()
+            if didCoalesce {
+                self.counters.recordBuildCoalesced()
+            }
+            return .cached(cachedModel)
+        }
         if didCoalesce {
             self.counters.recordBuildCoalesced()
         }
