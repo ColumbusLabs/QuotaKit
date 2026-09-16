@@ -228,8 +228,9 @@ All commands run in this worktree; no full suite was run.
   `SpendDashboardRequestTimeTests` and `SpendDashboardControllerRevisionTests`).
   This includes all 16 #159 liveness tests and the 18 catch-up tests.
 - `swift build` — complete.
-- `swiftlint lint --strict` on the 5 changed Swift files:
-  `Found 0 violations, 0 serious in 6 files.`
+- `swiftlint lint --strict` on the 5 changed Swift files plus the untouched
+  `UsageStore.swift` (verified here because it sits exactly at the
+  `file_length` limit): `Found 0 violations, 0 serious in 6 files.`
 - `swiftformat --lint` on the same files: only the 7 pre-existing
   `wrapIfStatementBodies` notes in `SpendDashboardController.swift` (2) and
   `PreferencesSpendDashboardPane.swift` (5); verified identical on the base
