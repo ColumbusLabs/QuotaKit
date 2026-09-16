@@ -96,13 +96,14 @@ struct SpendDashboardCachedPresentationTests {
 
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
 
         #expect(controller.isRefreshing)
         #expect(controller.model.groups.first?.totalCost == 3)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:account"])
 
         await gate.resume(at: 0, result: .init(inputs: [], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.isEmpty)
     }
@@ -130,7 +131,7 @@ struct SpendDashboardCachedPresentationTests {
                 cost: 9,
                 historyCoverageIsEstablished: false)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.failedSourceCount == 0)
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -160,6 +161,7 @@ struct SpendDashboardCachedPresentationTests {
 
         controller.update(configuration: utc)
         await Self.waitForPendingCount(1, gate: gate)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         activeConfiguration.withLock { $0 = pacific }
@@ -172,7 +174,7 @@ struct SpendDashboardCachedPresentationTests {
                 cost: 9,
                 historyCoverageIsEstablished: false)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.failedSourceCount == 0)
         #expect(controller.configuration?.bucketCalendar.timeZone.identifier == "America/Los_Angeles")
@@ -198,6 +200,7 @@ struct SpendDashboardCachedPresentationTests {
 
         controller.update(configuration: configuration)
         await Self.waitForPendingCount(1, gate: gate)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         await gate.resume(at: 0, result: .init(
@@ -207,7 +210,7 @@ struct SpendDashboardCachedPresentationTests {
                 historyDays: SpendDashboardSource.scanDays,
                 historyCoverageIsEstablished: false)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.failedSourceCount == 0)
         #expect(controller.model.groups.first?.totalCost == nil)

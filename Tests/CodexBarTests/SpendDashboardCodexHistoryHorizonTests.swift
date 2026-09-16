@@ -679,7 +679,7 @@ struct SpendDashboardCodexHistoryHorizonTests {
         await loader.resume(
             at: 0,
             result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == routineConfiguration)
         #expect(controller.configuration?.codexHistoryDays == 30)
@@ -722,7 +722,7 @@ struct SpendDashboardCodexHistoryHorizonTests {
         await loader.resume(
             at: 0,
             result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == routineConfiguration)
         store.cancelSpendDashboardCodexCostCatchUp()

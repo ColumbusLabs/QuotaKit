@@ -84,17 +84,18 @@ struct SpendDashboardSourceConcurrencyTests {
                 Self.input(id: "codex:b", cost: 5),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 8)
 
         controller.update(configuration: replacement)
         await Self.waitForResultGate(gate)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:b"])
         await gate.resume(result: SpendDashboardLoadResult(
             inputs: [],
             failedSourceIDs: ["codex:a", "codex:b"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex:b"])
@@ -151,9 +152,10 @@ struct SpendDashboardSourceConcurrencyTests {
                 Self.input(id: "codex:c", cost: 7, displayName: "Codex · #3"),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.update(configuration: replacement)
+        await Self.waitUntil { !controller.isModelDerivationInFlight }
         let pendingRows = try #require(controller.model.groups.first?.providers)
         #expect(Dictionary(uniqueKeysWithValues: pendingRows.map { ($0.id, $0.displayName) }) == [
             "codex:b": "Codex · #1",
@@ -166,7 +168,7 @@ struct SpendDashboardSourceConcurrencyTests {
         await gate.resume(result: SpendDashboardLoadResult(
             inputs: [Self.input(id: "codex:c", cost: 8, displayName: "Codex · #2")],
             failedSourceIDs: ["codex:b"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let finalRows = try #require(controller.model.groups.first?.providers)
         #expect(Dictionary(uniqueKeysWithValues: finalRows.map { ($0.id, $0.displayName) }) == [
@@ -212,7 +214,7 @@ struct SpendDashboardSourceConcurrencyTests {
         await Self.waitForProviderGate(requestGate)
         controller.update(configuration: replacement)
         await requestGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.configuration == replacement)
         #expect(controller.generation == 2)
@@ -249,7 +251,7 @@ struct SpendDashboardSourceConcurrencyTests {
             })
 
         controller.update(configuration: initial, force: true)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.configuration == replacement)
         #expect(controller.generation == 2)
@@ -301,7 +303,7 @@ struct SpendDashboardSourceConcurrencyTests {
         #expect(await recorder.configurations.isEmpty)
 
         await requestGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.configuration == replacement)
         #expect(controller.generation == 3)
@@ -346,7 +348,7 @@ struct SpendDashboardSourceConcurrencyTests {
         controller.update(configuration: initial, force: true)
         await Self.waitForProviderGate(requestGate)
         controller.update(configuration: replacement)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         await requestGate.resume()
         await Task.yield()
 
@@ -398,7 +400,7 @@ struct SpendDashboardSourceConcurrencyTests {
             result: SpendDashboardLoadResult(
                 inputs: [Self.input(provider: .codex, cost: 5)],
                 failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         await loaderGate.resume(
             at: 0,
             result: SpendDashboardLoadResult(
@@ -459,7 +461,7 @@ struct SpendDashboardSourceConcurrencyTests {
             result: SpendDashboardLoadResult(
                 inputs: [Self.input(provider: .codex, cost: 7)],
                 failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == inFlightGeneration + 1)
         #expect(controller.configuration == replacement)
@@ -527,7 +529,7 @@ struct SpendDashboardSourceConcurrencyTests {
                     failedSourceIDs: []))
         }
 
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.configuration == replacement)
         #expect(controller.model.groups.first?.totalCost == 12)
     }

@@ -208,8 +208,7 @@ struct SpendDashboardPublicationTests {
             loader: { _ in fixture.result })
 
         controller.update(configuration: fixture.request.configuration)
-        await Self.waitUntil { !controller.isRefreshing }
-        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let publication = controller.publication
         let sources = Dictionary(uniqueKeysWithValues: publication.sources.map { ($0.id, $0) })
@@ -270,7 +269,7 @@ struct SpendDashboardPublicationTests {
             loader: { _ in result })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let sourceIDs = Set(controller.publication.sources.map(\.id))
         #expect(sourceIDs == [expectedID])
@@ -298,7 +297,7 @@ struct SpendDashboardPublicationTests {
             loader: { request in await script.nextResult(request: request) })
 
         controller.update(configuration: initialConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         controller.update(configuration: replacementConfiguration)
         await Self.waitUntil { !controller.isRefreshing && controller.generation == 2 }
 
@@ -328,7 +327,7 @@ struct SpendDashboardPublicationTests {
             loader: { _ in result })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let unreadable = try #require(controller.publication.sources.first { $0.id == "codex:unreadable" })
         #expect(unreadable.state == .unavailable)
@@ -708,7 +707,7 @@ struct SpendDashboardPublicationTests {
             })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.publication.sources.map(\.id) == [SpendDashboardModel.openCodexSourceID])
     }
@@ -743,8 +742,7 @@ struct SpendDashboardPublicationTests {
             })
 
         controller.update(configuration: fixture.request.configuration)
-        await Self.waitUntil { !controller.isRefreshing }
-        await Self.waitUntil { !controller.isModelDerivationInFlight }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         let callsBeforeProjection = await calls.count
 
         var model = controller.publication.model(

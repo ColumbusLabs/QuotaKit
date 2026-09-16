@@ -74,7 +74,8 @@ struct SpendDashboardOpenCodexSourceTests {
                     ],
                     updatedAt: Date(timeIntervalSince1970: 1_784_179_200))),
         ], failedSourceIDs: []))
-        await SpendDashboardControllerTests.waitUntil { !controller.isRefreshing }
+        await SpendDashboardControllerTests
+            .waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.providers.contains { $0.provider == .codex } == true)
         #expect(controller.model.groups.first?.providers
             .contains { $0.id == SpendDashboardModel.openCodexSourceID } == false)

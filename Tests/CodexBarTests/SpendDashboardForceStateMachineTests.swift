@@ -40,13 +40,13 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: oldInputs, failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
         controller.update(configuration: latest)
         await loader.resume(SpendDashboardLoadResult(inputs: [], failedSourceIDs: failedIDs))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.refreshMissing, .forceRefresh, .captureOnly])
         #expect(await loader.forces == [false, true])
@@ -84,7 +84,7 @@ struct SpendDashboardForceStateMachineTests {
         await loader.resume(SpendDashboardLoadResult(
             inputs: [Self.input(id: "codex:a", provider: .codex, cost: 5)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.forceRefresh, .captureOnly])
         #expect(await loader.forces == [true])
@@ -150,7 +150,7 @@ struct SpendDashboardForceStateMachineTests {
         await Self.waitForBuildGate(thirdCaptureGate)
         controller.update(configuration: latest)
         await thirdCaptureGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [
             .forceRefresh,
@@ -188,7 +188,7 @@ struct SpendDashboardForceStateMachineTests {
         await loader.resume(SpendDashboardLoadResult(
             inputs: [Self.input(id: "claude", provider: .claude, cost: 1)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let settledGeneration = controller.generation
         controller.update(configuration: latest)
@@ -251,7 +251,7 @@ struct SpendDashboardForceStateMachineTests {
         await loader.resume(SpendDashboardLoadResult(
             inputs: [Self.input(id: "claude", provider: .claude, cost: 7)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         await oldBarrierGate.resume()
         await Task.yield()
 
@@ -284,14 +284,14 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(
             inputs: [Self.input(id: "claude", provider: .claude, cost: 6)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.refreshMissing, .forceRefresh, .captureOnly])
         #expect(await loader.forces == [false, true])
@@ -323,7 +323,7 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [codexInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
@@ -331,7 +331,7 @@ struct SpendDashboardForceStateMachineTests {
             inputs: [],
             failedSourceIDs: ["codex:a"],
             invalidatedSourceIDs: ["codex:a"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.refreshMissing, .forceRefresh, .captureOnly])
         #expect(await loader.forces == [false, true])
@@ -356,7 +356,7 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: configuration)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [input], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.refreshMissing])
         #expect(await loader.forces == [false])
@@ -400,14 +400,14 @@ struct SpendDashboardForceStateMachineTests {
             })
 
         controller.update(configuration: initial)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
 
         controller.refresh()
         await Self.waitForCodexGate(codexGate)
         controller.update(configuration: confirmedEmpty)
         await codexGate.resume(codexInput.snapshot)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let settledGeneration = controller.generation
         let settledLoadCount = await loaderRecorder.count
@@ -469,7 +469,7 @@ struct SpendDashboardForceStateMachineTests {
             })
 
         controller.update(configuration: initial)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
 
         controller.refresh()
@@ -479,7 +479,7 @@ struct SpendDashboardForceStateMachineTests {
         await Self.waitForBuildGate(captureGate)
         controller.update(configuration: latest)
         await captureGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let settledGeneration = controller.generation
         controller.update(configuration: latest)
@@ -527,7 +527,7 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
@@ -536,7 +536,7 @@ struct SpendDashboardForceStateMachineTests {
         await Self.waitForBuildGate(learnedEmptyGate)
         controller.update(configuration: unavailable)
         await learnedEmptyGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let settledGeneration = controller.generation
         controller.update(configuration: unavailable)
@@ -592,7 +592,7 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
@@ -604,7 +604,7 @@ struct SpendDashboardForceStateMachineTests {
         await Self.waitForBuildGate(freshGate)
         controller.update(configuration: unavailable)
         await freshGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let settledGeneration = controller.generation
         controller.update(configuration: unavailable)
@@ -648,12 +648,12 @@ struct SpendDashboardForceStateMachineTests {
         controller.update(configuration: initial)
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [oldProviderInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForLoader(loader)
         await loader.resume(SpendDashboardLoadResult(inputs: [], failedSourceIDs: ["claude"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.refreshMissing, .forceRefresh, .captureOnly])
         #expect(await loader.forces == [false, true])

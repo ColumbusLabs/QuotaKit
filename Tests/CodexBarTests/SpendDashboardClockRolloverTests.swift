@@ -39,14 +39,14 @@ struct SpendDashboardClockRolloverTests {
             nowProvider: { clock.value })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         controller.selectDays(7)
         #expect(controller.model.groups.first?.totalCost == 4)
         let generation = controller.generation
 
         clock.setValue(afterRollover)
         controller.refreshDateWindow()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == generation + 1)
         #expect(loadCount.value == 2)
@@ -88,7 +88,7 @@ struct SpendDashboardClockRolloverTests {
             nowProvider: { clock.value })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         let generation = controller.generation
 
         clock.setValue(laterSameDay)
@@ -136,13 +136,13 @@ struct SpendDashboardClockRolloverTests {
             nowProvider: { clock.value })
 
         controller.update(configuration: configuration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.failedSourceCount == 1)
         let generation = controller.generation
 
         clock.setValue(laterSameDay)
         controller.refreshDateWindow()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == generation + 1)
         #expect(loadCount.value == 2)
@@ -185,7 +185,7 @@ struct SpendDashboardClockRolloverTests {
 
         await gate.resume(at: 0, result: .init(inputs: [staleInput], failedSourceIDs: []))
         await gate.resume(at: 1, result: .init(inputs: [freshInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == 2)
         #expect(controller.model.groups.first?.totalCost == 6)
