@@ -30,6 +30,30 @@ struct SpendDashboardPublication: Sendable {
     let isRefreshing: Bool
     let inputs: [SpendDashboardModel.ProviderInput]
     let sources: [SpendSourcePublication]
+    let inputRevision: UInt64
+    let modelCache: SpendDashboardModelCache
+
+    init(
+        revision: UInt64,
+        generation: UInt64,
+        configuration: SpendDashboardConfiguration?,
+        loadedAt: Date,
+        isRefreshing: Bool,
+        inputs: [SpendDashboardModel.ProviderInput],
+        inputRevision: UInt64? = nil,
+        sources: [SpendSourcePublication],
+        modelCache: SpendDashboardModelCache = SpendDashboardModelCache())
+    {
+        self.revision = revision
+        self.generation = generation
+        self.configuration = configuration
+        self.loadedAt = loadedAt
+        self.isRefreshing = isRefreshing
+        self.inputs = inputs
+        self.sources = sources
+        self.inputRevision = inputRevision ?? revision
+        self.modelCache = modelCache
+    }
 
     static let empty = SpendDashboardPublication(
         revision: 0,
@@ -38,6 +62,7 @@ struct SpendDashboardPublication: Sendable {
         loadedAt: .distantPast,
         isRefreshing: false,
         inputs: [],
+        inputRevision: 0,
         sources: [])
 
     func model(
@@ -56,8 +81,10 @@ struct SpendDashboardPublication: Sendable {
         let inputs = self.inputs.filter { input in
             (providerScope?.contains(input.provider) ?? true) && !staleSourceIDs.contains(input.id)
         }
-        return SpendDashboardModel.build(
+        let request = SpendDashboardModelBuildRequest(
+            configuration: self.configuration,
             inputs: inputs,
+            inputRevision: self.inputRevision,
             requestedDays: requestedDays,
             now: now,
             calendar: calendar,
@@ -65,6 +92,15 @@ struct SpendDashboardPublication: Sendable {
             hiddenSourceIDs: hiddenSourceIDs,
             hideNativeCodexWhenOpenCodexPresent: hideNativeCodexWhenOpenCodexPresent,
             selectedDay: selectedDay)
+        if let cached = self.modelCache.model(for: request.key) {
+            return cached
+        }
+        self.modelCache.counters.recordBuildStart()
+        self.modelCache.counters.recordBuildExecuted()
+        let model = request.build()
+        self.modelCache.counters.recordBuildCompletion()
+        self.modelCache.insert(model, for: request.key)
+        return model
     }
 
     func subscriptionCount(

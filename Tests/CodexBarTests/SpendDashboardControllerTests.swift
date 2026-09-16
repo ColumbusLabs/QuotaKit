@@ -101,7 +101,7 @@ struct SpendDashboardControllerTests {
         controller.update(configuration: configuration)
         await Self.waitForCodexPendingCount(1, gate: gate)
         await gate.resume(at: 0, snapshot: Self.input(cost: 6).snapshot)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 8)
 
         controller.refresh()
@@ -109,7 +109,7 @@ struct SpendDashboardControllerTests {
         let replacementAuth = Data("{\"profile\":\"owner-two\"}".utf8)
         try replacementAuth.write(to: authURL, options: .atomic)
         await gate.resume(at: 0, snapshot: Self.input(cost: 99).snapshot)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let results = await recorder.results
         #expect(results.last?.invalidatedSourceIDs == ["codex:account"])
@@ -132,7 +132,7 @@ struct SpendDashboardControllerTests {
         await Self.waitForPendingCount(2, gate: gate)
 
         await gate.resume(at: 1, result: .init(inputs: [Self.input(cost: 2)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 2)
         #expect(controller.generation == 2)
 
@@ -155,13 +155,13 @@ struct SpendDashboardControllerTests {
                 Self.input(id: "claude", provider: .claude, cost: 3),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 10)
 
         controller.refresh()
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(inputs: [Self.input(cost: 8)], failedSourceIDs: ["claude"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 11)
         #expect(controller.model.groups.first?.providers.count == 2)
         #expect(controller.failedSourceCount == 1)
@@ -182,14 +182,14 @@ struct SpendDashboardControllerTests {
                 Self.input(id: "openai", provider: .openai, cost: 2),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.refresh()
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(
             inputs: [Self.input(cost: 8)],
             failedSourceIDs: ["claude"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         let providerIDs = Set(controller.model.groups.flatMap(\.providers).map(\.id))
         #expect(providerIDs == ["codex", "claude"])
@@ -209,7 +209,7 @@ struct SpendDashboardControllerTests {
                 Self.input(id: "claude", provider: .claude, cost: 3),
             ],
             failedSourceIDs: ["openai"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.failedSourceCount == 1)
 
         controller.update(configuration: Self.configuration(account: "same", revision: "second"))
@@ -220,7 +220,7 @@ struct SpendDashboardControllerTests {
         await gate.resume(at: 0, result: .init(
             inputs: [Self.input(cost: 8)],
             failedSourceIDs: ["claude"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 11)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "claude"])
@@ -259,13 +259,13 @@ struct SpendDashboardControllerTests {
         controller.update(configuration: firstConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(inputs: [firstInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         controller.update(configuration: replacementConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         await gate.resume(at: 0, result: .init(inputs: [replacementInput], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == 2)
         #expect(controller.model.groups.first?.totalCost == 8)
@@ -293,11 +293,11 @@ struct SpendDashboardControllerTests {
 
         let baselineConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: baselineConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         controller.refresh()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
         #expect(controller.failedSourceCount == 1)
 
@@ -305,7 +305,7 @@ struct SpendDashboardControllerTests {
         let replacementConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         #expect(replacementConfiguration.sourceRevisions != baselineConfiguration.sourceRevisions)
         controller.update(configuration: replacementConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.generation == 4)
         #expect(controller.model.groups.first?.totalCost == 3)
@@ -370,18 +370,22 @@ struct SpendDashboardControllerTests {
                 Self.input(id: "openai", provider: .openai, cost: 2),
             ],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         controller.update(configuration: replacementConfiguration)
         await Self.waitForPendingCount(1, gate: gate)
         #expect(controller.isRefreshing)
+        await Self.waitUntil {
+            controller.model.groups.first?.totalCost == 9 &&
+                Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "openai"]
+        }
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "openai"])
         #expect(controller.failedSourceCount == 0)
         await gate.resume(at: 0, result: .init(
             inputs: [Self.input(cost: 8)],
             failedSourceIDs: ["claude", "openai"]))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 10)
         #expect(Set(controller.model.groups.flatMap(\.providers).map(\.id)) == ["codex", "openai"])
@@ -411,7 +415,7 @@ struct SpendDashboardControllerTests {
 
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: firstConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         settings.updateProviderConfig(provider: .claude) { config in
@@ -421,8 +425,9 @@ struct SpendDashboardControllerTests {
         #expect(firstConfiguration.sourceOwnershipFingerprints != replacementConfiguration.sourceOwnershipFingerprints)
 
         controller.update(configuration: replacementConfiguration)
+        await Self.waitUntil { controller.model.groups.isEmpty }
         #expect(controller.model.groups.isEmpty)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.isEmpty)
         #expect(controller.failedSourceCount == 1)
@@ -430,7 +435,7 @@ struct SpendDashboardControllerTests {
 
         let reopenedController = Self.dashboardController(settings: settings, store: store)
         reopenedController.update(configuration: replacementConfiguration)
-        await Self.waitUntil { !reopenedController.isRefreshing }
+        await Self.waitUntil { !reopenedController.isRefreshing && !reopenedController.isModelDerivationInFlight }
         #expect(reopenedController.model.groups.isEmpty)
         #expect(reopenedController.failedSourceCount == 1)
 
@@ -444,7 +449,7 @@ struct SpendDashboardControllerTests {
         }
         let thirdConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         reopenedController.update(configuration: thirdConfiguration)
-        await Self.waitUntil { !reopenedController.isRefreshing }
+        await Self.waitUntil { !reopenedController.isRefreshing && !reopenedController.isModelDerivationInFlight }
         #expect(reopenedController.model.groups.first?.totalCost == 3)
         #expect(reopenedController.failedSourceCount == 0)
     }
@@ -484,7 +489,7 @@ struct SpendDashboardControllerTests {
         store._test_providerRefreshOverride = { _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: selectedBackupConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 3)
 
         let selectedBackup = try #require(settings.effectiveSelectedTokenAccount(for: .mistral))
@@ -497,8 +502,9 @@ struct SpendDashboardControllerTests {
             .sourceOwnershipFingerprints)
 
         controller.update(configuration: replacementConfiguration)
+        await Self.waitUntil { controller.model.groups.isEmpty }
         #expect(controller.model.groups.isEmpty)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.isEmpty)
         #expect(controller.failedSourceCount == 1)
@@ -522,11 +528,11 @@ struct SpendDashboardControllerTests {
         store._test_tokenUsageRefreshOverride = { _, _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 4)
 
         controller.refresh()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 4)
         #expect(controller.failedSourceCount == 1)
@@ -551,7 +557,7 @@ struct SpendDashboardControllerTests {
         let controller = Self.dashboardController(settings: settings, store: store)
         let firstConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         controller.update(configuration: firstConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
 
         settings.costUsageHistoryDays = 7
@@ -561,7 +567,7 @@ struct SpendDashboardControllerTests {
 
         controller.update(configuration: replacementConfiguration)
         #expect(controller.model.groups.first?.totalCost == 5)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(controller.failedSourceCount == 0)
     }
@@ -617,23 +623,24 @@ struct SpendDashboardControllerTests {
         store._test_tokenUsageRefreshOverride = { _, _ in }
         let controller = Self.dashboardController(settings: settings, store: store)
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 5)
 
         settings.costUsageEnabled = false
         controller.update(configuration: SpendDashboardSource.configuration(settings: settings, store: store))
+        await Self.waitUntil { controller.model.groups.isEmpty }
         #expect(controller.model.groups.isEmpty)
         settings.costUsageEnabled = true
         let reenabledConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
         #expect(store.tokenSnapshotForCurrentProviderConfig(for: .claude) == nil)
         controller.update(configuration: reenabledConfiguration)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.isEmpty)
         #expect(controller.failedSourceCount == 1)
 
         let reopenedController = Self.dashboardController(settings: settings, store: store)
         reopenedController.update(configuration: reenabledConfiguration)
-        await Self.waitUntil { !reopenedController.isRefreshing }
+        await Self.waitUntil { !reopenedController.isRefreshing && !reopenedController.isModelDerivationInFlight }
         #expect(reopenedController.model.groups.isEmpty)
         #expect(reopenedController.failedSourceCount == 1)
     }
@@ -668,7 +675,7 @@ struct SpendDashboardControllerTests {
         controllerBox.controller = controller
 
         controller.update(configuration: initialConfiguration, force: true)
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(await refreshRecorder.providers == [.claude, .openai])
         #expect(controller.configuration == firstProviderConfiguration)
@@ -703,7 +710,7 @@ struct SpendDashboardControllerTests {
         await Self.waitForPendingCount(1, gate: gate)
         controller.update(configuration: latestConfiguration)
         await gate.resume(at: 0, result: .init(inputs: [Self.input(cost: 1)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.configuration == latestConfiguration)
         #expect(controller.generation == 2)
@@ -1032,7 +1039,7 @@ struct SpendDashboardControllerRevisionTests {
             await gate.resume(at: 0, result: .init(
                 inputs: [Self.input(provider: .claude, snapshot: baseline)],
                 failedSourceIDs: []))
-            await Self.waitUntil { !controller.isRefreshing }
+            await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
             #expect(controller.model.groups.first?.providers.first?.totalTokens == 0)
             #expect(controller.model.groups.first?.modelHistoryCompleteness == .complete)
 
@@ -1041,7 +1048,7 @@ struct SpendDashboardControllerRevisionTests {
             await gate.resume(at: 0, result: .init(
                 inputs: [Self.input(provider: .claude, snapshot: mutation.snapshot)],
                 failedSourceIDs: []))
-            await Self.waitUntil { !controller.isRefreshing }
+            await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
             #expect(controller.generation == 2, "\(mutation.name) must trigger a replacement load")
             #expect(controller.model.groups.first?.providers.first?.totalTokens == mutation.expectedTokens)

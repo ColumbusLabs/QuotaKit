@@ -39,6 +39,7 @@ struct SpendDashboardLoadLivenessTests {
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
 
         // The identity-safe completed result must become visible even though
         // newer same-owner revisions arrived while it ran.
@@ -49,7 +50,7 @@ struct SpendDashboardLoadLivenessTests {
         #expect(controller.generation == 2)
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == revisionD)
@@ -86,6 +87,7 @@ struct SpendDashboardLoadLivenessTests {
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
         #expect(controller.model.groups.first?.totalCost == 5)
         #expect(controller.configuration == revisionC)
 
@@ -93,13 +95,14 @@ struct SpendDashboardLoadLivenessTests {
         controller.update(configuration: revisionE)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 7)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
 
         // The follow-up result must not be discarded solely because E arrived.
         #expect(controller.model.groups.first?.totalCost == 7)
         #expect(controller.configuration == revisionE)
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 11)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 11)
         #expect(builder.modes == [.refreshMissing, .refreshMissing, .refreshMissing])
@@ -132,7 +135,7 @@ struct SpendDashboardLoadLivenessTests {
         await Self.waitForPendingCount(2, gate: loader)
 
         await loader.resume(at: 1, result: .init(inputs: [Self.input(cost: 2)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
         #expect(controller.model.groups.first?.totalCost == 2)
         #expect(controller.configuration == secondOwner)
         #expect(controller.generation == 2)
@@ -175,7 +178,7 @@ struct SpendDashboardLoadLivenessTests {
         await loader.resume(at: 0, result: .init(
             inputs: [Self.input(id: "codex:a", provider: .codex, cost: 5)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.forceRefresh, .captureOnly])
         #expect(await loader.forces == [true])
@@ -205,6 +208,7 @@ struct SpendDashboardLoadLivenessTests {
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
         // The coalesced follow-up targets the newest revision while the
         // already-published result stays visible.
         #expect(controller.model.groups.first?.totalCost == 5)
@@ -212,7 +216,7 @@ struct SpendDashboardLoadLivenessTests {
         #expect(followUpRevisions == [revisions[0].sourceRevisions, revisions[4].sourceRevisions])
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 11)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 11)
         #expect(await loader.configurations.count == 2)
@@ -247,7 +251,7 @@ struct SpendDashboardLoadLivenessTests {
         #expect(builder.modes == [.refreshMissing])
 
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         // The identity-safe result publishes; no replacement source load runs
         // solely because of display drift, and newest presentation survives.
@@ -297,7 +301,7 @@ struct SpendDashboardLoadLivenessTests {
         #expect(builder.modes == [.forceRefresh, .captureOnly])
 
         await captureGate.resume()
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(builder.modes == [.forceRefresh, .captureOnly])
         #expect(await loader.forces == [true])
@@ -328,7 +332,7 @@ struct SpendDashboardLoadLivenessTests {
         await loader.resume(at: 0, result: .init(
             inputs: [Self.input(id: "codex:a", provider: .codex, cost: 5)],
             failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 5)
         // No source follow-up is required solely for the label.
@@ -376,11 +380,12 @@ struct SpendDashboardLoadLivenessTests {
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
         #expect(controller.model.groups.first?.totalCost == 5)
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(builder.modes == [.refreshMissing, .refreshMissing])
@@ -419,7 +424,7 @@ struct SpendDashboardLoadLivenessTests {
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 2)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 2)
         #expect(controller.configuration == secondOwner)
@@ -461,6 +466,7 @@ struct SpendDashboardLoadLivenessTests {
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForBuildGate(followUpBuildGate)
+        await Self.waitForModelDerivation(controller)
         #expect(controller.model.groups.first?.totalCost == 5)
 
         controller.update(configuration: revisionD)
@@ -472,11 +478,12 @@ struct SpendDashboardLoadLivenessTests {
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 7)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
         #expect(controller.model.groups.first?.totalCost == 7)
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 11)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 11)
         #expect(builder.modes == [.refreshMissing, .refreshMissing, .refreshMissing])
@@ -541,7 +548,7 @@ struct SpendDashboardLoadLivenessTests {
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == scope365)
@@ -581,7 +588,7 @@ struct SpendDashboardLoadLivenessTests {
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(controller.configuration == scope365)
@@ -612,11 +619,12 @@ struct SpendDashboardLoadLivenessTests {
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
         await Self.waitForPendingCount(1, gate: loader)
+        await Self.waitForModelDerivation(controller)
         #expect(controller.model.groups.first?.totalCost == 5)
 
         try #require(await loader.pendingCount == 1)
         await loader.resume(at: 0, result: .init(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
-        await Self.waitUntil { !controller.isRefreshing }
+        await Self.waitUntil { !controller.isRefreshing && !controller.isModelDerivationInFlight }
 
         #expect(controller.model.groups.first?.totalCost == 9)
         #expect(builder.modes == [.refreshMissing, .refreshMissing])
@@ -735,6 +743,10 @@ struct SpendDashboardLoadLivenessTests {
             await Task.yield()
         }
         Issue.record("Timed out waiting for controller state")
+    }
+
+    private static func waitForModelDerivation(_ controller: SpendDashboardController) async {
+        await self.waitUntil { !controller.isModelDerivationInFlight }
     }
 }
 

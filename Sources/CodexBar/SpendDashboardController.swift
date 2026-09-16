@@ -761,90 +761,12 @@ enum SpendDashboardSource {
                     store.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)
                 }
             guard let current else { return "\(provider.rawValue):unavailable" }
-            guard let snapshot = current.snapshot else {
+            guard current.snapshot != nil else {
                 return "\(provider.rawValue):empty:\(current.publicationRevision)"
             }
-            return "\(provider.rawValue):snapshot:\(current.publicationRevision):\(self.snapshotRevision(snapshot))"
+            return "\(provider.rawValue):snapshot:\(current.publicationRevision):\(current.semanticFingerprint ?? "")"
         }
         return revisions
-    }
-
-    private static func snapshotRevision(_ snapshot: CostUsageTokenSnapshot) -> String {
-        var encoder = SpendDashboardSnapshotRevisionEncoder()
-        encoder.append(snapshot.currencyCode)
-        encoder.append(snapshot.historyDays)
-        encoder.append(snapshot.historyCoverageIsEstablished)
-        encoder.append(snapshot.updatedAt.timeIntervalSinceReferenceDate)
-        encoder.append(snapshot.last30DaysTokens)
-        encoder.append(snapshot.last30DaysCostUSD)
-        encoder.append(snapshot.daily.count)
-        for entry in snapshot.daily {
-            encoder.append(entry.date)
-            encoder.append(entry.inputTokens)
-            encoder.append(entry.cacheReadTokens)
-            encoder.append(entry.cacheCreationTokens)
-            encoder.append(entry.outputTokens)
-            encoder.append(entry.totalTokens)
-            encoder.append(entry.requestCount)
-            encoder.append(entry.costUSD)
-            encoder.append(entry.modelBreakdowns?.count)
-            for breakdown in entry.modelBreakdowns ?? [] {
-                encoder.append(breakdown.modelName)
-                encoder.append(breakdown.totalTokens)
-                encoder.append(breakdown.requestCount)
-                encoder.append(breakdown.costUSD)
-                encoder.append(breakdown.standardCostUSD)
-                encoder.append(breakdown.priorityCostUSD)
-                encoder.append(breakdown.standardTokens)
-                encoder.append(breakdown.priorityTokens)
-            }
-        }
-        encoder.append(snapshot.hourly.count)
-        for entry in snapshot.hourly {
-            encoder.append(entry.hour.timeIntervalSinceReferenceDate)
-            encoder.append(entry.totalTokens)
-            encoder.append(entry.costUSD)
-        }
-        encoder.append(snapshot.projects.count)
-        encoder.append(snapshot.sessions.count)
-        for project in snapshot.projects {
-            encoder.append(project.name)
-            encoder.append(project.path ?? "")
-            encoder.append(project.totalTokens)
-            encoder.append(project.totalCostUSD)
-            encoder.append(project.daily.count)
-            for entry in project.daily {
-                encoder.append(entry.date)
-                encoder.append(entry.costUSD)
-                encoder.append(entry.totalTokens)
-                encoder.append(entry.inputTokens)
-                encoder.append(entry.outputTokens)
-            }
-            if let breakdowns = project.modelBreakdowns {
-                encoder.append(breakdowns.count)
-                for breakdown in breakdowns {
-                    encoder.append(breakdown.modelName)
-                    encoder.append(breakdown.costUSD)
-                    encoder.append(breakdown.totalTokens)
-                }
-            } else {
-                encoder.append(0)
-            }
-        }
-        for session in snapshot.sessions {
-            encoder.append(session.sessionID)
-            encoder.append(session.lastActivity.timeIntervalSinceReferenceDate)
-            encoder.append(session.totalTokens)
-            encoder.append(session.costUSD)
-            encoder.append(session.requestCount)
-            encoder.append(session.modelBreakdowns.count)
-            for breakdown in session.modelBreakdowns {
-                encoder.append(breakdown.modelName)
-                encoder.append(breakdown.costUSD)
-                encoder.append(breakdown.totalTokens)
-            }
-        }
-        return encoder.finalize()
     }
 
     @MainActor
@@ -1008,64 +930,6 @@ enum SpendDashboardSource {
     }
 }
 
-private struct SpendDashboardSnapshotRevisionEncoder {
-    private var hasher = SHA256()
-
-    mutating func append(_ value: String) {
-        let data = Data(value.utf8)
-        self.append(UInt64(data.count))
-        self.hasher.update(data: data)
-    }
-
-    mutating func append(_ value: Int) {
-        self.append(UInt64(bitPattern: Int64(value)))
-    }
-
-    mutating func append(_ value: Int?) {
-        guard let value else {
-            self.appendPresence(false)
-            return
-        }
-        self.appendPresence(true)
-        self.append(value)
-    }
-
-    mutating func append(_ value: Bool) {
-        self.appendPresence(value)
-    }
-
-    mutating func append(_ value: Double) {
-        self.append(value.bitPattern)
-    }
-
-    mutating func append(_ value: Double?) {
-        guard let value else {
-            self.appendPresence(false)
-            return
-        }
-        self.appendPresence(true)
-        self.append(value)
-    }
-
-    mutating func finalize() -> String {
-        self.hasher.finalize().map { String(format: "%02x", $0) }.joined()
-    }
-
-    private mutating func appendPresence(_ isPresent: Bool) {
-        var byte: UInt8 = isPresent ? 1 : 0
-        withUnsafeBytes(of: &byte) { bytes in
-            self.hasher.update(data: Data(bytes))
-        }
-    }
-
-    private mutating func append(_ value: UInt64) {
-        var value = value.bigEndian
-        withUnsafeBytes(of: &value) { bytes in
-            self.hasher.update(data: Data(bytes))
-        }
-    }
-}
-
 struct SpendDashboardLoadLivenessCounters: Sendable, Equatable {
     var ordinaryLoadsStarted = 0
     var forcedLoadsStarted = 0
@@ -1084,6 +948,7 @@ final class SpendDashboardController {
     typealias Loader = @Sendable (SpendDashboardLoadRequest) async -> SpendDashboardLoadResult
     typealias CachedLoader = @Sendable (SpendDashboardLoadRequest) async -> SpendDashboardLoadResult
     typealias PublicationHandler = @MainActor @Sendable (SpendDashboardPublication) -> Void
+    typealias ModelBuilder = @Sendable (SpendDashboardModelBuildRequest) -> SpendDashboardModel
 
     private enum ReconciliationObservation: Sendable {
         case confirmedEmpty
@@ -1191,8 +1056,20 @@ final class SpendDashboardController {
     private let loader: Loader
     private let nowProvider: @Sendable () -> Date
     private let publicationHandler: PublicationHandler?
+    @ObservationIgnored private let modelBuilder: ModelBuilder
+    @ObservationIgnored private let modelCache: SpendDashboardModelCache
+    @ObservationIgnored private(set) var modelDerivationCounters: SpendDashboardModelDerivationCounters
     private var loadTask: Task<Void, Never>?
+    @ObservationIgnored private var modelBuildTask: Task<Void, Never>?
+    @ObservationIgnored private var modelBuildGeneration: UInt64 = 0
+    @ObservationIgnored private var activeModelBuildKey: SpendDashboardModelBuildKey?
+    @ObservationIgnored private var appliedModelBuildKey: SpendDashboardModelBuildKey?
+    @ObservationIgnored var isModelDerivationInFlight: Bool {
+        self.activeModelBuildKey != nil
+    }
+
     private var loadedInputs: [SpendDashboardModel.ProviderInput] = []
+    @ObservationIgnored private var loadedInputsRevision: UInt64 = 0
     private var loadedInputScopes: [String: SpendDashboardLoadedInputScope] = [:]
     private var loadedAt = Date()
     private(set) var lastSuccessfulConfiguration: SpendDashboardConfiguration?
@@ -1207,14 +1084,19 @@ final class SpendDashboardController {
         cachedLoader: CachedLoader? = nil,
         loader: @escaping Loader = SpendDashboardSource.load,
         nowProvider: @escaping @Sendable () -> Date = { Date() },
-        publicationHandler: PublicationHandler? = nil)
+        publicationHandler: PublicationHandler? = nil,
+        modelBuilder: @escaping ModelBuilder = { $0.build() })
     {
+        let modelDerivationCounters = SpendDashboardModelDerivationCounters()
         self.userDefaults = userDefaults
         self.requestBuilder = requestBuilder
         self.cachedLoader = cachedLoader
         self.loader = loader
         self.nowProvider = nowProvider
         self.publicationHandler = publicationHandler
+        self.modelBuilder = modelBuilder
+        self.modelCache = SpendDashboardModelCache(counters: modelDerivationCounters)
+        self.modelDerivationCounters = modelDerivationCounters
         self.selectedDays = Self.normalizedDays(userDefaults.integer(forKey: Self.daysDefaultsKey))
     }
 
@@ -1286,6 +1168,7 @@ final class SpendDashboardController {
 
         if !invalidatedSourceIDs.isEmpty {
             self.loadedInputs.removeAll { invalidatedSourceIDs.contains($0.id) }
+            self.loadedInputsRevision &+= 1
             self.failedSourceIDs.subtract(invalidatedSourceIDs)
             self.confirmedEmptySourceIDs.subtract(invalidatedSourceIDs)
             for sourceID in invalidatedSourceIDs {
@@ -1305,6 +1188,7 @@ final class SpendDashboardController {
               !configuration.providerIDs.isEmpty || configuration.openCodexUsageLogsEnabled
         else {
             self.loadedInputs = []
+            self.loadedInputsRevision &+= 1
             self.loadedInputScopes = [:]
             self.failedSourceIDs = []
             self.confirmedEmptySourceIDs = []
@@ -1361,6 +1245,7 @@ final class SpendDashboardController {
         result: SpendDashboardLoadResult)
     {
         let cachedIDs = Set(result.inputs.map(\.id))
+        self.loadedInputsRevision &+= 1
         self.loadedInputs.removeAll { cachedIDs.contains($0.id) }
         self.loadedInputs.append(contentsOf: result.inputs)
         self.loadedInputs = Self.stableUniqueInputs(self.loadedInputs)
@@ -1602,6 +1487,7 @@ final class SpendDashboardController {
         // captured), while the controller keeps the newest desired
         // configuration so revision churn is never hidden by rolling back.
         self.configuration = desiredConfiguration
+        self.loadedInputsRevision &+= 1
         self.loadedInputs = Self.stableUniqueInputs(nextInputs)
         self.loadedInputScopes = nextInputScopes
         self.loadedAt = request.now
@@ -1713,22 +1599,6 @@ final class SpendDashboardController {
         self.startLoad(configuration: configuration, phase: nextPhase)
     }
 
-    private func rebuildModel(publish: Bool = true) {
-        let configuration = self.configuration
-        self.model = SpendDashboardModel.build(
-            inputs: self.loadedInputs,
-            requestedDays: self.selectedDays,
-            now: self.loadedAt,
-            calendar: configuration?.bucketCalendar ?? .current,
-            preferredCurrencyCode: configuration?.preferredCurrencyCode ?? "auto",
-            hiddenSourceIDs: Set(configuration?.hiddenSourceIDs ?? []),
-            hideNativeCodexWhenOpenCodexPresent: configuration?.hideNativeCodexCostWhenOpenCodexPresent ?? false,
-            selectedDay: self.selectedDay)
-        if publish {
-            self.publishCurrentState()
-        }
-    }
-
     @ObservationIgnored private var failedSourceIDs: Set<String> = []
     @ObservationIgnored private var confirmedEmptySourceIDs: Set<String> = []
     @ObservationIgnored private var openCodexObservation: SpendDashboardLoadResult.OpenCodexObservation = .disabled
@@ -1790,7 +1660,9 @@ final class SpendDashboardController {
             loadedAt: self.loadedAt,
             isRefreshing: self.isRefreshing,
             inputs: self.loadedInputs,
-            sources: sources)
+            inputRevision: self.loadedInputsRevision,
+            sources: sources,
+            modelCache: self.modelCache)
         self.publication = publication
         self.publicationHandler?(publication)
     }
@@ -1824,7 +1696,9 @@ final class SpendDashboardController {
     }
 
     private func provider(for sourceID: String) -> UsageProvider? {
-        if sourceID.hasPrefix("codex:") { return .codex }
+        if sourceID.hasPrefix("codex:") {
+            return .codex
+        }
         return UsageProvider(rawValue: sourceID)
     }
 
@@ -1987,6 +1861,92 @@ final class SpendDashboardController {
 }
 
 extension SpendDashboardController {
+    private func rebuildModel(publish: Bool = true) {
+        let request = self.modelBuildRequest()
+        if publish {
+            self.publishCurrentState()
+        }
+        self.scheduleModelBuild(request)
+    }
+
+    private func modelBuildRequest() -> SpendDashboardModelBuildRequest {
+        let configuration = self.configuration
+        let calendar = configuration?.bucketCalendar ?? .current
+        return SpendDashboardModelBuildRequest(
+            configuration: configuration,
+            inputs: self.loadedInputs,
+            inputRevision: self.loadedInputsRevision,
+            requestedDays: self.selectedDays,
+            now: self.loadedAt,
+            calendar: calendar,
+            preferredCurrencyCode: configuration?.preferredCurrencyCode ?? "auto",
+            hiddenSourceIDs: Set(configuration?.hiddenSourceIDs ?? []),
+            hideNativeCodexWhenOpenCodexPresent:
+            configuration?.hideNativeCodexCostWhenOpenCodexPresent ?? false,
+            selectedDay: self.selectedDay)
+    }
+
+    private func scheduleModelBuild(_ request: SpendDashboardModelBuildRequest) {
+        if self.appliedModelBuildKey == request.key {
+            self.modelBuildGeneration &+= 1
+            self.modelBuildTask?.cancel()
+            self.modelBuildTask = nil
+            self.activeModelBuildKey = nil
+            self.modelDerivationCounters.recordCacheHit()
+            return
+        }
+        if let cached = self.modelCache.model(for: request.key) {
+            self.modelBuildGeneration &+= 1
+            self.modelBuildTask?.cancel()
+            self.modelBuildTask = nil
+            self.activeModelBuildKey = nil
+            self.model = cached
+            self.appliedModelBuildKey = request.key
+            return
+        }
+        if self.activeModelBuildKey == request.key {
+            return
+        }
+
+        self.modelBuildGeneration &+= 1
+        let generation = self.modelBuildGeneration
+        self.modelBuildTask?.cancel()
+        self.activeModelBuildKey = request.key
+        self.modelDerivationCounters.recordBuildStart()
+        let counters = self.modelDerivationCounters
+        let modelBuilder = self.modelBuilder
+        let detachedTask = Task.detached(priority: .userInitiated) {
+            counters.recordBuildExecuted()
+            return modelBuilder(request)
+        }
+        self.modelBuildTask = Task { @MainActor [weak self] in
+            let model = await detachedTask.value
+            guard let self else { return }
+            self.finishModelBuild(model, request: request, generation: generation)
+        }
+    }
+
+    private func finishModelBuild(
+        _ model: SpendDashboardModel,
+        request: SpendDashboardModelBuildRequest,
+        generation: UInt64)
+    {
+        self.modelDerivationCounters.recordBuildCompletion()
+        self.modelCache.insert(model, for: request.key)
+        guard generation == self.modelBuildGeneration,
+              self.activeModelBuildKey == request.key
+        else {
+            self.modelDerivationCounters.recordStaleCompletionDiscarded()
+            return
+        }
+        self.model = model
+        self.appliedModelBuildKey = request.key
+        self.activeModelBuildKey = nil
+        self.modelBuildTask = nil
+    }
+}
+
+extension SpendDashboardController {
     /// Ephemeral active dashboard history demand (#160). Nil while the Usage &
     /// Spend dashboard is closed; the current normalized `selectedDays` while
     /// it is visible. Background collection reads this through the horizon
@@ -2016,6 +1976,10 @@ extension SpendDashboardController {
     func stop() {
         self.loadTask?.cancel()
         self.loadTask = nil
+        self.modelBuildGeneration &+= 1
+        self.modelBuildTask?.cancel()
+        self.modelBuildTask = nil
+        self.activeModelBuildKey = nil
         self.configuration = nil
         self.loadedInputs = []
         self.failedSourceIDs = []

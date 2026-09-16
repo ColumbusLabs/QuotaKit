@@ -19,7 +19,8 @@ extension UsageStore {
         else { return nil }
         return CurrentProviderConfigTokenPublication(
             snapshot: publication.snapshot,
-            publicationRevision: publication.publicationRevision)
+            publicationRevision: publication.publicationRevision,
+            semanticFingerprint: publication.semanticFingerprint)
     }
 
     func spendDashboardTokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -177,7 +178,8 @@ extension UsageStore {
             snapshot: snapshot,
             publicationRevision: self.spendDashboardTokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
-            scopeSignature: self.spendDashboardTokenSnapshotScopeSignature(for: provider))
+            scopeSignature: self.spendDashboardTokenSnapshotScopeSignature(for: provider),
+            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 

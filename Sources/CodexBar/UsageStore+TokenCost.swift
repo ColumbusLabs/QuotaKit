@@ -4,11 +4,13 @@ import Foundation
 struct CurrentProviderConfigTokenSnapshot: Sendable, Equatable {
     let snapshot: CostUsageTokenSnapshot
     let publicationRevision: UInt64
+    let semanticFingerprint: String
 }
 
 struct CurrentProviderConfigTokenPublication: Sendable, Equatable {
     let snapshot: CostUsageTokenSnapshot?
     let publicationRevision: UInt64
+    let semanticFingerprint: String?
 }
 
 struct TokenSnapshotPublication: Sendable, Equatable {
@@ -16,6 +18,7 @@ struct TokenSnapshotPublication: Sendable, Equatable {
     let publicationRevision: UInt64
     let providerConfigRevision: UInt64
     let scopeSignature: String
+    let semanticFingerprint: String?
 }
 
 extension UsageStore {
@@ -101,7 +104,8 @@ extension UsageStore {
         else { return nil }
         return CurrentProviderConfigTokenSnapshot(
             snapshot: snapshot,
-            publicationRevision: publication.publicationRevision)
+            publicationRevision: publication.publicationRevision,
+            semanticFingerprint: publication.semanticFingerprint ?? "")
     }
 
     func tokenSnapshotCanAttachToProviderContext(
@@ -135,7 +139,9 @@ extension UsageStore {
             publication.scopeSignature.hasPrefix("codex:ambient|")
         guard currentProviderConfig || currentLocalCodexScope else { return nil }
         return CurrentProviderConfigTokenPublication(
-            snapshot: publication.snapshot, publicationRevision: publication.publicationRevision)
+            snapshot: publication.snapshot,
+            publicationRevision: publication.publicationRevision,
+            semanticFingerprint: publication.semanticFingerprint)
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -168,7 +174,8 @@ extension UsageStore {
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
-            scopeSignature: self.tokenSnapshotScopeSignature(for: provider))
+            scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
+            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
@@ -178,7 +185,13 @@ extension UsageStore {
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
-            scopeSignature: self.tokenSnapshotScopeSignature(for: provider))
+            scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
+            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(snapshot))
+    }
+
+    func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
+        SpendDashboardSnapshotRevisionEncoder.recordFingerprintComputation()
+        return SpendDashboardSnapshotRevisionEncoder.fingerprint(snapshot)
     }
 
     func clearTokenSnapshot(for provider: UsageProvider) {
