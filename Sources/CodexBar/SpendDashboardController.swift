@@ -1028,6 +1028,16 @@ private struct SpendDashboardSnapshotRevisionEncoder {
     }
 }
 
+struct SpendDashboardLoadLivenessCounters: Sendable, Equatable {
+    var ordinaryLoadsStarted = 0
+    var forcedLoadsStarted = 0
+    var reconciliationsStarted = 0
+    var completedResultsApplied = 0
+    var completedResultsDiscardedForOwnership = 0
+    var sameOwnerDriftCoalesced = 0
+    var followUpLoadsScheduled = 0
+}
+
 @MainActor
 @Observable
 final class SpendDashboardController {
@@ -1624,6 +1634,11 @@ final class SpendDashboardController {
     @ObservationIgnored private var confirmedEmptySourceIDs: Set<String> = []
     @ObservationIgnored private var openCodexObservation: SpendDashboardLoadResult.OpenCodexObservation = .disabled
     @ObservationIgnored private var publicationRevision: UInt64 = 0
+    /// Lightweight #159 observability: monotonic counters describing load
+    /// liveness (starts, applied vs. ownership-discarded completions, and
+    /// coalesced follow-ups). Ignored by observation so counter updates never
+    /// trigger UI refreshes on their own.
+    @ObservationIgnored private(set) var loadLivenessCounters = SpendDashboardLoadLivenessCounters()
 
     private func publishCurrentState() {
         self.publicationRevision &+= 1
