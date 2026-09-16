@@ -590,7 +590,11 @@ extension UsageStore {
         }
 
         let allEntriesCarryTokens = daily.allSatisfy { $0.totalTokens != nil }
-        let allEntriesCarryCost = daily.allSatisfy { $0.costUSD != nil }
+        // Mirror `CostUsageFetcher.tokenSnapshot`: a non-nil cost subtotal beside an unpriced
+        // day is not a complete window cost and must not masquerade as the rolling total.
+        let allEntriesCarryCost = !daily.isEmpty && daily.allSatisfy {
+            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+        }
         let allEntriesCarryRequests = daily.allSatisfy { $0.requestCount != nil }
         let totalTokens = allEntriesCarryTokens ? daily.compactMap(\.totalTokens).reduce(0, +) : nil
         let totalCost = allEntriesCarryCost ? daily.compactMap(\.costUSD).reduce(0, +) : nil
@@ -718,6 +722,46 @@ extension UsageStore {
         guard let current else { return true }
         guard let candidate else { return false }
         return candidate >= current - (expired ?? .zero)
+    }
+
+    /// Dollar-cost specialization of the expired-credit bound.
+    ///
+    /// Comparing raw `Double` aggregates can falsely reject a mathematically equal rollover:
+    /// the producer and this helper may accumulate the same values in different orders, so a
+    /// bound such as `0.1 + 0.2 + 0.3 - 0.1` computes as `0.5000000000000001` while the valid
+    /// retained total computes as `0.5`. Codex and Pi account for costs in nanodollar units
+    /// (`CostUsageScanner.costScale`, `PiSessionCostScanner.costScale`, and the verified
+    /// aggregate store all use `Int64((value * 1_000_000_000).rounded())`), so compare the
+    /// aggregate, expired credit, and candidate at that same resolution. Rounding here can
+    /// only absorb sub-nanodollar representation noise; a real dollar regression still falls
+    /// below the bound. Token totals keep the exact generic comparison above.
+    private static func optionalLowerBoundAfterExpiry(
+        _ candidate: Double?,
+        covers current: Double?,
+        expiring expired: Double?) -> Bool
+    {
+        guard let current else { return true }
+        guard let candidate else { return false }
+        guard let candidateUnits = nanodollarUnits(candidate),
+              let currentUnits = nanodollarUnits(current),
+              let expiredUnits = nanodollarUnits(expired ?? 0)
+        else {
+            // A value the scanners cannot produce at nanodollar resolution falls back to the
+            // exact comparison instead of crashing or granting credit.
+            return candidate >= current - (expired ?? 0)
+        }
+        return candidateUnits >= currentUnits - expiredUnits
+    }
+
+    /// Converts a dollar amount to signed nanodollar units, the accounting resolution used by
+    /// the local Codex and Pi scanners. Returns `nil` for non-finite or out-of-range values.
+    private static func nanodollarUnits(_ value: Double) -> Int64? {
+        let units = (value * 1_000_000_000).rounded()
+        guard units.isFinite,
+              units >= Double(Int64.min),
+              units < Double(Int64.max)
+        else { return nil }
+        return Int64(units)
     }
 
     private static func adding<Value: AdditiveArithmetic>(_ total: Value?, _ value: Value?) -> Value? {

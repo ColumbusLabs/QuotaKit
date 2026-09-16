@@ -29,7 +29,11 @@ enum CodexRollingCostWindowFixture {
         last30DaysTokensOverride: Int? = nil) -> CostUsageTokenSnapshot
     {
         let window = Self.window(endingAt: endDate, days: historyDays, calendar: calendar)
-        let allCarryCost = rows.allSatisfy { $0.costUSD != nil }
+        // Mirror the canonical cost-completeness rule: a window aggregate is only complete when
+        // every row has a cost and no unpriced requests remain.
+        let allCarryCost = !rows.isEmpty && rows.allSatisfy {
+            $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+        }
         let allCarryTokens = rows.allSatisfy { $0.totalTokens != nil }
         return CostUsageTokenSnapshot(
             sessionTokens: sessionTokens,
@@ -96,7 +100,8 @@ enum CodexRollingCostWindowFixture {
         _ dayKey: String,
         cost: Double?,
         tokens: Int?,
-        requests: Int? = nil) -> CostUsageDailyReport.Entry
+        requests: Int? = nil,
+        unpricedRequests: Int? = nil) -> CostUsageDailyReport.Entry
     {
         CostUsageDailyReport.Entry(
             date: dayKey,
@@ -106,7 +111,8 @@ enum CodexRollingCostWindowFixture {
             requestCount: requests,
             costUSD: cost,
             modelsUsed: nil,
-            modelBreakdowns: nil)
+            modelBreakdowns: nil,
+            unpricedRequestCount: unpricedRequests)
     }
 
     nonisolated static func replacing(

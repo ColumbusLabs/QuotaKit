@@ -425,6 +425,54 @@ struct CodexRollingCostWindowOverlayTests {
     }
 
     @Test
+    func `overlay keeps an unpriced historical row from completing the window cost`() throws {
+        let calendar = try CodexRollingCostWindowFixture.utcCalendar()
+        let establishedEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 9, 16, hour: 9, calendar: calendar)
+        var rows = CodexRollingCostWindowFixture.uniformRows(
+            endingAt: establishedEnd,
+            days: 7,
+            calendar: calendar,
+            cost: 1,
+            tokens: 100)
+        rows = rows.map { entry in
+            entry.date == "2026-09-12"
+                ? CodexRollingCostWindowFixture.row(
+                    "2026-09-12",
+                    cost: 2,
+                    tokens: 100,
+                    unpricedRequests: 1)
+                : entry
+        }
+        let established = CodexRollingCostWindowFixture.snapshot(
+            rows: rows,
+            endDate: establishedEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: true)
+        // A known cost subtotal beside an unpriced day is not a complete window cost, exactly
+        // as `CostUsageFetcher.tokenSnapshot` and `CostUsageDailyReport.merged` treat it.
+        #expect(established.last30DaysCostUSD == nil)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: [CodexRollingCostWindowFixture.row("2026-09-16", cost: 1, tokens: 100)],
+            endDate: candidateEnd,
+            historyDays: 7,
+            calendar: calendar,
+            established: false)
+
+        let overlaid = try #require(UsageStore.codexCostSnapshotOverlayingVerifiedCurrentDay(
+            candidate,
+            onto: established,
+            calendar: calendar))
+
+        #expect(overlaid.daily.count == 7)
+        #expect(overlaid.daily.count(where: { $0.date == "2026-09-12" }) == 1)
+        #expect(overlaid.daily.first { $0.date == "2026-09-12" }?.unpricedRequestCount == 1)
+        #expect(overlaid.last30DaysCostUSD == nil)
+        #expect(overlaid.last30DaysTokens == 700)
+    }
+
+    @Test
     func `overlay ignores an established row beyond the candidate window`() throws {
         let calendar = try CodexRollingCostWindowFixture.utcCalendar()
         let establishedEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)

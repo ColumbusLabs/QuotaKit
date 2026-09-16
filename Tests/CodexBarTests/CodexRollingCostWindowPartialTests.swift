@@ -405,6 +405,93 @@ struct CodexRollingCostWindowPartialTests {
     }
 
     @Test
+    func `partial accepts a floating-point equal rollover that drops the expired cost`() throws {
+        let calendar = try CodexRollingCostWindowFixture.utcCalendar()
+        let priorEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 9, 16, hour: 9, calendar: calendar)
+        // Binary floating point sums 0.1 + 0.2 + 0.3 as 0.6000000000000001, while the retained
+        // 0.2 + 0.3 totals exactly 0.5. The expired credit is only 0.1, so the mathematical
+        // post-expiration bound is exactly 0.5 and the candidate is valid.
+        let current = CodexRollingCostWindowFixture.snapshot(
+            rows: [
+                CodexRollingCostWindowFixture.row("2026-09-13", cost: 0.1, tokens: 100),
+                CodexRollingCostWindowFixture.row("2026-09-14", cost: 0.2, tokens: 100),
+                CodexRollingCostWindowFixture.row("2026-09-15", cost: 0.3, tokens: 100),
+            ],
+            endDate: priorEnd,
+            historyDays: 3,
+            calendar: calendar,
+            established: false)
+        let candidate = CodexRollingCostWindowFixture.snapshot(
+            rows: [
+                CodexRollingCostWindowFixture.row("2026-09-14", cost: 0.2, tokens: 100),
+                CodexRollingCostWindowFixture.row("2026-09-15", cost: 0.3, tokens: 100),
+            ],
+            endDate: candidateEnd,
+            historyDays: 3,
+            calendar: calendar,
+            established: false)
+
+        // Sanity-check the exact doubles that make this a representation edge case.
+        #expect(current.last30DaysCostUSD == 0.1 + 0.2 + 0.3)
+        #expect(current.last30DaysCostUSD != 0.6)
+        #expect(candidate.last30DaysCostUSD == 0.5)
+
+        let accepted = try #require(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            candidate,
+            over: current,
+            calendar: calendar))
+
+        #expect(accepted == candidate)
+    }
+
+    @Test
+    func `partial still rejects a meaningful cost regression after expiration`() throws {
+        let calendar = try CodexRollingCostWindowFixture.utcCalendar()
+        let priorEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)
+        let candidateEnd = try CodexRollingCostWindowFixture.date(2026, 9, 16, hour: 9, calendar: calendar)
+        let current = CodexRollingCostWindowFixture.snapshot(
+            rows: [
+                CodexRollingCostWindowFixture.row("2026-09-13", cost: 0.1, tokens: 100),
+                CodexRollingCostWindowFixture.row("2026-09-14", cost: 0.2, tokens: 100),
+                CodexRollingCostWindowFixture.row("2026-09-15", cost: 0.3, tokens: 100),
+            ],
+            endDate: priorEnd,
+            historyDays: 3,
+            calendar: calendar,
+            established: false)
+        let candidateRows = [
+            CodexRollingCostWindowFixture.row("2026-09-14", cost: 0.2, tokens: 100),
+            CodexRollingCostWindowFixture.row("2026-09-15", cost: 0.3, tokens: 100),
+        ]
+        let plainRegression = CodexRollingCostWindowFixture.snapshot(
+            rows: candidateRows,
+            endDate: candidateEnd,
+            historyDays: 3,
+            calendar: calendar,
+            established: false,
+            last30DaysCostUSDOverride: 0.49)
+        let nanodollarRegression = CodexRollingCostWindowFixture.snapshot(
+            rows: candidateRows,
+            endDate: candidateEnd,
+            historyDays: 3,
+            calendar: calendar,
+            established: false,
+            last30DaysCostUSDOverride: 0.499999999)
+
+        // The nanodollar-resolution comparison may only absorb representation noise; a real
+        // regression below the allowed post-expiration bound must still be rejected.
+        #expect(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            plainRegression,
+            over: current,
+            calendar: calendar) == nil)
+        #expect(UsageStore.codexCostSnapshotAdvancingPartialLowerBound(
+            nanodollarRegression,
+            over: current,
+            calendar: calendar) == nil)
+    }
+
+    @Test
     func `partial keeps the strict bound when the expired contribution is unknown`() throws {
         let calendar = try CodexRollingCostWindowFixture.utcCalendar()
         let priorEnd = try CodexRollingCostWindowFixture.date(2026, 9, 15, calendar: calendar)

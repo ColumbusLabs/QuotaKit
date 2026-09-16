@@ -21,7 +21,10 @@ Commits (oldest first):
 3. `34316c987c4adf47c77d4339257dfba5a7f2974e` — `test: add Codex rolling-window regression matrix (#157, #158)`
 4. `fe8e62d320d392ec124426ffd1bb6406ceda0e65` — `test: self-review corrections for rolling-window coverage`
 
-The documentation commit containing this file follows these four.
+The documentation commit containing this file follows these four, and the independent-review
+correction commit `fix: harden Codex rolling cost publication` follows the documentation
+commit. Its corrections are recorded in [Independent-review correction](#independent-review-correction)
+below.
 
 ## Root causes
 
@@ -180,6 +183,78 @@ in the self-review commit. The final full-suite run on the finished branch is cl
   window), no metadata dropped from reconstructed snapshots, and no concurrency/publication,
   account-isolation, or formatting regressions. The only correction was the gatekeeper anchor
   refresh required by moved lines.
+
+## Independent-review correction
+
+The independent review of `8e8eaac62beed61d440ea279656c9d4b7e9f2d1b` accepted the #157/#158
+architecture and raised exactly two findings, both corrected in the
+`fix: harden Codex rolling cost publication` commit.
+
+### Finding 1 — floating-point false rejection in the expired-cost lower bound
+
+`optionalLowerBoundAfterExpiry` compared `Double` dollar aggregates with exact arithmetic. A
+mathematically equal rollover could be rejected because the producer and the helper can
+accumulate the same values in different orders:
+
+- prior daily costs `$0.10` + `$0.20` + `$0.30` sum to `0.6000000000000001`;
+- the expired credit is `$0.10`, so the computed bound is `0.5000000000000001`;
+- the valid retained total `$0.20` + `$0.30` is exactly `0.5`;
+- `0.5 >= 0.5000000000000001` is false, so the helper returned `nil`.
+
+**Correction.** The generic exact comparison remains for `Int` token totals. A `Double`
+specialization now compares the candidate, the current aggregate, and the expired credit as
+signed nanodollar units — the accounting resolution both local scanners already use
+(`CostUsageScanner.costScale`, `PiSessionCostScanner.costScale`, and the verified aggregate
+store all produce `Int64((value * 1_000_000_000).rounded())`). `nanodollarUnits` returns `nil`
+for non-finite or out-of-range values and those fall back to the exact comparison. Rounding
+can only absorb sub-nanodollar representation noise: the largest regression the bound can hide
+is below one nanodollar (`$0.000000001`), which is not a meaningful cost change at the
+scanners' accounting resolution, while a real dollar regression still falls below the bound.
+Token comparisons are untouched and remain exact.
+
+### Finding 2 — overlay cost completeness ignored `unpricedRequestCount`
+
+`codexCostSnapshotOverlayingVerifiedCurrentDay` treated a window cost as complete whenever
+every retained row had `costUSD != nil`. The canonical builders
+(`CostUsageFetcher.tokenSnapshot` and `CostUsageDailyReport.merged`) deliberately refuse to
+call a window complete when any row still has unpriced requests. A merged row can carry a
+non-nil known subtotal beside `unpricedRequestCount > 0`, and the overlay would have promoted
+that subtotal into an apparently complete `last30DaysCostUSD`.
+
+**Correction.** The overlay now mirrors the canonical invariant:
+
+```swift
+let allEntriesCarryCost = !daily.isEmpty && daily.allSatisfy {
+    $0.costUSD != nil && ($0.unpricedRequestCount ?? 0) == 0
+}
+```
+
+Tokens, requests, pricing architecture, Pi scanning, and `summary(forLastDays:)` are unchanged.
+
+### Targeted tests and results
+
+The two regression tests were added and executed against `8e8eaac62` before the correction,
+where they failed exactly as the review described; the nearby negative control passed both
+before and after:
+
+- `partial accepts a floating-point equal rollover that drops the expired cost` — failed on
+  `8e8eaac62` (helper returned `nil`), passes after the correction.
+- `partial still rejects a meaningful cost regression after expiration` — rejects both a
+  plainly below-bound total (`$0.49`) and a one-nanodollar below-bound total (`$0.499999999`),
+  before and after the correction.
+- `overlay keeps an unpriced historical row from completing the window cost` — failed on
+  `8e8eaac62` (`last30DaysCostUSD` was non-nil), passes after the correction and keeps the
+  unpriced row in `daily` with a `nil` aggregate while tokens still total normally.
+
+| Command | Result |
+| --- | --- |
+| `swift test --filter 'floating-point equal rollover\|unpriced historical row\|meaningful cost regression after expiration'` | 3 tests passed after the fix (2 failed before it) |
+| `swift test --filter 'CodexRollingCostWindowPartialTests\|CodexRollingCostWindowOverlayTests'` | 36 tests in 2 suites passed |
+| SwiftFormat + SwiftLint on the four modified files | 0 violations |
+
+The fixture now mirrors the canonical completeness rule and supports
+`unpricedRequestCount` rows. Two focused self-review loops covered the modified helpers, the
+new tests, and the complete diff from `8e8eaac62`; no further corrections were needed.
 
 ## Remaining risks
 
