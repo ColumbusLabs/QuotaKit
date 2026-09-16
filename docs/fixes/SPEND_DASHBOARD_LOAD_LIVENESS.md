@@ -145,14 +145,16 @@ the safety/force paths were already strict. Post-fix: all 5 pass.
 
 ## Targeted test commands and results
 
-- `swift test --filter 'SpendDashboardLoadLivenessTests'` — 5/5 pass.
+- `swift test --filter 'SpendDashboardLoadLivenessTests'` — 5/5 pass at the
+  reviewed SHA; 11/11 pass after the independent review corrections.
 - `swift test --filter
   'SpendDashboardControllerTests|SpendDashboardForceStateMachineTests|SpendDashboardControllerRevisionTests|SpendDashboardRequestTimeTests'`
   — 37/37 pass (includes force state-machine A–M, notably C and E which
-  exercise the touched reconciling paths).
+  exercise the touched reconciling paths), re-verified after the corrections.
 - Combined re-run after the final formatting edit: 42/42 pass.
 - `swift test --filter 'cross provider case clusters are derived or
-  specifically justified'` — passes (gatekeeper anchors re-verified).
+  specifically justified'` — passes (gatekeeper anchors re-verified after the
+  corrections).
 - `swiftformat --lint` on the three changed files — clean except two
   pre-existing `wrapIfStatementBodies` findings that also fail on the base SHA
   (left untouched).
@@ -176,8 +178,9 @@ deliverable for this phase.
 - **Loop 1 (liveness):** walked A→B→C→D, churn-during-follow-up, no-change,
   completion-before-revision, and revision-immediately-before-completion. All
   publish every identity-safe completion with at most one coalesced follow-up.
-  Pre-loader build restarts (cheap capture rebuilds targeting the newest
-  configuration, no loader work discarded) were deliberately left as-is.
+  (An earlier revision of this report said pre-loader build restarts were
+  deliberately left as-is; independent review correction 3 supersedes that —
+  see above.)
 - **Loop 2 (safety/force):** the first draft of the reconciling drift branch
   checked ownership only for the forced outcome vs. target, which could have
   merged a foreign-owner capture. Corrected to require same ownership across
@@ -196,18 +199,115 @@ deliverable for this phase.
 ## Gatekeeper anchors changed
 
 `Tests/CodexBarTests/ProviderArchitectureGatekeeperTests.swift` — line integers
-only (anchor strings, provider IDs, counts, fingerprints, reasons unchanged):
+only (anchor strings, provider IDs, counts, fingerprints, reasons unchanged).
+Phase 2 moved them once; the independent review corrections moved them again
+by +10 with no semantic change:
 
-- 1667 → 1744 (`provider: .codex,` OpenCodex enrichment)
-- 1696 → 1773 (`if providerID == UsageProvider.codex.rawValue {`)
-- 1713 → 1790 (`if sourceID.hasPrefix("codex:") { return .codex }`)
-- 1740 → 1817 (`guard input.provider == .codex,`)
+- 1667 → 1744 → 1754 (`provider: .codex,` OpenCodex enrichment)
+- 1696 → 1773 → 1783 (`if providerID == UsageProvider.codex.rawValue {`)
+- 1713 → 1790 → 1800 (`if sourceID.hasPrefix("codex:") { return .codex }`)
+- 1740 → 1817 → 1827 (`guard input.provider == .codex,`)
 
 ## Deferred to #160/#161
 
-- Pre-loader capture rebuilds can still chase a continuously advancing revision
-  without running the loader; bounded in practice (captures are cheap relative
-  to loads) but noted for #161's caching work.
 - No change to 365-day scan horizons (#160), snapshot hashing/fingerprint
   caching/`rebuildModel` memoization/MainActor placement (#161), or the shared
   dashboard publication debounce path (no integration change was needed).
+
+## Independent review corrections
+
+Prior reviewed SHA: `1d59c07a5c2dc8349aad6889e2aeb9290d742996`. Three gaps were
+found against the accepted Phase 2 design and fixed without changing its
+architecture (explicit `desiredConfiguration`, request-as-provenance,
+identity-safe publication, one newest-state follow-up, forced-outcome
+preservation, three-way reconciling ownership checks, generation cancellation,
+liveness counters).
+
+### 1. Presentation fields incorrectly participated in hard ownership
+
+`isDisplayOnlyConfigurationChange` treated currency, hidden sources,
+native-Codex visibility, and account display names as presentation-only, but
+`sameSourceOwnership` still compared `preferredCurrencyCode`,
+`hiddenSourceIDs`, and `hideNativeCodexCostWhenOpenCodexPresent`. A display
+change during an ordinary load therefore looked like an unsafe old-owner result
+(discard + replacement load), and during `.reconciling` it forced the outcome
+through `restartAfterBuildMismatch` into another `.forcing` provider load —
+repeating a manual force because of harmless drift.
+
+Correction: `sameSourceOwnership` now compares only true source
+identity/scope — `costUsageEnabled`, `providerIDs`, `codexAccountIdentities`
+(Codex account/home/auth ownership), `sourceOwnershipFingerprints`
+(credential/scope identity), `bucketTimeZoneIdentifier` (bucket semantics), and
+`openCodexUsageLogsEnabled` (source-set membership). Deliberately excluded:
+`preferredCurrencyCode`, `hiddenSourceIDs`,
+`hideNativeCodexCostWhenOpenCodexPresent`, `codexAccountDisplayNames`,
+`menuOwnershipFingerprint`, and `sourceRevisions` (freshness). Display-only
+change ⟹ same ownership still holds, so the existing fast path and the
+adoption logic stay coherent. Account, auth, home, provider, bucket, and scope
+isolation are unchanged.
+
+### 2. Codex display-name rollback from request-time presentation
+
+`apply()` relabeled Codex inputs with
+`request.configuration.codexAccountDisplayNames`, so an older in-flight load
+completing after a rename relabeled visible inputs back to the old name — with
+no follow-up scheduled (correctly, since the drift is display-only), leaving
+the stale label stuck.
+
+Correction: `apply()` now relabels both newly returned and retained Codex
+inputs with `desiredConfiguration.codexAccountDisplayNames` (old source
+provenance + newest compatible presentation). `loadedInputScopes` (bucket +
+history days only) and `lastSuccessfulConfiguration` remain tied to the
+request that produced the data; `lastSuccessfulConfiguration` was widened from
+`private` to `private(set)` so tests can assert provenance directly.
+
+### 3. Pre-loader requestBuilder revision-churn starvation
+
+The Phase 2 fix covered churn once the loader began, but `handleBuiltRequest`
+could still restart an ordinary operation before invoking the loader when the
+built request was older than the target (`requestBuilder → mismatch →
+restart → …` without ever loading or publishing). This was previously described
+as bounded in practice; it was not — sustained churn could starve the builder
+loop indefinitely, so the correction establishes an actual progress invariant.
+
+Correction: new `ordinaryStaleCaptureIsSafe` predicate — for `.ordinary` loads
+only, when the generation's start, the built request, and the current target
+share true source ownership, freshness drift alone no longer restarts request
+construction. The loader executes with the identity-safe built request then
+flows into the existing publish + coalesced-follow-up path. Any hard ownership
+change still restarts; forcing/reconciling pre-loader behavior is unchanged;
+no parallelism, delays, or debounces were added.
+
+### Correction regression tests (all deterministic, no sleeps)
+
+- **A** `display-only change during ordinary load publishes without a
+  replacement load` — currency/hidden/hide-Native drift mid-load: result
+  publishes, generation stays 1, exactly 1 loader call, newest presentation
+  active. (Uses `auto`↔`USD` currency drift because live FX rates are absent in
+  tests.)
+- **B** `display-only change during forced reconciliation does not force
+  again` — currency drift while the capture is gated: builder modes exactly
+  `[.forceRefresh, .captureOnly]`, loader forces exactly `[true]`, merged total
+  12 publishes under the newest display state.
+- **C** `codex display-name drift keeps newest label without a source
+  reload` — Old→New rename mid-load: 1 loader call, no follow-up, visible
+  input labeled `New`, `lastSuccessfulConfiguration` still the Old request.
+- **D** `same-owner churn while request builder is gated still reaches the
+  loader` — B/C arrive during a gated build: loader runs the A request
+  (configurations exactly [A]), A publishes, one follow-up targets C
+  (configurations exactly [A, C]).
+- **E** `hard ownership change while request builder is gated never loads
+  stale owner` — owner-2 arrives during a gated owner-1 build: loader sees
+  exactly [owner-2]; the released owner-1 request dies on the generation guard
+  and never publishes.
+- **F** `churn through gated follow-up build still publishes each safe
+  result` — B/C during the first build, D/E during the gated follow-up build:
+  totals progress 5 → 7 → 11 with loader configurations exactly [A, C, E] and
+  3 builder calls.
+
+Pre-correction run: A, B, C, D, F fail (A also exposed the restart clearing
+state; D/F additionally needed `#require` guards so a starved loader fails
+gracefully instead of indexing an empty gate); E passes as the negative
+control. Post-correction: all 11 liveness tests pass, the 37 existing
+controller/force/revision/request-time tests pass, and the cross-provider
+gatekeeper test passes.
