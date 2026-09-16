@@ -146,7 +146,8 @@ the safety/force paths were already strict. Post-fix: all 5 pass.
 ## Targeted test commands and results
 
 - `swift test --filter 'SpendDashboardLoadLivenessTests'` — 5/5 pass at the
-  reviewed SHA; 11/11 pass after the independent review corrections.
+  reviewed SHA; 11/11 pass after the independent review corrections; 15/15
+  pass after the history-horizon correction (3 consecutive green runs).
 - `swift test --filter
   'SpendDashboardControllerTests|SpendDashboardForceStateMachineTests|SpendDashboardControllerRevisionTests|SpendDashboardRequestTimeTests'`
   — 37/37 pass (includes force state-machine A–M, notably C and E which
@@ -207,6 +208,57 @@ by +10 with no semantic change:
 - 1696 → 1773 → 1783 (`if providerID == UsageProvider.codex.rawValue {`)
 - 1713 → 1790 → 1800 (`if sourceID.hasPrefix("codex:") { return .codex }`)
 - 1740 → 1817 → 1827 (`guard input.provider == .codex,`)
+
+## Independent review corrections (final): Codex history horizon is hard scope
+
+`SpendDashboardLoadRequest.codexHistoryDays` directly controls the history depth
+of Codex snapshot/activity loading, populated from
+`store.spendDashboardCodexHistoryDays` — but no configuration field represented
+it, so `sameSourceOwnership` could classify a 30-day request and a 365-day
+desired state as the same hard scope. A stale narrow-scope result could then
+publish as satisfying a wider scope (via the ordinary drift path or the
+pre-loader safe-capture path), contradicting #159's requirement that a
+requested history-scope change remain a hard invalidation. The horizon policy
+itself (when 30 vs. 365 applies) is untouched and remains #160.
+
+- New `SpendDashboardConfiguration.codexHistoryDays` (default
+  `SpendDashboardSource.scanDays` so existing call sites are source-compatible).
+- `SpendDashboardSource.configuration(...)` captures it from the existing
+  `store.spendDashboardCodexHistoryDays` (same clamp as the request).
+- `makeRequest(...)` no longer reads the store independently: all three
+  request construction sites use `configuration.codexHistoryDays`, so
+  `request.configuration` always describes the exact source scope the request
+  will load — the two cannot diverge.
+- `sameSourceOwnership(...)` compares the horizon (hard scope); 
+- `isDisplayOnlyConfigurationChange(...)` requires equal horizons (a horizon
+  change can never be display-only). All prior presentation exclusions are
+  unchanged.
+- `SpendDashboardLoadedInputScope` already keys retention on
+  (bucket, snapshot history days), so a 30-day retained input cannot satisfy a
+  365-day scope check; no retention change was needed.
+- Forcing/reconciling paths inherit the strict behavior through the existing
+  ownership guards (a horizon change re-forces the new scope); the force state
+  machine itself is unchanged.
+
+Deterministic tests (all in `SpendDashboardLoadLivenessTests`, no sleeps):
+
+- 30→365 during a gated ordinary load: the stale 30-day completion publishes
+  nothing (model stays empty while refreshing); the 365-day follow-up publishes
+  total 9; builder modes exactly [.refreshMissing, .refreshMissing]; loader
+  history depths exactly [30, 365]. Pre-fix this failed with the stale cost-5
+  result published as 365-day data.
+- 30→365 during a gated builder: the released 30-day request dies on the
+  generation guard and never reaches the loader (loader depths exactly [365]);
+  the 365-day result publishes.
+- Same-horizon revision churn still publishes + coalesces exactly once
+  (depths [30, 30]).
+- `makeRequest` invariant test: `request.codexHistoryDays ==
+  request.configuration.codexHistoryDays` against a real store.
+
+Gatekeeper integers moved again (struct field at file top shifts every anchor
+below it; no semantic change): 179→185, 265→273, 237→245, 290→301, 421→432,
+423→434, 504→515, 507→518, 586→597, 619→630, 630→641, 681→692, 709→720,
+1754→1765, 1783→1794, 1800→1811, 1827→1838.
 
 ## Deferred to #160/#161
 
