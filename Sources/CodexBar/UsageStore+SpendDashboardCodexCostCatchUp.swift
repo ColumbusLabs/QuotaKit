@@ -84,12 +84,17 @@ extension UsageStore {
         if !sharedAccounts.isEmpty {
             self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = true
             self.spendDashboardCodexCostCatchUpActivity = self.codexCostCatchUpActivity
+            // #160 correction: the shared primary cache must converge the
+            // active dashboard horizon, not just the configured routine
+            // window. `spendDashboardCodexHistoryDays` is
+            // `max(routine, active)` so closed stays routine while visible
+            // 90/All widens the same serialized primary worker.
             self.startCodexCostCatchUpIfNeeded(
                 mode: mode,
-                requestedHistoryDays: self.settings.costUsageHistoryDays,
+                requestedHistoryDays: self.spendDashboardCodexHistoryDays,
                 resumePaused: false)
         } else {
-            self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = false
+            self.reconcilePrimaryWorkerAfterSharedDashboardScopeChange()
         }
         if independentAccounts.isEmpty {
             self.clearSpendDashboardCodexCostCatchUpWorker()
@@ -99,6 +104,23 @@ extension UsageStore {
                 mode: mode,
                 resumePaused: false)
         }
+    }
+
+    /// Withdraws dashboard-only widening from the shared primary worker when
+    /// the dashboard no longer shares that cache. Independent 90/All demand
+    /// must never widen the ambient cache, so the primary target is the
+    /// configured routine window. Touches the primary worker only when it
+    /// exists to avoid spawning routine work from a dashboard-only sync.
+    private func reconcilePrimaryWorkerAfterSharedDashboardScopeChange() {
+        let wasUsingPrimary = self.spendDashboardCodexCostCatchUpUsesPrimaryWorker
+        self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = false
+        guard wasUsingPrimary,
+              self.codexCostCatchUpTask != nil || self.codexCostCatchUpProgressProbeTask != nil
+        else { return }
+        self.startCodexCostCatchUpIfNeeded(
+            mode: self.codexCostCatchUpMode,
+            requestedHistoryDays: self.settings.costUsageHistoryDays,
+            resumePaused: false)
     }
 
     func startSpendDashboardCodexCostCatchUpIfNeeded(
@@ -123,12 +145,14 @@ extension UsageStore {
             if resumePaused {
                 self.spendDashboardCodexCostCatchUpStopRequested = false
             }
+            // Same shared-primary policy as `synchronize...`: propagate
+            // active 90/All demand to the serialized primary worker.
             self.startCodexCostCatchUpIfNeeded(
                 mode: mode,
-                requestedHistoryDays: self.settings.costUsageHistoryDays,
+                requestedHistoryDays: self.spendDashboardCodexHistoryDays,
                 resumePaused: resumePaused)
         } else {
-            self.spendDashboardCodexCostCatchUpUsesPrimaryWorker = false
+            self.reconcilePrimaryWorkerAfterSharedDashboardScopeChange()
         }
         guard !accounts.isEmpty else {
             self.clearSpendDashboardCodexCostCatchUpWorker()

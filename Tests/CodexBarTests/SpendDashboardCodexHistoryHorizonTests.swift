@@ -371,6 +371,238 @@ struct SpendDashboardCodexHistoryHorizonTests {
         #expect(CostUsageScanner.requestedWindowExpandsCache(range: wideRange, cache: midCache) == true)
     }
 
+    // MARK: - Test A — shared primary worker receives visible 90 demand
+
+    @Test
+    func `shared primary worker receives visible 90 demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-90")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "primary-shared-90")
+        controller.selectDays(90)
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(store.spendDashboardCodexHistoryDays == 90)
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        let independentRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await independentRecorder.recordAdvance(historyDays)
+            return Self.status(pending: false, key: "independent", processedBytes: 100)
+        }
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        // Allow the mirrored dashboard activity/revision to publish.
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpUsesPrimaryWorker }
+
+        #expect(await primaryRecorder.advanceHistoryDays == [90])
+        #expect(await independentRecorder.advanceHistoryDays == [])
+        #expect(store.spendDashboardCodexCostCatchUpTask == nil)
+        #expect(store.spendDashboardCodexCostCatchUpUsesPrimaryWorker == true)
+        #expect(store.codexCostCatchUpHistoryDays == 90)
+        controller.deactivateHistoryDemand()
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test B — shared primary worker receives visible All demand
+
+    @Test
+    func `shared primary worker receives visible All demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-all")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "primary-shared-all")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(store.spendDashboardCodexHistoryDays == SpendDashboardSource.scanDays)
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        let independentRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await independentRecorder.recordAdvance(historyDays)
+            return Self.status(pending: false, key: "independent", processedBytes: 100)
+        }
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpUsesPrimaryWorker }
+
+        #expect(await primaryRecorder.advanceHistoryDays == [SpendDashboardSource.scanDays])
+        #expect(await independentRecorder.advanceHistoryDays == [])
+        #expect(store.spendDashboardCodexCostCatchUpTask == nil)
+        #expect(store.spendDashboardCodexCostCatchUpUsesPrimaryWorker == true)
+        #expect(store.codexCostCatchUpHistoryDays == SpendDashboardSource.scanDays)
+        controller.deactivateHistoryDemand()
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test C — closing All withdraws shared primary demand
+
+    @Test
+    func `closing All withdraws shared primary demand`() async throws {
+        let store = try Self.makeStore(suite: "primary-shared-close")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "primary-shared-close")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        let account = Self.liveAccount(id: "live", cacheIdentity: "live-cache")
+        let primaryRecorder = SpendDashboardHorizonRecorder()
+        var completed = false
+        Self.installPrimaryCatchUpOverrides(
+            store: store,
+            recorder: primaryRecorder,
+            completed: { completed },
+            markCompleted: { completed = true })
+
+        // Visible All converges the shared primary cache at 365.
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+        #expect(await primaryRecorder.advanceHistoryDays == [SpendDashboardSource.scanDays])
+        #expect(store.codexCostCatchUpHistoryDays == SpendDashboardSource.scanDays)
+
+        // Simulate SpendDashboardPane.onDisappear: demand clears, controller
+        // re-scopes to routine, then routine catch-up synchronizes.
+        controller.deactivateHistoryDemand()
+        let routineConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(routineConfiguration.codexHistoryDays == 30)
+        controller.update(configuration: routineConfiguration)
+        completed = false
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: [account])
+        await Self.waitUntil { store.codexCostCatchUpTask == nil }
+
+        // The withdrawn 365 demand must not persist: the next primary pass
+        // uses the routine 30-day horizon.
+        #expect(await primaryRecorder.advanceHistoryDays == [SpendDashboardSource.scanDays, 30])
+        #expect(store.codexCostCatchUpHistoryDays == 30)
+        #expect(store.spendDashboardCodexCostCatchUpTask == nil)
+        store.cancelCodexCostCatchUp()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test D — close re-scopes an in-flight 365 dashboard load
+
+    @Test
+    func `close re-scopes an in-flight 365 dashboard load`() async throws {
+        let store = try Self.makeStore(suite: "close-inflight")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let loader = SpendDashboardHorizonLoaderGate()
+        let controller = try Self.sharedGatedController(for: store, suite: "close-inflight", loader: loader)
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        // Visible All: desired scope is 365.
+        let visibleConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(visibleConfiguration.codexHistoryDays == SpendDashboardSource.scanDays)
+        controller.update(configuration: visibleConfiguration)
+        await Self.waitForLoaderPendingCount(1, gate: loader)
+        #expect(await loader.historyDays == [SpendDashboardSource.scanDays])
+
+        // Simulate the actual pane close lifecycle: deactivate, capture the
+        // new routine configuration, feed it into the controller.
+        controller.deactivateHistoryDemand()
+        let routineConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(routineConfiguration.codexHistoryDays == 30)
+        controller.update(configuration: routineConfiguration)
+        await Self.waitForLoaderPendingCount(2, gate: loader)
+        #expect(await loader.historyDays == [SpendDashboardSource.scanDays, 30])
+
+        // Release the stale 365 completion: hard-scope semantics must reject
+        // it as the current desired state.
+        await loader.resume(
+            at: 0,
+            result: SpendDashboardLoadResult(inputs: [Self.input(cost: 5)], failedSourceIDs: []))
+        await Self.waitForLoaderPendingCount(1, gate: loader)
+        #expect(controller.model.groups.isEmpty)
+        #expect(controller.isRefreshing)
+        #expect(controller.configuration == routineConfiguration)
+
+        await loader.resume(
+            at: 0,
+            result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.configuration == routineConfiguration)
+        #expect(controller.configuration?.codexHistoryDays == 30)
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test E — close before the broad builder starts never loads 365
+
+    @Test
+    func `close before the broad builder starts never loads 365`() async throws {
+        let store = try Self.makeStore(suite: "close-gated-builder")
+        store.settings.codexActiveSource = .liveSystem
+        store.settings.costUsageHistoryDays = 30
+        let buildGate = SpendDashboardHorizonBuildGate()
+        let loader = SpendDashboardHorizonLoaderGate()
+        let controller = try Self.sharedGatedController(
+            for: store,
+            suite: "close-gated-builder",
+            loader: loader,
+            buildGate: buildGate)
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+
+        let visibleConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(visibleConfiguration.codexHistoryDays == SpendDashboardSource.scanDays)
+        controller.update(configuration: visibleConfiguration)
+        await Self.waitForBuildGate(buildGate)
+
+        // Dashboard closes while the 365 request builder is still gated.
+        controller.deactivateHistoryDemand()
+        let routineConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(routineConfiguration.codexHistoryDays == 30)
+        controller.update(configuration: routineConfiguration)
+        await buildGate.resume()
+        await Self.waitForLoaderPendingCount(1, gate: loader)
+
+        // The stale 365 request must never reach the expensive loader.
+        #expect(await loader.historyDays == [30])
+
+        await loader.resume(
+            at: 0,
+            result: SpendDashboardLoadResult(inputs: [Self.input(cost: 9)], failedSourceIDs: []))
+        await Self.waitUntil { !controller.isRefreshing }
+        #expect(controller.model.groups.first?.totalCost == 9)
+        #expect(controller.configuration == routineConfiguration)
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    @Test
+    func `stopping the controller clears ephemeral history demand`() throws {
+        let store = try Self.makeStore(suite: "stop-clears-demand")
+        let controller = try Self.sharedController(for: store, suite: "stop-clears-demand")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(controller.isHistoryDemandActive)
+        #expect(controller.activeRequestedHistoryDays == SpendDashboardSource.scanDays)
+
+        controller.stop()
+
+        #expect(!controller.isHistoryDemandActive)
+        #expect(controller.activeRequestedHistoryDays == nil)
+        #expect(controller.selectedDays == SpendDashboardSource.scanDays)
+    }
+
     // MARK: - Helpers
 
     private static func makeStore(suite: String) throws -> UsageStore {
@@ -424,6 +656,140 @@ struct SpendDashboardCodexHistoryHorizonTests {
             cacheIdentity: cacheIdentity)
     }
 
+    /// Ambient live-system account sharing the primary Codex cache. Unlike
+    /// `.profileHome`, this exercises the shared-primary worker rather than
+    /// the independent dashboard worker.
+    private static func liveAccount(
+        id: String,
+        cacheIdentity: String) -> CodexSpendScanRequest
+    {
+        CodexSpendScanRequest(
+            id: id,
+            displayName: "Codex · \(id)",
+            source: .liveSystem,
+            homePath: "/synthetic/\(id)",
+            authFingerprint: nil,
+            authFileWasReadable: false,
+            cacheIdentity: cacheIdentity)
+    }
+
+    private static func installPrimaryCatchUpOverrides(
+        store: UsageStore,
+        recorder: SpendDashboardHorizonRecorder,
+        completed: @escaping @MainActor () -> Bool,
+        markCompleted: @escaping @MainActor () -> Void)
+    {
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, now, _, _ in
+            CostUsageTokenSnapshot(
+                sessionTokens: 10,
+                sessionCostUSD: 1,
+                last30DaysTokens: 10,
+                last30DaysCostUSD: 1,
+                historyCoverageIsEstablished: true,
+                daily: [CostUsageDailyReport.Entry(
+                    date: "2026-07-30",
+                    inputTokens: 4,
+                    outputTokens: 6,
+                    totalTokens: 10,
+                    costUSD: 1,
+                    modelsUsed: nil,
+                    modelBreakdowns: nil)],
+                updatedAt: now)
+        }
+        store._test_codexCostCatchUpStatusOverride = { _ in
+            let done = completed()
+            return Self.status(
+                pending: !done,
+                key: done ? "complete" : "pending",
+                processedBytes: done ? 100 : 25)
+        }
+        store._test_codexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await recorder.recordAdvance(historyDays)
+            markCompleted()
+            return Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_codexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_codexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+    }
+
+    private static func sharedGatedController(
+        for store: UsageStore,
+        suite: String,
+        loader: SpendDashboardHorizonLoaderGate,
+        buildGate: SpendDashboardHorizonBuildGate? = nil) throws -> SpendDashboardController
+    {
+        let defaults = try #require(UserDefaults(
+            suiteName: "SpendDashboardCodexHistoryHorizonTests-gated-\(suite)-\(UUID().uuidString)"))
+        defaults.removePersistentDomain(
+            forName: "SpendDashboardCodexHistoryHorizonTests-gated-\(suite)")
+        let controller = SpendDashboardController(
+            userDefaults: defaults,
+            requestBuilder: { mode in
+                if let buildGate {
+                    await buildGate.suspendOnce()
+                }
+                let configuration = SpendDashboardSource.configuration(
+                    settings: store.settings,
+                    store: store)
+                return SpendDashboardLoadRequest(
+                    configuration: configuration,
+                    capturedInputs: [],
+                    unavailableSourceIDs: [],
+                    codexRequests: [],
+                    codexHistoryDays: configuration.codexHistoryDays,
+                    now: Date(timeIntervalSince1970: 1_784_179_200),
+                    force: mode.forcesLoader)
+            },
+            loader: { request in await loader.load(request) })
+        store.sharedSpendDashboardControllerStorage = controller
+        return controller
+    }
+
+    private static func input(cost: Double) -> SpendDashboardModel.ProviderInput {
+        let entry = CostUsageDailyReport.Entry(
+            date: "2026-07-15",
+            inputTokens: nil,
+            outputTokens: nil,
+            totalTokens: 10,
+            costUSD: cost,
+            modelsUsed: nil,
+            modelBreakdowns: nil)
+        let snapshot = CostUsageTokenSnapshot(
+            sessionTokens: nil,
+            sessionCostUSD: nil,
+            last30DaysTokens: 10,
+            last30DaysCostUSD: cost,
+            daily: [entry],
+            updatedAt: Date(timeIntervalSince1970: 1_784_179_200))
+        return SpendDashboardModel.ProviderInput(
+            provider: .codex,
+            displayName: UsageProvider.codex.rawValue,
+            snapshot: snapshot)
+    }
+
+    private static func waitForLoaderPendingCount(
+        _ count: Int,
+        gate: SpendDashboardHorizonLoaderGate) async
+    {
+        for _ in 0..<1000 {
+            if await gate.pendingCount == count {
+                return
+            }
+            await Task.yield()
+        }
+        Issue.record("Timed out waiting for \(count) pending horizon loads")
+    }
+
+    private static func waitForBuildGate(_ gate: SpendDashboardHorizonBuildGate) async {
+        for _ in 0..<1000 {
+            if await gate.isSuspended {
+                return
+            }
+            await Task.yield()
+        }
+        Issue.record("Timed out waiting for horizon build gate")
+    }
+
     nonisolated static func snapshot(now: Date) -> CostUsageTokenSnapshot {
         CostUsageTokenSnapshot(
             sessionTokens: nil,
@@ -469,5 +835,60 @@ private actor SpendDashboardHorizonRecorder {
 
     func recordAdvance(_ historyDays: Int) {
         self.advanceHistoryDays.append(historyDays)
+    }
+}
+
+private actor SpendDashboardHorizonLoaderGate {
+    private var continuations: [CheckedContinuation<SpendDashboardLoadResult, Never>] = []
+    private(set) var configurations: [SpendDashboardConfiguration] = []
+    private(set) var historyDays: [Int] = []
+
+    var pendingCount: Int {
+        self.continuations.count
+    }
+
+    func load(_ request: SpendDashboardLoadRequest) async -> SpendDashboardLoadResult {
+        self.configurations.append(request.configuration)
+        self.historyDays.append(request.codexHistoryDays)
+        return await withCheckedContinuation { continuation in
+            self.continuations.append(continuation)
+        }
+    }
+
+    func resume(at index: Int, result: SpendDashboardLoadResult) {
+        self.continuations.remove(at: index).resume(returning: result)
+    }
+}
+
+private actor SpendDashboardHorizonBuildGate {
+    private var continuation: CheckedContinuation<Void, Never>?
+    private var didGate = false
+
+    var isSuspended: Bool {
+        self.continuation != nil
+    }
+
+    func suspend() async {
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    /// Gates only the first builder invocation. Later builder calls (e.g. the
+    /// routine 30-day rebuild after close) proceed immediately so the stale
+    /// 365 request can be proven dead without deadlocking the follow-up.
+    func suspendOnce() async {
+        if self.didGate {
+            return
+        }
+        self.didGate = true
+        await withCheckedContinuation { continuation in
+            self.continuation = continuation
+        }
+    }
+
+    func resume() {
+        self.continuation?.resume()
+        self.continuation = nil
     }
 }

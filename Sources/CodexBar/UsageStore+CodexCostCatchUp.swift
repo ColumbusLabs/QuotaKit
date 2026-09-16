@@ -65,18 +65,46 @@ extension UsageStore {
            self.codexCostCatchUpTask == nil,
            self.codexCostCatchUpPausedScopeSignature == pauseScopeSignature
         {
-            self.scheduleCodexCostCatchUpProgressProbe(
-                codexHomePath: scope.codexHomePath,
-                historyDays: max(historyDays, self.codexCostCatchUpHistoryDays),
-                mode: mode,
-                pauseScopeSignature: pauseScopeSignature)
-            return
+            // Narrowing must not survive via the probe: a stale wider horizon
+            // (e.g. dashboard All withdrawn) clears the pause so the fresh
+            // start below re-evaluates at the narrower desired horizon.
+            if historyDays < self.codexCostCatchUpHistoryDays {
+                self.codexCostCatchUpPausedScopeSignature = nil
+                self.codexCostCatchUpPausedProgressKey = nil
+            } else {
+                self.scheduleCodexCostCatchUpProgressProbe(
+                    codexHomePath: scope.codexHomePath,
+                    historyDays: max(historyDays, self.codexCostCatchUpHistoryDays),
+                    mode: mode,
+                    pauseScopeSignature: pauseScopeSignature)
+                return
+            }
         }
         if self.codexCostCatchUpTask != nil,
            self.codexCostCatchUpScopeSignature == scopeSignature
         {
             let modeIsUnchanged = self.codexCostCatchUpMode == mode
             if historyDays > self.codexCostCatchUpHistoryDays {
+                self.codexCostCatchUpHistoryDays = historyDays
+                if self.codexCostCatchUpPassIsRunning {
+                    self.codexCostCatchUpRestartRequested = true
+                    self.codexCostCatchUpMode = mode
+                    return
+                }
+                if modeIsUnchanged {
+                    self.cancelCodexCostCatchUp()
+                    self.startCodexCostCatchUpIfNeeded(
+                        mode: mode,
+                        requestedHistoryDays: historyDays,
+                        resumePaused: false)
+                    return
+                }
+            } else if historyDays < self.codexCostCatchUpHistoryDays {
+                // Narrowing after ephemeral dashboard demand is withdrawn
+                // (#160). Never mutate a running pass context downward: record
+                // the narrower desired horizon and restart at a safe
+                // checkpoint. When no pass is running the restart below is
+                // immediate and equally checkpoint-safe.
                 self.codexCostCatchUpHistoryDays = historyDays
                 if self.codexCostCatchUpPassIsRunning {
                     self.codexCostCatchUpRestartRequested = true

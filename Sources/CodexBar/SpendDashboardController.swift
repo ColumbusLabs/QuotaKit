@@ -1713,21 +1713,6 @@ final class SpendDashboardController {
         self.startLoad(configuration: configuration, phase: nextPhase)
     }
 
-    func stop() {
-        self.loadTask?.cancel()
-        self.loadTask = nil
-        self.configuration = nil
-        self.loadedInputs = []
-        self.failedSourceIDs = []
-        self.confirmedEmptySourceIDs = []
-        self.openCodexObservation = .disabled
-        self.isRefreshing = false
-        self.phase = .ordinary
-        self.lastRefreshDateWindowAt = nil
-        self.lastRefreshDateWindowDayStart = nil
-        self.publishCurrentState()
-    }
-
     private func rebuildModel(publish: Bool = true) {
         let configuration = self.configuration
         self.model = SpendDashboardModel.build(
@@ -2022,5 +2007,25 @@ extension SpendDashboardController {
     /// dashboard restores the selected range and intentionally expands again.
     func deactivateHistoryDemand() {
         self.isHistoryDemandActive = false
+    }
+
+    /// Stops all loads and resets visible state. Lives in this extension (not
+    /// the class body) for the 800-line `type_body_length` budget. Clears
+    /// ephemeral history demand as a fail-safe so a stopped/restarted shared
+    /// controller cannot retain phantom wide demand; `selectedDays` stays.
+    func stop() {
+        self.loadTask?.cancel()
+        self.loadTask = nil
+        self.configuration = nil
+        self.loadedInputs = []
+        self.failedSourceIDs = []
+        self.confirmedEmptySourceIDs = []
+        self.openCodexObservation = .disabled
+        self.isRefreshing = false
+        self.phase = .ordinary
+        self.lastRefreshDateWindowAt = nil
+        self.lastRefreshDateWindowDayStart = nil
+        self.isHistoryDemandActive = false
+        self.publishCurrentState()
     }
 }

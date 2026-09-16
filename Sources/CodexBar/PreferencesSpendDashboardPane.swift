@@ -279,10 +279,14 @@ struct SpendDashboardPane: View {
         }
         .onDisappear {
             self.isVisible = false
-            // #160: clear ephemeral demand before routine background catch-up so
-            // closing All/90 returns to the configured routine horizon while the
-            // persisted selection stays intact for the next open.
+            // #160 correction: clear ephemeral demand, then synchronously
+            // re-scope an in-flight controller load to the routine horizon
+            // before routine catch-up. `deactivateHistoryDemand` alone cannot
+            // cancel a 365-day load already running; the explicit update lets
+            // #159 hard-scope semantics cancel/reject the old wide work.
+            // Persisted selection stays intact for the next open.
             self.controller.deactivateHistoryDemand()
+            self.controller.update(configuration: self.configuration)
             self.synchronizeCodexCostCatchUp()
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in

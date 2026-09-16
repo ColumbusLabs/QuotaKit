@@ -319,6 +319,79 @@ Phase 1 files, no unrelated #159 modifications, no broad formatting.
 
 #161 was not implemented in this phase. No code or tests reference it.
 
+## 13. Final independent-review correction (shared primary + close re-scope)
+
+Independent review of `46639580d1601741870cdc901f1061a1d13bc86d` found two
+remaining #160 gaps; this section corrects the record (in particular the
+§9–§10 statements claiming every scan producer already flowed from the
+single policy — the shared-primary worker did not).
+
+1. **Shared-primary worker ignored active demand.** Both dashboard entry
+   points (`synchronizeSpendDashboardCodexCostCatchUp` and
+   `startSpendDashboardCodexCostCatchUpIfNeeded`) routed the
+   `codexCostCatchUpUsesPrimaryCache == true` path to
+   `startCodexCostCatchUpIfNeeded(requestedHistoryDays:
+   settings.costUsageHistoryDays)`. Configured 30 + visible 90 therefore
+   scanned the primary cache at 30 while the dashboard request was 90;
+   visible All scanned primary at 30 while the request was 365. Both now
+   pass `spendDashboardCodexHistoryDays` (`max(routine, active)`) when the
+   dashboard shares the primary cache, so closed → routine, visible 90 →
+   90, visible All → 365.
+2. **Existing tests missed the primary-cache path.** The #160 suite used
+   synthetic `.profileHome` accounts, which exercise the independent worker
+   only. New Tests A/B use a live-system account with an ambient
+   `tokenCostScope` (so `codexCostCatchUpUsesPrimaryCache == true`),
+   intercept the primary `advanceCodexScanCatchUp` history argument, and
+   assert 90 / 365 respectively with zero independent advances for the same
+   cache.
+3. **Close did not synchronously re-scope an in-flight controller load.**
+   `SpendDashboardPane.onDisappear` deactivated demand and synchronized
+   catch-up but never fed the new routine configuration into the
+   controller, leaving a gated 365 load with no synchronous cancellation.
+   Close now runs deactivate → capture routine configuration (30) →
+   `controller.update(configuration:)` (letting #159 hard-scope
+   cancel/reject the wide work) → synchronize routine catch-up. `stop()`
+   also clears `isHistoryDemandActive` as a fail-safe (persisted
+   `selectedDays` untouched); it lives in the same-file extension for the
+   800-line `type_body_length` budget.
+4. **Final primary-worker demand semantics.** `startCodexCostCatchUpIfNeeded`
+   callers were fully traced: routine refreshes, accelerated/background
+   toggles, and internal restarts pass `nil`/already-desired horizons; the
+   only wider consumer is dashboard sharing, which now passes the policy
+   value. No generalized demand registry was added. The invariant is
+   `primary = max(routine, active-if-shared)`: shared + visible 90 → 90,
+   shared + visible All → 365, closed (or independent-only) → routine.
+   When the dashboard stops sharing a previously shared cache, the primary
+   is reconciled to the routine window only if a primary task/probe exists,
+   so dashboard syncs never spawn routine work. No second scanner, no
+   parallel scans, serialized `CostUsageScanExecutor` preserved.
+5. **Primary shrink is checkpoint-safe.** `startCodexCostCatchUpIfNeeded` was
+   monotonic (widen-only). Narrowing now mirrors widening: while a bounded
+   pass runs, the narrower horizon is recorded and `restartRequested` is set
+   so the current pass commits its checkpoint before restarting at 30; when
+   idle, the worker cancels and restarts immediately. The paused-probe path
+   clears stale wider pauses instead of re-probing at
+   `max(desired, stale)`. Power/thermal, cancellation, no-progress, and
+   scope-signature behavior are untouched.
+6. **Final close ordering.** Deactivate demand → routine
+   `SpendDashboardSource.configuration` (30) → `controller.update` → catch-up
+   synchronize. Builder-gated 365 never reaches the loader; loader-gated 365
+   completions are ownership-discarded; only the 30-day result publishes.
+7. **Coverage and exact sequences.**
+   - Test A (shared 90): primary advances `[90]`, independent `[]`,
+     `codexCostCatchUpHistoryDays == 90`, no independent task.
+   - Test B (shared All): primary `[365]`, independent `[]`.
+   - Test C (close All → routine): primary `[365, 30]`, final horizon 30.
+   - Test D (close with 365 loader in flight): loader horizons `[365, 30]`,
+     stale 365 discarded (model stays empty/refreshing), 30 publishes cost 9
+     with final configuration 30.
+   - Test E (close with 365 builder gated): loader horizons `[30]` only.
+   - Stop fail-safe: active → `stop()` clears demand, keeps `selectedDays`.
+   - Control: existing independent 90→30 test still yields `[90, 30]`;
+     `UsageStoreSpendDashboardCodexCostCatchUpTests` (19) and
+     `SpendDashboardLoadLivenessTests` (15) pass unmodified, so #159
+     hard-scope semantics are intact.
+
 ## 12. Remaining limitations / deferred work
 
 - **Aggregate background-work budget (GitHub #160 broader acceptance item) is
