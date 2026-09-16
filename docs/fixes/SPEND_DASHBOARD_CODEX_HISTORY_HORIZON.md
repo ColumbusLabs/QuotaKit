@@ -3,6 +3,23 @@
 Routine/background spend collection must not silently force Codex history
 scanning out to 365 days when a much smaller horizon is actually required.
 
+> Correction status: this document was rewritten after an independent review
+> of `bb23a60206ded8da220e44a3c95e74eec1641f21` found two remaining
+> horizon-demand defects:
+>
+> 1. the supported 90-day dashboard range did not widen a configured 30-day
+>    window (only All/365 was special-cased), and
+> 2. a persisted All/90 selection reintroduced wide background scans while the
+>    dashboard was closed, because persisted presentation preference was read
+>    as active demand (and `startSharedSpendDashboardPublication` eagerly
+>    materialized the controller so that the persisted selection participated
+>    in the first background capture).
+>
+> The correction commit on this branch replaces persisted-selection demand
+> with ephemeral visible-dashboard demand and generalizes the policy to all
+> supported ranges. The original report sections below describe the corrected
+> behavior.
+
 ## 1. Root cause
 
 Two independent call sites escalated the Codex history horizon to the full
@@ -33,66 +50,101 @@ App launch with spend enabled → `startSharedSpendDashboardPublication` →
 `observeSharedSpendDashboardConfiguration` →
 `applySharedSpendDashboardConfiguration` →
 `synchronizeSpendDashboardCodexCostCatchUp(accounts:)` with the dashboard
-never opened (no All selection). The catch-up worker then scanned 365 days
-via the `max(scanDays, …)` floor, and once the primary worker converged, the
+never opened. The catch-up worker then scanned 365 days via the
+`max(scanDays, …)` floor, and once the primary worker converged, the
 configuration horizon flipped to 365 as well, so snapshot loads followed.
 
-## 3. Legitimate 365 consumers
+## 3. Explicit history consumers
 
-Exactly one user-visible consumer genuinely requires full-year history: the
-spend dashboard **All range**
-(`SpendDashboardController.selectedDays == SpendDashboardSource.scanDays`,
-persisted under `settingsSpendDashboardDays`). Selecting All needs 365 days
-of daily/project/session breakdowns plus the 365-day token-activity strip.
+The horizon policy now treats an ACTIVE, visible dashboard range as the
+consumer signal, for every supported range — not just All:
 
-Additionally, an explicitly configured 365-day cost window
-(`costUsageHistoryDays == 365`) yields 365 through the policy clamp — that is
-user intent, not escalation.
+- Visible 90 with configured 30 requires 90 days of source coverage (a
+  90-day model built on 30 days of history is wrong).
+- Visible All (365) requires the full scan window.
+- Visible 7 / 30 with configured 30 stays at the configured routine bound.
+- Additionally, an explicitly configured 365-day cost window
+  (`costUsageHistoryDays == 365`) yields 365 through the policy clamp — that
+  is user intent, not escalation.
+
+Persisted `SpendDashboardController.selectedDays` is **presentation
+preference only**: it remembers 7/30/90/All across app launches so reopening
+the dashboard restores the selection, but it is never by itself proof that a
+long-range consumer is currently active. A persisted All selection with the
+dashboard closed must not widen background collection.
 
 Deliberately **not** a scan consumer: the token-activity loader still reads
 at `activityDays` (365), but `loadCachedCodexTokenActivity` only slices the
 already-scanned cache and can never trigger a filesystem scan, so it costs
-no I/O. No production consumer other than All requires a 365-day *scan*.
+no I/O.
 
 ## 4. Horizon-selection policy
 
-One authority, `SpendDashboardSource.requiredCodexHistoryDays(configuredWindowDays:dashboardRequestedDays:)`
+One authority, `SpendDashboardSource.requiredCodexHistoryDays(configuredWindowDays:activeDashboardRequestedDays:)`
 (`Sources/CodexBar/SpendDashboardController.swift`):
 
-- Routine/background work uses the configured window
-  (`settings.costUsageHistoryDays`, default 30), clamped to `1...scanDays`.
-- The full window is selected only when the dashboard explicitly requests
-  `>= scanDays` (the All range) — or when the configured window itself is
-  365.
-- `SpendDashboardSource.configuration(...)` captures that value into
-  `SpendDashboardConfiguration.codexHistoryDays` exactly as #159 established;
-  `makeRequest` consumes the captured value and never overrides it.
-- `UsageStore.spendDashboardCodexHistoryDays` is now the pure policy value.
-  The old convergence/independent-cache escalation branches are removed.
-- `startSpendDashboardCodexCostCatchUpIfNeeded` scans exactly
-  `spendDashboardCodexHistoryDays`; the `max(scanDays, …)` floor is removed.
-  The horizon stays inside the worker scope signature, so a horizon change
-  still rotates the scope and stale narrower work cannot satisfy a broader
-  scope (context-freshness check compares against the same policy value).
-- `startSharedSpendDashboardPublication` creates the shared controller
-  before the first observation so a persisted All selection is visible to
-  the policy on the very first configuration capture (no new observation,
-  polling, or lifecycle: the controller was already created on that same
-  call stack via `applySharedSpendDashboardConfiguration`).
-- New predicate `spendDashboardExtendedCodexHistoryRequired` names the
-  explicit-demand condition for tests and future call sites.
+```swift
+routine = clamp(configuredWindowDays, 1...scanDays)
+if activeDashboardRequestedDays == nil: required = routine
+else: required = max(routine, clamp(activeDashboardRequestedDays, 1...scanDays))
+```
+
+Demand representation (ephemeral, not persisted):
+
+- `SpendDashboardController.isHistoryDemandActive` is a stored visibility
+  flag, false by default (declared in the class body because Swift stored
+  properties cannot live in extensions).
+- `SpendDashboardController.activeRequestedHistoryDays: Int?` is a computed
+  same-file extension value: `isHistoryDemandActive ? selectedDays : nil`.
+- `SpendDashboardPane.onAppear` calls
+  `activateHistoryDemandForVisibleDashboard()` (persisted 90 activates 90,
+  persisted All activates 365); `onDisappear` calls
+  `deactivateHistoryDemand()` before the routine background catch-up
+  synchronization; `selectDays` while active automatically follows
+  `selectedDays` because demand is derived from it.
+- `UsageStore.spendDashboardCodexHistoryDays` reads only
+  `sharedSpendDashboardControllerStorage?.activeRequestedHistoryDays`
+  (nil when the dashboard was never visible), never `selectedDays`.
+- `UsageStore.spendDashboardExtendedCodexHistoryRequired` names the
+  `activeRequestedHistoryDays == scanDays` condition for tests and future
+  call sites.
+- `startSharedSpendDashboardPublication` no longer eagerly materializes the
+  controller; background publication never turns a persisted selection into
+  active demand. The controller is still materialized lazily on the first
+  `applySharedSpendDashboardConfiguration`, but materialization alone is
+  inert.
+
+`SpendDashboardSource.configuration(...)` captures the policy value into
+`SpendDashboardConfiguration.codexHistoryDays` exactly as #159 established;
+`makeRequest` consumes the captured value and never overrides it.
+`startSpendDashboardCodexCostCatchUpIfNeeded` scans exactly
+`spendDashboardCodexHistoryDays`; the old `max(scanDays, …)` floor stays
+removed. The horizon stays inside the worker scope signature, so a horizon
+change rotates the scope and stale narrower work cannot satisfy a broader
+scope (context-freshness check compares against the same policy value).
 
 ## 5. Cached / superset history handling
 
 No new retention machinery: the existing scanner semantics already handle
-directionality. `requestedWindowExpandsCache` returns false when the
-requested window is inside the cached window, so established 365-day cache
-data satisfies a 30-day request without rescanning (no destructive
-truncation of cached history). Conversely, 30-day data never satisfies an
-explicit 365-day request: the horizon is part of the worker scope signature
-and of #159 hard source ownership, so narrowing→broadening restarts work
-under the broader scope. New Test C / Test D prove both directions at the
-worker level.
+directionality. `CostUsageScanner.requestedWindowExpandsCache(range:cache:)`
+returns false when the requested window is inside the cached window, so
+established 365-day cache data satisfies a 30-day request without rescanning
+(no destructive truncation of cached history). Conversely, 30-day data never
+satisfies a broader request: the horizon is part of the worker scope
+signature and of #159 hard source ownership, so narrowing→broadening restarts
+work under the broader scope.
+
+Directionality is proven two ways:
+
+- Test 6 (`scanner cache compatibility is directional across horizons`)
+  exercises the real scanner seam directly: a narrow or mid request against
+  an established 365-day cache and a 90-day cache returns `false` (no
+  expansion), while 365-vs-30, 90-vs-30, and 365-vs-90 return `true`.
+- Test 4 proves the worker-level close transition: with an established cache,
+  closing All re-evaluates at 30 with zero scan passes. Test 5 proves a fresh
+  90→30 close schedules `[90, 30]` and never a hidden 365. The
+  30-cannot-satisfy-365 direction is covered by the existing #159 liveness
+  test that observes loader horizons `[30, 365]`.
 
 ## 6. #159 hard-scope preservation
 
@@ -101,117 +153,186 @@ excluded from display-only changes. `SpendDashboardLoadRequest` still
 consumes `configuration.codexHistoryDays`. All 16
 `SpendDashboardLoadLivenessTests` pass unmodified, including 30→365
 invalidation, gated-builder stale-scope death, same-horizon coalescing, and
-presentation-only no-work.
+presentation-only no-work. Transitions such as 30→90 and 90→365 use the same
+safe hard-scope rules already proven for 30→365.
 
 ## 7. Files changed
 
-- `Sources/CodexBar/SpendDashboardController.swift` — added
-  `requiredCodexHistoryDays` policy; reworded the stale
-  `codexHistoryDays` doc comment; documented why the activity loader keeps
-  the full depth (read-only slice, never a scan).
+- `Sources/CodexBar/SpendDashboardController.swift` — policy semantics
+  generalized to `max(routine, active)` for all ranges; added
+  `isHistoryDemandActive` plus the same-file extension exposing
+  `activeRequestedHistoryDays`, `activateHistoryDemandForVisibleDashboard()`,
+  and `deactivateHistoryDemand()`; reworded the stale `codexHistoryDays` doc
+  comment; documented why the activity loader keeps the full depth
+  (read-only slice, never a scan). The class-body lint budget (800 lines,
+  SwiftLint `type_body_length`) is why the demand surface lives in a
+  same-file extension.
 - `Sources/CodexBar/UsageStore+SpendDashboardCodexCostCatchUp.swift` —
-  `spendDashboardCodexHistoryDays` is now the pure policy value (removed
-  convergence/independent-cache escalation); worker scans the policy
-  horizon; freshness check compares against the policy value; added
-  `spendDashboardExtendedCodexHistoryRequired`.
-- `Sources/CodexBar/UsageStore+SpendDashboardPublication.swift` — create the
-  shared controller before the first observation; comment now describes the
-  bounded horizon.
-- `Tests/CodexBarTests/UsageStoreSpendDashboardCodexCostCatchUpTests.swift` —
-  updated four tests to the bounded policy (configured window is honored;
-  expansion restarts scope).
-- `Tests/CodexBarTests/SpendDashboardCodexHistoryHorizonTests.swift` — new;
-  Tests A–E plus policy units.
+  `spendDashboardCodexHistoryDays` reads active demand through the policy;
+  `spendDashboardExtendedCodexHistoryRequired` reads active demand, not
+  persisted selection; worker scans the policy horizon; freshness check
+  compares against the policy value.
+- `Sources/CodexBar/UsageStore+SpendDashboardPublication.swift` — removed
+  the eager controller materialization and the comment claiming persisted
+  All must control launch-time background scope; lazy materialization in
+  `applySharedSpendDashboardConfiguration` is inert.
+- `Sources/CodexBar/PreferencesSpendDashboardPane.swift` — `onAppear`
+  activates demand before the first visible source request; `onDisappear`
+  deactivates demand before routine catch-up; the picker binding simply calls
+  `selectDays` (which updates demand automatically while active).
+- `Tests/CodexBarTests/SpendDashboardCodexHistoryHorizonTests.swift` —
+  rewritten: policy units for all ranges, Test A (routine bounded), Test 1
+  (visible 90), Test 2 (persisted All closed does not widen background),
+  Test 3 (opening persisted All activates 365), Test 4 (closing All returns
+  to 30 without a 365 rescan), Test 5 (visible 90 → close → 30), Test 6
+  (real scanner cache-directionality seam).
+- `Tests/CodexBarTests/UsageStoreSpendDashboardCodexCostCatchUpTests.swift`
+  — unchanged in this correction (worker behavior it covers is still the
+  configured-window policy it asserts).
+- `Sources/CodexBar/UsageStore.swift` — no net change after the correction
+  (an intermediate store-level demand property was removed; the file sits at
+  exactly 1500 non-comment lines and must not grow).
 
 #161 was not implemented. No dashboard redesign, no snapshot/model-architecture
 refactor, no main-actor changes, no Phase 1 rolling-window changes.
 
 ## 8. Targeted tests and results
 
-- `SpendDashboardCodexHistoryHorizonTests` (8 tests): policy units, Test A
-  routine load captures/scans `[30]` with no hidden 365 escalation, Test B
-  All range captures/scans `[365]` attributable to the selection, Test C
-  established broader cache needs zero scan passes for a narrower scope,
-  Test D narrower→broader schedules `[30, 365]` work, Test E background
-  sync with no visible dashboard scans `[30]`. All pass.
-- `SpendDashboardLoadLivenessTests` (16 tests): all pass unmodified — #159
-  intact.
-- `UsageStoreSpendDashboardCodexCostCatchUpTests` (18 tests incl. 6
-  parameterized cases): all pass.
-- `SpendDashboardControllerTests` + `SpendDashboardTokenActivityIntegrationTests`
-  + `SpendDashboardCachedPresentationTests` +
-  `SpendDashboardAllTimeTokenSnapshotTests` + `SpendDashboardPublicationTests`
-  (56 tests across 7 suites): all pass.
-- `swift build`: complete.
-- `swiftlint --strict` on the 5 changed/new files: 0 violations.
-- `swiftformat --lint` on the 5 files: only 2 pre-existing
-  `wrapIfStatementBodies` notes in `SpendDashboardController.swift`
-  (verified present on the base SHA; homebrew formatter version drift, not
-  introduced here). Full `./Scripts/lint.sh lint` was intentionally not run
-  (pinned-tool installer + full-repo passes are disproportionate for this
-  scope; per-file checks above cover the diff).
+All commands run in this worktree; no full suite was run.
+
+- Base verification on `bb23a60206ded8da220e44a3c95e74eec1641f21`: a temporary
+  probe suite (since deleted) reproduced both defects — the policy returned
+  30 for `configured 30 + requested 90`, and a materialized controller holding
+  a persisted All selection made both `spendDashboardCodexHistoryDays` and
+  `SpendDashboardSource.configuration(...).codexHistoryDays` return 365 while
+  the dashboard was closed. The correction tests fail on the reviewed base
+  and pass after the fix.
+- `swift test --filter SpendDashboardCodexHistoryHorizonTests` — 11 tests
+  pass. Observed horizons:
+  - routine bounded (Test A): configuration 30, request 30, scanning loader
+    `[30]`
+  - visible 90 with configured 30 (Test 1): configuration 90, request 90,
+    loader `[90]`
+  - persisted All, dashboard closed (Test 2): configuration 30, request 30,
+    worker advance `[30]`
+  - opening persisted All (Test 3): configuration 365, request 365, loader
+    `[365]`
+  - closing All with established cache (Test 4): policy 30, worker advance
+    `[]` (no corpus rescan)
+  - visible 90 → closed (Test 5): worker advance `[90, 30]`, no hidden 365
+    request
+  - scanner cache-directionality seam (Test 6): narrow/mid inside wide or
+    mid caches `false`; 365-vs-30, 90-vs-30, 365-vs-90 `true`
+- `swift test --filter 'SpendDashboardCodexHistoryHorizonTests|SpendDashboardLoadLivenessTests|UsageStoreSpendDashboardCodexCostCatchUpTests|SpendDashboardControllerTests'`
+  — 69 tests across 6 suites pass (the filter also matched
+  `SpendDashboardRequestTimeTests` and `SpendDashboardControllerRevisionTests`).
+  This includes all 16 #159 liveness tests and the 18 catch-up tests.
+- `swift build` — complete.
+- `swiftlint lint --strict` on the 5 changed Swift files:
+  `Found 0 violations, 0 serious in 6 files.`
+- `swiftformat --lint` on the same files: only the 7 pre-existing
+  `wrapIfStatementBodies` notes in `SpendDashboardController.swift` (2) and
+  `PreferencesSpendDashboardPane.swift` (5); verified identical on the base
+  SHA with the same tool (homebrew formatter version drift, not introduced
+  here). Full `./Scripts/lint.sh lint` was intentionally not run (pinned-tool
+  installer + full-repo passes are disproportionate for this scope; per-file
+  checks above cover the diff).
 
 Broader suites (`make test`, `./Scripts/test.sh`, full Xcode plan) were
 intentionally omitted: the change is scoped to the dashboard horizon, and
 all directly affected suites pass.
 
-## 9. Self-review Loop 1 findings (semantic / performance)
+## 9. Self-review Loop 1 — demand lifecycle trace
+
+| Scenario | Persisted `selectedDays` | Active demand | Configuration `codexHistoryDays` | Worker requested horizon | Corpus scan required |
+| --- | --- | --- | --- | --- | --- |
+| Launch, dashboard never opened | 30 default | nil | 30 | 30 | bounded 30 (or cache-compat) |
+| Launch, persisted 90, closed | 90 | nil | 30 | 30 | bounded |
+| Launch, persisted All, closed | 365 | nil | 30 | 30 | bounded |
+| Open with persisted 90 | 90 | 90 | 90 | 90 | 30→90 if cache is 30 |
+| Open with persisted All | 365 | 365 | 365 | 365 | 30→365 if cache is 30 |
+| Pick 30→90 while visible | 90 | 90 | 90 | 90 | expansion only if cache narrower |
+| Pick 90→All while visible | 365 | 365 | 365 | 365 | expansion only if cache narrower |
+| Close from All | 365 | nil | 30 | 30 | none if 365 cache established |
+| Reopen (persisted All) | 365 | 365 | 365 | 365 | none if 365 cache established |
+
+No discrepancies found. Additional review findings:
 
 - Q: Can routine background activity still request 365 accidentally? A: No.
   Every Codex scan producer (`spendDashboardCodexHistoryDays`, catch-up
-  worker, `makeRequest`, `load`) now flows from the single policy. The only
-  remaining `= SpendDashboardSource.scanDays` defaults are the
-  `SpendDashboardConfiguration`/`SpendDashboardLoadRequest` initializers
-  (always given explicit values on production paths; the one fallback
-  construction is a disabled, request-less stub) and the read-only activity
-  slice. Fixed one real instance of this class during review (see below).
-- Q: Is every 365 request tied to explicit need? A: Yes — All range,
+  worker, `makeRequest`, `load`) flows from the single policy, and the only
+  widened input is `activeRequestedHistoryDays`, which is nil unless the pane
+  is/was visible.
+- Q: Is every 365 request tied to explicit need? A: Yes — visible All,
   configured-365, or read-only cache slicing.
-- Q: 365→30 reuse without rescan? A: Yes via existing
-  `requestedWindowExpandsCache` directionality + Test C. (A horizon
-  narrowing still rotates the worker scope signature and re-evaluates
-  catch-up statuses — cheap manifest reads, not a rescan — which is the
-  correct conservative behavior.)
-- Q: 30 falsely satisfying 365? A: No — scope signature + #159 ownership;
-  Test D + existing 30→365 liveness tests.
+- Q: Is every 90 request provisioned? A: Yes — visible 90 yields 90 through
+  `max(routine, active)`; Test 1 scans `[90]`.
+- Q: 365→30 reuse without rescan? A: Yes via
+  `requestedWindowExpandsCache` directionality (Test 6) plus worker-level
+  Test 4 and the existing #159 365→30 behavior. A horizon narrowing still
+  rotates the worker scope signature and re-evaluates catch-up statuses —
+  cheap manifest reads, not a rescan.
+- Q: 30 falsely satisfying 90/365? A: No — scope signature + #159 ownership;
+  Test 5 + Test 6 + the existing 30→365 liveness test.
 - Q: #159 intact? A: Yes — ownership/liveness code untouched; 16/16 pass.
 - Q: Power/thermal/cancellation/checkpoint preserved? A: Yes — untouched.
-- Q: New polling/retries/scans? A: No. The eager controller creation in
-  `startSharedSpendDashboardPublication` allocates the same object on the
-  same call stack as before; no new tasks or observations.
-- Review fix applied: the first implementation read the controller's
-  `selectedDays` through observation-tracked state, which risked launch-time
-  races and cross-object observation coupling. Reworked to read the already-
-  materialized shared controller storage directly (nil until the dashboard
-  exists = bounded), plus eager creation before the first observation so a
-  persisted All selection applies immediately.
+- Q: New polling/retries/scans? A: No. Demand transitions ride the existing
+  `@Observable`/`withObservationTracking` configuration observation and the
+  existing pane lifecycle; no new tasks, timers, or observation loops.
+- Correction review fix during development: an intermediate store-level
+  `spendDashboardActiveRequestedHistoryDays` property pushed
+  `UsageStore.swift` past SwiftLint's `file_length` warning (1500) and the
+  two demand methods pushed `SpendDashboardController` past
+  `type_body_length` (800). The final mechanism stores one boolean in the
+  class and derives the rest in a same-file extension, keeping both files
+  lint-clean without suppressions.
 
-## 10. Self-review Loop 2 findings (diff scope)
+## 10. Self-review Loop 2 — CPU regression review
 
-`fb7bb64c9be270838d1681e2873ae5cf80196b24..HEAD` contains only: the policy
-addition + comment updates in `SpendDashboardController.swift`; the horizon
-selection/worker scoping in `UsageStore+SpendDashboardCodexCostCatchUp.swift`;
-the eager-controller + comment in `UsageStore+SpendDashboardPublication.swift`;
-four test updates in `UsageStoreSpendDashboardCodexCostCatchUpTests.swift`;
-and the new `SpendDashboardCodexHistoryHorizonTests.swift`. No #161 code, no
-UI changes, no Phase 1 files, no #159 semantic changes, no hidden 365
-constants in routine paths (remaining `scanDays`/`365` references are the
-policy clamp target, the read-only activity slice, other providers' windows,
-or unrelated clamps). Report doc is the only documentation change.
+Searched all #160-related paths for `365`, `scanDays`, `selectedDays`,
+`spendDashboardCodexHistoryDays`, active demand/visibility, and catch-up
+synchronization:
+
+- No routine background path interprets a persisted range as active demand:
+  `selectedDays` appears only in the controller (persistence, model build,
+  demand derivation) and in the pane's picker display.
+- No supported visible range is under-provisioned: 7/30 stay bounded, 90
+  provisions 90, All provisions 365 (`max(routine, active)` for all ranges).
+- No independent/managed/profile worker bypasses the policy: both the
+  primary-shared and independent account paths call
+  `startSpendDashboardCodexCostCatchUpIfNeeded`, which reads
+  `spendDashboardCodexHistoryDays`; `synchronizeSpendDashboardCodexCostCatchUp`
+  passes only configured history to the primary worker and the policy value to
+  the dashboard worker.
+- No visibility polling was added; activation/deactivation is driven by the
+  existing SwiftUI `onAppear`/`onDisappear`.
+- No parallel scanning was added; the worker machinery is unchanged.
+- Low-power/thermal/cancellation/checkpoint behavior untouched.
+
+Diff-scope review: `git diff bb23a60206ded8da220e44a3c95e74eec1641f21..HEAD`
+contains only the #160 active-demand/lifecycle policy, the narrow pane
+lifecycle integration, the horizon tests, and this report. No #161 code, no
+Phase 1 files, no unrelated #159 modifications, no broad formatting.
 
 ## 11. #161 confirmation
 
 #161 was not implemented in this phase. No code or tests reference it.
 
-## 12. Remaining limitations / deferred optimizations
+## 12. Remaining limitations / deferred work
 
+- **Aggregate background-work budget (GitHub #160 broader acceptance item) is
+  explicitly deferred** to a broader performance/integration phase. This
+  phase implements and verifies the confirmed history-horizon defect only:
+  there is still no single observable budget covering scanner + dashboard +
+  projection work. Do not read this report as completing every sentence of
+  the broader #160 acceptance list.
 - Narrowing the horizon (365→30) rotates the catch-up scope signature and
   restarts the worker to re-evaluate statuses. With nothing pending this
   performs only manifest/status reads, but a fully converge-aware worker
   could skip even the restart. Intentionally deferred: the current behavior
   is correct and cheap, and avoiding a second retention mechanism was an
   explicit goal.
-- `spendDashboardExtendedCodexHistoryRequired` currently has one consumer
-  class (the All range). If a future feature (e.g. annual export,
-  reconciliation) needs extended history, it should set demand through this
-  predicate/policy rather than adding a new escalation site.
+- `spendDashboardExtendedCodexHistoryRequired` currently names the visible-All
+  condition. If a future feature (e.g. annual export, reconciliation) needs
+  extended history, it should set demand through this predicate/policy rather
+  than adding a new escalation site.

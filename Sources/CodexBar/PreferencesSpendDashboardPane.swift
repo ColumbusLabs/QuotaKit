@@ -250,6 +250,10 @@ struct SpendDashboardPane: View {
         .background(FocusResigningBackground())
         .onAppear {
             self.isVisible = true
+            // #160: persisted selection is presentation preference only. Activate
+            // it as ephemeral history demand before the first visible source
+            // request so configuration capture sees the active range.
+            self.controller.activateHistoryDemandForVisibleDashboard()
             self.controller.update(configuration: self.configuration)
             if !self.controller.isRefreshing {
                 self.synchronizeCodexCostCatchUp()
@@ -275,6 +279,10 @@ struct SpendDashboardPane: View {
         }
         .onDisappear {
             self.isVisible = false
+            // #160: clear ephemeral demand before routine background catch-up so
+            // closing All/90 returns to the configured routine horizon while the
+            // persisted selection stays intact for the next open.
+            self.controller.deactivateHistoryDemand()
             self.synchronizeCodexCostCatchUp()
         }
         .onReceive(NotificationCenter.default.publisher(for: .NSCalendarDayChanged)) { _ in
@@ -626,6 +634,8 @@ struct SpendDashboardPane: View {
     private var daysBinding: Binding<Int> {
         Binding(
             get: { self.controller.selectedDays },
+            // #160: `selectDays` updates active demand when the dashboard is
+            // visible and only the persisted preference when it is closed.
             set: { self.controller.selectDays($0) })
     }
 }

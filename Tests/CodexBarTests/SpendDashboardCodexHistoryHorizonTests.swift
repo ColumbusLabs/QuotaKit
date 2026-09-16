@@ -8,43 +8,62 @@ import Testing
 /// silently expand Codex history scans to 365 days.
 ///
 /// The horizon policy (`SpendDashboardSource.requiredCodexHistoryDays`) keeps
-/// routine work bounded at the configured window. Only the dashboard's All
-/// range (or an explicitly configured 365-day window) selects the full scan
-/// window. Every test observes horizons through the existing loader/catch-up
-/// seams; no test depends on timing sleeps.
+/// routine work bounded at the configured window. Only an ACTIVE visible
+/// dashboard demand widens it via `max(routine, active)`: visible 90 with
+/// configured 30 requires 90, visible All requires 365. Persisted
+/// `SpendDashboardController.selectedDays` alone is presentation preference
+/// and never widens background work. Every test observes horizons through the
+/// existing loader/catch-up seams; worker completion uses a bounded 1ms
+/// polling gate (no fixed wall-clock sleeps).
 @MainActor
 @Suite(.serialized)
 struct SpendDashboardCodexHistoryHorizonTests {
     // MARK: - Policy units
 
     @Test
-    func `routine horizons stay bounded without an extended consumer`() {
+    func `routine horizons stay bounded without active demand`() {
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: 30,
-            dashboardRequestedDays: nil) == 30)
+            activeDashboardRequestedDays: nil) == 30)
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: 30,
-            dashboardRequestedDays: 7) == 30)
+            activeDashboardRequestedDays: 7) == 30)
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: 30,
-            dashboardRequestedDays: 30) == 30)
+            activeDashboardRequestedDays: 30) == 30)
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: 90,
-            dashboardRequestedDays: 30) == 90)
+            activeDashboardRequestedDays: 30) == 90)
     }
 
     @Test
-    func `explicit extended demand selects the full scan window`() {
+    func `active 90 widens a configured 30 window`() {
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: 30,
-            dashboardRequestedDays: SpendDashboardSource.scanDays) == SpendDashboardSource.scanDays)
+            activeDashboardRequestedDays: 90) == 90)
+        #expect(SpendDashboardSource.requiredCodexHistoryDays(
+            configuredWindowDays: 90,
+            activeDashboardRequestedDays: 30) == 90)
+        #expect(SpendDashboardSource.requiredCodexHistoryDays(
+            configuredWindowDays: 90,
+            activeDashboardRequestedDays: 90) == 90)
+    }
+
+    @Test
+    func `explicit active All demand selects the full scan window`() {
+        #expect(SpendDashboardSource.requiredCodexHistoryDays(
+            configuredWindowDays: 30,
+            activeDashboardRequestedDays: SpendDashboardSource.scanDays) == SpendDashboardSource.scanDays)
+        #expect(SpendDashboardSource.requiredCodexHistoryDays(
+            configuredWindowDays: 90,
+            activeDashboardRequestedDays: SpendDashboardSource.scanDays) == SpendDashboardSource.scanDays)
     }
 
     @Test
     func `explicitly configured full window stays full without dashboard demand`() {
         #expect(SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: SpendDashboardSource.scanDays,
-            dashboardRequestedDays: nil) == SpendDashboardSource.scanDays)
+            activeDashboardRequestedDays: nil) == SpendDashboardSource.scanDays)
     }
 
     // MARK: - Test A — routine bounded collection does not widen to 365
@@ -87,37 +106,34 @@ struct SpendDashboardCodexHistoryHorizonTests {
         #expect(await recorder.snapshotHistoryDays == [30])
     }
 
-    // MARK: - Test B — explicit All consumer may request 365
+    // MARK: - Test 1 — visible 90 expands a configured 30 window
 
     @Test
-    func `selecting the All range captures and scans the full horizon`() async throws {
-        let store = try Self.makeStore(suite: "all-range")
+    func `visible 90 expands a configured 30 window`() async throws {
+        let store = try Self.makeStore(suite: "visible-90")
         store.settings.costUsageHistoryDays = 30
-        let controller = try Self.sharedController(for: store, suite: "all-range")
+        let controller = try Self.sharedController(for: store, suite: "visible-90")
+        controller.selectDays(90)
+        // Simulate SpendDashboardPane.onAppear: persisted 90 becomes active demand.
+        controller.activateHistoryDemandForVisibleDashboard()
 
-        #expect(store.spendDashboardExtendedCodexHistoryRequired == false)
-        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 30)
-
-        controller.selectDays(SpendDashboardSource.scanDays)
-
-        // The 365-day request is intentional and attributable to the All range.
-        #expect(store.spendDashboardExtendedCodexHistoryRequired == true)
         let configuration = SpendDashboardSource.configuration(settings: store.settings, store: store)
-        #expect(configuration.codexHistoryDays == SpendDashboardSource.scanDays)
+        #expect(configuration.codexHistoryDays == 90)
 
         let request = await SpendDashboardSource.makeRequest(
             settings: store.settings,
             store: store,
             mode: .refreshMissing,
             now: Date(timeIntervalSince1970: 1_784_179_200))
-        #expect(request.codexHistoryDays == SpendDashboardSource.scanDays)
+        #expect(request.codexHistoryDays == 90)
+        #expect(request.codexHistoryDays == request.configuration.codexHistoryDays)
 
         let recorder = SpendDashboardHorizonRecorder()
         let loadRequest = SpendDashboardLoadRequest(
             configuration: configuration,
             capturedInputs: [],
             unavailableSourceIDs: [],
-            codexRequests: [Self.account(id: "all", cacheIdentity: "all-cache")],
+            codexRequests: [Self.account(id: "visible-90", cacheIdentity: "visible-90-cache")],
             codexHistoryDays: request.codexHistoryDays,
             now: Date(timeIntervalSince1970: 1_784_179_200),
             force: false)
@@ -128,97 +144,30 @@ struct SpendDashboardCodexHistoryHorizonTests {
                 return Self.snapshot(now: context.now)
             },
             codexActivityLoader: { _ in nil })
-        #expect(await recorder.snapshotHistoryDays == [SpendDashboardSource.scanDays])
-    }
-
-    // MARK: - Test C — broader established history satisfies narrower consumption
-
-    @Test
-    func `established broader cache satisfies a narrower requirement without rescanning`() async throws {
-        let store = try Self.makeStore(suite: "superset-reuse")
-        store.settings.costUsageHistoryDays = 30
-        let controller = try Self.sharedController(for: store, suite: "superset-reuse")
-        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
-        let advanceRecorder = SpendDashboardHorizonRecorder()
-        // An established cache reports no pending work regardless of horizon.
-        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
-            Self.status(pending: false, key: "complete", processedBytes: 100)
-        }
-        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
-            await advanceRecorder.recordAdvance(historyDays)
-            return Self.status(pending: false, key: "complete", processedBytes: 100)
-        }
-        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
-
-        controller.selectDays(SpendDashboardSource.scanDays)
-        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 365)
-        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
-        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
-
-        controller.selectDays(30)
-        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 30)
-        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
-        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
-
-        // Neither the broader nor the narrower run needed a scan pass: the
-        // established history already covered both scopes.
-        #expect(await advanceRecorder.advanceHistoryDays == [])
+        #expect(await recorder.snapshotHistoryDays == [90])
+        controller.deactivateHistoryDemand()
         store.cancelSpendDashboardCodexCostCatchUp()
     }
 
-    // MARK: - Test D — narrower history cannot satisfy a broader explicit request
+    // MARK: - Test 2 — persisted All does NOT expand background launch while closed
 
     @Test
-    func `explicit broader request schedules new work after narrower history`() async throws {
-        let store = try Self.makeStore(suite: "narrow-to-broad")
+    func `persisted All does not expand background launch while dashboard is closed`() async throws {
+        // Production sequence: user selected All, closed the dashboard, app
+        // relaunched. The shared controller exists (materialized with persisted
+        // 365) but the dashboard is NOT visible, so active demand stays nil.
+        let store = try Self.makeStore(suite: "persisted-all-closed")
         store.settings.costUsageHistoryDays = 30
-        let controller = try Self.sharedController(for: store, suite: "narrow-to-broad")
-        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
-        var completedCacheIdentities: Set<String> = []
-        let advanceRecorder = SpendDashboardHorizonRecorder()
-        store._test_spendDashboardCodexCostCatchUpStatusOverride = { account in
-            let complete = completedCacheIdentities.contains(account.cacheIdentity)
-            return Self.status(
-                pending: !complete,
-                key: complete ? "complete" : "pending",
-                processedBytes: complete ? 100 : 25)
-        }
-        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { account, _, historyDays in
-            await advanceRecorder.recordAdvance(historyDays)
-            completedCacheIdentities.insert(account.cacheIdentity)
-            return Self.status(pending: false, key: "complete", processedBytes: 100)
-        }
-        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
-        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
-
-        // Establish the narrower history first.
-        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
-        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
-        #expect(await advanceRecorder.advanceHistoryDays == [30])
-
-        // The explicit broader request must schedule additional work under the
-        // proper hard scope instead of treating the 30-day data as complete.
-        completedCacheIdentities.removeAll()
+        let controller = try Self.sharedController(for: store, suite: "persisted-all-closed")
         controller.selectDays(SpendDashboardSource.scanDays)
+        #expect(controller.selectedDays == SpendDashboardSource.scanDays)
+        controller.deactivateHistoryDemand()
+
+        #expect(store.spendDashboardExtendedCodexHistoryRequired == false)
+        #expect(store.spendDashboardCodexHistoryDays == 30)
         let configuration = SpendDashboardSource.configuration(settings: store.settings, store: store)
-        #expect(configuration.codexHistoryDays == SpendDashboardSource.scanDays)
-        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
-        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(configuration.codexHistoryDays == 30)
 
-        #expect(await advanceRecorder.advanceHistoryDays == [30, SpendDashboardSource.scanDays])
-        store.cancelSpendDashboardCodexCostCatchUp()
-    }
-
-    // MARK: - Test E — background/dashboard-not-visible scenario
-
-    @Test
-    func `background synchronization without a visible dashboard stays bounded`() async throws {
-        // No shared controller selection exists here: this is the launch-time
-        // background path (`applySharedSpendDashboardConfiguration` effects:
-        // synchronize + makeRequest) with the spend system active but the
-        // dashboard never opened to its All range.
-        let store = try Self.makeStore(suite: "background-bounded")
-        store.settings.costUsageHistoryDays = 30
         let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
         var completedCacheIdentities: Set<String> = []
         let advanceRecorder = SpendDashboardHorizonRecorder()
@@ -247,9 +196,179 @@ struct SpendDashboardCodexHistoryHorizonTests {
         store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
         await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
 
-        // Routine background work observes exactly one bounded horizon.
+        // Routine background work observes exactly the configured horizon even
+        // though a materialized controller persists All.
         #expect(await advanceRecorder.advanceHistoryDays == [30])
         store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test 3 — opening persisted All activates 365
+
+    @Test
+    func `opening persisted All activates the full horizon`() async throws {
+        let store = try Self.makeStore(suite: "open-persisted-all")
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "open-persisted-all")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        controller.deactivateHistoryDemand()
+        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 30)
+
+        // Simulate SpendDashboardPane.onAppear with persisted All.
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(controller.activeRequestedHistoryDays == SpendDashboardSource.scanDays)
+        #expect(store.spendDashboardExtendedCodexHistoryRequired == true)
+
+        let configuration = SpendDashboardSource.configuration(settings: store.settings, store: store)
+        #expect(configuration.codexHistoryDays == SpendDashboardSource.scanDays)
+
+        let request = await SpendDashboardSource.makeRequest(
+            settings: store.settings,
+            store: store,
+            mode: .refreshMissing,
+            now: Date(timeIntervalSince1970: 1_784_179_200))
+        #expect(request.codexHistoryDays == SpendDashboardSource.scanDays)
+
+        let recorder = SpendDashboardHorizonRecorder()
+        let loadRequest = SpendDashboardLoadRequest(
+            configuration: configuration,
+            capturedInputs: [],
+            unavailableSourceIDs: [],
+            codexRequests: [Self.account(id: "all", cacheIdentity: "all-cache")],
+            codexHistoryDays: request.codexHistoryDays,
+            now: Date(timeIntervalSince1970: 1_784_179_200),
+            force: false)
+        _ = await SpendDashboardSource.load(
+            loadRequest,
+            codexSnapshotLoader: { context in
+                await recorder.recordSnapshot(context.historyDays)
+                return Self.snapshot(now: context.now)
+            },
+            codexActivityLoader: { _ in nil })
+        #expect(await recorder.snapshotHistoryDays == [SpendDashboardSource.scanDays])
+        controller.deactivateHistoryDemand()
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test 4 — closing All returns to routine bound
+
+    @Test
+    func `closing All returns to the routine bound without rescanning`() async throws {
+        let store = try Self.makeStore(suite: "close-all")
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "close-all")
+        controller.selectDays(SpendDashboardSource.scanDays)
+        // Visible All.
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 365)
+
+        // Simulate SpendDashboardPane.onDisappear: demand clears before routine sync.
+        controller.deactivateHistoryDemand()
+        #expect(controller.activeRequestedHistoryDays == nil)
+        #expect(store.spendDashboardExtendedCodexHistoryRequired == false)
+        #expect(store.spendDashboardCodexHistoryDays == 30)
+        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 30)
+        // Presentation preference survives closing: reopening restores All.
+        #expect(controller.selectedDays == SpendDashboardSource.scanDays)
+
+        // An established cache reports no pending work: closing must not cause
+        // a 365 corpus rescan, only cheap manifest/status re-evaluation.
+        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
+        let advanceRecorder = SpendDashboardHorizonRecorder()
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, historyDays in
+            await advanceRecorder.recordAdvance(historyDays)
+            return Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
+
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(await advanceRecorder.advanceHistoryDays == [])
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test 5 — visible 90 closes back to 30
+
+    @Test
+    func `visible 90 closes back to the routine bound`() async throws {
+        let store = try Self.makeStore(suite: "visible-90-close")
+        store.settings.costUsageHistoryDays = 30
+        let controller = try Self.sharedController(for: store, suite: "visible-90-close")
+        let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
+        var completedCacheIdentities: Set<String> = []
+        let advanceRecorder = SpendDashboardHorizonRecorder()
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { account in
+            let complete = completedCacheIdentities.contains(account.cacheIdentity)
+            return Self.status(
+                pending: !complete,
+                key: complete ? "complete" : "pending",
+                processedBytes: complete ? 100 : 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { account, _, historyDays in
+            await advanceRecorder.recordAdvance(historyDays)
+            completedCacheIdentities.insert(account.cacheIdentity)
+            return Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { _ in await Task.yield() }
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.ac, false, .nominal) }
+
+        // Visible 90: active demand widens the worker to 90, never 365.
+        controller.selectDays(90)
+        controller.activateHistoryDemandForVisibleDashboard()
+        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 90)
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .automatic)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+        #expect(await advanceRecorder.advanceHistoryDays == [90])
+
+        // Close: demand clears before routine sync; next work uses 30.
+        completedCacheIdentities.removeAll()
+        controller.deactivateHistoryDemand()
+        #expect(store.spendDashboardCodexHistoryDays == 30)
+        #expect(SpendDashboardSource.configuration(settings: store.settings, store: store).codexHistoryDays == 30)
+        store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
+        await Self.waitUntil { store.spendDashboardCodexCostCatchUpTask == nil }
+
+        #expect(await advanceRecorder.advanceHistoryDays == [90, 30])
+        store.cancelSpendDashboardCodexCostCatchUp()
+    }
+
+    // MARK: - Test 6 — same-range cache directionality via the real scanner seam
+
+    @Test
+    func `scanner cache compatibility is directional across horizons`() throws {
+        let calendar = Calendar(identifier: .gregorian)
+        let until = Date(timeIntervalSince1970: 1_784_179_200)
+        let narrowSince = try #require(calendar.date(byAdding: .day, value: -29, to: until))
+        let midSince = try #require(calendar.date(byAdding: .day, value: -89, to: until))
+        let wideSince = try #require(calendar.date(byAdding: .day, value: -364, to: until))
+        let narrowRange = CostUsageScanner.CostUsageDayRange(since: narrowSince, until: until, calendar: calendar)
+        let midRange = CostUsageScanner.CostUsageDayRange(since: midSince, until: until, calendar: calendar)
+        let wideRange = CostUsageScanner.CostUsageDayRange(since: wideSince, until: until, calendar: calendar)
+
+        var wideCache = CostUsageCache()
+        wideCache.lastScanUnixMs = 1
+        wideCache.scanSinceKey = wideRange.scanSinceKey
+        wideCache.scanUntilKey = wideRange.scanUntilKey
+
+        var midCache = CostUsageCache()
+        midCache.lastScanUnixMs = 1
+        midCache.scanSinceKey = midRange.scanSinceKey
+        midCache.scanUntilKey = midRange.scanUntilKey
+
+        var narrowCache = CostUsageCache()
+        narrowCache.lastScanUnixMs = 1
+        narrowCache.scanSinceKey = narrowRange.scanSinceKey
+        narrowCache.scanUntilKey = narrowRange.scanUntilKey
+
+        // Established broader history satisfies narrower consumption without rescanning.
+        #expect(CostUsageScanner.requestedWindowExpandsCache(range: narrowRange, cache: wideCache) == false)
+        #expect(CostUsageScanner.requestedWindowExpandsCache(range: narrowRange, cache: midCache) == false)
+        // Narrower history cannot satisfy broader explicit requests.
+        #expect(CostUsageScanner.requestedWindowExpandsCache(range: wideRange, cache: narrowCache) == true)
+        #expect(CostUsageScanner.requestedWindowExpandsCache(range: midRange, cache: narrowCache) == true)
+        #expect(CostUsageScanner.requestedWindowExpandsCache(range: wideRange, cache: midCache) == true)
     }
 
     // MARK: - Helpers

@@ -184,16 +184,20 @@ enum SpendDashboardSource {
     /// Routine/background work stays bounded at the configured window
     /// (`SettingsStore.costUsageHistoryDays`, default 30): the existence of
     /// 365-day support must never silently widen routine scans to a year.
-    /// The full window is selected only for an explicit extended-history
-    /// consumer — today, the dashboard's All range
-    /// (`SpendDashboardController.selectedDays == scanDays`). An explicitly
+    /// An ACTIVE visible dashboard demand widens the horizon to
+    /// `max(routine, active)`: visible 90 with configured 30 requires 90,
+    /// visible All (365) requires 365. Persisted
+    /// `SpendDashboardController.selectedDays` alone is presentation
+    /// preference, never active demand — see
+    /// `SpendDashboardController.activeRequestedHistoryDays`. An explicitly
     /// configured 365-day window also yields 365 through the clamp below.
-    /// Narrower established data must never satisfy a 365-day consumer; that
+    /// Narrower established data must never satisfy a broader consumer; that
     /// directional ownership rule stays enforced by #159 hard source scope.
-    static func requiredCodexHistoryDays(configuredWindowDays: Int, dashboardRequestedDays: Int?) -> Int {
+    static func requiredCodexHistoryDays(configuredWindowDays: Int, activeDashboardRequestedDays: Int?) -> Int {
         let routine = max(1, min(Self.scanDays, configuredWindowDays))
-        guard let dashboardRequestedDays, dashboardRequestedDays >= Self.scanDays else { return routine }
-        return Self.scanDays
+        guard let activeDashboardRequestedDays else { return routine }
+        let active = max(1, min(Self.scanDays, activeDashboardRequestedDays))
+        return max(routine, active)
     }
 
     @MainActor
@@ -1175,6 +1179,10 @@ final class SpendDashboardController {
     private(set) var configuration: SpendDashboardConfiguration?
     private(set) var selectedDays: Int
     private(set) var selectedDay: Date?
+    /// Ephemeral visibility flag for #160 history demand. See
+    /// `activeRequestedHistoryDays`: the persisted `selectedDays` preference
+    /// must never widen background collection unless this is true.
+    private(set) var isHistoryDemandActive = false
 
     private static let daysDefaultsKey = "settingsSpendDashboardDays"
     private let userDefaults: UserDefaults
@@ -1990,5 +1998,29 @@ final class SpendDashboardController {
 
     private static func normalizedDays(_ value: Int) -> Int {
         self.supportedDayRanges.contains(value) ? value : 30
+    }
+}
+
+extension SpendDashboardController {
+    /// Ephemeral active dashboard history demand (#160). Nil while the Usage &
+    /// Spend dashboard is closed; the current normalized `selectedDays` while
+    /// it is visible. Background collection reads this through the horizon
+    /// policy, never through the persisted `selectedDays` preference.
+    var activeRequestedHistoryDays: Int? {
+        self.isHistoryDemandActive ? self.selectedDays : nil
+    }
+
+    /// Marks the Usage & Spend dashboard as visible (#160) and activates the
+    /// current normalized selection as history demand. Persisted preference is
+    /// unchanged: a closed dashboard never counts as an extended consumer.
+    func activateHistoryDemandForVisibleDashboard() {
+        self.isHistoryDemandActive = true
+    }
+
+    /// Clears ephemeral demand when the dashboard is no longer visible (#160).
+    /// The persisted `selectedDays` preference stays intact so reopening the
+    /// dashboard restores the selected range and intentionally expands again.
+    func deactivateHistoryDemand() {
+        self.isHistoryDemandActive = false
     }
 }

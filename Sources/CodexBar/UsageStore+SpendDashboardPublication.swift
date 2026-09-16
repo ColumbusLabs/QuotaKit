@@ -40,11 +40,6 @@ extension UsageStore {
     func startSharedSpendDashboardPublication() {
         guard !self.sharedSpendDashboardObservationStarted else { return }
         self.sharedSpendDashboardObservationStarted = true
-        // #160: the horizon policy reads the shared controller's selected
-        // range, so create it before the first observation. Otherwise a
-        // persisted All selection would miss the first configuration capture
-        // and the launch load would start bounded before correcting.
-        _ = self.sharedSpendDashboardController()
         self.observeSharedSpendDashboardConfiguration()
     }
 
@@ -113,7 +108,9 @@ extension UsageStore {
 
     private func applySharedSpendDashboardConfiguration(_ configuration: SpendDashboardConfiguration) {
         // Provider-specific by design: Codex's multi-account scanner is the shared source producer.
-        // Its history horizon is the captured dashboard policy value, bounded unless All is selected.
+        // Its history horizon is the captured dashboard policy value: the configured routine
+        // window unless the visible dashboard actively demands more. A persisted wide
+        // selection with the dashboard closed must not widen background work.
         let codexRequests = configuration.providerIDs.contains(UsageProvider.codex.rawValue)
             ? SpendDashboardSource.codexRequests(settings: self.settings, store: self)
             : []

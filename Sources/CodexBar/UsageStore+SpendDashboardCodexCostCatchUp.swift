@@ -12,25 +12,28 @@ private struct SpendDashboardCodexCostCatchUpContext {
 }
 
 extension UsageStore {
-    /// Whether a live dashboard surface explicitly requires full-year Codex
-    /// history (#160). Today this is the shared spend dashboard's All range
-    /// (`SpendDashboardController.selectedDays == SpendDashboardSource.scanDays`).
-    /// Absent (dashboard never opened), the answer is false: routine
-    /// background work stays bounded.
+    /// Whether a currently visible dashboard surface explicitly requires
+    /// full-year Codex history (#160). This is ephemeral active demand
+    /// (`SpendDashboardController.activeRequestedHistoryDays == scanDays`),
+    /// not the persisted `SpendDashboardController.selectedDays` preference:
+    /// a persisted All selection with the dashboard closed must read false so
+    /// routine background work stays bounded.
     var spendDashboardExtendedCodexHistoryRequired: Bool {
-        self.sharedSpendDashboardControllerStorage?.selectedDays == SpendDashboardSource.scanDays
+        self.sharedSpendDashboardControllerStorage?.activeRequestedHistoryDays == SpendDashboardSource.scanDays
     }
 
     /// Effective Codex history horizon for dashboard snapshot/activity loading
     /// (#160). Always the `SpendDashboardSource.requiredCodexHistoryDays`
-    /// policy value: the configured window unless extended history was
-    /// explicitly requested. In particular this no longer escalates to the
-    /// full scan window merely because the primary cache worker converged or
-    /// because the account cache is independent of the ambient worker.
+    /// policy value: `max(configured routine window, active visible dashboard
+    /// demand)`. In particular this no longer escalates to the full scan
+    /// window merely because the primary cache worker converged, because the
+    /// account cache is independent of the ambient worker, or because a
+    /// persisted dashboard range happens to be wide while the dashboard is
+    /// closed.
     var spendDashboardCodexHistoryDays: Int {
         SpendDashboardSource.requiredCodexHistoryDays(
             configuredWindowDays: self.settings.costUsageHistoryDays,
-            dashboardRequestedDays: self.sharedSpendDashboardControllerStorage?.selectedDays)
+            activeDashboardRequestedDays: self.sharedSpendDashboardControllerStorage?.activeRequestedHistoryDays)
     }
 
     private func codexCostCatchUpUsesPrimaryCache(_ account: CodexSpendScanRequest) -> Bool {
@@ -133,11 +136,11 @@ extension UsageStore {
         }
 
         // #160: the worker scans exactly the dashboard policy horizon. It must
-        // not independently widen to the full scan window; expansion to 365
-        // happens only through `spendDashboardCodexHistoryDays` when the All
-        // range (or a 365-day configured window) requires it, which also
-        // rotates this scope signature so stale narrower work cannot satisfy
-        // the broader scope.
+        // not independently widen to the full scan window; expansion to 90/365
+        // happens only through `spendDashboardCodexHistoryDays` when the
+        // visible dashboard actively demands it (or a 365-day configured
+        // window requires it), which also rotates this scope signature so
+        // stale narrower work cannot satisfy the broader scope.
         let historyDays = self.spendDashboardCodexHistoryDays
         let accountScopeSignature = accounts
             .map { "\($0.id)|\($0.cacheIdentity)" }
