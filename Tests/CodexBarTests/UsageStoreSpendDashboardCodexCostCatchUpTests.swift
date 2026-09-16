@@ -50,7 +50,7 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         let replacementConfiguration = SpendDashboardSource.configuration(settings: store.settings, store: store)
         #expect(statusAccounts == ["first", "second"])
         #expect(advancedAccounts == ["first", "second"])
-        #expect(receivedHistoryDays == [SpendDashboardSource.scanDays, SpendDashboardSource.scanDays])
+        #expect(receivedHistoryDays == [30, 30])
         #expect(store.spendDashboardCodexCostCatchUpRevision == 1)
         #expect(baselineConfiguration.sourceRevisions != replacementConfiguration.sourceRevisions)
         #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .complete)
@@ -60,16 +60,16 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
     }
 
     @Test(arguments: [1, 7, 29, 123, 248, 365])
-    func `dashboard catch-up uses the spend scan window`(historyDays: Int) async throws {
+    func `dashboard catch-up uses the configured history window`(historyDays: Int) async throws {
         let receivedHistoryDays = try await Self.receivedHistoryDays(
             configuredHistoryDays: historyDays,
             suite: "configured-\(historyDays)")
 
-        #expect(receivedHistoryDays == SpendDashboardSource.scanDays)
+        #expect(receivedHistoryDays == historyDays)
     }
 
     @Test
-    func `startup ambient dashboard load uses configured history until primary catch-up completes`() throws {
+    func `startup ambient dashboard load keeps the configured history after primary catch-up completes`() throws {
         let store = try Self.makeStore(suite: "startup-history-selector")
         store.settings.codexActiveSource = .liveSystem
         store.settings.costUsageHistoryDays = 30
@@ -86,20 +86,21 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
             pauseReason: nil,
             staleSnapshotUpdatedAt: nil)
 
-        #expect(store.spendDashboardCodexHistoryDays == SpendDashboardSource.scanDays)
+        // #160: convergence must not widen routine work to the full scan window.
+        #expect(store.spendDashboardCodexHistoryDays == 30)
     }
 
     @Test
-    func `managed dashboard cache keeps the full history window`() throws {
+    func `managed dashboard cache uses the configured history window`() throws {
         let store = try Self.makeStore(suite: "managed-history-selector")
         store.settings.codexActiveSource = .managedAccount(id: UUID())
         store.settings.costUsageHistoryDays = 30
 
-        #expect(store.spendDashboardCodexHistoryDays == SpendDashboardSource.scanDays)
+        #expect(store.spendDashboardCodexHistoryDays == 30)
     }
 
     @Test
-    func `history days below the scan window keep the active catch-up context`() throws {
+    func `expanding the configured history restarts the active catch-up scope`() throws {
         let store = try Self.makeStore(suite: "history-context")
         let accounts = [Self.account(id: "account", cacheIdentity: "cache-account")]
         store.settings.costUsageHistoryDays = 30
@@ -113,11 +114,13 @@ struct UsageStoreSpendDashboardCodexCostCatchUpTests {
         store.startSpendDashboardCodexCostCatchUpIfNeeded(accounts: accounts, mode: .accelerated)
         let originalToken = try #require(store.spendDashboardCodexCostCatchUpToken)
 
+        // #160: 30-day work cannot satisfy a 123-day scope, so the worker must
+        // restart under the expanded horizon rather than keep the old context.
         store.settings.costUsageHistoryDays = 123
         store.synchronizeSpendDashboardCodexCostCatchUp(accounts: accounts)
         let replacementToken = try #require(store.spendDashboardCodexCostCatchUpToken)
 
-        #expect(replacementToken == originalToken)
+        #expect(replacementToken != originalToken)
         store.cancelSpendDashboardCodexCostCatchUp()
     }
 

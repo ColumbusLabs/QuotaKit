@@ -96,9 +96,9 @@ struct SpendDashboardLoadRequest: Sendable {
     let unavailableSourceIDs: Set<String>
     let confirmedEmptySourceIDs: Set<String>
     let codexRequests: [CodexSpendScanRequest]
-    /// The dashboard may start with the configured primary window while that shared cache is
-    /// still converging. Once the primary worker is stable, requests use the full dashboard
-    /// window for All-view enrichment.
+    /// Captured Codex history horizon for snapshot loading. Always the
+    /// `SpendDashboardSource.requiredCodexHistoryDays` policy value stored on
+    /// `configuration`: background workers must consume it, never widen it.
     let codexHistoryDays: Int
     let now: Date
     let force: Bool
@@ -177,6 +177,24 @@ enum SpendDashboardSource {
     static let activityDays = 365
     /// Local spend scan window. Matches token-activity depth so 7d / 30d / All share one snapshot.
     static let scanDays = activityDays
+
+    /// Codex history-horizon policy (#160). One authority answering how many
+    /// Codex history days a dashboard operation actually requires.
+    ///
+    /// Routine/background work stays bounded at the configured window
+    /// (`SettingsStore.costUsageHistoryDays`, default 30): the existence of
+    /// 365-day support must never silently widen routine scans to a year.
+    /// The full window is selected only for an explicit extended-history
+    /// consumer — today, the dashboard's All range
+    /// (`SpendDashboardController.selectedDays == scanDays`). An explicitly
+    /// configured 365-day window also yields 365 through the clamp below.
+    /// Narrower established data must never satisfy a 365-day consumer; that
+    /// directional ownership rule stays enforced by #159 hard source scope.
+    static func requiredCodexHistoryDays(configuredWindowDays: Int, dashboardRequestedDays: Int?) -> Int {
+        let routine = max(1, min(Self.scanDays, configuredWindowDays))
+        guard let dashboardRequestedDays, dashboardRequestedDays >= Self.scanDays else { return routine }
+        return Self.scanDays
+    }
 
     @MainActor
     static func configuration(settings: SettingsStore, store: UsageStore) -> SpendDashboardConfiguration {
@@ -501,6 +519,11 @@ enum SpendDashboardSource {
                                         force: request.force,
                                         historyDays: request.codexHistoryDays))
                                     try Task.checkCancellation()
+                                    // #160: the activity window intentionally stays at the full
+                                    // depth. `loadCachedCodexTokenActivity` only slices
+                                    // already-scanned cache and can never trigger a filesystem
+                                    // scan, so established year data keeps feeding the 365-day
+                                    // strip without widening routine scan work.
                                     let tokenActivityCache = await codexActivityLoader(self.snapshotContext(
                                         account: account,
                                         cacheRoot: cacheRoot,
