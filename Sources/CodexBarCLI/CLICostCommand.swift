@@ -38,6 +38,15 @@ extension CodexBarCLI {
             identifier: Self.stringFromAppDefaults("tokenCostUsageBucketTimeZone"))
         let period = Self.decodeCostReportingPeriod(from: values, saved: Self.costReportingPeriodFromDefaults())
         let historyDays = period.days(now: now, calendar: bucketCalendar)
+        if values.options["remote"] != nil || values.flags.contains("summaryOnly") {
+            await Self.runCodexHostCosts(
+                values,
+                providers: providers,
+                unsupported: unsupported,
+                historyDays: historyDays,
+                output: output)
+            return
+        }
         // Cursor cost reuses the same cookie-source policy as usage fetches: reject the fetch when the
         // user set Cursor cookies to Off, and forward the Manual header so the dashboard request uses
         // the configured session instead of auto-resolving a different one.
@@ -764,6 +773,12 @@ struct CostOptions: CommanderParsable {
 
     @Option(name: .long("group-by"), help: "Group text output by: project | session")
     var groupBy: String?
+
+    @Option(name: .long("remote"), help: "Also report native Codex costs from one SSH host as a separate report")
+    var remote: String?
+
+    @Flag(name: .long("summary-only"), help: "Versioned native Codex JSON totals without account or session details")
+    var summaryOnly: Bool = false
 }
 
 struct CostPayload: Encodable, Sendable {
