@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## 0.32.4.29 — 2026-09-20
+
+### Fixed
+
+- Antigravity: restore quota refreshes with current `agy` releases by using their supported structured usage report when the legacy local endpoint is unavailable.
+
 ## 0.32.4.28 — 2026-09-16
 
 ### Fixed
