@@ -162,6 +162,17 @@ patch_keyboard_shortcuts
 
 for ARCH in "${ARCH_LIST[@]}"; do
   swift build -c "$CONF" --arch "$ARCH"
+
+  # SwiftPM's default swiftbuild backend uses one shared Products directory
+  # for sequential --arch builds. Preserve each architecture before the next
+  # build replaces it so universal packaging never feeds lipo the same binary
+  # twice. This also keeps the package layout independent of the selected
+  # SwiftPM backend.
+  PRODUCT_DIR=$(swift build -c "$CONF" --arch "$ARCH" --show-bin-path)
+  STAGED_PRODUCT_DIR="$ROOT/.build/codexbar-products/$CONF/$ARCH"
+  rm -rf "$STAGED_PRODUCT_DIR"
+  mkdir -p "$(dirname "$STAGED_PRODUCT_DIR")"
+  /usr/bin/ditto --norsrc "$PRODUCT_DIR" "$STAGED_PRODUCT_DIR"
 done
 
 # Build the app bundle in /tmp to avoid Dropbox adding resource forks during signing
@@ -332,13 +343,9 @@ PLIST
 build_product_path() {
   local name="$1"
   local arch="$2"
-  case "$arch" in
-    arm64|x86_64) echo ".build/${arch}-apple-macosx/$CONF/$name" ;;
-    *) echo ".build/$CONF/$name" ;;
-  esac
+  echo ".build/codexbar-products/$CONF/$arch/$name"
 }
 
-# Resolve path to built binary; some SwiftPM versions use .build/$CONF/ when building for host only.
 resolve_binary_path() {
   local name="$1"
   local arch="$2"
@@ -346,10 +353,6 @@ resolve_binary_path() {
   candidate=$(build_product_path "$name" "$arch")
   if [[ -f "$candidate" ]]; then
     echo "$candidate"
-    return
-  fi
-  if [[ "$arch" == "arm64" || "$arch" == "x86_64" ]] && [[ -f ".build/$CONF/$name" ]]; then
-    echo ".build/$CONF/$name"
   fi
 }
 
@@ -512,8 +515,9 @@ fi
 install_widget_extension
 strip_release_binary "$APP/Contents/PlugIns/${WIDGET_PRODUCT_NAME}.appex/Contents/MacOS/${WIDGET_PRODUCT_NAME}"
 # Embed Sparkle.framework
-if [[ -d ".build/$CONF/Sparkle.framework" ]]; then
-  COPYFILE_DISABLE=1 cp -R ".build/$CONF/Sparkle.framework" "$APP/Contents/Frameworks/"
+PREFERRED_PRODUCT_DIR="$ROOT/.build/codexbar-products/$CONF/${ARCH_LIST[0]}"
+if [[ -d "$PREFERRED_PRODUCT_DIR/Sparkle.framework" ]]; then
+  COPYFILE_DISABLE=1 cp -R "$PREFERRED_PRODUCT_DIR/Sparkle.framework" "$APP/Contents/Frameworks/"
   chmod -R u+w,a+rX "$APP/Contents/Frameworks/Sparkle.framework"
   install_name_tool -add_rpath "@executable_path/../Frameworks" "$APP/Contents/MacOS/${APP_EXECUTABLE_NAME}"
   SPARKLE="$APP/Contents/Frameworks/Sparkle.framework"

@@ -112,9 +112,6 @@ chmod 600 "$API_KEY_PATH"
 # Allow building a universal binary if ARCHES is provided; default to universal (arm64 + x86_64).
 ARCHES_VALUE=${ARCHES:-"arm64 x86_64"}
 ARCH_LIST=( ${ARCHES_VALUE} )
-for ARCH in "${ARCH_LIST[@]}"; do
-  swift build -c release --arch "$ARCH"
-done
 CODEXBAR_STAGED_APP_PATH="$STAGED_APP_BUNDLE" CODEXBAR_WIDGET_METADATA_MODE=required CODEXBAR_SIGNING=identity ARCHES="${ARCHES_VALUE}" ./Scripts/package_app.sh release
 APP_BUNDLE="$STAGED_APP_BUNDLE"
 
@@ -217,7 +214,7 @@ fi
 
 echo "Packaging dSYM"
 FIRST_ARCH="${ARCH_LIST[0]}"
-PREFERRED_ARCH_DIR=".build/${FIRST_ARCH}-apple-macosx/release"
+PREFERRED_ARCH_DIR=".build/codexbar-products/release/${FIRST_ARCH}"
 DSYM_PATH="${PREFERRED_ARCH_DIR}/${APP_EXECUTABLE}.dSYM"
 SOURCE_DSYM_PATH="${PREFERRED_ARCH_DIR}/${APP_SWIFTPM_PRODUCT}.dSYM"
 if [[ ! -d "$DSYM_PATH" && -d "$SOURCE_DSYM_PATH" ]]; then
@@ -243,7 +240,7 @@ if [[ ${#ARCH_LIST[@]} -gt 1 ]]; then
   DWARF_PATH="${MERGED_DSYM}/Contents/Resources/DWARF/${APP_EXECUTABLE}"
   BINARIES=()
   for ARCH in "${ARCH_LIST[@]}"; do
-    ARCH_DSYM=".build/${ARCH}-apple-macosx/release/${APP_SWIFTPM_PRODUCT}.dSYM/Contents/Resources/DWARF/${APP_SWIFTPM_PRODUCT}"
+    ARCH_DSYM=".build/codexbar-products/release/${ARCH}/${APP_SWIFTPM_PRODUCT}.dSYM/Contents/Resources/DWARF/${APP_SWIFTPM_PRODUCT}"
     if [[ ! -f "$ARCH_DSYM" ]]; then
       echo "Missing dSYM for ${ARCH} at $ARCH_DSYM" >&2
       exit 1
