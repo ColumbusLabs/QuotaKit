@@ -1,35 +1,52 @@
+// oxlint-disable-next-line no-unused-expressions -- IIFE evaluated by the plugin engine for its side effects
 (function applyProviderPluginPrelude(ctx, host) {
   "use strict";
 
+  const httpRejection = (reject) => (failure) => reject(Object.assign(new Error(failure.message), failure));
+
   ctx.http = Object.freeze({
     getJSON(url, opts) {
-      return new Promise((resolve, reject) => host.http(String(url), opts || {}, "GET", true, resolve, reject));
+      return new Promise((resolve, reject) =>
+        host.http(String(url), opts || {}, "GET", true, resolve, httpRejection(reject)),
+      );
     },
     get(url, opts) {
-      return new Promise((resolve, reject) => host.http(String(url), opts || {}, "GET", false, resolve, reject));
+      return new Promise((resolve, reject) =>
+        host.http(String(url), opts || {}, "GET", false, resolve, httpRejection(reject)),
+      );
+    },
+    post(url, opts) {
+      return jsonPost(url, opts, false);
     },
     postJSON(url, opts) {
-      if (!opts || typeof opts !== "object" || !("body" in opts)) {
-        return Promise.reject(new TypeError("postJSON requires a body"));
-      }
-      let bodyJSON;
-      try {
-        bodyJSON = JSON.stringify(opts.body);
-      } catch (error) {
-        return Promise.reject(new TypeError(`postJSON body is not JSON-serializable: ${error.message}`));
-      }
-      if (bodyJSON === undefined) {
-        return Promise.reject(new TypeError("postJSON body is not JSON-serializable"));
-      }
-      const hostOptions = { bodyJSON };
-      if (opts.headers !== undefined) hostOptions.headers = opts.headers;
-      if (opts.timeoutSeconds !== undefined) hostOptions.timeoutSeconds = opts.timeoutSeconds;
-      if (opts.openRouterManagementAuth !== undefined) {
-        hostOptions.openRouterManagementAuth = opts.openRouterManagementAuth;
-      }
-      return new Promise((resolve, reject) => host.http(String(url), hostOptions, "POST", true, resolve, reject));
+      return jsonPost(url, opts, true);
     },
   });
+
+  function jsonPost(url, opts, wantsJSON) {
+    if (!opts || typeof opts !== "object" || !("body" in opts)) {
+      return Promise.reject(new TypeError("postJSON requires a body"));
+    }
+    let bodyJSON;
+    try {
+      bodyJSON = JSON.stringify(opts.body);
+    } catch (error) {
+      return Promise.reject(new TypeError(`postJSON body is not JSON-serializable: ${error.message}`));
+    }
+    if (bodyJSON === undefined) {
+      return Promise.reject(new TypeError("postJSON body is not JSON-serializable"));
+    }
+    const hostOptions = { bodyJSON };
+    if (opts.headers !== undefined) hostOptions.headers = opts.headers;
+    if (opts.timeoutSeconds !== undefined) hostOptions.timeoutSeconds = opts.timeoutSeconds;
+    if (opts.retryPolicy !== undefined) hostOptions.retryPolicy = opts.retryPolicy;
+    if (opts.openRouterManagementAuth !== undefined) {
+      hostOptions.openRouterManagementAuth = opts.openRouterManagementAuth;
+    }
+    return new Promise((resolve, reject) =>
+      host.http(String(url), hostOptions, "POST", wantsJSON, resolve, httpRejection(reject)),
+    );
+  }
 
   ctx.settings = Object.freeze({
     get(key) {
@@ -56,7 +73,7 @@
     failureKinds.networkFailure,
     failureKinds.apiFailure,
   ]);
-  const classifiedFailure = kind => (message, options) => {
+  const classifiedFailure = (kind) => (message, options) => {
     let retryAfter = "";
     if (options !== undefined) {
       if (!retryableFailureKinds.has(kind)) {
@@ -71,10 +88,11 @@
       }
       retryAfter = String(seconds);
     }
-    return new Error("__CODEXBAR_FAILURE_V2__:" + kind + ":" + retryAfter + ":" + String(message));
+    return new Error(`__CODEXBAR_FAILURE_V2__:${kind}:${retryAfter}:${String(message)}`);
   };
-  ctx.fail = Object.freeze(Object.fromEntries(
-    Object.entries(failureKinds).map(([name, kind]) => [name, classifiedFailure(kind)])));
+  ctx.fail = Object.freeze(
+    Object.fromEntries(Object.entries(failureKinds).map(([name, kind]) => [name, classifiedFailure(kind)])),
+  );
 
   ctx.browser = Object.freeze({
     availability(domain) {
@@ -85,9 +103,6 @@
     },
     cookieHeader(domain) {
       return new Promise((resolve, reject) => host.cookieHeader(String(domain), resolve, reject));
-    },
-    rejectCookie(domain) {
-      host.rejectCookie(String(domain));
     },
   });
 
@@ -110,10 +125,19 @@
     },
   });
 
-  ctx.log = (...args) => host.log(args.map(value => {
-    if (typeof value === "string") return value;
-    try { return JSON.stringify(value); } catch (_) { return String(value); }
-  }).join(" "));
+  ctx.log = (...args) =>
+    host.log(
+      args
+        .map((value) => {
+          if (typeof value === "string") return value;
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return String(value);
+          }
+        })
+        .join(" "),
+    );
 
   ctx.cache = Object.freeze({
     get(key) {
@@ -141,10 +165,9 @@
   }
 
   ctx.format = Object.freeze({
-    currency(value, currencyCode) {
-      return host.formatCurrency(Number(value), String(currencyCode));
+    number(value, options) {
+      return formatNumber(value, options);
     },
-    number(value, options) { return formatNumber(value, options); },
     usd(value) {
       const numeric = Number(value);
       const sign = numeric < 0 ? "-$" : "$";
@@ -187,14 +210,24 @@
     return decodeURIComponent(escaped);
   }
 
-  const nowMillis = Number(ctx.__quotaKitNowMillis);
-  delete ctx.__quotaKitNowMillis;
+  const nowMillis = Number(ctx.__codexbarNowMillis);
+  delete ctx.__codexbarNowMillis;
   ctx.date = Object.freeze({
-    now() { return parseDate(nowMillis); },
-    nowMillis() { return nowMillis; },
-    iso(value) { return parseDate(String(value)); },
-    unixSeconds(value) { return parseDate(Number(value) * 1000); },
-    unixMillis(value) { return parseDate(Number(value)); },
+    now() {
+      return parseDate(nowMillis);
+    },
+    nowMillis() {
+      return nowMillis;
+    },
+    iso(value) {
+      return parseDate(String(value));
+    },
+    unixSeconds(value) {
+      return parseDate(Number(value) * 1000);
+    },
+    unixMillis(value) {
+      return parseDate(Number(value));
+    },
     nextDailyReset(timeZone, hour) {
       const resetHour = Number(hour);
       if (!Number.isInteger(resetHour) || resetHour < 0 || resetHour > 23) {
@@ -214,6 +247,7 @@
 
   ctx.pct = (used, limit) => host.pct(Number(used), Number(limit));
   ctx.amountFromPercent = (percent, limit) => host.amountFromPercent(Number(percent), Number(limit));
+  ctx.isDetailLabel = (value) => typeof value === "string" && host.isDetailLabel(value);
 
   return ctx;
-})
+});

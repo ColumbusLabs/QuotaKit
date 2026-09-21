@@ -193,6 +193,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     private let timeout: TimeInterval
     private let responseSizeLimit: Int
     private let enforcesUserResponsePolicy: Bool
+    private let interruptionLock = NSLock()
+    private var interrupted = false
     private var watchdog: OpaquePointer?
     private var definition: JSValue?
     private var applyPrelude: JSValue?
@@ -341,8 +343,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     func requestInterrupt() {
-        if let watchdog = self.watchdog {
-            cqjs_watchdog_interrupt(watchdog)
+        self.interruptionLock.withLock {
+            self.interrupted = true
+            if let watchdog = self.watchdog { cqjs_watchdog_interrupt(watchdog) }
         }
     }
 
@@ -412,7 +415,10 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             redactionValues: redactionValues,
             deadline: Date().addingTimeInterval(self.timeout))
         defer { self.fetchState = nil }
-        cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
+        try self.interruptionLock.withLock {
+            guard !self.interrupted else { throw CancellationError() }
+            cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
+        }
         defer { cqjs_watchdog_disarm(watchdog) }
 
         let ctx = JS_NewObject(self.context)
@@ -577,26 +583,26 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             let options = try self.jsonDictionary(from: arguments[1])
             let method = try self.string(from: arguments[2])
             let wantsJSON = JS_ToBool(self.context, arguments[3]) == 1
-            let request = try self.makeRequest(
+            let retryPolicy = try ProviderPluginHTTPResponse.retryPolicy(
+                options["retryPolicy"].map(JSONProviderPluginValue.init))
+            let request = try ProviderPluginHTTPResponse.request(
                 rawURL: rawURL,
                 options: options,
                 method: method,
                 settings: state.settings,
-                secrets: state.secrets)
-            let response = try self.blockingValue(timeout: request.timeoutInterval) {
-                try await self.transport.response(for: request)
+                secrets: state.secrets,
+                manifest: self.manifest,
+                enforcesUserResponsePolicy: self.enforcesUserResponsePolicy)
+            let deadline = request.timeoutInterval * Double(retryPolicy.maxRetries + 1) + retryPolicy.maxDelaySeconds
+            let response = try self.blockingValue(timeout: deadline) {
+                try await self.transport.response(for: request, retryPolicy: retryPolicy)
             }
             guard response.data.count <= self.responseSizeLimit else {
                 throw ProviderPluginError.http("response exceeded the \(self.responseSizeLimit)-byte limit")
             }
             if self.rejectsNonSuccessResponses, !(200..<300).contains(response.statusCode) {
-                if let failure = ProviderPluginTransientHTTPFailure(
-                    statusCode: response.statusCode,
-                    retryAfterHeader: response.response.value(forHTTPHeaderField: "Retry-After"))
-                {
-                    throw failure
-                }
-                throw ProviderPluginError.http("request returned HTTP \(response.statusCode)")
+                throw ProviderPluginHTTPResponse.StatusFailure(
+                    response: response.response, allowsRetry: retryPolicy.maxRetries == 0)
             }
             if self.enforcesUserResponsePolicy,
                let encoding = response.response.value(forHTTPHeaderField: "Content-Encoding"),
@@ -610,7 +616,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             defer { cqjs_free_value(self.context, value) }
             try self.invoke(arguments[4], argument: value)
         } catch {
-            try self.reject(arguments[5], error: error, redactionValues: state.redactionValues)
+            try self.reject(arguments[5], error: error, redactionValues: state.redactionValues, structured: true)
         }
     }
 
@@ -709,90 +715,6 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         return JS_NewFloat64(self.context, percent / 100 * limit)
     }
 
-    private func makeRequest(
-        rawURL: String,
-        options: [String: Any],
-        method: String,
-        settings: [String: String],
-        secrets: [String: String]) throws -> URLRequest
-    {
-        guard let url = URL(string: rawURL) else {
-            throw ProviderPluginError.networkPolicy("request URL is invalid")
-        }
-        guard try self.manifest.allowedOrigin(for: url, settings: settings) else {
-            let rejectedOrigin = (try? ProviderPluginOrigin.normalizedOrigin(
-                of: url,
-                policy: url.scheme?.lowercased() == "http" ? .httpsOrLoopbackHTTP : .https)) ?? "invalid"
-            throw ProviderPluginError.networkPolicy("origin '\(rejectedOrigin)' is not declared")
-        }
-        guard method == "GET" || method == "POST" else {
-            throw ProviderPluginError.networkPolicy("HTTP method is not allowed")
-        }
-        var request = URLRequest(url: url)
-        request.httpMethod = method
-        request.timeoutInterval = try Self.timeoutSeconds(options)
-        if method == "POST" {
-            guard let bodyJSON = options["bodyJSON"] as? String else {
-                throw ProviderPluginError.http("POST JSON body is missing")
-            }
-            request.httpBody = Data(bodyJSON.utf8)
-        }
-        if let headers = options["headers"] as? [String: Any] {
-            for (name, rawValue) in headers {
-                guard let value = rawValue as? String else {
-                    throw ProviderPluginError.http("request header '\(name)' must be a string")
-                }
-                if let auth = self.manifest.auth, name.caseInsensitiveCompare(auth.header) == .orderedSame {
-                    throw ProviderPluginError.networkPolicy("plugins may not override the auth header")
-                }
-                request.setValue(value, forHTTPHeaderField: name)
-            }
-        }
-        if self.enforcesUserResponsePolicy || request.value(forHTTPHeaderField: "Accept") == nil {
-            request.setValue("application/json", forHTTPHeaderField: "Accept")
-        }
-        if self.enforcesUserResponsePolicy {
-            request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
-        }
-        if method == "POST" {
-            request.setValue("application/json", forHTTPHeaderField: "Content-Type")
-        }
-        if let auth = self.manifest.auth {
-            var secretName = auth.secret
-            // Provider-specific by design: first-party OpenRouter Activity uses a separately scoped management key,
-            // and the broker pins that exceptional credential to the official read-only endpoint.
-            if let managementAuth = options["openRouterManagementAuth"] {
-                guard let managementAuth = managementAuth as? Bool, managementAuth else {
-                    throw ProviderPluginError.secretAccess(
-                        "OpenRouter management auth is unavailable for this plugin")
-                }
-                secretName = try self.manifest.openRouterManagementAuthSecret(method: method, url: url)
-            }
-            guard let credential = secrets[secretName], !credential.isEmpty else {
-                throw ProviderPluginError.secretAccess("required auth secret is unavailable")
-            }
-            let value = switch auth.type {
-            case .bearer: "Bearer \(credential)"
-            case .authorizationScheme: "\(auth.scheme!) \(credential)"
-            case .xAPIKey, .header: credential
-            }
-            request.setValue(value, forHTTPHeaderField: auth.header)
-        }
-        return request
-    }
-
-    private static func timeoutSeconds(_ options: [String: Any]) throws -> TimeInterval {
-        guard let value = options["timeoutSeconds"] else { return 15 }
-        guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else {
-            throw ProviderPluginError.http("timeoutSeconds must be a number from 1 through 30")
-        }
-        let seconds = number.doubleValue
-        guard seconds.isFinite, (1...30).contains(seconds) else {
-            throw ProviderPluginError.http("timeoutSeconds must be a number from 1 through 30")
-        }
-        return seconds
-    }
-
     private func blockingValue<Value: Sendable>(
         timeout: TimeInterval,
         operation: @escaping @Sendable () async throws -> Value) throws -> Value
@@ -820,9 +742,16 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     private func reject(
         _ function: JSValue,
         error: Error,
-        redactionValues: QuickJSRedactionValues) throws
+        redactionValues: QuickJSRedactionValues,
+        structured: Bool = false) throws
     {
-        let value = self.makeString(redactionValues.redact(error.localizedDescription))
+        let message = redactionValues.redact(error.localizedDescription)
+        let value = try structured
+            ? self.parseJSON(ProviderPluginHTTPResponse.failure(
+                error,
+                message: message,
+                transportErrors: redactionValues.transportErrors))
+            : self.makeString(message)
         defer { cqjs_free_value(self.context, value) }
         try self.invoke(function, argument: value)
     }
@@ -865,6 +794,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func failure(from value: JSValue, redactionValues: QuickJSRedactionValues) -> Error {
+        if let error = redactionValues.transportErrors.error(for:
+            QuickJSPluginValue(engine: self, value: cqjs_dup_value(self.context, value))) { return error }
         let message = redactionValues.redact((try? self.message(from: value)) ?? "unknown plugin failure")
         if let classified = ProviderPluginClassifiedFailureParser.error(from: message) {
             return classified
@@ -1134,6 +1065,7 @@ final class QuickJSBlockingResult<Value: Sendable>: @unchecked Sendable {
 }
 
 private final class QuickJSRedactionValues: @unchecked Sendable {
+    let transportErrors = ProviderPluginHTTPResponse.TransportErrors()
     private let lock = NSLock()
     private var values: Set<String>
 

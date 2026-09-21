@@ -101,6 +101,15 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 - `await ctx.http.postJSON(url, {body, headers?})` performs JSON POST. `body` must be JSON-serializable.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
   hard request deadline from 1 through 30 seconds; the default is 15 seconds.
+- `opts.retryPolicy: "transientIdempotent"` opts GET into the native single-retry policy: 408, 429, 500, 502, 503, 504,
+  timeout, lost connection, connection failure, and DNS failures. The delay is one second or numeric `Retry-After`,
+  capped at ten seconds. POST, offline, TLS, and cancellation failures are not retried. This replaces the automatic
+  status-based fetch replay for that request; explicit `ctx.fail` retry options should not add another retry.
+- HTTP rejections are `Error` objects on both engines. Native failures expose `transportCode` (the Foundation URL-error
+  code), `transportClass` (`timeout`, `dns`, `offline`, `cancelled`, `tls`, `connection`, or `other`), and `retryable`.
+  Rejected HTTP responses expose `status` and class `http`. Plugins can use these fields when choosing a `ctx.fail`
+  classification. Rethrow cancellation unchanged; uncaught cancellation remains a Swift `CancellationError`, and
+  cancelling the refresh interrupts its pending request and retry delay.
 - `ctx.settings.get(key)` reads a declared `plain` setting.
 - `ctx.settings.getSecret(key)` reads a declared `secure` setting. Missing values return `null`; kind mismatches and
   undeclared keys throw.

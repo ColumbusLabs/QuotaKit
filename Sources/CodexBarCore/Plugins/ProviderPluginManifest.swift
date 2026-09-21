@@ -507,18 +507,8 @@ enum ProviderPluginClassifiedFailureParser {
     }
 }
 
-struct ProviderPluginTransientHTTPFailure: LocalizedError, Sendable {
+enum ProviderPluginTransientHTTPFailure {
     private static let retryPolicy = ProviderHTTPRetryPolicy.transientIdempotent
-
-    let errorDescription: String?
-
-    init?(statusCode: Int, retryAfterHeader: String?) {
-        guard let markerMessage = Self.markerMessage(
-            statusCode: statusCode,
-            retryAfterHeader: retryAfterHeader)
-        else { return nil }
-        self.errorDescription = markerMessage
-    }
 
     static func markerMessage(statusCode: Int, retryAfterHeader: String?) -> String? {
         guard self.retryPolicy.retryableStatusCodes.contains(statusCode) else { return nil }

@@ -107,6 +107,16 @@ interface CodexBarUsageSnapshot {
 interface CodexBarHTTPRequestOptions {
   headers?: Readonly<Record<string, string>>;
   timeoutSeconds?: number;
+  /** One native delayed retry for transient GET failures; POST is never retried. */
+  retryPolicy?: "transientIdempotent";
+}
+
+interface CodexBarHTTPError extends Error {
+  transportClass?: "timeout" | "dns" | "offline" | "cancelled" | "tls" | "connection" | "other" | "http";
+  /** Foundation URLError code, preserved across both engines. */
+  transportCode?: number;
+  status?: number;
+  retryable?: boolean;
 }
 
 interface CodexBarHTTPResponse {
