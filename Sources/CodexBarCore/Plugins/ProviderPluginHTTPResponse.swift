@@ -95,6 +95,42 @@ enum ProviderPluginHTTPResponse {
         return seconds
     }
 
+    static func response(
+        for request: URLRequest,
+        transport: any ProviderHTTPTransport,
+        retryPolicy: ProviderHTTPRetryPolicy,
+        beforeAttempt: (@Sendable () async throws -> Void)? = nil) async throws -> ProviderHTTPResponse
+    {
+        let bounded = ProviderHTTPTransportHandler { request in
+            try Task.checkCancellation()
+            let (starts, started) = AsyncStream<ContinuousClock.Instant>.makeStream()
+            let task = Task {
+                defer { started.finish() }
+                try await beforeAttempt?()
+                try Task.checkCancellation()
+                started.yield(.now)
+                return try await transport.data(for: request)
+            }
+            return try await withTaskCancellationHandler {
+                // Scheduling waits consume only the overall fetch budget, not this attempt's timeout.
+                var iterator = starts.makeAsyncIterator()
+                let startedAt = await iterator.next()
+                try Task.checkCancellation()
+                guard let startedAt else { return try await task.value }
+                let deadline = startedAt.advanced(by: .seconds(request.timeoutInterval))
+                let remaining = ContinuousClock.now.duration(to: deadline)
+                return switch await BoundedTaskJoin(sourceTask: task).value(joinGrace: remaining) {
+                case let .value(response): response
+                case let .failure(error): throw error
+                case .timedOut: throw URLError(.timedOut)
+                }
+            } onCancel: {
+                task.cancel()
+            }
+        }
+        return try await bounded.response(for: request, retryPolicy: retryPolicy)
+    }
+
     struct StatusFailure: LocalizedError {
         let response: HTTPURLResponse
         let allowsRetry: Bool

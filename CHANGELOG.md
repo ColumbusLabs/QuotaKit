@@ -28,6 +28,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: start HTTP attempt deadlines when transport begins.
+
 - Provider plugins: match native currency display formatting.
 
 - Provider plugins: preserve transport failures and cancellation across both script engines.

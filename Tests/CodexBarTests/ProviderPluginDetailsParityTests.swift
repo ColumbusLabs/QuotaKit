@@ -112,8 +112,10 @@ struct ProviderPluginDetailsParityTests {
         ])
     }
 
-    @Test
-    func `OpenRouter optional key timeout is an observable degradation`() async throws {
+    @Test(arguments: Self.parityEngines, [false, true])
+    func `OpenRouter optional key timeout is an observable degradation`(
+        engine: ProviderPluginEngineKind, delaysTaskStart: Bool) async throws
+    {
         let transport = ProviderHTTPTransportHandler { request in
             let isKeyRequest = request.url?.path == "/api/v1/key"
             if isKeyRequest {

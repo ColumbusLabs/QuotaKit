@@ -601,9 +601,13 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 secrets: state.secrets,
                 manifest: self.manifest,
                 enforcesUserResponsePolicy: self.enforcesUserResponsePolicy)
-            let deadline = request.timeoutInterval * Double(retryPolicy.maxRetries + 1) + retryPolicy.maxDelaySeconds
-            let response = try self.blockingValue(timeout: deadline) {
-                try await self.transport.response(for: request, retryPolicy: retryPolicy)
+            // The shared transport bounds each started attempt; this wait retains the fetch deadline/watchdog.
+            let response = try self.blockingValue(timeout: self.timeout) {
+                try await ProviderPluginHTTPResponse.response(
+                    for: request,
+                    transport: self.transport,
+                    retryPolicy: retryPolicy,
+                    beforeAttempt: state.contextOptions.beforeHTTPAttempt)
             }
             guard response.data.count <= self.responseSizeLimit else {
                 throw ProviderPluginError.http("response exceeded the \(self.responseSizeLimit)-byte limit")

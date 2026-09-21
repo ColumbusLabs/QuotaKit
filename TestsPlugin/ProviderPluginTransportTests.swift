@@ -160,6 +160,66 @@ struct ProviderPluginTransportTests {
     }
 
     @Test(arguments: Self.engines)
+    func `fetch deadline bounds attempts waiting to start`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try Self.runtime(
+            engine,
+            body: "await ctx.http.get('https://example.com', { timeoutSeconds: 1 });",
+            timeout: 0.2,
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                beforeHTTPAttempt: { try await Task.sleep(for: .seconds(30)) }),
+            transport: ProviderHTTPTransportHandler { _ in
+                Issue.record("Transport must not run after the fetch deadline")
+                throw URLError(.badURL)
+            })
+        await #expect {
+            try await runtime.fetchUsage()
+        } throws: { error in
+            // The QuickJS fetch deadline and the runtime watchdog can win the same race.
+            (error as? ProviderPluginError) == .timedOut || (error as? URLError)?.code == .timedOut
+        }
+    }
+
+    @Test(arguments: Self.engines)
+    func `cancellation interrupts an attempt waiting to start`(engine: ProviderPluginEngineKind) async throws {
+        let (events, continuation) = AsyncStream<String>.makeStream()
+        defer { continuation.finish() }
+        let runtime = try Self.runtime(
+            engine,
+            body: "await ctx.http.get('https://example.com');",
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                beforeHTTPAttempt: {
+                    continuation.yield("waiting")
+                    do { try await Task.sleep(for: .seconds(30)) } catch {
+                        continuation.yield("cancelled")
+                        throw error
+                    }
+                }),
+            transport: ProviderHTTPTransportHandler { _ in
+                Issue.record("Transport must not run after cancellation")
+                throw URLError(.badURL)
+            })
+        var iterator = events.makeAsyncIterator()
+        let task = Task { try await runtime.fetchUsage() }
+        #expect(await iterator.next() == "waiting")
+        task.cancel()
+        await #expect(throws: CancellationError.self) { try await task.value }
+        #expect(await iterator.next() == "cancelled")
+    }
+
+    @Test(arguments: Self.engines)
+    func `failure before attempt start preserves its original error`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try Self.runtime(
+            engine,
+            body: "await ctx.http.get('https://example.com');",
+            contextOptions: ProviderPluginContextOptions(
+                optionalRequestTimeoutSeconds: nil,
+                beforeHTTPAttempt: { throw URLError(.badURL) }))
+        await #expect(throws: URLError(.badURL)) { try await runtime.fetchUsage() }
+    }
+
+    @Test(arguments: Self.engines)
     func `retry exhaustion defaults and POST keep their request bounds`(engine: ProviderPluginEngineKind) async throws {
         for (call, count) in [
             ("get('https://example.com')", 1),
@@ -233,6 +293,8 @@ struct ProviderPluginTransportTests {
         _ engine: ProviderPluginEngineKind,
         body: String,
         enforcesUserResponsePolicy: Bool = false,
+        timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout,
+        contextOptions: ProviderPluginContextOptions = .production,
         transport: any ProviderHTTPTransport = ProviderHTTPTransportHandler { _ in throw URLError(.badURL) }) throws
         -> ProviderPluginRuntime
     {
@@ -242,8 +304,11 @@ struct ProviderPluginTransportTests {
               async fetchUsage(ctx) { \(body) }
             });
             """,
+            resourceBundle: CodexBarCoreResources.bundle,
             transport: transport,
+            timeout: timeout,
             enforcesUserResponsePolicy: enforcesUserResponsePolicy,
+            contextOptions: contextOptions,
             engine: engine)
     }
 
