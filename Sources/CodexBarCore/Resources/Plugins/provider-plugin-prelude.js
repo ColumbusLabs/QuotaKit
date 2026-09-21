@@ -77,6 +77,9 @@
     Object.entries(failureKinds).map(([name, kind]) => [name, classifiedFailure(kind)])));
 
   ctx.browser = Object.freeze({
+    rejectCookie(domain) {
+      host.rejectCookie(String(domain));
+    },
     cookieHeader(domain) {
       return new Promise((resolve, reject) => host.cookieHeader(String(domain), resolve, reject));
     },

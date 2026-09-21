@@ -28,6 +28,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: isolate cached browser sessions by cookie domain.
+
 - MiniMax: discover browser storage across the shared Chromium catalog.
 
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width

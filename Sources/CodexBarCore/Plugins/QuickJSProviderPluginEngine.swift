@@ -17,7 +17,23 @@ private enum QuickJSHostFunction: Int32 {
     case nextDailyReset
     case pct
     case amountFromPercent
-    case formatCurrency
+    case isDetailLabel
+}
+
+enum QuickJSRuntimeLimits {
+    /// The dedicated worker thread's native stack. Sized far above the JavaScript budget so even a deep
+    /// Swift async/test baseline at the point JavaScript begins still leaves several MiB of physical stack.
+    static let nativeStackSizeBytes = 8 * 1024 * 1024
+
+    /// The JavaScript stack budget must sit well below the native stack it runs on, or QuickJS's overflow
+    /// guard fires with too little native headroom left to *construct* the RangeError and the throw path
+    /// itself faults (a hard crash observed only on CI runners with deep baseline frames; the guard is
+    /// unreliable at thin margins — quickjs-ng/zipline#1130 class). Deriving the JS limit as a quarter of
+    /// the actual worker stack makes the invariant hold for any stack size, including deliberately small
+    /// ones, so a misconfigured or starved thread throws cleanly instead of crashing.
+    static func javaScriptStackLimitBytes(workerStackSizeBytes: Int) -> Int {
+        max(64 * 1024, workerStackSizeBytes / 4)
+    }
 }
 
 private func quickJSHostCallback(
@@ -32,6 +48,28 @@ private func quickJSHostCallback(
     }
     let engine = Unmanaged<QuickJSProviderPluginEngine>.fromOpaque(opaque).takeUnretainedValue()
     return engine.handleHostCall(function, context: context, arguments: argv, count: Int(argc))
+}
+
+private func quickJSInstallContextOptions(
+    _ options: ProviderPluginContextOptions,
+    context: OpaquePointer,
+    target: JSValue)
+{
+    guard let timeout = options.optionalRequestTimeoutSeconds else { return }
+    _ = JS_SetPropertyStr(
+        context,
+        target,
+        "__codexbarOptionalRequestTimeoutSeconds",
+        JS_NewFloat64(context, timeout))
+}
+
+private func quickJSNormalizedTimeZoneIdentifier(_ timeZone: TimeZone) -> String {
+    if timeZone.secondsFromGMT() == 0,
+       ["GMT", "Etc/GMT", "Etc/UTC", "UTC"].contains(timeZone.identifier)
+    {
+        return "UTC"
+    }
+    return timeZone.identifier
 }
 
 private final class QuickJSPluginValue: ProviderPluginValue {
@@ -67,12 +105,12 @@ private final class QuickJSPluginValue: ProviderPluginValue {
         cqjs_is_string(self.value)
     }
 
-    var isBoolean: Bool {
-        JS_IsBool(self.value)
-    }
-
     var isNumber: Bool {
         cqjs_is_number(self.value)
+    }
+
+    var isBoolean: Bool {
+        JS_IsBool(self.value)
     }
 
     var isDate: Bool {
@@ -93,10 +131,6 @@ private final class QuickJSPluginValue: ProviderPluginValue {
         (try? self.engine.string(from: self.value)) ?? ""
     }
 
-    func boolValue() -> Bool {
-        JS_ToBool(self.engine.context, self.value) == 1
-    }
-
     func int32Value() -> Int32 {
         var value: Int32 = 0
         _ = JS_ToInt32(self.engine.context, &value, self.value)
@@ -107,6 +141,10 @@ private final class QuickJSPluginValue: ProviderPluginValue {
         var value = Double.nan
         _ = JS_ToFloat64(self.engine.context, &value, self.value)
         return value
+    }
+
+    func boolValue() -> Bool {
+        JS_ToBool(self.engine.context, self.value) == 1
     }
 
     func dateValue() -> Date? {
@@ -123,83 +161,15 @@ private final class QuickJSPluginValue: ProviderPluginValue {
     }
 }
 
-final class QuickJSFetchRequestLifecycle: @unchecked Sendable {
-    private let lock = NSLock()
-    private var activeFetchID: UUID?
-    private var inFlightFetchIDs: Set<UUID> = []
-    private var cancelledFetchIDs: Set<UUID> = []
-    private var watchdog: OpaquePointer?
-
-    var currentWatchdog: OpaquePointer? {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.watchdog
-    }
-
-    func setWatchdog(_ watchdog: OpaquePointer?) {
-        self.lock.lock()
-        self.watchdog = watchdog
-        self.lock.unlock()
-    }
-
-    func takeWatchdog() -> OpaquePointer? {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        let watchdog = self.watchdog
-        self.watchdog = nil
-        return watchdog
-    }
-
-    func register(_ requestID: UUID) {
-        self.lock.lock()
-        self.inFlightFetchIDs.insert(requestID)
-        self.lock.unlock()
-    }
-
-    func activate(_ requestID: UUID) -> Bool {
-        self.lock.lock()
-        self.activeFetchID = requestID
-        let isCancelled = self.cancelledFetchIDs.contains(requestID)
-        self.lock.unlock()
-        return !isCancelled
-    }
-
-    func isCancelled(_ requestID: UUID) -> Bool {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.cancelledFetchIDs.contains(requestID)
-    }
-
-    func cancel(_ requestID: UUID, interrupt: (OpaquePointer) -> Void) {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        guard self.inFlightFetchIDs.contains(requestID) else { return }
-        self.cancelledFetchIDs.insert(requestID)
-        // Keep the active-request check and interrupt atomic with finish/activate.
-        // A late interrupt after the next request arms this reused watchdog would
-        // cancel the wrong fetch.
-        if self.activeFetchID == requestID, let watchdog = self.watchdog {
-            interrupt(watchdog)
-        }
-    }
-
-    func finish(_ requestID: UUID) {
-        self.lock.lock()
-        self.inFlightFetchIDs.remove(requestID)
-        self.cancelledFetchIDs.remove(requestID)
-        if self.activeFetchID == requestID {
-            self.activeFetchID = nil
-        }
-        self.lock.unlock()
-    }
-}
-
 final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
     static let memoryLimitBytes = 64 * 1024 * 1024
-    static let stackLimitBytes = 2 * 1024 * 1024
+
+    static func transpileTypeScript(source: String, sucraseSource: String) throws -> String {
+        try QuickJSTypeScriptTranspiler.transpile(source: source, sucraseSource: sucraseSource)
+    }
 
     private struct FetchState {
-        let cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
+        let contextOptions: ProviderPluginContextOptions
         let settings: [String: String]
         let secrets: [String: String]
         let cookieResolver: ProviderPluginRuntime.CookieResolver?
@@ -213,14 +183,16 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         let expiresAt: Date
     }
 
-    private let queue: DispatchQueue
+    // @unchecked Sendable is safe because every mutable engine field and QuickJS API call is confined
+    // to this serial worker. requestInterrupt() is the watchdog's explicitly thread-safe escape hatch.
+    private let worker: QuickJSSerialWorker
     private let runtime: OpaquePointer
     fileprivate let context: OpaquePointer
     private let transport: any ProviderHTTPTransport
     private let timeout: TimeInterval
     private let responseSizeLimit: Int
-    private let rejectsNonSuccessResponses: Bool
-    private let fetchLifecycle = QuickJSFetchRequestLifecycle()
+    private let enforcesUserResponsePolicy: Bool
+    private var watchdog: OpaquePointer?
     private var definition: JSValue?
     private var applyPrelude: JSValue?
     private var fetchUsage: JSValue?
@@ -235,6 +207,10 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         return loadedManifest
     }
 
+    private var rejectsNonSuccessResponses: Bool {
+        self.enforcesUserResponsePolicy && !self.manifest.capabilities.contains(.httpStatus)
+    }
+
     // swiftlint:disable:next function_parameter_count
     static func make(
         source: String,
@@ -242,107 +218,118 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         transport: any ProviderHTTPTransport,
         timeout: TimeInterval,
         responseSizeLimit: Int,
-        rejectsNonSuccessResponses: Bool,
-        allowsDynamicID: Bool) throws -> QuickJSProviderPluginEngine
+        enforcesUserResponsePolicy: Bool,
+        allowsDynamicID: Bool,
+        workerStackSizeBytes: Int = QuickJSRuntimeLimits.nativeStackSizeBytes) throws -> QuickJSProviderPluginEngine
     {
-        guard let runtime = JS_NewRuntime() else {
-            throw ProviderPluginError.load("QuickJS could not create a runtime")
-        }
-        JS_SetMemoryLimit(runtime, Self.memoryLimitBytes)
-        JS_SetMaxStackSize(runtime, Self.stackLimitBytes)
-        guard let context = JS_NewContext(runtime) else {
-            JS_FreeRuntime(runtime)
-            throw ProviderPluginError.load("QuickJS could not create a context")
-        }
-        let queue = DispatchQueue(label: "com.steipete.codexbar.provider-plugin.quickjs.\(UUID().uuidString)")
-        let engine = QuickJSProviderPluginEngine(
-            queue: queue,
-            runtime: runtime,
-            context: context,
-            transport: transport,
-            timeout: timeout,
-            responseSizeLimit: responseSizeLimit,
-            rejectsNonSuccessResponses: rejectsNonSuccessResponses)
-        return try queue.sync {
+        let worker = QuickJSSerialWorker(
+            name: "CodexBar QuickJS provider plugin",
+            stackSizeBytes: workerStackSizeBytes)
+        return try worker.sync {
+            guard let runtime = JS_NewRuntime() else {
+                throw ProviderPluginError.load("QuickJS could not create a runtime")
+            }
+            JS_SetMemoryLimit(runtime, Self.memoryLimitBytes)
+            JS_SetMaxStackSize(
+                runtime,
+                QuickJSRuntimeLimits.javaScriptStackLimitBytes(workerStackSizeBytes: workerStackSizeBytes))
+            guard let context = JS_NewContext(runtime) else {
+                JS_FreeRuntime(runtime)
+                throw ProviderPluginError.load("QuickJS could not create a context")
+            }
+            let engine = QuickJSProviderPluginEngine(
+                worker: worker,
+                runtime: runtime,
+                context: context,
+                transport: transport,
+                timeout: timeout,
+                responseSizeLimit: responseSizeLimit,
+                enforcesUserResponsePolicy: enforcesUserResponsePolicy)
             try engine.load(source: source, preludeSource: preludeSource, allowsDynamicID: allowsDynamicID)
             return engine
         }
     }
 
     private init(
-        queue: DispatchQueue,
+        worker: QuickJSSerialWorker,
         runtime: OpaquePointer,
         context: OpaquePointer,
         transport: any ProviderHTTPTransport,
         timeout: TimeInterval,
         responseSizeLimit: Int,
-        rejectsNonSuccessResponses: Bool)
+        enforcesUserResponsePolicy: Bool)
     {
-        self.queue = queue
+        self.worker = worker
         self.runtime = runtime
         self.context = context
         self.transport = transport
         self.timeout = timeout
         self.responseSizeLimit = responseSizeLimit
-        self.rejectsNonSuccessResponses = rejectsNonSuccessResponses
+        self.enforcesUserResponsePolicy = enforcesUserResponsePolicy
     }
 
     deinit {
-        if let definition = self.definition {
-            cqjs_free_value(self.context, definition)
+        let runtime = self.runtime
+        let context = self.context
+        let definition = self.definition
+        let applyPrelude = self.applyPrelude
+        let fetchUsage = self.fetchUsage
+        let watchdog = self.watchdog
+        let teardown = {
+            if let definition {
+                cqjs_free_value(context, definition)
+            }
+            if let applyPrelude {
+                cqjs_free_value(context, applyPrelude)
+            }
+            if let fetchUsage {
+                cqjs_free_value(context, fetchUsage)
+            }
+            if let watchdog {
+                cqjs_watchdog_disarm(watchdog)
+            }
+            // The runtime retains the interrupt-handler opaque pointer until it is freed.
+            JS_FreeContext(context)
+            JS_FreeRuntime(runtime)
+            if let watchdog {
+                cqjs_watchdog_destroy(watchdog)
+            }
         }
-        if let applyPrelude = self.applyPrelude {
-            cqjs_free_value(self.context, applyPrelude)
+        if self.worker.isCurrentThread {
+            teardown()
+        } else {
+            try? self.worker.sync(teardown)
         }
-        if let fetchUsage = self.fetchUsage {
-            cqjs_free_value(self.context, fetchUsage)
-        }
-        let watchdog = self.fetchLifecycle.takeWatchdog()
-        if let watchdog {
-            cqjs_watchdog_disarm(watchdog)
-            cqjs_watchdog_destroy(watchdog)
-        }
-        JS_FreeContext(self.context)
-        JS_FreeRuntime(self.runtime)
+        self.worker.shutdown()
     }
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
-        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
         timeZone: TimeZone,
-        cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?,
+        contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
     {
-        self.fetchLifecycle.register(requestID)
-        self.queue.async {
-            guard !self.fetchLifecycle.isCancelled(requestID) else {
-                self.fetchLifecycle.finish(requestID)
-                completion(.failure(CancellationError()))
-                return
-            }
-            let result = Result {
-                try self.fetchOnQueue(
-                    requestID: requestID,
+        self.worker.async {
+            completion(Result {
+                try self.fetchOnWorker(
                     settings: settings,
                     secrets: secrets,
                     now: now,
                     timeZone: timeZone,
-                    cookieInvalidator: cookieInvalidator,
+                    contextOptions: contextOptions,
                     cookieResolver: cookieResolver,
                     instanceCookieResolver: instanceCookieResolver)
-            }
-            self.fetchLifecycle.finish(requestID)
-            completion(result)
+            })
         }
     }
 
     func globalType(of name: String) throws -> String {
-        try self.queue.sync {
+        try self.worker.sync {
             JS_UpdateStackTop(self.runtime)
             let escaped = name.replacingOccurrences(of: "\\", with: "\\\\")
                 .replacingOccurrences(of: "'", with: "\\'")
@@ -352,8 +339,10 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         }
     }
 
-    func cancelFetch(_ requestID: UUID) {
-        self.fetchLifecycle.cancel(requestID) { cqjs_watchdog_interrupt($0) }
+    func requestInterrupt() {
+        if let watchdog = self.watchdog {
+            cqjs_watchdog_interrupt(watchdog)
+        }
     }
 
     private func load(source: String, preludeSource: String, allowsDynamicID: Bool) throws {
@@ -364,7 +353,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         else {
             throw ProviderPluginError.load("QuickJS could not create its watchdog")
         }
-        self.fetchLifecycle.setWatchdog(watchdog)
+        self.watchdog = watchdog
         cqjs_watchdog_install(watchdog, self.runtime, self.context)
         cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
         defer { cqjs_watchdog_disarm(watchdog) }
@@ -397,27 +386,24 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     // swiftlint:disable:next function_parameter_count
-    private func fetchOnQueue(
-        requestID: UUID,
+    private func fetchOnWorker(
         settings: [String: String],
         secrets: [String: String],
         now: Date,
         timeZone: TimeZone,
-        cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?,
+        contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?) throws -> UsageSnapshot
     {
-        guard self.fetchLifecycle.activate(requestID) else { throw CancellationError() }
-
         JS_UpdateStackTop(self.runtime)
         guard let applyPrelude = self.applyPrelude, let fetchUsage = self.fetchUsage,
-              let watchdog = self.fetchLifecycle.currentWatchdog
+              let watchdog = self.watchdog
         else {
             throw ProviderPluginError.load("QuickJS plugin is not initialized")
         }
         let redactionValues = QuickJSRedactionValues(secrets.values)
         self.fetchState = FetchState(
-            cookieInvalidator: cookieInvalidator,
+            contextOptions: contextOptions,
             settings: settings,
             secrets: secrets,
             cookieResolver: cookieResolver,
@@ -427,7 +413,6 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         defer { self.fetchState = nil }
         cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
         defer { cqjs_watchdog_disarm(watchdog) }
-        guard !self.fetchLifecycle.isCancelled(requestID) else { throw CancellationError() }
 
         let ctx = JS_NewObject(self.context)
         let host = JS_NewObject(self.context)
@@ -439,14 +424,15 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         _ = JS_SetPropertyStr(
             self.context,
             ctx,
-            "__quotaKitNowMillis",
+            "__codexbarNowMillis",
             JS_NewFloat64(self.context, now.timeIntervalSince1970 * 1000))
+        quickJSInstallContextOptions(contextOptions, context: self.context, target: ctx)
         let env = JS_NewObject(self.context)
         _ = JS_SetPropertyStr(
             self.context,
             env,
             "timeZone",
-            self.makeString(Self.normalizedTimeZoneIdentifier(timeZone)))
+            self.makeString(quickJSNormalizedTimeZoneIdentifier(timeZone)))
         _ = JS_SetPropertyStr(self.context, ctx, "env", env)
 
         let preparedContext = try self.call(applyPrelude, arguments: [ctx, host])
@@ -455,6 +441,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         if JS_IsPromise(result) {
             while JS_PromiseState(self.context, result) == JS_PROMISE_PENDING {
                 var pendingContext: OpaquePointer?
+                JS_UpdateStackTop(self.runtime)
                 let executed = JS_ExecutePendingJob(self.runtime, &pendingContext)
                 if executed < 0 {
                     cqjs_free_value(self.context, result)
@@ -484,15 +471,15 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         for (function, name, count) in [
             (QuickJSHostFunction.settingGet, "settingGet", 2),
             (.http, "http", 6),
-            (.rejectCookie, "rejectCookie", 1),
             (.cookieHeader, "cookieHeader", 3),
+            (.rejectCookie, "rejectCookie", 1),
             (.cacheGet, "cacheGet", 1),
             (.cacheSet, "cacheSet", 3),
             (.log, "log", 1),
             (.nextDailyReset, "nextDailyReset", 2),
             (.pct, "pct", 2),
             (.amountFromPercent, "amountFromPercent", 2),
-            (.formatCurrency, "formatCurrency", 2),
+            (.isDetailLabel, "isDetailLabel", 1),
         ] {
             let value = cqjs_new_host_function(self.context, function.rawValue, name, Int32(count))
             guard JS_SetPropertyStr(self.context, host, name, value) >= 0 else {
@@ -525,11 +512,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 try self.hostHTTP(values)
                 return cqjs_undefined()
             case .rejectCookie:
-                guard let state = self.fetchState else {
-                    throw ProviderPluginError.secretAccess("cookie bridge is unavailable")
-                }
                 let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
-                state.cookieInvalidator?(domain)
+                self.fetchState?.contextOptions.cookieInvalidator?(domain)
                 return cqjs_undefined()
             case .cookieHeader:
                 try self.hostCookieHeader(values)
@@ -552,8 +536,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 return try self.hostPercentage(values)
             case .amountFromPercent:
                 return try self.hostAmountFromPercent(values)
-            case .formatCurrency:
-                return try self.hostFormatCurrency(values)
+            case .isDetailLabel:
+                let label = try values.first.map { try self.string(from: $0) } ?? ""
+                return JS_NewBool(self.context, (try? ProviderDetailSection.Row(label: label, value: "—")) != nil)
             }
         } catch {
             return self.throwError(error)
@@ -596,20 +581,23 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             guard response.data.count <= self.responseSizeLimit else {
                 throw ProviderPluginError.http("response exceeded the \(self.responseSizeLimit)-byte limit")
             }
-            if self.rejectsNonSuccessResponses,
-               !self.manifest.capabilities.contains(.httpStatus),
-               !(200..<300).contains(response.statusCode)
-            {
+            if self.rejectsNonSuccessResponses, !(200..<300).contains(response.statusCode) {
+                if let failure = ProviderPluginTransientHTTPFailure(
+                    statusCode: response.statusCode,
+                    retryAfterHeader: response.response.value(forHTTPHeaderField: "Retry-After"))
+                {
+                    throw failure
+                }
                 throw ProviderPluginError.http("request returned HTTP \(response.statusCode)")
             }
-            if self.rejectsNonSuccessResponses,
+            if self.enforcesUserResponsePolicy,
                let encoding = response.response.value(forHTTPHeaderField: "Content-Encoding"),
                !encoding.isEmpty,
                encoding.caseInsensitiveCompare("identity") != .orderedSame
             {
                 throw ProviderPluginError.http("compressed responses are not allowed")
             }
-            let payload = try Self.responsePayload(response, wantsJSON: wantsJSON)
+            let payload = try ProviderPluginHTTPResponse.payload(response, wantsJSON: wantsJSON)
             let value = try self.parseJSON(payload)
             defer { cqjs_free_value(self.context, value) }
             try self.invoke(arguments[4], argument: value)
@@ -710,15 +698,6 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         return JS_NewFloat64(self.context, percent / 100 * limit)
     }
 
-    private func hostFormatCurrency(_ arguments: UnsafeBufferPointer<JSValue>) throws -> JSValue {
-        var amount = 0.0
-        guard arguments.count == 2, JS_ToFloat64(self.context, &amount, arguments[0]) == 0 else {
-            throw ProviderPluginError.script("currency requires an amount and currency code")
-        }
-        return try self.makeString(UsageFormatter.currencyString(
-            amount, currencyCode: self.string(from: arguments[1])))
-    }
-
     private func makeRequest(
         rawURL: String,
         options: [String: Any],
@@ -729,7 +708,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         guard let url = URL(string: rawURL) else {
             throw ProviderPluginError.networkPolicy("request URL is invalid")
         }
-        guard try self.allowedOrigin(for: url, settings: settings) else {
+        guard try self.manifest.allowedOrigin(for: url, settings: settings) else {
             let rejectedOrigin = (try? ProviderPluginOrigin.normalizedOrigin(
                 of: url,
                 policy: url.scheme?.lowercased() == "http" ? .httpsOrLoopbackHTTP : .https)) ?? "invalid"
@@ -758,10 +737,10 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 request.setValue(value, forHTTPHeaderField: name)
             }
         }
-        if self.rejectsNonSuccessResponses || request.value(forHTTPHeaderField: "Accept") == nil {
+        if self.enforcesUserResponsePolicy || request.value(forHTTPHeaderField: "Accept") == nil {
             request.setValue("application/json", forHTTPHeaderField: "Accept")
         }
-        if self.rejectsNonSuccessResponses {
+        if self.enforcesUserResponsePolicy {
             request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         }
         if method == "POST" {
@@ -772,24 +751,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             // Provider-specific by design: first-party OpenRouter Activity uses a separately scoped management key,
             // and the broker pins that exceptional credential to the official read-only endpoint.
             if let managementAuth = options["openRouterManagementAuth"] {
-                let managementSecret = "OPENROUTER_MANAGEMENT_API_KEY"
-                guard let managementAuth = managementAuth as? Bool,
-                      managementAuth,
-                      self.manifest.id.firstPartyProvider == .openrouter,
-                      self.manifest.settings.first(where: { $0.key == managementSecret })?.kind == .secure,
-                      method == "GET",
-                      url.scheme?.lowercased() == "https",
-                      url.host?.lowercased() == "openrouter.ai",
-                      url.port == nil,
-                      url.user == nil,
-                      url.password == nil,
-                      url.path == "/api/v1/activity",
-                      url.fragment == nil
-                else {
+                guard let managementAuth = managementAuth as? Bool, managementAuth else {
                     throw ProviderPluginError.secretAccess(
                         "OpenRouter management auth is unavailable for this plugin")
                 }
-                secretName = managementSecret
+                secretName = try self.manifest.openRouterManagementAuthSecret(method: method, url: url)
             }
             guard let credential = secrets[secretName], !credential.isEmpty else {
                 throw ProviderPluginError.secretAccess("required auth secret is unavailable")
@@ -804,28 +770,6 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         return request
     }
 
-    private func allowedOrigin(for url: URL, settings: [String: String]) throws -> Bool {
-        for endpoint in self.manifest.endpoints {
-            switch endpoint {
-            case let .fixed(declared):
-                if (try? ProviderPluginOrigin.normalizedOrigin(of: url)) == declared {
-                    return true
-                }
-            case let .setting(key, policy):
-                guard let rawValue = settings[key], !rawValue.isEmpty,
-                      let configuredURL = URL(string: rawValue), configuredURL.fragment == nil
-                else { continue }
-                let configuredOrigin = try ProviderPluginOrigin.normalizedOrigin(of: configuredURL, policy: policy)
-                if try ProviderPluginOrigin
-                    .normalizedOrigin(of: url, policy: policy) == configuredOrigin
-                {
-                    return true
-                }
-            }
-        }
-        return false
-    }
-
     private static func timeoutSeconds(_ options: [String: Any]) throws -> TimeInterval {
         guard let value = options["timeoutSeconds"] else { return 15 }
         guard let number = value as? NSNumber, CFGetTypeID(number) != CFBooleanGetTypeID() else {
@@ -838,33 +782,14 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         return seconds
     }
 
-    private static func responsePayload(_ response: ProviderHTTPResponse, wantsJSON: Bool) throws -> [String: Any] {
-        var headers: [String: String] = [:]
-        for (key, value) in response.response.allHeaderFields {
-            headers[String(describing: key).lowercased()] = String(describing: value)
-        }
-        var payload: [String: Any] = ["status": response.statusCode, "headers": headers]
-        if wantsJSON {
-            do {
-                payload["json"] = try JSONSerialization.jsonObject(with: response.data)
-            } catch {
-                throw ProviderPluginError.http("response was not valid JSON")
-            }
-        } else {
-            guard let text = String(data: response.data, encoding: .utf8) else {
-                throw ProviderPluginError.http("response body was not valid UTF-8")
-            }
-            payload["bodyText"] = text
-        }
-        return payload
-    }
-
     private func blockingValue<Value: Sendable>(
         timeout: TimeInterval,
         operation: @escaping @Sendable () async throws -> Value) throws -> Value
     {
+        let fetchDeadline = self.fetchState?.deadline ?? Date().addingTimeInterval(timeout)
         let box = QuickJSBlockingResult<Value>()
         let task = Task.detached {
+            box.markStarted()
             do {
                 let value = try await operation()
                 box.finish(.success(value))
@@ -873,17 +798,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             }
         }
         defer { task.cancel() }
-        let fetchRemaining = self.fetchState.map { max(0, $0.deadline.timeIntervalSinceNow) } ?? timeout
-        let deadline = Date().addingTimeInterval(min(timeout, fetchRemaining))
-        while Date() < deadline {
-            if let result = box.wait(until: min(deadline, Date().addingTimeInterval(0.05))) {
-                return try result.get()
-            }
-            if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
-                throw ProviderPluginError.timedOut
-            }
-        }
-        throw URLError(.timedOut)
+        return try box.value(timeout: timeout, fetchDeadline: fetchDeadline, watchdog: self.watchdog)
     }
 
     private func invoke(_ function: JSValue, argument: JSValue) throws {
@@ -902,6 +817,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func call(_ function: JSValue, arguments: [JSValue]) throws -> JSValue {
+        JS_UpdateStackTop(self.runtime)
         var mutableArguments = arguments
         let result = mutableArguments.withUnsafeMutableBufferPointer { buffer in
             JS_Call(self.context, function, cqjs_undefined(), Int32(buffer.count), buffer.baseAddress)
@@ -911,6 +827,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func evaluate(_ source: String, filename: String) throws -> JSValue {
+        JS_UpdateStackTop(self.runtime)
         let result = source.utf8CString.withUnsafeBufferPointer { sourceBuffer in
             filename.withCString { filenamePointer in
                 JS_Eval(
@@ -926,31 +843,20 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func scriptErrorFromException() -> Error {
-        let exception = JS_GetException(self.context)
-        defer { cqjs_free_value(self.context, exception) }
-        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
+        if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            let exception = JS_GetException(self.context)
+            cqjs_free_value(self.context, exception)
             return ProviderPluginError.timedOut
         }
+        let exception = JS_GetException(self.context)
+        defer { cqjs_free_value(self.context, exception) }
         return ProviderPluginError.script((try? self.message(from: exception)) ?? "unknown QuickJS exception")
     }
 
     private func failure(from value: JSValue, redactionValues: QuickJSRedactionValues) -> Error {
-        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
-            return ProviderPluginError.timedOut
-        }
         let message = redactionValues.redact((try? self.message(from: value)) ?? "unknown plugin failure")
-        let marker = "__CODEXBAR_FAILURE__:"
-        if message.hasPrefix(marker),
-           let separator = message[message.index(message.startIndex, offsetBy: marker.count)...].firstIndex(of: ":"),
-           let kind = ProviderFetchClassifiedError.Kind(
-               rawValue: String(message[message.index(message.startIndex, offsetBy: marker.count)..<separator]))
-        {
-            return ProviderFetchClassifiedError(
-                kind: kind,
-                message: String(message[message.index(after: separator)...]))
-        }
-        if let classifiedError = ProviderPluginClassifiedFailureParser.error(from: message) {
-            return classifiedError
+        if let classified = ProviderPluginClassifiedFailureParser.error(from: message) {
+            return classified
         }
         return ProviderPluginError.script(message)
     }
@@ -1028,20 +934,132 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         guard !cqjs_is_exception(result) else { throw self.scriptErrorFromException() }
         return result
     }
+}
 
-    private static func normalizedTimeZoneIdentifier(_ timeZone: TimeZone) -> String {
-        if timeZone.secondsFromGMT() == 0,
-           ["GMT", "Etc/GMT", "Etc/UTC", "UTC"].contains(timeZone.identifier)
-        {
-            return "UTC"
+private final class QuickJSSerialWorker: @unchecked Sendable {
+    typealias Job = () -> Void
+
+    private final class State: @unchecked Sendable {
+        private let condition = NSCondition()
+        private var jobs: [Job] = []
+        private var acceptsJobs = true
+        private var stopped = false
+
+        func enqueue(_ job: @escaping Job) -> Bool {
+            self.condition.lock()
+            defer { self.condition.unlock() }
+            guard self.acceptsJobs else { return false }
+            self.jobs.append(job)
+            self.condition.signal()
+            return true
         }
-        return timeZone.identifier
+
+        func next() -> Job? {
+            self.condition.lock()
+            defer { self.condition.unlock() }
+            while self.jobs.isEmpty, self.acceptsJobs {
+                self.condition.wait()
+            }
+            guard !self.jobs.isEmpty else { return nil }
+            return self.jobs.removeFirst()
+        }
+
+        func beginShutdown() {
+            self.condition.lock()
+            self.acceptsJobs = false
+            self.condition.broadcast()
+            self.condition.unlock()
+        }
+
+        func markStopped() {
+            self.condition.lock()
+            self.stopped = true
+            self.condition.broadcast()
+            self.condition.unlock()
+        }
+
+        func waitUntilStopped() {
+            self.condition.lock()
+            while !self.stopped {
+                self.condition.wait()
+            }
+            self.condition.unlock()
+        }
+    }
+
+    /// A Thread subclass with an overridden main() instead of Thread(block:): the block closure
+    /// picks up @MainActor inference under some SDKs (Xcode 26.3), and the embedded executor
+    /// check then traps on the first job when the OS runtime enforces isolation dynamically.
+    private final class WorkerThread: Thread {
+        private let state: State
+
+        init(state: State) {
+            self.state = state
+            super.init()
+        }
+
+        override func main() {
+            defer { self.state.markStopped() }
+            while let job = self.state.next() {
+                job()
+            }
+        }
+    }
+
+    private let state: State
+    private let thread: WorkerThread
+
+    init(name: String, stackSizeBytes: Int) {
+        let state = State()
+        self.state = state
+        self.thread = WorkerThread(state: state)
+        self.thread.name = name
+        self.thread.stackSize = stackSizeBytes
+        self.thread.start()
+    }
+
+    deinit {
+        self.shutdown()
+    }
+
+    var isCurrentThread: Bool {
+        Thread.current === self.thread
+    }
+
+    func async(_ operation: @escaping Job) {
+        precondition(self.state.enqueue(operation), "QuickJS worker accepted work after shutdown")
+    }
+
+    func sync<Value: Sendable>(_ operation: @escaping () throws -> Value) throws -> Value {
+        if self.isCurrentThread {
+            return try operation()
+        }
+        let box = QuickJSBlockingResult<Value>()
+        precondition(self.state.enqueue {
+            box.finish(Result { try operation() })
+        }, "QuickJS worker accepted work after shutdown")
+        return try box.wait().get()
+    }
+
+    func shutdown() {
+        self.state.beginShutdown()
+        if !self.isCurrentThread {
+            self.state.waitUntilStopped()
+        }
     }
 }
 
-private final class QuickJSBlockingResult<Value: Sendable>: @unchecked Sendable {
+final class QuickJSBlockingResult<Value: Sendable>: @unchecked Sendable {
     private let condition = NSCondition()
+    private var startedAt: Date?
     private var result: Result<Value, Error>?
+
+    func markStarted() {
+        self.condition.lock()
+        self.startedAt = Date()
+        self.condition.broadcast()
+        self.condition.unlock()
+    }
 
     func finish(_ result: Result<Value, Error>) {
         self.condition.lock()
@@ -1050,13 +1068,57 @@ private final class QuickJSBlockingResult<Value: Sendable>: @unchecked Sendable 
         self.condition.unlock()
     }
 
+    func value(
+        timeout: TimeInterval,
+        fetchDeadline: Date,
+        watchdog: OpaquePointer?) throws -> Value
+    {
+        var startedAt: Date?
+        while true {
+            let deadline = startedAt.map {
+                $0.addingTimeInterval(min(timeout, max(0, fetchDeadline.timeIntervalSince($0))))
+            } ?? fetchDeadline
+            let now = Date()
+            guard now < deadline else { throw URLError(.timedOut) }
+            let state = self.wait(
+                until: min(deadline, now.addingTimeInterval(0.05)),
+                waitingForStart: startedAt == nil)
+            if let result = state.result {
+                return try result.get()
+            }
+            startedAt = state.startedAt
+            if let watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+                throw ProviderPluginError.timedOut
+            }
+        }
+    }
+
     func wait(until deadline: Date) -> Result<Value, Error>? {
+        self.wait(until: deadline, waitingForStart: false).result
+    }
+
+    func wait(
+        until deadline: Date,
+        waitingForStart: Bool) -> (startedAt: Date?, result: Result<Value, Error>?)
+    {
         self.condition.lock()
         defer { self.condition.unlock() }
-        if self.result == nil {
+        if self.result == nil, !waitingForStart || self.startedAt == nil {
             _ = self.condition.wait(until: deadline)
         }
-        return self.result
+        return (self.startedAt, self.result)
+    }
+
+    func wait() -> Result<Value, Error> {
+        self.condition.lock()
+        defer { self.condition.unlock() }
+        while self.result == nil {
+            self.condition.wait()
+        }
+        guard let result = self.result else {
+            preconditionFailure("QuickJS blocking result signaled without a value")
+        }
+        return result
     }
 }
 

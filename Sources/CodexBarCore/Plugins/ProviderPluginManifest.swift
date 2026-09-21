@@ -70,6 +70,7 @@ public struct ProviderPluginManifest: Sendable {
     public let id: ProviderInstanceID
     public let name: String
     public let icon: ProviderPluginIcon
+    public let topLevel: Bool
     public let endpoints: Set<ProviderPluginEndpoint>
     public let auth: ProviderPluginAuth?
     public let settings: [ProviderPluginSetting]
@@ -82,6 +83,25 @@ public struct ProviderPluginManifest: Sendable {
             throw ProviderPluginError.secretAccess("cookie domain is not declared")
         }
         return domain
+    }
+
+    func openRouterManagementAuthSecret(method: String, url: URL) throws -> String {
+        let secret = "OPENROUTER_MANAGEMENT_API_KEY"
+        // Provider-specific by design: only OpenRouter Activity may use its separate management credential.
+        guard self.id.firstPartyProvider == .openrouter,
+              self.settings.first(where: { $0.key == secret })?.kind == .secure,
+              method == "GET",
+              url.scheme?.lowercased() == "https",
+              url.host?.lowercased() == "openrouter.ai",
+              url.port == nil,
+              url.user == nil,
+              url.password == nil,
+              url.path == "/api/v1/activity",
+              url.fragment == nil
+        else {
+            throw ProviderPluginError.secretAccess("OpenRouter management auth is unavailable for this plugin")
+        }
+        return secret
     }
 
     // Manifest parsing validates the complete security surface in one pass.
@@ -103,6 +123,14 @@ public struct ProviderPluginManifest: Sendable {
         self.id = id
         self.name = try Self.boundedString(definition, property: "name", maximumLength: 80)
         self.icon = try Self.parseIcon(definition.property("icon"), fallbackName: self.name)
+        if let topLevel = definition.property("topLevel"), !topLevel.isUndefined, !topLevel.isNull {
+            guard topLevel.isBoolean else {
+                throw ProviderPluginError.invalidManifest("'topLevel' must be a boolean when present")
+            }
+            self.topLevel = topLevel.boolValue()
+        } else {
+            self.topLevel = false
+        }
 
         let endpointValue = definition.property("endpoints")
         guard let endpointValue, endpointValue.isArray else {
@@ -129,6 +157,13 @@ public struct ProviderPluginManifest: Sendable {
             let rawPolicy = try Self.requiredString(rawEndpoint, property: "policy")
             guard let policy = ProviderPluginEndpoint.Policy(rawValue: rawPolicy) else {
                 throw ProviderPluginError.invalidManifest("unsupported endpoint policy '\(rawPolicy)'")
+            }
+            if policy == .httpsOrPrivateNetworkHTTP,
+               !allowsDynamicID,
+               id.firstPartyProvider.map(Self.bundledPrivateNetworkHTTPProviders.contains) != true
+            {
+                throw ProviderPluginError.invalidManifest(
+                    "private-network HTTP is not allowed for bundled provider '\(id.rawValue)'")
             }
             endpoints.insert(.setting(key: key, policy: policy))
         }
@@ -363,6 +398,9 @@ public struct ProviderPluginManifest: Sendable {
         }
         return value
     }
+
+    /// Provider-specific by design: only LLM Proxy and LiteLLM already grant private-network HTTP authority in Swift.
+    private static let bundledPrivateNetworkHTTPProviders: Set<UsageProvider> = [.llmproxy, .litellm]
 }
 
 enum ProviderPluginOrigin {
@@ -434,5 +472,90 @@ public enum ProviderPluginError: LocalizedError, Sendable, Equatable {
         case let .script(message): "Provider plugin script failed: \(message)"
         case .timedOut: "Provider plugin timed out"
         }
+    }
+}
+
+enum ProviderPluginClassifiedFailureParser {
+    private static let markerV1 = "__CODEXBAR_FAILURE__:"
+    fileprivate static let markerV2 = "__CODEXBAR_FAILURE_V2__:"
+
+    static func error(from message: String) -> ProviderFetchClassifiedError? {
+        if message.hasPrefix(self.markerV2) {
+            return self.parseV2(String(message.dropFirst(self.markerV2.count)))
+        }
+        guard message.hasPrefix(self.markerV1) else { return nil }
+        let payload = message.dropFirst(self.markerV1.count)
+        guard let separator = payload.firstIndex(of: ":"),
+              let kind = ProviderFetchClassifiedError.Kind(rawValue: String(payload[..<separator]))
+        else { return nil }
+        return ProviderFetchClassifiedError(kind: kind, message: String(payload[payload.index(after: separator)...]))
+    }
+
+    private static func parseV2(_ payload: String) -> ProviderFetchClassifiedError? {
+        guard let kindSeparator = payload.firstIndex(of: ":"),
+              let kind = ProviderFetchClassifiedError.Kind(rawValue: String(payload[..<kindSeparator]))
+        else { return nil }
+        let retryAndMessage = payload[payload.index(after: kindSeparator)...]
+        guard let retrySeparator = retryAndMessage.firstIndex(of: ":") else { return nil }
+        let retryText = String(retryAndMessage[..<retrySeparator])
+        let retryAfterSeconds = retryText.isEmpty ? nil : TimeInterval(retryText)
+        guard retryText.isEmpty || retryAfterSeconds != nil else { return nil }
+        return ProviderFetchClassifiedError(
+            kind: kind,
+            message: String(retryAndMessage[retryAndMessage.index(after: retrySeparator)...]),
+            retryAfterSeconds: retryAfterSeconds)
+    }
+}
+
+struct ProviderPluginTransientHTTPFailure: LocalizedError, Sendable {
+    private static let retryPolicy = ProviderHTTPRetryPolicy.transientIdempotent
+
+    let errorDescription: String?
+
+    init?(statusCode: Int, retryAfterHeader: String?) {
+        guard let markerMessage = Self.markerMessage(
+            statusCode: statusCode,
+            retryAfterHeader: retryAfterHeader)
+        else { return nil }
+        self.errorDescription = markerMessage
+    }
+
+    static func markerMessage(statusCode: Int, retryAfterHeader: String?) -> String? {
+        guard self.retryPolicy.retryableStatusCodes.contains(statusCode) else { return nil }
+        let kind: ProviderFetchClassifiedError.Kind = statusCode == 429 ? .rateLimited : .providerUnavailable
+        let parsedRetryAfter = retryAfterHeader
+            .map { $0.trimmingCharacters(in: .whitespacesAndNewlines) }
+            .flatMap(TimeInterval.init)
+        let retryAfterSeconds = if let parsedRetryAfter, parsedRetryAfter.isFinite, parsedRetryAfter >= 0 {
+            parsedRetryAfter
+        } else {
+            self.retryPolicy.baseDelaySeconds
+        }
+        let message = "request returned HTTP \(statusCode)"
+        return "\(ProviderPluginClassifiedFailureParser.markerV2)\(kind.rawValue):\(retryAfterSeconds):\(message)"
+    }
+}
+
+extension ProviderPluginManifest {
+    func allowedOrigin(for url: URL, settings: [String: String]) throws -> Bool {
+        for endpoint in self.endpoints {
+            switch endpoint {
+            case let .fixed(declared):
+                if (try? ProviderPluginOrigin.normalizedOrigin(of: url)) == declared {
+                    return true
+                }
+            case let .setting(key, policy):
+                guard let rawValue = settings[key], !rawValue.isEmpty,
+                      let configuredURL = URL(string: rawValue), configuredURL.fragment == nil
+                else { continue }
+                let configuredOrigin = try ProviderPluginOrigin.normalizedOrigin(of: configuredURL, policy: policy)
+                if try ProviderPluginOrigin
+                    .normalizedOrigin(of: url, policy: policy) == configuredOrigin
+                {
+                    return true
+                }
+            }
+        }
+        return false
     }
 }

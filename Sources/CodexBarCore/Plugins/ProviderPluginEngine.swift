@@ -7,6 +7,13 @@ public enum ProviderPluginEngineKind: Equatable, Sendable {
     case quickJS
 }
 
+struct ProviderPluginContextOptions: Sendable {
+    static let production = Self(optionalRequestTimeoutSeconds: nil)
+
+    let optionalRequestTimeoutSeconds: TimeInterval?
+    var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
+}
+
 enum ProviderPluginSourceLint {
     static func validateBundled(_ source: String, name: String) throws {
         if source.range(of: #"\bIntl\s*\."#, options: .regularExpression) != nil {
@@ -24,7 +31,7 @@ enum ProviderPluginEngineFactory {
         transport: any ProviderHTTPTransport,
         timeout: TimeInterval,
         responseSizeLimit: Int,
-        rejectsNonSuccessResponses: Bool,
+        enforcesUserResponsePolicy: Bool,
         allowsDynamicID: Bool) throws -> any ProviderPluginEngine
     {
         switch kind {
@@ -37,7 +44,7 @@ enum ProviderPluginEngineFactory {
                 preludeSource: preludeSource,
                 transport: transport,
                 responseSizeLimit: responseSizeLimit,
-                rejectsNonSuccessResponses: rejectsNonSuccessResponses,
+                enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                 allowsDynamicID: allowsDynamicID)
             #else
             throw ProviderPluginError.load("JavaScriptCore is unavailable on this platform")
@@ -49,7 +56,7 @@ enum ProviderPluginEngineFactory {
                 transport: transport,
                 timeout: timeout,
                 responseSizeLimit: responseSizeLimit,
-                rejectsNonSuccessResponses: rejectsNonSuccessResponses,
+                enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                 allowsDynamicID: allowsDynamicID)
         }
     }
@@ -60,18 +67,17 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
-        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
         timeZone: TimeZone,
-        cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?,
+        contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
 
     func globalType(of name: String) throws -> String
-    func cancelFetch(_ requestID: UUID)
+    func requestInterrupt()
 }
 
 protocol ProviderPluginValue {
@@ -80,16 +86,16 @@ protocol ProviderPluginValue {
     var isNull: Bool { get }
     var isUndefined: Bool { get }
     var isString: Bool { get }
-    var isBoolean: Bool { get }
     var isNumber: Bool { get }
+    var isBoolean: Bool { get }
     var isDate: Bool { get }
 
     func property(_ name: String) -> (any ProviderPluginValue)?
     func element(at index: Int) -> (any ProviderPluginValue)?
     func stringValue() -> String
-    func boolValue() -> Bool
     func int32Value() -> Int32
     func doubleValue() -> Double
+    func boolValue() -> Bool
     func dateValue() -> Date?
 }
 
@@ -120,14 +126,14 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         self.value is String
     }
 
-    var isBoolean: Bool {
-        guard let number = self.value as? NSNumber else { return false }
-        return CFGetTypeID(number) == CFBooleanGetTypeID()
-    }
-
     var isNumber: Bool {
         guard let number = self.value as? NSNumber else { return false }
         return CFGetTypeID(number) != CFBooleanGetTypeID()
+    }
+
+    var isBoolean: Bool {
+        guard let number = self.value as? NSNumber else { return false }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
     }
 
     var isDate: Bool {
@@ -153,16 +159,16 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         self.value as? String ?? String(describing: self.value)
     }
 
-    func boolValue() -> Bool {
-        (self.value as? NSNumber)?.boolValue ?? false
-    }
-
     func int32Value() -> Int32 {
         (self.value as? NSNumber)?.int32Value ?? 0
     }
 
     func doubleValue() -> Double {
         (self.value as? NSNumber)?.doubleValue ?? .nan
+    }
+
+    func boolValue() -> Bool {
+        (self.value as? NSNumber)?.boolValue ?? false
     }
 
     func dateValue() -> Date? {
@@ -200,12 +206,12 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.isString
     }
 
-    var isBoolean: Bool {
-        self.value.isBoolean
-    }
-
     var isNumber: Bool {
         self.value.isNumber
+    }
+
+    var isBoolean: Bool {
+        self.value.isBoolean
     }
 
     var isDate: Bool {
@@ -224,16 +230,16 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.toString()
     }
 
-    func boolValue() -> Bool {
-        self.value.toBool()
-    }
-
     func int32Value() -> Int32 {
         self.value.toInt32()
     }
 
     func doubleValue() -> Double {
         self.value.toDouble()
+    }
+
+    func boolValue() -> Bool {
+        self.value.toBool()
     }
 
     func dateValue() -> Date? {

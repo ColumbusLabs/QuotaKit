@@ -23,9 +23,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             } ?? .init(cookieSource: .auto, manualCookieHeader: nil),
             importer: { domain in
                 try Self.importCookieHeader(
-                    provider: provider,
-                    domain: domain,
-                    browserDetection: context.browserDetection)
+                    provider: provider, domain: domain, browserDetection: context.browserDetection)
             })
     }
 
@@ -68,51 +66,37 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
             guard let header = CookieHeaderNormalizer.normalize(imported.header) else {
                 throw ProviderPluginError.secretAccess("no browser session cookies were found")
             }
-            // CookieHeaderCache's ISO-8601 storage preserves whole seconds only. Keep the
-            // conditional-rejection token at that same precision so it matches after reload.
-            let storedAt = Date(timeIntervalSince1970: Date().timeIntervalSince1970.rounded(.down))
             let issued = CookieHeaderCache.Entry(
-                cookieHeader: header,
-                storedAt: storedAt,
-                sourceLabel: imported.source)
+                cookieHeader: header, storedAt: Date(), sourceLabel: imported.source)
             self.observed[domain] = issued
             CookieHeaderCache.store(
-                provider: self.provider,
-                scope: scope,
-                cookieHeader: header,
-                sourceLabel: issued.sourceLabel,
-                now: issued.storedAt)
+                provider: self.provider, scope: scope, cookieHeader: header,
+                sourceLabel: issued.sourceLabel, now: issued.storedAt)
             return header
         }
     }
 
     func rejectCookie(domain: String) {
         guard self.settings.cookieSource == .auto,
-              self.domains.contains(domain),
-              let expected = self.lock.withLock({ self.observed[domain] })
-        else { return }
-        CookieHeaderCache.clearIfCurrent(
-            provider: self.provider,
-            scope: self.scope(domain),
-            expected: expected)
+              let expected = self.lock.withLock({ self.observed[domain] }) else { return }
+        CookieHeaderCache.clearIfCurrent(provider: self.provider, scope: self.scope(domain), expected: expected)
     }
 
     private func scope(_ domain: String) -> CookieHeaderCache.Scope? {
+        // Single-domain providers retain their existing cache and manual-refresh behavior.
         self.domains.count == 1 ? nil : .providerVariant(domain)
     }
 
     static func importCookieHeader(
-        provider: UsageProvider? = nil,
-        domain: String,
-        browserDetection: BrowserDetection) throws -> (header: String, source: String)
+        provider: UsageProvider? = nil, domain: String, browserDetection: BrowserDetection) throws -> (
+        header: String, source: String)
     {
         #if os(macOS)
-        let importOrder = provider.map {
-            ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder
-        } ?? [.chrome]
         let query = BrowserCookieQuery(domains: [domain])
         let client = BrowserCookieClient()
-        for browser in importOrder.cookieImportCandidates(using: browserDetection) {
+        let order = provider.map { ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder }
+            ?? [Browser.chrome]
+        for browser in order.cookieImportCandidates(using: browserDetection) {
             do {
                 let sources = try client.codexBarRecords(matching: query, in: browser)
                 for source in sources where !source.records.isEmpty {
@@ -126,11 +110,8 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                 BrowserCookieAccessGate.recordIfNeeded(error)
             }
         }
-        throw ProviderPluginError.secretAccess("no browser session cookies were found")
+        throw ProviderPluginError.secretAccess("no Chrome browser session cookies were found")
         #else
-        _ = provider
-        _ = domain
-        _ = browserDetection
         throw ProviderPluginError.secretAccess("browser cookie import is unavailable on this platform")
         #endif
     }
@@ -141,9 +122,7 @@ public enum UserProviderPluginCookieBroker {
         browserDetection: BrowserDetection) -> ProviderPluginRuntime.InstanceCookieResolver
     {
         { _, domain in
-            try ProviderPluginCookieBroker.importCookieHeader(
-                domain: domain,
-                browserDetection: browserDetection).header
+            try ProviderPluginCookieBroker.importCookieHeader(domain: domain, browserDetection: browserDetection).header
         }
     }
 }
