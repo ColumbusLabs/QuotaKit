@@ -1,4 +1,3 @@
-import CoreFoundation
 import CQuickJS
 import Foundation
 #if canImport(FoundationNetworking)
@@ -19,6 +18,7 @@ private enum QuickJSHostFunction: Int32 {
     case pct
     case amountFromPercent
     case isDetailLabel
+    case formatCurrency
 }
 
 enum QuickJSRuntimeLimits {
@@ -488,6 +488,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (.pct, "pct", 2),
             (.amountFromPercent, "amountFromPercent", 2),
             (.isDetailLabel, "isDetailLabel", 1),
+            (.formatCurrency, "formatCurrency", 2),
         ] {
             let value = cqjs_new_host_function(self.context, function.rawValue, name, Int32(count))
             guard JS_SetPropertyStr(self.context, host, name, value) >= 0 else {
@@ -553,6 +554,13 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             case .isDetailLabel:
                 let label = try values.first.map { try self.string(from: $0) } ?? ""
                 return JS_NewBool(self.context, (try? ProviderDetailSection.Row(label: label, value: "—")) != nil)
+            case .formatCurrency:
+                var amount = 0.0
+                guard values.count == 2, JS_ToFloat64(self.context, &amount, values[0]) == 0 else {
+                    throw ProviderPluginError.script("currency requires an amount and currency code")
+                }
+                return try self.makeString(UsageFormatter.currencyString(
+                    amount, currencyCode: self.string(from: values[1])))
             }
         } catch {
             return self.throwError(error)

@@ -28,6 +28,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: match native currency display formatting.
+
 - Provider plugins: preserve transport failures and cancellation across both script engines.
 
 - Provider plugins: expose cookie availability without credential reads and block API-only cookie access.

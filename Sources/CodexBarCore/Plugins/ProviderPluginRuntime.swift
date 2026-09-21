@@ -648,6 +648,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             (try? ProviderDetailSection.Row(label: label, value: "—")) != nil
         }
         host.setObject(isDetailLabel, forKeyedSubscript: "isDetailLabel" as NSString)
+        let currency: @convention(block) (Double, String) -> String = { amount, code in
+            UsageFormatter.currencyString(amount, currencyCode: code)
+        }
+        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
             guard rawHour.isFinite,
