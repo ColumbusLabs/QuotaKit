@@ -156,6 +156,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         secrets: [String: String] = [:],
         now: Date = Date(),
         timeZone: TimeZone = .current,
+        sourceMode: ProviderSourceMode = .auto,
+        cookieSource: ProviderCookieSource = .auto,
         cookieInvalidator: CookieInvalidator? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> UsageSnapshot
@@ -173,6 +175,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         }
 
         var contextOptions = self.contextOptions
+        contextOptions.cookieSource = sourceMode.usesWeb ? cookieSource : .off
         contextOptions.cookieInvalidator = cookieInvalidator
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<UsageSnapshot>()
@@ -657,6 +660,20 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let http = self.makeHTTPBlock(settings: settings, secrets: secrets, redactionValues: redactionValues)
         host.setObject(http, forKeyedSubscript: "http" as NSString)
 
+        let cookieAvailability: @convention(block) (String) -> String = { [weak self] rawDomain in
+            guard let self else { return "off" }
+            do {
+                _ = try self.manifest.cookieDomain(rawDomain)
+                return contextOptions.cookieSource.pluginAvailability(
+                    hasResolver: (self.manifest.id.firstPartyProvider != nil && cookieResolver != nil)
+                        || instanceCookieResolver != nil)
+            } catch {
+                self.context.exception = JSValue(newErrorFromMessage: error.localizedDescription, in: self.context)
+                return "off"
+            }
+        }
+        host.setObject(cookieAvailability, forKeyedSubscript: "cookieAvailability" as NSString)
+
         let rejectCookie: @convention(block) (String) -> Void = { [weak self] rawDomain in
             guard let self else { return }
             do {
@@ -669,6 +686,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         host.setObject(rejectCookie, forKeyedSubscript: "rejectCookie" as NSString)
 
         let cookieHeader = self.makeCookieBlock(
+            source: contextOptions.cookieSource,
             resolver: cookieResolver,
             instanceResolver: instanceCookieResolver,
             redactionValues: redactionValues)
@@ -809,6 +827,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     }
 
     private func makeCookieBlock(
+        source: ProviderCookieSource,
         resolver: ProviderPluginRuntime.CookieResolver?,
         instanceResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         redactionValues: ProviderPluginRedactionValues) -> CookieBlock
@@ -820,6 +839,12 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 self.reject(
                     ProviderPluginJSValueBox(reject),
                     error: ProviderPluginError.secretAccess("cookie domain is not declared"))
+                return
+            }
+            guard source != .off else {
+                self.reject(
+                    ProviderPluginJSValueBox(reject),
+                    error: ProviderPluginError.secretAccess("browser cookies are disabled for this provider"))
                 return
             }
             let resolveCookie: @Sendable () async throws -> String

@@ -9,6 +9,7 @@ private enum QuickJSHostFunction: Int32 {
     case defineProvider
     case settingGet
     case http
+    case cookieAvailability
     case rejectCookie
     case cookieHeader
     case cacheGet
@@ -473,6 +474,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (.http, "http", 6),
             (.cookieHeader, "cookieHeader", 3),
             (.rejectCookie, "rejectCookie", 1),
+            (.cookieAvailability, "cookieAvailability", 1),
             (.cacheGet, "cacheGet", 1),
             (.cacheSet, "cacheSet", 3),
             (.log, "log", 1),
@@ -511,6 +513,12 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             case .http:
                 try self.hostHTTP(values)
                 return cqjs_undefined()
+            case .cookieAvailability:
+                _ = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
+                guard let state = self.fetchState else { return self.makeString("off") }
+                return self.makeString(state.contextOptions.cookieSource.pluginAvailability(
+                    hasResolver: (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
+                        || state.instanceCookieResolver != nil))
             case .rejectCookie:
                 let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
                 self.fetchState?.contextOptions.cookieInvalidator?(domain)
@@ -612,6 +620,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         }
         do {
             let domain = try self.manifest.cookieDomain(self.string(from: arguments[0]))
+            guard state.contextOptions.cookieSource != .off else {
+                throw ProviderPluginError.secretAccess("browser cookies are disabled for this provider")
+            }
             let header: String
             if let provider = self.manifest.id.firstPartyProvider, let resolver = state.cookieResolver {
                 header = try self.blockingValue(timeout: self.timeout) { try await resolver(provider, domain) }

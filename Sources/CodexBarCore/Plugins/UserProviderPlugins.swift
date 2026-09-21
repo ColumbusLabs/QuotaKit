@@ -146,6 +146,8 @@ public struct UserProviderPlugin: @unchecked Sendable {
         environment: [String: String] = ProcessInfo.processInfo.environment,
         approvalStore: ProviderPluginApprovalStore,
         now: Date = Date(),
+        sourceMode: ProviderSourceMode = .auto,
+        cookieSource: ProviderCookieSource = .auto,
         cookieResolver: ProviderPluginRuntime.CookieResolver? = nil,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver? = nil) async throws -> UsageSnapshot
     {
@@ -157,12 +159,16 @@ public struct UserProviderPlugin: @unchecked Sendable {
             secrets: secrets,
             manifest: self.manifest,
             environment: environment)
-        return try await self.runtime.fetchUsage(
-            settings: settings,
-            secrets: resolvedSecrets,
-            now: now,
-            cookieResolver: cookieResolver,
-            instanceCookieResolver: instanceCookieResolver)
+        return try await ProviderFetchDelayedRetry.run {
+            try await self.runtime.fetchUsage(
+                settings: settings,
+                secrets: resolvedSecrets,
+                now: now,
+                sourceMode: sourceMode,
+                cookieSource: cookieSource,
+                cookieResolver: cookieResolver,
+                instanceCookieResolver: instanceCookieResolver)
+        }
     }
 
     public static func environmentKey(instanceID: ProviderInstanceID, settingKey: String) -> String {

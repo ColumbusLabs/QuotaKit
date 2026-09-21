@@ -121,6 +121,8 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
         let usage = try await runtime.fetchUsage(
             settings: values.settings,
             secrets: values.secrets,
+            sourceMode: context.sourceMode,
+            cookieSource: cookies.cookieSource,
             cookieInvalidator: { cookies.rejectCookie(domain: $0) },
             cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
         return self.makeResult(usage: usage, sourceLabel: self.sourceLabel)

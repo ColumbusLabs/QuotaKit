@@ -28,6 +28,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: expose cookie availability without credential reads and block API-only cookie access.
+
 - Provider plugins: isolate cached browser sessions by cookie domain.
 
 - MiniMax: discover browser storage across the shared Chromium catalog.

@@ -12,7 +12,9 @@ struct ProviderPluginCookieBrokerTests {
             CookieHeaderCache.store(provider: .manus, cookieHeader: "session=legacy", sourceLabel: "Fixture")
             for domain in self.domains {
                 #expect(try broker.cookieHeader(domain: domain) == "session=\(domain)")
-                #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant(domain))?.cookieHeader
+                #expect(CookieHeaderCache.load(
+                    provider: .manus,
+                    scope: .providerVariant(domain))?.cookieHeader
                     == "session=\(domain)")
             }
             let cached = self.broker(importer: { _ in
@@ -33,17 +35,24 @@ struct ProviderPluginCookieBrokerTests {
                 _ = try broker.cookieHeader(domain: domain)
             }
             broker.rejectCookie(domain: "cloud.example.test")
-            #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant("cloud.example.test")) == nil)
-            #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant("community.example.test")) != nil)
+            #expect(CookieHeaderCache.load(
+                provider: .manus,
+                scope: .providerVariant("cloud.example.test")) == nil)
+            #expect(CookieHeaderCache.load(
+                provider: .manus,
+                scope: .providerVariant("community.example.test")) != nil)
             CookieHeaderCache.store(
-                provider: .manus, scope: .providerVariant("community.example.test"),
-                cookieHeader: "session=newer", sourceLabel: "Fixture")
+                provider: .manus,
+                scope: .providerVariant("community.example.test"),
+                cookieHeader: "session=newer",
+                sourceLabel: "Fixture")
             // A second lookup in the same fetch must not retarget an outstanding rejection.
             #expect(try broker.cookieHeader(domain: "community.example.test") == "session=community.example.test")
             broker.rejectCookie(domain: "community.example.test")
             broker.rejectCookie(domain: "community.example.test")
             #expect(CookieHeaderCache.load(
-                provider: .manus, scope: .providerVariant("community.example.test"))?.cookieHeader == "session=newer")
+                provider: .manus,
+                scope: .providerVariant("community.example.test"))?.cookieHeader == "session=newer")
         }
     }
 
@@ -55,13 +64,19 @@ struct ProviderPluginCookieBrokerTests {
             let issued = try KeychainCacheStore.withStoreFailureStatusOverrideForTesting(-25308) {
                 try broker.cookieHeader(domain: domain)
             }
-            #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant(domain)) == nil)
+            #expect(CookieHeaderCache.load(
+                provider: .manus,
+                scope: .providerVariant(domain)) == nil)
             CookieHeaderCache.store(
-                provider: .manus, scope: .providerVariant(domain), cookieHeader: "session=newer",
+                provider: .manus,
+                scope: .providerVariant(domain),
+                cookieHeader: "session=newer",
                 sourceLabel: "Fixture")
             #expect(try broker.cookieHeader(domain: domain) == issued)
             broker.rejectCookie(domain: domain)
-            #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant(domain))?
+            #expect(CookieHeaderCache.load(
+                provider: .manus,
+                scope: .providerVariant(domain))?
                 .cookieHeader == "session=newer")
         }
     }
@@ -75,7 +90,9 @@ struct ProviderPluginCookieBrokerTests {
             })
             for domain in self.domains {
                 CookieHeaderCache.store(
-                    provider: .manus, scope: .providerVariant(domain), cookieHeader: "session=cached",
+                    provider: .manus,
+                    scope: .providerVariant(domain),
+                    cookieHeader: "session=cached",
                     sourceLabel: "Fixture")
                 if source == .manual {
                     #expect(try broker.cookieHeader(domain: domain) == "session=manual")
@@ -83,7 +100,9 @@ struct ProviderPluginCookieBrokerTests {
                     #expect(throws: ProviderPluginError.self) { try broker.cookieHeader(domain: domain) }
                 }
                 broker.rejectCookie(domain: domain)
-                #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant(domain)) != nil)
+                #expect(CookieHeaderCache.load(
+                    provider: .manus,
+                    scope: .providerVariant(domain)) != nil)
             }
         }
     }
@@ -93,7 +112,8 @@ struct ProviderPluginCookieBrokerTests {
         try self.isolated {
             CookieHeaderCache.store(provider: .manus, cookieHeader: "session=existing", sourceLabel: "Fixture")
             let broker = ProviderPluginCookieBroker(
-                provider: .manus, domains: ["cloud.example.test"],
+                provider: .manus,
+                domains: ["cloud.example.test"],
                 settings: .init(cookieSource: .auto, manualCookieHeader: nil),
                 importer: { _ in throw URLError(.unknown) })
             #expect(try broker.cookieHeader(domain: "cloud.example.test") == "session=existing")
@@ -107,8 +127,10 @@ struct ProviderPluginCookieBrokerTests {
         -> ProviderPluginCookieBroker
     {
         ProviderPluginCookieBroker(
-            provider: .manus, domains: self.domains,
-            settings: .init(cookieSource: source, manualCookieHeader: "Cookie: session=manual"), importer: importer)
+            provider: .manus,
+            domains: self.domains,
+            settings: .init(cookieSource: source, manualCookieHeader: "Cookie: session=manual"),
+            importer: importer)
     }
 
     private func isolated(_ body: () throws -> Void) rethrows {

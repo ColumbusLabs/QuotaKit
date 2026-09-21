@@ -11,6 +11,7 @@ struct ProviderPluginContextOptions: Sendable {
     static let production = Self(optionalRequestTimeoutSeconds: nil)
 
     let optionalRequestTimeoutSeconds: TimeInterval?
+    var cookieSource: ProviderCookieSource = .auto
     var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
 }
 

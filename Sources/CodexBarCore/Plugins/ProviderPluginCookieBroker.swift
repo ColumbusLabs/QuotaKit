@@ -39,6 +39,10 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         self.importer = importer
     }
 
+    var cookieSource: ProviderCookieSource {
+        self.settings.cookieSource
+    }
+
     func cookieHeader(domain: String) throws -> String {
         guard self.domains.contains(domain) else {
             throw ProviderPluginError.secretAccess("cookie domain is not declared")
@@ -70,8 +74,11 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
                 cookieHeader: header, storedAt: Date(), sourceLabel: imported.source)
             self.observed[domain] = issued
             CookieHeaderCache.store(
-                provider: self.provider, scope: scope, cookieHeader: header,
-                sourceLabel: issued.sourceLabel, now: issued.storedAt)
+                provider: self.provider,
+                scope: scope,
+                cookieHeader: header,
+                sourceLabel: issued.sourceLabel,
+                now: issued.storedAt)
             return header
         }
     }
