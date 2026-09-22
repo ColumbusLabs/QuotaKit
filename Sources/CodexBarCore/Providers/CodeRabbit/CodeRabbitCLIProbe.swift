@@ -3,6 +3,10 @@ import Foundation
 public struct CodeRabbitCLIProbe: Sendable {
     private let arguments: [String]
 
+    private struct AuthStatusResponse: Decodable {
+        let authenticated: Bool
+    }
+
     public init(usageArguments: [String] = ["usage"]) {
         self.arguments = usageArguments
     }
@@ -19,6 +23,31 @@ public struct CodeRabbitCLIProbe: Sendable {
         commandEnvironment["NO_COLOR"] = "1"
         commandEnvironment["PATH"] = PathBuilder.effectivePATH(
             purposes: [.tty, .nodeTooling], env: environment, loginPATH: loginPATH)
+
+        let authStatusOutput: String
+        do {
+            authStatusOutput = try await SubprocessRunner.run(
+                binary: executable,
+                arguments: ["auth", "status", "--agent"],
+                environment: commandEnvironment,
+                timeout: 15,
+                maxOutputBytes: 128 * 1024,
+                standardInput: FileHandle.nullDevice,
+                label: "coderabbit-auth-status").stdout
+        } catch let SubprocessRunnerError.nonZeroExit(_, stderr)
+            where CodeRabbitUsageParser.looksSignedOut(stderr)
+        {
+            throw CodeRabbitUsageError.notLoggedIn
+        } catch {
+            // Usage can open browser login, so any unavailable or ambiguous
+            // status must stop the probe before that command is attempted.
+            throw CodeRabbitUsageError.parseFailed
+        }
+        guard let authStatus = Self.authStatus(from: authStatusOutput) else {
+            throw CodeRabbitUsageError.parseFailed
+        }
+        guard authStatus else { throw CodeRabbitUsageError.notLoggedIn }
+
         do {
             let result = try await SubprocessRunner.run(
                 binary: executable,
@@ -33,6 +62,15 @@ public struct CodeRabbitCLIProbe: Sendable {
             if CodeRabbitUsageParser.looksSignedOut(stderr) { throw CodeRabbitUsageError.notLoggedIn }
             throw CodeRabbitUsageError.cliFailed(code)
         }
+    }
+
+    private static func authStatus(from output: String) -> Bool? {
+        guard let data = output.data(using: .utf8),
+              let response = try? JSONDecoder().decode(AuthStatusResponse.self, from: data)
+        else {
+            return nil
+        }
+        return response.authenticated
     }
 
     static func executable(environment: [String: String], loginPATH: [String]?) -> String? {
