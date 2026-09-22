@@ -37,10 +37,8 @@ public struct OpenRouterKeyResponse: Decodable, Sendable {
     public let data: OpenRouterKeyData
 }
 
-/// OpenRouter key data with quota and rate limit info
+/// OpenRouter key data with quota info
 public struct OpenRouterKeyData: Decodable, Sendable {
-    /// Rate limit per interval
-    public let rateLimit: OpenRouterRateLimit?
     /// Usage limits
     public let limit: Double?
     /// Remaining usage for the current limit window, as reported by the server.
@@ -57,7 +55,6 @@ public struct OpenRouterKeyData: Decodable, Sendable {
     public let usageMonthly: Double?
 
     private enum CodingKeys: String, CodingKey {
-        case rateLimit = "rate_limit"
         case limit
         case limitRemaining = "limit_remaining"
         case limitReset = "limit_reset"
@@ -101,6 +98,7 @@ public struct OpenRouterUsageSnapshot: Codable, Sendable {
     public let keyUsageDaily: Double?
     public let keyUsageWeekly: Double?
     public let keyUsageMonthly: Double?
+    /// Retained for decoding older snapshots; OpenRouter's `rate_limit` field is deprecated and ignored.
     public let rateLimit: OpenRouterRateLimit?
     public let updatedAt: Date
 
@@ -246,7 +244,10 @@ extension OpenRouterUsageSnapshot {
         if self.keyDataFetched {
             var rows: [ProviderDetailSection.Row] = []
             if let keyLimit = self.keyLimit, keyLimit > 0 {
-                rows.append(.makeRow(label: "API key budget", value: UsageFormatter.usdString(keyLimit)))
+                rows.append(.makeRow(
+                    label: "API key limit",
+                    value: UsageFormatter.usdString(keyLimit),
+                    secondaryValue: "Spending cap, not balance"))
                 if let keyRemaining = self.keyRemaining {
                     rows.append(.makeRow(
                         label: "API key remaining",
@@ -256,7 +257,7 @@ extension OpenRouterUsageSnapshot {
                     rows.append(.makeRow(label: "API key used", value: UsageFormatter.usdString(keyUsage)))
                 }
             } else {
-                rows.append(.makeRow(label: "API key budget", value: "No limit configured"))
+                rows.append(.makeRow(label: "API key limit", value: "No limit configured"))
             }
             if let keyLimitReset = self.keyLimitReset?.trimmingCharacters(in: .whitespacesAndNewlines),
                !keyLimitReset.isEmpty
@@ -273,11 +274,6 @@ extension OpenRouterUsageSnapshot {
                     rows.append(.makeRow(label: label, value: UsageFormatter.usdString(value)))
                 }
             }
-            if let rateLimit = self.rateLimit {
-                rows.append(.makeRow(
-                    label: "Rate limit",
-                    value: "\(rateLimit.requests) requests / \(rateLimit.interval)"))
-            }
             let points = periods.compactMap { label, value in value.map { (label, $0) } }
             details.append(.makeSection(
                 title: "API key",
@@ -285,7 +281,7 @@ extension OpenRouterUsageSnapshot {
                 chart: points.isEmpty ? nil : .makeChart(title: "Key spend", unit: "USD", points: points)))
         } else {
             details.append(.makeSection(title: "API key", rows: [
-                .makeRow(label: "API key budget", value: "Unavailable right now"),
+                .makeRow(label: "API key limit", value: "Unavailable right now"),
             ]))
         }
         details.append(.makeSection(title: "Spend history", rows: [
@@ -309,7 +305,7 @@ extension OpenRouterUsageSnapshot {
 /// Fetches usage stats from the OpenRouter API
 public struct OpenRouterUsageFetcher: Sendable {
     private static let log = CodexBarLog.logger(LogCategories.provider(.openrouter, scope: "usage"))
-    private static let rateLimitTimeoutSeconds: TimeInterval = 1.0
+    private static let keyRequestTimeoutSeconds: TimeInterval = 1.0
     private static let creditsRequestTimeoutSeconds: TimeInterval = 15
     private static let maxErrorBodyLength = 240
     private static let maxDebugErrorBodyLength = 2000
@@ -361,7 +357,7 @@ public struct OpenRouterUsageFetcher: Sendable {
             let keyFetch = try await fetchKeyData(
                 apiKey: apiKey,
                 baseURL: baseURL,
-                timeoutSeconds: Self.rateLimitTimeoutSeconds,
+                timeoutSeconds: Self.keyRequestTimeoutSeconds,
                 transport: transport)
 
             return OpenRouterUsageSnapshot(
@@ -377,7 +373,7 @@ public struct OpenRouterUsageFetcher: Sendable {
                 keyUsageDaily: keyFetch.data?.usageDaily,
                 keyUsageWeekly: keyFetch.data?.usageWeekly,
                 keyUsageMonthly: keyFetch.data?.usageMonthly,
-                rateLimit: keyFetch.data?.rateLimit,
+                rateLimit: nil,
                 updatedAt: Date())
         } catch is CancellationError {
             throw CancellationError()

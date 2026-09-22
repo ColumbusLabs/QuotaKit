@@ -235,13 +235,11 @@ public struct AlibabaCodingPlanUsageFetcher: Sendable {
             return Data()
         }
 
-        var components = URLComponents()
-        components.queryItems = [
-            URLQueryItem(name: "params", value: paramsString),
-            URLQueryItem(name: "region", value: region.currentRegionID),
-            URLQueryItem(name: "sec_token", value: secToken),
-        ]
-        return Data((components.percentEncodedQuery ?? "").utf8)
+        return FormURLEncoding.body([
+            ("params", paramsString),
+            ("region", region.currentRegionID),
+            ("sec_token", secToken),
+        ])
     }
 
     static func resolveConsoleQuotaURL(

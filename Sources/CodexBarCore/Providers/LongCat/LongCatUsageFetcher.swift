@@ -320,8 +320,12 @@ public struct LongCatUsageFetcher: Sendable {
             if seconds > 1_000_000_000 {
                 return Date(timeIntervalSince1970: seconds)
             }
-        }
-        if let string = LongCatJSON.string(value) {
+        } else if let string = LongCatJSON.string(value) {
+            let fractionalISO = ISO8601DateFormatter()
+            fractionalISO.formatOptions = [.withInternetDateTime, .withFractionalSeconds]
+            if let date = fractionalISO.date(from: string) {
+                return date
+            }
             let iso = ISO8601DateFormatter()
             if let date = iso.date(from: string) {
                 return date
@@ -329,9 +333,7 @@ public struct LongCatUsageFetcher: Sendable {
             let formatter = DateFormatter()
             formatter.locale = Locale(identifier: "en_US_POSIX")
             formatter.dateFormat = "yyyy-MM-dd HH:mm:ss"
-            if let date = formatter.date(from: string) {
-                return date
-            }
+            return formatter.date(from: string)
         }
         return nil
     }

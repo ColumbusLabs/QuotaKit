@@ -548,8 +548,13 @@ struct AlibabaTokenPlanUsageParsingTests {
         }
     }
 
-    @Test
-    func `mainland Personal fetch resolves SEC token and omits hardcoded workspace agent`() async throws {
+    @Test(arguments: ["", "+&=%2B /東京"])
+    func `mainland Personal fetch resolves SEC token and omits hardcoded workspace agent`(suffix: String) async throws {
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer { AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock() }
+        let secToken = "personal-sec-token" + suffix
+        let anonymousID = "fixture-anon" + (suffix.isEmpty ? "" : "+%2B")
+        let apiCookieHeader = "quota_only=quota; cna=\(anonymousID)"
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
@@ -569,7 +574,7 @@ struct AlibabaTokenPlanUsageParsingTests {
                     {
                       "code": "200",
                       "data": {
-                        "secToken": "personal-sec-token"
+                        "secToken": "\(secToken)"
                       },
                       "successResponse": true
                     }
@@ -581,10 +586,17 @@ struct AlibabaTokenPlanUsageParsingTests {
 
             #expect(url.host == "bailian-cs.console.aliyun.com")
             #expect(request.httpMethod == "POST")
-            #expect(request.value(forHTTPHeaderField: "Cookie") == "quota_only=quota")
+            #expect(request.value(forHTTPHeaderField: "Cookie") == apiCookieHeader)
             #expect(request.value(forHTTPHeaderField: "Origin") == "https://bailian.console.aliyun.com")
             let body = Self.requestBodyString(from: request)
-            #expect(body.contains("sec_token=personal-sec-token"))
+            let fields = try FormBodyTestSupport.decode(Data(body.utf8))
+            #expect(Set(fields.keys) == ["product", "action", "region", "language", "params", "sec_token"])
+            #expect(fields["sec_token"] == secToken)
+            let paramsData = try #require(fields["params"]?.data(using: .utf8))
+            let params = try #require(JSONSerialization.jsonObject(with: paramsData) as? [String: Any])
+            let data = try #require(params["Data"] as? [String: Any])
+            let cornerstone = try #require(data["cornerstoneParam"] as? [String: Any])
+            #expect(cornerstone["X-Anonymous-Id"] as? String == anonymousID)
             #expect(!body.contains("switchAgent"))
             #expect(body.removingPercentEncoding?.contains("cornerstoneParam") == true)
 
@@ -609,7 +621,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         configuration.protocolClasses = [AlibabaTokenPlanStubURLProtocol.self]
         let session = URLSession(configuration: configuration)
         let snapshot = try await AlibabaTokenPlanUsageFetcher.fetchUsage(
-            apiCookieHeader: "quota_only=quota",
+            apiCookieHeader: apiCookieHeader,
             dashboardCookieHeader: "dashboard_only=dashboard",
             region: .chinaMainlandPersonal,
             environment: [:],
@@ -622,6 +634,8 @@ struct AlibabaTokenPlanUsageParsingTests {
 
     @Test
     func `Personal fetch continues without SEC token when preflight cannot resolve one`() async throws {
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer { AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock() }
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
@@ -711,6 +725,8 @@ struct AlibabaTokenPlanUsageParsingTests {
 
     @Test
     func `SEC token preflight falls back to user info`() async throws {
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer { AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock() }
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
         }
@@ -791,21 +807,25 @@ struct AlibabaTokenPlanUsageParsingTests {
         #expect(snapshot.planName == "TOKEN PLAN")
     }
 
-    @Test
-    func `SEC token preflight uses injected session`() async throws {
+    @Test(arguments: ["", "+&=%2B /東京"])
+    func `SEC token preflight uses injected session`(suffix: String) async throws {
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        let secToken = "session-html-token" + suffix
         AlibabaTokenPlanStubURLProtocol.handler = { request in
             guard let url = request.url else { throw URLError(.badURL) }
 
             if url.host == "session-token.test", request.httpMethod == "GET" {
                 return Self.makeResponse(
                     url: url,
-                    body: "<html><script>sec_token = \"session-html-token\";</script></html>",
+                    body: "<html><script>sec_token = \"\(secToken)\";</script></html>",
                     statusCode: 200)
             }
 
             if url.host == "session-token.test", request.httpMethod == "POST" {
                 let body = Self.requestBodyString(from: request)
-                #expect(body.contains("sec_token=session-html-token"))
+                let fields = try FormBodyTestSupport.decode(Data(body.utf8))
+                #expect(Set(fields.keys) == ["product", "action", "params", "region", "sec_token"])
+                #expect(fields["sec_token"] == secToken)
                 let json = """
                 {
                   "Success": true,
@@ -823,6 +843,7 @@ struct AlibabaTokenPlanUsageParsingTests {
         }
         defer {
             AlibabaTokenPlanStubURLProtocol.handler = nil
+            AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock()
         }
 
         let configuration = URLSessionConfiguration.ephemeral
@@ -1533,7 +1554,17 @@ struct AlibabaTokenPlanWebStrategyTests {
 }
 
 final class AlibabaTokenPlanStubURLProtocol: URLProtocol {
+    private static let handlerTestLock = DispatchSemaphore(value: 1)
     private static let _handlerBox = LockIsolated<((URLRequest) throws -> (HTTPURLResponse, Data))?>(nil)
+
+    static func acquireHandlerTestLock() {
+        self.handlerTestLock.wait()
+    }
+
+    static func releaseHandlerTestLock() {
+        self.handlerTestLock.signal()
+    }
+
     static var handler: ((URLRequest) throws -> (HTTPURLResponse, Data))? {
         get { Self._handlerBox.value }
         set { Self._handlerBox.setValue(newValue) }
@@ -1648,7 +1679,11 @@ struct AlibabaTokenPlanPersonalUsageRetryTests {
 
     @Test
     func `recovers when an empty Success usage response is followed by a full one`() async throws {
-        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+            AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock()
+        }
         let usageBody = try #require(String(data: alibabaTokenPlanFixture("personal_usage"), encoding: .utf8))
         let subscriptionBody = try #require(
             String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
@@ -1675,7 +1710,11 @@ struct AlibabaTokenPlanPersonalUsageRetryTests {
 
     @Test
     func `surfaces usageWindowsUnavailable when every usage attempt is an empty Success`() async throws {
-        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+            AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock()
+        }
         let subscriptionBody = try #require(
             String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
         let quotaBody = try #require(String(data: alibabaTokenPlanFixture("personal_quota_config"), encoding: .utf8))
@@ -1700,7 +1739,11 @@ struct AlibabaTokenPlanPersonalUsageRetryTests {
 
     @Test
     func `cancellation during Personal retry delay stops further requests`() async throws {
-        defer { AlibabaTokenPlanStubURLProtocol.handler = nil }
+        AlibabaTokenPlanStubURLProtocol.acquireHandlerTestLock()
+        defer {
+            AlibabaTokenPlanStubURLProtocol.handler = nil
+            AlibabaTokenPlanStubURLProtocol.releaseHandlerTestLock()
+        }
         let subscriptionBody = try #require(
             String(data: alibabaTokenPlanFixture("personal_subscription"), encoding: .utf8))
         let quotaBody = try #require(String(data: alibabaTokenPlanFixture("personal_quota_config"), encoding: .utf8))

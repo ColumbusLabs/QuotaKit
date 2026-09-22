@@ -30,9 +30,13 @@ struct ProviderPluginParityTests {
             (UsageProvider.crof, "CROF_API_KEY"),
             (.venice, "VENICE_API_KEY"),
             (.openrouter, "OPENROUTER_API_KEY"),
+            (.litellm, LiteLLMSettingsReader.apiKeyEnvironmentKey),
         ] {
             let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
             var environment = [key: "fixture-key"]
+            if provider == .litellm {
+                environment[LiteLLMSettingsReader.baseURLEnvironmentKey] = "https://proxy.example.com"
+            }
             let context = Self.context(environment: environment)
             let strategies = await descriptor.fetchPlan.pipeline.resolveStrategies(context)
 
@@ -41,6 +45,25 @@ struct ProviderPluginParityTests {
             environment[ProviderPluginPrototype.environmentKey] = "1"
             let flagged = await descriptor.fetchPlan.pipeline.resolveStrategies(Self.context(environment: environment))
             #expect(flagged.map(\.id) == ["\(provider.rawValue).js"])
+        }
+    }
+
+    @Test
+    func `LiteLLM rejects invalid configured proxy origins before fetching`() async throws {
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: .litellm)
+        for origin in ["http://public.example.com", "https://user:password@example.com", "file:///tmp/proxy"] {
+            let context = Self.context(environment: [
+                LiteLLMSettingsReader.apiKeyEnvironmentKey: "fixture-key",
+                LiteLLMSettingsReader.baseURLEnvironmentKey: origin,
+            ])
+            let strategy = try #require(await descriptor.fetchPlan.pipeline.resolveStrategies(context).first)
+            #expect(await strategy.isAvailable(context))
+            do {
+                _ = try await strategy.fetch(context)
+                Issue.record("Expected invalid proxy origin")
+            } catch let error as LiteLLMUsageError {
+                #expect(error.localizedDescription.contains(LiteLLMSettingsReader.baseURLEnvironmentKey))
+            }
         }
     }
 

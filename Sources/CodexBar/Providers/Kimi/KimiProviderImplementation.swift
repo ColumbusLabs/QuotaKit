@@ -15,6 +15,7 @@ struct KimiProviderImplementation: ProviderImplementation {
 
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
+        _ = settings.kimiRegion
         _ = settings.kimiUsageDataSource
         _ = settings.kimiAPIKey
         _ = settings.kimiCookieSource
@@ -23,7 +24,15 @@ struct KimiProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
-        .kimi(context.settings.kimiSettingsSnapshot(tokenOverride: context.tokenOverride))
+        let cookies: CookieProviderSettings = context.settings.resolvedCookieSettings(
+            provider: .kimi,
+            configuredSource: context.settings.kimiCookieSource,
+            configuredHeader: context.settings.kimiManualCookieHeader,
+            tokenOverride: context.tokenOverride)
+        return .kimi(.init(
+            cookieSource: cookies.cookieSource,
+            manualCookieHeader: cookies.manualCookieHeader,
+            region: context.settings.kimiRegion))
     }
 
     @MainActor
@@ -70,13 +79,25 @@ struct KimiProviderImplementation: ProviderImplementation {
                 manual: "Paste a cookie header or the kimi-auth token value.",
                 off: "Kimi cookies are disabled.")
         }
+        let regionBinding = Binding(
+            get: { context.settings.kimiRegion.rawValue },
+            set: { context.settings.kimiRegion = KimiRegion(rawValue: $0) ?? .china })
 
         return [
             ProviderSettingsPickerDescriptor(
+                id: "kimi-region",
+                title: "Region",
+                subtitle: "Use credentials issued for the selected region. CLI credential reuse requires China.",
+                binding: regionBinding,
+                options: KimiRegion.allCases.map { .init(id: $0.rawValue, title: $0.displayName) },
+                isVisible: nil,
+                onChange: nil),
+            ProviderSettingsPickerDescriptor(
                 id: "kimi-usage-source",
                 title: "Usage source",
-                subtitle: "Kimi Code subscription usage from api.kimi.com. Auto tries your configured API key, " +
-                    "then a signed-in Kimi Code CLI credential, then web cookies. China Open Platform balance " +
+                subtitle: "Kimi Code subscription usage for the selected region. Auto tries your configured API key, " +
+                    "then a signed-in Kimi Code CLI credential in China, then web cookies. " +
+                    "China Open Platform balance " +
                     "is a separate provider.",
                 binding: usageBinding,
                 options: usageOptions,
@@ -105,7 +126,7 @@ struct KimiProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "kimi-api-key",
                 title: "Kimi Code API key",
-                subtitle: "Kimi Code key from www.kimi.com/code. For China Open Platform balance, use " +
+                subtitle: "Kimi Code key for the selected region. For China Open Platform balance, use " +
                     "Moonshot / Kimi Open Platform. Stored in ~/.quotakit/config.json; " +
                     "KIMI_CODE_API_KEY is also supported.",
                 kind: .secure,
@@ -118,9 +139,8 @@ struct KimiProviderImplementation: ProviderImplementation {
                         style: .link,
                         isVisible: nil,
                         perform: {
-                            if let url = URL(string: "https://www.kimi.com/code/docs/en/") {
-                                NSWorkspace.shared.open(url)
-                            }
+                            let url = context.settings.kimiRegion.webBaseURL.appendingPathComponent("code/docs/en/")
+                            NSWorkspace.shared.open(url)
                         }),
                 ],
                 isVisible: nil,
@@ -139,9 +159,7 @@ struct KimiProviderImplementation: ProviderImplementation {
                         style: .link,
                         isVisible: nil,
                         perform: {
-                            if let url = URL(string: "https://www.kimi.com/code/console") {
-                                NSWorkspace.shared.open(url)
-                            }
+                            NSWorkspace.shared.open(context.settings.kimiRegion.consoleURL)
                         }),
                 ],
                 isVisible: { context.settings.kimiCookieSource == .manual },

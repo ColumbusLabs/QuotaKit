@@ -187,8 +187,7 @@ struct ProviderInlineDashboardModelTests {
         #expect(model.providerDetails.first?.rows.first?.value == "$60.00")
         #expect(model.providerDetails.first { $0.title == "API key" }?.chart?.points.map(\.label) ==
             ["Today", "This week", "This month"])
-        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "Rate limit" }?.value ==
-            "100 requests / 10s")
+        #expect(model.providerDetails.flatMap(\.rows).contains { $0.label == "Rate limit" } == false)
     }
 
     @Test
@@ -1093,8 +1092,82 @@ struct MenuCardModelTests {
             metric: metric)
         #expect(popupTitle == "API key limit")
         #expect(metric.resetText == nil)
-        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key budget" }?.value == "$20.00")
+        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key limit" }?.value == "$20.00")
         #expect(metric.detailRightText == nil)
+    }
+
+    @Test
+    @MainActor
+    func `open router PAYG summary replaces matching details only while visible`() throws {
+        let now = Date(timeIntervalSince1970: 1_700_179_200)
+        let metadata = try #require(ProviderDefaults.metadata[.openrouter])
+        let credits = try ProviderDetailSection(title: "Credits", rows: [
+            ProviderDetailSection.Row(label: "Remaining", value: "$60.00"),
+            ProviderDetailSection.Row(label: "Used", value: "$40.00"),
+        ])
+        let apiKey = try ProviderDetailSection(title: "API key", rows: [
+            ProviderDetailSection.Row(label: "API key limit", value: "No limit configured"),
+            ProviderDetailSection.Row(label: "API key used", value: "$5.00"),
+            ProviderDetailSection.Row(label: "This month", value: "$4.00"),
+        ])
+        func model(period: String, inline: Bool) -> UsageMenuCardView.Model {
+            let snapshot = UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                providerCost: ProviderCostSnapshot(
+                    used: 4,
+                    limit: 0,
+                    currencyCode: "USD",
+                    period: period,
+                    balance: 60,
+                    updatedAt: now),
+                details: [credits, apiKey],
+                updatedAt: now)
+            return UsageMenuCardView.Model.make(.init(
+                provider: .openrouter,
+                metadata: metadata,
+                snapshot: snapshot,
+                credits: nil,
+                creditsError: nil,
+                dashboard: nil,
+                dashboardError: nil,
+                tokenSnapshot: nil,
+                tokenError: nil,
+                account: AccountInfo(email: nil, plan: nil),
+                isRefreshing: false,
+                lastError: nil,
+                usageBarsShowUsed: false,
+                resetTimeDisplayStyle: .countdown,
+                tokenCostUsageEnabled: false,
+                costSummaryInlineEnabled: inline,
+                showOptionalCreditsAndExtraUsage: true,
+                hidePersonalInfo: false,
+                now: now))
+        }
+
+        let monthly = model(period: "This month (API key)", inline: true)
+        #expect(monthly.providerCost?.spendLine == "This month (API key): $4.00")
+        #expect(monthly.providerCost?.balanceLine == "Balance: $60.00")
+        #expect(monthly.providerDetails.first { $0.title == "Credits" }?.rows.contains { $0.label == "Remaining" }
+            == false)
+        #expect(monthly.providerDetails.first { $0.title == "API key" }?.rows.contains { $0.label == "This month" }
+            == false)
+        #expect(monthly.providerDetails.flatMap(\.rows).contains { $0.label == "API key used" })
+
+        let lifetimeKey = model(period: "Total key usage", inline: true)
+        #expect(lifetimeKey.providerDetails.flatMap(\.rows).contains { $0.label == "API key used" } == false)
+        #expect(lifetimeKey.providerDetails.first { $0.title == "Credits" }?.rows.contains { $0.label == "Used" }
+            == true)
+
+        let account = model(period: "Total account usage", inline: true)
+        #expect(account.providerDetails.contains { $0.title == "Credits" } == false)
+
+        let expanded = model(period: "This month (API key)", inline: false)
+        #expect(expanded.providerCost == nil)
+        #expect(expanded.providerDetails.first { $0.title == "Credits" }?.rows.contains { $0.label == "Remaining" }
+            == true)
+        #expect(expanded.providerDetails.first { $0.title == "API key" }?.rows.contains { $0.label == "This month" }
+            == true)
     }
 
     @Test
@@ -1136,7 +1209,7 @@ struct MenuCardModelTests {
         #expect(model.creditsText == nil)
         #expect(model.placeholder == nil)
         #expect(model.usageNotes.isEmpty)
-        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key budget" }?.value ==
+        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key limit" }?.value ==
             "No limit configured")
     }
 
@@ -1177,7 +1250,7 @@ struct MenuCardModelTests {
 
         #expect(model.metrics.isEmpty)
         #expect(model.usageNotes.isEmpty)
-        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key budget" }?.value ==
+        #expect(model.providerDetails.flatMap(\.rows).first { $0.label == "API key limit" }?.value ==
             "Unavailable right now")
     }
 

@@ -83,15 +83,19 @@ public struct ProviderCostPresentation: Sendable, Equatable {
     public let showsGenericFallback: Bool
     public let balances: [Balance]
     public let menuCardStyle: ProviderCostMenuCardStyle
+    /// Detail rows replaced by the visible cost summary, keyed by section title.
+    public let replacedDetailRows: [String: Set<String>]
 
     public init(
         showsGenericFallback: Bool = true,
         balances: [Balance] = [],
-        menuCardStyle: ProviderCostMenuCardStyle = .generic)
+        menuCardStyle: ProviderCostMenuCardStyle = .generic,
+        replacedDetailRows: [String: Set<String>] = [:])
     {
         self.showsGenericFallback = showsGenericFallback
         self.balances = balances
         self.menuCardStyle = menuCardStyle
+        self.replacedDetailRows = replacedDetailRows
     }
 }
 
@@ -284,6 +288,7 @@ public struct ProviderMenuCardPresentation: Sendable {
     public let supportsInlineTokenCostDashboard: Bool
     public let primaryDescriptionPlacement: ProviderPrimaryDescriptionPlacement
     public let showsPrimaryBalanceDescription: Bool
+    public let showsSecondaryBalanceDescription: Bool
     public let hidesPrimaryResetWithoutDate: Bool
     public let hidesPrimaryResetWithoutSecondary: Bool
     public let clearsPrimaryReset: Bool
@@ -304,6 +309,7 @@ public struct ProviderMenuCardPresentation: Sendable {
         supportsInlineTokenCostDashboard: Bool = false,
         primaryDescriptionPlacement: ProviderPrimaryDescriptionPlacement = .standard,
         showsPrimaryBalanceDescription: Bool = false,
+        showsSecondaryBalanceDescription: Bool = false,
         hidesPrimaryResetWithoutDate: Bool = false,
         hidesPrimaryResetWithoutSecondary: Bool = false,
         clearsPrimaryReset: Bool = false,
@@ -324,6 +330,7 @@ public struct ProviderMenuCardPresentation: Sendable {
         self.supportsInlineTokenCostDashboard = supportsInlineTokenCostDashboard
         self.primaryDescriptionPlacement = primaryDescriptionPlacement
         self.showsPrimaryBalanceDescription = showsPrimaryBalanceDescription
+        self.showsSecondaryBalanceDescription = showsSecondaryBalanceDescription
         self.hidesPrimaryResetWithoutDate = hidesPrimaryResetWithoutDate
         self.hidesPrimaryResetWithoutSecondary = hidesPrimaryResetWithoutSecondary
         self.clearsPrimaryReset = clearsPrimaryReset

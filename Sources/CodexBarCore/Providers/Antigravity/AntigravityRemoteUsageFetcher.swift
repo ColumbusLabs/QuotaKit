@@ -564,7 +564,7 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
         request.httpMethod = "POST"
         request.timeoutInterval = context.timeout
         request.setValue("application/x-www-form-urlencoded", forHTTPHeaderField: "Content-Type")
-        request.httpBody = Self.formBody([
+        request.httpBody = FormURLEncoding.body([
             "client_id": oauthClient.clientID,
             "client_secret": oauthClient.clientSecret,
             "refresh_token": refreshToken,
@@ -621,14 +621,6 @@ public struct AntigravityRemoteUsageFetcher: Sendable {
             credentials.idToken = idToken
         }
         return credentials
-    }
-
-    private static func formBody(_ values: [String: String]) -> Data? {
-        var components = URLComponents()
-        components.queryItems = values.map { key, value in
-            URLQueryItem(name: key, value: value)
-        }
-        return components.query?.data(using: .utf8)
     }
 
     private struct TokenClaims {

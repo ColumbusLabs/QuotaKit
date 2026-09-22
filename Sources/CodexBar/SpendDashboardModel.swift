@@ -186,6 +186,10 @@ struct SpendDashboardModel: Equatable, Sendable {
         let hourlyChartDomain: ClosedRange<Date>?
         let timeZone: TimeZone
 
+        var calendar: Calendar {
+            SpendDashboardModel.gregorianCalendar(timeZone: self.timeZone)
+        }
+
         var id: String {
             self.currencyCode
         }
@@ -896,9 +900,10 @@ struct SpendDashboardModel: Equatable, Sendable {
             Self.tokenActivityInputSummary(input: $0, bounds: bounds, calendar: calendar)
         }
         return (0..<Self.tokenActivityDayCount).compactMap { offset in
-            guard let day = calendar.date(byAdding: .day, value: offset, to: bounds.lowerBound) else {
+            guard let date = calendar.date(byAdding: .day, value: offset, to: bounds.lowerBound) else {
                 return nil
             }
+            let day = calendar.startOfDay(for: date)
             var total = 0
             var scannedContributors = 0
             var hasUnresolvedScannedProvider = false
@@ -992,7 +997,7 @@ struct SpendDashboardModel: Equatable, Sendable {
     private static func bounds(days: Int, now: Date, calendar: Calendar) -> ClosedRange<Date> {
         let end = calendar.startOfDay(for: now)
         let start = calendar.date(byAdding: .day, value: -(days - 1), to: end) ?? end
-        return start...end
+        return calendar.startOfDay(for: start)...end
     }
 
     private static let utcCalendar: Calendar = {
@@ -1008,7 +1013,7 @@ struct SpendDashboardModel: Equatable, Sendable {
     }
 
     private static func chartDomain(bounds: ClosedRange<Date>, calendar: Calendar) -> ClosedRange<Date> {
-        let end = calendar.date(byAdding: .day, value: 1, to: bounds.upperBound) ?? bounds.upperBound
+        let end = calendar.dateInterval(of: .day, for: bounds.upperBound)?.end ?? bounds.upperBound
         return bounds.lowerBound...end
     }
 
@@ -1052,8 +1057,11 @@ struct SpendDashboardModel: Equatable, Sendable {
     }
 
     private static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {
-        guard let interval else { return 0 }
-        return (calendar.dateComponents([.day], from: interval.lowerBound, to: interval.upperBound).day ?? 0) + 1
+        guard let interval,
+              let first = calendar.ordinality(of: .day, in: .era, for: interval.lowerBound),
+              let last = calendar.ordinality(of: .day, in: .era, for: interval.upperBound)
+        else { return 0 }
+        return last - first + 1
     }
 
     private static func day(
@@ -1259,7 +1267,7 @@ struct SpendDashboardModel: Equatable, Sendable {
     {
         if let selectedDay {
             let start = calendar.startOfDay(for: selectedDay)
-            let end = calendar.date(byAdding: .day, value: 1, to: start) ?? start
+            let end = calendar.dateInterval(of: .day, for: start)?.end ?? start
             return start...end
         }
         guard let first = points.map(\.hour).min(),

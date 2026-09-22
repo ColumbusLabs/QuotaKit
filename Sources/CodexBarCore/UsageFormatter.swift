@@ -107,24 +107,42 @@ public enum UsageFormatter {
     }
 
     public static func resetCountdownDescription(from date: Date, now: Date = .init()) -> String {
-        let seconds = max(0, date.timeIntervalSince(now))
-        if seconds < 1 { return "now" }
-
-        let totalMinutes = max(1, Int(ceil(seconds / 60.0)))
+        guard let totalMinutes = self.resetCountdownMinutes(from: date, now: now) else {
+            return self.localized("Unknown")
+        }
+        if totalMinutes == 0 {
+            return "now"
+        }
         let days = totalMinutes / (24 * 60)
         let hours = (totalMinutes / 60) % 24
         let minutes = totalMinutes % 60
 
         if days > 0 {
-            if hours > 0 { return "in \(days)d \(hours)h" }
-            if minutes > 0 { return "in \(days)d \(minutes)m" }
+            if hours > 0 {
+                return "in \(days)d \(hours)h"
+            }
+            if minutes > 0 {
+                return "in \(days)d \(minutes)m"
+            }
             return "in \(days)d"
         }
         if hours > 0 {
-            if minutes > 0 { return "in \(hours)h \(minutes)m" }
+            if minutes > 0 {
+                return "in \(hours)h \(minutes)m"
+            }
             return "in \(hours)h"
         }
         return "in \(totalMinutes)m"
+    }
+
+    private static func resetCountdownMinutes(from date: Date, now: Date) -> Int? {
+        let seconds = date.timeIntervalSince(now)
+        guard let minutes = Int(exactly: ceil(seconds / 60)) else { return nil }
+        return seconds < 1 ? 0 : max(1, minutes)
+    }
+
+    static func hasRepresentableResetCountdown(from date: Date, now: Date) -> Bool {
+        self.resetCountdownMinutes(from: date, now: now) != nil
     }
 
     public static func resetDescription(from date: Date, now: Date = .init()) -> String {
@@ -148,6 +166,7 @@ public enum UsageFormatter {
         now: Date = .init()) -> String?
     {
         if let date = window.resetsAt {
+            guard self.hasRepresentableResetCountdown(from: date, now: now) else { return nil }
             if style == .countdown {
                 let countdown = self.resetCountdownDescription(from: date, now: now)
                 if countdown == "now" {

@@ -99,6 +99,134 @@ struct LongCatProviderTests {
         #expect(abs((usage.secondary?.usedPercent ?? 0) - 60) < 0.001)
     }
 
+    @Test
+    func `quota detail presentation is configured for expiring balances`() {
+        for provider in [UsageProvider.longcat, .kilo, .chutes, .litellm] {
+            #expect(ProviderDescriptorRegistry.descriptor(for: provider)
+                .presentation.menuCard.showsSecondaryBalanceDescription)
+        }
+
+        let longcat = ProviderDescriptorRegistry.descriptor(for: .longcat)
+        #expect(longcat.metadata.usesDetailBackedWindow)
+        #expect(longcat.presentation.menuCard.showsPrimaryBalanceDescription)
+        #expect(longcat.presentation.menuCard.hidesPrimaryResetWithoutDate)
+        #expect(longcat.presentation.menu.usesPrimaryDescriptionAsDetail(
+            snapshot: LongCatUsageSnapshot(totalQuota: 1000, usedQuota: 250).toUsageSnapshot()))
+        #expect(longcat.presentation.menu.secondaryDescriptionMode == .detailWhenResetDatePresent)
+    }
+
+    @Test(arguments: [
+        "2025-06-15T15:06:40.250Z",
+        "2025-06-15T17:06:40.250+02:00",
+    ])
+    func `fractional fuel expiry survives snapshot conversion`(expiry: String) throws {
+        let fuel: [String: Any] = [
+            "totalQuota": 1000,
+            "list": [
+                ["availableToken": 600, "expireTime": 1_760_000_000_000] as [String: Any],
+                ["availableToken": 150, "expireTime": expiry],
+            ],
+        ]
+        let snapshot = LongCatUsageFetcher.buildSnapshot(
+            account: nil,
+            tokenPackSummary: nil,
+            tokenUsage: nil,
+            pendingFuel: fuel)
+        let expected = Date(timeIntervalSince1970: 1_750_000_000.250)
+        let actual = try #require(snapshot.toUsageSnapshot().secondary?.resetsAt)
+        #expect(abs(actual.timeIntervalSince(expected)) < 0.001)
+        #expect(snapshot.fuelPackRemaining == 750)
+    }
+
+    @Test(arguments: ["1e100", "\"1e100\"", "\"Infinity\"", "\"NaN\""])
+    func `envelope rejects unrepresentable response codes`(code: String) throws {
+        let object = try JSONSerialization.jsonObject(with: Data("{\"code\":\(code),\"data\":{}}".utf8))
+        #expect {
+            try LongCatEnvelope.unwrap(object)
+        } throws: { error in
+            guard case LongCatAPIError.parseFailed = error else { return false }
+            return true
+        }
+    }
+
+    @Test(arguments: ["0", "200", "\"2e2\"", "200.9"])
+    func `envelope preserves supported success codes`(code: String) throws {
+        let object = try JSONSerialization.jsonObject(with: Data("{\"code\":\(code),\"data\":{\"value\":1}}".utf8))
+        let payload = try LongCatEnvelope.unwrap(object) as? [String: Any]
+        #expect(payload?["value"] as? Int == 1)
+    }
+
+    @Test
+    func `oversized token and fuel counts remain displayable`() throws {
+        let data = Data("""
+        {"usage":{"totalToken":200000000000000000000,"usedToken":100000000000000000000},
+         "fuel":{"totalQuota":200000000000000000000,"list":[{"availableToken":100000000000000000000}]}}
+        """.utf8)
+        let payload = try #require(JSONSerialization.jsonObject(with: data) as? [String: Any])
+        let usage = LongCatUsageFetcher.buildSnapshot(
+            account: nil,
+            tokenPackSummary: nil,
+            tokenUsage: payload["usage"] as? [String: Any],
+            pendingFuel: payload["fuel"] as? [String: Any]).toUsageSnapshot()
+
+        #expect(usage.primary?.usedPercent == 50)
+        #expect(usage.primary?.resetDescription == "100000000000000000000/200000000000000000000")
+        #expect(usage.secondary?.usedPercent == 50)
+        #expect(usage.secondary?.resetDescription == "Fuel pack: 100000000000000000000/200000000000000000000")
+        _ = try JSONEncoder().encode(usage)
+    }
+
+    @Test
+    func `quota counts truncate toward zero and normalize zero`() {
+        let usage = LongCatUsageSnapshot(
+            totalQuota: 10.9,
+            usedQuota: 1.9,
+            fuelPackTotal: 10.9,
+            fuelPackRemaining: -0.25).toUsageSnapshot()
+        #expect(usage.primary?.resetDescription == "1/10")
+        #expect(usage.secondary?.resetDescription == "Fuel pack: 0/10")
+    }
+
+    @Test
+    func `overflowed fuel sums omit only the invalid secondary window`() throws {
+        let usage = LongCatUsageFetcher.buildSnapshot(
+            account: nil,
+            tokenPackSummary: nil,
+            tokenUsage: ["totalToken": 100, "usedToken": 25],
+            pendingFuel: ["totalQuota": 1e308, "list": [["availableToken": 1e308], ["availableToken": 1e308]]])
+            .toUsageSnapshot()
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.secondary == nil)
+        _ = try JSONEncoder().encode(usage)
+    }
+
+    @Test
+    func `unrepresentable fuel expiry is preserved alongside quota detail`() throws {
+        let snapshot = LongCatUsageFetcher.buildSnapshot(
+            account: nil,
+            tokenPackSummary: nil,
+            tokenUsage: nil,
+            pendingFuel: ["totalQuota": 1000, "list": [["availableToken": 500, "expireTime": 1e24]]])
+        #expect((snapshot.nearestFuelExpiry?.timeIntervalSince1970 ?? 0) > 1e20)
+        let usage = snapshot.toUsageSnapshot()
+        let window = try #require(usage.secondary)
+        #expect(window.usedPercent == 50)
+        #expect((window.resetsAt?.timeIntervalSince1970 ?? 0) > 1e20)
+        #expect(window.resetDescription == "Fuel pack: 500/1000")
+    }
+
+    @Test(arguments: [Double.infinity, -.infinity, .nan])
+    func `nonfinite quota data is omitted`(invalid: Double) throws {
+        let usage = LongCatUsageSnapshot(
+            totalQuota: 100,
+            usedQuota: invalid,
+            fuelPackTotal: 100,
+            fuelPackRemaining: invalid).toUsageSnapshot()
+        #expect(usage.primary == nil)
+        #expect(usage.secondary == nil)
+        _ = try JSONEncoder().encode(usage)
+    }
+
     // MARK: - buildSnapshot against captured live response shapes
 
     private func object(_ json: String) throws -> [String: Any] {

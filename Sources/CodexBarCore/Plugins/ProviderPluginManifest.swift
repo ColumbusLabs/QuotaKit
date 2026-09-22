@@ -54,6 +54,7 @@ public enum ProviderPluginEndpoint: Equatable, Hashable, Sendable {
     public enum Policy: String, Sendable {
         case https
         case httpsOrLoopbackHTTP = "https-or-loopback-http"
+        case httpsOrPrivateNetworkHTTP = "https-or-private-network-http"
     }
 
     case fixed(String)
@@ -384,6 +385,8 @@ enum ProviderPluginOrigin {
             validator.validatedURL(url.absoluteString)
         case .httpsOrLoopbackHTTP:
             validator.validatedURLAllowingLoopbackHTTP(url.absoluteString)
+        case .httpsOrPrivateNetworkHTTP:
+            validator.validatedURLAllowingPrivateNetworkHTTP(url.absoluteString)
         }
         guard let validated, validated.fragment == nil, validated.user == nil, validated.password == nil else {
             throw ProviderPluginError.networkPolicy("URL does not satisfy the declared endpoint policy")

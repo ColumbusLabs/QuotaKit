@@ -187,11 +187,11 @@ struct PopupLocalizationTests {
             // values and chart point labels stay canonical.
             let apiKey = try #require(model.providerDetails.first { $0.title == "API 金鑰" })
             #expect(apiKey.rows.map(\.label) == [
-                "API key budget", "API key remaining", "API key used", "Reset window",
-                "今天", "本週", "本月", "Rate limit",
+                "API 金鑰限制", "API key remaining", "API key used", "Reset window",
+                "今天", "本週", "本月",
             ])
             #expect(apiKey.chart?.points.map(\.label) == ["Today", "This week", "This month"])
-            #expect(apiKey.rows.last?.value == "100 requests / 10s")
+            #expect(apiKey.rows.first?.secondaryValue == "支出上限，並非餘額")
         }
     }
 

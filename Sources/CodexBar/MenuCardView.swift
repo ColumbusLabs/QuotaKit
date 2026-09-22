@@ -967,9 +967,8 @@ extension UsageMenuCardView.Model {
         let showsProviderCost = menuCard.showsProviderCost(context: ProviderCostVisibilityContext(
             snapshot: input.snapshot,
             showOptionalUsage: input.showOptionalCreditsAndExtraUsage))
-        let providerCostStyle = input.snapshot.map {
-            presentation.cost(snapshot: $0).menuCardStyle
-        } ?? .generic
+        let costPresentation = input.snapshot.map { presentation.cost(snapshot: $0) }
+        let providerCostStyle = costPresentation?.menuCardStyle ?? .generic
         let providerCostFollowsSummaryStyle = Self.providerCostFollowsSummaryStyle(
             cost: input.snapshot?.providerCost,
             style: providerCostStyle,
@@ -1016,7 +1015,9 @@ extension UsageMenuCardView.Model {
             metrics: metrics,
             usageNotes: usageNotes,
             subscriptionNotes: Self.subscriptionMetadataNotes(snapshot: input.snapshot, provider: input.provider),
-            providerDetails: Self.visibleProviderDetails(input: input),
+            providerDetails: Self.visibleProviderDetails(
+                input: input,
+                replacedRows: providerCost == nil ? [:] : costPresentation?.replacedDetailRows ?? [:]),
             openAIAPIUsage: openAIAPIUsage,
             inlineUsageDashboard: inlineUsageDashboard,
             creditsText: creditsText,
@@ -1032,8 +1033,19 @@ extension UsageMenuCardView.Model {
             progressColor: Self.progressColor(for: input.provider))
     }
 
-    private static func visibleProviderDetails(input: Input) -> [ProviderDetailSection] {
+    private static func visibleProviderDetails(
+        input: Input,
+        replacedRows: [String: Set<String>]) -> [ProviderDetailSection]
+    {
         var details = input.snapshot?.details ?? []
+        if !replacedRows.isEmpty {
+            details = details.compactMap { section in
+                guard let title = section.title, let labels = replacedRows[title] else { return section }
+                let rows = section.rows.filter { !labels.contains($0.label) }
+                guard !rows.isEmpty || section.chart != nil else { return nil }
+                return try? ProviderDetailSection(title: section.title, rows: rows, chart: section.chart)
+            }
+        }
         let policy = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation.optionalDetails
         if !input.costSummaryInlineEnabled, !policy.costSummaryTitles.isEmpty {
             details.removeAll { section in
@@ -1455,6 +1467,7 @@ extension UsageMenuCardView.Model {
                 pace: input.weeklyPace,
                 showUsed: input.usageBarsShowUsed)
         }
+        let presentation = ProviderDescriptorRegistry.descriptor(for: input.provider).presentation
         var weeklyResetText = Self.resetText(for: weekly, style: input.resetTimeDisplayStyle, now: input.now)
         var weeklyDetailText: String?
         if input.provider == .warp,
@@ -1464,7 +1477,7 @@ extension UsageMenuCardView.Model {
             weeklyResetText = nil
             weeklyDetailText = detail
         }
-        if [.kilo, .litellm, .chutes].contains(input.provider),
+        if presentation.menuCard.showsSecondaryBalanceDescription,
            let detail = weekly.resetDescription,
            !detail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         {

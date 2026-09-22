@@ -355,6 +355,9 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
         environment: [String: String] = ProcessInfo.processInfo.environment) -> URL?
     {
         // Provider-specific by design: these dashboards depend on region, source label, scope, or subscription plan.
+        if provider == .kimi {
+            return self.settings.kimiRegion.consoleURL
+        }
         if provider == .alibaba {
             return self.settings.alibabaCodingPlanAPIRegion.dashboardURL
         }

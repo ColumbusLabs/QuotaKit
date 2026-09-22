@@ -12,6 +12,17 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Grok: restore billing requests while keeping legacy monthly usage included.
 - Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.
 - Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.
+- Usage & Spend: keep daily coverage, charts, and historical pace aligned to calendar days across daylight-saving transitions and different bucket time zones.
+- OAuth providers: preserve reserved characters in refresh credentials and reject malformed Vertex AI refresh responses.
+- Alibaba and Qwen Cloud: preserve reserved characters in console security tokens and gateway request parameters.
+- Kimi: select China or International hosts for Code API usage, web membership, cookies, and dashboard links while keeping existing China settings as the default.
+- LongCat: keep expiring fuel balances visible beside reset dates and reject malformed or overflowing quota values.
+- LiteLLM: show team budget amounts beside reset dates, use the bundled provider plugin, and recover spend reports with self-scoped access when management access is unavailable.
+- Mistral: avoid overflowing billing-token totals and unsafe model rankings while preserving valid cost data.
+- Antigravity widgets: use the provider's ordered quota families; menu cards now remeasure when cached content changes height.
+- Cost caches: replace saved pricing and Pi session data atomically so repeated updates cannot corrupt an existing cache.
+- MiniMax: retain transport error identity for retry and cached-usage decisions while keeping readable failure messages.
+- OpenRouter: distinguish API-key caps from spendable balance, preserve pay-as-you-go usage details, and report key authorization failures accurately.
 
 ## 0.32.4.29 — 2026-09-20
 

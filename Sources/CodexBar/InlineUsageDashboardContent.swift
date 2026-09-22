@@ -346,7 +346,9 @@ extension UsageMenuCardView.Model {
             for model in entry.modelBreakdowns ?? [] {
                 var score = scores[model.modelName] ?? (0, 0)
                 score.cost += model.costUSD ?? 0
-                score.tokens += model.totalTokens ?? 0
+                let addition = score.tokens.addingReportingOverflow(model.totalTokens ?? 0)
+                guard !addition.overflow else { return nil }
+                score.tokens = addition.partialValue
                 scores[model.modelName] = score
             }
         }

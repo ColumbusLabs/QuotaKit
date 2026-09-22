@@ -92,14 +92,13 @@ struct ProviderPluginDetailsParityTests {
             Self.section(
                 "API key",
                 rows: [
-                    Self.row("API key budget", "$20.00"),
+                    Self.row("API key limit", "$20.00", "Spending cap, not balance"),
                     Self.row("API key remaining", "$15.00"),
                     Self.row("API key used", "$5.00"),
                     Self.row("Reset window", "monthly"),
                     Self.row("Today", "$1.00"),
                     Self.row("This week", "$2.00"),
                     Self.row("This month", "$4.00"),
-                    Self.row("Rate limit", "120 requests / 10s"),
                 ],
                 chart: Self.chart("Key spend", unit: "USD", points: [
                     ("Today", 1), ("This week", 2), ("This month", 4),
@@ -135,7 +134,7 @@ struct ProviderPluginDetailsParityTests {
         #expect(script.primary == nil)
         #expect(script.details.count == 3)
         #expect(script.details[0].rows.map(\.label) == ["Remaining", "Used", "Total added"])
-        let degradation = try #require(script.detailRow(label: "API key budget"))
+        let degradation = try #require(script.detailRow(label: "API key limit"))
         #expect(degradation.value == "Unavailable right now")
         #expect(degradation.secondaryValue == "Request timed out")
         let spendDegradation = try #require(script.detailRow(label: "Last 30 days"))

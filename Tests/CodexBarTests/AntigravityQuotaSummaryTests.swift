@@ -22,6 +22,23 @@ private final class AntigravityQuotaSummaryPathRecorder: @unchecked Sendable {
 
 struct AntigravityQuotaSummaryTests {
     @Test
+    func `known widget quota families prefer stable IDs and expose deterministic ordering`() {
+        #expect(AntigravityQuotaFamilyVisibility.KnownFamily.allCases.map(\.rawValue) == ["gemini", "claude-gpt"])
+        #expect(AntigravityQuotaFamilyVisibility.knownFamily(
+            windowID: "antigravity-quota-summary-gemini-weekly",
+            title: "Claude/GPT Five Hour") == .gemini)
+        #expect(AntigravityQuotaFamilyVisibility.knownFamily(
+            windowID: "antigravity-quota-summary-third-party-5h",
+            title: "Other Weekly") == .claudeGPT)
+        #expect(AntigravityQuotaFamilyVisibility.knownFamily(
+            windowID: "antigravity-quota-summary-future-session",
+            title: "Gemini Models") == .gemini)
+        #expect(AntigravityQuotaFamilyVisibility.knownFamily(
+            windowID: "other-gemini-window",
+            title: "Gemini Models") == nil)
+    }
+
+    @Test
     func `parses quota summary response into two model groups with session before weekly windows`() throws {
         let snapshot = try AntigravityStatusProbe.parseQuotaSummaryResponse(
             Data(antigravityQuotaSummaryJSON().utf8))
