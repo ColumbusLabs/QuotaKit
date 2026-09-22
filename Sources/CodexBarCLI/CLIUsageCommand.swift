@@ -541,7 +541,7 @@ extension CodexBarCLI {
             Self.printFetchAttempts(provider: provider, attempts: outcome.attempts)
         }
 
-        switch outcome.result {
+        switch Self.providerResultWithCredentialGuidance(outcome.result, provider: provider, environment: env) {
         case let .success(result):
             let antigravityPlanInfo = await Self.fetchAntigravityPlanInfoIfNeeded(
                 provider: provider,
@@ -595,11 +595,7 @@ extension CodexBarCLI {
                     notes: notes),
                 output: &output)
         case let .failure(error):
-            let displayError = Self.providerErrorWithCredentialGuidance(
-                error,
-                provider: provider,
-                environment: env)
-            output.exitCode = Self.mapError(displayError)
+            output.exitCode = Self.mapError(error)
             if command.format == .json {
                 output.payload.append(Self.makeProviderErrorPayload(
                     provider: provider,
@@ -607,7 +603,7 @@ extension CodexBarCLI {
                     cacheAccountKey: cacheAccountKey,
                     source: effectiveSourceMode.rawValue,
                     status: status,
-                    error: displayError,
+                    error: error,
                     kind: .provider,
                     diagnostic: Self.appAutoBackgroundSafeDenialDiagnostic(
                         provider: provider,
@@ -619,13 +615,13 @@ extension CodexBarCLI {
                 output.cardFailures.append(CLICardFailure(
                     provider: provider,
                     accountLabel: account?.label ?? codexVisibleAccount?.menuDisplayName,
-                    message: displayError.localizedDescription))
+                    message: error.localizedDescription))
             } else if !command.jsonOnly {
                 if let accountLabel = account?.label ?? codexVisibleAccount?.menuDisplayName {
                     Self.writeStderr(
-                        "Error (\(provider.rawValue) - \(accountLabel)): \(displayError.localizedDescription)\n")
+                        "Error (\(provider.rawValue) - \(accountLabel)): \(error.localizedDescription)\n")
                 } else {
-                    Self.writeStderr("Error: \(displayError.localizedDescription)\n")
+                    Self.writeStderr("Error: \(error.localizedDescription)\n")
                 }
                 if let summary = Self.kiloAutoFallbackSummary(
                     provider: provider,
@@ -660,6 +656,14 @@ extension CodexBarCLI {
         else { return error }
 
         return ProviderFetchClassifiedError(kind: .missingCredential, message: message)
+    }
+
+    private static func providerResultWithCredentialGuidance(
+        _ result: Result<ProviderFetchResult, Error>,
+        provider: UsageProvider,
+        environment: [String: String]) -> Result<ProviderFetchResult, Error>
+    {
+        result.mapError { self.providerErrorWithCredentialGuidance($0, provider: provider, environment: environment) }
     }
 
     static func shouldDetectVersion(provider: UsageProvider, result: ProviderFetchResult) -> Bool {
