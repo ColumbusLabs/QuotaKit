@@ -764,13 +764,19 @@ struct CLIServeRouterTests {
 
     @Test
     func `cost refresh keeps fresh providers while replacing timed out rows`() async throws {
-        let cache = CLIServeResponseCache()
+        let deadline = ServeListeningSignal()
+        let releaseSource = ServeListeningSignal()
+        defer { releaseSource.signal() }
+        let operations = CLIServeOperationCoordinator<CLIServeCoordinatedResponse>(
+            sleepUntil: { _ in await deadline.wait() })
+        let cache = CLIServeResponseCache(operations: operations)
+        let cacheKey = CodexBarCLI.serveCacheKey(operationKey: "cost:", configToken: "")
 
         _ = await CodexBarCLI.cachedServeResponse(
             key: "cost:",
             cache: cache,
             refreshInterval: 0.01,
-            requestTimeout: 1)
+            requestTimeout: 0)
         {
             Self.response("""
             [
@@ -779,13 +785,13 @@ struct CLIServeRouterTests {
             ]
             """)
         }
-        try? await Task.sleep(nanoseconds: 30_000_000)
+        _ = await cache.cachedResponse(for: cacheKey, now: Date().addingTimeInterval(1))
 
         let partial = await CodexBarCLI.cachedServeResponse(
             key: "cost:",
             cache: cache,
             refreshInterval: 0.01,
-            requestTimeout: 1)
+            requestTimeout: 0)
         {
             Self.response("""
             [
@@ -799,16 +805,23 @@ struct CLIServeRouterTests {
         #expect(Self.row(partialRows, provider: "claude")?["call"] as? Int == 1)
         #expect(partialRows.allSatisfy { $0["error"] == nil })
 
-        try? await Task.sleep(nanoseconds: 30_000_000)
-        let timedOut = await CodexBarCLI.cachedServeResponse(
-            key: "cost:",
-            cache: cache,
-            refreshInterval: 0.01,
-            requestTimeout: 0.01)
-        {
-            try? await Task.sleep(nanoseconds: 200_000_000)
-            return Self.response(#"[{"provider":"codex","call":3}]"#)
+        _ = await cache.cachedResponse(for: cacheKey, now: Date().addingTimeInterval(1))
+        let sourceEntered = ServeListeningSignal()
+        let request = Task {
+            await CodexBarCLI.cachedServeResponse(
+                key: "cost:",
+                cache: cache,
+                refreshInterval: 0.01,
+                requestTimeout: 30)
+            {
+                sourceEntered.signal()
+                await releaseSource.wait()
+                return Self.response(#"[{"provider":"codex","call":3}]"#)
+            }
         }
+        await sourceEntered.wait()
+        deadline.signal()
+        let timedOut = await request.value
         let timeoutRows = try Self.jsonRows(timedOut)
         #expect(Self.row(timeoutRows, provider: "codex")?["call"] as? Int == 2)
         #expect(Self.row(timeoutRows, provider: "claude")?["call"] as? Int == 1)
