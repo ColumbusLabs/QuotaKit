@@ -11,6 +11,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Grok: restore billing requests while keeping legacy monthly usage included.
 - Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.
+- Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.
 
 ## 0.32.4.29 — 2026-09-20
 
