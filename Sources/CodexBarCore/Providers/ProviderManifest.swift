@@ -76,5 +76,6 @@ public enum ProviderManifest {
         IBMBobProviderDescriptor.descriptor,
         GitKrakenProviderDescriptor.descriptor,
         V0ProviderDescriptor.descriptor,
+        CodeRabbitProviderDescriptor.descriptor,
     ]
 }

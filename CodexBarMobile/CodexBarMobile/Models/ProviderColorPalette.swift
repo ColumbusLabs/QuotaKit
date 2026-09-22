@@ -131,6 +131,7 @@ enum ProviderColorPalette {
             (["deepseek"], RawColor(red: 0.32, green: 0.49, blue: 0.94)),
             (["deepinfra"], RawColor(red: 42 / 255, green: 50 / 255, blue: 117 / 255)),
             (["codebuff"], RawColor(red: 68 / 255, green: 255 / 255, blue: 0)),
+            (["coderabbit"], RawColor(red: 255 / 255, green: 92 / 255, blue: 53 / 255)),
             (["crof"], RawColor(red: 0.18, green: 0.67, blue: 0.58)),
             (["venice"], RawColor(red: 0.2, green: 0.6, blue: 1)),
             (["commandcode"], RawColor(red: 71 / 255, green: 85 / 255, blue: 105 / 255)),

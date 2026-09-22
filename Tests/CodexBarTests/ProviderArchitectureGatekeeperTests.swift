@@ -154,8 +154,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 15_242_096_170_570_857_589)
-        #expect(burnDownFingerprint == 12_600_674_017_133_872_016)
+        #expect(widgetFingerprint == 848_999_228_806_440_495)
+        #expect(burnDownFingerprint == 751_052_193_676_395_193)
     }
 
     @Test
@@ -3587,6 +3587,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "clawrouter",
                 "clinepass",
                 "codebuff",
+                "coderabbit",
                 "codex",
                 "commandcode",
                 "copilot",
@@ -3645,7 +3646,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 71,
+            expectedReferenceCount: 72,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "claude@2",
@@ -3714,6 +3715,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "qwencloud@30",
                 "zenmux@30",
                 "zoommate@30",
+                "coderabbit@31",
                 "fireworks@31",
                 "gitkraken@31",
                 "ibmbob@31",
@@ -4499,6 +4501,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "clawrouter",
                 "clinepass",
                 "codebuff",
+                "coderabbit",
                 "codex",
                 "commandcode",
                 "copilot",
@@ -4557,7 +4560,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 71,
+            expectedReferenceCount: 72,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4627,6 +4630,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "xai@35",
                 "zenmux@35",
                 "zoommate@35",
+                "coderabbit@36",
                 "fireworks@36",
                 "gitkraken@36",
                 "ibmbob@36",

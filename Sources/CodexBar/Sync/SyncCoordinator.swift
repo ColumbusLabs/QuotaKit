@@ -1849,7 +1849,7 @@ final class SyncCoordinator {
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
-             .fireworks, .ibmbob, .gitkraken:
+             .fireworks, .ibmbob, .gitkraken, .coderabbit:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
