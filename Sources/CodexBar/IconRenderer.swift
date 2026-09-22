@@ -695,11 +695,13 @@ enum IconRenderer {
                 let twistAntigravity = decorations.contains(.antigravity)
                 let twistFactory = decorations.contains(.factory)
                 let twistWarp = decorations.contains(.warp)
+                var statusOverlayAttachesToProminentMeter = false
 
                 if let bottomValue, bottomValue > 0, topValue == nil,
                    !quotaLayoutPolicy.reservesMissingSecondaryLane,
                    !usesMissingSecondaryLayout
                 {
+                    statusOverlayAttachesToProminentMeter = true
                     drawBar(
                         rectPx: creditsRectPx,
                         remaining: bottomValue,
@@ -748,6 +750,7 @@ enum IconRenderer {
                                 blink: blink)
                             drawBar(rectPx: creditsBottomRectPx, remaining: nil, alpha: 0.45)
                         } else if !quotaLayoutPolicy.reservesMissingSecondaryLane, let topValue {
+                            statusOverlayAttachesToProminentMeter = true
                             drawBar(
                                 rectPx: creditsRectPx,
                                 remaining: topValue,
@@ -802,7 +805,9 @@ enum IconRenderer {
                     drawBar(rectPx: creditsBottomRectPx, remaining: bottomValue)
                 }
 
-                Self.drawStatusOverlay(indicator: statusIndicator)
+                Self.drawStatusOverlay(
+                    indicator: statusIndicator,
+                    attachesToProminentMeter: statusOverlayAttachesToProminentMeter)
             }
         }
 
@@ -845,7 +850,8 @@ enum IconRenderer {
 
     private static func quantizedPercent(_ value: Double?) -> Int {
         guard let value else { return -1 }
-        return Int((value * 10).rounded())
+        let bucket = Int((value * 10).rounded())
+        return value > 0 ? max(bucket, 1) : bucket
     }
 
     private static func creditsFillPercent(remaining: Double?, explicitPercent: Double?) -> Double? {
@@ -1000,7 +1006,10 @@ enum IconRenderer {
         path.fill()
     }
 
-    private static func drawStatusOverlay(indicator: ProviderStatusIndicator) {
+    private static func drawStatusOverlay(
+        indicator: ProviderStatusIndicator,
+        attachesToProminentMeter: Bool)
+    {
         guard indicator.hasIssue else { return }
         let color = NSColor.labelColor
 
@@ -1009,7 +1018,7 @@ enum IconRenderer {
             let size: CGFloat = 4
             let rect = Self.snapRect(
                 x: Self.baseSize.width - size - 2,
-                y: 2,
+                y: attachesToProminentMeter ? 5 : 2,
                 width: size,
                 height: size)
             Self.clearStatusOverlayHalo(

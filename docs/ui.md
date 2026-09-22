@@ -10,6 +10,10 @@ read_when:
 ## Menu bar
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
+- With the automatic metric selected, switcher progress honors a provider's exhausted-quota policy before showing
+  weekly progress. Healthy allowances, explicit metric choices, and providers that opt out retain their selection rules.
+- Cached status menus refresh their effective appearance when the system appearance changes, including previously opened
+  nested menus.
 - Provider status items use stable autosave names and are reused across provider toggles so macOS can preserve icon
   positions.
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
@@ -48,7 +52,8 @@ untouched for downgrade safety, while a saved token layout takes precedence.
 - 18×18 template image.
 - Bar windows are provider/style-specific primary and secondary windows.
 - Fill represents percent remaining by default; “Show usage as used” flips to percent used.
-- Renderer/critter icons dim when last refresh failed and can render incident indicators; brand display mode uses provider branding plus title text.
+- Renderer/critter icons dim when last refresh failed and can render incident indicators; single-quota status badges attach
+  to the visible meter. Brand display mode uses provider branding plus title text.
 - Loading animation runs at a bounded frame rate and has a hard continuous-duration ceiling so provider hangs cannot keep
   the menu bar redrawing forever.
 - The token renderer composes provider branding and text through the same attributed-title path used for high-contrast
