@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (62 after v0 billing)`() {
+    func `Provider list has expected count (63 after GitKraken AI and v0)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -26,11 +26,12 @@ struct QuotaProviderListTests {
         // same upstream line → 51 after Sub2API → 52 after ZenMux →
         // 54 after ClinePass and LongCat → 55 after Neuralwatt → 56 after
         // DeepInfra, then 58 after Qwen Cloud and ZoomMate, 59 after xAI,
-        // 60 after Notion AI, 61 after IBM Bob, and 62 after v0 billing. Fireworks is spend-only.
+        // 60 after Notion AI, 61 after IBM Bob, 62 after GitKraken AI, and 63 after v0 billing.
+        // Fireworks is spend-only.
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 62)
+        #expect(QuotaProviderList.providers.count == 63)
     }
 
     @Test
@@ -112,7 +113,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 62 × 3 = 186 (depleted + restored + warning)`() {
+    func `iOS subscription count is 63 × 3 = 189 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -130,7 +131,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 186)
+        #expect(subscriptionCount == 189)
     }
 
     @Test
