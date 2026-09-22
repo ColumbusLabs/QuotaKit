@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Provider plugins: retain unknown quota usage and numeric detail progress.
+
 - Provider plugins: update the pinned QuickJS-NG runtime to 0.17.0.
 
 - ZenMux: retrieve plan usage through the bundled provider plugin.

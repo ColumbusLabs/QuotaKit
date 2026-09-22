@@ -155,11 +155,24 @@ enum ProviderPluginSnapshotMapper {
                 return try ProviderDetailSection.Row(
                     label: self.requiredDetailString(row, property: "label", path: rowPath),
                     value: self.requiredDetailString(row, property: "value", path: rowPath),
-                    secondaryValue: self.optionalDetailString(row, property: "secondaryValue", path: rowPath))
+                    secondaryValue: self.optionalDetailString(row, property: "secondaryValue", path: rowPath),
+                    progress: self.detailProgress(row, path: rowPath),
+                    usageValue: self.optionalFiniteNumber(row, property: "usageValue", path: rowPath))
             }
             let chart = try self.detailChart(section, path: path)
             return try ProviderDetailSection(title: title, rows: rows, chart: chart)
         }
+    }
+
+    private static func detailProgress(
+        _ row: any ProviderPluginValue,
+        path: String) throws -> ProviderDetailSection.Row.Progress?
+    {
+        guard let fraction = try self.optionalFiniteNumber(row, property: "progress", path: path) else { return nil }
+        guard (0...1).contains(fraction) else {
+            throw ProviderPluginError.invalidSnapshot("\(path).progress must be between 0 and 1")
+        }
+        return try ProviderDetailSection.Row.Progress(used: fraction, total: 1)
     }
 
     private static func detailChart(
@@ -271,7 +284,14 @@ enum ProviderPluginSnapshotMapper {
             let window = try self.window(
                 windowValue?.isObject == true && windowValue?.isNull == false ? windowValue! : item,
                 path: "\(path).window")
-            return NamedRateWindow(id: id, title: title, window: window)
+            var usageKnown = true
+            if let value = item.property("usageKnown"), !value.isUndefined {
+                guard value.isBoolean else {
+                    throw ProviderPluginError.invalidSnapshot("\(path).usageKnown must be a boolean")
+                }
+                usageKnown = value.boolValue()
+            }
+            return NamedRateWindow(id: id, title: title, window: window, usageKnown: usageKnown)
         }
     }
 

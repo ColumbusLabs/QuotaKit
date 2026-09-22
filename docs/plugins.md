@@ -190,6 +190,18 @@ Percentages must be finite and are clamped to 0–100. Window minutes are positi
 and a three-letter uppercase currency. Dates are JavaScript `Date` values or ISO-8601 strings. Snapshot identity is
 always scoped to the manifest's instance ID. Data confidence defaults to `unknown`. Details allow at most 8 sections, 24 rows per section, 120 chart points,
 and 120 characters per detail string. Wrong types and limit violations fail the whole fetch instead of truncating it.
+Named extra windows accept an optional `usageKnown` boolean (default `true`). Set it to `false` for reset-only limits:
+the window remains visible as **Unavailable**, and its placeholder `usedPercent` is not presented as measured usage.
+Detail rows accept optional `progress` (a finite consumed fraction from 0 through 1) and `usageValue` (finite raw usage).
+The host maps the fraction to native progress with `used: progress, total: 1`; `usageValue` is preserved independently.
+Absent or null numeric fields leave existing text-only rows unchanged. A supplied `usageKnown` must be a boolean,
+including when the window uses the nested `window` form; null is invalid.
+An identity-only snapshot is useful for balance-only or zero-usage provider states and renders its available account,
+organization, plan/login-method, and account-ID fields in the menu and CLI. A verified response with no displayable data
+may return `{empty: true}` with optional identity. This creates no artificial rate window; every supplied field is still
+validated. An empty object, an empty `identity` object, or metadata such as confidence and subscription dates without
+displayable usage or identity remains invalid unless `empty: true` is explicitly declared.
+
 
 DeepInfra uses a bundled JavaScript plugin for API key billing.
 

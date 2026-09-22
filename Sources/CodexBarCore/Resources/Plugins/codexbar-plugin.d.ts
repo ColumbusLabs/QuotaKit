@@ -28,7 +28,12 @@ interface CodexBarRateWindow {
   nextRegenPercent?: number | null;
 }
 
-type CodexBarNamedRateWindow = { id: string; title: string } & (CodexBarRateWindow | { window: CodexBarRateWindow });
+type CodexBarNamedRateWindow = {
+  id: string;
+  title: string;
+  /** False keeps reset metadata visible without presenting unknown usage as a measured percentage. Defaults to true. */
+  usageKnown?: boolean;
+} & (CodexBarRateWindow | { window: CodexBarRateWindow });
 
 interface CodexBarCostSnapshot {
   used: number;
@@ -73,6 +78,10 @@ interface CodexBarDetailRow {
   label: string;
   value: string;
   secondaryValue?: string | null;
+  /** Finite consumed fraction, from 0 through 1 inclusive. */
+  progress?: number | null;
+  /** Finite raw usage, independent of the display string and progress. */
+  usageValue?: number | null;
 }
 
 interface CodexBarDetailChart {
