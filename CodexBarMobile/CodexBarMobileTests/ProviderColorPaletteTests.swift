@@ -23,6 +23,7 @@ struct ProviderColorPaletteTests {
             ("qwencloud", 147 / 255, 51 / 255, 234 / 255),
             ("factory", 255 / 255, 107 / 255, 53 / 255),
             ("gemini", 171 / 255, 135 / 255, 234 / 255),
+            ("gitkraken", 23 / 255, 146 / 255, 135 / 255),
             ("antigravity", 96 / 255, 186 / 255, 126 / 255),
             ("copilot", 168 / 255, 85 / 255, 247 / 255),
             ("zai", 232 / 255, 90 / 255, 106 / 255),
@@ -96,6 +97,7 @@ struct ProviderColorPaletteTests {
             ("Qwen Cloud", "qwencloud"),
             ("ZoomMate", "zoommate"),
             ("xAI", "xai"),
+            ("GitKraken AI", "gitkraken"),
         ]
 
         for (displayName, providerID) in pairs {
@@ -144,7 +146,7 @@ private func expectColor(_ provider: String, red: Double, green: Double, blue: D
 
 private let knownDistinctProviders = [
     "codex", "openai", "azureopenai", "claude", "cursor", "opencode", "opencodego",
-    "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "antigravity", "copilot",
+    "alibaba", "alibabatokenplan", "qwencloud", "factory", "gemini", "gitkraken", "antigravity", "copilot",
     "zai", "minimax", "manus", "kimi", "kilo", "kiro", "vertexai", "augment",
     "jetbrains", "kimik2", "moonshot", "amp", "t3chat", "ollama", "synthetic",
     "warp", "openrouter", "elevenlabs", "windsurf", "perplexity", "mimo",

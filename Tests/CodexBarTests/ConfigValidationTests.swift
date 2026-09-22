@@ -421,8 +421,8 @@ struct ConfigValidationTests {
         let issues = CodexBarConfigValidator.validate(config)
         let issue = issues.first { $0.provider == .gemini && $0.code == "workspace_unused" }
         let expectedMessage =
-            "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, and xai " +
-            "support workspaceID."
+            "workspaceID is set but only azureopenai, openai, opencode, opencodego, devin, deepgram, " +
+            "xai, and gitkraken support workspaceID."
         #expect(issue?.message == expectedMessage)
     }
 

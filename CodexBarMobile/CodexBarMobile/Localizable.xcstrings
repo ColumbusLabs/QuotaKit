@@ -19905,6 +19905,34 @@
         }
       }
     },
+    "GitKraken AI weekly usage, branding, and quota alerts now sync from QuotaKit Mac.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitKraken AI weekly usage, branding, and quota alerts now sync from QuotaKit Mac."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "GitKraken AI の週間使用量、ブランド表示、クォータ通知を QuotaKit Mac から同期できるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "现在可以从 QuotaKit Mac 同步 GitKraken AI 每周用量、品牌标识和配额提醒。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "現在可從 QuotaKit Mac 同步 GitKraken AI 每週用量、品牌標識與配額提醒。"
+          }
+        }
+      }
+    },
     "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions.": {
       "localizations": {
         "en": {

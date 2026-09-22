@@ -712,6 +712,22 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `gitkraken exposes secure token and optional organization settings`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-gitkraken")
+        let context = fixture.settingsContext(provider: .gitkraken)
+        let fields = GitKrakenProviderImplementation().settingsFields(context: context)
+        let token = try #require(fields.first(where: { $0.id == "gitkraken-api-token" }))
+        let organization = try #require(fields.first(where: { $0.id == "gitkraken-organization" }))
+
+        #expect(token.kind == .secure)
+        #expect(token.placeholder == "Token value only (without Bearer)")
+        #expect(token.actions.map(\.id) == ["gitkraken-open-account"])
+        #expect(organization.kind == .plain)
+        #expect(organization.placeholder == "Organization ID (optional)")
+        #expect(organization.actions.isEmpty)
+    }
+
+    @Test
     func `alibaba presentation follows store source label`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-alibaba-presentation")
         let metadata = try #require(ProviderDescriptorRegistry.metadata[.alibaba])

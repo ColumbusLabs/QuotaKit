@@ -11,6 +11,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
 - Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
+- GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.
 
 ### Fixed
 

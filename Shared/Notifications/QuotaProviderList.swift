@@ -137,6 +137,9 @@ public enum QuotaProviderList {
         // iOS full-catalog catch-up. Append-only to preserve every existing
         // CloudKit subscription identifier.
         Provider(id: "ibmbob", displayName: "IBM Bob"),
+        // GitKraken AI quota alerts are appended so every existing zone and
+        // subscription identifier remains unchanged.
+        Provider(id: "gitkraken", displayName: "GitKraken AI"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

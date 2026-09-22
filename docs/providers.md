@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 67 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 70 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -54,6 +54,7 @@ complete when the available scan window covers fewer days.
 | Azure OpenAI | API key + endpoint + deployment probe (`api`) for deployment status validation. |
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
+| GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |

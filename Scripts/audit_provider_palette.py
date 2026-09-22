@@ -33,6 +33,7 @@ MOBILE_ALIAS_TARGETS = {
     "eleven": "elevenlabs",
     "groqapi": "groq",
     "groqcloud": "groq",
+    "gitkrakenai": "gitkraken",
     "kimiapi": "moonshot",
     "kimik2unofficial": "kimik2",
     "moonshotkimiapi": "moonshot",

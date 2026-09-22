@@ -86,6 +86,7 @@ enum ProviderColorPalette {
             (["factory", "droid"], RawColor(red: 255 / 255, green: 107 / 255, blue: 53 / 255)),
             (["fireworks"], RawColor(red: 242 / 255, green: 91 / 255, blue: 28 / 255)),
             (["gemini"], RawColor(red: 171 / 255, green: 135 / 255, blue: 234 / 255)),
+            (["gitkraken", "gitkrakenai"], RawColor(red: 23 / 255, green: 146 / 255, blue: 135 / 255)),
             (["antigravity"], RawColor(red: 96 / 255, green: 186 / 255, blue: 126 / 255)),
             (["zed"], RawColor(red: 8 / 255, green: 78 / 255, blue: 255 / 255)),
             (["poe"], RawColor(red: 93 / 255, green: 92 / 255, blue: 222 / 255)),

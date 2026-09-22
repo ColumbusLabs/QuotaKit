@@ -30,6 +30,8 @@ current Columbus Labs product surface and recent release history.
   missing Mac data as unavailable or partial rather than a false `$0.00`.
 - Fireworks and IBM Bob now receive restored provider presentation and synced-card
   support, with quota-alert coverage for IBM Bob.
+- GitKraken AI weekly usage synced from QuotaKit Mac now appears on iPhone with
+  its own provider icon, color, and quota alerts.
 - Kiro overage details now show available credit and charge limits, remaining
   credits, accrued charges, and the provider's reported currency when available.
 
