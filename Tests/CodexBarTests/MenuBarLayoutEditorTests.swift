@@ -47,6 +47,24 @@ struct MenuBarLayoutEditorTests {
     }
 
     @Test
+    func `Cursor palette offers descriptor-owned Grok Bot when its window is available`() {
+        let snapshot = UsageSnapshot(
+            primary: nil,
+            secondary: nil,
+            extraRateWindows: [NamedRateWindow(
+                id: CursorSandUsageStatus.extraWindowID,
+                title: CursorSandUsageStatus.extraWindowTitle,
+                window: RateWindow(usedPercent: 42, windowMinutes: nil, resetsAt: nil, resetDescription: nil))],
+            updatedAt: Date())
+        let extra = MenuBarLayoutToken.extraPercent(id: CursorSandUsageStatus.extraWindowID)
+
+        #expect(MenuBarLayoutPaletteTokens.usage(provider: .cursor, snapshot: snapshot).contains(extra))
+        #expect(!MenuBarLayoutPaletteTokens.usage(provider: .cursor, snapshot: nil).contains(extra))
+        #expect(!MenuBarLayoutPaletteTokens.usage(provider: .codex, snapshot: snapshot).contains(extra))
+        #expect(extra.editorLabel(provider: .cursor) == "Grok Bot %")
+    }
+
+    @Test
     func `dragging within a line reorders without duplicating`() {
         let initial = MenuBarLayout(lines: [[.icon, .providerName, .resetCountdown]])
         let dragged = MenuBarLayoutDragItem.placed(

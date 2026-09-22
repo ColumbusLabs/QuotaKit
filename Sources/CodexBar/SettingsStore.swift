@@ -930,6 +930,8 @@ extension SettingsStore {
     private static func loadMenuBarLayout(userDefaults: UserDefaults) -> MenuBarLayout? {
         MenuBarLayoutPersistence.loadLayout(
             current: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutCurrent)),
+            v3: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutV3)),
+            released: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layoutReleased)),
             legacy: self.decodeMenuBarLayout(userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.layout)),
             into: userDefaults)
     }
@@ -940,6 +942,10 @@ extension SettingsStore {
         MenuBarLayoutPersistence.loadLibrary(
             current: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsCurrent)),
+            v3: self.decodeMenuBarLayoutConditionals(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsV3)),
+            released: self.decodeMenuBarLayoutConditionals(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionalsReleased)),
             legacy: self.decodeMenuBarLayoutConditionals(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.conditionals)),
             into: userDefaults)
@@ -958,6 +964,10 @@ extension SettingsStore {
         MenuBarLayoutPersistence.loadOverrides(
             current: self.decodeMenuBarLayoutOverrides(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesCurrent)),
+            v3: self.decodeMenuBarLayoutOverrides(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesV3)),
+            released: self.decodeMenuBarLayoutOverrides(
+                userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overridesReleased)),
             legacy: self.decodeMenuBarLayoutOverrides(
                 userDefaults.data(forKey: MenuBarLayoutUserDefaultsKey.overrides)),
             into: userDefaults)

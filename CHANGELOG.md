@@ -10,6 +10,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Added
 
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
+- Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
 
 ### Fixed
 

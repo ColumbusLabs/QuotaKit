@@ -110,6 +110,9 @@ extension StatusItemController {
             primary: MenuBarLayoutRenderWindow(windows.primary),
             secondary: MenuBarLayoutRenderWindow(windows.secondary),
             tertiary: MenuBarLayoutRenderWindow(windows.tertiary),
+            provider: provider,
+            extraRateWindows: MenuBarLayoutNamedExtra.windows(provider: provider, snapshot: snapshot)
+                .map(MenuBarLayoutRenderExtra.init),
             session: MenuBarLayoutRenderWindow(windows.session),
             weekly: MenuBarLayoutRenderWindow(windows.weekly),
             scopedWeekly: MenuBarLayoutRenderWindow(scopedNamed?.window),

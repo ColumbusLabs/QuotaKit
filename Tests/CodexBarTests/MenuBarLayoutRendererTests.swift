@@ -92,6 +92,73 @@ struct MenuBarLayoutRendererTests {
     }
 
     @Test
+    func `Cursor Grok Bot extra percentage renders independently`() {
+        let renderer = MenuBarLayoutRenderer()
+        let output = renderer.render(
+            layout: MenuBarLayout(lines: [[
+                .lanePercent(lane: .primary),
+                .lanePercent(lane: .secondary),
+                .lanePercent(lane: .tertiary),
+                .extraPercent(id: CursorSandUsageStatus.extraWindowID),
+            ]]),
+            data: self.data(
+                provider: .cursor,
+                extraRateWindows: [MenuBarLayoutRenderExtra(NamedRateWindow(
+                    id: CursorSandUsageStatus.extraWindowID,
+                    title: CursorSandUsageStatus.extraWindowTitle,
+                    window: RateWindow(usedPercent: 42, windowMinutes: nil, resetsAt: nil, resetDescription: nil)))]),
+            icon: nil,
+            options: self.options())
+
+        #expect(output.attributedTitle.string == "10%\u{2009}9%\u{2009}17%\u{2009}42%")
+        #expect(output.accessibilityLabel == "Total 10%, Auto 9%, API 17%, Grok Bot 42%")
+    }
+
+    @Test
+    func `missing or foreign named extra leaves sibling tokens visible`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.lanePercent(lane: .primary), .extraPercent(id: "cursor-grok-bot")]])
+        let extra = MenuBarLayoutRenderExtra(NamedRateWindow(
+            id: "cursor-grok-bot",
+            title: "Grok Bot",
+            window: RateWindow(usedPercent: 42, windowMinutes: nil, resetsAt: nil, resetDescription: nil)))
+
+        let missing = renderer.render(
+            layout: layout,
+            data: self.data(provider: .cursor),
+            icon: nil,
+            options: self.options())
+        let foreign = renderer.render(
+            layout: layout,
+            data: self.data(provider: .codex, extraRateWindows: [extra]),
+            icon: nil,
+            options: self.options())
+
+        #expect(missing.attributedTitle.string == "10%")
+        #expect(missing.accessibilityLabel == "Total 10%")
+        #expect(foreign.attributedTitle.string == "10%")
+    }
+
+    @Test
+    func `Grok Bot responds to remaining mode and cache changes`() {
+        let renderer = MenuBarLayoutRenderer()
+        let layout = MenuBarLayout(lines: [[.extraPercent(id: "cursor-grok-bot")]])
+
+        for used in [42.0, 43.0] {
+            let extra = MenuBarLayoutRenderExtra(NamedRateWindow(
+                id: "cursor-grok-bot",
+                title: "Grok Bot",
+                window: RateWindow(usedPercent: used, windowMinutes: nil, resetsAt: nil, resetDescription: nil)))
+            let output = renderer.render(
+                layout: layout,
+                data: self.data(provider: .cursor, extraRateWindows: [extra]),
+                icon: nil,
+                options: self.options(showUsed: false))
+            #expect(output.attributedTitle.string == "\(Int(100 - used))%")
+        }
+    }
+
+    @Test
     func `Amp lane percentages announce snapshot presentation labels`() {
         let renderer = MenuBarLayoutRenderer()
         let snapshot = UsageSnapshot(
@@ -1344,6 +1411,7 @@ struct MenuBarLayoutRendererTests {
         provider: UsageProvider = .codex,
         laneLabels: MenuBarLayoutLaneLabels? = nil,
         automaticResetAt: Date? = nil,
+        extraRateWindows: [MenuBarLayoutRenderExtra] = [],
         metrics: MenuBarLayoutRenderMetrics? = nil)
         -> MenuBarLayoutRenderData
     {
@@ -1367,6 +1435,8 @@ struct MenuBarLayoutRendererTests {
                 windowMinutes: 30 * 24 * 60,
                 resetsAt: nil,
                 resetDescription: nil)),
+            provider: provider,
+            extraRateWindows: extraRateWindows,
             session: MenuBarLayoutRenderWindow(RateWindow(
                 usedPercent: 25,
                 windowMinutes: 300,
@@ -1410,6 +1480,7 @@ struct MenuBarLayoutRendererTests {
 
     private func options(
         now: Date? = nil,
+        showUsed: Bool = true,
         verticalAdjustment: Int = 0,
         isStale: Bool = false,
         conditionals: [MenuBarLayoutConditional] = [],
@@ -1418,7 +1489,7 @@ struct MenuBarLayoutRendererTests {
         MenuBarLayoutRenderOptions(
             size: .regular,
             highContrast: false,
-            showUsed: true,
+            showUsed: showUsed,
             conditionals: conditionals,
             appearanceName: "aqua",
             isDebugApp: isDebugApp,
