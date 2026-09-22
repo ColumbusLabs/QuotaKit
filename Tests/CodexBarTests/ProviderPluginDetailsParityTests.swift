@@ -128,7 +128,12 @@ struct ProviderPluginDetailsParityTests {
             return (Data(body.utf8), response)
         }
 
-        let script = try await ProviderPluginRuntime(bundledPlugin: "openrouter", transport: transport)
+        let sourceURL = try #require(CodexBarCoreResources.bundle?.url(forResource: "openrouter", withExtension: "js"))
+        let source = try String(contentsOf: sourceURL, encoding: .utf8)
+        let defaultTimeout = "        : 4;"
+        let timeoutRange = try #require(source.range(of: defaultTimeout))
+        let testSource = source.replacingCharacters(in: timeoutRange, with: "        : 1;")
+        let script = try await ProviderPluginRuntime(source: testSource, transport: transport)
             .fetchUsage(secrets: ["OPENROUTER_API_KEY": "fixture-key"])
 
         #expect(script.primary == nil)
