@@ -242,6 +242,7 @@ enum KimiWebEnrichmentTokenResolver {
         if let override = KimiCookieHeader.resolveCookieOverride(context: context) {
             return override.token
         }
+        guard KimiBrowserImportPolicy.allowsImport(context) else { return nil }
         #if os(macOS)
         if let token = KimiCookieImporter.desktopAuthToken() {
             return token
@@ -407,6 +408,6 @@ struct KimiWebFetchStrategy: ProviderFetchStrategy {
 
 enum KimiBrowserImportPolicy {
     static func allowsImport(_ context: ProviderFetchContext) -> Bool {
-        context.settings?.kimi?.cookieSource != .off
+        (context.settings?.kimi?.cookieSource ?? .auto) == .auto
     }
 }

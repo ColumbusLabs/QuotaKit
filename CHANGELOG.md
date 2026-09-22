@@ -5,6 +5,13 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Fixed
+
+- Grok: restore billing requests while keeping legacy monthly usage included.
+- Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.
+
 ## 0.32.4.29 — 2026-09-20
 
 ### Fixed

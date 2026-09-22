@@ -109,11 +109,6 @@ public enum KimiCookieImporter {
         }
     }
 
-    private static func cookieNames(from cookies: [HTTPCookie]) -> String {
-        let names = Set(cookies.map { "\($0.name)@\($0.domain)" }).sorted()
-        return names.joined(separator: ", ")
-    }
-
     private static func emit(_ message: String, logger: ((String) -> Void)?) {
         logger?("[kimi-cookie] \(message)")
         self.log.debug(message)
