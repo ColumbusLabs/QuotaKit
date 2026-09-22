@@ -162,7 +162,9 @@ func spendDashboardModelRows(
             case .tokens:
                 spendDashboardDescending(lhs.element.totalTokens, rhs.element.totalTokens)
             }
-            if let preferredOrder { return preferredOrder }
+            if let preferredOrder {
+                return preferredOrder
+            }
             if lhs.element.providerName != rhs.element.providerName {
                 return lhs.element.providerName < rhs.element.providerName
             }
@@ -218,8 +220,12 @@ func spendDashboardModelHistoryPresentation(
         return spendDashboardModelHistoryPresentation(group)
     }
     let tokenValues = group.models.map(\.totalTokens)
-    if tokenValues.allSatisfy({ $0 == nil }) { return .unavailable }
-    if tokenValues.contains(where: { $0 == nil }) { return .partial }
+    if tokenValues.allSatisfy({ $0 == nil }) {
+        return .unavailable
+    }
+    if tokenValues.contains(where: { $0 == nil }) {
+        return .partial
+    }
     return .complete
 }
 
@@ -725,7 +731,7 @@ struct SpendDashboardCurrencySection: View {
                         .font(.caption)
                         .foregroundStyle(.secondary)
                     if let selectedDay = self.group.selectedDay {
-                        Text(SpendActivityDateFormatting.mediumDateString(selectedDay))
+                        Text(SpendActivityDateFormatting.mediumDateString(selectedDay, calendar: self.group.calendar))
                             .font(.caption)
                             .foregroundStyle(.secondary)
                     }
@@ -743,6 +749,8 @@ struct SpendDashboardCurrencySection: View {
                 SpendHourlyChart(group: self.group)
             }
         }
+        .environment(\.timeZone, self.group.timeZone)
+        .environment(\.calendar, self.group.calendar)
     }
 }
 
@@ -999,7 +1007,7 @@ private struct SpendDailyChart: View {
                 } else {
                     Chart(self.group.dailyPoints) { point in
                         BarMark(
-                            x: .value(L("Day"), point.day, unit: .day),
+                            x: .value(L("Day"), point.day, unit: .day, calendar: self.group.calendar),
                             yStart: .value(L("Estimated spend"), point.stackStart),
                             yEnd: .value(L("Estimated spend"), point.stackEnd),
                             width: .ratio(0.72))
@@ -1010,6 +1018,7 @@ private struct SpendDailyChart: View {
                                 currencyCode: self.group.currencyCode)))
                     }
                     .chartXScale(domain: self.group.chartDomain)
+                    .chartXAxis { AxisMarks(format: self.dayFormat) }
                     .chartForegroundStyleScale(
                         domain: presentation.series.map(\.name),
                         range: presentation.series.map { self.providerColor($0.provider) })
@@ -1035,9 +1044,16 @@ private struct SpendDailyChart: View {
     }
 
     private func pointAccessibilityLabel(_ point: SpendDashboardModel.DailyPoint) -> String {
-        let day = point.day.formatted(
-            .dateTime.month(.abbreviated).day().locale(codexBarLocalizedLocale()))
+        let day = point.day.formatted(self.dayFormat)
         return "\(point.providerName), \(day)"
+    }
+
+    private var dayFormat: Date.FormatStyle {
+        Date.FormatStyle(
+            locale: codexBarLocalizedLocale(),
+            calendar: self.group.calendar,
+            timeZone: self.group.timeZone)
+            .month(.abbreviated).day()
     }
 
     private func providerColor(_ provider: UsageProvider) -> Color {
@@ -1084,7 +1100,7 @@ private struct SpendHourlyChart: View {
     let group: SpendDashboardModel.CurrencyGroup
 
     var body: some View {
-        let calendar = Self.chartCalendar(timeZone: self.group.timeZone)
+        let calendar = self.group.calendar
         let presentation = SpendHourlyChartPresentation(
             hourlyPoints: self.group.hourlyPoints,
             calendar: calendar)
@@ -1097,7 +1113,7 @@ private struct SpendHourlyChart: View {
                 } else {
                     Chart(self.group.hourlyPoints) { point in
                         BarMark(
-                            x: .value(L("Hour"), point.hour, unit: .hour),
+                            x: .value(L("Hour"), point.hour, unit: .hour, calendar: calendar),
                             yStart: .value(L("Estimated spend"), point.stackStart),
                             yEnd: .value(L("Estimated spend"), point.stackEnd),
                             width: .ratio(0.72))
@@ -1150,12 +1166,6 @@ private struct SpendHourlyChart: View {
     private func providerColor(_ provider: UsageProvider) -> Color {
         let color = ProviderAccentPalette.color(for: provider)
         return Color(red: color.red, green: color.green, blue: color.blue)
-    }
-
-    private static func chartCalendar(timeZone: TimeZone) -> Calendar {
-        var calendar = Calendar(identifier: .gregorian)
-        calendar.timeZone = timeZone
-        return calendar
     }
 }
 

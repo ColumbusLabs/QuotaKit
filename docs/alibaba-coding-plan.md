@@ -15,10 +15,12 @@ Alibaba Coding Plan supports both browser-session and API-key paths, but the sup
 2) Manual cookie header from Settings.
 3) Environment variable `ALIBABA_CODING_PLAN_COOKIE`.
 
+Browser quota forms preserve reserved characters in security tokens and JSON parameters, including cookie-derived anonymous IDs.
+
 When the RPC endpoint returns `ConsoleNeedLogin`, QuotaKit treats that as a console-session requirement. In API mode it is surfaced as an explicit API-path limitation; in `auto` mode fallback remains observable through the fetch-attempt chain.
 
 ## Token sources (fallback order)
-1) Config token (`~/.codexbar/config.json` -> `providers[].apiKey` for provider `alibaba`).
+1) Config token (`~/.quotakit/config.json` -> `providers[].apiKey` for provider `alibaba`).
 2) Environment variables, checked in order:
    - `ALIBABA_CODING_PLAN_API_KEY`
    - `ALIBABA_QWEN_API_KEY`

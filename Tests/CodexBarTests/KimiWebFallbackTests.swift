@@ -3,6 +3,28 @@ import Testing
 @testable import CodexBarCore
 
 struct KimiWebFallbackTests {
+    @Test(arguments: KimiRegion.allCases)
+    func `web strategy passes selected region to automatic sources and requests`(region: KimiRegion) async throws {
+        let calls = KimiFallbackCalls()
+        let strategy = KimiWebFetchStrategy(
+            fetchUsage: { token, selected in
+                #expect(selected == region)
+                calls.add(token)
+                return Self.usage()
+            },
+            desktopToken: { selected in
+                #expect(selected == region)
+                return nil
+            },
+            browserTokens: { selected in
+                #expect(selected == region)
+                return ["regional-browser-token"]
+            })
+        #expect(await strategy.isAvailable(Self.context(region: region)))
+        _ = try await strategy.fetch(Self.context(region: region))
+        #expect(calls.snapshot == ["regional-browser-token"])
+    }
+
     @Test(arguments: ["manual", "environment"])
     func `explicit tokens remain authoritative when rejected`(source: String) async {
         let calls = KimiFallbackCalls()
@@ -98,9 +120,9 @@ struct KimiWebFallbackTests {
         fetch: @escaping @Sendable (String) async throws -> KimiUsageSnapshot) -> KimiWebFetchStrategy
     {
         KimiWebFetchStrategy(
-            fetchUsage: { token in calls.add("fetch:\(token)"); return try await fetch(token) },
-            desktopToken: { calls.add("desktop"); return "desktop" },
-            browserTokens: { calls.add("browser"); return ["desktop", "browser-old", "browser-current"] })
+            fetchUsage: { token, _ in calls.add("fetch:\(token)"); return try await fetch(token) },
+            desktopToken: { _ in calls.add("desktop"); return "desktop" },
+            browserTokens: { _ in calls.add("browser"); return ["desktop", "browser-old", "browser-current"] })
     }
 
     private static func usage() -> KimiUsageSnapshot {
@@ -111,6 +133,7 @@ struct KimiWebFallbackTests {
     }
 
     private static func context(
+        region: KimiRegion = .china,
         source: ProviderCookieSource = .auto,
         manual: String? = nil,
         environment: [String: String] = [:]) -> ProviderFetchContext
@@ -123,7 +146,7 @@ struct KimiWebFallbackTests {
             webDebugDumpHTML: false,
             verbose: false,
             env: environment,
-            settings: .make(kimi: .init(cookieSource: source, manualCookieHeader: manual)),
+            settings: .make(kimi: .init(cookieSource: source, manualCookieHeader: manual, region: region)),
             fetcher: UsageFetcher(environment: environment),
             claudeFetcher: KimiFallbackClaudeStub(),
             browserDetection: BrowserDetection(cacheTTL: 0))

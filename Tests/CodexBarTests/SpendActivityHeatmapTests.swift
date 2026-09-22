@@ -66,6 +66,24 @@ struct SpendActivityHeatmapTests {
         #expect(visibleIndices.last.flatMap(series.date(at:)) == now)
     }
 
+    @Test(arguments: [6, 7, 11, 12, 13])
+    func `annual coverage survives midnight daylight saving transitions`(septemberDay: Int) throws {
+        var calendar = Self.calendar
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Santiago"))
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: septemberDay, hour: 12)))
+        let points = try (0..<365).map { offset in
+            let date = try #require(calendar.date(byAdding: .day, value: -offset, to: now))
+            return SpendDashboardModel.TokenActivityPoint(day: calendar.startOfDay(for: date), totalTokens: offset + 1)
+        }
+        let series = SpendActivitySeries.make(from: points, now: now, calendar: calendar)
+        let visible = series.daily.indices.filter(series.isVisible)
+        #expect(series.visibleDayCount == 365)
+        #expect(series.coveredDayCount == 365)
+        #expect(series.daily.reduce(0, +) == (1...365).reduce(0, +))
+        #expect(visible.first.flatMap(series.date(at:)) == points.last?.day)
+        #expect(visible.last.flatMap(series.date(at:)) == points.first?.day)
+    }
+
     @Test
     func `mixed provider activity unions available sources per day`() throws {
         let now = try #require(Self.calendar.date(from: DateComponents(year: 2026, month: 7, day: 16)))

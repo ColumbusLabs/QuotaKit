@@ -24,7 +24,9 @@ headers, source selection, provider ordering, and token accounts are stored in `
 Settings → Usage & Spend is a local estimated-cost history page, not a billing receipt and not the menu-bar quota
 card. Range choices are 7 / 30 / 90 days and All (the scan window is 365 days). Amounts are list-price equivalents
 unless a source also reports plan-metered spend, in which case both columns appear. Day buckets use a pinned IANA
-timezone stored when cost tracking is first enabled.
+timezone stored when cost tracking is first enabled. Heatmap and daily chart dates follow civil days across
+daylight-saving transitions, including skipped midnights. Coverage counts calendar days, and chart labels use the
+bucket time zone; a day's range ends at the next local day boundary.
 
 Native cost-history sources are the descriptors that advertise token-cost support: Codex, Claude, OpenAI Admin,
 Mistral, AWS Bedrock, Vertex AI, Cursor, and OpenCode Go. Providers without that contract are omitted instead of

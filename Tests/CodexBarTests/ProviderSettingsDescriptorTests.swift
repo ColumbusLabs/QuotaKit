@@ -664,11 +664,14 @@ struct ProviderSettingsDescriptorTests {
         let pickers = implementation.settingsPickers(context: context)
         let fields = implementation.settingsFields(context: context)
 
+        let regionPicker = try #require(pickers.first(where: { $0.id == "kimi-region" }))
+        #expect(regionPicker.options.map(\.id) == ["china", "international"])
         let usagePicker = try #require(pickers.first(where: { $0.id == "kimi-usage-source" }))
         #expect(usagePicker.options.map(\.id) == ["auto", "api", "web"])
         #expect(usagePicker.subtitle ==
-            "Kimi Code subscription usage from api.kimi.com. Auto tries your configured API key, then a signed-in " +
-            "Kimi Code CLI credential, then web cookies. China Open Platform balance is a separate provider.")
+            "Kimi Code subscription usage for the selected region. Auto tries your configured API key, " +
+            "then a signed-in " +
+            "Kimi Code CLI credential in China, then web cookies. China Open Platform balance is a separate provider.")
         #expect(usagePicker.placement == .connection)
         #expect(usagePicker.trailingText?() == nil)
         fixture.store.lastSourceLabels[.kimi] = "Kimi Code CLI"

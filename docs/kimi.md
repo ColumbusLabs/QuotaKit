@@ -25,6 +25,20 @@ Code subscription credentials.
 
 ## Setup
 
+Select **Region** in Settings → Providers → Kimi before configuring credentials. **China (kimi.com)** is
+the default for existing installs; **International (kimi.ai)** selects the overseas service. The selection
+controls Code API and web requests, cookie discovery, Open Console, and Usage Dashboard. Use credentials
+issued for the selected region.
+
+The app and CLI share the `providers[].region` config key:
+
+```json
+{"id":"kimi","region":"international","source":"api","apiKey":"<REDACTED>"}
+```
+
+Use `"china"` or omit `region` to retain the default. The regional Code API hosts are `api.kimi.com` and
+`api.kimi.ai`; the web and console hosts are `www.kimi.com` and `www.kimi.ai`. Examples below use China URLs.
+
 Choose one of four authentication methods:
 
 ### Method 1: Kimi Code API Key (Recommended)
@@ -41,23 +55,25 @@ Or provide it through the environment:
 export KIMI_CODE_API_KEY="kimi-code-api-key-here"
 ```
 
-QuotaKit calls `GET https://api.kimi.com/coding/v1/usages` with the API key. Set
+QuotaKit calls the selected region's `/coding/v1/usages` API with the key. Set
 `KIMI_CODE_BASE_URL` only when testing a compatible HTTPS proxy or alternate host with an explicit API key.
-QuotaKit never forwards a Kimi Code CLI credential to an endpoint override.
+QuotaKit never forwards a Kimi Code CLI credential to an endpoint override or to the International host.
 
 ### Method 2: Kimi Code CLI
 
-If you are signed in with the official Kimi Code CLI, Auto mode can reuse its fresh access token from
-`~/.kimi-code/credentials/kimi-code.json`. CodexBar sends the same device identity headers as the CLI,
+In the default China region, if you are signed in with the official Kimi Code CLI, Auto mode can reuse its fresh
+access token from `~/.kimi-code/credentials/kimi-code.json`. QuotaKit sends the same device identity headers as the CLI,
 including the local hostname, OS details, and stable `~/.kimi-code/device_id` value. If that device ID is
-missing, CodexBar creates it with private file permissions to match the official client.
+missing, QuotaKit creates it with private file permissions to match the official client.
 
-CodexBar treats CLI-owned authentication as read-only: it never uses the refresh token and never rewrites
+QuotaKit treats CLI-owned authentication as read-only: it never uses the refresh token and never rewrites
 the credential file. When the access token expires, sign in again with Kimi Code CLI or configure an API
 key. Set `KIMI_CODE_HOME` only when the official CLI uses a non-default home directory.
 
 Custom `KIMI_CODE_BASE_URL`, `KIMI_CODE_OAUTH_HOST`, and `KIMI_OAUTH_HOST` values disable CLI credential
 reuse; use an explicit API key for endpoint-override testing.
+The current CLI credential file does not identify its issuing host, so switching to International disables
+automatic CLI credential reuse. Configure an International API key or use a `kimi.ai` web session instead.
 
 ### Method 3: Automatic Browser Import
 
@@ -72,7 +88,7 @@ reuse; use an explicit API key for endpoint-override testing.
 
 Automatic mode also checks the official Kimi Desktop app before importing browser cookies. Its Chromium
 Cookies database is opened read-only: active WAL databases use SQLite's normal WAL-aware path, while idle
-WAL-mode databases with no sidecars use an immutable read-only fallback. CodexBar never creates or modifies
+WAL-mode databases with no sidecars use an immutable read-only fallback. QuotaKit never creates or modifies
 Kimi Desktop database files.
 
 ### Method 4: Manual Token Entry

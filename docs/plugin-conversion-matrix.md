@@ -12,9 +12,9 @@ This matrix evaluates all 67 providers in the 2026-08-02 capability audit agains
 because it is the 67th audited provider explicitly requested by this work order. Each provider has one primary blocker.
 
 `convertible-now` means the canonical first-party flow is GET-only, uses a fixed HTTPS origin and header secret, and fits
-the generic snapshot. Optional canonical-origin endpoint overrides do not change that bucket; providers whose identity
-is inherently a user-chosen origin (LLM Proxy and LiteLLM) do not qualify. The convertible rows were checked against the
-current Swift request methods and snapshot projections; Azure OpenAI, StepFun, and Warp were removed from the audit's
+the generic snapshot. Optional canonical-origin endpoint overrides do not change that bucket; user-selected origins
+require a provider-specific endpoint policy and are assessed in their matrix rows. The convertible rows were checked
+against the current Swift request methods and snapshot projections; Azure OpenAI, StepFun, and Warp were removed from the audit's
 earlier “fully expressible” baseline because their current implementations issue POST requests.
 
 `converted` means the bundled JavaScript conversion is present behind `CODEXBAR_JS_PROVIDERS=1`. `cut-over` means the
@@ -26,12 +26,12 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 
 | Status | Count |
 |---|---:|
-| `cut-over` | 6 |
+| `cut-over` | 7 |
 | `converted` | 9 |
 | `convertible-now` | 8 |
 | `needs-cookie-import` | 19 |
 | `needs-files/subprocess/oauth-broker` | 15 |
-| `needs-pty/webview/native` | 10 |
+| `needs-pty/webview/native` | 9 |
 | **Total** | **67** |
 
 ## Matrix
@@ -91,7 +91,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | grok | `needs-pty/webview/native` | No | Persistent stdio JSON-RPC, auth/session files, cookies, logs, and binary gRPC-web are strongly native. |
 | groq | `needs-cookie-import` | No | Skipped: Stytch session exchange and console history remain a multi-step auth flow. |
 | llmproxy | `needs-pty/webview/native` | No | Its origin is user-selected and may be private HTTP, conflicting with the manifest's fixed HTTPS origins. |
-| litellm | `needs-pty/webview/native` | No | Its required user-selected proxy origin and optional private HTTP cannot be declared by a bundled static manifest. |
+| litellm | `cut-over` | Yes | Bundled on both plugin engines with configured HTTPS/private-network HTTP origins, key-bound user/team budgets, and self-scoped spend-only fallback. |
 | deepgram | `cut-over` | Yes | Cut over on JavaScriptCore: project discovery, aggregation, configured origins, numeric validation, and classified auth/permission/rate/network/API/parse failures match native behavior; the native fetch core is Linux-only. |
 | poe | `converted` | Yes | Converted: fixed-origin bearer GET balance/history pagination with daily points and model/type summaries. |
 | chutes | `convertible-now` | No | Verified bearer GET fan-out on the canonical origin; dynamic quota lanes map to named windows. |

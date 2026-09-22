@@ -290,9 +290,15 @@ actor HistoricalUsageHistoryStore {
             return true
         }
 
-        if prior.resetsAt != sample.resetsAt { return true }
-        if sample.sampledAt.timeIntervalSince(prior.sampledAt) >= Self.writeInterval { return true }
-        if abs(sample.usedPercent - prior.usedPercent) >= Self.writeDeltaThreshold { return true }
+        if prior.resetsAt != sample.resetsAt {
+            return true
+        }
+        if sample.sampledAt.timeIntervalSince(prior.sampledAt) >= Self.writeInterval {
+            return true
+        }
+        if abs(sample.usedPercent - prior.usedPercent) >= Self.writeDeltaThreshold {
+            return true
+        }
         return false
     }
 
@@ -411,7 +417,9 @@ actor HistoricalUsageHistoryStore {
             let windowMinutes: Int
         }
 
-        if scoped.isEmpty { return nil }
+        if scoped.isEmpty {
+            return nil
+        }
 
         let grouped = Dictionary(grouping: scoped) {
             WeekKey(resetsAt: $0.resetsAt, windowMinutes: $0.windowMinutes)
@@ -444,7 +452,9 @@ actor HistoricalUsageHistoryStore {
         }
 
         weeks.sort { $0.resetsAt < $1.resetsAt }
-        if weeks.isEmpty { return nil }
+        if weeks.isEmpty {
+            return nil
+        }
         return CodexHistoricalDataset(weeks: weeks)
     }
 
@@ -598,21 +608,21 @@ actor HistoricalUsageHistoryStore {
     private static func parseDayUsages(
         from breakdown: [OpenAIDashboardDailyBreakdown],
         asOf: Date,
-        fillingFrom expectedCoverageStart: Date? = nil) -> [DayUsage]
+        fillingFrom expectedCoverageStart: Date? = nil,
+        calendar: Calendar = gregorianCalendar()) -> [DayUsage]
     {
         var creditsByStart: [Date: Double] = [:]
         creditsByStart.reserveCapacity(breakdown.count)
 
         for day in breakdown {
-            guard let dayStart = Self.dayStart(for: day.day) else { continue }
+            guard let dayStart = Self.dayStart(for: day.day, calendar: calendar) else { continue }
             creditsByStart[dayStart, default: 0] += max(0, day.totalCreditsUsed)
         }
 
-        let calendar = Self.gregorianCalendar()
         var dayUsages: [DayUsage] = []
         dayUsages.reserveCapacity(creditsByStart.count)
         for (dayStart, credits) in creditsByStart {
-            guard let nominalEnd = calendar.date(byAdding: .day, value: 1, to: dayStart) else { continue }
+            guard let nominalEnd = calendar.dateInterval(of: .day, for: dayStart)?.end else { continue }
             let effectiveEnd: Date = if dayStart <= asOf, asOf < nominalEnd {
                 asOf
             } else {
@@ -626,17 +636,18 @@ actor HistoricalUsageHistoryStore {
         return Self.fillMissingZeroUsageDays(
             in: dayUsages,
             through: asOf,
-            fillingFrom: expectedCoverageStart)
+            fillingFrom: expectedCoverageStart,
+            calendar: calendar)
     }
 
     private static func fillMissingZeroUsageDays(
         in dayUsages: [DayUsage],
         through asOf: Date,
-        fillingFrom expectedCoverageStart: Date? = nil) -> [DayUsage]
+        fillingFrom expectedCoverageStart: Date? = nil,
+        calendar: Calendar) -> [DayUsage]
     {
         guard let firstStart = dayUsages.first?.start else { return [] }
 
-        let calendar = Self.gregorianCalendar()
         let fillStart: Date = if let expectedCoverageStart {
             min(firstStart, calendar.startOfDay(for: expectedCoverageStart))
         } else {
@@ -646,13 +657,16 @@ actor HistoricalUsageHistoryStore {
         guard fillStart <= finalDayStart else { return dayUsages }
 
         let creditsByStart = Dictionary(uniqueKeysWithValues: dayUsages.map { ($0.start, $0.creditsUsed) })
-        let daySpan = max(0, calendar.dateComponents([.day], from: fillStart, to: finalDayStart).day ?? 0)
+        let daySpan = max(
+            0,
+            (calendar.ordinality(of: .day, in: .era, for: finalDayStart) ?? 0)
+                - (calendar.ordinality(of: .day, in: .era, for: fillStart) ?? 0))
         var filled: [DayUsage] = []
         filled.reserveCapacity(daySpan + 1)
 
         var cursor = fillStart
         while cursor <= finalDayStart {
-            guard let nominalEnd = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
+            guard let nominalEnd = calendar.dateInterval(of: .day, for: cursor)?.end else { break }
             let effectiveEnd: Date = if cursor <= asOf, asOf < nominalEnd {
                 asOf
             } else {
@@ -663,14 +677,13 @@ actor HistoricalUsageHistoryStore {
                 start: cursor,
                 end: effectiveEnd,
                 creditsUsed: creditsByStart[cursor] ?? 0))
-            guard let next = calendar.date(byAdding: .day, value: 1, to: cursor) else { break }
-            cursor = next
+            cursor = nominalEnd
         }
 
         return filled
     }
 
-    private static func dayStart(for key: String) -> Date? {
+    private static func dayStart(for key: String, calendar: Calendar) -> Date? {
         let components = key.split(separator: "-", omittingEmptySubsequences: true)
         guard components.count == 3,
               let year = Int(components[0]),
@@ -680,25 +693,19 @@ actor HistoricalUsageHistoryStore {
             return nil
         }
 
-        let calendar = Self.gregorianCalendar()
-        var dateComponents = DateComponents()
-        dateComponents.calendar = calendar
-        dateComponents.timeZone = calendar.timeZone
-        dateComponents.year = year
-        dateComponents.month = month
-        dateComponents.day = day
-        dateComponents.hour = 0
-        dateComponents.minute = 0
-        dateComponents.second = 0
-        return dateComponents.date
+        return calendar.date(from: DateComponents(year: year, month: month, day: day))
     }
 
     private static func creditsUsed(from dayUsages: [DayUsage], between start: Date, and end: Date) -> Double {
         guard end > start else { return 0 }
         var total = 0.0
         for day in dayUsages {
-            if day.end <= start { continue }
-            if day.start >= end { break }
+            if day.end <= start {
+                continue
+            }
+            if day.start >= end {
+                break
+            }
             let overlapStart = max(day.start, start)
             let overlapEnd = min(day.end, end)
             guard overlapEnd > overlapStart else { continue }
@@ -742,16 +749,17 @@ actor HistoricalUsageHistoryStore {
 
     #if DEBUG
     nonisolated static func _dayStartForTesting(_ key: String) -> Date? {
-        self.dayStart(for: key)
+        self.dayStart(for: key, calendar: self.gregorianCalendar())
     }
 
     nonisolated static func _creditsUsedForTesting(
         breakdown: [OpenAIDashboardDailyBreakdown],
         asOf: Date,
         start: Date,
-        end: Date) -> Double
+        end: Date,
+        calendar: Calendar = gregorianCalendar()) -> Double
     {
-        let dayUsages = Self.parseDayUsages(from: breakdown, asOf: asOf)
+        let dayUsages = Self.parseDayUsages(from: breakdown, asOf: asOf, calendar: calendar)
         return Self.creditsUsed(from: dayUsages, between: start, and: end)
     }
     #endif
@@ -779,7 +787,9 @@ enum CodexHistoricalPaceEvaluator {
 
         let elapsed = Self.clamp(duration - timeUntilReset, lower: 0, upper: duration)
         let actual = Self.clamp(window.usedPercent, lower: 0, upper: 100)
-        if elapsed == 0, actual > 0 { return nil }
+        if elapsed == 0, actual > 0 {
+            return nil
+        }
 
         let uNow = Self.clamp(elapsed / duration, lower: 0, upper: 1)
         let scopedWeeks = dataset.weeks.filter { week in
@@ -913,11 +923,15 @@ enum CodexHistoricalPaceEvaluator {
         let startIndex = min(gridCount - 1, max(1, Int(floor(uNow * denominator)) + 1))
         for index in startIndex..<gridCount {
             let u = Double(index) / denominator
-            if u <= uNow + Self.epsilon { continue }
+            if u <= uNow + Self.epsilon {
+                continue
+            }
             let value = Self.clamp(curve[index] + shift, lower: 0, upper: 100)
             if previousValue < 100 - Self.epsilon, value >= 100 - Self.epsilon {
                 let delta = value - previousValue
-                if abs(delta) <= Self.epsilon { return u }
+                if abs(delta) <= Self.epsilon {
+                    return u
+                }
                 let ratio = Self.clamp((100 - previousValue) / delta, lower: 0, upper: 1)
                 return Self.clamp(previousU + ratio * (u - previousU), lower: uNow, upper: 1)
             }
@@ -929,13 +943,17 @@ enum CodexHistoricalPaceEvaluator {
 
     private static func interpolate(curve: [Double], at u: Double) -> Double {
         guard !curve.isEmpty else { return 0 }
-        if curve.count == 1 { return curve[0] }
+        if curve.count == 1 {
+            return curve[0]
+        }
 
         let clipped = Self.clamp(u, lower: 0, upper: 1)
         let scaled = clipped * Double(curve.count - 1)
         let lower = Int(floor(scaled))
         let upper = min(curve.count - 1, lower + 1)
-        if lower == upper { return curve[lower] }
+        if lower == upper {
+            return curve[lower]
+        }
         let ratio = scaled - Double(lower)
         return curve[lower] + ((curve[upper] - curve[lower]) * ratio)
     }

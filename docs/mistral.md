@@ -48,6 +48,9 @@ For the console request, QuotaKit forwards only the `csrftoken` and `ory_session
 - The optional **Monthly Plan** window shows Vibe usage percentage and reset time when the console endpoint is
   available.
 - Token-cost history is supported through the billing web session; no local log scan is used.
+- Signed billing adjustments are supported when the final input, cached, and output totals remain representable.
+- Unrepresentable token totals fail parsing safely. If only a display model ranking overflows, QuotaKit omits that
+  ranking while keeping valid billing cost data.
 
 ## CLI Usage
 

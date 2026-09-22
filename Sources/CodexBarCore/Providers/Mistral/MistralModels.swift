@@ -103,7 +103,14 @@ public struct MistralDailyUsageBucket: Codable, Equatable, Sendable, Identifiabl
         }
 
         public var totalTokens: Int {
-            self.inputTokens + self.cachedTokens + self.outputTokens
+            guard let total = self.checkedTotalTokens else {
+                preconditionFailure("Mistral token count exceeds supported range")
+            }
+            return total
+        }
+
+        package var checkedTotalTokens: Int? {
+            MistralTokenMath.total(input: self.inputTokens, cached: self.cachedTokens, output: self.outputTokens)
         }
 
         public init(name: String, cost: Double, inputTokens: Int, cachedTokens: Int, outputTokens: Int) {
@@ -127,7 +134,14 @@ public struct MistralDailyUsageBucket: Codable, Equatable, Sendable, Identifiabl
     }
 
     public var totalTokens: Int {
-        self.inputTokens + self.cachedTokens + self.outputTokens
+        guard let total = self.checkedTotalTokens else {
+            preconditionFailure("Mistral token count exceeds supported range")
+        }
+        return total
+    }
+
+    package var checkedTotalTokens: Int? {
+        MistralTokenMath.total(input: self.inputTokens, cached: self.cachedTokens, output: self.outputTokens)
     }
 
     public init(
@@ -160,6 +174,11 @@ public struct MistralUsageSnapshot: Codable, Sendable {
     public let startDate: Date?
     public let endDate: Date?
     public let updatedAt: Date
+
+    package var checkedTotalTokens: Int? {
+        MistralTokenMath.total(
+            input: self.totalInputTokens, cached: self.totalCachedTokens, output: self.totalOutputTokens)
+    }
 
     public init(
         totalCost: Double,
@@ -403,11 +422,7 @@ public struct MistralUsageSnapshot: Codable, Sendable {
 
     private func dailyTokensMatchSnapshot() -> Bool {
         guard self.hasNonnegativeTokenCounters(),
-              let snapshotTokens = Self.safeIntSum([
-                  self.totalInputTokens,
-                  self.totalCachedTokens,
-                  self.totalOutputTokens,
-              ]),
+              let snapshotTokens = self.checkedTotalTokens,
               let dailyTokens = Self.safeIntSum(self.daily.flatMap { bucket in
                   [bucket.inputTokens, bucket.cachedTokens, bucket.outputTokens]
               })
@@ -439,11 +454,7 @@ public struct MistralUsageSnapshot: Codable, Sendable {
     {
         bucket.models.map { model in
             let modelCost = costsAreComplete && model.cost.isFinite && model.cost >= 0 ? model.cost : nil
-            let modelTokens = tokensAreComplete ? Self.safeIntSum([
-                model.inputTokens,
-                model.cachedTokens,
-                model.outputTokens,
-            ]) : nil
+            let modelTokens = tokensAreComplete ? model.checkedTotalTokens : nil
             return CostUsageDailyReport.ModelBreakdown(
                 modelName: model.name,
                 costUSD: modelCost,
@@ -452,7 +463,7 @@ public struct MistralUsageSnapshot: Codable, Sendable {
     }
 
     private static func tokenTotal(for bucket: MistralDailyUsageBucket) -> Int? {
-        self.safeIntSum([bucket.inputTokens, bucket.cachedTokens, bucket.outputTokens])
+        bucket.checkedTotalTokens
     }
 
     private static func safeCostSum(_ values: [Double]) -> Double? {

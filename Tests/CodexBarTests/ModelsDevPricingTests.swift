@@ -1227,11 +1227,14 @@ extension ModelsDevPricingTests {
     @Test
     func `saving a new catalog invalidates the memo`() throws {
         let root = try Self.cacheRoot()
-        try ModelsDevCache.save(catalog: Self.fixtureCatalog(), fetchedAt: Date(), cacheRoot: root)
+        #expect(try ModelsDevCache.save(catalog: Self.fixtureCatalog(), fetchedAt: Date(), cacheRoot: root))
         #expect(ModelsDevCache.load(cacheRoot: root).artifact?.catalog.providers["openai"] != nil)
 
         // Overwriting the cache must drop the memo so the next load reflects the freshly written catalog.
-        ModelsDevCache.save(catalog: ModelsDevCatalog(providers: [:]), fetchedAt: Date(), cacheRoot: root)
+        #expect(ModelsDevCache.save(
+            catalog: ModelsDevCatalog(providers: [:]),
+            fetchedAt: Date(),
+            cacheRoot: root))
         let reloaded = ModelsDevCache.load(cacheRoot: root)
 
         #expect(reloaded.error == nil)

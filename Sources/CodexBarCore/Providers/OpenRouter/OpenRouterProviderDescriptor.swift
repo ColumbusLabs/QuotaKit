@@ -69,7 +69,7 @@ public enum OpenRouterProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                dashboardURL: "https://openrouter.ai/settings/credits",
+                dashboardURL: "https://openrouter.ai/activity",
                 statusPageURL: nil,
                 statusLinkURL: "https://status.openrouter.ai"),
             branding: ProviderBranding(
@@ -86,6 +86,25 @@ public enum OpenRouterProviderDescriptor {
                 supportsTokenCost: true,
                 noDataMessage: { "OpenRouter 30-day spend requires a management API key." }),
             presentation: ProviderUsagePresentation(
+                costPresenter: { snapshot in
+                    var replacedRows: [String: Set<String>] = [:]
+                    if snapshot.providerCost?.balance != nil {
+                        replacedRows["Credits"] = ["Remaining"]
+                    }
+                    if snapshot.providerCost?.period == "This month (API key)" {
+                        replacedRows["API key"] = ["This month"]
+                    }
+                    if snapshot.providerCost?.period == "Total key usage" {
+                        replacedRows["API key"] = ["API key used"]
+                    }
+                    if snapshot.providerCost?.period == "Total account usage" {
+                        replacedRows["Credits", default: []].insert("Used")
+                    }
+                    return ProviderCostPresentation(
+                        showsGenericFallback: false,
+                        menuCardStyle: .payAsYouGoSpend,
+                        replacedDetailRows: replacedRows)
+                },
                 menuCard: ProviderMenuCardPresentation(
                     showsCreditsSection: false,
                     primaryDescriptionPlacement: .reset),

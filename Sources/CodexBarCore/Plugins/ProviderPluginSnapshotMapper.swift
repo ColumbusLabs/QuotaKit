@@ -54,13 +54,26 @@ enum ProviderPluginSnapshotMapper {
         let subscriptionRenewsAt = try self.optionalDate(value, property: "subscriptionRenewsAt")
         let subscriptionExpiresAt = try self.optionalDate(value, property: "subscriptionExpiresAt")
         let dataConfidence = try self.dataConfidence(value)
+        let emptyValue = value.property("empty")
+        let explicitlyEmpty: Bool
+        if let emptyValue, !emptyValue.isUndefined {
+            guard emptyValue.isBoolean else {
+                throw ProviderPluginError.invalidSnapshot("empty must be a boolean")
+            }
+            explicitlyEmpty = emptyValue.boolValue()
+        } else {
+            explicitlyEmpty = false
+        }
 
-        guard primary != nil || secondary != nil || tertiary != nil || !(extraRateWindows?.isEmpty ?? true)
+        guard explicitlyEmpty || primary != nil || secondary != nil || tertiary != nil
+            || !(extraRateWindows?.isEmpty ?? true)
             || providerCost != nil
             || costUsage != nil
             || !details.isEmpty
+            || self.hasMeaningfulIdentity(identity)
         else {
-            throw ProviderPluginError.invalidSnapshot("snapshot must contain at least one rate window, cost, or detail")
+            throw ProviderPluginError.invalidSnapshot(
+                "snapshot must contain a rate window, cost, detail section, or identity field, or declare empty: true")
         }
 
         return UsageSnapshot(
@@ -76,6 +89,12 @@ enum ProviderPluginSnapshotMapper {
             updatedAt: now,
             identity: identity,
             dataConfidence: dataConfidence)
+    }
+
+    private static func hasMeaningfulIdentity(_ identity: ProviderIdentitySnapshot?) -> Bool {
+        guard let identity else { return false }
+        return identity.accountEmail != nil || identity.accountOrganization != nil || identity.loginMethod != nil
+            || identity.accountID != nil
     }
 
     private static func dataConfidence(_ root: any ProviderPluginValue) throws -> UsageDataConfidence {
@@ -362,9 +381,6 @@ enum ProviderPluginSnapshotMapper {
                 entry,
                 property: "reasoningTokens",
                 path: path)
-            if let reasoningTokens, reasoningTokens > outputTokens {
-                throw ProviderPluginError.invalidSnapshot("\(path).reasoningTokens must not exceed outputTokens")
-            }
             let requests = try self.requiredNonnegativeInteger(entry, property: "requests", path: path)
             let cost = try self.requiredFiniteNumber(entry, property: "cost", path: path)
             guard cost >= 0 else {

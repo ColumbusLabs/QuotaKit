@@ -294,6 +294,18 @@ struct UsageFormatterTests {
     }
 
     @Test
+    func `reset line omits unrepresentable expiry instead of labeling balance as reset`() {
+        let now = Date(timeIntervalSince1970: 1_000_000)
+        let window = RateWindow(
+            usedPercent: 50,
+            windowMinutes: nil,
+            resetsAt: Date(timeIntervalSince1970: 1e21),
+            resetDescription: "Fuel pack: 500/1000")
+        #expect(UsageFormatter.resetLine(for: window, style: .countdown, now: now) == nil)
+        #expect(UsageFormatter.resetLine(for: window, style: .absolute, now: now) == nil)
+    }
+
+    @Test
     func `model display name strips trailing dates`() {
         #expect(UsageFormatter.modelDisplayName("claude-opus-4-5-20251101") == "claude-opus-4-5")
         #expect(UsageFormatter.modelDisplayName("gpt-4o-2024-08-06") == "gpt-4o")

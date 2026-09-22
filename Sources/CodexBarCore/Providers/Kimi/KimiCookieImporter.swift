@@ -4,13 +4,12 @@ import Foundation
 import SweetCookieKit
 
 public enum KimiCookieImporter {
-    public static func desktopAuthToken() -> String? {
-        KimiDesktopAuthToken.load()
+    public static func desktopAuthToken(region: KimiRegion = .china) -> String? {
+        KimiDesktopAuthToken.load(region: region)
     }
 
     private static let log = CodexBarLog.logger(LogCategories.provider(.kimi, scope: "cookie"))
     private static let cookieClient = BrowserCookieClient()
-    private static let cookieDomains = ["www.kimi.com", "kimi.com"]
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.kimi]?.browserCookieOrder ?? Browser.defaultImportOrder
 
@@ -29,6 +28,7 @@ public enum KimiCookieImporter {
     }
 
     public static func importSessions(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
@@ -36,7 +36,7 @@ public enum KimiCookieImporter {
         let candidates = self.cookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in candidates {
             do {
-                let perSource = try self.importSessions(from: browserSource, logger: logger)
+                let perSource = try self.importSessions(from: browserSource, region: region, logger: logger)
                 sessions.append(contentsOf: perSource)
             } catch {
                 BrowserCookieAccessGate.recordIfNeeded(error)
@@ -54,9 +54,10 @@ public enum KimiCookieImporter {
 
     public static func importSessions(
         from browserSource: Browser,
+        region: KimiRegion = .china,
         logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
-        let query = BrowserCookieQuery(domains: self.cookieDomains)
+        let query = BrowserCookieQuery(domains: region.cookieDomains, domainMatch: .exact)
         let log: (String) -> Void = { msg in self.emit(msg, logger: logger) }
         let sources = try Self.cookieClient.codexBarRecords(
             matching: query,
@@ -88,10 +89,11 @@ public enum KimiCookieImporter {
     }
 
     public static func importSession(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) throws -> SessionInfo
     {
-        let sessions = try self.importSessions(browserDetection: browserDetection, logger: logger)
+        let sessions = try self.importSessions(region: region, browserDetection: browserDetection, logger: logger)
         guard let first = sessions.first else {
             throw KimiCookieImportError.noCookies
         }
@@ -99,11 +101,12 @@ public enum KimiCookieImporter {
     }
 
     public static func hasSession(
+        region: KimiRegion = .china,
         browserDetection: BrowserDetection = BrowserDetection(),
         logger: ((String) -> Void)? = nil) -> Bool
     {
         do {
-            return try !self.importSessions(browserDetection: browserDetection, logger: logger).isEmpty
+            return try !self.importSessions(region: region, browserDetection: browserDetection, logger: logger).isEmpty
         } catch {
             return false
         }

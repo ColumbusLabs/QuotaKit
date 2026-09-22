@@ -126,7 +126,9 @@ All provider fields are optional unless noted.
 - `cookieSource`: cookie selection policy.
   - `auto` (browser import), `manual` (use `cookieHeader`), `off` (disable cookies)
 - `cookieHeader`: raw cookie header value (e.g. `key=value; other=...`).
-- `region`: provider-specific region (e.g. `zai`, `minimax`).
+- `region`: provider-specific region (e.g. `zai`, `minimax`). Kimi accepts `china` (default, `kimi.com`)
+  or `international` (`kimi.ai`), selecting its API, web, cookie, and dashboard hosts. Kimi Code CLI credentials
+  are reused only for China because the credential file does not identify its issuing host.
 - `workspaceID`: provider-specific workspace/deployment/project ID (e.g. Azure OpenAI deployment, OpenAI API project,
   `opencode`).
 - `tokenAccounts`: multi-account tokens for providers in `TokenAccountSupportCatalog`.
