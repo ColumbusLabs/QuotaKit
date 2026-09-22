@@ -595,7 +595,11 @@ extension CodexBarCLI {
                     notes: notes),
                 output: &output)
         case let .failure(error):
-            output.exitCode = Self.mapError(error)
+            let displayError = Self.providerErrorWithCredentialGuidance(
+                error,
+                provider: provider,
+                environment: env)
+            output.exitCode = Self.mapError(displayError)
             if command.format == .json {
                 output.payload.append(Self.makeProviderErrorPayload(
                     provider: provider,
@@ -603,7 +607,7 @@ extension CodexBarCLI {
                     cacheAccountKey: cacheAccountKey,
                     source: effectiveSourceMode.rawValue,
                     status: status,
-                    error: error,
+                    error: displayError,
                     kind: .provider,
                     diagnostic: Self.appAutoBackgroundSafeDenialDiagnostic(
                         provider: provider,
@@ -615,13 +619,13 @@ extension CodexBarCLI {
                 output.cardFailures.append(CLICardFailure(
                     provider: provider,
                     accountLabel: account?.label ?? codexVisibleAccount?.menuDisplayName,
-                    message: error.localizedDescription))
+                    message: displayError.localizedDescription))
             } else if !command.jsonOnly {
                 if let accountLabel = account?.label ?? codexVisibleAccount?.menuDisplayName {
                     Self.writeStderr(
-                        "Error (\(provider.rawValue) - \(accountLabel)): \(error.localizedDescription)\n")
+                        "Error (\(provider.rawValue) - \(accountLabel)): \(displayError.localizedDescription)\n")
                 } else {
-                    Self.writeStderr("Error: \(error.localizedDescription)\n")
+                    Self.writeStderr("Error: \(displayError.localizedDescription)\n")
                 }
                 if let summary = Self.kiloAutoFallbackSummary(
                     provider: provider,
@@ -634,6 +638,28 @@ extension CodexBarCLI {
         }
 
         return await Self.finishUsageOutput(output, provider: provider, command: command)
+    }
+
+    static func providerErrorWithCredentialGuidance(
+        _ error: Error,
+        provider: UsageProvider,
+        environment: [String: String]) -> Error
+    {
+        guard let fetchError = error as? ProviderFetchError,
+              case let .noAvailableStrategy(unavailableProvider) = fetchError,
+              unavailableProvider == provider
+        else { return error }
+
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        guard descriptor.fetchPlan.sourceModes == [.auto, .api],
+              let credentials = descriptor.credentials,
+              credentials.supportsAPIKeyOverride,
+              credentials.requiresAPIKeyForAPISource,
+              credentials.resolveToken(environment: environment) == nil,
+              let message = credentials.unavailableMessage(environment: environment)
+        else { return error }
+
+        return ProviderFetchClassifiedError(kind: .missingCredential, message: message)
     }
 
     static func shouldDetectVersion(provider: UsageProvider, result: ProviderFetchResult) -> Bool {
