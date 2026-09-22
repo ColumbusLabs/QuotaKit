@@ -770,7 +770,7 @@ struct GrokWebBillingFetcherTests {
             endpoint: endpoint)
 
         #expect(GrokWebBillingStubURLProtocol.requests.count == 1)
-        #expect(GrokWebBillingStubURLProtocol.requestBodies == [Data([0x00, 0x00, 0x00, 0x00, 0x00])])
+        #expect(GrokWebBillingStubURLProtocol.requestBodies == [Data([0x00, 0x00, 0x00, 0x00, 0x02, 0x08, 0x00])])
         #expect(snapshot.usedPercent == 55.5)
         #expect(snapshot.resetsAt == Date(timeIntervalSince1970: TimeInterval(reset)))
     }
@@ -816,6 +816,9 @@ struct GrokWebBillingFetcherTests {
 
         #expect(attempts.current() == 2)
         #expect(GrokWebBillingStubURLProtocol.requests.count == 2)
+        #expect(GrokWebBillingStubURLProtocol.requestBodies == Array(
+            repeating: Data([0x00, 0x00, 0x00, 0x00, 0x02, 0x08, 0x00]),
+            count: 2))
         #expect(snapshot.usedPercent == 25)
         #expect(snapshot.resetsAt == Date(timeIntervalSince1970: TimeInterval(reset)))
     }

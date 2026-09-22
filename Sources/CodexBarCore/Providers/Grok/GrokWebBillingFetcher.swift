@@ -208,7 +208,8 @@ public enum GrokWebBillingFetcher {
         var request = URLRequest(url: endpoint)
         request.httpMethod = "POST"
         request.timeoutInterval = Self.requestTimeoutSeconds
-        request.httpBody = Data([0x00, 0x00, 0x00, 0x00, 0x00])
+        // The endpoint rejects an empty request; explicitly send exclude_legacy_monthly_usage=false.
+        request.httpBody = Data([0x00, 0x00, 0x00, 0x00, 0x02, 0x08, 0x00])
         if let authorizationHeader {
             request.setValue(authorizationHeader, forHTTPHeaderField: "Authorization")
         }

@@ -8,7 +8,7 @@ struct KimiWebFallbackTests {
         let calls = KimiFallbackCalls()
         let strategy = Self.strategy(calls: calls) { _ in throw KimiAPIError.invalidToken }
         let context = Self.context(
-            source: source == "manual" ? .manual : .auto,
+            source: .manual,
             manual: source == "manual" ? "kimi-auth=explicit" : nil,
             environment: source == "environment" ? ["KIMI_AUTH_TOKEN": "kimi-auth=explicit"] : [:])
         do {
@@ -20,12 +20,15 @@ struct KimiWebFallbackTests {
         #expect(calls.snapshot == ["fetch:explicit"])
     }
 
-    @Test
-    func `cookie off never resolves automatic credentials`() async {
+    @Test(arguments: [ProviderCookieSource.off, .manual], ["", "not-a-token"])
+    func `disabled or invalid manual cookies never resolve automatic credentials`(
+        source: ProviderCookieSource,
+        manual: String) async
+    {
         let calls = KimiFallbackCalls()
         let strategy = Self.strategy(calls: calls) { _ in Self.usage() }
         do {
-            _ = try await strategy.fetch(Self.context(source: .off))
+            _ = try await strategy.fetch(Self.context(source: source, manual: manual))
             Issue.record("Expected missing token")
         } catch KimiAPIError.missingToken {} catch {
             Issue.record("Unexpected error: \(error)")
