@@ -18,7 +18,7 @@ public enum V0ProviderDescriptor {
         ProviderDescriptor(
             id: .v0,
             credentials: self.credentials,
-            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 7),
+            config: ProviderConfigCapabilities(workspaceIDValidationOrder: 8),
             metadata: ProviderMetadata(
                 id: .v0,
                 displayName: "v0",
