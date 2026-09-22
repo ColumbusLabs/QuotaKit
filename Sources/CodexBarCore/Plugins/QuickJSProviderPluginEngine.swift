@@ -851,6 +851,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 kind: kind,
                 message: String(message[message.index(after: separator)...]))
         }
+        if let classifiedError = ProviderPluginClassifiedFailureParser.error(from: message) {
+            return classifiedError
+        }
         return ProviderPluginError.script(message)
     }
 

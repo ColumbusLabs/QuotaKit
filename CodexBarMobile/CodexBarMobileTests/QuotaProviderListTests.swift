@@ -17,8 +17,19 @@ import Testing
 /// update here.
 @Suite("Quota provider list")
 struct QuotaProviderListTests {
+    private static let providerIDsBeforeV0 = [
+        "codex", "claude", "cursor", "opencode", "opencodego", "alibaba", "factory", "gemini",
+        "antigravity", "copilot", "zai", "perplexity", "minimax", "kimi", "kilo", "kiro",
+        "vertexai", "augment", "jetbrains", "kimik2", "amp", "ollama", "synthetic", "warp",
+        "openrouter", "abacus", "mistral", "openai", "manus", "windsurf", "mimo", "doubao",
+        "deepseek", "codebuff", "crof", "venice", "commandcode", "stepfun", "moonshot", "bedrock",
+        "grok", "groq", "elevenlabs", "deepgram", "llmproxy", "azureopenai", "alibabatokenplan", "t3chat",
+        "sakana", "qoder", "sub2api", "zenmux", "clinepass", "longcat", "neuralwatt", "deepinfra",
+        "qwencloud", "zoommate", "xai", "notion", "ibmbob",
+    ]
+
     @Test
-    func `Total count is 62 including GitKraken AI`() {
+    func `Total count is 63 including GitKraken AI and v0`() {
         // Outcome: 25 → 27 in iOS 1.5.0 (Abacus + Mistral) →
         // 38 in iOS 1.6.0 (11 new from Mac v0.24+v0.25 catch-up) →
         // 40 in iOS 1.7.0 (2 new from Mac v0.26.0: moonshot + bedrock) →
@@ -30,18 +41,18 @@ struct QuotaProviderListTests {
         // 50 after Qoder, 51 after Sub2API, 52 after ZenMux, 54 after
         // ClinePass and LongCat, 55 after Neuralwatt, 56 after DeepInfra,
         // then 58 after Qwen Cloud and ZoomMate, 59 after xAI, and 60
-        // after Notion AI, 61 after IBM Bob, then 62 after GitKraken AI.
+        // after Notion AI, 61 after IBM Bob, 62 after GitKraken AI, and 63 after v0 billing.
         // Fireworks is spend-only.
         // ai& is spend-only and has no quota transitions, so it intentionally
         // does not consume three CloudKit quota-zone subscriptions.
         // If this number shifts without matching upstream updates,
         // the push-subscription set drifts out of sync with Mac's
         // actual emitting providers.
-        #expect(QuotaProviderList.providers.count == 62)
+        #expect(QuotaProviderList.providers.count == 63)
     }
 
     @Test
-    func `Subscription zone count is 186 (62 providers × 3 states)`() {
+    func `Subscription zone count is 189 (63 providers × 3 states)`() {
         // iOS 1.5.0: 27 × 2 = 54 zones.
         // iOS 1.6.0 / Mac 0.25.2: 38 × 3 (depleted/restored/warning) = 114.
         // iOS 1.7.0 / Mac 0.26.2: 40 × 3 = 120 zones (+moonshot, +bedrock).
@@ -58,10 +69,11 @@ struct QuotaProviderListTests {
         // Notion AI catch-up: 60 × 3 = 180 zones.
         // IBM Bob catch-up: 61 × 3 = 183 zones.
         // GitKraken AI catch-up: 62 × 3 = 186 zones; Fireworks has no quota transitions.
+        // v0 catch-up: 63 × 3 = 189 zones without renumbering earlier IDs.
         // `QuotaTransitionSubscriptions.makeConfigs()` builds one
         // `SubConfig` per (provider, state) — pinning here so a
         // future state addition/removal can't drift silently.
-        #expect(QuotaProviderList.providers.count * 3 == 186)
+        #expect(QuotaProviderList.providers.count * 3 == 189)
     }
 
     @Test
@@ -137,7 +149,7 @@ struct QuotaProviderListTests {
     /// re-create them all. Verify Abacus + Mistral + the 11 v0.24/v0.25
     /// additions are appended at the END (additive), not interleaved.
     @Test
-    func `Cause: new providers through GitKraken AI are appended at the tail`() {
+    func `Cause: new providers through v0 are appended at the tail`() {
         let providers = QuotaProviderList.providers
         // Providers are append-only so per-(provider,state) CK subscription
         // IDs stay stable across upgrades. Pin the recent tail so a careless
@@ -153,13 +165,21 @@ struct QuotaProviderListTests {
         //  - Qwen Cloud and ZoomMate occupy positions [56...57].
         //  - xAI occupies position [58], followed by Notion AI at [59].
         //  - IBM Bob and GitKraken AI occupy positions [60...61].
-        let tail = providers.suffix(22).map(\.id)
+        //  - v0 is appended at position [62].
+        let tail = providers.suffix(23).map(\.id)
         #expect(tail == [
             "grok", "groq", "elevenlabs", "deepgram", "llmproxy",
             "azureopenai", "alibabatokenplan", "t3chat", "sakana", "qoder", "sub2api", "zenmux",
             "clinepass", "longcat", "neuralwatt", "deepinfra", "qwencloud", "zoommate", "xai", "notion",
-            "ibmbob", "gitkraken",
-        ], "provider catch-up additions through GitKraken AI must stay at the tail in this order")
+            "ibmbob", "gitkraken", "v0",
+        ], "provider catch-up additions through v0 must stay at the tail in this order")
+    }
+
+    @Test
+    func `Existing notification provider IDs and order are preserved before v0`() {
+        let prefix = Array(QuotaProviderList.providers.prefix(Self.providerIDsBeforeV0.count)).map(\.id)
+        #expect(prefix == Self.providerIDsBeforeV0)
+        #expect(QuotaProviderList.providers.suffix(2).map(\.id) == ["gitkraken", "v0"])
     }
 
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
@@ -258,9 +278,9 @@ struct QuotaProviderListTests {
     /// (Zone count is providers × 3 states since iOS 1.6.0 added the
     /// `warning` state alongside `depleted`/`restored`.)
     @Test
-    func `Cause: catalog 62/186 numbers match the actual list`() {
-        #expect(QuotaProviderList.providers.count == 62)
-        #expect(QuotaProviderList.providers.count * 3 == 186)
+    func `Cause: catalog 63/189 numbers match the actual list`() {
+        #expect(QuotaProviderList.providers.count == 63)
+        #expect(QuotaProviderList.providers.count * 3 == 189)
     }
 
     @Test
@@ -280,13 +300,22 @@ struct QuotaProviderListTests {
 
     @Test
     func `GitKraken notification IDs append after IBM Bob and preserve the prior zone name`() {
-        #expect(QuotaProviderList.providers.suffix(2).map(\.id) == ["ibmbob", "gitkraken"])
+        #expect(QuotaProviderList.providers.suffix(3).map(\.id) == ["ibmbob", "gitkraken", "v0"])
         #expect(QuotaProviderList.quotaZoneName(
             providerID: "ibmbob", state: "warning") == "Quota-ibmbob-warningZone")
         for state in ["depleted", "restored", "warning"] {
             #expect(QuotaProviderList.quotaZoneName(
                 providerID: "gitkraken", state: state) == "Quota-gitkraken-\(state)Zone")
         }
+    }
+
+    @Test
+    func `v0 is present with stable notification zone names`() {
+        let v0 = QuotaProviderList.providers.first { $0.id == "v0" }
+        #expect(v0?.displayName == "v0")
+        #expect(QuotaProviderList.quotaZoneName(providerID: "v0", state: "depleted") == "Quota-v0-depletedZone")
+        #expect(QuotaProviderList.quotaZoneName(providerID: "v0", state: "restored") == "Quota-v0-restoredZone")
+        #expect(QuotaProviderList.quotaZoneName(providerID: "v0", state: "warning") == "Quota-v0-warningZone")
     }
 
     @Test

@@ -140,6 +140,8 @@ public enum QuotaProviderList {
         // GitKraken AI quota alerts are appended so every existing zone and
         // subscription identifier remains unchanged.
         Provider(id: "gitkraken", displayName: "GitKraken AI"),
+        // v0 Platform API billing. Appended so existing subscription IDs stay stable.
+        Provider(id: "v0", displayName: "v0"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

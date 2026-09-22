@@ -154,8 +154,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 3_957_417_924_445_042_316)
-        #expect(burnDownFingerprint == 8_686_456_525_451_224_704)
+        #expect(widgetFingerprint == 11_611_317_199_338_017_848)
+        #expect(burnDownFingerprint == 6_660_542_877_237_621_554)
     }
 
     @Test
@@ -198,6 +198,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,
+            .v0,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
@@ -214,7 +215,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(descriptors.compactMap { descriptor in
             descriptor.credentials?.apiKeyDebugLabel.map { (descriptor.id, $0) }
-        }.map(\.0) == [.openai, .azureopenai, .opencodego, .openrouter, .elevenlabs])
+        }.map(\.0) == [.openai, .azureopenai, .opencodego, .openrouter, .elevenlabs, .v0])
 
         #expect(CodexProviderDescriptor.descriptor.tokenCost.menuHintLines == [.localized("codex_api_estimate_hint")])
         #expect(ClaudeProviderDescriptor.descriptor.tokenCost.menuHintLines == [.estimate])
@@ -3631,6 +3632,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "sub2api",
                 "synthetic",
                 "t3chat",
+                "v0",
                 "venice",
                 "vertexai",
                 "warp",
@@ -3642,7 +3644,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 69,
+            expectedReferenceCount: 70,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "claude@2",
@@ -3713,6 +3715,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zoommate@30",
                 "fireworks@31",
                 "ibmbob@31",
+                "v0@31",
             ],
             reason: "This exhaustive fallback preserves stable Mac-to-iOS account grouping for providers without Tier-A identity data."),
         AllowedProviderConstruct(
@@ -4539,6 +4542,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "sub2api",
                 "synthetic",
                 "t3chat",
+                "v0",
                 "venice",
                 "vertexai",
                 "warp",
@@ -4550,7 +4554,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 69,
+            expectedReferenceCount: 70,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4591,6 +4595,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "venice@15",
                 "bedrock@19",
                 "moonshot@19",
+                "v0@19",
                 "deepgram@25",
                 "elevenlabs@25",
                 "grok@25",

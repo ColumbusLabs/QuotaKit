@@ -230,7 +230,10 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             }
         }
         if let classifiedError = error as? ProviderFetchClassifiedError {
-            return ProviderFetchClassifiedError(kind: classifiedError.kind, message: message)
+            return ProviderFetchClassifiedError(
+                kind: classifiedError.kind,
+                message: message,
+                retryAfterSeconds: classifiedError.retryAfterSeconds)
         }
         return ProviderPluginError.script(message)
     }
@@ -957,6 +960,9 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         {
             let body = String(message[message.index(after: separator)...])
             return ProviderFetchClassifiedError(kind: kind, message: body)
+        }
+        if let classifiedError = ProviderPluginClassifiedFailureParser.error(from: message) {
+            return classifiedError
         }
         return ProviderPluginError.script(message)
     }

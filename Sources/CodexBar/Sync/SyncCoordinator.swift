@@ -1832,7 +1832,7 @@ final class SyncCoordinator {
              // Upstream v0.26.0 new providers. Moonshot/Kimi API balance
              // and Bedrock Cost Explorer numbers come from their own APIs,
              // never via the local pricing tables.
-             .moonshot, .bedrock,
+             .moonshot, .bedrock, .v0,
              // Upstream v0.27.0 new providers. Grok (web billing + CLI),
              // GroqCloud (Prometheus), ElevenLabs (API key), Deepgram
              // (project API), LLM Proxy (quota stats) all surface

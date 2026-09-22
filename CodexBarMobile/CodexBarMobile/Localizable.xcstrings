@@ -12497,6 +12497,34 @@
         }
       }
     },
+    "v0 quota and rate-limit windows now sync to your iPhone; detailed billing remains on your Mac.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": { "stringUnit": { "state": "translated", "value": "v0 quota and rate-limit windows now sync to your iPhone; detailed billing remains on your Mac." } },
+        "zh-Hans": { "stringUnit": { "state": "translated", "value": "现在可在 iPhone 上查看从 Mac 同步的 v0 配额和速率限制窗口；详细账单余额仍保留在 Mac 上。" } },
+        "zh-Hant": { "stringUnit": { "state": "translated", "value": "現在可在 iPhone 上查看從 Mac 同步的 v0 配額與速率限制時段；詳細帳單餘額仍保留在 Mac 上。" } },
+        "ja": { "stringUnit": { "state": "translated", "value": "Mac から同期された v0 のクォータとレート制限のウィンドウを iPhone で確認できます。詳細な請求残高は Mac に表示されます。" } },
+        "es": { "stringUnit": { "state": "translated", "value": "Ahora puedes ver en el iPhone las ventanas de cuota y límite de frecuencia de v0 del Mac; los saldos detallados siguen en el Mac." } },
+        "pt-BR": { "stringUnit": { "state": "translated", "value": "Agora você pode ver no iPhone as janelas de cota e limite de solicitações do v0 do Mac; os saldos detalhados continuam no Mac." } },
+        "ko": { "stringUnit": { "state": "translated", "value": "이제 Mac에서 동기화된 v0 할당량 및 요청 제한 구간을 iPhone에서 볼 수 있으며, 자세한 결제 잔액은 Mac에 유지됩니다." } },
+        "de": { "stringUnit": { "state": "translated", "value": "Die v0-Kontingent- und Ratenlimit-Fenster von deinem Mac sind jetzt auf dem iPhone verfügbar; detaillierte Abrechnungssalden bleiben auf dem Mac." } },
+        "fr": { "stringUnit": { "state": "translated", "value": "Les fenêtres de quota et de limite de débit v0 de votre Mac sont désormais visibles sur iPhone ; les soldes détaillés restent sur Mac." } },
+        "ar": { "stringUnit": { "state": "translated", "value": "يمكنك الآن عرض نوافذ حصص v0 وحدود المعدل من Mac على iPhone؛ وتبقى أرصدة الفوترة التفصيلية على Mac." } },
+        "it": { "stringUnit": { "state": "translated", "value": "Ora puoi vedere su iPhone le finestre di quota e limite di frequenza v0 del Mac; i saldi dettagliati restano sul Mac." } },
+        "vi": { "stringUnit": { "state": "translated", "value": "Giờ đây bạn có thể xem hạn mức và giới hạn tốc độ v0 từ máy Mac trên iPhone; số dư thanh toán chi tiết vẫn ở trên máy Mac." } },
+        "nl": { "stringUnit": { "state": "translated", "value": "De v0-quota- en snelheidslimietvensters van je Mac zijn nu zichtbaar op je iPhone; gedetailleerde factureringssaldi blijven op je Mac." } },
+        "tr": { "stringUnit": { "state": "translated", "value": "Mac’inizdeki v0 kota ve hız sınırı pencereleri artık iPhone’unuzda görünür; ayrıntılı fatura bakiyeleri Mac’inizde kalır." } },
+        "uk": { "stringUnit": { "state": "translated", "value": "Тепер на iPhone доступні вікна квоти й обмеження частоти v0 з Mac; докладні баланси оплати залишаються на Mac." } },
+        "ru": { "stringUnit": { "state": "translated", "value": "Теперь на iPhone доступны окна квоты и ограничения частоты v0 с Mac; подробные балансы остаются на Mac." } },
+        "id": { "stringUnit": { "state": "translated", "value": "Kini jendela kuota dan batas laju v0 dari Mac Anda tersedia di iPhone; saldo penagihan terperinci tetap ada di Mac." } },
+        "pl": { "stringUnit": { "state": "translated", "value": "Okna limitów i częstotliwości v0 z Maca są teraz widoczne na iPhonie; szczegółowe salda rozliczeń pozostają na Macu." } },
+        "fa": { "stringUnit": { "state": "translated", "value": "اکنون پنجره‌های سهمیه و محدودیت نرخ v0 از Mac در iPhone نمایش داده می‌شوند؛ مانده‌های دقیق صورت‌حساب در Mac می‌مانند." } },
+        "th": { "stringUnit": { "state": "translated", "value": "ตอนนี้ดูช่วงโควตาและขีดจำกัดอัตรา v0 จาก Mac ได้บน iPhone แล้ว ส่วนยอดคงเหลือโดยละเอียดจะแสดงบน Mac" } },
+        "gl": { "stringUnit": { "state": "translated", "value": "As xanelas de cota e límite de frecuencia v0 do Mac xa aparecen no iPhone; os saldos detallados seguen no Mac." } },
+        "ca": { "stringUnit": { "state": "translated", "value": "Ara pots veure a l’iPhone les finestres de quota i límit de freqüència v0 del Mac; els saldos detallats continuen al Mac." } },
+        "sv": { "stringUnit": { "state": "translated", "value": "v0-kvot- och hastighetsfönstren från din Mac visas nu på din iPhone; detaljerade faktureringssaldo finns kvar på Mac." } }
+      }
+    },
     "z.ai hourly chart: stacked per-model token usage for the last 24 hours, with model legend.": {
       "localizations": {
         "en": {

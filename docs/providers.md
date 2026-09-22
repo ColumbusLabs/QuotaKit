@@ -110,6 +110,7 @@ complete when the available scan window covers fewer days.
 | ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
 | xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
+| v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -619,5 +620,11 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Distinct from Grok: xAI tracks developer-platform billing while Grok tracks consumer subscription quota.
 - Prepaid money is not synthesized into session or weekly quota.
 - Details: `docs/xai.md`.
+
+## v0
+- API key from QuotaKit config or `V0_API_KEY`; optional project scope from `workspaceID` or `V0_SCOPE`.
+- Reads billing allowance and rate-limit data from the v0 Platform API. Detailed billing balances are shown on Mac; iPhone receives the existing generic windows. Scope is URL-encoded on requests and omitted from Mac-to-iPhone sync.
+- Token billing's on-demand balance is shown separately and never added to the billing allowance; unknown values remain unavailable rather than being inferred.
+- Details: `docs/v0.md`.
 
 See also: `docs/provider.md` for architecture notes.

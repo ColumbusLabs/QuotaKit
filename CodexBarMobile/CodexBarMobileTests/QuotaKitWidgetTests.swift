@@ -1676,3 +1676,42 @@ private struct WidgetProviderPreferenceTestItem {
     let id: String
     let name: String
 }
+
+@MainActor
+final class V0WidgetSnapshotTests: XCTestCase {
+    func testWidgetCarriesBillingAndRateLimitWindowLabelsWithoutScope() throws {
+        let date = Date(timeIntervalSince1970: 1_803_000_000)
+        let windows = [
+            SyncRateWindow(
+                label: "Billing",
+                usedPercent: 25,
+                windowMinutes: nil,
+                resetsAt: date,
+                resetDescription: nil),
+            SyncRateWindow(
+                label: "Rate limit",
+                usedPercent: 20,
+                windowMinutes: nil,
+                resetsAt: date,
+                resetDescription: nil),
+        ]
+        let provider = ProviderUsageSnapshot(
+            providerID: "v0",
+            providerName: "v0",
+            primary: windows[0],
+            secondary: windows[1],
+            accountEmail: nil,
+            loginMethod: "API key",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: date,
+            rateWindows: windows)
+        let synced = SyncedUsageSnapshot(
+            providers: [provider], syncTimestamp: date, deviceName: "Fixture Mac")
+        let widget = QuotaKitWidgetSnapshotBuilder.makeSnapshot(from: synced, generatedAt: date)
+        let data = try CloudSyncConstants.makeJSONEncoder().encode(widget)
+
+        XCTAssertEqual(widget.providers.first?.windows.map(\.title), ["Billing", "Rate limit"])
+        XCTAssertFalse(String(data: data, encoding: .utf8)?.contains("scope") ?? true)
+    }
+}

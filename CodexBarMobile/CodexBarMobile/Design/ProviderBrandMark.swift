@@ -59,6 +59,7 @@ enum ProviderBrandAsset {
         "sub2api",
         "synthetic",
         "t3chat",
+        "v0",
         "venice",
         "vertexai",
         "warp",

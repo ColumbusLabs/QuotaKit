@@ -7,6 +7,11 @@ current Columbus Labs product surface and recent release history.
 
 ## Unreleased — 2026-09-02 — Durable Codex spend history
 
+### Added
+
+- v0 is now in the iPhone quota provider catalog with its existing billing and
+  rate-limit windows. Detailed billing balances remain on the Mac.
+
 ### Fixed
 
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal

@@ -73,6 +73,7 @@ struct ProviderColorPaletteTests {
             ("longcat", 1, 209 / 255, 0),
             ("neuralwatt", 0.12, 0.72, 0.38),
             ("zoommate", 64 / 255, 176 / 255, 255 / 255),
+            ("v0", 17 / 255, 17 / 255, 17 / 255),
             ("xai", 142 / 255, 142 / 255, 160 / 255),
         ]
 

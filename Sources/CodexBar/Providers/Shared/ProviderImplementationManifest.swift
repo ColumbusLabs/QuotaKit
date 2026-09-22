@@ -76,5 +76,6 @@ enum ProviderImplementationManifest {
         { NotionProviderImplementation() },
         { IBMBobProviderImplementation() },
         { GitKrakenProviderImplementation() },
+        { V0ProviderImplementation() },
     ]
 }

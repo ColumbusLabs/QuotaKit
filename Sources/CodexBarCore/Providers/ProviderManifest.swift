@@ -75,5 +75,6 @@ public enum ProviderManifest {
         NotionProviderDescriptor.descriptor,
         IBMBobProviderDescriptor.descriptor,
         GitKrakenProviderDescriptor.descriptor,
+        V0ProviderDescriptor.descriptor,
     ]
 }
