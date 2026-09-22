@@ -111,6 +111,9 @@
   }
 
   ctx.format = Object.freeze({
+    currency(value, currencyCode) {
+      return host.formatCurrency(Number(value), String(currencyCode));
+    },
     number(value, options) { return formatNumber(value, options); },
     usd(value) {
       const numeric = Number(value);

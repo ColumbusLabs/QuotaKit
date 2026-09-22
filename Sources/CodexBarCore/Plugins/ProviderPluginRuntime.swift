@@ -559,6 +559,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             percent / 100 * limit
         }
         host.setObject(amountFromPercent, forKeyedSubscript: "amountFromPercent" as NSString)
+        let currency: @convention(block) (Double, String) -> String = { amount, code in
+            UsageFormatter.currencyString(amount, currencyCode: code)
+        }
+        host.setObject(currency, forKeyedSubscript: "formatCurrency" as NSString)
 
         let nextDailyReset: @convention(block) (String, Double) -> Double = { [weak self] identifier, rawHour in
             guard rawHour.isFinite,

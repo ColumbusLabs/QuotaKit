@@ -7,6 +7,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Added
+
+- Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
+
 ### Fixed
 
 - Grok: restore billing requests while keeping legacy monthly usage included.

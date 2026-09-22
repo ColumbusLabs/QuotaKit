@@ -107,7 +107,8 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 - `ctx.date.iso(text)`, `unixSeconds(number)`, and `unixMillis(number)` create JavaScript dates.
 - `ctx.date.nextDailyReset(timeZoneIdentifier, hour)` returns the next wall-clock reset in an IANA time zone.
 - `ctx.env.timeZone` is the host's current IANA time-zone identifier; zero-offset GMT aliases are normalized to `UTC`.
-- `ctx.format.number(value, options?)`, `usd(value)`, and `monthDay(date)` provide deterministic formatting on both
+- `ctx.format.currency(value, currencyCode)` matches native QuotaKit currency formatting, including currency-specific
+  precision. `number(value, options?)`, `usd(value)`, and `monthDay(date)` also provide deterministic formatting on both
   engines. Number options support `minimumFractionDigits` and `maximumFractionDigits`.
 - `ctx.jwt.decode(token)` decodes (but does not authenticate) a JWT JSON payload.
 - `ctx.pct(used, limit)` returns a finite percentage clamped to 0–100; non-positive limits map to 100.
