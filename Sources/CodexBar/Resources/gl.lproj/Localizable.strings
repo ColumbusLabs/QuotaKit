@@ -893,6 +893,11 @@
 "30d cash" = "Gasto en 30 d";
 "30d billing history from MiniMax web session" = "Historial de facturación de 30 días da sesión web de MiniMax";
 "AWS Cost Explorer billing can lag." = "A facturación de AWS Cost Explorer pode levar atraso.";
+"Monitoring adds AWS charges" = "A monitorización xera cargos de AWS";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "AWS cobra $0.01 por cada solicitude de Cost Explorer que usa a vista de facturación principal. Unha actualización pode facer varias solicitudes e a actividade de CloudWatch tamén pode xerar cargos. O orzamento mensual mostrado non limita a factura de AWS.";
+"AWS Cost Explorer pricing" = "Prezos de AWS Cost Explorer";
+"Reduce monitoring requests" = "Reducir as solicitudes de monitorización";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "En Xeral → Actualización, escolle un intervalo máis longo ou Manual e desactiva «Actualizar ao abrir o menú». Estes controis aplícanse a todos os provedores. O modo Manual segue permitindo actualizacións ao iniciar a aplicación e cando se solicitan expresamente. Desactiva AWS Bedrock para deter as actualizacións da aplicación.";
 "Rate limit: %d / %@" = "Límite de frecuencia: %d / %@";
 "Key remaining" = "Saldo restante da chave";
 "No limit set for the API key" = "Non hai ningún límite configurado para a chave de API";

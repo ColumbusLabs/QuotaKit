@@ -907,6 +907,11 @@
 "30d cash" = "近 30 天費用";
 "30d billing history from MiniMax web session" = "來自 MiniMax 網頁工作階段的 30 天帳單記錄";
 "AWS Cost Explorer billing can lag." = "AWS Cost Explorer 帳單資料可能延遲。";
+"Monitoring adds AWS charges" = "監控會產生 AWS 費用";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "透過主要帳單檢視發出的每個 Cost Explorer 請求，AWS 都會收取 $0.01。一次重新整理可能會發出多個請求，CloudWatch 活動也可能產生費用。顯示的每月預算不會限制 AWS 帳單。";
+"AWS Cost Explorer pricing" = "AWS Cost Explorer 價格";
+"Reduce monitoring requests" = "減少監控請求";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "在「一般 → 重新整理」中選擇較長的間隔或「手動」，並關閉「開啟選單時重新整理」。這些設定適用於所有供應商。手動模式仍會在啟動時及收到明確要求時重新整理。停用 AWS Bedrock 可停止應用程式對其進行的重新整理。";
 "Rate limit: %d / %@" = "速率限制：%d / %@";
 "Key remaining" = "金鑰剩餘額度";
 "No limit set for the API key" = "此 API 金鑰未設定限制";

@@ -889,6 +889,11 @@
 "30d cash" = "30д готівкою";
 "30d billing history from MiniMax web session" = "30-денна історія платежів з веб-сесії MiniMax";
 "AWS Cost Explorer billing can lag." = "Виставлення рахунків AWS Cost Explorer може затримуватися.";
+"Monitoring adds AWS charges" = "Моніторинг спричиняє витрати AWS";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "AWS стягує $0.01 за кожен запит Cost Explorer через основне подання білінгу. Одне оновлення може виконати кілька запитів, а активність CloudWatch також може спричиняти витрати. Відображений місячний бюджет не обмежує рахунок AWS.";
+"AWS Cost Explorer pricing" = "Ціни AWS Cost Explorer";
+"Reduce monitoring requests" = "Зменште кількість запитів моніторингу";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "У розділі «Загальні» → «Оновлення» виберіть довший інтервал або «Вручну» та вимкніть «Оновлювати при відкритті меню». Ці параметри діють для всіх провайдерів. Ручний режим і далі дозволяє оновлення під час запуску та за явним запитом. Вимкніть AWS Bedrock, щоб зупинити оновлення через застосунок.";
 "Rate limit: %d / %@" = "Ліміт швидкості: %d / %@";
 "Key remaining" = "Ключ залишився";
 "No limit set for the API key" = "Для ключа API не встановлено обмежень";
