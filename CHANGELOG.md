@@ -23,6 +23,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.
 - Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.
 - Codex cost catch-up: report thermal pressure first when Low Power Mode is also active.
+- Claude CLI: read terminal redraws as the current screen and dismiss an old panel before switching usage views.
 - OpenCode Go: route labeled API-key accounts independently of ambient keys, keep the saved browser-cookie preference when switching them, and select Manual only for Cookie accounts.
 - Grok: restore billing requests while keeping legacy monthly usage included.
 - Grok: label weekly and monthly credit periods from measured billing bounds, keeping pace accurate near reset and leaving invalid periods unclassified.
