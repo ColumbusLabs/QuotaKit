@@ -129,6 +129,40 @@ struct SameMacMultiAccountMergeTests {
         #expect(claudeEmails == ["carol@claude.com", "dave@claude.com"])
     }
 
+    @Test
+    func `Replicate billing identities keep user and organization cards separate`() throws {
+        let personal = self.makeProvider(
+            id: "replicate", email: "Personal",
+            accountIdentities: ["replicate:user:shared"])
+        let team = self.makeProvider(
+            id: "replicate", email: "Work",
+            accountIdentities: ["replicate:organization:shared"])
+        let mac = self.makeSnapshot(
+            deviceName: "Mac mini", deviceID: "replicate-mac",
+            providers: [personal, team])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([mac]))
+        #expect(merged.providers.count == 2)
+        #expect(Set(merged.providers.compactMap(\.accountEmail)) == ["Personal", "Work"])
+    }
+
+    @Test
+    func `Replicate billing identity merges same account across Macs despite different labels`() throws {
+        let first = self.makeProvider(
+            id: "replicate", email: "Personal",
+            accountIdentities: ["replicate:user:fixture-user"])
+        let second = self.makeProvider(
+            id: "replicate", email: "My account",
+            lastUpdated: self.baseDate.addingTimeInterval(60),
+            accountIdentities: ["replicate:user:fixture-user"])
+        let macA = self.makeSnapshot(deviceName: "Mac A", deviceID: "replicate-a", providers: [first])
+        let macB = self.makeSnapshot(deviceName: "Mac B", deviceID: "replicate-b", providers: [second])
+
+        let merged = try #require(CloudSyncReader.mergeSnapshots([macA, macB]))
+        #expect(merged.providers.count == 1)
+        #expect(merged.providers.first?.accountEmail == "My account")
+    }
+
     // MARK: - Cross-Mac × multi-account combinations
 
     @Test

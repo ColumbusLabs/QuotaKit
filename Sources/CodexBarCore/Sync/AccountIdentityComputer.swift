@@ -55,6 +55,8 @@ public enum AccountIdentityComputer {
             self.claude(identity: identity)
         case .vertexai:
             self.vertexAI(identity: identity)
+        case .replicate:
+            self.replicate(identity: identity)
         case .zai, .gemini, .antigravity, .cursor, .opencode, .opencodego, .alibaba, .factory, .copilot,
              .minimax, .kilo, .kiro, .kimi, .augment, .jetbrains, .amp, .ollama, .synthetic,
              .openrouter, .warp, .perplexity, .abacus, .mistral,
@@ -80,7 +82,7 @@ public enum AccountIdentityComputer {
              // Upstream 0.33+ new providers. Same rationale as above.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api, .xai,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .notion,
-             .fireworks, .ibmbob, .gitkraken, .v0, .coderabbit, .huggingface, .replicate:
+             .fireworks, .ibmbob, .gitkraken, .v0, .coderabbit, .huggingface:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add
@@ -135,6 +137,16 @@ public enum AccountIdentityComputer {
             ids.append("vertexai:email:\(normalized)")
         }
         return ids
+    }
+
+    private static func replicate(identity: ProviderIdentitySnapshot?) -> [String]? {
+        guard let identity,
+              let username = self.normalize(identity.accountID)
+        else { return [] }
+        // The billing endpoint separates users from organizations; their
+        // usernames can coincide. Labels and cookies are not stable identities.
+        let kind = self.normalize(identity.accountOrganization) == username ? "organization" : "user"
+        return ["replicate:\(kind):\(username)"]
     }
 
     // MARK: - Normalization

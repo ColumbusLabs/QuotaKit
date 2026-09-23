@@ -88,6 +88,27 @@ struct AccountIdentityComputerTests {
         #expect(ids == ["vertexai:project:gcp-project-12345", "vertexai:email:gcp-user@example.com"])
     }
 
+    @Test
+    func `Replicate user and organization usernames remain distinct on iPhone`() {
+        let user = ProviderIdentitySnapshot(
+            providerID: .replicate,
+            accountEmail: "Personal label",
+            accountOrganization: nil,
+            loginMethod: nil,
+            accountID: "Shared:Name")
+        let organization = ProviderIdentitySnapshot(
+            providerID: .replicate,
+            accountEmail: "Work label",
+            accountOrganization: "Shared:Name",
+            loginMethod: nil,
+            accountID: "Shared:Name")
+        #expect(AccountIdentityComputer.compute(provider: .replicate, identity: user) ==
+            ["replicate:user:shared%3Aname"])
+        #expect(AccountIdentityComputer.compute(provider: .replicate, identity: organization) ==
+            ["replicate:organization:shared%3Aname"])
+        #expect(AccountIdentityComputer.compute(provider: .replicate, identity: nil) == [])
+    }
+
     // MARK: - Non-Tier-A providers
 
     @Test

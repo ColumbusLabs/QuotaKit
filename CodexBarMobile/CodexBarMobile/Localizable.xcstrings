@@ -15931,6 +15931,34 @@
         }
       }
     },
+    "Replicate monthly billing spend now syncs from QuotaKit Mac to iPhone, with separate cards for saved accounts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replicate monthly billing spend now syncs from QuotaKit Mac to iPhone, with separate cards for saved accounts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replicate の月間請求額が QuotaKit Mac から iPhone に同期され、保存済みアカウントごとに別々のカードで表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replicate 的每月账单支出现在会从 QuotaKit Mac 同步到 iPhone，已保存的账户分别显示在独立卡片中。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Replicate 的每月帳單支出現在會從 QuotaKit Mac 同步到 iPhone，已儲存的帳戶會分別顯示在獨立卡片中。"
+          }
+        }
+      }
+    },
     "Lock Screen widgets": {
       "extractionState": "manual",
       "localizations": {
