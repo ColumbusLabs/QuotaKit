@@ -30,6 +30,7 @@ struct TokenAccountUsageSnapshot: Identifiable {
 extension UsageStore {
     func activateCachedTokenAccountSnapshot(provider: UsageProvider, accountID: UUID) {
         guard self.settings.effectiveSelectedTokenAccount(for: provider)?.id == accountID else { return }
+        self.invalidateGenericWidgetUsage(for: provider)
         self.knownLimitsAvailabilityByProvider.removeValue(forKey: provider.instanceID)
         self.tokenAccountLiveStateProviders.insert(provider.instanceID)
         guard let account = self.uniqueTokenAccount(provider: provider, accountID: accountID),
@@ -124,6 +125,7 @@ extension UsageStore {
     }
 
     private func clearTokenAccountLiveSnapshot(provider: UsageProvider) {
+        self.invalidateGenericWidgetUsage(for: provider)
         self.snapshots.removeValue(forKey: provider.instanceID)
         self.resetProviderDerivedTokenSnapshot(for: provider)
         self.errors.removeValue(forKey: provider.instanceID)
@@ -1484,6 +1486,10 @@ extension UsageStore {
                 self.failureGates[.codex]?
                     .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
             if shouldSurface {
+                let priorWidgetUsage = self.snapshots[.codex] ?? self.lastKnownResetSnapshots[.codex]
+                if !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorWidgetUsage != nil) {
+                    self.invalidateGenericWidgetUsage(for: .codex)
+                }
                 self.errors[.codex] = message
                 self.snapshots.removeValue(forKey: .codex)
             } else {
@@ -1601,6 +1607,10 @@ extension UsageStore {
                     self.failureGates[provider.instanceID]?
                         .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
                 if shouldSurface {
+                    let priorWidgetUsage = self.snapshots[provider.instanceID] ?? fallbackSnapshot
+                    if !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorWidgetUsage != nil) {
+                        self.invalidateGenericWidgetUsage(for: provider)
+                    }
                     self.errors[provider.instanceID] = message
                     self.snapshots.removeValue(forKey: provider.instanceID)
                     self.clearProviderDerivedTokenSnapshot(for: provider)

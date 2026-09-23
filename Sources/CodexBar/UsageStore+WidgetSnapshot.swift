@@ -167,14 +167,45 @@ extension UsageStore {
         return identities
     }
 
+    func invalidateGenericWidgetUsage(for provider: UsageProvider) {
+        // Claude has a separate owner-aware preservation path in makeWidgetEntry.
+        guard provider != .claude else { return }
+        self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
+        // A later success cannot make an older queued account publication current again.
+        if self.lastQueuedWidgetSnapshot?.entries.contains(where: { $0.provider == provider.instanceID }) == true {
+            self.lastQueuedWidgetSnapshot = nil
+        }
+    }
+
+    func invalidateWidgetUsageIfTerminalFailure(for provider: UsageProvider, after error: Error) {
+        let priorUsage = self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID]
+        guard !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorUsage != nil) else { return }
+        self.invalidateGenericWidgetUsage(for: provider)
+    }
+
     private func makeWidgetSnapshot(previousSnapshot: WidgetSnapshot?) -> WidgetSnapshot {
         let now = Date()
         let enabledProviders = self.enabledProviders()
-        let entries = UsageProvider.allCases.compactMap { provider in
+        var entries = UsageProvider.allCases.compactMap { provider in
             self.makeWidgetEntry(
                 for: provider,
                 now: now,
                 previousEntry: previousSnapshot?.entries.first { $0.provider == provider.instanceID })
+        }
+        // Disk snapshots do not prove current-account ownership. Reuse only the in-process queue and only
+        // when every entry remains enabled, failed, unblocked, and visible under current settings.
+        if entries.isEmpty,
+           let previousSnapshot = self.lastQueuedWidgetSnapshot,
+           previousSnapshot.enabledProviders.allSatisfy(enabledProviders.contains),
+           previousSnapshot.entries.allSatisfy({ entry in
+               // Claude quota retention remains governed by its owner-key checks in makeWidgetEntry.
+               entry.provider != .claude && enabledProviders.contains(entry.provider) &&
+                   self.errors[entry.provider] != nil &&
+                   (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage) &&
+                   !self.widgetUsagePreservationBlockedProviders.contains(entry.provider)
+           })
+        {
+            entries = previousSnapshot.entries
         }
         return WidgetSnapshot(
             entries: entries,
