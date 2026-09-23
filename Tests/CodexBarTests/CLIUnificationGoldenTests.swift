@@ -240,6 +240,10 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "codex",
+            "rateWindowLabels" : {
+              "primary" : "Session",
+              "secondary" : "Weekly"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : {
@@ -276,6 +280,10 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "claude",
+            "rateWindowLabels" : {
+              "primary" : "Session",
+              "secondary" : "Weekly"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : {
@@ -304,6 +312,9 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "opencode",
+            "rateWindowLabels" : {
+              "secondary" : "Weekly"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : null,
@@ -327,6 +338,10 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "ollama",
+            "rateWindowLabels" : {
+              "primary" : "Session",
+              "secondary" : "Weekly"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : {
@@ -360,6 +375,10 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "kimi",
+            "rateWindowLabels" : {
+              "primary" : "7-day usage",
+              "secondary" : "5-hour usage"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : {
@@ -388,6 +407,9 @@ struct CLIUnificationGoldenTests {
               }
             },
             "provider" : "notion",
+            "rateWindowLabels" : {
+              "primary" : "Rolling"
+            },
             "source" : "fixture",
             "usage" : {
               "primary" : {

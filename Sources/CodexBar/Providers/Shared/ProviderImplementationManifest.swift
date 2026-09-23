@@ -75,5 +75,7 @@ enum ProviderImplementationManifest {
         { XAIProviderImplementation() },
         { NotionProviderImplementation() },
         { IBMBobProviderImplementation() },
+        { GitKrakenProviderImplementation() },
+        { V0ProviderImplementation() },
     ]
 }

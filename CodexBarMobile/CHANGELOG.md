@@ -7,6 +7,11 @@ current Columbus Labs product surface and recent release history.
 
 ## Unreleased — 2026-09-02 — Durable Codex spend history
 
+### Added
+
+- v0 is now in the iPhone quota provider catalog with its existing billing and
+  rate-limit windows. Detailed billing balances remain on the Mac.
+
 ### Fixed
 
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal
@@ -30,6 +35,8 @@ current Columbus Labs product surface and recent release history.
   missing Mac data as unavailable or partial rather than a false `$0.00`.
 - Fireworks and IBM Bob now receive restored provider presentation and synced-card
   support, with quota-alert coverage for IBM Bob.
+- GitKraken AI weekly usage synced from QuotaKit Mac now appears on iPhone with
+  its own provider icon, color, and quota alerts.
 - Kiro overage details now show available credit and charge limits, remaining
   credits, accrued charges, and the provider's reported currency when available.
 

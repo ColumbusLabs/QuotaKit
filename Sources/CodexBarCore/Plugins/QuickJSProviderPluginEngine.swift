@@ -16,6 +16,7 @@ private enum QuickJSHostFunction: Int32 {
     case nextDailyReset
     case pct
     case amountFromPercent
+    case formatCurrency
 }
 
 private func quickJSHostCallback(
@@ -400,6 +401,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             (.nextDailyReset, "nextDailyReset", 2),
             (.pct, "pct", 2),
             (.amountFromPercent, "amountFromPercent", 2),
+            (.formatCurrency, "formatCurrency", 2),
         ] {
             let value = cqjs_new_host_function(self.context, function.rawValue, name, Int32(count))
             guard JS_SetPropertyStr(self.context, host, name, value) >= 0 else {
@@ -452,6 +454,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 return try self.hostPercentage(values)
             case .amountFromPercent:
                 return try self.hostAmountFromPercent(values)
+            case .formatCurrency:
+                return try self.hostFormatCurrency(values)
             }
         } catch {
             return self.throwError(error)
@@ -609,6 +613,15 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
               JS_ToFloat64(self.context, &limit, arguments[1]) == 0
         else { throw ProviderPluginError.script("percentage amount requires two numbers") }
         return JS_NewFloat64(self.context, percent / 100 * limit)
+    }
+
+    private func hostFormatCurrency(_ arguments: UnsafeBufferPointer<JSValue>) throws -> JSValue {
+        var amount = 0.0
+        guard arguments.count == 2, JS_ToFloat64(self.context, &amount, arguments[0]) == 0 else {
+            throw ProviderPluginError.script("currency requires an amount and currency code")
+        }
+        return try self.makeString(UsageFormatter.currencyString(
+            amount, currencyCode: self.string(from: arguments[1])))
     }
 
     private func makeRequest(
@@ -837,6 +850,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             return ProviderFetchClassifiedError(
                 kind: kind,
                 message: String(message[message.index(after: separator)...]))
+        }
+        if let classifiedError = ProviderPluginClassifiedFailureParser.error(from: message) {
+            return classifiedError
         }
         return ProviderPluginError.script(message)
     }

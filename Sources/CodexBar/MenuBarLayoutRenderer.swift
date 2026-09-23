@@ -60,6 +60,8 @@ struct MenuBarLayoutRenderData: Hashable {
     let primary: MenuBarLayoutRenderWindow?
     let secondary: MenuBarLayoutRenderWindow?
     let tertiary: MenuBarLayoutRenderWindow?
+    var provider: UsageProvider?
+    var extraRateWindows: [MenuBarLayoutRenderExtra] = []
     let session: MenuBarLayoutRenderWindow?
     let weekly: MenuBarLayoutRenderWindow?
     let scopedWeekly: MenuBarLayoutRenderWindow?
@@ -81,6 +83,39 @@ struct MenuBarLayoutRenderData: Hashable {
     let cost30d: String?
     /// Numeric twins of the display strings above, for conditional predicates.
     let metrics: MenuBarLayoutRenderMetrics
+
+    func extraWindow(_ id: String) -> MenuBarLayoutRenderExtra? {
+        guard let provider,
+              ProviderDescriptorRegistry.descriptor(for: provider).menuBarMetrics.namedExtras[id] != nil
+        else { return nil }
+        return self.extraRateWindows.first { $0.id == id && $0.window != nil }
+    }
+}
+
+struct MenuBarLayoutRenderExtra: Hashable {
+    let id: String
+    let title: String
+    let window: MenuBarLayoutRenderWindow?
+
+    init(_ namedWindow: NamedRateWindow) {
+        self.id = namedWindow.id
+        self.title = namedWindow.title
+        self.window = namedWindow.usageKnown ? MenuBarLayoutRenderWindow(namedWindow.window) : nil
+    }
+
+    static func signature(tokens: [MenuBarLayoutToken], provider: UsageProvider, snapshot: UsageSnapshot?) -> Int? {
+        let ids = Set(tokens.compactMap { token -> String? in
+            if case let .extraPercent(id) = token {
+                return id
+            }
+            return nil
+        })
+        guard !ids.isEmpty else { return nil }
+        return MenuBarLayoutNamedExtra.windows(provider: provider, snapshot: snapshot)
+            .filter { ids.contains($0.id) }
+            .map(Self.init)
+            .hashValue
+    }
 }
 
 struct MenuBarLayoutRenderOptions: Hashable {
@@ -390,6 +425,7 @@ final class MenuBarLayoutRenderer {
     {
         switch token {
         case .hidden: return nil
+        case let .extraPercent(id): return data.extraWindow(id) == nil ? nil : token
         case let .conditional(id):
             guard depth < MenuBarLayoutToken.maxConditionalDepth,
                   let conditional = conditionals[id],
@@ -511,6 +547,12 @@ final class MenuBarLayoutRenderer {
                 self.missingValue,
                 accessibilityText: L("menu_bar_layout_conditional_unavailable"),
                 attributes: style.attributes)
+        case let .extraPercent(id):
+            return self.extraPercentToken(
+                id,
+                data: data,
+                showUsed: options.showUsed,
+                attributes: style.attributes)
         case .providerName, .accountLabel, .lanePercent:
             preconditionFailure("Provider text tokens should render before the main switch")
         }
@@ -580,6 +622,8 @@ final class MenuBarLayoutRenderer {
                 data: data,
                 showUsed: showUsed,
                 attributes: attributes)
+        case let .extraPercent(id):
+            self.extraPercentToken(id, data: data, showUsed: showUsed, attributes: attributes)
         default:
             nil
         }
@@ -602,6 +646,26 @@ final class MenuBarLayoutRenderer {
         let accessibility = resolvedValue.isAvailable
             ? L("%@ %@", label, resolvedValue.text)
             : L("%@ unavailable", label)
+        return self.textToken(resolvedValue.text, accessibilityText: accessibility, attributes: attributes)
+    }
+
+    private static func extraPercentToken(
+        _ id: String,
+        data: MenuBarLayoutRenderData,
+        showUsed: Bool,
+        attributes: [NSAttributedString.Key: Any])
+        -> (value: NSAttributedString, accessibilityText: String?)
+    {
+        let namedWindow = data.extraWindow(id)
+        let title = namedWindow?.title ?? L("Usage")
+        let resolvedValue = self.percentValue(
+            window: .automatic,
+            rateWindow: namedWindow?.window,
+            automaticText: nil,
+            showUsed: showUsed)
+        let accessibility = resolvedValue.isAvailable
+            ? L("%@ %@", title, resolvedValue.text)
+            : L("%@ unavailable", title)
         return self.textToken(resolvedValue.text, accessibilityText: accessibility, attributes: attributes)
     }
 

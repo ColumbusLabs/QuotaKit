@@ -12,6 +12,7 @@ struct ProviderPayload: Encodable {
     let source: String
     let status: ProviderStatusPayload?
     let usage: UsageSnapshot?
+    let rateWindowLabels: ProviderWindowLabelsPayload?
     let credits: CreditsSnapshot?
     let antigravityPlanInfo: AntigravityPlanInfoSummary?
     let openaiDashboard: OpenAIDashboardSnapshot?
@@ -26,6 +27,7 @@ struct ProviderPayload: Encodable {
         case source
         case status
         case usage
+        case rateWindowLabels
         case credits
         case antigravityPlanInfo
         case openaiDashboard
@@ -49,19 +51,20 @@ struct ProviderPayload: Encodable {
         diagnostic: String? = nil,
         pace: ProviderPacePayload? = nil)
     {
-        self.provider = provider.rawValue
-        self.account = account
-        self.cacheAccountKey = cacheAccountKey
-        self.version = version
-        self.source = source
-        self.status = status
-        self.usage = usage
-        self.credits = credits
-        self.antigravityPlanInfo = antigravityPlanInfo
-        self.openaiDashboard = openaiDashboard
-        self.diagnostic = diagnostic
-        self.error = error
-        self.pace = pace
+        self.init(
+            providerID: provider.rawValue,
+            account: account,
+            cacheAccountKey: cacheAccountKey,
+            version: version,
+            source: source,
+            status: status,
+            usage: usage,
+            credits: credits,
+            antigravityPlanInfo: antigravityPlanInfo,
+            openaiDashboard: openaiDashboard,
+            error: error,
+            diagnostic: diagnostic,
+            pace: pace)
     }
 
     init(
@@ -77,7 +80,8 @@ struct ProviderPayload: Encodable {
         openaiDashboard: OpenAIDashboardSnapshot?,
         error: ProviderErrorPayload?,
         diagnostic: String? = nil,
-        pace: ProviderPacePayload? = nil)
+        pace: ProviderPacePayload? = nil,
+        rateWindowLabels: ProviderWindowLabelsPayload? = nil)
     {
         self.provider = providerID
         self.account = account
@@ -86,6 +90,7 @@ struct ProviderPayload: Encodable {
         self.source = source
         self.status = status
         self.usage = usage
+        self.rateWindowLabels = rateWindowLabels ?? Self.makeRateWindowLabels(providerID: providerID, usage: usage)
         self.credits = credits
         self.antigravityPlanInfo = antigravityPlanInfo
         self.openaiDashboard = openaiDashboard
@@ -93,6 +98,26 @@ struct ProviderPayload: Encodable {
         self.error = error
         self.pace = pace
     }
+
+    private static func makeRateWindowLabels(
+        providerID: String,
+        usage: UsageSnapshot?) -> ProviderWindowLabelsPayload?
+    {
+        guard let usage, let provider = UsageProvider(rawValue: providerID),
+              usage.primary != nil || usage.secondary != nil || usage.tertiary != nil else { return nil }
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        let labels = descriptor.presentation.rateWindowLabels(metadata: descriptor.metadata, snapshot: usage)
+        return ProviderWindowLabelsPayload(
+            primary: usage.primary == nil ? nil : labels.primary,
+            secondary: usage.secondary == nil ? nil : labels.secondary,
+            tertiary: usage.tertiary == nil ? nil : labels.tertiary)
+    }
+}
+
+struct ProviderWindowLabelsPayload: Encodable, Equatable {
+    let primary: String?
+    let secondary: String?
+    let tertiary: String?
 }
 
 struct ProviderPacePayload: Encodable {

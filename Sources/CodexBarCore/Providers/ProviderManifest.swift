@@ -74,5 +74,7 @@ public enum ProviderManifest {
         XAIProviderDescriptor.descriptor,
         NotionProviderDescriptor.descriptor,
         IBMBobProviderDescriptor.descriptor,
+        GitKrakenProviderDescriptor.descriptor,
+        V0ProviderDescriptor.descriptor,
     ]
 }

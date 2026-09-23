@@ -8,7 +8,7 @@ struct UserProviderPluginPortableTests {
         let bundle = try #require(CodexBarCoreResources.bundle)
         for name in [
             "crof", "venice", "openrouter", "clawrouter", "deepgram", "sub2api", "synthetic", "openai", "zai",
-            "poe", "xai", "manus", "perplexity", "t3chat", "qoder",
+            "poe", "xai", "manus", "perplexity", "t3chat", "qoder", "v0",
         ] {
             let url = try #require(bundle.url(forResource: name, withExtension: "js"))
             let source = try String(contentsOf: url, encoding: .utf8)

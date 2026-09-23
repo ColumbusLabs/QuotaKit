@@ -970,6 +970,9 @@ extension StatusItemController {
     }
 
     private func makeBaseMenu() -> NSMenu {
+        if self.menuAppearanceObserver == nil, !self.hasPreparedForAppShutdown {
+            self.menuAppearanceObserver = StatusMenuAppearanceObserver(controller: self)
+        }
         let menu = StatusItemMenu()
         menu.autoenablesItems = false
         menu.delegate = self

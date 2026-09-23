@@ -113,6 +113,8 @@ Caching: the app holds the snapshot for an in-memory hourly TTL, keyed by the hi
 - Primary/secondary: QuotaKit's explicit Cursor layout stores request, Auto, API, or plan-fallback lanes according to the `cursorRateWindowLayout` discriminator.
 - Tertiary: unused for current QuotaKit Cursor snapshots; older synced snapshots remain backward-compatible.
 - Extra: Grok Bot weekly included usage from `get-sand-usage-status` when the account has a non-zero Bot allowance.
+- Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout;
+  unknown or synthetic placeholder windows are not offered as tokens.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
 - Reset: billing cycle end date for monthly bars; Grok Bot uses `nextResetTimestampUtc` (weekly).
 

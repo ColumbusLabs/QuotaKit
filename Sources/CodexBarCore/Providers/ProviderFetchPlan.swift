@@ -251,6 +251,8 @@ public enum ProviderFetchError: LocalizedError, Sendable {
 }
 
 public struct ProviderFetchClassifiedError: LocalizedError, Sendable, Equatable {
+    public static let maximumRetryAfterSeconds: TimeInterval = 10
+
     public enum Kind: String, Sendable, CaseIterable {
         case authenticationExpired = "authentication-expired"
         case missingCredential = "missing-credential"
@@ -260,14 +262,28 @@ public struct ProviderFetchClassifiedError: LocalizedError, Sendable, Equatable 
         case parseFailure = "parse-failure"
         case networkFailure = "network-failure"
         case apiFailure = "api-failure"
+
+        fileprivate var supportsDelayedRetry: Bool {
+            switch self {
+            case .rateLimited, .providerUnavailable, .networkFailure, .apiFailure:
+                true
+            case .authenticationExpired, .missingCredential, .permissionDenied, .parseFailure:
+                false
+            }
+        }
     }
 
     public let kind: Kind
     public let message: String
+    public let retryAfterSeconds: TimeInterval?
 
-    public init(kind: Kind, message: String) {
+    public init(kind: Kind, message: String, retryAfterSeconds: TimeInterval? = nil) {
         self.kind = kind
         self.message = message
+        self.retryAfterSeconds = retryAfterSeconds.flatMap { seconds in
+            guard kind.supportsDelayedRetry, seconds.isFinite, seconds >= 0 else { return nil }
+            return min(seconds, Self.maximumRetryAfterSeconds)
+        }
     }
 
     public var errorDescription: String? {
@@ -315,16 +331,23 @@ extension ProviderFetchStrategy {
 
 public struct ProviderFetchPipeline: Sendable {
     public typealias FallbackErrorResolver = @Sendable (Error?, Error) -> Error
+    public typealias RetrySleeper = @Sendable (TimeInterval) async throws -> Void
 
     public let resolveStrategies: @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy]
     private let resolveFallbackError: FallbackErrorResolver
+    private let retrySleeper: RetrySleeper
 
     public init(
         resolveStrategies: @escaping @Sendable (ProviderFetchContext) async -> [any ProviderFetchStrategy],
-        resolveFallbackError: @escaping FallbackErrorResolver = { _, error in error })
+        resolveFallbackError: @escaping FallbackErrorResolver = { _, error in error },
+        retrySleeper: @escaping RetrySleeper = { seconds in
+            guard seconds > 0 else { return }
+            try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
+        })
     {
         self.resolveStrategies = resolveStrategies
         self.resolveFallbackError = resolveFallbackError
+        self.retrySleeper = retrySleeper
     }
 
     public func fetch(context: ProviderFetchContext, provider: UsageProvider) async -> ProviderFetchOutcome {
@@ -356,7 +379,9 @@ public struct ProviderFetchPipeline: Sendable {
             }
 
             do {
-                let result = try await strategy.fetch(context)
+                let result = try await ProviderFetchDelayedRetry.run(sleeper: self.retrySleeper) {
+                    try await strategy.fetch(context)
+                }
                 try Task.checkCancellation()
                 attempts.append(ProviderFetchAttempt(
                     strategyID: strategy.id,
@@ -385,6 +410,28 @@ public struct ProviderFetchPipeline: Sendable {
 
         let error = lastAvailableError ?? ProviderFetchError.noAvailableStrategy(provider)
         return ProviderFetchOutcome(result: .failure(error), attempts: attempts)
+    }
+}
+
+enum ProviderFetchDelayedRetry {
+    static func run<Value: Sendable>(
+        sleeper: ProviderFetchPipeline.RetrySleeper = Self.sleep,
+        operation: @escaping @Sendable () async throws -> Value) async throws -> Value
+    {
+        do {
+            return try await operation()
+        } catch let error as ProviderFetchClassifiedError {
+            guard let retryAfterSeconds = error.retryAfterSeconds else { throw error }
+            try Task.checkCancellation()
+            try await sleeper(retryAfterSeconds)
+            try Task.checkCancellation()
+            return try await operation()
+        }
+    }
+
+    static func sleep(seconds: TimeInterval) async throws {
+        guard seconds > 0 else { return }
+        try await Task.sleep(nanoseconds: UInt64(seconds * 1_000_000_000))
     }
 }
 

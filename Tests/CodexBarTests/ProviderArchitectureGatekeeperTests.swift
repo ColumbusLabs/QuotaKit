@@ -154,8 +154,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 3_957_417_924_445_042_316)
-        #expect(burnDownFingerprint == 8_686_456_525_451_224_704)
+        #expect(widgetFingerprint == 15_242_096_170_570_857_589)
+        #expect(burnDownFingerprint == 12_600_674_017_133_872_016)
     }
 
     @Test
@@ -198,6 +198,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,
+            .v0,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
@@ -214,7 +215,7 @@ struct ProviderArchitectureGatekeeperTests {
         ])
         #expect(descriptors.compactMap { descriptor in
             descriptor.credentials?.apiKeyDebugLabel.map { (descriptor.id, $0) }
-        }.map(\.0) == [.openai, .azureopenai, .opencodego, .openrouter, .elevenlabs])
+        }.map(\.0) == [.openai, .azureopenai, .opencodego, .openrouter, .elevenlabs, .v0])
 
         #expect(CodexProviderDescriptor.descriptor.tokenCost.menuHintLines == [.localized("codex_api_estimate_hint")])
         #expect(ClaudeProviderDescriptor.descriptor.tokenCost.menuHintLines == [.estimate])
@@ -969,7 +970,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "The memory-pressure debug fixture installs its synthetic entry in the Codex cache slot."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1110,
+            line: 1113,
             anchor: "controller.refreshOpenMenuIfStillVisible(menu, provider: .codex)",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific app branch passes its already-selected identity to a shared helper."),
@@ -1682,7 +1683,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuBarLayout.swift",
-            line: 788,
+            line: 850,
             anchor: "ProviderDescriptorRegistry.descriptor(for: provider ?? .codex).presentation.primarySemanticWindow)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -1690,7 +1691,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuBarLayoutEditor.swift",
-            line: 904,
+            line: 906,
             anchor: "let provider = self.provider ?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -1698,7 +1699,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuBarLayoutEditor.swift",
-            line: 934,
+            line: 936,
             anchor: "if provider == .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2212,7 +2213,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/SettingsStore.swift",
-            line: 1245,
+            line: 1255,
             anchor: "if !seen.contains(.factory), let zaiIndex = ordered.firstIndex(of: .zai) {",
             expectedProviderIDs: ["factory", "minimax", "zai"],
             expectedReferenceCount: 8,
@@ -2397,7 +2398,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1143,
+            line: 1146,
             anchor: "return .provider((self.resolvedMenuProvider(enabledProviders: enabledProviders) ?? .codex).instanceID)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2405,7 +2406,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1156,
+            line: 1159,
             anchor: "return self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2413,7 +2414,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+MenuBarLayout.swift",
-            line: 205,
+            line: 208,
             anchor: "if provider == .codex,",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2485,7 +2486,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController.swift",
-            line: 904,
+            line: 905,
             anchor: "if provider == .codex {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -3600,6 +3601,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "factory",
                 "fireworks",
                 "gemini",
+                "gitkraken",
                 "grok",
                 "groq",
                 "ibmbob",
@@ -3631,6 +3633,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "sub2api",
                 "synthetic",
                 "t3chat",
+                "v0",
                 "venice",
                 "vertexai",
                 "warp",
@@ -3642,7 +3645,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 69,
+            expectedReferenceCount: 71,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "claude@2",
@@ -3712,7 +3715,9 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux@30",
                 "zoommate@30",
                 "fireworks@31",
+                "gitkraken@31",
                 "ibmbob@31",
+                "v0@31",
             ],
             reason: "This exhaustive fallback preserves stable Mac-to-iOS account grouping for providers without Tier-A identity data."),
         AllowedProviderConstruct(
@@ -4508,6 +4513,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "factory",
                 "fireworks",
                 "gemini",
+                "gitkraken",
                 "grok",
                 "groq",
                 "ibmbob",
@@ -4539,6 +4545,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "sub2api",
                 "synthetic",
                 "t3chat",
+                "v0",
                 "venice",
                 "vertexai",
                 "warp",
@@ -4550,7 +4557,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 69,
+            expectedReferenceCount: 71,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4591,6 +4598,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "venice@15",
                 "bedrock@19",
                 "moonshot@19",
+                "v0@19",
                 "deepgram@25",
                 "elevenlabs@25",
                 "grok@25",
@@ -4620,6 +4628,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux@35",
                 "zoommate@35",
                 "fireworks@36",
+                "gitkraken@36",
                 "ibmbob@36",
             ],
             reason: "Cost-estimation badges follow provider-specific model-family knowledge and pricing provenance."),

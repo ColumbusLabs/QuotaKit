@@ -7,6 +7,12 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ## Unreleased
 
+### Added
+
+- Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
+- Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
+- GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.
+
 ### Fixed
 
 - Grok: restore billing requests while keeping legacy monthly usage included.
@@ -23,6 +29,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Cost caches: replace saved pricing and Pi session data atomically so repeated updates cannot corrupt an existing cache.
 - MiniMax: retain transport error identity for retry and cached-usage decisions while keeping readable failure messages.
 - OpenRouter: distinguish API-key caps from spendable balance, preserve pay-as-you-go usage details, and report key authorization failures accurately.
+- Menu bar: refresh cached menu appearance, place single-quota status badges on the visible meter, and show exhausted automatic quotas in switcher progress.
 
 ## 0.32.4.29 — 2026-09-20
 

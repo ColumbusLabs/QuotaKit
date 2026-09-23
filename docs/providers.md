@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 67 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 70 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -54,6 +54,7 @@ complete when the available scan window covers fewer days.
 | Azure OpenAI | API key + endpoint + deployment probe (`api`) for deployment status validation. |
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
+| GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
@@ -109,6 +110,7 @@ complete when the available scan window covers fewer days.
 | ZenMux | Management API key from config/env → five-hour and seven-day quota windows plus PAYG balance (`api`). |
 | xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
+| v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -618,5 +620,11 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Distinct from Grok: xAI tracks developer-platform billing while Grok tracks consumer subscription quota.
 - Prepaid money is not synthesized into session or weekly quota.
 - Details: `docs/xai.md`.
+
+## v0
+- API key from QuotaKit config or `V0_API_KEY`; optional project scope from `workspaceID` or `V0_SCOPE`.
+- Reads billing allowance and rate-limit data from the v0 Platform API. Detailed billing balances are shown on Mac; iPhone receives the existing generic windows. Scope is URL-encoded on requests and omitted from Mac-to-iPhone sync.
+- Token billing's on-demand balance is shown separately and never added to the billing allowance; unknown values remain unavailable rather than being inferred.
+- Details: `docs/v0.md`.
 
 See also: `docs/provider.md` for architecture notes.

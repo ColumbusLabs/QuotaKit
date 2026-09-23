@@ -80,7 +80,7 @@ public enum AccountIdentityComputer {
              // Upstream 0.33+ new providers. Same rationale as above.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api, .xai,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .notion,
-             .fireworks, .ibmbob:
+             .fireworks, .ibmbob, .gitkraken, .v0:
             // Non-Tier-A providers: no stable account model required by
             // iOS today. Return nil → iOS falls back to per-device legacy
             // bucket. If a future provider needs cross-Mac merging, add

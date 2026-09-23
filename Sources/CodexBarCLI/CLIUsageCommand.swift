@@ -541,7 +541,7 @@ extension CodexBarCLI {
             Self.printFetchAttempts(provider: provider, attempts: outcome.attempts)
         }
 
-        switch outcome.result {
+        switch Self.providerResultWithCredentialGuidance(outcome.result, provider: provider, environment: env) {
         case let .success(result):
             let antigravityPlanInfo = await Self.fetchAntigravityPlanInfoIfNeeded(
                 provider: provider,
@@ -634,6 +634,36 @@ extension CodexBarCLI {
         }
 
         return await Self.finishUsageOutput(output, provider: provider, command: command)
+    }
+
+    static func providerErrorWithCredentialGuidance(
+        _ error: Error,
+        provider: UsageProvider,
+        environment: [String: String]) -> Error
+    {
+        guard let fetchError = error as? ProviderFetchError,
+              case let .noAvailableStrategy(unavailableProvider) = fetchError,
+              unavailableProvider == provider
+        else { return error }
+
+        let descriptor = ProviderDescriptorRegistry.descriptor(for: provider)
+        guard descriptor.fetchPlan.sourceModes == [.auto, .api],
+              let credentials = descriptor.credentials,
+              credentials.supportsAPIKeyOverride,
+              credentials.requiresAPIKeyForAPISource,
+              credentials.resolveToken(environment: environment) == nil,
+              let message = credentials.unavailableMessage(environment: environment)
+        else { return error }
+
+        return ProviderFetchClassifiedError(kind: .missingCredential, message: message)
+    }
+
+    private static func providerResultWithCredentialGuidance(
+        _ result: Result<ProviderFetchResult, Error>,
+        provider: UsageProvider,
+        environment: [String: String]) -> Result<ProviderFetchResult, Error>
+    {
+        result.mapError { self.providerErrorWithCredentialGuidance($0, provider: provider, environment: environment) }
     }
 
     static func shouldDetectVersion(provider: UsageProvider, result: ProviderFetchResult) -> Bool {

@@ -22,6 +22,7 @@ struct MenuBarLayoutTests {
                 .lanePercent(lane: .primary),
                 .lanePercent(lane: .secondary),
                 .lanePercent(lane: .tertiary),
+                .extraPercent(id: "cursor-grok-bot"),
                 .pace(window: .session),
                 .pace(window: .weekly),
                 .pace(window: .automatic),

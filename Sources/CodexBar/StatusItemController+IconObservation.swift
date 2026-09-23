@@ -61,6 +61,9 @@ extension StatusItemController {
         let layoutLaneSignature = showBrandPercent
             ? self.storedMenuBarLayoutLaneSignature(for: provider, snapshot: snapshot)
             : nil
+        let layoutExtraSignature = showBrandPercent
+            ? self.storedMenuBarLayoutExtraSignature(for: provider, snapshot: snapshot)
+            : nil
         let layoutConditionalWindowSignature = showBrandPercent
             ? self.storedMenuBarLayoutConditionalWindowSignature(for: provider, snapshot: snapshot)
             : nil
@@ -84,6 +87,7 @@ extension StatusItemController {
             "layoutPace=\(layoutPaceSignature ?? "nil")",
             "layoutBalance=\(layoutBalanceSignature ?? "nil")",
             "layoutLanes=\(layoutLaneSignature ?? "nil")",
+            "layoutExtras=\(layoutExtraSignature ?? "nil")",
             "layoutCondWindows=\(layoutConditionalWindowSignature ?? "nil")",
         ].joined(separator: "|")
     }
@@ -238,6 +242,20 @@ extension StatusItemController {
                 return "\(lane.rawValue)=\(Self.iconSignatureValue(percent))"
             }
             .joined(separator: ",")
+    }
+
+    /// Named window values are not necessarily represented by the generic Cursor lanes, so a placed
+    /// extra-percent token contributes its own refresh signature.
+    private func storedMenuBarLayoutExtraSignature(
+        for provider: UsageProvider,
+        snapshot: UsageSnapshot?)
+        -> String?
+    {
+        let resolution = self.settings.menuBarLayoutResolution(for: provider)
+        guard !resolution.usesLegacyRendering else { return nil }
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        return MenuBarLayoutRenderExtra.signature(tokens: tokens, provider: provider, snapshot: snapshot)
+            .map { String($0) }
     }
 
     /// Window readings conditional predicates depend on but no display token exposes.
