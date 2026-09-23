@@ -1,5 +1,5 @@
 ---
-summary: "Zed provider data source: editor Keychain session and Zed cloud API."
+summary: "Zed provider data sources: editor Keychain session and optional browser billing."
 read_when:
   - Debugging Zed usage fetch
   - Updating Zed Keychain or cloud API handling
@@ -8,11 +8,13 @@ read_when:
 
 # Zed provider
 
-QuotaKit monitors Zed plan status, billing cycle dates, edit-prediction quota, and overdue invoices via Zed's cloud API.
+QuotaKit uses one Zed data source at a time. The default editor source shows plan status, billing-cycle dates,
+edit-prediction quota, and overdue invoices. The optional browser source replaces it with plan and prediction usage
+plus current-period token spend and its reported cap; it does not report editor-only cycle dates or invoice warnings.
 
 ## Data source
 
-**Local probe (Keychain + cloud API)** — reads the same credentials Zed stores after GitHub sign-in, then calls:
+**Editor source (Keychain + cloud API)** — reads the same credentials Zed stores after GitHub sign-in, then calls:
 
 ```text
 GET https://cloud.zed.dev/client/users/me
@@ -40,14 +42,29 @@ QuotaKit reads Zed's user settings from `~/.config/zed/settings.json`. The `cred
 must use HTTPS and store credentials under the exact same `server_url`; QuotaKit rejects cross-origin overrides so a
 settings-file change cannot forward a Keychain token to another host.
 
+## Optional browser billing
+
+Set Zed's cookie source to automatic browser import or provide a manual Cookie header to read
+`GET https://cloud.zed.dev/frontend/billing/usage`; automatic source selection then uses web billing instead of the
+editor probe. Browser import stays off by default. The web source sends its cookie only to the fixed `cloud.zed.dev`
+billing endpoint; it does not use or forward the editor's Keychain credential.
+An expired browser session clears only the automatic cached cookie that produced the rejected request. Manual headers
+remain saved.
+
+The browser response supplies token spend, a reported billing cap when available, edit-prediction quota, and plan
+identity. It does not include the editor source's billing-cycle reset or overdue-invoice warning. QuotaKit cannot safely
+combine the two sources because the browser response does not prove it belongs to the editor account.
+When Zed omits the spend cap, QuotaKit shows the spend and “Not reported” in details without inventing a cost limit.
+
 ## Snapshot mapping
 
 | Zed field | QuotaKit display |
 | --- | --- |
 | `plan.plan_v3` | Plan label (Free / Pro / Trial / Student / Business) |
 | `plan.usage.edit_predictions` | Primary bar: used/limit or “Unlimited” on Pro+ |
-| `plan.subscription_period.ended_at` | Billing cycle reset / secondary window |
-| `plan.has_overdue_invoices` | Warning note + billing window marker |
+| Editor `plan.subscription_period.ended_at` | Billing cycle reset / secondary window (editor source only) |
+| Editor `plan.has_overdue_invoices` | Warning note + billing window marker (editor source only) |
+| Browser `current_usage.token_spend` | Current-period spend and reported limit (browser source only) |
 
 ## Limitations
 

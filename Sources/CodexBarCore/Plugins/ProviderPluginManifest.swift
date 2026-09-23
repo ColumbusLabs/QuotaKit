@@ -76,6 +76,14 @@ public struct ProviderPluginManifest: Sendable {
     public let capabilities: Set<ProviderPluginCapability>
     public let cookieDomains: Set<String>
 
+    func cookieDomain(_ rawDomain: String) throws -> String {
+        let domain = rawDomain.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard self.capabilities.contains(.browserCookies), self.cookieDomains.contains(domain) else {
+            throw ProviderPluginError.secretAccess("cookie domain is not declared")
+        }
+        return domain
+    }
+
     // Manifest parsing validates the complete security surface in one pass.
     // swiftlint:disable:next cyclomatic_complexity function_body_length
     init(definition: any ProviderPluginValue, allowsDynamicID: Bool = false) throws {

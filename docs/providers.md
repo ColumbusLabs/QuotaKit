@@ -343,6 +343,7 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 ## Zed
 - Reads the signed-in Zed editor session from the macOS Keychain (`credentials_url` / `https://zed.dev`).
 - Calls `GET https://cloud.zed.dev/client/users/me` for plan, billing cycle, Edit Predictions quota, and overdue invoice flag.
+- Optional Web source reads current-period token spend from Zed billing with browser cookies; this source is off by default and does not use editor Keychain credentials.
 - Sign in to the Zed editor first.
 - Details: `docs/zed.md`.
 
