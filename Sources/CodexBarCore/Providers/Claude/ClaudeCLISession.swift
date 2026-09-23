@@ -123,6 +123,11 @@ actor ClaudeCLISession {
     private var sessionIdentity: SessionIdentity?
     private var startedAt: Date?
     private let operationGate = ClaudeCLISessionOperationGate()
+    private let workingDirectory: URL?
+
+    init(workingDirectory: URL? = nil) {
+        self.workingDirectory = workingDirectory
+    }
 
     private let promptSends: [String: String] = [
         "Do you trust the files in this folder?": "y\r",
@@ -239,7 +244,11 @@ actor ClaudeCLISession {
         let settleAfterStop = request.settleAfterStop
         let sendEnterEvery = request.sendEnterEvery
 
-        try self.ensureStarted(binary: binary, accountScope: accountScope, environment: environment)
+        if try self.ensureStarted(binary: binary, accountScope: accountScope, environment: environment) {
+            // Dismiss the current /usage or /status panel before sending another slash command.
+            try self.send("\u{1b}")
+            try await Task.sleep(nanoseconds: 150_000_000)
+        }
         if let startedAt {
             let sinceStart = Date().timeIntervalSince(startedAt)
             // Claude's TUI can drop early keystrokes while it's still initializing. Wait a bit longer than the
@@ -393,10 +402,11 @@ actor ClaudeCLISession {
         await self.operationGate.release(id: operationID)
     }
 
+    /// Returns whether the existing process was reused.
     private func ensureStarted(
         binary: String,
         accountScope: String?,
-        environment: [String: String]) throws
+        environment: [String: String]) throws -> Bool
     {
         guard ClaudeOpaqueOperationContext.isAllowed else {
             throw SessionError.backgroundAccessDenied
@@ -407,13 +417,17 @@ actor ClaudeCLISession {
             environment: Self.launchEnvironment(baseEnv: environment))
         if let proc = self.process, proc.isRunning, self.sessionIdentity == sessionIdentity {
             Self.log.debug("Claude CLI session reused")
-            return
+            return true
         }
         self.cleanup()
 
         var primaryFD: Int32 = -1
         var secondaryFD: Int32 = -1
-        var win = winsize(ws_row: 50, ws_col: 160, ws_xpixel: 0, ws_ypixel: 0)
+        var win = winsize(
+            ws_row: UInt16(ClaudeCLIScreen.rows),
+            ws_col: UInt16(ClaudeCLIScreen.columns),
+            ws_xpixel: 0,
+            ws_ypixel: 0)
         guard openpty(&primaryFD, &secondaryFD, nil, nil, &win) == 0 else {
             Self.log.warning("Claude CLI PTY openpty failed")
             throw SessionError.launchFailed("openpty failed")
@@ -425,7 +439,7 @@ actor ClaudeCLISession {
 
         let proc = Process()
         let resolvedURL = URL(fileURLWithPath: binary)
-        let workingDirectory = ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
+        let workingDirectory = self.workingDirectory ?? ClaudeStatusProbe.preparedProbeWorkingDirectoryURL()
         // A crashed probe can leave a JSONL behind. Claude treats `--session-id` as creation-only when that local
         // transcript exists, so clear the probe-owned artifact before reusing the account-side identifier.
         ClaudeProbeSessionArtifactCleaner.cleanupProbeSessionArtifacts(
@@ -499,6 +513,7 @@ actor ClaudeCLISession {
         self.processGroup = processGroup
         self.sessionIdentity = sessionIdentity
         self.startedAt = Date()
+        return false
     }
 
     static func launchArguments(sessionID: UUID) -> [String] {
