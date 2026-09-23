@@ -1431,6 +1431,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "154f5c0cc5ea50d3",
             "606a690018e2845e",
             "91a311c1117c5d33",
             "39536f87a26d851e",
@@ -1539,6 +1540,33 @@ extension CostUsageStoreTests {
         #expect(await current.fetchFile(path: file.path) == file)
         #expect(await current.rebuildCount == 0)
         #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+    }
+
+    @Test
+    func `provider pricing hash adopts existing cost rows without rebuilding`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let predecessorHash = "154f5c0cc5ea50d3"
+        let predecessorVersion = CostUsageStore.combinedSchemaVersion(
+            base: CostUsageStore.baseSchemaVersion,
+            parserHash: predecessorHash)
+        let predecessor = CostUsageStore(
+            cacheRoot: fixture.root,
+            schemaVersion: predecessorVersion,
+            parserHash: predecessorHash)
+        let file = Self.file(path: "/rollouts/provider-pricing.jsonl", day: "2026-08-01")
+        let metadata = Self.metadata()
+        #expect(await predecessor.upsertFile(file))
+        #expect(await predecessor.setMetadata(metadata))
+        let before = await predecessor.readSnapshot()
+
+        let current = CostUsageStore(cacheRoot: fixture.root)
+        #expect(await current.readSnapshot() == before)
+        #expect(await current.rebuildCount == 0)
+        #expect(await current.configuration()?.userVersion == Int(CostUsageStore.schemaVersion))
+        let connection = try SQLiteTestConnection(url: fixture.databaseURL, readOnly: true)
+        #expect(try connection.scalarInt(
+            "SELECT COUNT(*) FROM meta WHERE key = 'parser_hash' AND value = '\(CodexParserHash.value)'") == 1)
     }
 
     @Test(arguments: ["f22371c47d2e006f", "8050a4faf4fddb96", "dd19ffa2dcfa8d47"])

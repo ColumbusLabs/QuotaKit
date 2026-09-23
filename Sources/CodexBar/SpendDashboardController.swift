@@ -591,7 +591,7 @@ enum SpendDashboardSource {
         failedSourceIDs.formUnion(lateInvalidatedSourceIDs)
         invalidatedSourceIDs.formUnion(lateInvalidatedSourceIDs)
         inputs.removeAll { lateInvalidatedSourceIDs.contains($0.id) }
-        let openCodex = self.mergingOpenCodexInputsWithObservation(inputs, request: request)
+        let openCodex = await self.mergingOpenCodexInputsAfterRefreshingPricing(inputs, request: request)
         return SpendDashboardLoadResult(
             inputs: openCodex.inputs,
             failedSourceIDs: failedSourceIDs,
