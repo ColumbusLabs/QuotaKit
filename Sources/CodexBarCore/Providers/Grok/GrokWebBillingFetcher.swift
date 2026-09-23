@@ -9,6 +9,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let resetsAt: Date?
     /// Full duration measured from matching provider period bounds, never from reset time remaining.
     public let windowMinutes: Int?
+    /// Omitted bounds may use learned cadence; present but invalid bounds must stay unclassified.
+    public let allowsCadenceFallback: Bool
     public let subscriptionTier: String?
     /// False when `usedPercent` was inferred rather than read off the wire. The credits frame can
     /// describe a billing period while carrying no percentage field at all, and that shape is
@@ -20,12 +22,14 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         usedPercent: Double?,
         resetsAt: Date?,
         windowMinutes: Int? = nil,
+        allowsCadenceFallback: Bool = true,
         subscriptionTier: String? = nil,
         usedPercentIsWirePublished: Bool = true)
     {
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
         self.windowMinutes = windowMinutes
+        self.allowsCadenceFallback = allowsCadenceFallback
         self.subscriptionTier = subscriptionTier
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
     }
@@ -36,6 +40,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             usedPercent: self.usedPercent,
             resetsAt: self.resetsAt,
             windowMinutes: self.windowMinutes,
+            allowsCadenceFallback: self.allowsCadenceFallback,
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished)
     }
@@ -48,6 +53,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             usedPercent: self.usedPercent,
             resetsAt: other.resetsAt ?? self.resetsAt,
             windowMinutes: other.resetsAt == nil ? self.windowMinutes : other.windowMinutes,
+            allowsCadenceFallback: other.resetsAt == nil ? self.allowsCadenceFallback : other.allowsCadenceFallback,
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished)
     }

@@ -61,12 +61,14 @@ public enum GrokCreditsProxyFetcher {
         // Match the start to the selected end; never combine different billing periods.
         let periodStart = currentPeriodEnd == nil ? config.billingPeriodStart : config.currentPeriod?.start
         let windowMinutes = Self.windowMinutes(start: periodStart, end: resetsAt, now: now)
+        let allowsCadenceFallback = config.currentPeriod?.start == nil && config.billingPeriodStart == nil
 
         if let percent = config.creditUsagePercent, percent.isFinite {
             return GrokWebBillingSnapshot(
                 usedPercent: min(100, max(0, percent)),
                 resetsAt: resetsAt,
                 windowMinutes: windowMinutes,
+                allowsCadenceFallback: allowsCadenceFallback,
                 subscriptionTier: subscriptionTier)
         }
 
@@ -79,6 +81,7 @@ public enum GrokCreditsProxyFetcher {
                 usedPercent: percent,
                 resetsAt: resetsAt,
                 windowMinutes: windowMinutes,
+                allowsCadenceFallback: allowsCadenceFallback,
                 subscriptionTier: subscriptionTier)
         }
 
@@ -87,6 +90,7 @@ public enum GrokCreditsProxyFetcher {
                 usedPercent: 0,
                 resetsAt: resetsAt,
                 windowMinutes: windowMinutes,
+                allowsCadenceFallback: allowsCadenceFallback,
                 subscriptionTier: subscriptionTier)
         }
 

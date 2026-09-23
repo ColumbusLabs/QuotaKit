@@ -55,10 +55,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
    - When the selected end has a matching `currentPeriod.start`, or the
      `billingPeriodStart/End` pair when the current-period end is unavailable,
-     QuotaKit measures the full window duration. Missing, invalid, reversed, or
-     future starts remain unclassified; bounds from different periods are never
-     combined. The measured duration is used for weekly and monthly labels near
-     reset, with learned cadence kept as a fallback for payloads without bounds.
+     QuotaKit measures the full window duration. Present but invalid, reversed,
+     or future starts remain unclassified; bounds from different periods are
+     never combined. The measured duration is used for weekly and monthly labels
+     near reset, with learned cadence kept only for payloads without start bounds.
    - Plan name does not come from the credits payload. After a successful
      auth-file or SuperGrok OAuth web billing result (CLI-proxy) or the team
       identity-only path, QuotaKit GETs `https://cli-chat-proxy.grok.com/v1/settings`

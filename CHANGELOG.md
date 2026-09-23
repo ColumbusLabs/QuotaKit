@@ -22,6 +22,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.
 - Codex cost catch-up: report thermal pressure first when Low Power Mode is also active.
 - Grok: restore billing requests while keeping legacy monthly usage included.
+- Grok: label weekly and monthly credit periods from measured billing bounds, keeping pace accurate near reset and leaving invalid periods unclassified.
 - Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.
 - Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.
 - Usage & Spend: keep daily coverage, charts, and historical pace aligned to calendar days across daylight-saving transitions and different bucket time zones.

@@ -439,10 +439,12 @@ struct GrokWebFetchStrategy: ProviderFetchStrategy {
             subscriptionTier: subscriptionTier ?? enrichedBilling.subscriptionTier)
         return self.makeResult(
             usage: snapshot.toUsageSnapshot(
-                webBillingWindowMinutes: self.cadenceStore.resolveWindowMinutes(
-                    resetsAt: webBilling.resetsAt,
-                    accountScope: GrokBillingCadenceStore.accountScopeFingerprint(
-                        credentials?.userId ?? credentials?.email ?? credentials?.teamId ?? sourceLabel))),
+                webBillingWindowMinutes: enrichedBilling.allowsCadenceFallback
+                    ? self.cadenceStore.resolveWindowMinutes(
+                        resetsAt: enrichedBilling.resetsAt,
+                        accountScope: GrokBillingCadenceStore.accountScopeFingerprint(
+                            credentials?.userId ?? credentials?.email ?? credentials?.teamId ?? sourceLabel))
+                    : nil),
             sourceLabel: sourceLabel,
             diagnostic: enrichedBilling.usedPercent == nil ? GrokStatusProbe.usageUnavailableMessage : nil)
     }
