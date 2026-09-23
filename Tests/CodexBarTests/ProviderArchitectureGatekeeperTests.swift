@@ -2958,12 +2958,20 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
-            line: 427,
+            line: 414,
             anchor: "let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {",
             expectedProviderIDs: ["claude"],
             expectedReferenceCount: 3,
             expectedReferenceFingerprint: ["claude@0", "claude@5", "claude@11"],
             reason: "This exact widget projection validates preserved Claude usage against the selected owner."),
+        AllowedProviderConstruct(
+            path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
+            line: 169,
+            anchor: "let expectedClaudeQuotaOwnerKey = snapshot.entries.contains { $0.provider == .claude }",
+            expectedProviderIDs: ["claude"],
+            expectedReferenceCount: 4,
+            expectedReferenceFingerprint: ["claude@0", "claude@11", "claude@12", "claude@20"],
+            reason: "Persisted Claude widget usage is retained only after validating ownership against the selected Claude account."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/UsageStore+WidgetSnapshot.swift",
             line: 436,
