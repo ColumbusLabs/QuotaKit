@@ -172,8 +172,14 @@ extension UsageStore {
         guard provider != .claude else { return }
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A later success cannot make an older queued account publication current again.
-        if self.lastQueuedWidgetSnapshot?.entries.contains(where: { $0.provider == provider.instanceID }) == true {
-            self.lastQueuedWidgetSnapshot = nil
+        if let queuedSnapshot = self.lastQueuedWidgetSnapshot,
+           queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID })
+        {
+            self.lastQueuedWidgetSnapshot = WidgetSnapshot(
+                entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
+                enabledProviders: queuedSnapshot.enabledProviders,
+                usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
+                generatedAt: queuedSnapshot.generatedAt)
         }
     }
 

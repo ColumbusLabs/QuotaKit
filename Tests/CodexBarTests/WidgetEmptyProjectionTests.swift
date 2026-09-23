@@ -71,7 +71,11 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-invalidation")
         await store.widgetSnapshotPersistTask?.value
         if scenario == "cold-start" { saved = WidgetSnapshotStore.load(from: url) }
-        #expect(saved?.entries.count == (scenario == "partial" ? 1 : 0))
+        let shouldKeepDeepSeek = scenario == "partial" || scenario == "retired"
+        #expect(saved?.entries.count == (shouldKeepDeepSeek ? 1 : 0))
+        if shouldKeepDeepSeek {
+            #expect(saved?.entries.first?.provider == .deepseek)
+        }
     }
 
     @Test(arguments: [false, true])
@@ -167,6 +171,41 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-second-account-unavailable")
         await store.widgetSnapshotPersistTask?.value
         #expect(saved?.entries.isEmpty == true)
+    }
+
+    @Test
+    func `switching one provider account preserves another failed providers queued widget usage`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        var saved: WidgetSnapshot?
+        store._test_widgetSnapshotSaveOverride = { saved = $0 }
+        store.persistWidgetSnapshot(reason: "synthetic-two-provider-accounts")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(saved)
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
+        #expect(originalSnapshot.entries.count == 2)
+
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+
+        let filteredSnapshot = try #require(store.lastQueuedWidgetSnapshot)
+        #expect(filteredSnapshot.enabledProviders == originalSnapshot.enabledProviders)
+        #expect(filteredSnapshot.entries.map(\.provider) == [.deepseek])
+
+        store.snapshots.removeAll()
+        store.errors = [.deepseek: "Synthetic transient offline failure"]
+        store.persistWidgetSnapshot(reason: "synthetic-other-provider-transient-failure")
+        await store.widgetSnapshotPersistTask?.value
+
+        #expect(saved?.entries.map(\.provider) == [.deepseek])
+        #expect(saved?.entries.first?.updatedAt == deepSeekEntry.updatedAt)
+        #expect(store.snapshots.isEmpty)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
     }
 
     @Test
