@@ -20,9 +20,17 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
 - Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.
 
+### Improved
+
+- Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
+
 ### Fixed
 
 - Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.
+- Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
+  columns.
+- Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.
+- Cost history: keep tall chart rows in a bounded scrollable viewport, protect the native menu's top auto-scroll gutter, and align the Token/Cost picker with chart content.
 - OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.
 - Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.

@@ -1,3 +1,4 @@
+import AppKit
 import Charts
 import CodexBarCore
 import SwiftUI
@@ -121,30 +122,11 @@ struct CostHistoryChartMenuView: View {
                     .foregroundStyle(.secondary)
                     .accessibilityLabel(L("No data available"))
             } else {
-                if availableMetrics.count > 1 || showsHistoryRefreshing {
-                    HStack {
-                        if showsHistoryRefreshing {
-                            Text(L("Refreshing"))
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                                .accessibilityLabel(L("Refreshing"))
-                        }
-                        Spacer(minLength: 0)
-                        if availableMetrics.count > 1 {
-                            Picker(L("Display mode"), selection: self.$metric) {
-                                ForEach(availableMetrics, id: \.self) { metric in
-                                    Text(metric.title).tag(metric)
-                                }
-                            }
-                            .labelsHidden()
-                            .pickerStyle(.segmented)
-                            .controlSize(.small)
-                            .frame(width: Self.metricPickerWidth)
-                            .accessibilityLabel(L("Display mode"))
-                        }
-                    }
+                // Keep hoverable content below AppKit's native top auto-scroll gutter.
+                Color.clear
                     .frame(height: Self.metricPickerHeight)
-                }
+                    .allowsHitTesting(false)
+                    .accessibilityHidden(true)
 
                 Chart {
                     ForEach(model.points) { point in
@@ -198,9 +180,7 @@ struct CostHistoryChartMenuView: View {
                 .frame(height: Self.chartHeight)
                 .accessibilityLabel(activeMetric == .tokens ? L("Token activity") : L("Cost history chart"))
                 .accessibilityValue(
-                    model.points.isEmpty
-                        ? L("No data")
-                        : activeMetric == .tokens
+                    activeMetric == .tokens
                         ? String(
                             format: L("%@ tokens"),
                             UsageFormatter.tokenCountString(Int(model.points.reduce(0) { $0 + $1.value })))
@@ -222,6 +202,31 @@ struct CostHistoryChartMenuView: View {
                             .contentShape(Rectangle())
                         }
                     }
+                }
+
+                if availableMetrics.count > 1 || showsHistoryRefreshing {
+                    HStack {
+                        if showsHistoryRefreshing {
+                            Text(L("Refreshing"))
+                                .font(.caption2)
+                                .foregroundStyle(.secondary)
+                                .accessibilityLabel(L("Refreshing"))
+                        }
+                        Spacer(minLength: 0)
+                        if availableMetrics.count > 1 {
+                            Picker(L("Display mode"), selection: self.$metric) {
+                                ForEach(availableMetrics, id: \.self) { metric in
+                                    Text(metric.title).tag(metric)
+                                }
+                            }
+                            .pickerStyle(.segmented)
+                            .controlSize(.small)
+                            .labelsHidden()
+                            .frame(width: Self.metricPickerWidth, height: Self.metricPickerHeight, alignment: .trailing)
+                            .accessibilityLabel(L("Display mode"))
+                        }
+                    }
+                    .frame(height: Self.metricPickerHeight)
                 }
 
                 let detail = self.detailContent(selectedDateKey: selectedDateKey, model: model)
