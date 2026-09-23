@@ -129,6 +129,24 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Hugging Face monthly spend syncs without inventing an allowance`() {
+        let spend = ProviderCostSnapshot(
+            used: 8.32,
+            limit: 0,
+            currencyCode: "USD",
+            period: "Monthly",
+            updatedAt: Date())
+
+        #expect(SyncCoordinator.syncBudgetSnapshot(provider: .huggingface, providerCost: spend) ==
+            SyncBudgetSnapshot(
+                usedAmount: 8.32,
+                limitAmount: 0,
+                currencyCode: "USD",
+                period: "Monthly",
+                resetsAt: nil))
+    }
+
+    @Test
     func `xAI cost history maps to existing sync summary with partial confidence`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let usage = XAIUsageSnapshot(

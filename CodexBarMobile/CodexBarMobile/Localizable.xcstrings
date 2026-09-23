@@ -1156,6 +1156,34 @@
         }
       }
     },
+    "Spend": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Spend"
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "支出"
+          }
+        }
+      }
+    },
     "Budgets": {
       "localizations": {
         "en": {
@@ -15871,6 +15899,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "主畫面小工具"
+          }
+        }
+      }
+    },
+    "Hugging Face billable inference spend and optional ZeroGPU quota now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hugging Face billable inference spend and optional ZeroGPU quota now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hugging Face の課金対象推論利用額とオプションの ZeroGPU クォータが、QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hugging Face 的可计费推理支出和可选 ZeroGPU 配额现在会从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Hugging Face 的可計費推論支出與選用的 ZeroGPU 配額，現在會從 QuotaKit Mac 同步到 iPhone。"
           }
         }
       }

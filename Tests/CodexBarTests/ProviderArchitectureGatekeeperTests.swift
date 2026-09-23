@@ -154,8 +154,8 @@ struct ProviderArchitectureGatekeeperTests {
             Self.hash(descriptor.branding.burnDownWidgetColor, into: &burnDownFingerprint)
         }
 
-        #expect(widgetFingerprint == 14_555_802_930_280_609_344)
-        #expect(burnDownFingerprint == 751_052_193_676_395_193)
+        #expect(widgetFingerprint == 16_825_677_794_294_491_335)
+        #expect(burnDownFingerprint == 17_225_671_802_398_691_773)
     }
 
     @Test
@@ -3604,6 +3604,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "gitkraken",
                 "grok",
                 "groq",
+                "huggingface",
                 "ibmbob",
                 "jetbrains",
                 "kilo",
@@ -3645,7 +3646,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 72,
+            expectedReferenceCount: 73,
             expectedReferenceFingerprint: [
                 "codex@0",
                 "claude@2",
@@ -3717,6 +3718,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "coderabbit@31",
                 "fireworks@31",
                 "gitkraken@31",
+                "huggingface@31",
                 "ibmbob@31",
                 "v0@31",
             ],
@@ -4518,6 +4520,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "gitkraken",
                 "grok",
                 "groq",
+                "huggingface",
                 "ibmbob",
                 "jetbrains",
                 "kilo",
@@ -4559,7 +4562,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "zenmux",
                 "zoommate",
             ],
-            expectedReferenceCount: 72,
+            expectedReferenceCount: 73,
             expectedReferenceFingerprint: [
                 "claude@0",
                 "vertexai@0",
@@ -4632,6 +4635,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "coderabbit@36",
                 "fireworks@36",
                 "gitkraken@36",
+                "huggingface@36",
                 "ibmbob@36",
             ],
             reason: "Cost-estimation badges follow provider-specific model-family knowledge and pricing provenance."),

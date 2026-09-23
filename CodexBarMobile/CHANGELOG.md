@@ -12,6 +12,10 @@ current Columbus Labs product surface and recent release history.
 - v0 is now in the iPhone quota provider catalog with its existing billing and
   rate-limit windows. Detailed billing balances remain on the Mac.
 
+### Changed
+
+- Hugging Face billing spend and ZeroGPU quota now use QuotaKit's branded provider card, color, icon, and quota-alert subscription when synced from Mac.
+
 ### Fixed
 
 - Codex 30-day spend no longer collapses to a newly scanned partial subtotal

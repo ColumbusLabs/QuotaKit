@@ -33,6 +33,7 @@ enum ProviderBrandAsset {
         "gitkraken",
         "grok",
         "groq",
+        "huggingface",
         "jetbrains",
         "ibmbob",
         "kilo",

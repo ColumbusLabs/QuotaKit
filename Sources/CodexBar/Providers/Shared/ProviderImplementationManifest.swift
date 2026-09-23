@@ -78,5 +78,6 @@ enum ProviderImplementationManifest {
         { GitKrakenProviderImplementation() },
         { V0ProviderImplementation() },
         { CodeRabbitProviderImplementation() },
+        { HuggingFaceProviderImplementation() },
     ]
 }

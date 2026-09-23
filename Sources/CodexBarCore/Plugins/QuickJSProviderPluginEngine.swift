@@ -498,7 +498,10 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             guard response.data.count <= self.responseSizeLimit else {
                 throw ProviderPluginError.http("response exceeded the \(self.responseSizeLimit)-byte limit")
             }
-            if self.rejectsNonSuccessResponses, !(200..<300).contains(response.statusCode) {
+            if self.rejectsNonSuccessResponses,
+               !self.manifest.capabilities.contains(.httpStatus),
+               !(200..<300).contains(response.statusCode)
+            {
                 throw ProviderPluginError.http("request returned HTTP \(response.statusCode)")
             }
             if self.rejectsNonSuccessResponses,

@@ -76,6 +76,7 @@ struct ProviderColorPaletteTests {
             ("zoommate", 64 / 255, 176 / 255, 255 / 255),
             ("v0", 17 / 255, 17 / 255, 17 / 255),
             ("xai", 142 / 255, 142 / 255, 160 / 255),
+            ("huggingface", 1, 210 / 255, 30 / 255),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -100,6 +101,7 @@ struct ProviderColorPaletteTests {
             ("ZoomMate", "zoommate"),
             ("xAI", "xai"),
             ("GitKraken AI", "gitkraken"),
+            ("Hugging Face", "huggingface"),
         ]
 
         for (displayName, providerID) in pairs {

@@ -695,7 +695,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 guard response.data.count <= responseSizeLimit else {
                     throw ProviderPluginError.http("response exceeded the \(responseSizeLimit)-byte limit")
                 }
-                if worker.rejectsNonSuccessResponses, !(200..<300).contains(response.statusCode) {
+                if worker.rejectsNonSuccessResponses,
+                   !worker.manifest.capabilities.contains(.httpStatus),
+                   !(200..<300).contains(response.statusCode)
+                {
                     throw ProviderPluginError.http("request returned HTTP \(response.statusCode)")
                 }
                 if worker.rejectsNonSuccessResponses,

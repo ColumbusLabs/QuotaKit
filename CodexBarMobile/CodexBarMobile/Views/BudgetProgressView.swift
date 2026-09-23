@@ -17,21 +17,25 @@ struct BudgetProgressView: View {
     var body: some View {
         VStack(alignment: .leading, spacing: 10) {
             HStack {
-                Text("Budget")
+                Text(self.showsAllowance ? "Budget" : "Spend")
                     .font(.subheadline)
                     .fontWeight(.semibold)
                 Spacer()
                 Text(self.formattedUsed)
                     .font(.subheadline.monospacedDigit())
                     .fontWeight(.medium)
-                Text("/ \(self.formattedLimit)")
-                    .font(.subheadline.monospacedDigit())
-                    .foregroundStyle(.secondary)
+                if self.showsAllowance {
+                    Text("/ \(self.formattedLimit)")
+                        .font(.subheadline.monospacedDigit())
+                        .foregroundStyle(.secondary)
+                }
             }
 
-            ProgressView(value: self.progress)
-                .tint(self.progressColor)
-                .scaleEffect(y: 2, anchor: .center)
+            if self.showsAllowance {
+                ProgressView(value: self.progress)
+                    .tint(self.progressColor)
+                    .scaleEffect(y: 2, anchor: .center)
+            }
 
             HStack(spacing: 8) {
                 if let period = self.budget.period {
@@ -53,6 +57,10 @@ struct BudgetProgressView: View {
         }
         .padding(16)
         .qkCardBackground(cornerRadius: 14)
+    }
+
+    var showsAllowance: Bool {
+        !self.budget.isSpendOnly
     }
 
     private var formattedUsed: String {

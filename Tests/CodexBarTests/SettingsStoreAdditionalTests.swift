@@ -235,6 +235,7 @@ struct SettingsStoreAdditionalTests {
             .deepinfra: [.automatic],
             .moonshot: [.automatic],
             .poe: [.automatic],
+            .huggingface: [.automatic, .secondary],
         ]
 
         for provider in UsageProvider.allCases {
