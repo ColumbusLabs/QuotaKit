@@ -181,8 +181,8 @@ enum OpenCodexUsageAggregator {
             .summary(forLastDays: min(30, days), calendar: calendar)
 
         return CostUsageTokenSnapshot(
-            sessionTokens: todayEntry?.totalTokens ?? (daily.isEmpty ? nil : 0),
-            sessionCostUSD: todayEntry?.costUSD ?? (daily.isEmpty ? nil : 0),
+            sessionTokens: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.totalTokens,
+            sessionCostUSD: todayEntry == nil && !daily.isEmpty ? 0 : todayEntry?.costUSD,
             sessionRequests: todayEntry?.requestCount ?? (daily.isEmpty ? nil : 0),
             last30DaysTokens: windowSummary.totalTokens,
             last30DaysCostUSD: windowSummary.totalCostUSD,
@@ -335,11 +335,8 @@ enum OpenCodexUsageAggregator {
         }
     }
 
-    /// List-price estimate for one entry. Precedence is unchanged from the per-merge pricing it replaces:
-    /// 1. `customPricing` — the snapshot's own overlay (provider-scoped rates passed by the caller);
-    /// 2. `CostUsagePricing.codexCostUSD` with the pre-resolved `customPricingOverlay` (the app-level overlay file,
-    ///    which `codexCostUSD` would otherwise re-load per call) and the pre-resolved models.dev `modelsDevCatalog`
-    ///    (otherwise `ModelsDevCache.load` per call), then the bundled/historical tables.
+    /// List-price estimate for one entry. Caller rates keep their existing precedence, then exact observed-provider
+    /// application overrides and models.dev rates are checked. Only the OpenAI route uses bundled/historical rates.
     private static func listPriceUSD(
         entry: OpenCodexUsageEntry,
         customPricing: CostUsageCustomPricing,
@@ -354,28 +351,38 @@ enum OpenCodexUsageAggregator {
             || usage?.cacheReadTokens != nil
             || usage?.cacheCreationInputTokens != nil
         guard hasTokenData else { return nil }
-        let input = usage?.inputTokens ?? 0
-        let output = usage?.outputTokens ?? 0
+        guard let input = usage?.inputTokens, let output = usage?.outputTokens else { return nil }
         let cacheRead = usage?.cacheReadTokens ?? 0
         let cacheWrite = usage?.cacheCreationInputTokens ?? 0
-        if let overlay = customPricing.costUSD(
-            providerID: entry.provider,
-            model: entry.model,
-            inputTokens: input,
-            outputTokens: output,
-            cacheReadTokens: cacheRead,
-            cacheWriteTokens: cacheWrite)
-        {
-            return overlay
+        if customPricing.rates(providerID: entry.provider, model: entry.model) != nil {
+            return customPricing.costUSD(
+                providerID: entry.provider,
+                model: entry.model,
+                inputTokens: input,
+                outputTokens: output,
+                cacheReadTokens: cacheRead,
+                cacheWriteTokens: cacheWrite)
         }
-        return CostUsagePricing.codexCostUSD(
+
+        let providerID = OpenCodexUsagePricing.providerID(for: entry)
+        // Preserve application overrides saved against the exact identity in older OpenCodex logs before routing.
+        if let recordedRates = customPricingOverlay.rates(providerID: entry.provider, model: entry.model) {
+            return CostUsageCustomPricing.costUSD(
+                rates: recordedRates,
+                inputTokens: max(0, max(0, input - cacheRead) - cacheWrite),
+                outputTokens: output,
+                cacheReadTokens: cacheRead,
+                cacheWriteTokens: cacheWrite)
+        }
+        return CostUsagePricing.providerCostUSD(
+            providerID: providerID,
             model: entry.model,
             inputTokens: input,
             cachedInputTokens: cacheRead,
-            outputTokens: output,
             cacheWriteInputTokens: cacheWrite,
+            outputTokens: output,
             pricingDate: entry.timestamp,
-            modelsDevCatalog: modelsDevCatalog,
+            catalog: modelsDevCatalog,
             customPricing: customPricingOverlay)
     }
 

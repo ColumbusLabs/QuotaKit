@@ -31,6 +31,8 @@ Local cost scanners preserve that scope when selecting a catalog:
 - Other bare Claude-session IDs are priced only when exactly one selected first-party catalog matches. Ambiguous cross-vendor matches remain unpriced.
 - Provider-qualified Claude-session IDs stay on an approved explicit route and never fall through to another vendor.
 - Vertex AI Claude logs: models.dev provider id `google-vertex-anthropic`
+- OpenCodex log entries use their recorded provider for pricing. Only legacy `openai` transport rows may take an explicit known route from the model prefix; a router's `openai/...` model namespace does not make the row OpenAI usage. A missing provider retains the legacy OpenAI fallback for unqualified model IDs, while an unknown recorded provider does not borrow OpenAI rates.
+- OpenCodex models.dev lookups are exact within the recorded provider. Cache-read and cache-write usage stays unpriced when that provider has no corresponding cache rate, and missing input/output counts stay unknown. A fresh dashboard or CLI load can refresh stale pricing and check unknown exact models; cached snapshots do not start network requests.
 
 ## Units
 
@@ -55,7 +57,7 @@ The Linux CLI uses `FileManager`’s Application Support directory (XDG data hom
 
 Values are USD per million tokens. For native Codex session scans, resolution order is **overlay > models.dev > builtin**. Changing the file invalidates the Codex pricing fingerprint so the next native Codex scan reloads rates.
 
-The overlay currently applies only to native Codex/OpenAI-compatible session pricing. Claude's local scanner, Cursor, and production OpenCodex snapshot loads do not read this file (OpenCodex keeps an empty overlay). A key such as `anthropic/claude-…` does not change Claude list prices.
+Native Codex/OpenAI-compatible session scans resolve exact overlay rates before models.dev and bundled pricing. OpenCodex snapshots also read this overlay and check the recorded provider/model identity before models.dev; OpenAI bundled and historical rates remain limited to OpenAI usage. Claude's local scanner and Cursor do not read this file. A key such as `anthropic/claude-…` does not change Claude list prices.
 
 Keys are case-insensitive and may be a bare model id (`gpt-5.4`) or `provider/model` (`openai/gpt-5.4`). Only an exact normalized key matches; there is no prefix or family glob. If both forms exist for the same model, the **bare key wins** and the provider-qualified row is ignored. Do not define both unless the bare override is the one you want.
 

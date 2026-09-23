@@ -121,7 +121,7 @@ extension CodexBarCLI {
         }
 
         if format == .json,
-           let openCodex = Self.loadOpenCodexCostPayload(
+           let openCodex = await Self.loadOpenCodexCostPayload(
                historyDays: historyDays,
                calendar: bucketCalendar)
         {
@@ -452,12 +452,14 @@ extension CodexBarCLI {
     private static func loadOpenCodexCostPayload(
         historyDays: Int,
         calendar: Calendar,
-        now: Date = Date()) -> CostPayload?
+        now: Date = Date()) async -> CostPayload?
     {
         guard boolFromAppDefaults("openCodexUsageLogsEnabled") == true else { return nil }
         let environment = ProcessInfo.processInfo.environment
         guard let logURL = OpenCodexUsageLog.usageLogURL(environment: environment) else { return nil }
         let store = OpenCodexUsageStore(cacheRoot: OpenCodexUsageLog.cacheRoot())
+        guard let entries = try? store.loadEntries(logURL: logURL), !entries.isEmpty else { return nil }
+        await OpenCodexUsageStore.refreshPricingIfNeeded(entries: entries, now: now)
         guard let snapshot = try? store.loadSnapshot(
             logURL: logURL,
             now: now,

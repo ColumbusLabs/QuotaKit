@@ -42,4 +42,28 @@ struct OpenCodexRouteDispatcherTests {
                 provider: "opencode-go",
                 modelName: "gpt-5.2") == .subscription(.opencodego))
     }
+
+    @Test
+    func `router model namespace does not replace recorded provider`() {
+        #expect(
+            OpenCodexRouteDispatcher.route(
+                provider: "openrouter",
+                modelName: "openai/gpt-5.4") == .unknown)
+        #expect(
+            OpenCodexRouteDispatcher.route(
+                provider: "openai",
+                modelName: "opencode-go/gpt-5.4") == .subscription(.opencodego))
+    }
+
+    @Test
+    func `missing provider retains legacy model route fallback`() {
+        #expect(
+            OpenCodexRouteDispatcher.route(
+                provider: "  ",
+                modelName: "gpt-5.4") == .subscription(.codex))
+        #expect(
+            OpenCodexRouteDispatcher.route(
+                provider: "  ",
+                modelName: "opencode-go/gpt-5.4") == .subscription(.opencodego))
+    }
 }

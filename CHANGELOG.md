@@ -18,6 +18,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.
 - Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.
 - Codex cost catch-up: report thermal pressure first when Low Power Mode is also active.

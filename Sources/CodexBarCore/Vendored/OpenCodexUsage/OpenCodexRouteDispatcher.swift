@@ -43,8 +43,16 @@ public enum OpenCodexRouteDispatcher {
     }
 
     public static func route(provider: String, modelName: String) -> OpenCodexRouteTarget {
+        let provider = provider.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let trimmedModel = modelName.trimmingCharacters(in: .whitespacesAndNewlines)
-        if trimmedModel.contains("/") {
+        if provider.isEmpty {
+            return self.route(modelName: trimmedModel)
+        }
+        // Only legacy OpenAI transport labels delegate attribution to an explicit route prefix.
+        // A model such as openai/gpt-5.4 served by OpenRouter must stay with its recorded provider.
+        // Provider-specific by design: only a legacy OpenAI transport label may defer to the
+        // model prefix; a recorded non-OpenAI provider must retain its own billing route.
+        if provider == "openai", trimmedModel.contains("/") {
             let modelRoute = self.route(modelName: trimmedModel)
             if modelRoute != .unknown {
                 return modelRoute
