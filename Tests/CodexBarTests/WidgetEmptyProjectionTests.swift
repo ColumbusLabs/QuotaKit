@@ -241,7 +241,7 @@ struct WidgetEmptyProjectionTests {
         saveGate.releaseFirstSave()
         await store.widgetSnapshotPersistTask?.value
 
-        #expect(saved.count == 3)
+        #expect(saved.count == 4)
         #expect(saved.first?.entries.map(\.provider).contains(.openrouter) == true)
         #expect(saved.last?.entries.map(\.provider) == [.deepseek])
         #expect(saved.last?.entries.first?.updatedAt == firstAccountSnapshot.entries
@@ -274,7 +274,7 @@ struct WidgetEmptyProjectionTests {
         await store.widgetSnapshotPersistTask?.value
 
         let repairedSnapshot = try #require(saved.last)
-        #expect(saved.count == 2)
+        #expect(saved.count == 3)
         #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
         #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
         #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
@@ -298,6 +298,7 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-disk-snapshot-before-process-restart")
         await store.widgetSnapshotPersistTask?.value
         let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
         #expect(originalSnapshot.entries.count == 2)
 
         store.lastQueuedWidgetSnapshot = nil
@@ -309,8 +310,106 @@ struct WidgetEmptyProjectionTests {
 
         let repairedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
         #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
+        #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
+        #expect(repairedSnapshot.entries.first?.primary?.usedPercent == deepSeekEntry.primary?.usedPercent)
+        #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
+        // JSON's default Date coding can collapse sub-second generations to the same second.
+        #expect(repairedSnapshot.generatedAt >= originalSnapshot.generatedAt)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
+    }
+
+    @Test
+    func `account switch republishes newer queue when disk still has the provider`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
+        let snapshotURL = try #require(store.widgetSnapshotURL)
+        defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        try FileManager.default.createDirectory(
+            at: snapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        store.persistWidgetSnapshot(reason: "synthetic-disk-snapshot-before-newer-queue")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
+        #expect(originalSnapshot.entries.count == 2)
+
+        // Model a newer in-process projection that has already omitted OpenRouter while the
+        // completed disk snapshot still contains its old account entry.
+        store.lastQueuedWidgetSnapshot = WidgetSnapshot(
+            entries: [deepSeekEntry],
+            enabledProviders: originalSnapshot.enabledProviders,
+            usageBarsShowUsed: originalSnapshot.usageBarsShowUsed,
+            generatedAt: originalSnapshot.generatedAt.addingTimeInterval(1))
+        store.snapshots.removeAll()
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+        await store.widgetSnapshotPersistTask?.value
+
+        let repairedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
+        #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
+        #expect(repairedSnapshot.entries.first?.primary?.usedPercent == deepSeekEntry.primary?.usedPercent)
         #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
         #expect(repairedSnapshot.generatedAt > originalSnapshot.generatedAt)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
+    }
+
+    @Test
+    func `newer projection during invalidation load stays authoritative`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek, .minimax])
+        let snapshotURL = try #require(store.widgetSnapshotURL)
+        defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        try FileManager.default.createDirectory(
+            at: snapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        store.persistWidgetSnapshot(reason: "synthetic-disk-snapshot-before-interleaved-refresh")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(originalSnapshot.entries.map(\.provider) == [.openrouter, .deepseek])
+
+        let loadGate = WidgetSnapshotLoadGate()
+        store.lastQueuedWidgetSnapshot = nil
+        store.snapshots.removeAll()
+        store.setWidgetSnapshotLoadOverrideForTesting { await loadGate.pauseThenReturn() }
+        defer {
+            store.setWidgetSnapshotLoadOverrideForTesting(nil)
+            loadGate.release(with: originalSnapshot)
+        }
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+        await loadGate.waitUntilLoadStarts()
+
+        let replacement = UsageSnapshot(
+            primary: RateWindow(usedPercent: 61, windowMinutes: 300, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_800_000_100))
+        store._setSnapshotForTesting(replacement, provider: .minimax)
+        store.persistWidgetSnapshot(reason: "synthetic-newer-provider-projection-during-load")
+        let newerProjection = try #require(store.lastQueuedWidgetSnapshot)
+        #expect(newerProjection.entries.map(\.provider) == [.minimax])
+
+        loadGate.release(with: originalSnapshot)
+        await store.widgetSnapshotPersistTask?.value
+
+        let persistedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(persistedSnapshot.entries.map(\.provider) == [.minimax])
+        #expect(persistedSnapshot.entries.first?.updatedAt == replacement.updatedAt)
+        #expect(persistedSnapshot.entries.first?.primary?.usedPercent == 61)
+        #expect(persistedSnapshot.enabledProviders == newerProjection.enabledProviders)
+        #expect(persistedSnapshot.usageBarsShowUsed == newerProjection.usageBarsShowUsed)
+        #expect(store.lastQueuedWidgetSnapshot?.entries.map(\.provider) == [.minimax])
+        store.snapshots.removeAll()
         #expect(store.cloudSyncAccountSnapshots().isEmpty)
     }
 
@@ -457,6 +556,35 @@ private final class WidgetSnapshotSaveGate {
 
     func releaseFirstSave() {
         self.releaseContinuation?.resume()
+        self.releaseContinuation = nil
+    }
+}
+
+@MainActor
+private final class WidgetSnapshotLoadGate {
+    private var startedContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<WidgetSnapshot?, Never>?
+    private var releasedSnapshot: WidgetSnapshot?
+    private var released = false
+    private(set) var loadStarted = false
+
+    func waitUntilLoadStarts() async {
+        guard !self.loadStarted else { return }
+        await withCheckedContinuation { self.startedContinuation = $0 }
+    }
+
+    func pauseThenReturn() async -> WidgetSnapshot? {
+        self.loadStarted = true
+        self.startedContinuation?.resume()
+        self.startedContinuation = nil
+        guard !self.released else { return self.releasedSnapshot }
+        return await withCheckedContinuation { self.releaseContinuation = $0 }
+    }
+
+    func release(with snapshot: WidgetSnapshot) {
+        self.released = true
+        self.releasedSnapshot = snapshot
+        self.releaseContinuation?.resume(returning: snapshot)
         self.releaseContinuation = nil
     }
 }

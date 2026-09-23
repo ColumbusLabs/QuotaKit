@@ -4,6 +4,13 @@ import Foundation
 import WidgetKit
 #endif
 
+#if DEBUG
+@MainActor
+private enum WidgetSnapshotLoadTestOverrides {
+    static var byStore: [ObjectIdentifier: @MainActor () async -> WidgetSnapshot?] = [:]
+}
+#endif
+
 extension UsageStore {
     /// Tests must never touch the real app-group container: the widget-snapshot
     /// `open()` can block forever behind macOS 26 app-data (TCC) gating, hanging
@@ -17,6 +24,19 @@ extension UsageStore {
     {
         !isRunningTests || hasSaveOverride || hasInjectedSnapshotURL
     }
+
+    #if DEBUG
+    func setWidgetSnapshotLoadOverrideForTesting(
+        _ override: (@MainActor () async -> WidgetSnapshot?)?)
+    {
+        let storeID = ObjectIdentifier(self)
+        if let override {
+            WidgetSnapshotLoadTestOverrides.byStore[storeID] = override
+        } else {
+            WidgetSnapshotLoadTestOverrides.byStore.removeValue(forKey: storeID)
+        }
+    }
+    #endif
 
     func persistWidgetSnapshot(reason: String) {
         guard Self.shouldPersistWidgetSnapshot(
@@ -66,11 +86,9 @@ extension UsageStore {
                     if latestSnapshot.generatedAt == fallbackSnapshot.generatedAt {
                         snapshotToPersist = filteredSnapshot
                     } else {
-                        // Preserve unaffected disk entries if a new projection arrived during the
-                        // bounded load. Current entries win; blocked providers never return.
-                        snapshotToPersist = self.mergingUnblockedEntries(
-                            from: filteredSnapshot,
-                            into: latestSnapshot)
+                        // A newer in-process projection is authoritative. Merging the older disk
+                        // image could resurrect usage omitted by the newer provider refresh.
+                        snapshotToPersist = self.filterBlockedProviders(in: latestSnapshot)
                     }
                     self.lastQueuedWidgetSnapshot = snapshotToPersist
                 } else {
@@ -96,6 +114,9 @@ extension UsageStore {
 
     private func loadWidgetSnapshotForInvalidation() async -> WidgetSnapshot? {
         #if DEBUG
+        if let override = WidgetSnapshotLoadTestOverrides.byStore[ObjectIdentifier(self)] {
+            return await override()
+        }
         // Never let test-only save overrides fall through to the developer's live app-group container.
         guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
         #endif
@@ -128,21 +149,16 @@ extension UsageStore {
             generatedAt: max(Date(), max(snapshot.generatedAt, generation).addingTimeInterval(0.001)))
     }
 
-    private func mergingUnblockedEntries(
-        from persistedSnapshot: WidgetSnapshot,
-        into latestSnapshot: WidgetSnapshot) -> WidgetSnapshot
-    {
-        var entries = latestSnapshot.entries
-        for entry in persistedSnapshot.entries where !entries.contains(where: { $0.provider == entry.provider }) {
-            entries.append(entry)
+    private func filterBlockedProviders(in snapshot: WidgetSnapshot) -> WidgetSnapshot {
+        let entries = snapshot.entries.filter {
+            !self.widgetUsagePreservationBlockedProviders.contains($0.provider)
         }
+        guard entries.count != snapshot.entries.count else { return snapshot }
         return WidgetSnapshot(
             entries: entries,
-            enabledProviders: latestSnapshot.enabledProviders,
-            usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
-            generatedAt: max(
-                Date(),
-                max(latestSnapshot.generatedAt, persistedSnapshot.generatedAt).addingTimeInterval(0.001)))
+            enabledProviders: snapshot.enabledProviders,
+            usageBarsShowUsed: snapshot.usageBarsShowUsed,
+            generatedAt: max(Date(), snapshot.generatedAt.addingTimeInterval(0.001)))
     }
 
     private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {
@@ -270,19 +286,25 @@ extension UsageStore {
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A later success cannot make an older queued account publication current again.
         if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
-            guard queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) else { return }
-            let filteredSnapshot = WidgetSnapshot(
-                entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
-                enabledProviders: queuedSnapshot.enabledProviders,
-                usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
-                generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
-            self.lastQueuedWidgetSnapshot = filteredSnapshot
+            let snapshotToPersist: WidgetSnapshot
+            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) {
+                snapshotToPersist = WidgetSnapshot(
+                    entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
+                    enabledProviders: queuedSnapshot.enabledProviders,
+                    usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
+                    generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
+                self.lastQueuedWidgetSnapshot = snapshotToPersist
+            } else {
+                // The queue may already be a newer projection that omits this provider while disk
+                // still contains its old entry. Republish the queue even when it needs no filtering.
+                snapshotToPersist = queuedSnapshot
+            }
             guard Self.shouldPersistWidgetSnapshot(
                 isRunningTests: SettingsStore.isRunningTests,
                 hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
                 hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
             else { return }
-            self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: filteredSnapshot)
+            self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: snapshotToPersist)
         } else {
             let emptySnapshot = WidgetSnapshot(
                 entries: [],
