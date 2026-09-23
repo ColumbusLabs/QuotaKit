@@ -222,6 +222,20 @@ struct SettingsWindowAppearanceTests {
     }
 
     @Test
+    func `settings titlebar inset matches the window content boundary`() {
+        let window = NSWindow(
+            contentRect: NSRect(x: 0, y: 0, width: SettingsPane.windowWidth, height: SettingsPane.windowHeight),
+            styleMask: [.titled, .fullSizeContentView],
+            backing: .buffered,
+            defer: false)
+
+        let inset = SettingsWindowAppearance.titlebarInset(for: window)
+
+        #expect(inset == max(0, window.frame.height - window.contentLayoutRect.height))
+        #expect(inset > 0)
+    }
+
+    @Test
     func `repeated theme updates cannot leave an explicit appearance`() {
         let resetCapture = ResetCapture()
         let bridge = SettingsWindowAppearanceView { resetCapture.actions.append($0) }
