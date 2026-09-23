@@ -641,4 +641,18 @@ extension SyncCoordinator {
             },
             updatedAt: ds.updatedAt)
     }
+
+    /// Carries Charm Hyper's non-currency balance to iOS without inventing a quota or spend value.
+    static func mapHyperBalance(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> SyncHyperBalance?
+    {
+        guard provider == .hyper,
+              let snapshot,
+              let balance = snapshot.hyperBalance,
+              balance.isFinite,
+              balance >= 0
+        else { return nil }
+        return SyncHyperBalance(balance: balance, updatedAt: snapshot.updatedAt)
+    }
 }

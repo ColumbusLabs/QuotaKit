@@ -152,6 +152,8 @@ public struct UsageSnapshot: Codable, Sendable {
     /// Live provider-reported cost history supplied through the generic plugin contract.
     public let costUsage: CostUsageTokenSnapshot?
     public let details: [ProviderDetailSection]
+    /// Charm Hyper's native Hypercredits balance. Not a currency amount or a quota percentage.
+    public let hyperBalance: Double?
     public let kiroUsage: KiroUsageDetails?
     public let ampUsage: AmpUsageDetails?
     public let zaiUsage: ZaiUsageSnapshot?
@@ -212,6 +214,7 @@ public struct UsageSnapshot: Codable, Sendable {
         case extraRateWindows
         case providerCost
         case details
+        case hyperBalance
         case kiroUsage
         case ampUsage
         case mimoUsage
@@ -254,6 +257,7 @@ public struct UsageSnapshot: Codable, Sendable {
         providerCost: ProviderCostSnapshot? = nil,
         costUsage: CostUsageTokenSnapshot? = nil,
         details: [ProviderDetailSection] = [],
+        hyperBalance: Double? = nil,
         zaiUsage: ZaiUsageSnapshot? = nil,
         zoommateCreditsHistory: ZoomMateCreditsHistorySnapshot? = nil,
         minimaxUsage: MiniMaxUsageSnapshot? = nil,
@@ -306,6 +310,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = providerCost
         self.costUsage = costUsage
         self.details = details
+        self.hyperBalance = hyperBalance
         self.zaiUsage = zaiUsage
         self.zoommateCreditsHistory = zoommateCreditsHistory
         self.minimaxUsage = minimaxUsage
@@ -380,6 +385,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.providerCost = try container.decodeIfPresent(ProviderCostSnapshot.self, forKey: .providerCost)
         self.costUsage = nil // Live-only provider history; refresh from the authoritative source.
         self.details = try container.decodeIfPresent([ProviderDetailSection].self, forKey: .details) ?? []
+        self.hyperBalance = try? container.decodeIfPresent(Double.self, forKey: .hyperBalance)
         try ProviderDetailSection.validateSections(self.details)
         // Rich provider payloads are additive. Ignore legacy or foreign shapes rather than
         // rejecting the entire account snapshot when another provider owns the record.
@@ -473,6 +479,7 @@ public struct UsageSnapshot: Codable, Sendable {
         if !self.details.isEmpty {
             try container.encode(self.details, forKey: .details)
         }
+        try container.encodeIfPresent(self.hyperBalance, forKey: .hyperBalance)
         try container.encodeIfPresent(self.kiroUsage, forKey: .kiroUsage)
         try container.encodeIfPresent(self.ampUsage, forKey: .ampUsage)
         try container.encodeIfPresent(self.mimoUsage, forKey: .mimoUsage)
@@ -663,6 +670,7 @@ public struct UsageSnapshot: Codable, Sendable {
             providerCost: self.providerCost,
             costUsage: self.costUsage,
             details: details.resolving(self.details),
+            hyperBalance: self.hyperBalance,
             zaiUsage: self.zaiUsage,
             zoommateCreditsHistory: self.zoommateCreditsHistory,
             minimaxUsage: self.minimaxUsage,

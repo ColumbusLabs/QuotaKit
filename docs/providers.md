@@ -113,6 +113,7 @@ complete when the available scan window covers fewer days.
 | v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
 | Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |
 | Replicate | Cached or manually supplied `replicate.com` session cookie → billing page and user/organization invoice APIs (`web`). |
+| Charm Hyper | Chrome or manually saved `hyper.charm.land` session cookie, then API key fallback; explicit API mode skips cookies (`web`, `api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -185,6 +186,13 @@ complete when the available scan window covers fewer days.
 - Shows weekly quota and 5-hour rate limit (300 minutes).
 - Status: none yet.
 - Details: `docs/kimi.md`.
+
+## Charm Hyper
+- Current Hypercredits balance from `GET https://hyper.charm.land/v1/credits`.
+- Automatic mode prefers the selected browser/manual session and falls back to an API key when available. Web mode is session-only; API mode skips cookies.
+- Configure a secure API key in QuotaKit Settings → Providers or use `HYPER_API_KEY`. Browser sessions support Automatic Chrome import or a manually saved Cookie header.
+- This provider reports a balance only; it does not infer a dollar value or quota percentage.
+- Details: `docs/hyper.md`.
 
 ## Kilo
 - API token from `~/.quotakit/config.json` (`providers[].apiKey`) or `KILO_API_KEY`.

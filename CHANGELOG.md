@@ -35,6 +35,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.
 - CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.
 - Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
+- Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 - Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.
 
 ### Fixed

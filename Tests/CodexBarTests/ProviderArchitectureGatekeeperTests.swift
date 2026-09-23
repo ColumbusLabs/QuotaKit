@@ -194,7 +194,7 @@ struct ProviderArchitectureGatekeeperTests {
     func `small provider capabilities preserve legacy registries`() {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
-            .deepseek, .deepinfra, .mistral, .moonshot, .poe,
+            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,

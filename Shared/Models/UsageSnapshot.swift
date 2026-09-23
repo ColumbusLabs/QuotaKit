@@ -1120,6 +1120,10 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
     /// dedicated CrossModelUsageCard; nil → falls back to generic rendering.
     public let crossModelUsage: SyncCrossModelUsage?
 
+    /// Charm Hyper balance in Hypercredits, populated only for `hyper`.
+    /// Optional so older Mac payloads and existing persisted snapshots decode unchanged.
+    public let hyperBalance: SyncHyperBalance?
+
     /// All available rate windows. Prefers `rateWindows` if non-empty, otherwise falls back to primary/secondary.
     public var allRateWindows: [SyncRateWindow] {
         if !self.rateWindows.isEmpty {
@@ -1177,7 +1181,8 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         azureOpenAIInfo: SyncAzureOpenAIInfo? = nil,
         alibabaTokenPlan: SyncAlibabaTokenPlan? = nil,
         deepSeekUsage: SyncDeepSeekUsage? = nil,
-        crossModelUsage: SyncCrossModelUsage? = nil)
+        crossModelUsage: SyncCrossModelUsage? = nil,
+        hyperBalance: SyncHyperBalance? = nil)
     {
         self.providerID = providerID
         self.providerName = providerName
@@ -1218,6 +1223,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.alibabaTokenPlan = alibabaTokenPlan
         self.deepSeekUsage = deepSeekUsage
         self.crossModelUsage = crossModelUsage
+        self.hyperBalance = hyperBalance
     }
 
     /// Backward-compatible decoder: old payloads without
@@ -1281,6 +1287,7 @@ public struct ProviderUsageSnapshot: Codable, Sendable, Equatable {
         self.alibabaTokenPlan = try container.decodeIfPresent(SyncAlibabaTokenPlan.self, forKey: .alibabaTokenPlan)
         self.deepSeekUsage = try container.decodeIfPresent(SyncDeepSeekUsage.self, forKey: .deepSeekUsage)
         self.crossModelUsage = try container.decodeIfPresent(SyncCrossModelUsage.self, forKey: .crossModelUsage)
+        self.hyperBalance = try container.decodeIfPresent(SyncHyperBalance.self, forKey: .hyperBalance)
     }
 }
 

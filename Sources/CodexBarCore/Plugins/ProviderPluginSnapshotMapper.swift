@@ -50,6 +50,7 @@ enum ProviderPluginSnapshotMapper {
         let providerCost = try self.cost(value, now: now)
         let costUsage = try self.costUsage(value)
         let details = try self.details(value)
+        let hyperBalance = try self.hyperBalance(value, provider: provider)
         let identity = try self.identity(value, provider: provider)
         let subscriptionRenewsAt = try self.optionalDate(value, property: "subscriptionRenewsAt")
         let subscriptionExpiresAt = try self.optionalDate(value, property: "subscriptionExpiresAt")
@@ -70,6 +71,7 @@ enum ProviderPluginSnapshotMapper {
             || providerCost != nil
             || costUsage != nil
             || !details.isEmpty
+            || hyperBalance != nil
             || self.hasMeaningfulIdentity(identity)
         else {
             throw ProviderPluginError.invalidSnapshot(
@@ -84,6 +86,7 @@ enum ProviderPluginSnapshotMapper {
             providerCost: providerCost,
             costUsage: costUsage,
             details: details,
+            hyperBalance: hyperBalance,
             subscriptionExpiresAt: subscriptionExpiresAt,
             subscriptionRenewsAt: subscriptionRenewsAt,
             updatedAt: now,
@@ -95,6 +98,18 @@ enum ProviderPluginSnapshotMapper {
         guard let identity else { return false }
         return identity.accountEmail != nil || identity.accountOrganization != nil || identity.loginMethod != nil
             || identity.accountID != nil
+    }
+
+    private static func hyperBalance(
+        _ root: any ProviderPluginValue,
+        provider: ProviderInstanceID) throws -> Double?
+    {
+        guard provider == UsageProvider.hyper.instanceID else { return nil }
+        let balance = try self.requiredFiniteNumber(root, property: "hyperBalance", path: "snapshot")
+        guard balance >= 0 else {
+            throw ProviderPluginError.invalidSnapshot("snapshot.hyperBalance must be non-negative")
+        }
+        return balance
     }
 
     private static func dataConfidence(_ root: any ProviderPluginValue) throws -> UsageDataConfidence {

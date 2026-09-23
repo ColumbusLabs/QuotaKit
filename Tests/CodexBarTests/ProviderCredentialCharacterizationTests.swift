@@ -52,6 +52,7 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .codebuff, environmentKey: "CODEBUFF_API_KEY"),
             .init(provider: .crof, environmentKey: "CROF_API_KEY"),
             .init(provider: .doubao, environmentKey: "ARK_API_KEY"),
+            .init(provider: .hyper, environmentKey: "HYPER_API_KEY"),
         ]
 
         for fixture in fixtures {

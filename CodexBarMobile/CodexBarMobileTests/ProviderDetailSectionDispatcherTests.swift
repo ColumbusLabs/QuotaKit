@@ -133,6 +133,23 @@ struct ProviderDetailSectionDispatcherTests {
         ])
     }
 
+    @Test
+    func `Hypercredits balance suppresses generic quota card and renders its own section`() {
+        let balance = SyncHyperBalance(balance: 42.5, updatedAt: Date(timeIntervalSince1970: 1_700_000_000))
+        let provider = Self.snapshot(
+            providerID: "hyper",
+            providerName: "Charm Hyper",
+            hyperBalance: balance)
+
+        if case .suppressedByDedicatedCard = ProviderDetailSectionDispatcher.primarySection(for: provider) {
+            #expect(true)
+        } else {
+            Issue.record("Expected Hypercredits balance to suppress the generic quota card")
+        }
+        #expect(ProviderDetailSectionDispatcher.sections(for: provider, hasRateWindowPace: false)
+            .map(\.id) == ["hyper"])
+    }
+
     private static func snapshot(
         providerID: String,
         providerName: String,
@@ -141,12 +158,13 @@ struct ProviderDetailSectionDispatcherTests {
         kiroCredits: SyncKiroCredits? = nil,
         antigravityAccounts: SyncMultiAccountList? = nil,
         codexWorkspace: SyncCodexWorkspaceContext? = nil,
-        crossModelUsage: SyncCrossModelUsage? = nil) -> ProviderUsageSnapshot
+        crossModelUsage: SyncCrossModelUsage? = nil,
+        hyperBalance: SyncHyperBalance? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: providerID,
             providerName: providerName,
-            primary: SyncRateWindow(
+            primary: providerID == "hyper" ? nil : SyncRateWindow(
                 label: "Session",
                 usedPercent: 20,
                 windowMinutes: 300,
@@ -163,6 +181,7 @@ struct ProviderDetailSectionDispatcherTests {
             kiroCredits: kiroCredits,
             antigravityAccounts: antigravityAccounts,
             codexWorkspace: codexWorkspace,
-            crossModelUsage: crossModelUsage)
+            crossModelUsage: crossModelUsage,
+            hyperBalance: hyperBalance)
     }
 }
