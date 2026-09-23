@@ -393,6 +393,7 @@ struct ProviderPluginRuntimeTests {
                 }
             },
             timeout: 15)
+        let startedAt = ContinuousClock.now
         let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"]) }
 
         #expect(await probe.waitUntilStarted(maxAttempts: 1000))
@@ -400,6 +401,7 @@ struct ProviderPluginRuntimeTests {
 
         // The request-specific deadline must end the request before the
         // runtime's fifteen-second fallback watchdog and cancel its transport.
+        #expect(ContinuousClock.now - startedAt < .seconds(8))
         #expect(error != .timedOut)
         #expect(await probe.waitUntilCancelled(maxAttempts: 1000))
     }
