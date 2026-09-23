@@ -16,18 +16,23 @@ enum OpenCodexUsagePricing {
     static func providerID(for entry: OpenCodexUsageEntry) -> String {
         let provider = entry.provider.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
         let model = entry.model.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Provider-specific by design: legacy OpenAI-labelled rows may carry the actual provider
+        // in the model prefix, but current rows retain their explicitly recorded provider.
         if provider == "openai",
            let slash = model.firstIndex(of: "/")
         {
             let prefix = String(model[..<slash]).lowercased()
-            if CostUsagePricing.codexModelsDevProviderIDs.contains(prefix) { return prefix }
+            if CostUsagePricing.codexModelsDevProviderIDs.contains(prefix) {
+                return prefix
+            }
         }
         if provider.isEmpty {
             if let slash = model.firstIndex(of: "/") {
                 let prefix = String(model[..<slash]).lowercased()
                 return CostUsagePricing.codexModelsDevProviderIDs.contains(prefix) ? prefix : ""
             }
-            // Preserve the pre-provider OpenAI estimate for legacy entries without a recorded route.
+            // Provider-specific by design: pre-provider records without a route retain the legacy
+            // OpenAI estimate; current records never borrow those rates from another provider.
             return "openai"
         }
         return provider

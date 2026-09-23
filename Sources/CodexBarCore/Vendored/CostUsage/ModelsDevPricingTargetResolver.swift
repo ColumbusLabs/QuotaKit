@@ -15,6 +15,8 @@ enum ModelsDevPricingTargetResolver {
         guard self.isValidModelID(resolvedModelID) else { return [] }
 
         var providerIDs = [providerID]
+        // Provider-specific by design: models.dev aliases and router prefixes must preserve their recorded
+        // provider namespace before exact-price lookup, rather than falling back to OpenAI rates.
         switch providerID {
         case "kimi-coding":
             providerIDs.append("kimi-for-coding")
