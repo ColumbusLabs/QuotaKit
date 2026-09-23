@@ -886,6 +886,11 @@
 "30d cash" = "過去30日間の支出";
 "30d billing history from MiniMax web session" = "MiniMax Web セッションからの30日間の請求履歴";
 "AWS Cost Explorer billing can lag." = "AWS Cost Explorer の請求情報は反映が遅れることがあります。";
+"Monitoring adds AWS charges" = "モニタリングにより AWS の料金が発生します";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "AWS Cost Explorer のプライマリ請求ビューに対するリクエストごとに $0.01 が請求されます。1 回の更新で複数のリクエストが発生する場合があり、CloudWatch の利用にも料金が発生することがあります。表示される月額予算は AWS の請求額に上限を設けません。";
+"AWS Cost Explorer pricing" = "AWS Cost Explorer の料金";
+"Reduce monitoring requests" = "モニタリングのリクエストを減らす";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "一般 → 更新で、間隔を長くするか「手動」を選び、「メニューを開いたときに更新」をオフにしてください。この設定はすべてのプロバイダに適用されます。手動でも起動時と明示的な操作による更新は行われます。AWS Bedrock を無効にすると、アプリによる更新が停止します。";
 "Rate limit: %d / %@" = "レート制限: %d / %@";
 "Key remaining" = "キーの残量";
 "No limit set for the API key" = "API キーに上限が設定されていません";

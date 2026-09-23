@@ -861,6 +861,11 @@
 "30d cash" = "30일 현금";
 "30d billing history from MiniMax web session" = "MiniMax 웹 세션의 30일 청구 내역";
 "AWS Cost Explorer billing can lag." = "AWS Cost Explorer 청구는 지연될 수 있습니다.";
+"Monitoring adds AWS charges" = "모니터링에는 AWS 요금이 발생합니다";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "AWS 기본 결제 보기의 Cost Explorer 요청마다 $0.01가 청구됩니다. 한 번 새로 고칠 때 여러 요청이 발생할 수 있으며 CloudWatch 활동에도 요금이 부과될 수 있습니다. 표시된 월간 예산은 AWS 청구액을 제한하지 않습니다.";
+"AWS Cost Explorer pricing" = "AWS Cost Explorer 요금";
+"Reduce monitoring requests" = "모니터링 요청 줄이기";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "일반 → 새로 고침에서 더 긴 간격이나 수동을 선택하고 ‘메뉴를 열 때 새로 고침’을 끄세요. 이 설정은 모든 제공업체에 적용됩니다. 수동 모드에서도 시작 시 또는 명시적으로 요청한 새로 고침은 허용됩니다. AWS Bedrock을 비활성화하면 앱의 해당 새로 고침이 중지됩니다.";
 "Rate limit: %d / %@" = "속도 제한: %d / %@";
 "Key remaining" = "키 잔여량";
 "No limit set for the API key" = "API 키에 설정된 한도가 없습니다";

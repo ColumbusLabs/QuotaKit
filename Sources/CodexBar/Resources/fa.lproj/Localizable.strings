@@ -895,6 +895,11 @@
 "30d cash" = "30d پول نقد";
 "30d billing history from MiniMax web session" = "تاریخچه صورتحساب 30d از جلسه وب MiniMax";
 "AWS Cost Explorer billing can lag." = "AWS صورتحساب اکسپلورر هزینه ممکن است کند شود.";
+"Monitoring adds AWS charges" = "پایش باعث هزینه‌های AWS می‌شود";
+"AWS charges $0.01 per Cost Explorer request against the primary billing view. A refresh can make multiple requests, and CloudWatch activity can add charges. The displayed monthly budget does not cap AWS billing." = "AWS برای هر درخواست Cost Explorer از نمای اصلی صورتحساب $0.01 دریافت می‌کند. هر بار تازه‌سازی ممکن است چند درخواست ارسال کند و فعالیت CloudWatch نیز می‌تواند هزینه داشته باشد. بودجه ماهانه نمایش‌داده‌شده سقف صورتحساب AWS نیست.";
+"AWS Cost Explorer pricing" = "قیمت‌گذاری AWS Cost Explorer";
+"Reduce monitoring requests" = "کاهش درخواست‌های پایش";
+"In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. These controls apply to all providers. Manual still allows startup and explicit refreshes. Disable AWS Bedrock to stop its app refreshes." = "در تنظیمات عمومی → بازآوری، بازه طولانی‌تری انتخاب کنید یا حالت دستی را برگزینید و گزینه «تازه‌سازی هنگام باز شدن منو» را خاموش کنید. این تنظیمات برای همه ارائه‌دهندگان اعمال می‌شوند. حالت دستی همچنان تازه‌سازی هنگام شروع و با درخواست صریح را مجاز می‌کند. AWS Bedrock را غیرفعال کنید تا تازه‌سازی‌های برنامه برای آن متوقف شوند.";
 "Rate limit: %d / %@" = "محدودیت نرخ: %d / %@";
 "Key remaining" = "کلید باقی مانده";
 "No limit set for the API key" = "هیچ محدودیتی برای کلید API تعیین نشده است";

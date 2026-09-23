@@ -31,6 +31,13 @@ struct CodexOAuthManagedWorkspaceRecoveryTests {
         let isAvailable = await CodexOAuthNativeRefreshCLIStrategy(binaryResolver: { _ in "/usr/bin/codex" })
             .isAvailable(context)
         #expect(!isAvailable)
+
+        let recoveryMessage = CodexOAuthCredentialsError.nativeRefreshRequired.localizedDescription
+        #expect(!recoveryMessage.contains("will retry"))
+        #expect(recoveryMessage.contains("Reauthenticate this account"))
+        #expect(recoveryMessage.contains("codex login"))
+        #expect(recoveryMessage.contains("same Codex home"))
+        #expect(recoveryMessage.contains("CODEX_HOME"))
     }
 
     private func makeContext(

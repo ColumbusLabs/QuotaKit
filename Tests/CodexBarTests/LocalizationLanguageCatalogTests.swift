@@ -313,6 +313,57 @@ struct LocalizationLanguageCatalogTests {
     }
 
     @Test
+    func `bedrock monitoring guidance resolves from every Mac locale resource`() throws {
+        let root = URL(fileURLWithPath: #filePath)
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+            .deletingLastPathComponent()
+        let resourcesURL = root.appendingPathComponent("Sources/CodexBar/Resources")
+        let costDisclosure = "AWS charges $0.01 per Cost Explorer request against the primary billing view. "
+            + "A refresh can make multiple requests, and CloudWatch activity can add charges. "
+            + "The displayed monthly budget does not cap AWS billing."
+        let keys = [
+            "Monitoring adds AWS charges",
+            costDisclosure,
+            "AWS Cost Explorer pricing",
+            "Reduce monitoring requests",
+            "In General → Refreshing, choose a longer interval or Manual and turn off Refresh when the menu opens. "
+                + "These controls apply to all providers. Manual still allows startup and explicit refreshes. "
+                + "Disable AWS Bedrock to stop its app refreshes.",
+        ]
+        let locales = AppLanguage.allCases
+            .filter { $0 != .system }
+            .map(\.rawValue)
+        let catalogs = try FileManager.default.contentsOfDirectory(
+            at: resourcesURL,
+            includingPropertiesForKeys: nil)
+            .filter { $0.pathExtension == "lproj" }
+
+        #expect(catalogs.count == 23)
+        #expect(locales.count == catalogs.count)
+
+        for locale in locales {
+            let stringsURL = resourcesURL.appendingPathComponent("\(locale).lproj/Localizable.strings")
+            let catalog = try #require(NSDictionary(contentsOf: stringsURL) as? [String: String])
+            for key in keys {
+                let resourceValue = try #require(catalog[key], "Missing \(locale) localization for: \(key)")
+                let resolvedValue = L(key, language: locale)
+
+                #expect(resolvedValue == resourceValue, "Lookup mismatch for \(locale): \(key)")
+                #expect(!resolvedValue.isEmpty, "Empty localization for \(locale): \(key)")
+                if locale == AppLanguage.english.rawValue {
+                    #expect(resolvedValue == key)
+                } else {
+                    #expect(resolvedValue != key, "English fallback for \(locale): \(key)")
+                }
+                if key == costDisclosure {
+                    #expect(resolvedValue.contains("$0.01"), "Missing AWS request price for \(locale)")
+                }
+            }
+        }
+    }
+
+    @Test
     func `partial spend copy exists in every app catalog`() throws {
         let root = URL(fileURLWithPath: #filePath)
             .deletingLastPathComponent()
