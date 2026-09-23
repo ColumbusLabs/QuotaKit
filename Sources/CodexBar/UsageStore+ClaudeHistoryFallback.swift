@@ -43,7 +43,7 @@ extension UsageStore {
 
     nonisolated static func shouldPreservePriorSnapshot(after error: Error, hadPriorData: Bool) -> Bool {
         guard hadPriorData else { return false }
-        if error is CancellationError {
+        if self.errorIsCancellation(error) {
             return true
         }
         if self.isPreservableNetworkTransportError(error) {

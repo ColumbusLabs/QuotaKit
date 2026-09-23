@@ -68,6 +68,9 @@ Admin API key setup:
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
 - On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
+- Missing-scope recovery requires a Claude Code sign-in token with `user:profile` usage access. `claude setup-token`
+  creates a model-request token, not a usage-scope token. Before switching Claude Source to Web/CLI, remove any
+  configured OAuth token override.
 - Endpoints:
   - `GET https://api.anthropic.com/api/oauth/usage`
   - `GET https://api.anthropic.com/api/oauth/profile` → account identity used to verify that optional Web enrichment

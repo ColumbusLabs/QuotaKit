@@ -930,7 +930,11 @@ extension CursorStatusProbeTests {
     @Test
     func `fetch uses Cursor app local auth when browser cookies are unavailable`() async throws {
         let accessToken = try makeCursorAppAuthToken()
-        let persistence = CursorAppSessionRecorder()
+        let sessionRoot = FileManager.default.temporaryDirectory
+            .appendingPathComponent("cursor-app-session-persistence-\(UUID().uuidString)", isDirectory: true)
+        try FileManager.default.createDirectory(at: sessionRoot, withIntermediateDirectories: true)
+        defer { try? FileManager.default.removeItem(at: sessionRoot) }
+        let sessionStore = CursorSessionStore(fileURL: sessionRoot.appendingPathComponent("cursor-session.json"))
         let expectedCookie = "WorkosCursorSessionToken=user_test%3A%3A\(accessToken)"
         let testSession = CursorStatusProbeTestSession { request in
             let requestURL = try #require(request.url)
@@ -990,7 +994,8 @@ extension CursorStatusProbeTests {
             urlSession: testSession.urlSession,
             appAuthStore: CursorAppAuthSessionProviderStub(session: CursorAppAuthSession(
                 accessToken: accessToken)),
-            persistAppAuthSession: { session in persistence.record(session) })
+            sessionStore: sessionStore,
+            persistsAppAuthSession: true)
             .fetch(allowCachedSessions: false)
 
         #expect(abs(snapshot.planPercentUsed - 19.4) < 0.0001)
@@ -1008,7 +1013,9 @@ extension CursorStatusProbeTests {
             "/api/usage",
             "/api/usage-summary",
         ])
-        #expect(persistence.snapshot() == [CursorAppAuthSession(accessToken: accessToken)])
+        let cookies = await sessionStore.getCookies()
+        let storedHeader = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
+        #expect(CursorAppAuthSession.from(cookieHeader: storedHeader)?.accessToken == accessToken)
     }
 
     @Test
@@ -1550,23 +1557,6 @@ private final class CursorStringRecorder: @unchecked Sendable {
     }
 
     func snapshot() -> [String] {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        return self.values
-    }
-}
-
-final class CursorAppSessionRecorder: @unchecked Sendable {
-    private let lock = NSLock()
-    private var values: [CursorAppAuthSession] = []
-
-    func record(_ value: CursorAppAuthSession) {
-        self.lock.lock()
-        defer { self.lock.unlock() }
-        self.values.append(value)
-    }
-
-    func snapshot() -> [CursorAppAuthSession] {
         self.lock.lock()
         defer { self.lock.unlock() }
         return self.values

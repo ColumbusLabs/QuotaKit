@@ -815,6 +815,50 @@ extension UsageStoreCoverageTests {
     }
 
     @Test
+    func `wrapped Vertex DNS outage keeps the existing quota snapshot`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-wrapped-vertex-transport")
+        settings.refreshFrequency = .manual
+        settings.statusChecksEnabled = false
+        try settings.setProviderEnabled(
+            provider: .vertexai,
+            metadata: #require(ProviderRegistry.shared.metadata[.vertexai]),
+            enabled: true)
+        settings.updateProviderConfig(provider: .vertexai) { $0.source = .oauth }
+        let store = Self.makeUsageStore(settings: settings)
+        let capturedAt = Date(timeIntervalSince1970: 1_789_473_600)
+        let prior = UsageSnapshot(
+            primary: RateWindow(usedPercent: 17, windowMinutes: 1440, resetsAt: nil, resetDescription: nil),
+            secondary: nil,
+            updatedAt: capturedAt,
+            identity: ProviderIdentitySnapshot(
+                providerID: .vertexai,
+                accountEmail: "fixture@example.test",
+                accountOrganization: "Fixture Project",
+                loginMethod: "Google Cloud"))
+        store._setSnapshotForTesting(prior, provider: .vertexai)
+        let transport = NSError(domain: NSURLErrorDomain, code: NSURLErrorCannotFindHost, userInfo: [
+            NSLocalizedDescriptionKey: "A server with the specified hostname could not be found.",
+        ])
+        let failure = VertexAIFetchError.networkError(transport)
+        store._test_providerFetchOutcomeOverride = { _ in
+            ProviderFetchOutcome(result: .failure(failure), attempts: [])
+        }
+        defer {
+            store._test_providerFetchOutcomeOverride = nil
+            store.stopSharedSpendDashboardPublication()
+            settings.configFileWatcher?.stop()
+        }
+
+        await store.refreshProvider(.vertexai, allowDisabled: true)
+        await store.refreshProvider(.vertexai, allowDisabled: true)
+
+        #expect(store.snapshot(for: .vertexai)?.primary == prior.primary)
+        #expect(store.snapshot(for: .vertexai)?.identity?.accountEmail == "fixture@example.test")
+        #expect(store.snapshot(for: .vertexai)?.updatedAt == capturedAt)
+        #expect(store.errors[.vertexai] == failure.localizedDescription)
+    }
+
+    @Test
     func `background work settings observation ignores menu provider selection churn`() async throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-switcher-selection-observation")
         settings.refreshFrequency = .manual

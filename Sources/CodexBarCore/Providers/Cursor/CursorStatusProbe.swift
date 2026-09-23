@@ -896,29 +896,6 @@ public actor CursorSessionStore {
     }
 }
 
-// MARK: - Cursor Cost Report
-
-/// A windowed Cursor cost report: the API-rate per-day breakdown plus the Cursor-metered
-/// total (what the plan actually deducts) over the same window.
-///
-/// `daily` carries vendor list-price costs (`tokenUsage.totalCents`); `meteredCostUSD` sums
-/// each event's `chargedCents` and is `nil` when the events reported no metered amount.
-public struct CursorCostReport: Sendable {
-    public let daily: CostUsageDailyReport
-    public let meteredCostUSD: Double?
-    public let credentialScopeFingerprint: String
-
-    public init(
-        daily: CostUsageDailyReport,
-        meteredCostUSD: Double?,
-        credentialScopeFingerprint: String)
-    {
-        self.daily = daily
-        self.meteredCostUSD = meteredCostUSD
-        self.credentialScopeFingerprint = credentialScopeFingerprint
-    }
-}
-
 // MARK: - Cursor Status Probe
 
 public struct CursorStatusProbe: Sendable {
@@ -927,9 +904,10 @@ public struct CursorStatusProbe: Sendable {
     let browserDetection: BrowserDetection
     let browserCookieImportOrder: BrowserCookieImportOrder
     let urlSession: any ProviderHTTPTransport
+    let sessionStore: CursorSessionStore
     #if os(macOS)
     let appAuthStore: any CursorAppAuthSessionProviding
-    let persistAppAuthSession: @Sendable (CursorAppAuthSession) async -> Void
+    let persistsAppAuthSession: Bool
     #endif
     let conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator
 
@@ -937,7 +915,8 @@ public struct CursorStatusProbe: Sendable {
         baseURL: URL = URL(string: "https://cursor.com")!,
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
-        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared)
+        urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        sessionStore: CursorSessionStore = .shared)
     {
         #if os(macOS)
         self.init(
@@ -947,9 +926,8 @@ public struct CursorStatusProbe: Sendable {
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
             urlSession: urlSession,
             appAuthStore: CursorAppAuthStore(),
-            persistAppAuthSession: { session in
-                await CursorSessionStore.shared.persistAppSession(session)
-            },
+            sessionStore: sessionStore,
+            persistsAppAuthSession: true,
             conditionalMutationCoordinator: .shared)
         #else
         self.init(
@@ -958,6 +936,7 @@ public struct CursorStatusProbe: Sendable {
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
             urlSession: urlSession,
+            sessionStore: sessionStore,
             conditionalMutationCoordinator: .shared)
         #endif
     }
@@ -967,6 +946,7 @@ public struct CursorStatusProbe: Sendable {
         timeout: TimeInterval = 15.0,
         browserDetection: BrowserDetection,
         urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator)
     {
         #if os(macOS)
@@ -977,9 +957,8 @@ public struct CursorStatusProbe: Sendable {
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
             urlSession: urlSession,
             appAuthStore: CursorAppAuthStore(),
-            persistAppAuthSession: { session in
-                await CursorSessionStore.shared.persistAppSession(session)
-            },
+            sessionStore: sessionStore,
+            persistsAppAuthSession: true,
             conditionalMutationCoordinator: conditionalMutationCoordinator)
         #else
         self.init(
@@ -988,6 +967,7 @@ public struct CursorStatusProbe: Sendable {
             browserDetection: browserDetection,
             browserCookieImportOrder: Self.defaultBrowserCookieImportOrder,
             urlSession: urlSession,
+            sessionStore: sessionStore,
             conditionalMutationCoordinator: conditionalMutationCoordinator)
         #endif
     }
@@ -1000,7 +980,8 @@ public struct CursorStatusProbe: Sendable {
         browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
         urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
         appAuthStore: any CursorAppAuthSessionProviding,
-        persistAppAuthSession: @escaping @Sendable (CursorAppAuthSession) async -> Void = { _ in },
+        sessionStore: CursorSessionStore = .shared,
+        persistsAppAuthSession: Bool = false,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
     {
         self.baseURL = baseURL
@@ -1008,8 +989,9 @@ public struct CursorStatusProbe: Sendable {
         self.browserDetection = browserDetection
         self.browserCookieImportOrder = browserCookieImportOrder
         self.urlSession = urlSession
+        self.sessionStore = sessionStore
         self.appAuthStore = appAuthStore
-        self.persistAppAuthSession = persistAppAuthSession
+        self.persistsAppAuthSession = persistsAppAuthSession
         self.conditionalMutationCoordinator = conditionalMutationCoordinator
     }
 
@@ -1026,6 +1008,7 @@ public struct CursorStatusProbe: Sendable {
         browserDetection: BrowserDetection,
         browserCookieImportOrder: BrowserCookieImportOrder = Self.defaultBrowserCookieImportOrder,
         urlSession: any ProviderHTTPTransport = ProviderHTTPClient.shared,
+        sessionStore: CursorSessionStore = .shared,
         conditionalMutationCoordinator: CookieHeaderCache.ConditionalMutationCoordinator = .shared)
     {
         self.baseURL = baseURL
@@ -1033,6 +1016,7 @@ public struct CursorStatusProbe: Sendable {
         self.browserDetection = browserDetection
         self.browserCookieImportOrder = browserCookieImportOrder
         self.urlSession = urlSession
+        self.sessionStore = sessionStore
         self.conditionalMutationCoordinator = conditionalMutationCoordinator
     }
     #endif

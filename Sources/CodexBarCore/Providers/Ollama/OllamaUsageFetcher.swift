@@ -992,7 +992,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {
@@ -1026,7 +1028,9 @@ public enum OllamaAPIUsageFetcher {
             if error is CancellationError || (error as? URLError)?.code == .cancelled || Task.isCancelled {
                 throw CancellationError()
             }
-            throw OllamaUsageError.networkError(error.localizedDescription)
+            throw ProviderTransportError.preservingIdentity(
+                of: error,
+                describedBy: OllamaUsageError.networkError(error.localizedDescription))
         }
 
         switch response.statusCode {
