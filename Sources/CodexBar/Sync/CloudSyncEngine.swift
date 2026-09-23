@@ -942,7 +942,9 @@ actor CloudSyncEngine: CKSyncEngineDelegate {
                 secretFields: self.settings.macFleetSyncIncludeSecrets ? secrets : [:],
                 canEnable: self.settings.canEnableProviderFromSync)
             config.setProviderConfig(merged)
-            self.settings.applyExternalConfig(config, reason: "icloud", affectsBackgroundWork: true)
+            // Let SettingsStore compare fetch identity so presentation-only intent updates do not
+            // restart provider refresh work.
+            self.settings.applyExternalConfig(config, reason: "icloud")
             // applyExternalConfig deliberately skips persistence (its other caller reloads FROM
             // the config file). Sync applies originate remotely, so the merge must reach disk —
             // the CLI and the next app launch read config.json, not our in-memory state.
