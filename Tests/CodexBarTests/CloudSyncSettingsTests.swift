@@ -357,6 +357,47 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `inbound provider intents refresh only when fetch identity changes`() async throws {
+        let fixture = try self.makeFixture("inbound-visibility-impact")
+        let persistence = self.makePersistence("inbound-visibility-impact")
+        let initial = fixture.store.configSnapshot
+        let engine = CloudSyncEngine(
+            settings: fixture.store,
+            state: CloudSyncState(),
+            persistence: persistence,
+            initialConfiguration: initial,
+            initialPreferences: fixture.store.syncedPreferences,
+            initialIncludeSecrets: fixture.store.macFleetSyncIncludeSecrets)
+        let initialBackgroundRevision = fixture.store.backgroundWorkSettingsRevision
+        let initialProviderRevision = fixture.store.providerConfigRevision(for: .codex)
+        let recordID = CKRecord.ID(
+            recordName: ProviderIntentPayload.recordName(for: .codex),
+            zoneID: CloudSyncEngine.zoneID)
+        var visibilityConfig = try #require(initial.providerConfig(for: .codex))
+        visibilityConfig.hiddenUsageItemIDs = ["metric:codex-spark"]
+        let visibilityRecord = CKRecord(recordType: SyncRecordType.providerIntent.rawValue, recordID: recordID)
+        visibilityRecord["payload"] = try CanonicalSyncJSON.string(
+            ProviderIntentPayload(config: visibilityConfig)) as CKRecordValue
+
+        await engine.applyFetchedRecords([visibilityRecord])
+
+        #expect(fixture.store.configSnapshot.providerConfig(for: .codex)?.hiddenUsageItemIDs == ["metric:codex-spark"])
+        #expect(fixture.store.providerConfigRevision(for: .codex) == initialProviderRevision)
+        #expect(fixture.store.backgroundWorkSettingsRevision == initialBackgroundRevision)
+
+        var fetchConfig = try #require(fixture.store.configSnapshot.providerConfig(for: .codex))
+        fetchConfig.enabled = false
+        let fetchRecord = CKRecord(recordType: SyncRecordType.providerIntent.rawValue, recordID: recordID)
+        fetchRecord["payload"] = try CanonicalSyncJSON.string(
+            ProviderIntentPayload(config: fetchConfig)) as CKRecordValue
+
+        await engine.applyFetchedRecords([fetchRecord])
+
+        #expect(fixture.store.configSnapshot.providerConfig(for: .codex)?.enabled == false)
+        #expect(fixture.store.backgroundWorkSettingsRevision == initialBackgroundRevision + 1)
+    }
+
+    @Test
     func `missing desired record drains its pending save`() {
         let recordID = CKRecord.ID(recordName: "stale", zoneID: CloudSyncEngine.zoneID)
         let change = CKSyncEngine.PendingRecordZoneChange.saveRecord(recordID)
