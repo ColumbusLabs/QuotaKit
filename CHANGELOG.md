@@ -25,6 +25,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.
 - Usage & Spend: keep daily coverage, charts, and historical pace aligned to calendar days across daylight-saving transitions and different bucket time zones.
 - OAuth providers: preserve reserved characters in refresh credentials and reject malformed Vertex AI refresh responses.
+- Claude: give accurate recovery steps for OAuth tokens missing the usage scope.
 - Alibaba and Qwen Cloud: preserve reserved characters in console security tokens and gateway request parameters.
 - Kimi: select China or International hosts for Code API usage, web membership, cookies, and dashboard links while keeping existing China settings as the default.
 - LongCat: keep expiring fuel balances visible beside reset dates and reject malformed or overflowing quota values.

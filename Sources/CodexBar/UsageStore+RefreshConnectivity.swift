@@ -1,8 +1,25 @@
+import CodexBarCore
 import Foundation
 
 extension UsageStore {
+    nonisolated static func underlyingProviderTransportError(_ error: Error) -> Error {
+        if case let .networkError(underlyingError) = error as? CodexOAuthFetchError {
+            return underlyingError
+        }
+        if case let .networkError(underlyingError) = error as? CodexTokenRefresher.RefreshError {
+            return underlyingError
+        }
+        if case let .networkError(underlyingError) = error as? VertexAIFetchError {
+            return underlyingError
+        }
+        if case let .networkError(underlyingError) = error as? VertexAITokenRefresher.RefreshError {
+            return underlyingError
+        }
+        return error
+    }
+
     nonisolated static func isPreservableNetworkTransportError(_ error: Error) -> Bool {
-        let nsError = error as NSError
+        let nsError = self.underlyingProviderTransportError(error) as NSError
         guard nsError.domain == NSURLErrorDomain else { return false }
         switch nsError.code {
         case NSURLErrorTimedOut,
@@ -25,11 +42,12 @@ extension UsageStore {
     }
 
     static func isStartupConnectivityRetryableError(_ error: Error) -> Bool {
-        if error is CancellationError {
+        let transportError = self.underlyingProviderTransportError(error)
+        if transportError is CancellationError {
             return false
         }
 
-        let nsError = error as NSError
+        let nsError = transportError as NSError
         if nsError.domain == NSURLErrorDomain {
             switch nsError.code {
             case NSURLErrorTimedOut,
@@ -44,7 +62,7 @@ extension UsageStore {
             }
         }
 
-        let message = error.localizedDescription.lowercased()
+        let message = transportError.localizedDescription.lowercased()
         return message.contains("timed out") ||
             message.contains("timeout") ||
             message.contains("network connection was lost") ||
