@@ -312,7 +312,7 @@ struct QuotaProviderListTests {
 
     @Test
     func `GitKraken notification IDs append after IBM Bob and preserve the prior zone name`() {
-        #expect(QuotaProviderList.providers.suffix(3).map(\.id) == ["ibmbob", "gitkraken", "v0"])
+        #expect(QuotaProviderList.providers.suffix(4).map(\.id) == ["ibmbob", "gitkraken", "v0", "huggingface"])
         #expect(QuotaProviderList.quotaZoneName(
             providerID: "ibmbob", state: "warning") == "Quota-ibmbob-warningZone")
         for state in ["depleted", "restored", "warning"] {
