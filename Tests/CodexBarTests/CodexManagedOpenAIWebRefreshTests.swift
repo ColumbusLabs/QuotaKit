@@ -250,6 +250,7 @@ struct CodexManagedOpenAIWebRefreshTests {
 
         let firstSnapshots = await saver.savedSnapshots()
         let safetyInvalidation = try #require(firstSnapshots.first)
+        #expect(firstSnapshots.count == 1)
         await saver.resumeFirstSave()
         #expect(safetyInvalidation.entries.isEmpty)
 
