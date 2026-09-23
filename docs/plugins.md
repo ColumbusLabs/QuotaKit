@@ -126,7 +126,9 @@ leave an abandoned evaluation thread behind.
 
 ## Snapshot result
 
-Return at least one rate window, cost object, or detail section:
+Return at least one rate window, cost object, detail section, or meaningful identity field. When a successful fetch
+has no usage to report, return `{ empty: true }` to clear stale plugin data. The `empty` marker must be a boolean;
+`empty: false` does not make an otherwise empty result valid.
 
 ```js
 return {

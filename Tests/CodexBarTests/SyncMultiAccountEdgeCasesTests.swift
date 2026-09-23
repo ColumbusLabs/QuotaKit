@@ -325,16 +325,18 @@ struct SyncMultiAccountEdgeCasesTests {
         var providersWithExpansion = 0
         for provider in actuallyEnabled {
             let count = allProviders.filter { $0.providerID == provider.rawValue }.count
-            if count == 2 { providersWithExpansion += 1 }
+            if count == 2 {
+                providersWithExpansion += 1
+            }
         }
         #expect(providersWithExpansion >= 8, "at least 8 of the 11 token providers should expand to 2 records each")
         #expect(allProviders.count >= 16, "at least 16 records (8 providers × 2) should emit")
     }
 
-    // MARK: - E6: 27 providers all enabled (single-account stress)
+    // MARK: - E6: all sync-eligible providers enabled (single-account stress)
 
     @Test
-    func `R5 E6: All 27 providers enabled, single-account each → 27 records, no missing`() async throws {
+    func `R5 E6: all sync-eligible providers emit one record each`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E6-All27")
         settings.iCloudSyncEnabled = true
         let allProviders = UsageProvider.allCases
@@ -361,15 +363,20 @@ struct SyncMultiAccountEdgeCasesTests {
         await coordinator.pushCurrentSnapshot()
 
         let pushedCount = mock.lastSnapshot?.providers.count ?? 0
+        // CodeRabbit reports detail rows but no quota or spend field that the iPhone snapshot can
+        // represent. It is deliberately omitted from that wire format until a compatible field exists.
+        let syncEligible = enabled.filter { $0 != .coderabbit }
+        #expect(enabled.contains(.coderabbit))
         // `enabled` is the set of providers actually enabled in settings
-        // (which may be < 27 if `ProviderDefaults.metadata` is missing
+        // (which may be smaller than all cases if `ProviderDefaults.metadata` is missing
         // some providers; we skipped those during setup).
         #expect(
-            pushedCount == enabled.count,
-            "should push exactly one record per enabled provider (\(enabled.count))")
-        #expect(enabled.count >= 20, "we expect to enable at least 20 of the 27 providers")
+            pushedCount == syncEligible.count,
+            "should push exactly one record per sync-eligible provider (\(syncEligible.count))")
+        #expect(syncEligible.count >= 20, "we expect to enable at least 20 sync-eligible providers")
         // Verify no duplicates.
         let providerIDs = mock.lastSnapshot?.providers.map(\.providerID) ?? []
+        #expect(!providerIDs.contains(UsageProvider.coderabbit.rawValue))
         #expect(
             Set(providerIDs).count == providerIDs.count,
             "no duplicate providerIDs in single-account scenario")

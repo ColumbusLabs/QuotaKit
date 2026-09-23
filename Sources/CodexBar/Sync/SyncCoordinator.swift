@@ -334,7 +334,7 @@ final class SyncCoordinator {
         let appVersion = Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String
         let mobileVersion = Bundle.main.object(forInfoDictionaryKey: "CodexMobileVersion") as? String
         let synced = SyncedUsageSnapshot(
-            providers: providerSnapshots,
+            providers: Self.providersForIPhoneSync(providerSnapshots),
             syncTimestamp: Date(),
             deviceName: deviceName,
             deviceID: self.deviceID,
@@ -349,7 +349,7 @@ final class SyncCoordinator {
         // succeeds the user's iPhone can still get fresh data, but the UI keeps
         // the failed path visible as an actionable warning.
         let (envelopes, hashUpdates) = self.buildPerProviderDelta(
-            from: providerSnapshots, synced: synced)
+            from: synced.providers, synced: synced)
         var perProviderResult: SyncPushResult?
         if !envelopes.isEmpty {
             let result =
@@ -389,7 +389,7 @@ final class SyncCoordinator {
         // sees from previous Mac sessions, since we don't yet know what
         // composites are truly current.
         let currentRecordNames = self.computeCurrentRecordNames(
-            from: providerSnapshots)
+            from: synced.providers)
         if self.pushHistorySeeded {
             let staleRecordNames = self.computeStaleRecordNames(
                 currentRecordNames: currentRecordNames)
@@ -1849,7 +1849,7 @@ final class SyncCoordinator {
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
-             .fireworks, .ibmbob, .gitkraken:
+             .fireworks, .ibmbob, .gitkraken, .coderabbit:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".
@@ -1944,6 +1944,13 @@ final class SyncCoordinator {
         let newID = UUID().uuidString
         defaults.set(newID, forKey: CloudSyncConstants.deviceIDKey)
         return newID
+    }
+
+    private static func providersForIPhoneSync(
+        _ providers: [ProviderUsageSnapshot]) -> [ProviderUsageSnapshot]
+    {
+        // Provider-specific by design: CodeRabbit detail rows have no iPhone wire field yet.
+        providers.filter { $0.providerID != UsageProvider.coderabbit.rawValue }
     }
 }
 

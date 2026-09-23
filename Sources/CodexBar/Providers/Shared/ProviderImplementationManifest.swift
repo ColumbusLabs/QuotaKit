@@ -77,5 +77,6 @@ enum ProviderImplementationManifest {
         { IBMBobProviderImplementation() },
         { GitKrakenProviderImplementation() },
         { V0ProviderImplementation() },
+        { CodeRabbitProviderImplementation() },
     ]
 }

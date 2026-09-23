@@ -142,6 +142,8 @@ public enum QuotaProviderList {
         Provider(id: "gitkraken", displayName: "GitKraken AI"),
         // v0 Platform API billing. Appended so existing subscription IDs stay stable.
         Provider(id: "v0", displayName: "v0"),
+        // CodeRabbit reports review/billing details without a quota window, so it cannot emit the
+        // transitions represented by this append-only CloudKit subscription catalog.
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

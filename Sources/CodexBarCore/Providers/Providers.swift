@@ -90,6 +90,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case ibmbob
     case gitkraken
     case v0
+    case coderabbit
 }
 
 // swiftformat:enable sortDeclarations

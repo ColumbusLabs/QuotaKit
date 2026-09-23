@@ -55,6 +55,7 @@ struct ProviderColorPaletteTests {
             ("deepseek", 0.32, 0.49, 0.94),
             ("deepinfra", 42 / 255, 50 / 255, 117 / 255),
             ("codebuff", 68 / 255, 255 / 255, 0),
+            ("coderabbit", 200 / 255, 60 / 255, 40 / 255),
             ("crof", 0.18, 0.67, 0.58),
             ("venice", 0.2, 0.6, 1),
             ("commandcode", 71 / 255, 85 / 255, 105 / 255),

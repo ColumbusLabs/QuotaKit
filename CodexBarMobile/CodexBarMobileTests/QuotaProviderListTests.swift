@@ -182,6 +182,14 @@ struct QuotaProviderListTests {
         #expect(QuotaProviderList.providers.suffix(2).map(\.id) == ["gitkraken", "v0"])
     }
 
+    @Test
+    func `CodeRabbit has no quota transition subscription`() {
+        // ProviderUsageSnapshot does not carry generic detail rows, and CodeRabbit has no rate
+        // window; iPhone therefore has no CodeRabbit usage data or quota transitions to subscribe
+        // to. Adding idle CloudKit zones would change this catalog without an event source.
+        #expect(!QuotaProviderList.providers.contains { $0.id == "coderabbit" })
+    }
+
     // MARK: - iOS 1.6.0 · v0.24+v0.25 catch-up presence
 
     /// Cause-oriented: each provider must be present with its
