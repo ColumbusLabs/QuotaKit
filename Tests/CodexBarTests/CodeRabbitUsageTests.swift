@@ -185,6 +185,6 @@ struct CodeRabbitUsageTests {
         #expect(descriptor.metadata.widgetSelectable == false)
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .cli])
         #expect(descriptor.tokenCost.supportsTokenCost == false)
-        #expect(descriptor.branding.color.hexString == "#FF5C35")
+        #expect(descriptor.branding.color.hexString == "#C83C28")
     }
 }
