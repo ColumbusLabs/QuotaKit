@@ -4,6 +4,73 @@ import Testing
 
 struct OneConsoleJSONTests {
     @Test
+    func `object lookup checks the current dictionary before descendants`() {
+        let value: [String: Any] = ["quota": 1, "data": ["quota": 2]]
+        let result = OneConsoleJSON.findObject(containingAnyOf: ["quota"], in: value)
+
+        #expect(result?["quota"] as? Int == 1)
+    }
+
+    @Test
+    func `object lookup traverses nested arrays with exact key matching`() {
+        let value: [Any] = ["ignored", ["QUOTA": 1], [["quota": 2]]]
+        let result = OneConsoleJSON.findObject(containingAnyOf: ["quota"], in: value)
+
+        #expect(result?["quota"] as? Int == 2)
+        #expect(OneConsoleJSON.findObject(containingAnyOf: [], in: value) == nil)
+    }
+
+    @Test
+    func `raw lookup matches keys case insensitively and retains null values`() {
+        let value: [String: Any] = ["COUNT": NSNull(), "data": ["count": 42]]
+
+        #expect(OneConsoleJSON.findFirstValue(forKeys: ["count"], in: value) is NSNull)
+        #expect(OneConsoleJSON.findFirstInt(forKeys: ["count"], in: value) == 42)
+    }
+
+    @Test
+    func `converted lookup traverses arrays and skips invalid scalar values`() {
+        let value: [Any] = ["ignored", ["COUNT": "invalid"], [["Count": "42"]]]
+
+        #expect(OneConsoleJSON.findFirstInt(forKeys: ["count"], in: value) == 42)
+        #expect(OneConsoleJSON.findFirstValue(forKeys: ["missing"], in: value) == nil)
+        #expect(OneConsoleJSON.findFirstString(forKeys: [], in: value) == nil)
+    }
+
+    @Test
+    func `exact lookup checks caller keys before descending`() {
+        let value: [String: Any] = [
+            "fallback": "outer-fallback",
+            "data": ["preferred": "nested-preferred"],
+        ]
+
+        let result = OneConsoleJSON.findFirstValue(
+            forExactKeys: ["preferred", "fallback"],
+            in: value,
+            transform: OneConsoleJSON.string)
+
+        #expect(result == "outer-fallback")
+    }
+
+    @Test
+    func `exact lookup can skip arrays for Coding Plan named objects`() {
+        let value: [String: Any] = ["data": [["quota": ["used": 20]]]]
+
+        let traversingArrays = OneConsoleJSON.findFirstValue(
+            forExactKeys: ["quota"],
+            in: value,
+            transform: { $0 as? [String: Any] })
+        let dictionaryOnly = OneConsoleJSON.findFirstValue(
+            forExactKeys: ["quota"],
+            in: value,
+            descendingIntoArrays: false,
+            transform: { $0 as? [String: Any] })
+
+        #expect(traversingArrays?["used"] as? Int == 20)
+        #expect(dictionaryOnly == nil)
+    }
+
+    @Test
     func `string lookup honors caller key priority across the full tree`() {
         let value: [String: Any] = [
             "token": "generic-token",

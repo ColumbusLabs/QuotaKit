@@ -303,7 +303,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             }
             throw AlibabaTokenPlanUsageError.parseFailed("Invalid JSON response")
         }
-        let expanded = self.expandedJSON(object)
+        let expanded = OneConsoleJSON.expandEmbeddedJSON(object)
         guard let dictionary = expanded as? [String: Any] else {
             throw AlibabaTokenPlanUsageError.parseFailed("Unexpected payload")
         }
@@ -644,7 +644,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
             return nil
         }
 
-        let expanded = self.expandedJSON(object)
+        let expanded = OneConsoleJSON.expandEmbeddedJSON(object)
         guard let token = self.findFirstString(forKeys: ["secToken", "sec_token"], in: expanded),
               !token.isEmpty
         else {
@@ -1025,73 +1025,15 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     }
 
     private static func findFirstDictionary(forKeys keys: [String], in value: Any) -> [String: Any]? {
-        if let dict = value as? [String: Any] {
-            for key in keys {
-                if let nested = dict[key] as? [String: Any] {
-                    return nested
-                }
-            }
-            for nestedValue in dict.values {
-                if let nested = self.findFirstDictionary(forKeys: keys, in: nestedValue) {
-                    return nested
-                }
-            }
-            return nil
-        }
-        if let array = value as? [Any] {
-            for item in array {
-                if let nested = self.findFirstDictionary(forKeys: keys, in: item) {
-                    return nested
-                }
-            }
-        }
-        return nil
+        OneConsoleJSON.findFirstValue(forExactKeys: keys, in: value, transform: { $0 as? [String: Any] })
     }
 
     private static func findFirstDictionary(matchingAnyKey keys: [String], in value: Any) -> [String: Any]? {
-        if let dict = value as? [String: Any] {
-            if keys.contains(where: { dict[$0] != nil }) {
-                return dict
-            }
-            for nestedValue in dict.values {
-                if let nested = self.findFirstDictionary(matchingAnyKey: keys, in: nestedValue) {
-                    return nested
-                }
-            }
-            return nil
-        }
-        if let array = value as? [Any] {
-            for item in array {
-                if let nested = self.findFirstDictionary(matchingAnyKey: keys, in: item) {
-                    return nested
-                }
-            }
-        }
-        return nil
+        OneConsoleJSON.findObject(containingAnyOf: Set(keys), in: value)
     }
 
     private static func findFirstString(forKeys keys: [String], in value: Any) -> String? {
-        if let dict = value as? [String: Any] {
-            for key in keys {
-                if let parsed = self.parseString(dict[key]) {
-                    return parsed
-                }
-            }
-            for nestedValue in dict.values {
-                if let parsed = self.findFirstString(forKeys: keys, in: nestedValue) {
-                    return parsed
-                }
-            }
-            return nil
-        }
-        if let array = value as? [Any] {
-            for item in array {
-                if let parsed = self.findFirstString(forKeys: keys, in: item) {
-                    return parsed
-                }
-            }
-        }
-        return nil
+        OneConsoleJSON.findFirstValue(forExactKeys: keys, in: value, transform: OneConsoleJSON.string)
     }
 
     private static func findBoolValues(forKeys keys: [String], in value: Any) -> [Bool] {
@@ -1107,95 +1049,27 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
     }
 
     private static func findFirstInt(forKeys keys: [String], in value: Any) -> Int? {
-        if let dict = value as? [String: Any] {
-            for key in keys {
-                if let parsed = self.parseInt(dict[key]) {
-                    return parsed
-                }
-            }
-            for nestedValue in dict.values {
-                if let parsed = self.findFirstInt(forKeys: keys, in: nestedValue) {
-                    return parsed
-                }
-            }
-            return nil
-        }
-        if let array = value as? [Any] {
-            for item in array {
-                if let parsed = self.findFirstInt(forKeys: keys, in: item) {
-                    return parsed
-                }
-            }
-        }
-        return nil
+        OneConsoleJSON.findFirstValue(forExactKeys: keys, in: value, transform: OneConsoleJSON.int)
     }
 
     private static func findFirstDate(forKeys keys: [String], in value: Any) -> Date? {
-        if let dict = value as? [String: Any] {
-            for key in keys {
-                if let parsed = self.parseDate(dict[key]) {
-                    return parsed
-                }
-            }
-            for nestedValue in dict.values {
-                if let parsed = self.findFirstDate(forKeys: keys, in: nestedValue) {
-                    return parsed
-                }
-            }
-            return nil
-        }
-        if let array = value as? [Any] {
-            for item in array {
-                if let parsed = self.findFirstDate(forKeys: keys, in: item) {
-                    return parsed
-                }
-            }
-        }
-        return nil
-    }
-
-    private static func expandedJSON(_ value: Any) -> Any {
-        OneConsoleJSON.expandEmbeddedJSON(value)
+        OneConsoleJSON.findFirstValue(forExactKeys: keys, in: value, transform: self.parseDate)
     }
 
     private static func anyString(for keys: [String], in dict: [String: Any]) -> String? {
-        for key in keys {
-            if let value = OneConsoleJSON.string(dict[key]) {
-                return value
-            }
-        }
-        return nil
+        OneConsoleJSON.firstValue(forKeys: keys, in: dict, transform: OneConsoleJSON.string)
     }
 
     private static func anyDouble(for keys: [String], in dict: [String: Any]) -> Double? {
-        for key in keys {
-            if let value = self.parseDouble(dict[key]) {
-                return value
-            }
-        }
-        return nil
+        OneConsoleJSON.firstValue(forKeys: keys, in: dict, transform: self.parseDouble)
     }
 
     private static func anyDate(for keys: [String], in dict: [String: Any]) -> Date? {
-        for key in keys {
-            if let value = OneConsoleJSON.date(dict[key]) {
-                return value
-            }
-        }
-        return nil
+        OneConsoleJSON.firstValue(forKeys: keys, in: dict, transform: OneConsoleJSON.date)
     }
 
     private static func anyBool(for keys: [String], in dict: [String: Any]) -> Bool? {
-        for key in keys {
-            if let value = self.parseBool(dict[key]) {
-                return value
-            }
-        }
-        return nil
-    }
-
-    private static func parseInt(_ raw: Any?) -> Int? {
-        OneConsoleJSON.int(raw)
+        OneConsoleJSON.firstValue(forKeys: keys, in: dict, transform: self.parseBool)
     }
 
     private static func parseDouble(_ raw: Any?) -> Double? {
@@ -1218,12 +1092,8 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         return nil
     }
 
-    private static func parseString(_ raw: Any?) -> String? {
-        OneConsoleJSON.string(raw)
-    }
-
     private static func parseDate(_ raw: Any?) -> Date? {
-        if let intValue = self.parseInt(raw) {
+        if let intValue = OneConsoleJSON.int(raw) {
             if intValue > 1_000_000_000_000 {
                 return Date(timeIntervalSince1970: TimeInterval(intValue) / 1000)
             }
@@ -1231,7 +1101,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
                 return Date(timeIntervalSince1970: TimeInterval(intValue))
             }
         }
-        if let string = self.parseString(raw) {
+        if let string = OneConsoleJSON.string(raw) {
             let formatter = ISO8601DateFormatter()
             if let date = formatter.date(from: string) {
                 return date
@@ -1255,7 +1125,7 @@ public struct AlibabaTokenPlanUsageFetcher: Sendable {
         if let number = raw as? NSNumber {
             return number.boolValue
         }
-        guard let string = self.parseString(raw)?.lowercased() else { return nil }
+        guard let string = OneConsoleJSON.string(raw)?.lowercased() else { return nil }
         switch string {
         case "true", "1", "yes", "active", "valid", "normal":
             return true
