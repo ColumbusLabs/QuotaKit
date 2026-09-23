@@ -293,6 +293,8 @@ QuotaKit has two separate CloudKit paths in the private database of
 - **A curated preferences subset** — notification/threshold/display settings.
 - **Usage snapshots** — per-device current usage per account, so other Macs can show last-known data ("via <Mac> · 1h ago") and accounts discovered on other Macs.
 
+The three Mac fleet sub-options are unavailable while Mac fleet sync is off, iCloud is unavailable, or a newer QuotaKit version is required. Turning sync off retains their saved choices for when it is enabled again.
+
 Never synced by the Mac fleet feature, by design: `hooks` (sync payloads structurally cannot create or modify hook rules — they execute local binaries), machine-local paths (`claudeSwapExecutablePath`, `codexProfileHomePaths`, `awsProfile`/`awsAuthMode`, `source`, `codexActiveSource`, `cookieSource`), menu-bar layout/geometry, debug settings, usage history, and cost ledgers. A provider is never auto-enabled on a Mac where its required local CLI is missing. Records carry a schema version; older app versions pause sync instead of rewriting newer payloads. The CLI does not talk to CloudKit — the app applies remote changes to `config.json` and watches the file, so CLI edits reload into the running app. (CLI/hand edits currently apply locally only; pushing them to other Macs is a known follow-up.) Only changes made while Mac fleet sync is enabled push to the fleet: the app tracks per-provider dirty state and never re-uploads unchanged state at launch.
 
 ## Notes
