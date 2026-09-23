@@ -211,6 +211,7 @@ struct ProviderCredentialCharacterizationTests {
             (.litellm, "LITELLM_API_KEY"),
             (.sub2api, "SUB2API_API_KEY"),
             (.ibmbob, "BOBSHELL_API_KEY"),
+            (.doubao, "ARK_API_KEY"),
             (.grok, "GROK_OAUTH_TOKEN"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
         ]
@@ -307,6 +308,7 @@ struct ProviderCredentialCharacterizationTests {
             (.sub2api, "SUB2API_API_KEY"), (.antigravity, "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON"),
             (.ibmbob, "BOBSHELL_API_KEY"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
+            (.doubao, "ARK_API_KEY"),
         ]
         let account = ProviderTokenAccount(
             id: UUID(), label: "fixture", token: "account-token", addedAt: 0, lastUsed: nil)
