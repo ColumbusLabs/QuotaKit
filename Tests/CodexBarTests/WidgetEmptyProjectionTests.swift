@@ -321,6 +321,34 @@ struct WidgetEmptyProjectionTests {
     }
 
     @Test
+    func `immediate codex persistence keeps a disk backed sibling after cold invalidation`() async throws {
+        let (store, _) = self.makeStore(providers: [.codex, .deepseek])
+        let snapshotURL = try #require(store.widgetSnapshotURL)
+        defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+        self.seed(store, providers: [.codex, .deepseek])
+
+        try FileManager.default.createDirectory(
+            at: snapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        store.persistWidgetSnapshot(reason: "synthetic-cold-codex-and-sibling")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
+
+        store.lastQueuedWidgetSnapshot = nil
+        store.snapshots.removeAll()
+        store.invalidateGenericWidgetUsage(for: .codex)
+        store.persistWidgetSnapshot(reason: "synthetic-immediate-codex-account-invalidate")
+        await store.widgetSnapshotPersistTask?.value
+
+        let repairedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
+        #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
+        #expect(repairedSnapshot.entries.first?.primary?.usedPercent == deepSeekEntry.primary?.usedPercent)
+        #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
+    }
+
+    @Test
     func `cold invalidation preserves Claude quota only for matching account owner`() async throws {
         let (store, settings) = self.makeStore(providers: [.claude, .minimax])
         let snapshotURL = try #require(store.widgetSnapshotURL)
@@ -404,14 +432,14 @@ struct WidgetEmptyProjectionTests {
     }
 
     @Test
-    func `newer projection during invalidation load stays authoritative`() async throws {
+    func `newer projection wins while disk siblings survive invalidation load`() async throws {
         let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek, .minimax])
         let snapshotURL = try #require(store.widgetSnapshotURL)
         defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
         settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
         settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
         settings.setActiveTokenAccountIndex(0, for: .openrouter)
-        self.seed(store, providers: [.openrouter, .deepseek])
+        self.seed(store, providers: [.openrouter, .deepseek, .minimax])
 
         try FileManager.default.createDirectory(
             at: snapshotURL.deletingLastPathComponent(),
@@ -419,7 +447,8 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-disk-snapshot-before-interleaved-refresh")
         await store.widgetSnapshotPersistTask?.value
         let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
-        #expect(originalSnapshot.entries.map(\.provider) == [.openrouter, .deepseek])
+        #expect(Set(originalSnapshot.entries.map(\.provider)) == Set([.openrouter, .deepseek, .minimax]))
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
 
         let loadGate = WidgetSnapshotLoadGate()
         store.lastQueuedWidgetSnapshot = nil
@@ -447,12 +476,14 @@ struct WidgetEmptyProjectionTests {
         await store.widgetSnapshotPersistTask?.value
 
         let persistedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
-        #expect(persistedSnapshot.entries.map(\.provider) == [.minimax])
-        #expect(persistedSnapshot.entries.first?.updatedAt == replacement.updatedAt)
-        #expect(persistedSnapshot.entries.first?.primary?.usedPercent == 61)
+        #expect(Set(persistedSnapshot.entries.map(\.provider)) == Set([.deepseek, .minimax]))
+        #expect(persistedSnapshot.entries.first(where: { $0.provider == .minimax })?.updatedAt == replacement.updatedAt)
+        #expect(persistedSnapshot.entries.first(where: { $0.provider == .minimax })?.primary?.usedPercent == 61)
+        #expect(persistedSnapshot.entries.first(where: { $0.provider == .deepseek })?.updatedAt == deepSeekEntry
+            .updatedAt)
         #expect(persistedSnapshot.enabledProviders == newerProjection.enabledProviders)
         #expect(persistedSnapshot.usageBarsShowUsed == newerProjection.usageBarsShowUsed)
-        #expect(store.lastQueuedWidgetSnapshot?.entries.map(\.provider) == [.minimax])
+        #expect(Set(store.lastQueuedWidgetSnapshot?.entries.map(\.provider) ?? []) == Set([.deepseek, .minimax]))
         store.snapshots.removeAll()
         #expect(store.cloudSyncAccountSnapshots().isEmpty)
     }

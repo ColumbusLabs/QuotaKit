@@ -723,7 +723,9 @@ struct CodexAccountScopedRefreshTests {
         #expect(store.openAIDashboard == nil)
         #expect(store.lastCodexAccountScopedRefreshGuard?.accountKey == nil)
     }
+}
 
+extension CodexAccountScopedRefreshTests {
     @Test
     func `codex account refresh persists widget snapshots on invalidation and completion`() async {
         let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-widgets")

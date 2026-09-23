@@ -89,7 +89,9 @@ extension UsageStore {
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(snapshots: self.cloudSyncAccountSnapshots()))
-        self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: snapshot)
+        self.enqueueWidgetSnapshotPersistence(
+            fallbackSnapshot: snapshot,
+            loadsPersistedSnapshotIfQueueIsUnchanged: self.widgetSnapshotPersistenceState.pendingColdLoad)
     }
 
     private func enqueueWidgetSnapshotPersistence(
@@ -98,7 +100,7 @@ extension UsageStore {
     {
         let previousTask = self.widgetSnapshotPersistTask
         let persistenceToken = UUID()
-        self.widgetSnapshotPersistenceToken = persistenceToken
+        self.widgetSnapshotPersistenceState.token = persistenceToken
         let hasSaveOverride = self._test_widgetSnapshotSaveOverride != nil
         #if canImport(WidgetKit)
         let shouldReloadTimelines = Self.shouldReloadWidgetTimelines(
@@ -108,28 +110,38 @@ extension UsageStore {
         #endif
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
-            guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
+            guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
 
             var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? fallbackSnapshot
             if loadsPersistedSnapshotIfQueueIsUnchanged,
                snapshotToPersist.generatedAt == fallbackSnapshot.generatedAt
             {
                 let persistedSnapshot = await self.loadWidgetSnapshotForInvalidation()
-                guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
+                guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
                 guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
                 if let persistedSnapshot {
                     let filteredSnapshot = self.filterPersistedWidgetSnapshotAfterInvalidation(
                         persistedSnapshot,
                         after: max(fallbackSnapshot.generatedAt, latestSnapshot.generatedAt))
-                    snapshotToPersist = filteredSnapshot
+                    let freshEntries = Dictionary(uniqueKeysWithValues: latestSnapshot.entries
+                        .map { ($0.provider, $0) })
+                    let retainedEntries = Dictionary(uniqueKeysWithValues: filteredSnapshot.entries.map { (
+                        $0.provider,
+                        $0) })
+                    snapshotToPersist = WidgetSnapshot(
+                        entries: latestSnapshot.enabledProviders.compactMap { freshEntries[$0] ?? retainedEntries[$0] },
+                        enabledProviders: latestSnapshot.enabledProviders,
+                        usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
+                        generatedAt: filteredSnapshot.generatedAt)
                     self.lastQueuedWidgetSnapshot = snapshotToPersist
                 } else {
                     snapshotToPersist = latestSnapshot
                 }
+                self.widgetSnapshotPersistenceState.pendingColdLoad = false
             }
 
             await self.saveWidgetSnapshot(snapshotToPersist)
-            guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
+            guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
 
             #if canImport(WidgetKit)
             if shouldReloadTimelines {
@@ -347,7 +359,9 @@ extension UsageStore {
                 snapshotToPersist = queuedSnapshot
             }
             guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
-            self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: snapshotToPersist)
+            self.enqueueWidgetSnapshotPersistence(
+                fallbackSnapshot: snapshotToPersist,
+                loadsPersistedSnapshotIfQueueIsUnchanged: self.widgetSnapshotPersistenceState.pendingColdLoad)
         } else {
             let emptySnapshot = WidgetSnapshot(
                 entries: [],
@@ -355,6 +369,7 @@ extension UsageStore {
                 usageBarsShowUsed: self.settings.usageBarsShowUsed,
                 generatedAt: Date())
             self.lastQueuedWidgetSnapshot = emptySnapshot
+            self.widgetSnapshotPersistenceState.pendingColdLoad = true
             guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
             self.enqueueWidgetSnapshotPersistence(
                 fallbackSnapshot: emptySnapshot,
