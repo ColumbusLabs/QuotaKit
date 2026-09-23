@@ -8,16 +8,32 @@ read_when:
 
 # AWS Bedrock provider
 
-CodexBar reads AWS Cost Explorer for Bedrock spend and can compare the current month against an optional budget. When
+QuotaKit reads AWS Cost Explorer for Bedrock spend and can compare the current month against an optional budget. When
 permitted, it also reads CloudWatch for rolling 14-day Claude token and request totals in the configured region.
+
+## Monitoring charges and refresh frequency
+
+**Monitoring Bedrock spend can add charges to your AWS bill.** AWS currently charges $0.01 per Cost Explorer API
+request against the primary billing view, separately from Bedrock inference charges. Check the
+[AWS Cost Explorer pricing page](https://aws.amazon.com/aws-cost-management/aws-cost-explorer/pricing/) for current rates.
+A QuotaKit refresh is not a fixed-price unit: monthly spend, daily history, and paginated responses can issue separate
+requests. Optional CloudWatch activity uses another API and is subject to
+[CloudWatch pricing](https://aws.amazon.com/cloudwatch/pricing/).
+
+To reduce automatic requests, choose a longer interval or **Manual** in **Settings → General → Refreshing**. This
+setting applies to all providers. Manual stops the recurring timer, but startup, explicit refreshes, and **Refresh when
+the menu opens** can still fetch data. Turn off that menu option to reduce menu-triggered requests. Disabling AWS Bedrock
+in Providers stops its app refreshes; separate CLI invocations can still make billed requests.
+
+The optional monthly budget changes displayed progress only. It does not cap AWS charges or stop polling.
 
 ## Authentication
 
-CodexBar supports two authentication modes, selected in Preferences → Providers → AWS Bedrock → Authentication.
+QuotaKit supports two authentication modes, selected in Settings → Providers → AWS Bedrock → Authentication.
 
 ### Access keys (default)
 
-Provide static AWS credentials through Settings or the environment inherited by CodexBar/the CLI:
+Provide static AWS credentials through Settings or the environment inherited by QuotaKit/the CLI:
 
 ```bash
 export AWS_ACCESS_KEY_ID="..."
@@ -35,13 +51,13 @@ export CODEXBAR_BEDROCK_BUDGET="250"
 ### AWS profile
 
 Resolve credentials from a named profile in `~/.aws/config` / `~/.aws/credentials` instead of pasting keys. Set the
-profile name in Settings (or via `AWS_PROFILE`). CodexBar shells out to the AWS CLI
+profile name in Settings (or via `AWS_PROFILE`). QuotaKit shells out to the AWS CLI
 (`aws configure export-credentials --profile <name>`), so this works with **SSO**, **assume-role**,
 `credential_process`, and MFA-cached profiles — not just static credentials.
 
 Requirements:
 
-- AWS CLI v2 on your `PATH` (CodexBar also checks `/opt/homebrew/bin/aws`, `/usr/local/bin/aws`, and `~/.local/bin/aws`).
+- AWS CLI v2 on your `PATH` (QuotaKit also checks `/opt/homebrew/bin/aws`, `/usr/local/bin/aws`, and `~/.local/bin/aws`).
   Override the location with `AWS_CLI_PATH` if it lives elsewhere.
 - For SSO profiles, an active session (`aws sso login --profile <name>`). Credentials are resolved fresh on each
   refresh; the AWS CLI caches the SSO token, so this does not re-prompt unless the session has expired.
@@ -90,7 +106,7 @@ quotakit --provider bedrock --format json --pretty
 
 ### "No AWS Bedrock cost data available"
 
-- Confirm the credentials are visible to CodexBar.
+- Confirm the credentials are visible to QuotaKit.
 - Confirm the AWS account has Cost Explorer enabled.
 - Confirm the IAM principal can call `ce:GetCostAndUsage`.
 - To include Claude token/request totals, confirm the principal can call `cloudwatch:GetMetricData` in the configured
@@ -105,12 +121,12 @@ credentials) and retry.
 
 ### "AWS CLI not found"
 
-Profile mode requires AWS CLI v2. Install it (e.g. `brew install awscli`) or point CodexBar at the binary with
+Profile mode requires AWS CLI v2. Install it (e.g. `brew install awscli`) or point QuotaKit at the binary with
 `AWS_CLI_PATH`.
 
 ### Wrong region
 
-Set `AWS_REGION` or `AWS_DEFAULT_REGION`. Bedrock usage is regional, but Cost Explorer itself is account-level; CodexBar still needs a signing region for the request.
+Set `AWS_REGION` or `AWS_DEFAULT_REGION`. Bedrock usage is regional, but Cost Explorer itself is account-level; QuotaKit still needs a signing region for the request.
 
 ## Key files
 
