@@ -20017,6 +20017,34 @@
         }
       }
     },
+    "Distinctly labeled Kimi web accounts now sync separately to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Distinctly labeled Kimi web accounts now sync separately to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "ラベルが異なる Kimi の Web アカウントを iPhone に個別に同期できるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "标签不同的 Kimi 网页账号现在可以分别同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "標籤不同的 Kimi 網頁帳號現在可以分別同步至 iPhone。"
+          }
+        }
+      }
+    },
     "Recovery update: restores the full provider surface, QuotaKit Pro lifetime access, and all quota alert subscriptions.": {
       "localizations": {
         "en": {

@@ -806,12 +806,40 @@ struct SnapshotCacheTests {
         let parsed2 = SnapshotCache.splitRecordName(withEmail)
         #expect(parsed2?.deviceID == "mac-A")
         #expect(parsed2?.composite == "codex|user@example.com")
+
+        let withSeparator = CloudSyncManager.perProviderRecordName(
+            deviceID: "mac-A", providerID: "kimi", accountEmail: "Work|Prod")
+        let parsed3 = SnapshotCache.splitRecordName(withSeparator)
+        #expect(parsed3?.deviceID == "mac-A")
+        #expect(parsed3?.composite == "kimi|Work|Prod")
     }
 
     @Test
     func `splitRecordName rejects malformed input`() {
         #expect(SnapshotCache.splitRecordName("too|few") == nil)
-        #expect(SnapshotCache.splitRecordName("way|too|many|pieces|here") == nil)
+        #expect(SnapshotCache.splitRecordName("|codex|user@example.com") == nil)
+        #expect(SnapshotCache.splitRecordName("mac-A||user@example.com") == nil)
+    }
+
+    @Test
+    func `delete record name preserves separators inside account identity`() {
+        let recordName = CloudSyncManager.perProviderRecordName(
+            deviceID: "mac-A", providerID: "kimi", accountEmail: "Work|Prod")
+        var cache = SnapshotCache()
+        let kimiEnvelope = self.envelope(
+            deviceID: "mac-A",
+            deviceName: "Mac A",
+            providerID: "kimi",
+            email: "Work|Prod",
+            providerLastUpdated: self.t1,
+            syncTimestamp: self.t1)
+        cache.applyDelta(upserted: [kimiEnvelope], deletedRecordNames: [])
+
+        #expect(cache.perProviderByDevice["mac-A"]?["kimi|Work|Prod"] != nil)
+
+        cache.applyDelta(upserted: [], deletedRecordNames: [recordName])
+
+        #expect(cache.perProviderByDevice["mac-A"] == nil)
     }
 
     // MARK: - Ghost filter (Build 66 · bug #2 fix)

@@ -23,6 +23,11 @@ struct KimiProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
+    func tokenAccountsVisibility(context _: ProviderSettingsContext, support _: TokenAccountSupport) -> Bool {
+        true
+    }
+
+    @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
         let cookies: CookieProviderSettings = context.settings.resolvedCookieSettings(
             provider: .kimi,

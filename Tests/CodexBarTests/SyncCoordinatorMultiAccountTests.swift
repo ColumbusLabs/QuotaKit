@@ -56,7 +56,7 @@ struct SyncCoordinatorMultiAccountTests {
 
     private func makeUsageSnapshot(
         provider: UsageProvider,
-        accountEmail: String,
+        accountEmail: String?,
         usedPercent: Double = 25.0) -> UsageSnapshot
     {
         UsageSnapshot(
@@ -77,7 +77,7 @@ struct SyncCoordinatorMultiAccountTests {
     private func makeTokenAccountUsageSnapshot(
         provider: UsageProvider,
         accountLabel: String,
-        accountEmail: String,
+        accountEmail: String?,
         usedPercent: Double = 25.0) -> TokenAccountUsageSnapshot
     {
         TokenAccountUsageSnapshot(
@@ -89,6 +89,41 @@ struct SyncCoordinatorMultiAccountTests {
                 usedPercent: usedPercent),
             error: nil,
             sourceLabel: nil)
+    }
+
+    private func makeIdentitylessTokenAccountUsageSnapshot(
+        accountLabel: String,
+        usedPercent: Double = 25.0) -> TokenAccountUsageSnapshot
+    {
+        TokenAccountUsageSnapshot(
+            account: self.makeTokenAccount(
+                label: accountLabel, token: "tok-\(accountLabel)"),
+            snapshot: UsageSnapshot(
+                primary: RateWindow(
+                    usedPercent: usedPercent,
+                    windowMinutes: 300,
+                    resetsAt: Date().addingTimeInterval(3600),
+                    resetDescription: "in 1 hour"),
+                secondary: nil,
+                updatedAt: Date(),
+                identity: nil),
+            error: nil,
+            sourceLabel: nil)
+    }
+
+    private func applyTokenAccountLabel(
+        to tokenSnapshot: TokenAccountUsageSnapshot,
+        provider: UsageProvider,
+        store: UsageStore) -> TokenAccountUsageSnapshot
+    {
+        guard let snapshot = tokenSnapshot.snapshot else { return tokenSnapshot }
+        return TokenAccountUsageSnapshot(
+            account: tokenSnapshot.account,
+            snapshot: store.applyAccountLabel(
+                snapshot, provider: provider, account: tokenSnapshot.account),
+            error: tokenSnapshot.error,
+            sourceLabel: tokenSnapshot.sourceLabel,
+            cacheKey: tokenSnapshot.cacheKey)
     }
 
     @Test
@@ -125,6 +160,167 @@ struct SyncCoordinatorMultiAccountTests {
         #expect(claudeSnapshots.count == 2)
         let emails = Set(claudeSnapshots.compactMap(\.accountEmail))
         #expect(emails == ["alice@example.com", "bob@example.com"])
+    }
+
+    @Test
+    func `Kimi labeled accounts use label identities for multi-account sync`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Kimi-LabeledIdentity")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .kimi,
+            metadata: #require(ProviderDefaults.metadata[.kimi]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let selected = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "Kimi Personal", usedPercent: 15),
+            provider: .kimi,
+            store: store)
+        let other = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "Kimi|Work", usedPercent: 85),
+            provider: .kimi,
+            store: store)
+        store._setSnapshotForTesting(selected.snapshot, provider: .kimi)
+        store.accountSnapshots[.kimi] = [selected, other]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let kimiSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "kimi" } ?? []
+        #expect(kimiSnapshots.count == 2)
+        #expect(Set(kimiSnapshots.compactMap(\.accountEmail)) == ["Kimi Personal", "Kimi|Work"])
+    }
+
+    @Test
+    func `Kimi accounts without usable label identities keep the selected account only`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Kimi-BlankLabels")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .kimi,
+            metadata: #require(ProviderDefaults.metadata[.kimi]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let selected = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "  ", usedPercent: 15),
+            provider: .kimi,
+            store: store)
+        let other = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "", usedPercent: 85),
+            provider: .kimi,
+            store: store)
+        store._setSnapshotForTesting(selected.snapshot, provider: .kimi)
+        store.accountSnapshots[.kimi] = [selected, other]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let kimiSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "kimi" } ?? []
+        #expect(kimiSnapshots.count == 1)
+        #expect(kimiSnapshots.first?.accountEmail == nil)
+        #expect(kimiSnapshots.first?.primary?.usedPercent == 15)
+    }
+
+    @Test
+    func `Kimi account label changes delete the prior CloudKit record`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Kimi-LabelRename")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .kimi,
+            metadata: #require(ProviderDefaults.metadata[.kimi]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let selected = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "Kimi Personal", usedPercent: 15),
+            provider: .kimi,
+            store: store)
+        let other = self.applyTokenAccountLabel(
+            to: self.makeIdentitylessTokenAccountUsageSnapshot(
+                accountLabel: "Kimi Work", usedPercent: 85),
+            provider: .kimi,
+            store: store)
+        store._setSnapshotForTesting(selected.snapshot, provider: .kimi)
+        store.accountSnapshots[.kimi] = [selected, other]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let renamedAccount = ProviderTokenAccount(
+            id: selected.account.id,
+            label: "Kimi Personal Renamed",
+            token: selected.account.token,
+            addedAt: selected.account.addedAt,
+            lastUsed: selected.account.lastUsed)
+        let renamedSnapshot = store.applyAccountLabel(
+            self.makeUsageSnapshot(
+                provider: .kimi, accountEmail: nil, usedPercent: 15),
+            provider: .kimi,
+            account: renamedAccount)
+        let renamed = TokenAccountUsageSnapshot(
+            account: renamedAccount,
+            snapshot: renamedSnapshot,
+            error: nil,
+            sourceLabel: nil,
+            cacheKey: selected.cacheKey)
+        store._setSnapshotForTesting(renamedSnapshot, provider: .kimi)
+        store.accountSnapshots[.kimi] = [renamed, other]
+
+        await coordinator.pushCurrentSnapshot()
+
+        #expect(mock.deleteCallCount == 1)
+        let deleted = mock.deletedRecordNamesAcrossCalls.last ?? []
+        #expect(deleted.count == 1)
+        #expect(deleted.first?.contains("|kimi|Kimi Personal") == true)
+        let kimiSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "kimi" } ?? []
+        #expect(Set(kimiSnapshots.compactMap(\.accountEmail)) == ["Kimi Personal Renamed", "Kimi Work"])
+    }
+
+    @Test
+    func `token accounts with case variant emails keep the selected account only`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-CaseVariantEmail")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .claude,
+            metadata: #require(ProviderDefaults.metadata[.claude]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let selected = self.makeTokenAccountUsageSnapshot(
+            provider: .claude,
+            accountLabel: "selected",
+            accountEmail: "Alice@example.com",
+            usedPercent: 15)
+        let other = self.makeTokenAccountUsageSnapshot(
+            provider: .claude,
+            accountLabel: "other",
+            accountEmail: "alice@example.com",
+            usedPercent: 85)
+        store._setSnapshotForTesting(selected.snapshot, provider: .claude)
+        store.accountSnapshots[.claude] = [selected, other]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(
+            store: store, settings: settings, syncManager: mock)
+
+        await coordinator.pushCurrentSnapshot()
+
+        let claudeSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "claude" } ?? []
+        #expect(claudeSnapshots.count == 1)
+        #expect(claudeSnapshots.first?.accountEmail == "Alice@example.com")
+        #expect(claudeSnapshots.first?.primary?.usedPercent == 15)
     }
 
     @Test

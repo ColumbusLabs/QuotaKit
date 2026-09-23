@@ -1301,15 +1301,8 @@ final class SyncCoordinator {
                 for: tokenProvider)
             let livingIDs = Set(entries.map(\.account.id.uuidString))
 
-            // Remove the active-only entry that the main loop appended for
-            // this provider — we replace it with the full per-account list
-            // built from `accountSnapshots`. The active account is included
-            // via its corresponding entry in `entries`, so we don't lose
-            // any data.
-            providerSnapshots.removeAll { $0.providerID == providerID }
-
-            for entry in entries {
-                let perAccount = self.buildProviderUsageSnapshot(
+            let perAccountSnapshots = entries.map { entry in
+                self.buildProviderUsageSnapshot(
                     for: tokenProvider,
                     snapshot: entry.snapshot,
                     codexCredits: nil,
@@ -1317,6 +1310,43 @@ final class SyncCoordinator {
                     metadata: meta,
                     sharedCostSummary: sharedCostSummary,
                     sharedUtilizationHistory: sharedUtilizationHistory)
+            }
+            let normalizedEmails = perAccountSnapshots.compactMap { snapshot in
+                snapshot.accountEmail?
+                    .trimmingCharacters(in: .whitespacesAndNewlines)
+                    .lowercased()
+            }
+            let recordNames = Set(perAccountSnapshots.map { snapshot in
+                CloudSyncManager.perProviderRecordName(
+                    deviceID: self.deviceID,
+                    providerID: providerID,
+                    accountEmail: snapshot.accountEmail)
+            })
+
+            // The CloudKit/iOS record key is providerID + accountEmail; it
+            // does not include the local token-account UUID. Never fan out
+            // snapshots that would collapse onto one nil, blank, duplicate,
+            // or case-variant identity. Keep the selected-account snapshot
+            // already appended by the main loop instead.
+            guard normalizedEmails.count == perAccountSnapshots.count,
+                  normalizedEmails.allSatisfy({ !$0.isEmpty }),
+                  Set(normalizedEmails).count == perAccountSnapshots.count,
+                  recordNames.count == perAccountSnapshots.count
+            else {
+                self.multiAccountCache.purgeStaleAccounts(
+                    providerID: providerID,
+                    livingAccountIDs: [])
+                continue
+            }
+
+            // Remove the active-only entry that the main loop appended for
+            // this provider — we replace it with the full per-account list
+            // built from `accountSnapshots`. The active account is included
+            // via its corresponding entry in `entries`, so we don't lose
+            // any data.
+            providerSnapshots.removeAll { $0.providerID == providerID }
+
+            for (entry, perAccount) in zip(entries, perAccountSnapshots) {
                 self.multiAccountCache.record(
                     perAccount,
                     providerID: providerID,
