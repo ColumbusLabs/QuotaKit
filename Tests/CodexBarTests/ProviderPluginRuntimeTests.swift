@@ -208,7 +208,10 @@ struct ProviderPluginRuntimeTests {
         let start = Task.detached {
             gate.start {
                 dispatchEntered.signal()
-                _ = allowRegistrationToFinish.wait(timeout: .now() + 2)
+                // Keep the registration critical section open until the test
+                // releases it. The finite wait is only a deadlock watchdog;
+                // a short timeout can expire while the test is descheduled.
+                _ = allowRegistrationToFinish.wait(timeout: .now() + 30)
             }
         }
         #expect(await waitForSignal(dispatchEntered, timeout: .seconds(1)))
@@ -247,7 +250,9 @@ struct ProviderPluginRuntimeTests {
         let cancellation = Task.detached {
             lifecycle.cancel(firstID) { _ in
                 interruptEntered.signal()
-                _ = allowInterruptToFinish.wait(timeout: .now() + 2)
+                // The test releases this deliberately blocked interrupt after
+                // checking that the next request cannot activate yet.
+                _ = allowInterruptToFinish.wait(timeout: .now() + 30)
             }
         }
         #expect(await waitForSignal(interruptEntered, timeout: .seconds(1)))
@@ -367,27 +372,36 @@ struct ProviderPluginRuntimeTests {
 
     @Test
     func `HTTP request deadline cancels a transport that exceeds it`() async throws {
+        let probe = ProviderPluginCancellationProbe()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
             await ctx.http.getJSON("https://api.example.test/slow", { timeoutSeconds: 1 });
             return { primary: { usedPercent: 1 } };
             """),
             transport: ProviderHTTPTransportHandler { request in
-                try await Task.sleep(for: .seconds(5))
-                let response = try #require(HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]))
-                return (Data(#"{"used":1}"#.utf8), response)
-            })
-        let startedAt = ContinuousClock.now
+                _ = await probe.markStarted()
+                return try await withTaskCancellationHandler {
+                    try await Task.sleep(for: .seconds(30))
+                    let response = try #require(HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: nil,
+                        headerFields: ["Content-Type": "application/json"]))
+                    return (Data(#"{"used":1}"#.utf8), response)
+                } onCancel: {
+                    Task { await probe.markCancelled() }
+                }
+            },
+            timeout: 15)
+        let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"]) }
 
-        await #expect(throws: ProviderPluginError.self) {
-            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
-        }
+        #expect(await probe.waitUntilStarted(maxAttempts: 1000))
+        let error = await #expect(throws: ProviderPluginError.self) { _ = try await fetch.value }
 
-        #expect(ContinuousClock.now - startedAt < .seconds(2))
+        // The request-specific deadline must end the request before the
+        // runtime's fifteen-second fallback watchdog and cancel its transport.
+        #expect(error != .timedOut)
+        #expect(await probe.waitUntilCancelled(maxAttempts: 1000))
     }
 
     @Test
@@ -870,8 +884,8 @@ private actor ProviderPluginCancellationProbe {
         self.cancelledCount += 1
     }
 
-    func waitUntilStarted(count: Int = 1) async -> Bool {
-        for _ in 0..<300 {
+    func waitUntilStarted(count: Int = 1, maxAttempts: Int = 300) async -> Bool {
+        for _ in 0..<maxAttempts {
             if self.startedCount >= count {
                 return true
             }
@@ -880,8 +894,8 @@ private actor ProviderPluginCancellationProbe {
         return self.startedCount >= count
     }
 
-    func waitUntilCancelled(count: Int = 1) async -> Bool {
-        for _ in 0..<300 {
+    func waitUntilCancelled(count: Int = 1, maxAttempts: Int = 300) async -> Bool {
+        for _ in 0..<maxAttempts {
             if self.cancelledCount >= count {
                 return true
             }
