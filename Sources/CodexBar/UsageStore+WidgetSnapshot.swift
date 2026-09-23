@@ -101,13 +101,19 @@ extension UsageStore {
 
                 // Account switches can filter the in-memory queue while an earlier async save is
                 // suspended. Repair the persisted projection before completing this serialized task.
-                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
-                guard latestSnapshot.generatedAt != snapshotToPersist.generatedAt else { break }
+                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else {
+                    return
+                }
+                guard latestSnapshot.generatedAt != snapshotToPersist.generatedAt else {
+                    break
+                }
                 snapshotToPersist = latestSnapshot
             }
 
             #if canImport(WidgetKit)
-            if !hasSaveOverride { WidgetCenter.shared.reloadAllTimelines() }
+            if !hasSaveOverride {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
             #endif
         }
     }
@@ -136,8 +142,8 @@ extension UsageStore {
     {
         let enabledProviders = Set(self.enabledProviders())
         let entries = snapshot.entries.filter { entry in
-            // Claude ownership cannot be validated from disk. Blocked providers are removed, while
-            // unrelated enabled entries remain useful until their live refresh replaces them.
+            // Provider-specific by design: Claude ownership cannot be validated from disk; blocked
+            // providers are removed; unrelated enabled entries remain until live refresh replaces them.
             entry.provider != .claude && enabledProviders.contains(entry.provider) &&
                 !self.widgetUsagePreservationBlockedProviders.contains(entry.provider) &&
                 (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage)
@@ -281,7 +287,7 @@ extension UsageStore {
     }
 
     func invalidateGenericWidgetUsage(for provider: UsageProvider) {
-        // Claude has a separate owner-aware preservation path in makeWidgetEntry.
+        // Provider-specific by design: Claude has a separate owner-aware preservation path in makeWidgetEntry.
         guard provider != .claude else { return }
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A later success cannot make an older queued account publication current again.
@@ -346,7 +352,7 @@ extension UsageStore {
            let previousSnapshot = self.lastQueuedWidgetSnapshot,
            previousSnapshot.enabledProviders.allSatisfy(enabledProviders.contains),
            previousSnapshot.entries.allSatisfy({ entry in
-               // Claude quota retention remains governed by its owner-key checks in makeWidgetEntry.
+               // Provider-specific by design: Claude retention uses makeWidgetEntry owner-key checks.
                entry.provider != .claude && enabledProviders.contains(entry.provider) &&
                    self.errors[entry.provider] != nil &&
                    (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage) &&
