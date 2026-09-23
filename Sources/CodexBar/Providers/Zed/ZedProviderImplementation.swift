@@ -83,7 +83,10 @@ extension SettingsStore {
     }
 
     var zedCookieSource: ProviderCookieSource {
-        get { self.resolvedCookieSource(provider: .zed, fallback: .off) }
+        get {
+            let hasConfiguredHeader = self.configSnapshot.providerConfig(for: .zed)?.sanitizedCookieHeader != nil
+            return self.resolvedCookieSource(provider: .zed, fallback: hasConfiguredHeader ? .manual : .off)
+        }
         set {
             self.updateProviderConfig(provider: .zed) { entry in
                 entry.cookieSource = newValue

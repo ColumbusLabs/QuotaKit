@@ -154,6 +154,17 @@ struct ZedPluginTests {
         #expect(defaultSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .off)
         #expect(await Self.strategyIDs(settings: defaultSnapshot) == ["zed.local"])
 
+        settings.zedCookieHeader = "zed.session=fixture-only"
+        let inferredManualSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        #expect(inferredManualSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .manual)
+        #expect(inferredManualSnapshot[ZedProviderSettingsKey.self]?.manualCookieHeader == "zed.session=fixture-only")
+        #expect(await Self.strategyIDs(settings: inferredManualSnapshot) == ["zed.web"])
+
+        settings.zedCookieSource = .off
+        let explicitOffSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
+        #expect(explicitOffSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .off)
+        #expect(await Self.strategyIDs(settings: explicitOffSnapshot) == ["zed.local"])
+
         settings.zedCookieSource = .auto
         let automaticSnapshot = ProviderRegistry.makeSettingsSnapshot(settings: settings, tokenOverride: nil)
         #expect(automaticSnapshot[ZedProviderSettingsKey.self]?.cookieSource == .auto)
