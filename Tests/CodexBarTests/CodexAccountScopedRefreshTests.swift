@@ -54,8 +54,11 @@ struct CodexAccountScopedRefreshTests {
         #expect(store.openAIDashboard == nil)
         #expect(store.lastOpenAIDashboardSnapshot == nil)
         #expect(store.tokenSnapshots[.codex] == tokenSnapshot)
-        #expect(widgetSnapshots.count == 1)
-        #expect(widgetSnapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
+        // Account invalidation and its follow-up projection are serialized; the first queued write can
+        // coalesce to the latest empty payload, but it must never republish the prior account's quota.
+        #expect(widgetSnapshots.count == 2)
+        #expect(widgetSnapshots.map(\.entries.isEmpty) == [true, true])
+        #expect(widgetSnapshots.map { $0.enabledProviders.contains(.codex) } == [true, true])
     }
 
     @Test
