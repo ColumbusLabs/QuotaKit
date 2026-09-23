@@ -1,9 +1,20 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 extension CodexAccountScopedRefreshTests {
+    func withIsolatedDashboardCache<T>(
+        _ operation: @MainActor () async throws -> T) async rethrows -> T
+    {
+        let cacheURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("codex-dashboard-\(UUID().uuidString).json")
+        defer { try? FileManager.default.removeItem(at: cacheURL) }
+        return try await OpenAIDashboardCacheStore.$cacheURLOverride.withValue(cacheURL) {
+            try await operation()
+        }
+    }
+
     func makeSettingsStore(suite: String) -> SettingsStore {
         let defaults = UserDefaults(suiteName: suite)!
         defaults.removePersistentDomain(forName: suite)
