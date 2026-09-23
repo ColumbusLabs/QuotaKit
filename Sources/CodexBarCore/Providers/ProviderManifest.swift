@@ -78,5 +78,6 @@ public enum ProviderManifest {
         V0ProviderDescriptor.descriptor,
         CodeRabbitProviderDescriptor.descriptor,
         HuggingFaceProviderDescriptor.descriptor,
+        ReplicateProviderDescriptor.descriptor,
     ]
 }

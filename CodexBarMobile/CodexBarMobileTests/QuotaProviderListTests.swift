@@ -296,9 +296,10 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `IBM Bob is present while spend-only Fireworks is excluded`() {
+    func `IBM Bob is present while spend-only providers are excluded`() {
         let ibmBob = QuotaProviderList.providers.first(where: { $0.id == "ibmbob" })
         #expect(!QuotaProviderList.providers.contains { $0.id == "fireworks" })
+        #expect(!QuotaProviderList.providers.contains { $0.id == "replicate" })
         #expect(ibmBob?.displayName == "IBM Bob")
     }
 

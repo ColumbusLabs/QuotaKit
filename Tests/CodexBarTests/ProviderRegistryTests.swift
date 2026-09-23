@@ -168,6 +168,7 @@ struct ProviderRegistryTests {
         expectColor(.codex, red: 73 / 255, green: 163 / 255, blue: 176 / 255)
         expectColor(.claude, red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor(.cursor, red: 0, green: 0, blue: 0)
+        expectColor(.replicate, red: 160 / 255, green: 160 / 255, blue: 160 / 255)
         expectColor(.grok, red: 26 / 255, green: 26 / 255, blue: 26 / 255)
         expectColor(.commandcode, red: 71 / 255, green: 85 / 255, blue: 105 / 255)
         expectColor(.opencodego, red: 52 / 255, green: 211 / 255, blue: 153 / 255)

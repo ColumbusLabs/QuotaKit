@@ -56,6 +56,7 @@ enum ProviderBrandAsset {
         "poe",
         "qoder",
         "qwencloud",
+        "replicate",
         "sakana",
         "stepfun",
         "sub2api",

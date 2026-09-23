@@ -900,6 +900,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
         #expect(labeled.identity?.providerID == .zai)
         #expect(labeled.identity?.accountEmail == "Team Account")
+        #expect(labeled.identity?.accountID == "stable-account")
     }
 
     @Test
@@ -921,6 +922,7 @@ struct TokenAccountEnvironmentPrecedenceTests {
         Self.expectSnapshotFieldsPreserved(before: snapshot, after: labeled)
         #expect(labeled.identity?.providerID == .zai)
         #expect(labeled.identity?.accountEmail == "CLI Account")
+        #expect(labeled.identity?.accountID == "stable-account")
     }
 
     @Test
@@ -1191,7 +1193,8 @@ extension TokenAccountEnvironmentPrecedenceTests {
             providerID: provider.instanceID,
             accountEmail: nil,
             accountOrganization: "Org",
-            loginMethod: "Pro")
+            loginMethod: "Pro",
+            accountID: "stable-account")
 
         return try UsageSnapshot(
             primary: RateWindow(usedPercent: 21, windowMinutes: 60, resetsAt: reset, resetDescription: "primary"),

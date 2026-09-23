@@ -9,6 +9,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Replicate monthly billing spend now syncs from QuotaKit Mac as a spend-only card; distinct saved accounts stay separate.
 - v0 is now in the iPhone quota provider catalog with its existing billing and
   rate-limit windows. Detailed billing balances remain on the Mac.
 - Distinctly labeled Kimi web accounts now appear as separate usage entries on

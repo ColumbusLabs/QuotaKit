@@ -144,28 +144,55 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
 
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<UsageSnapshot>()
-        return try await withCheckedThrowingContinuation { continuation in
-            gate.install(continuation)
-            worker.fetch(
-                settings: sanitizedSettings,
-                secrets: sanitizedSecrets,
-                now: now,
-                timeZone: timeZone,
-                cookieInvalidator: cookieInvalidator,
-                cookieResolver: cookieResolver,
-                instanceCookieResolver: instanceCookieResolver)
-            { result in
-                gate.finish(result.mapError { self.redactedError($0, secrets: sanitizedSecrets.values) })
-            }
-            Task.detached { [weak self, weak worker] in
-                guard let self, let worker else { return }
-                let nanoseconds = UInt64(self.timeout * 1_000_000_000)
-                try? await Task.sleep(nanoseconds: nanoseconds)
-                if gate.finish(.failure(ProviderPluginError.timedOut)) {
-                    worker.requestInterrupt()
-                    self.discard(worker)
+        let requestStartGate = ProviderPluginRequestStartGate()
+        let requestID = UUID()
+        return try await withTaskCancellationHandler {
+            try await withCheckedThrowingContinuation { continuation in
+                gate.install(continuation)
+                guard !gate.isFinished else { return }
+                guard requestStartGate.start({
+                    worker.fetch(
+                        requestID: requestID,
+                        settings: sanitizedSettings,
+                        secrets: sanitizedSecrets,
+                        now: now,
+                        timeZone: timeZone,
+                        cookieInvalidator: cookieInvalidator,
+                        cookieResolver: cookieResolver,
+                        instanceCookieResolver: instanceCookieResolver)
+                    { result in
+                        let mappedResult = result.mapError {
+                            self.redactedError($0, secrets: sanitizedSecrets.values)
+                        }
+                        if case let .failure(error) = mappedResult,
+                           (error as? ProviderPluginError) == .timedOut
+                        {
+                            gate.finish(mappedResult, beforeResume: { self.discard(worker) })
+                        } else {
+                            gate.finish(mappedResult)
+                        }
+                    }
+                }) else { return }
+                Task.detached { [weak self, weak worker] in
+                    guard let self, let worker else { return }
+                    let nanoseconds = UInt64(self.timeout * 1_000_000_000)
+                    try? await Task.sleep(nanoseconds: nanoseconds)
+                    gate.finish(.failure(ProviderPluginError.timedOut), beforeResume: {
+                        worker.cancelFetch(requestID)
+                        self.discard(worker)
+                    })
                 }
             }
+        } onCancel: {
+            gate.finish(.failure(CancellationError()), beforeResume: {
+                requestStartGate.cancel {
+                    worker.cancelFetch(requestID)
+                    // JavaScriptCore cannot interrupt a synchronous script loop.
+                    // Discard this exact worker so a later fetch gets a fresh
+                    // context even when this request remains stuck on its queue.
+                    self.discard(worker)
+                }
+            })
         }
     }
 
@@ -197,7 +224,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
 
     private func discard(_ worker: any ProviderPluginEngine) {
         self.lock.lock()
-        if let current = self.worker, current === worker {
+        if let currentWorker = self.worker, currentWorker === worker {
             self.worker = nil
         }
         self.lock.unlock()
@@ -255,6 +282,12 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
     private var pendingResult: Result<Value, Error>?
     private var finished = false
 
+    var isFinished: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.finished
+    }
+
     func install(_ continuation: CheckedContinuation<Value, Error>) {
         self.lock.lock()
         if let result = self.pendingResult {
@@ -268,7 +301,7 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
     }
 
     @discardableResult
-    func finish(_ result: Result<Value, Error>) -> Bool {
+    func finish(_ result: Result<Value, Error>, beforeResume: (() -> Void)? = nil) -> Bool {
         self.lock.lock()
         guard !self.finished else {
             self.lock.unlock()
@@ -282,8 +315,42 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
         }
         self.continuation = nil
         self.lock.unlock()
+        beforeResume?()
         continuation.resume(with: result)
         return true
+    }
+}
+
+/// Closes the cancellation race between the runtime's finished check and the
+/// engine's synchronous in-flight registration. The dispatch closure runs
+/// while holding the lock, so a concurrent cancel either prevents dispatch or
+/// runs after the engine has registered this request.
+final class ProviderPluginRequestStartGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var started = false
+
+    @discardableResult
+    func start(_ dispatch: () -> Void) -> Bool {
+        self.lock.lock()
+        guard !self.cancelled else {
+            self.lock.unlock()
+            return false
+        }
+        dispatch()
+        self.started = true
+        self.lock.unlock()
+        return true
+    }
+
+    func cancel(_ cancelStartedRequest: () -> Void) {
+        self.lock.lock()
+        self.cancelled = true
+        let shouldCancel = self.started
+        self.lock.unlock()
+        if shouldCancel {
+            cancelStartedRequest()
+        }
     }
 }
 
@@ -332,6 +399,47 @@ private final class ProviderPluginRedactionValues: @unchecked Sendable {
     }
 }
 
+private final class ProviderPluginCancelableTask: @unchecked Sendable {
+    private let lock = NSLock()
+    private var task: Task<Void, Never>?
+    private var cancelled = false
+    private var finished = false
+
+    var isCancelled: Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.cancelled
+    }
+
+    func install(_ task: Task<Void, Never>) {
+        self.lock.lock()
+        if self.cancelled || self.finished {
+            let shouldCancel = self.cancelled
+            self.lock.unlock()
+            if shouldCancel { task.cancel() }
+            return
+        }
+        self.task = task
+        self.lock.unlock()
+    }
+
+    func finish() {
+        self.lock.lock()
+        self.finished = true
+        self.task = nil
+        self.lock.unlock()
+    }
+
+    func cancel() {
+        self.lock.lock()
+        self.cancelled = true
+        let task = self.task
+        self.task = nil
+        self.lock.unlock()
+        task?.cancel()
+    }
+}
+
 final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
     private typealias HTTPBlock = @convention(block) (String, JSValue, String, Bool, JSValue, JSValue) -> Void
     private typealias CookieBlock = @convention(block) (String, JSValue, JSValue) -> Void
@@ -345,6 +453,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     private let transport: any ProviderHTTPTransport
     private let responseSizeLimit: Int
     private let rejectsNonSuccessResponses: Bool
+    private let cancellationLock = NSLock()
+    private var inFlightFetchIDs: Set<UUID> = []
+    private var cancelledFetchIDs: Set<UUID> = []
+    private var cancellableTasks: [UUID: [UUID: ProviderPluginCancelableTask]] = [:]
     private var cache: [String: (value: JSValue, expiresAt: Date)] = [:]
     private var retainedCallbacks: [UUID: [Any]] = [:]
 
@@ -432,6 +544,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -441,8 +554,17 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
     {
+        self.cancellationLock.lock()
+        self.inFlightFetchIDs.insert(requestID)
+        self.cancellationLock.unlock()
         self.queue.async {
+            guard !self.isFetchCancelled(requestID) else {
+                self.finishFetchRequest(requestID)
+                completion(.failure(CancellationError()))
+                return
+            }
             self.beginFetch(
+                requestID: requestID,
                 settings: settings,
                 secrets: secrets,
                 now: now,
@@ -456,6 +578,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
 
     // swiftlint:disable:next function_parameter_count
     private func beginFetch(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -468,6 +591,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         self.context.exception = nil
         let redactionValues = ProviderPluginRedactionValues(secrets.values)
         let ctx = self.makeContext(
+            requestID: requestID,
             settings: settings,
             secrets: secrets,
             now: now,
@@ -477,6 +601,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             instanceCookieResolver: instanceCookieResolver,
             redactionValues: redactionValues)
         guard self.context.exception == nil else {
+            self.finishFetchRequest(requestID)
             completion(.failure(ProviderPluginError.script(Self.exceptionMessage(self.context) ?? "ctx setup failed")))
             return
         }
@@ -485,6 +610,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let resolve: @convention(block) (JSValue) -> Void = { [weak self] value in
             guard let self else { return }
             defer { self.retainedCallbacks[callbackID] = nil }
+            defer { self.finishFetchRequest(requestID) }
             do {
                 let snapshot = try ProviderPluginSnapshotMapper.map(
                     JavaScriptCorePluginValue(value),
@@ -499,18 +625,21 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let reject: @convention(block) (JSValue) -> Void = { [weak self] value in
             guard let self else { return }
             defer { self.retainedCallbacks[callbackID] = nil }
+            defer { self.finishFetchRequest(requestID) }
             completion(.failure(self.failure(from: value, redactionValues: redactionValues)))
         }
         self.retainedCallbacks[callbackID] = [resolve, reject]
 
         guard let result = self.fetchUsage.call(withArguments: [ctx]) else {
             self.retainedCallbacks[callbackID] = nil
+            self.finishFetchRequest(requestID)
             completion(.failure(ProviderPluginError
                     .script(Self.exceptionMessage(self.context) ?? "fetchUsage returned no value")))
             return
         }
         if let message = Self.exceptionMessage(self.context) {
             self.retainedCallbacks[callbackID] = nil
+            self.finishFetchRequest(requestID)
             completion(.failure(ProviderPluginError.script(message)))
             return
         }
@@ -522,12 +651,14 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         _ = result.invokeMethod("then", withArguments: [resolve, reject])
         if let message = Self.exceptionMessage(self.context) {
             self.retainedCallbacks[callbackID] = nil
+            self.finishFetchRequest(requestID)
             completion(.failure(ProviderPluginError.script(message)))
         }
     }
 
     // swiftlint:disable:next function_parameter_count
     private func makeContext(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -598,7 +729,11 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         }
         host.setObject(nextDailyReset, forKeyedSubscript: "nextDailyReset" as NSString)
 
-        let http = self.makeHTTPBlock(settings: settings, secrets: secrets, redactionValues: redactionValues)
+        let http = self.makeHTTPBlock(
+            requestID: requestID,
+            settings: settings,
+            secrets: secrets,
+            redactionValues: redactionValues)
         host.setObject(http, forKeyedSubscript: "http" as NSString)
 
         let rejectCookie: @convention(block) (String) -> Void = { [weak self] rawDomain in
@@ -613,6 +748,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         host.setObject(rejectCookie, forKeyedSubscript: "rejectCookie" as NSString)
 
         let cookieHeader = self.makeCookieBlock(
+            requestID: requestID,
             resolver: cookieResolver,
             instanceResolver: instanceCookieResolver,
             redactionValues: redactionValues)
@@ -643,7 +779,57 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         return ctx
     }
 
-    func requestInterrupt() {}
+    func cancelFetch(_ requestID: UUID) {
+        self.cancellationLock.lock()
+        guard self.inFlightFetchIDs.contains(requestID) else {
+            self.cancellationLock.unlock()
+            return
+        }
+        self.cancelledFetchIDs.insert(requestID)
+        let tasks = self.cancellableTasks.removeValue(forKey: requestID).map { Array($0.values) } ?? []
+        self.cancellationLock.unlock()
+        tasks.forEach { $0.cancel() }
+    }
+
+    private func isFetchCancelled(_ requestID: UUID) -> Bool {
+        self.cancellationLock.lock()
+        defer { self.cancellationLock.unlock() }
+        return self.cancelledFetchIDs.contains(requestID)
+    }
+
+    private func finishFetchRequest(_ requestID: UUID) {
+        self.cancellationLock.lock()
+        self.inFlightFetchIDs.remove(requestID)
+        self.cancelledFetchIDs.remove(requestID)
+        let tasks = self.cancellableTasks.removeValue(forKey: requestID).map { Array($0.values) } ?? []
+        self.cancellationLock.unlock()
+        tasks.forEach { $0.cancel() }
+    }
+
+    private func registerCancellableTask(
+        _ id: UUID,
+        requestID: UUID) -> ProviderPluginCancelableTask
+    {
+        let task = ProviderPluginCancelableTask()
+        self.cancellationLock.lock()
+        if self.cancelledFetchIDs.contains(requestID) {
+            self.cancellationLock.unlock()
+            task.cancel()
+        } else {
+            self.cancellableTasks[requestID, default: [:]][id] = task
+            self.cancellationLock.unlock()
+        }
+        return task
+    }
+
+    private func finishCancellableTask(_ id: UUID, requestID: UUID) {
+        self.cancellationLock.lock()
+        self.cancellableTasks[requestID]?[id] = nil
+        if self.cancellableTasks[requestID]?.isEmpty == true {
+            self.cancellableTasks[requestID] = nil
+        }
+        self.cancellationLock.unlock()
+    }
 
     private static func normalizedTimeZoneIdentifier(_ timeZone: TimeZone) -> String {
         if timeZone.secondsFromGMT() == 0,
@@ -655,12 +841,14 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     }
 
     private func makeHTTPBlock(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         redactionValues: ProviderPluginRedactionValues) -> HTTPBlock
     {
         { [weak self] rawURL, options, method, wantsJSON, resolve, reject in
             self?.startHTTPRequest(
+                requestID: requestID,
                 rawURL: rawURL,
                 options: options,
                 method: method,
@@ -677,6 +865,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     // Keep the JavaScript bridge inputs explicit at the executor boundary.
     // swiftlint:disable:next function_parameter_count
     private func startHTTPRequest(
+        requestID: UUID,
         rawURL: String,
         options: JSValue,
         method: String,
@@ -701,7 +890,19 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let worker = self
         let transport = self.transport
         let responseSizeLimit = self.responseSizeLimit
-        Task.detached {
+        let taskID = UUID()
+        let cancellation = self.registerCancellableTask(taskID, requestID: requestID)
+        let task = Task.detached {
+            defer {
+                cancellation.finish()
+                worker.finishCancellableTask(taskID, requestID: requestID)
+            }
+            guard !cancellation.isCancelled else {
+                worker.queue.async {
+                    worker.reject(callbacks.reject, error: CancellationError())
+                }
+                return
+            }
             do {
                 let responseTask = Task { try await transport.response(for: request) }
                 let response: ProviderHTTPResponse = switch await BoundedTaskJoin(sourceTask: responseTask)
@@ -741,9 +942,11 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 }
             }
         }
+        cancellation.install(task)
     }
 
     private func makeCookieBlock(
+        requestID: UUID,
         resolver: ProviderPluginRuntime.CookieResolver?,
         instanceResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         redactionValues: ProviderPluginRedactionValues) -> CookieBlock
@@ -770,7 +973,19 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             let worker = self
             let resolveBox = ProviderPluginJSValueBox(resolve)
             let rejectBox = ProviderPluginJSValueBox(reject)
-            Task.detached {
+            let taskID = UUID()
+            let cancellation = self.registerCancellableTask(taskID, requestID: requestID)
+            let task = Task.detached {
+                defer {
+                    cancellation.finish()
+                    worker.finishCancellableTask(taskID, requestID: requestID)
+                }
+                guard !cancellation.isCancelled else {
+                    worker.queue.async {
+                        worker.reject(rejectBox, error: CancellationError())
+                    }
+                    return
+                }
                 do {
                     let header = try await resolveCookie()
                     redactionValues.insert(header)
@@ -787,6 +1002,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                     }
                 }
             }
+            cancellation.install(task)
         }
     }
 
@@ -837,8 +1053,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             }
         }
 
-        // The broker owns representation headers so plugins cannot relax the user-plugin response boundary.
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        // Built-in providers may need HTML while user plugins keep the JSON response boundary.
+        if self.rejectsNonSuccessResponses || request.value(forHTTPHeaderField: "Accept") == nil {
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+        }
         if self.rejectsNonSuccessResponses {
             request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         }

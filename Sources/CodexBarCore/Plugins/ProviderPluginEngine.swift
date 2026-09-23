@@ -60,6 +60,7 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -70,7 +71,7 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
 
     func globalType(of name: String) throws -> String
-    func requestInterrupt()
+    func cancelFetch(_ requestID: UUID)
 }
 
 protocol ProviderPluginValue {

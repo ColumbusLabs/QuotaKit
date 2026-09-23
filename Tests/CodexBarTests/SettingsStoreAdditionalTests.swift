@@ -236,6 +236,7 @@ struct SettingsStoreAdditionalTests {
             .moonshot: [.automatic],
             .poe: [.automatic],
             .huggingface: [.automatic, .secondary],
+            .replicate: [.automatic],
         ]
 
         for provider in UsageProvider.allCases {

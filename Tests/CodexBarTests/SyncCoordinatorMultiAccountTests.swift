@@ -57,6 +57,9 @@ struct SyncCoordinatorMultiAccountTests {
     private func makeUsageSnapshot(
         provider: UsageProvider,
         accountEmail: String?,
+        accountID: String? = nil,
+        accountOrganization: String? = nil,
+        providerCost: ProviderCostSnapshot? = nil,
         usedPercent: Double = 25.0) -> UsageSnapshot
     {
         UsageSnapshot(
@@ -66,18 +69,23 @@ struct SyncCoordinatorMultiAccountTests {
                 resetsAt: Date().addingTimeInterval(3600),
                 resetDescription: "in 1 hour"),
             secondary: nil,
+            providerCost: providerCost,
             updatedAt: Date(),
             identity: ProviderIdentitySnapshot(
                 providerID: provider.instanceID,
                 accountEmail: accountEmail,
-                accountOrganization: nil,
-                loginMethod: "oauth"))
+                accountOrganization: accountOrganization,
+                loginMethod: "oauth",
+                accountID: accountID))
     }
 
     private func makeTokenAccountUsageSnapshot(
         provider: UsageProvider,
         accountLabel: String,
         accountEmail: String?,
+        accountID: String? = nil,
+        accountOrganization: String? = nil,
+        providerCost: ProviderCostSnapshot? = nil,
         usedPercent: Double = 25.0) -> TokenAccountUsageSnapshot
     {
         TokenAccountUsageSnapshot(
@@ -86,6 +94,9 @@ struct SyncCoordinatorMultiAccountTests {
             snapshot: self.makeUsageSnapshot(
                 provider: provider,
                 accountEmail: accountEmail,
+                accountID: accountID,
+                accountOrganization: accountOrganization,
+                providerCost: providerCost,
                 usedPercent: usedPercent),
             error: nil,
             sourceLabel: nil)
@@ -194,6 +205,57 @@ struct SyncCoordinatorMultiAccountTests {
         let kimiSnapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "kimi" } ?? []
         #expect(kimiSnapshots.count == 2)
         #expect(Set(kimiSnapshots.compactMap(\.accountEmail)) == ["Kimi Personal", "Kimi|Work"])
+    }
+
+    @Test
+    func `Replicate accounts retain distinct billing identities across iPhone sync`() async throws {
+        let settings = self.makeSettingsStore(suite: "TokenMulti-Replicate-Identity")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .replicate,
+            metadata: #require(ProviderDefaults.metadata[.replicate]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        let selected = self.applyTokenAccountLabel(
+            to: self.makeTokenAccountUsageSnapshot(
+                provider: .replicate,
+                accountLabel: "Personal",
+                accountEmail: nil,
+                accountID: "fixture-user",
+                providerCost: ProviderCostSnapshot(
+                    used: 12.34, limit: 0, currencyCode: "USD", period: "This month", updatedAt: Date()),
+                usedPercent: 15),
+            provider: .replicate,
+            store: store)
+        let other = self.applyTokenAccountLabel(
+            to: self.makeTokenAccountUsageSnapshot(
+                provider: .replicate,
+                accountLabel: "Work",
+                accountEmail: nil,
+                accountID: "fixture-team",
+                accountOrganization: "fixture-team",
+                providerCost: ProviderCostSnapshot(
+                    used: 85.67, limit: 0, currencyCode: "USD", period: "This month", updatedAt: Date()),
+                usedPercent: 85),
+            provider: .replicate,
+            store: store)
+        store._setSnapshotForTesting(selected.snapshot, provider: .replicate)
+        store.accountSnapshots[.replicate] = [selected, other]
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let snapshots = mock.lastSnapshot?.providers.filter { $0.providerID == "replicate" } ?? []
+        #expect(snapshots.count == 2)
+        let identities = Dictionary(uniqueKeysWithValues: snapshots.compactMap { snapshot in
+            snapshot.accountEmail.map { ($0, snapshot.accountIdentities ?? []) }
+        })
+        #expect(identities["Personal"] == ["replicate:user:fixture-user"])
+        #expect(identities["Work"] == ["replicate:organization:fixture-team"])
+        #expect(snapshots.first(where: { $0.accountEmail == "Personal" })?.budget?.usedAmount == 12.34)
+        #expect(snapshots.first(where: { $0.accountEmail == "Work" })?.budget?.isSpendOnly == true)
     }
 
     @Test

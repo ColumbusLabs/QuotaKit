@@ -16,7 +16,8 @@ extension UsageStore {
             providerID: provider.instanceID,
             accountEmail: resolvedEmail,
             accountOrganization: existing?.accountOrganization,
-            loginMethod: existing?.loginMethod)
+            loginMethod: existing?.loginMethod,
+            accountID: existing?.accountID)
         return snapshot.withIdentity(identity)
     }
 

@@ -96,6 +96,7 @@ enum ProviderColorPalette {
             (["clinepass"], RawColor(red: 0.38, green: 0.64, blue: 0.98)),
             (["longcat"], RawColor(red: 1, green: 209 / 255, blue: 0)),
             (["huggingface"], RawColor(red: 1, green: 210 / 255, blue: 30 / 255)),
+            (["replicate"], RawColor(red: 160 / 255, green: 160 / 255, blue: 160 / 255)),
             (["neuralwatt"], RawColor(red: 0.12, green: 0.72, blue: 0.38)),
             (["chutes"], RawColor(red: 0, green: 184 / 255, blue: 255 / 255)),
             (["qoder"], RawColor(red: 16 / 255, green: 185 / 255, blue: 129 / 255)),
