@@ -53,21 +53,15 @@ struct OneConsoleJSONTests {
     }
 
     @Test
-    func `exact lookup can skip arrays for Coding Plan named objects`() {
+    func `exact lookup descends through arrays for named objects`() {
         let value: [String: Any] = ["data": [["quota": ["used": 20]]]]
 
-        let traversingArrays = OneConsoleJSON.findFirstValue(
+        let result = OneConsoleJSON.findFirstValue(
             forExactKeys: ["quota"],
             in: value,
-            transform: { $0 as? [String: Any] })
-        let dictionaryOnly = OneConsoleJSON.findFirstValue(
-            forExactKeys: ["quota"],
-            in: value,
-            descendingIntoArrays: false,
             transform: { $0 as? [String: Any] })
 
-        #expect(traversingArrays?["used"] as? Int == 20)
-        #expect(dictionaryOnly == nil)
+        #expect(result?["used"] as? Int == 20)
     }
 
     @Test

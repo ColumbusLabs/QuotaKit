@@ -716,9 +716,7 @@ public struct AlibabaCodingPlanUsageFetcher: Sendable {
     }
 
     private static func findFirstDictionary(forKeys keys: [String], in value: Any) -> [String: Any]? {
-        // Preserve Coding Plan's dictionary-only named-object lookup.
-        OneConsoleJSON.findFirstValue(
-            forExactKeys: keys, in: value, descendingIntoArrays: false, transform: { $0 as? [String: Any] })
+        OneConsoleJSON.findFirstValue(forExactKeys: keys, in: value, transform: { $0 as? [String: Any] })
     }
 
     private static func findFirstDictionary(matchingAnyKey keys: [String], in value: Any) -> [String: Any]? {

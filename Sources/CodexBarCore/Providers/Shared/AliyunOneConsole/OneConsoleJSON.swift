@@ -114,10 +114,9 @@ public enum OneConsoleJSON {
     static func findFirstValue<T>(
         forExactKeys keys: [String],
         in value: Any,
-        descendingIntoArrays: Bool = true,
         transform: (Any?) -> T?) -> T?
     {
-        self.firstMatch(in: value, descendingIntoArrays: descendingIntoArrays) { dictionary in
+        self.firstMatch(in: value) { dictionary in
             self.firstValue(forKeys: keys, in: dictionary, transform: transform)
         }
     }
@@ -138,23 +137,20 @@ public enum OneConsoleJSON {
     /// Searches each dictionary before its descendants, preserving container iteration order.
     static func firstMatch<T>(
         in value: Any,
-        descendingIntoArrays: Bool = true,
         transform: ([String: Any]) -> T?) -> T?
     {
         if let dictionary = value as? [String: Any] {
-            if let found = transform(dictionary) { return found }
+            if let found = transform(dictionary) {
+                return found
+            }
             for nested in dictionary.values {
-                if let found = self.firstMatch(
-                    in: nested, descendingIntoArrays: descendingIntoArrays, transform: transform)
-                {
+                if let found = self.firstMatch(in: nested, transform: transform) {
                     return found
                 }
             }
-        } else if descendingIntoArrays, let array = value as? [Any] {
+        } else if let array = value as? [Any] {
             for nested in array {
-                if let found = self.firstMatch(
-                    in: nested, descendingIntoArrays: descendingIntoArrays, transform: transform)
-                {
+                if let found = self.firstMatch(in: nested, transform: transform) {
                     return found
                 }
             }
@@ -179,10 +175,18 @@ public enum OneConsoleJSON {
     /// and numeric strings.
     public static func int(_ value: Any?) -> Int? {
         guard let value else { return nil }
-        if let intValue = value as? Int { return intValue }
-        if let int64Value = value as? Int64 { return Int(int64Value) }
-        if let number = value as? NSNumber { return number.intValue }
-        if let doubleValue = value as? Double { return Int(doubleValue) }
+        if let intValue = value as? Int {
+            return intValue
+        }
+        if let int64Value = value as? Int64 {
+            return Int(int64Value)
+        }
+        if let number = value as? NSNumber {
+            return number.intValue
+        }
+        if let doubleValue = value as? Double {
+            return Int(doubleValue)
+        }
         if let string = value as? String {
             return Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
         }

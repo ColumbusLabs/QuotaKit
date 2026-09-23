@@ -223,7 +223,7 @@ struct AlibabaCodingPlanUsageSnapshotTests {
 
 struct AlibabaCodingPlanUsageParsingTests {
     @Test
-    func `quota lookup keeps dictionary traversal precedence across arrays`() throws {
+    func `quota lookup prefers named quota nested inside an array wrapper`() throws {
         let json = """
         {
           "codingPlanQuotaInfo": [{
@@ -235,8 +235,7 @@ struct AlibabaCodingPlanUsageParsingTests {
         """
         let snapshot = try AlibabaCodingPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
 
-        // Named quota lookup stops at arrays; the fallback selects the first quota-bearing object.
-        #expect(snapshot.fiveHourUsedQuota == 20)
+        #expect(snapshot.fiveHourUsedQuota == 90)
         #expect(snapshot.fiveHourTotalQuota == 100)
     }
 
