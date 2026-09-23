@@ -28,7 +28,7 @@ public enum CodeRabbitProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .coderabbit),
                 iconResourceName: "ProviderIcon-coderabbit",
-                color: ProviderColor(red: 255 / 255, green: 92 / 255, blue: 53 / 255),
+                color: ProviderColor(red: 200 / 255, green: 60 / 255, blue: 40 / 255),
                 confettiPalette: [
                     ProviderColor(hex: 0xFF5C35),
                     ProviderColor(hex: 0xFFA07A),
