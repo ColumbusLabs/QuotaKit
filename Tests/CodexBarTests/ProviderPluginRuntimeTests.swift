@@ -229,6 +229,45 @@ struct ProviderPluginRuntimeTests {
         #expect(await waitForSignal(engineCancellation, timeout: .seconds(1)))
     }
 
+    @Test
+    func `QuickJS cancellation finishes interrupt before a later fetch becomes active`() async throws {
+        let lifecycle = QuickJSFetchRequestLifecycle()
+        let watchdog = try #require(OpaquePointer(bitPattern: 0x1234))
+        let firstID = UUID()
+        let secondID = UUID()
+        lifecycle.setWatchdog(watchdog)
+        lifecycle.register(firstID)
+        #expect(lifecycle.activate(firstID))
+
+        let interruptEntered = DispatchSemaphore(value: 0)
+        let allowInterruptToFinish = DispatchSemaphore(value: 0)
+        let nextFetchStarted = DispatchSemaphore(value: 0)
+        let secondActivated = DispatchSemaphore(value: 0)
+        defer { allowInterruptToFinish.signal() }
+        let cancellation = Task.detached {
+            lifecycle.cancel(firstID) { _ in
+                interruptEntered.signal()
+                _ = allowInterruptToFinish.wait(timeout: .now() + 2)
+            }
+        }
+        #expect(await waitForSignal(interruptEntered, timeout: .seconds(1)))
+
+        let nextFetch = Task.detached {
+            nextFetchStarted.signal()
+            lifecycle.finish(firstID)
+            lifecycle.register(secondID)
+            let activated = lifecycle.activate(secondID)
+            secondActivated.signal()
+            return activated
+        }
+        #expect(await waitForSignal(nextFetchStarted, timeout: .seconds(1)))
+        let activatedBeforeInterrupt = await waitForSignal(secondActivated, timeout: .milliseconds(50))
+        #expect(!activatedBeforeInterrupt)
+        allowInterruptToFinish.signal()
+        await cancellation.value
+        #expect(await nextFetch.value)
+    }
+
     #if canImport(JavaScriptCore)
     @Test
     func `cancelling a synchronous JavaScriptCore hang leaves a fresh worker available`() async throws {
@@ -833,7 +872,9 @@ private actor ProviderPluginCancellationProbe {
 
     func waitUntilStarted(count: Int = 1) async -> Bool {
         for _ in 0..<300 {
-            if self.startedCount >= count { return true }
+            if self.startedCount >= count {
+                return true
+            }
             try? await Task.sleep(for: .milliseconds(10))
         }
         return self.startedCount >= count
@@ -841,7 +882,9 @@ private actor ProviderPluginCancellationProbe {
 
     func waitUntilCancelled(count: Int = 1) async -> Bool {
         for _ in 0..<300 {
-            if self.cancelledCount >= count { return true }
+            if self.cancelledCount >= count {
+                return true
+            }
             try? await Task.sleep(for: .milliseconds(10))
         }
         return self.cancelledCount >= count

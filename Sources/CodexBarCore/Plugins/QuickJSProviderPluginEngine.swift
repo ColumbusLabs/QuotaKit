@@ -123,7 +123,7 @@ private final class QuickJSPluginValue: ProviderPluginValue {
     }
 }
 
-private final class QuickJSFetchRequestLifecycle: @unchecked Sendable {
+final class QuickJSFetchRequestLifecycle: @unchecked Sendable {
     private let lock = NSLock()
     private var activeFetchID: UUID?
     private var inFlightFetchIDs: Set<UUID> = []
@@ -170,16 +170,17 @@ private final class QuickJSFetchRequestLifecycle: @unchecked Sendable {
         return self.cancelledFetchIDs.contains(requestID)
     }
 
-    func cancel(_ requestID: UUID) -> OpaquePointer? {
+    func cancel(_ requestID: UUID, interrupt: (OpaquePointer) -> Void) {
         self.lock.lock()
-        guard self.inFlightFetchIDs.contains(requestID) else {
-            self.lock.unlock()
-            return nil
-        }
+        defer { self.lock.unlock() }
+        guard self.inFlightFetchIDs.contains(requestID) else { return }
         self.cancelledFetchIDs.insert(requestID)
-        let watchdog = self.activeFetchID == requestID ? self.watchdog : nil
-        self.lock.unlock()
-        return watchdog
+        // Keep the active-request check and interrupt atomic with finish/activate.
+        // A late interrupt after the next request arms this reused watchdog would
+        // cancel the wrong fetch.
+        if self.activeFetchID == requestID, let watchdog = self.watchdog {
+            interrupt(watchdog)
+        }
     }
 
     func finish(_ requestID: UUID) {
@@ -352,8 +353,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     func cancelFetch(_ requestID: UUID) {
-        let watchdog = self.fetchLifecycle.cancel(requestID)
-        if let watchdog { cqjs_watchdog_interrupt(watchdog) }
+        self.fetchLifecycle.cancel(requestID) { cqjs_watchdog_interrupt($0) }
     }
 
     private func load(source: String, preludeSource: String, allowsDynamicID: Bool) throws {
