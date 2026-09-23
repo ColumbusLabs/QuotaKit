@@ -241,13 +241,76 @@ struct WidgetEmptyProjectionTests {
         saveGate.releaseFirstSave()
         await store.widgetSnapshotPersistTask?.value
 
-        #expect(saved.count == 2)
+        #expect(saved.count == 3)
         #expect(saved.first?.entries.map(\.provider).contains(.openrouter) == true)
         #expect(saved.last?.entries.map(\.provider) == [.deepseek])
         #expect(saved.last?.entries.first?.updatedAt == firstAccountSnapshot.entries
             .first(where: { $0.provider == .deepseek })?.updatedAt)
         #expect(saved.last?.enabledProviders == firstAccountSnapshot.enabledProviders)
         #expect(store.snapshots.isEmpty)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
+    }
+
+    @Test
+    func `completed widget save is republished after an account switch`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        var saved: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { saved.append($0) }
+        store.persistWidgetSnapshot(reason: "synthetic-completed-save-before-account-switch")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(saved.first)
+        let deepSeekEntry = try #require(originalSnapshot.entries.first { $0.provider == .deepseek })
+        #expect(originalSnapshot.entries.count == 2)
+
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+        store.snapshots.removeAll()
+        await store.widgetSnapshotPersistTask?.value
+
+        let repairedSnapshot = try #require(saved.last)
+        #expect(saved.count == 2)
+        #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
+        #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
+        #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
+        #expect(repairedSnapshot.generatedAt > originalSnapshot.generatedAt)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
+    }
+
+    @Test
+    func `account switch filters persisted snapshot when in process queue is empty`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
+        let snapshotURL = try #require(store.widgetSnapshotURL)
+        defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        try FileManager.default.createDirectory(
+            at: snapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        store.persistWidgetSnapshot(reason: "synthetic-disk-snapshot-before-process-restart")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(originalSnapshot.entries.count == 2)
+
+        store.lastQueuedWidgetSnapshot = nil
+        store.snapshots.removeAll()
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+        await store.widgetSnapshotPersistTask?.value
+
+        let repairedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
+        #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
+        #expect(repairedSnapshot.generatedAt > originalSnapshot.generatedAt)
         #expect(store.cloudSyncAccountSnapshots().isEmpty)
     }
 

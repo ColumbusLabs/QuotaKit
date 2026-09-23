@@ -41,11 +41,43 @@ extension UsageStore {
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(snapshots: self.cloudSyncAccountSnapshots()))
+        self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: snapshot)
+    }
+
+    private func enqueueWidgetSnapshotPersistence(
+        fallbackSnapshot: WidgetSnapshot,
+        loadsPersistedSnapshotIfQueueIsUnchanged: Bool = false)
+    {
         let previousTask = self.widgetSnapshotPersistTask
+        let hasSaveOverride = self._test_widgetSnapshotSaveOverride != nil
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
 
-            var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? snapshot
+            var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? fallbackSnapshot
+            if loadsPersistedSnapshotIfQueueIsUnchanged,
+               snapshotToPersist.generatedAt == fallbackSnapshot.generatedAt
+            {
+                let persistedSnapshot = await self.loadWidgetSnapshotForInvalidation()
+                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
+                if let persistedSnapshot {
+                    let filteredSnapshot = self.filterPersistedWidgetSnapshotAfterInvalidation(
+                        persistedSnapshot,
+                        after: max(fallbackSnapshot.generatedAt, latestSnapshot.generatedAt))
+                    if latestSnapshot.generatedAt == fallbackSnapshot.generatedAt {
+                        snapshotToPersist = filteredSnapshot
+                    } else {
+                        // Preserve unaffected disk entries if a new projection arrived during the
+                        // bounded load. Current entries win; blocked providers never return.
+                        snapshotToPersist = self.mergingUnblockedEntries(
+                            from: filteredSnapshot,
+                            into: latestSnapshot)
+                    }
+                    self.lastQueuedWidgetSnapshot = snapshotToPersist
+                } else {
+                    snapshotToPersist = latestSnapshot
+                }
+            }
+
             while true {
                 await self.saveWidgetSnapshot(snapshotToPersist)
 
@@ -57,9 +89,60 @@ extension UsageStore {
             }
 
             #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
+            if !hasSaveOverride { WidgetCenter.shared.reloadAllTimelines() }
             #endif
         }
+    }
+
+    private func loadWidgetSnapshotForInvalidation() async -> WidgetSnapshot? {
+        #if DEBUG
+        // Never let test-only save overrides fall through to the developer's live app-group container.
+        guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
+        #endif
+        let widgetSnapshotURL = self.widgetSnapshotURL
+        return await Task.detached(priority: .utility) {
+            if let widgetSnapshotURL {
+                WidgetSnapshotStore.load(from: widgetSnapshotURL)
+            } else {
+                WidgetSnapshotStore.load()
+            }
+        }.value
+    }
+
+    private func filterPersistedWidgetSnapshotAfterInvalidation(
+        _ snapshot: WidgetSnapshot,
+        after generation: Date) -> WidgetSnapshot
+    {
+        let enabledProviders = Set(self.enabledProviders())
+        let entries = snapshot.entries.filter { entry in
+            // Claude ownership cannot be validated from disk. Blocked providers are removed, while
+            // unrelated enabled entries remain useful until their live refresh replaces them.
+            entry.provider != .claude && enabledProviders.contains(entry.provider) &&
+                !self.widgetUsagePreservationBlockedProviders.contains(entry.provider) &&
+                (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage)
+        }
+        return WidgetSnapshot(
+            entries: entries,
+            enabledProviders: snapshot.enabledProviders,
+            usageBarsShowUsed: snapshot.usageBarsShowUsed,
+            generatedAt: max(Date(), max(snapshot.generatedAt, generation).addingTimeInterval(0.001)))
+    }
+
+    private func mergingUnblockedEntries(
+        from persistedSnapshot: WidgetSnapshot,
+        into latestSnapshot: WidgetSnapshot) -> WidgetSnapshot
+    {
+        var entries = latestSnapshot.entries
+        for entry in persistedSnapshot.entries where !entries.contains(where: { $0.provider == entry.provider }) {
+            entries.append(entry)
+        }
+        return WidgetSnapshot(
+            entries: entries,
+            enabledProviders: latestSnapshot.enabledProviders,
+            usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
+            generatedAt: max(
+                Date(),
+                max(latestSnapshot.generatedAt, persistedSnapshot.generatedAt).addingTimeInterval(0.001)))
     }
 
     private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {
@@ -186,14 +269,35 @@ extension UsageStore {
         guard provider != .claude else { return }
         self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
         // A later success cannot make an older queued account publication current again.
-        if let queuedSnapshot = self.lastQueuedWidgetSnapshot,
-           queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID })
-        {
-            self.lastQueuedWidgetSnapshot = WidgetSnapshot(
+        if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
+            guard queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) else { return }
+            let filteredSnapshot = WidgetSnapshot(
                 entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
                 enabledProviders: queuedSnapshot.enabledProviders,
                 usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
                 generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
+            self.lastQueuedWidgetSnapshot = filteredSnapshot
+            guard Self.shouldPersistWidgetSnapshot(
+                isRunningTests: SettingsStore.isRunningTests,
+                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+            else { return }
+            self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: filteredSnapshot)
+        } else {
+            let emptySnapshot = WidgetSnapshot(
+                entries: [],
+                enabledProviders: self.enabledProviders(),
+                usageBarsShowUsed: self.settings.usageBarsShowUsed,
+                generatedAt: Date())
+            self.lastQueuedWidgetSnapshot = emptySnapshot
+            guard Self.shouldPersistWidgetSnapshot(
+                isRunningTests: SettingsStore.isRunningTests,
+                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+            else { return }
+            self.enqueueWidgetSnapshotPersistence(
+                fallbackSnapshot: emptySnapshot,
+                loadsPersistedSnapshotIfQueueIsUnchanged: true)
         }
     }
 
