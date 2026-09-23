@@ -4453,7 +4453,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex multi-account expansion and stale-account purging are isolated to its managed-account cache."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1343,
+            line: 1373,
             anchor: "let codexProviderID = UsageProvider.codex.rawValue",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4461,7 +4461,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Codex reconciliation uses its stable provider ID when expanding managed accounts for mobile sync."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1541,
+            line: 1571,
             anchor: "guard provider == .antigravity, snapshot?.identity == nil else { return false }",
             expectedProviderIDs: ["antigravity"],
             expectedReferenceCount: 1,
@@ -4469,7 +4469,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Unowned Antigravity offline cache snapshots must stay Mac-local instead of becoming ambiguous iCloud records."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1753,
+            line: 1783,
             anchor: "guard provider == .xai,",
             expectedProviderIDs: ["xai"],
             expectedReferenceCount: 1,
@@ -4477,7 +4477,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "xAI usage projects provider-native cost history into its mobile cost summary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1778,
+            line: 1808,
             anchor: "sourceRevisions: (snapshot?.updatedAt).map { [\"xai\": $0] })",
             expectedProviderIDs: ["xai"],
             expectedReferenceCount: 1,
@@ -4485,7 +4485,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "xAI's revision key identifies the independent source behind its mobile cost history."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1816,
+            line: 1846,
             anchor: "case .claude, .vertexai:",
             expectedProviderIDs: [
                 "abacus",
@@ -4641,7 +4641,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "Cost-estimation badges follow provider-specific model-family knowledge and pricing provenance."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/Sync/SyncCoordinator.swift",
-            line: 1861,
+            line: 1891,
             anchor: "guard provider == .codex else { return [:] }",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
