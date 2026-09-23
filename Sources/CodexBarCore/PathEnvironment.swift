@@ -126,7 +126,12 @@ public enum BinaryLocator {
         fileManager: FileManager = .default,
         home: String = NSHomeDirectory()) -> String?
     {
-        self.resolveBinary(
+        // An explicit path may disable CLI probing for a background refresh. Do not
+        // discover and launch another agy if that configured path is unusable.
+        if let override = env["ANTIGRAVITY_CLI_PATH"] {
+            return fileManager.isExecutableFile(atPath: override) ? override : nil
+        }
+        return self.resolveBinary(
             name: "agy",
             overrideKey: "ANTIGRAVITY_CLI_PATH",
             env: env,
