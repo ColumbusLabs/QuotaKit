@@ -9,6 +9,7 @@ struct ProviderColorPaletteTests {
         expectColor("claude", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("anthropic", red: 204 / 255, green: 124 / 255, blue: 94 / 255)
         expectColor("cursor", red: 0, green: 0, blue: 0)
+        expectColor("replicate", red: 160 / 255, green: 160 / 255, blue: 160 / 255)
     }
 
     @Test
@@ -77,6 +78,7 @@ struct ProviderColorPaletteTests {
             ("v0", 17 / 255, 17 / 255, 17 / 255),
             ("xai", 142 / 255, 142 / 255, 160 / 255),
             ("huggingface", 1, 210 / 255, 30 / 255),
+            ("replicate", 160 / 255, 160 / 255, 160 / 255),
         ]
 
         for (provider, red, green, blue) in expected {
@@ -157,7 +159,7 @@ private let knownDistinctProviders = [
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
-    "zenmux", "zoommate", "xai",
+    "zenmux", "zoommate", "xai", "replicate",
 ]
 
 private func expectDistinctColors(

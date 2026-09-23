@@ -47,7 +47,7 @@ public enum ReplicateProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .replicate),
                 iconResourceName: "ProviderIcon-replicate",
-                color: ProviderColor(red: 0, green: 0, blue: 0),
+                color: ProviderColor(red: 160 / 255, green: 160 / 255, blue: 160 / 255),
                 confettiPalette: [
                     ProviderColor(hex: 0x000000),
                     ProviderColor(hex: 0x525252),
