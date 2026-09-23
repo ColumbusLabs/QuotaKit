@@ -63,6 +63,9 @@ struct PreferencesView: View {
     let runProviderLoginFlow: @MainActor (UsageProvider) async -> Void
     @Environment(\.colorScheme) private var colorScheme
     @AppStorage(SettingsPane.sidebarWidthDefaultsKey) private var sidebarWidth: Double = SettingsPane.sidebarWidth
+    /// Measured titlebar height for the detail cover. Reading from the window avoids
+    /// GeometryReader's zero top inset inside the detail scroll view.
+    @State private var detailTitlebarInset: CGFloat = 0
 
     /// The persisted width, guarded against out-of-range values (edited defaults,
     /// bounds that shrank in an update) so a bad stored value can't wreck the layout.
@@ -118,6 +121,24 @@ struct PreferencesView: View {
                     maxHeight: .infinity,
                     alignment: .topLeading)
                 .frame(maxWidth: .infinity, maxHeight: .infinity, alignment: .topLeading)
+                // Detail panes hide their grouped-Form scroll background. Give the column
+                // its own backing so content cannot show through the transparent titlebar.
+                .background {
+                    SettingsDetailMaterial()
+                        .ignoresSafeArea()
+                        .overlay {
+                            SettingsTitlebarInsetReader(inset: self.$detailTitlebarInset)
+                                .frame(width: 0, height: 0)
+                        }
+                }
+                // Keep scrolled Form content below the titlebar while preserving its frosted edge.
+                .overlay(alignment: .top) {
+                    SettingsDetailTitlebarCoverMaterial()
+                        .frame(height: self.detailTitlebarInset)
+                        .frame(maxWidth: .infinity)
+                        .ignoresSafeArea(edges: .top)
+                        .allowsHitTesting(false)
+                }
                 .overlay(alignment: .leading) {
                     self.sidebarResizeHandle
                 }
@@ -260,6 +281,10 @@ enum SettingsWindowStageBehavior {
 enum SettingsWindowAppearance {
     typealias ResetAction = @MainActor @Sendable () -> Void
     typealias ResetScheduler = @MainActor @Sendable (@escaping ResetAction) -> Void
+
+    static func titlebarInset(for window: NSWindow) -> CGFloat {
+        max(0, window.frame.height - window.contentLayoutRect.height)
+    }
 
     static func refresh(
         _ window: NSWindow,
@@ -415,6 +440,92 @@ private struct SettingsSidebarMaterial: NSViewRepresentable {
     private func configure(_ view: NSVisualEffectView) {
         view.material = .sidebar
         view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+    }
+}
+
+/// Window-background backing for the detail column beneath the transparent titlebar.
+@MainActor
+private struct SettingsDetailMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        self.configure(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        self.configure(nsView)
+    }
+
+    private func configure(_ view: NSVisualEffectView) {
+        view.material = .windowBackground
+        view.blendingMode = .behindWindow
+        view.state = .followsWindowActiveState
+    }
+}
+
+/// Measures the actual window titlebar area for the detail-side cover.
+@MainActor
+private struct SettingsTitlebarInsetReader: NSViewRepresentable {
+    @Binding var inset: CGFloat
+
+    @MainActor
+    final class InsetReadingView: NSView {
+        var onChange: ((CGFloat) -> Void)?
+
+        override func viewDidMoveToWindow() {
+            super.viewDidMoveToWindow()
+            self.report()
+        }
+
+        override func layout() {
+            super.layout()
+            self.report()
+        }
+
+        private func report() {
+            guard let window else { return }
+            self.onChange?(SettingsWindowAppearance.titlebarInset(for: window))
+        }
+    }
+
+    func makeNSView(context: Context) -> InsetReadingView {
+        let view = InsetReadingView()
+        self.configure(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: InsetReadingView, context: Context) {
+        self.configure(nsView)
+    }
+
+    private func configure(_ view: InsetReadingView) {
+        view.onChange = { value in
+            // AppKit reports from its layout pass; defer the binding update until afterward.
+            DispatchQueue.main.async {
+                guard self.inset != value else { return }
+                self.inset = value
+            }
+        }
+    }
+}
+
+/// Frosted titlebar strip over the detail pane, matching the window's native toolbar edge.
+@MainActor
+private struct SettingsDetailTitlebarCoverMaterial: NSViewRepresentable {
+    func makeNSView(context: Context) -> NSVisualEffectView {
+        let view = NSVisualEffectView()
+        self.configure(view)
+        return view
+    }
+
+    func updateNSView(_ nsView: NSVisualEffectView, context: Context) {
+        self.configure(nsView)
+    }
+
+    private func configure(_ view: NSVisualEffectView) {
+        view.material = .headerView
+        view.blendingMode = .withinWindow
         view.state = .followsWindowActiveState
     }
 }
