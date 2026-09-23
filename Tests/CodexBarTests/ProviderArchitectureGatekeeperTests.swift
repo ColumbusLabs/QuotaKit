@@ -2381,7 +2381,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+HostedSubmenus.swift",
-            line: 500,
+            line: 508,
             anchor: "projects: provider == .codex ? tokenSnapshot.projects : [],",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 2,
@@ -3849,7 +3849,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "One-time schema migrations remap Antigravity two-pool metrics and Cursor request-plan metrics from their historical meanings."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+HostedSubmenus.swift",
-            line: 91,
+            line: 94,
             anchor: "static let statusComponentsSubmenuProviders: Set<UsageProvider> = [.claude, .codex, .augment, .zoommate]",
             expectedProviderIDs: ["augment", "claude", "codex", "zoommate"],
             expectedReferenceCount: 4,
