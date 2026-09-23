@@ -8,6 +8,31 @@ import Testing
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
     @Test
+    func `bedrock discloses monitoring charges before credentials in either authentication mode`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bedrock-charges")
+        let context = fixture.settingsContext(provider: .bedrock)
+        for mode in [BedrockAuthMode.keys, .profile] {
+            fixture.settings.bedrockAuthMode = mode.rawValue
+            let groups = BedrockProviderImplementation().settingsActions(context: context)
+            let charges = try #require(groups.first { $0.id == "bedrock-monitoring-charges" })
+            let frequency = try #require(groups.first { $0.id == "bedrock-monitoring-frequency" })
+            let pricing = try #require(charges.actions.first { $0.id == "bedrock-monitoring-pricing" })
+
+            #expect(charges.isVisible?() ?? true)
+            #expect(frequency.isVisible?() ?? true)
+            #expect(charges.subtitle.contains("$0.01 per Cost Explorer request"))
+            #expect(charges.subtitle.contains("primary billing view"))
+            #expect(charges.subtitle.contains("multiple requests"))
+            #expect(charges.subtitle.contains("CloudWatch activity"))
+            #expect(charges.subtitle.contains("does not cap AWS billing"))
+            #expect(pricing.title == "AWS Cost Explorer pricing")
+            #expect(pricing.isVisible?() ?? true)
+            #expect(frequency.subtitle.contains("all providers"))
+            #expect(frequency.subtitle.contains("startup and explicit refreshes"))
+        }
+    }
+
+    @Test
     func `field change debounce flushes the latest pending value exactly once`() async {
         let debouncer = ProviderSettingsFieldChangeDebouncer()
         var observedValues: [String] = []
