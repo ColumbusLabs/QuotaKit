@@ -967,6 +967,7 @@ extension UsageStore {
             provider: provider,
             expectedGuard: context.codexExpectedGuard)
         self.lastFetchAttempts[provider.instanceID] = attempts
+        self.invalidateWidgetUsageIfTerminalFailure(for: provider, after: error)
         self.recordStartupConnectivityRetryableFailure(error)
         await self.handleProviderFetchFailure(
             provider: provider,

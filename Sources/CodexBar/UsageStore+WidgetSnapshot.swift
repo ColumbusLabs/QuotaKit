@@ -4,7 +4,28 @@ import Foundation
 import WidgetKit
 #endif
 
+#if DEBUG
+@MainActor
+private enum WidgetSnapshotLoadTestOverrides {
+    static var byStore: [ObjectIdentifier: @MainActor () async -> WidgetSnapshot?] = [:]
+}
+#endif
+
 extension UsageStore {
+    private var isWidgetSnapshotTestEnvironment: Bool {
+        if case .testing = self.startupBehavior {
+            return true
+        }
+        return SettingsStore.isRunningTests
+    }
+
+    private var shouldPersistWidgetSnapshotInCurrentEnvironment: Bool {
+        Self.shouldPersistWidgetSnapshot(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+    }
+
     /// Tests must never touch the real app-group container: the widget-snapshot
     /// `open()` can block forever behind macOS 26 app-data (TCC) gating, hanging
     /// the whole suite. A test opts into persistence with an in-memory save
@@ -18,19 +39,46 @@ extension UsageStore {
         !isRunningTests || hasSaveOverride || hasInjectedSnapshotURL
     }
 
+    static func shouldLoadPersistedWidgetSnapshot(
+        isRunningTests: Bool,
+        hasSaveOverride: Bool,
+        hasInjectedSnapshotURL: Bool) -> Bool
+    {
+        !hasSaveOverride && (!isRunningTests || hasInjectedSnapshotURL)
+    }
+
+    static func shouldReloadWidgetTimelines(
+        isRunningTests: Bool,
+        hasSaveOverride: Bool,
+        hasInjectedSnapshotURL: Bool) -> Bool
+    {
+        !isRunningTests && !hasSaveOverride && !hasInjectedSnapshotURL
+    }
+
+    #if DEBUG
+    func setWidgetSnapshotLoadOverrideForTesting(
+        _ override: (@MainActor () async -> WidgetSnapshot?)?)
+    {
+        let storeID = ObjectIdentifier(self)
+        if let override {
+            WidgetSnapshotLoadTestOverrides.byStore[storeID] = override
+        } else {
+            WidgetSnapshotLoadTestOverrides.byStore.removeValue(forKey: storeID)
+        }
+    }
+    #endif
+
     func persistWidgetSnapshot(reason: String) {
-        guard Self.shouldPersistWidgetSnapshot(
-            isRunningTests: SettingsStore.isRunningTests,
-            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
-            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
-        else { return }
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
         let previousSnapshot = self.lastQueuedWidgetSnapshot ?? {
-            #if DEBUG
-            // Snapshot-save overrides must stay isolated from a developer's real app-group data.
-            guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
-            #endif
+            // Test save overrides never read from the developer's real app-group data in any build.
+            guard Self.shouldLoadPersistedWidgetSnapshot(
+                isRunningTests: self.isWidgetSnapshotTestEnvironment,
+                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+            else { return nil }
             if let widgetSnapshotURL = self.widgetSnapshotURL {
                 return WidgetSnapshotStore.load(from: widgetSnapshotURL)
             }
@@ -41,27 +89,151 @@ extension UsageStore {
         NotificationCenter.default.post(
             name: .codexbarUsageSnapshotsDidChange,
             object: UsageSnapshotsDidChangeEvent(snapshots: self.cloudSyncAccountSnapshots()))
+        self.enqueueWidgetSnapshotPersistence(
+            fallbackSnapshot: snapshot,
+            loadsPersistedSnapshotIfQueueIsUnchanged: self.widgetSnapshotPersistenceState.pendingColdLoad)
+    }
+
+    private func enqueueWidgetSnapshotPersistence(
+        fallbackSnapshot: WidgetSnapshot,
+        loadsPersistedSnapshotIfQueueIsUnchanged: Bool = false)
+    {
         let previousTask = self.widgetSnapshotPersistTask
+        let persistenceToken = UUID()
+        self.widgetSnapshotPersistenceState.token = persistenceToken
+        let hasSaveOverride = self._test_widgetSnapshotSaveOverride != nil
+        #if canImport(WidgetKit)
+        let shouldReloadTimelines = Self.shouldReloadWidgetTimelines(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: hasSaveOverride,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+        #endif
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
+            guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
 
-            if let override = self._test_widgetSnapshotSaveOverride {
-                await override(snapshot)
-                return
+            var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? fallbackSnapshot
+            if loadsPersistedSnapshotIfQueueIsUnchanged,
+               snapshotToPersist.generatedAt == fallbackSnapshot.generatedAt
+            {
+                let persistedSnapshot = await self.loadWidgetSnapshotForInvalidation()
+                guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
+                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
+                if let persistedSnapshot {
+                    let filteredSnapshot = self.filterPersistedWidgetSnapshotAfterInvalidation(
+                        persistedSnapshot,
+                        after: max(fallbackSnapshot.generatedAt, latestSnapshot.generatedAt))
+                    let freshEntries = Dictionary(uniqueKeysWithValues: latestSnapshot.entries
+                        .map { ($0.provider, $0) })
+                    let retainedEntries = Dictionary(uniqueKeysWithValues: filteredSnapshot.entries.map { (
+                        $0.provider,
+                        $0) })
+                    snapshotToPersist = WidgetSnapshot(
+                        entries: latestSnapshot.enabledProviders.compactMap { freshEntries[$0] ?? retainedEntries[$0] },
+                        enabledProviders: latestSnapshot.enabledProviders,
+                        usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
+                        generatedAt: filteredSnapshot.generatedAt)
+                    self.lastQueuedWidgetSnapshot = snapshotToPersist
+                } else {
+                    snapshotToPersist = latestSnapshot
+                }
+                self.widgetSnapshotPersistenceState.pendingColdLoad = false
             }
 
-            let widgetSnapshotURL = self.widgetSnapshotURL
-            await Task.detached(priority: .utility) {
-                if let widgetSnapshotURL {
-                    WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
-                } else {
-                    WidgetSnapshotStore.save(snapshot)
-                }
-            }.value
+            await self.saveWidgetSnapshot(snapshotToPersist)
+            guard self.widgetSnapshotPersistenceState.token == persistenceToken else { return }
+
             #if canImport(WidgetKit)
-            WidgetCenter.shared.reloadAllTimelines()
+            if shouldReloadTimelines {
+                WidgetCenter.shared.reloadAllTimelines()
+            }
             #endif
         }
+    }
+
+    private func loadWidgetSnapshotForInvalidation() async -> WidgetSnapshot? {
+        #if DEBUG
+        if let override = WidgetSnapshotLoadTestOverrides.byStore[ObjectIdentifier(self)] {
+            return await override()
+        }
+        #endif
+        // Test save overrides never read from the developer's real app-group data in any build.
+        guard Self.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+        else { return nil }
+        let widgetSnapshotURL = self.widgetSnapshotURL
+        return await Task.detached(priority: .utility) {
+            if let widgetSnapshotURL {
+                WidgetSnapshotStore.load(from: widgetSnapshotURL)
+            } else {
+                WidgetSnapshotStore.load()
+            }
+        }.value
+    }
+
+    private func filterPersistedWidgetSnapshotAfterInvalidation(
+        _ snapshot: WidgetSnapshot,
+        after generation: Date) -> WidgetSnapshot
+    {
+        let enabledProviders = Set(self.enabledProviders())
+        let expectedClaudeQuotaOwnerKey = snapshot.entries.contains { $0.provider == .claude }
+            ? self.expectedClaudeWidgetQuotaOwnerKey()
+            : nil
+        let entries = snapshot.entries.compactMap { entry -> WidgetSnapshot.ProviderEntry? in
+            guard enabledProviders.contains(entry.provider),
+                  !self.widgetUsagePreservationBlockedProviders.contains(entry.provider),
+                  entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage
+            else {
+                return nil
+            }
+            // Provider-specific by design: preserved Claude quota must still belong to the selected account.
+            guard entry.provider == .claude else { return entry }
+            guard self.knownLimitsAvailabilityByProvider[.claude]?.isUnavailable != true,
+                  let preservedUsage = Self.preservedClaudeWidgetUsage(
+                      from: entry,
+                      expectedQuotaOwnerKey: expectedClaudeQuotaOwnerKey)
+            else {
+                return nil
+            }
+            return WidgetSnapshot.ProviderEntry(
+                provider: .claude,
+                updatedAt: preservedUsage.updatedAt,
+                primary: preservedUsage.primary,
+                secondary: preservedUsage.secondary,
+                tertiary: preservedUsage.tertiary,
+                usageRows: preservedUsage.usageRows,
+                creditsRemaining: entry.creditsRemaining,
+                codeReviewRemainingPercent: entry.codeReviewRemainingPercent,
+                tokenUsage: entry.tokenUsage,
+                dailyUsage: entry.dailyUsage,
+                providerCost: entry.providerCost,
+                quotaOwnerKey: preservedUsage.quotaOwnerKey)
+        }
+        return WidgetSnapshot(
+            entries: entries,
+            enabledProviders: snapshot.enabledProviders,
+            usageBarsShowUsed: snapshot.usageBarsShowUsed,
+            generatedAt: max(Date(), max(snapshot.generatedAt, generation).addingTimeInterval(0.001)))
+    }
+
+    private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {
+        if let override = self._test_widgetSnapshotSaveOverride {
+            await override(snapshot)
+            return
+        }
+        // Keep a mistakenly scheduled test task from writing to the app-group container as well.
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
+
+        let widgetSnapshotURL = self.widgetSnapshotURL
+        await Task.detached(priority: .utility) {
+            if let widgetSnapshotURL {
+                WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
+            } else {
+                WidgetSnapshotStore.save(snapshot)
+            }
+        }.value
     }
 
     /// Builds outbound snapshots only from this Mac's UsageStore; remote fleet snapshots live in CloudSyncState.
@@ -167,20 +339,81 @@ extension UsageStore {
         return identities
     }
 
+    func invalidateGenericWidgetUsage(for provider: UsageProvider) {
+        // Provider-specific by design: Claude has a separate owner-aware preservation path in makeWidgetEntry.
+        guard provider != .claude else { return }
+        self.widgetUsagePreservationBlockedProviders.insert(provider.instanceID)
+        // A later success cannot make an older queued account publication current again.
+        if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
+            let snapshotToPersist: WidgetSnapshot
+            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) {
+                snapshotToPersist = WidgetSnapshot(
+                    entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
+                    enabledProviders: queuedSnapshot.enabledProviders,
+                    usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
+                    generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
+                self.lastQueuedWidgetSnapshot = snapshotToPersist
+            } else {
+                // The queue may already be a newer projection that omits this provider while disk
+                // still contains its old entry. Republish the queue even when it needs no filtering.
+                snapshotToPersist = queuedSnapshot
+            }
+            guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
+            self.enqueueWidgetSnapshotPersistence(
+                fallbackSnapshot: snapshotToPersist,
+                loadsPersistedSnapshotIfQueueIsUnchanged: self.widgetSnapshotPersistenceState.pendingColdLoad)
+        } else {
+            let emptySnapshot = WidgetSnapshot(
+                entries: [],
+                enabledProviders: self.enabledProviders(),
+                usageBarsShowUsed: self.settings.usageBarsShowUsed,
+                generatedAt: Date())
+            self.lastQueuedWidgetSnapshot = emptySnapshot
+            self.widgetSnapshotPersistenceState.pendingColdLoad = true
+            guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
+            self.enqueueWidgetSnapshotPersistence(
+                fallbackSnapshot: emptySnapshot,
+                loadsPersistedSnapshotIfQueueIsUnchanged: true)
+        }
+    }
+
+    func invalidateWidgetUsageIfTerminalFailure(for provider: UsageProvider, after error: Error) {
+        let priorUsage = self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID]
+        guard !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorUsage != nil) else { return }
+        self.invalidateGenericWidgetUsage(for: provider)
+    }
+
     private func makeWidgetSnapshot(previousSnapshot: WidgetSnapshot?) -> WidgetSnapshot {
         let now = Date()
+        let previousGeneration = self.lastQueuedWidgetSnapshot?.generatedAt ?? previousSnapshot?.generatedAt
+        let generatedAt = previousGeneration.map { max(now, $0.addingTimeInterval(0.001)) } ?? now
         let enabledProviders = self.enabledProviders()
-        let entries = UsageProvider.allCases.compactMap { provider in
+        var entries = UsageProvider.allCases.compactMap { provider in
             self.makeWidgetEntry(
                 for: provider,
                 now: now,
                 previousEntry: previousSnapshot?.entries.first { $0.provider == provider.instanceID })
         }
+        // Disk snapshots do not prove current-account ownership. Reuse only the in-process queue and only
+        // when every entry remains enabled, failed, unblocked, and visible under current settings.
+        if entries.isEmpty,
+           let previousSnapshot = self.lastQueuedWidgetSnapshot,
+           previousSnapshot.enabledProviders.allSatisfy(enabledProviders.contains),
+           previousSnapshot.entries.allSatisfy({ entry in
+               // Provider-specific by design: Claude retention uses makeWidgetEntry owner-key checks.
+               entry.provider != .claude && enabledProviders.contains(entry.provider) &&
+                   self.errors[entry.provider] != nil &&
+                   (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage) &&
+                   !self.widgetUsagePreservationBlockedProviders.contains(entry.provider)
+           })
+        {
+            entries = previousSnapshot.entries
+        }
         return WidgetSnapshot(
             entries: entries,
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
-            generatedAt: now)
+            generatedAt: generatedAt)
     }
 
     private func makeWidgetEntry(

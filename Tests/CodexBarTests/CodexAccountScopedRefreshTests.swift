@@ -54,8 +54,10 @@ struct CodexAccountScopedRefreshTests {
         #expect(store.openAIDashboard == nil)
         #expect(store.lastOpenAIDashboardSnapshot == nil)
         #expect(store.tokenSnapshots[.codex] == tokenSnapshot)
+        // Superseded writes coalesce into one empty projection without republishing the prior account.
         #expect(widgetSnapshots.count == 1)
-        #expect(widgetSnapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
+        #expect(widgetSnapshots[0].entries.isEmpty)
+        #expect(widgetSnapshots[0].enabledProviders.contains(.codex))
     }
 
     @Test
@@ -456,123 +458,130 @@ struct CodexAccountScopedRefreshTests {
 
     @Test
     func `dashboard display only keeps dashboard visible and clears dashboard derived data`() async throws {
-        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-display-only-cleanup")
-        let managedHome = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: managedHome) }
-        try Self.writeCodexAuthFile(
-            homeURL: managedHome,
-            email: "shared@example.com",
-            plan: "pro",
-            accountId: "acct-managed")
+        try await self.withIsolatedDashboardCache {
+            let settings = self
+                .makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-display-only-cleanup")
+            let managedHome = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: managedHome) }
+            try Self.writeCodexAuthFile(
+                homeURL: managedHome,
+                email: "shared@example.com",
+                plan: "pro",
+                accountId: "acct-managed")
 
-        let managedAccount = ManagedCodexAccount(
-            id: UUID(),
-            email: "shared@example.com",
-            managedHomePath: managedHome.path,
-            createdAt: 1,
-            updatedAt: 1,
-            lastAuthenticatedAt: 1)
-        let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
-        defer {
-            settings._test_managedCodexAccountStoreURL = nil
-            try? FileManager.default.removeItem(at: managedStoreURL)
-            OpenAIDashboardCacheStore.clear()
+            let managedAccount = ManagedCodexAccount(
+                id: UUID(),
+                email: "shared@example.com",
+                managedHomePath: managedHome.path,
+                createdAt: 1,
+                updatedAt: 1,
+                lastAuthenticatedAt: 1)
+            let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
+            defer {
+                settings._test_managedCodexAccountStoreURL = nil
+                try? FileManager.default.removeItem(at: managedStoreURL)
+                OpenAIDashboardCacheStore.clear()
+            }
+
+            settings.refreshFrequency = .manual
+            settings.codexCookieSource = .auto
+            settings._test_managedCodexAccountStoreURL = managedStoreURL
+            settings._test_liveSystemCodexAccount = self.liveAccount(
+                email: "shared@example.com",
+                identity: .emailOnly(normalizedEmail: "shared@example.com"))
+            settings.codexActiveSource = .liveSystem
+
+            let store = self.makeUsageStore(settings: settings)
+            store._setSnapshotForTesting(
+                self.codexSnapshot(email: "shared@example.com", usedPercent: 20),
+                provider: .codex)
+            store.lastSourceLabels[.codex] = "openai-web"
+            let staleCredits = self.credits(remaining: 20)
+            store.credits = staleCredits
+            store.lastCreditsSnapshot = staleCredits
+            store.lastCreditsSnapshotAccountKey = "shared@example.com"
+            store.lastCreditsSource = .dashboardWeb
+            OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
+                accountEmail: "shared@example.com",
+                snapshot: self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20)))
+
+            await store.applyOpenAIDashboard(
+                self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
+                targetEmail: "shared@example.com")
+
+            #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
+            #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
+            #expect(store.snapshots[.codex] == nil)
+            #expect(store.lastSourceLabels[.codex] == nil)
+            #expect(store.credits == nil)
+            #expect(store.lastCreditsSource == .none)
+            #expect(OpenAIDashboardCacheStore.load() == nil)
         }
-
-        settings.refreshFrequency = .manual
-        settings.codexCookieSource = .auto
-        settings._test_managedCodexAccountStoreURL = managedStoreURL
-        settings._test_liveSystemCodexAccount = self.liveAccount(
-            email: "shared@example.com",
-            identity: .emailOnly(normalizedEmail: "shared@example.com"))
-        settings.codexActiveSource = .liveSystem
-
-        let store = self.makeUsageStore(settings: settings)
-        store._setSnapshotForTesting(self.codexSnapshot(email: "shared@example.com", usedPercent: 20), provider: .codex)
-        store.lastSourceLabels[.codex] = "openai-web"
-        let staleCredits = self.credits(remaining: 20)
-        store.credits = staleCredits
-        store.lastCreditsSnapshot = staleCredits
-        store.lastCreditsSnapshotAccountKey = "shared@example.com"
-        store.lastCreditsSource = .dashboardWeb
-        OpenAIDashboardCacheStore.save(OpenAIDashboardCache(
-            accountEmail: "shared@example.com",
-            snapshot: self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20)))
-
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex] == nil)
-        #expect(store.lastSourceLabels[.codex] == nil)
-        #expect(store.credits == nil)
-        #expect(store.lastCreditsSource == .none)
-        #expect(OpenAIDashboardCacheStore.load() == nil)
     }
 
     @Test
     func `dashboard downgrade from real attach to display only retires owned state immediately`() async throws {
-        OpenAIDashboardCacheStore.clear()
-        defer { OpenAIDashboardCacheStore.clear() }
+        try await self.withIsolatedDashboardCache {
+            OpenAIDashboardCacheStore.clear()
+            defer { OpenAIDashboardCacheStore.clear() }
 
-        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-downgrade")
-        let managedHome = FileManager.default.temporaryDirectory
-            .appendingPathComponent(UUID().uuidString, isDirectory: true)
-        defer { try? FileManager.default.removeItem(at: managedHome) }
-        try Self.writeCodexAuthFile(
-            homeURL: managedHome,
-            email: "shared@example.com",
-            plan: "pro",
-            accountId: "acct-managed")
+            let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-dashboard-downgrade")
+            let managedHome = FileManager.default.temporaryDirectory
+                .appendingPathComponent(UUID().uuidString, isDirectory: true)
+            defer { try? FileManager.default.removeItem(at: managedHome) }
+            try Self.writeCodexAuthFile(
+                homeURL: managedHome,
+                email: "shared@example.com",
+                plan: "pro",
+                accountId: "acct-managed")
 
-        let managedAccount = ManagedCodexAccount(
-            id: UUID(),
-            email: "shared@example.com",
-            managedHomePath: managedHome.path,
-            createdAt: 1,
-            updatedAt: 1,
-            lastAuthenticatedAt: 1)
-        let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
-        defer {
-            settings._test_managedCodexAccountStoreURL = nil
-            try? FileManager.default.removeItem(at: managedStoreURL)
+            let managedAccount = ManagedCodexAccount(
+                id: UUID(),
+                email: "shared@example.com",
+                managedHomePath: managedHome.path,
+                createdAt: 1,
+                updatedAt: 1,
+                lastAuthenticatedAt: 1)
+            let managedStoreURL = try self.makeManagedAccountStoreURL(accounts: [managedAccount])
+            defer {
+                settings._test_managedCodexAccountStoreURL = nil
+                try? FileManager.default.removeItem(at: managedStoreURL)
+            }
+
+            settings.refreshFrequency = .manual
+            settings.codexCookieSource = .auto
+            settings._test_liveSystemCodexAccount = self.liveAccount(
+                email: "shared@example.com",
+                identity: .emailOnly(normalizedEmail: "shared@example.com"))
+            settings.codexActiveSource = .liveSystem
+
+            let store = self.makeUsageStore(settings: settings)
+            await store.applyOpenAIDashboard(
+                self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20),
+                targetEmail: "shared@example.com")
+
+            #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
+            #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "shared@example.com")
+            #expect(store.lastSourceLabels[.codex] == "openai-web")
+            #expect(store.credits?.remaining == 20)
+            #expect(store.lastCreditsSource == .dashboardWeb)
+            #expect(OpenAIDashboardCacheStore.load()?.accountEmail == "shared@example.com")
+
+            settings._test_managedCodexAccountStoreURL = managedStoreURL
+
+            await store.applyOpenAIDashboard(
+                self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
+                targetEmail: "shared@example.com")
+
+            #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
+            #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
+            #expect(store.snapshots[.codex] == nil)
+            #expect(store.lastSourceLabels[.codex] == nil)
+            #expect(store.credits == nil)
+            #expect(store.lastCreditsSource == .none)
+            #expect(OpenAIDashboardCacheStore.load() == nil)
         }
-
-        settings.refreshFrequency = .manual
-        settings.codexCookieSource = .auto
-        settings._test_liveSystemCodexAccount = self.liveAccount(
-            email: "shared@example.com",
-            identity: .emailOnly(normalizedEmail: "shared@example.com"))
-        settings.codexActiveSource = .liveSystem
-
-        let store = self.makeUsageStore(settings: settings)
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 20, usedPercent: 20),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex]?.accountEmail(for: .codex) == "shared@example.com")
-        #expect(store.lastSourceLabels[.codex] == "openai-web")
-        #expect(store.credits?.remaining == 20)
-        #expect(store.lastCreditsSource == .dashboardWeb)
-        #expect(OpenAIDashboardCacheStore.load()?.accountEmail == "shared@example.com")
-
-        settings._test_managedCodexAccountStoreURL = managedStoreURL
-
-        await store.applyOpenAIDashboard(
-            self.dashboard(email: "shared@example.com", creditsRemaining: 9, usedPercent: 35),
-            targetEmail: "shared@example.com")
-
-        #expect(store.openAIDashboard?.signedInEmail == "shared@example.com")
-        #expect(store.lastOpenAIDashboardSnapshot?.signedInEmail == "shared@example.com")
-        #expect(store.snapshots[.codex] == nil)
-        #expect(store.lastSourceLabels[.codex] == nil)
-        #expect(store.credits == nil)
-        #expect(store.lastCreditsSource == .none)
-        #expect(OpenAIDashboardCacheStore.load() == nil)
     }
 
     @Test
@@ -714,7 +723,9 @@ struct CodexAccountScopedRefreshTests {
         #expect(store.openAIDashboard == nil)
         #expect(store.lastCodexAccountScopedRefreshGuard?.accountKey == nil)
     }
+}
 
+extension CodexAccountScopedRefreshTests {
     @Test
     func `codex account refresh persists widget snapshots on invalidation and completion`() async {
         let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-widgets")
@@ -739,6 +750,9 @@ struct CodexAccountScopedRefreshTests {
         settings._test_liveSystemCodexAccount = self.liveAccount(email: "beta@example.com")
         let refreshTask = Task { await store.refreshCodexAccountScopedState(allowDisabled: true) }
         await blocker.waitUntilStarted()
+        await store.widgetSnapshotPersistTask?.value
+        #expect(widgetSnapshots.count == 1)
+        #expect(widgetSnapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
         await blocker.resume(with: .success(self.codexSnapshot(email: "beta@example.com", usedPercent: 8)))
         await refreshTask.value
         await store.widgetSnapshotPersistTask?.value
@@ -780,6 +794,35 @@ struct CodexAccountScopedRefreshTests {
         #expect(snapshots.count == 2)
         #expect(snapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
         #expect(snapshots[1].entries.first { $0.provider == .codex }?.creditsRemaining == 77)
+    }
+
+    @Test
+    func `superseded widget save never republishes invalidated codex usage`() async {
+        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-widget-superseded")
+        settings.refreshFrequency = .manual
+
+        let store = self.makeUsageStore(settings: settings)
+        let saver = BlockingWidgetSnapshotSaver()
+        store._test_widgetSnapshotSaveOverride = { snapshot in
+            await saver.save(snapshot)
+        }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "initial")
+        await saver.waitUntilStarted(count: 1)
+
+        store._setSnapshotForTesting(self.codexSnapshot(email: "alpha@example.com", usedPercent: 8), provider: .codex)
+        store.persistWidgetSnapshot(reason: "stale-account")
+        store.invalidateGenericWidgetUsage(for: .codex)
+
+        await saver.resumeNext()
+        await saver.waitUntilStarted(count: 2)
+        await saver.resumeNext()
+        await store.widgetSnapshotPersistTask?.value
+
+        let snapshots = await saver.savedSnapshots()
+        #expect(snapshots.count == 2)
+        #expect(snapshots.last?.entries.contains(where: { $0.provider == .codex }) == false)
     }
 
     @Test

@@ -3,6 +3,39 @@ import Testing
 @testable import CodexBar
 @testable import CodexBarCore
 
+private actor FirstSaveBlockingWidgetSnapshotSaver {
+    private var snapshots: [WidgetSnapshot] = []
+    private var firstSaveContinuation: CheckedContinuation<Void, Never>?
+    private var startedWaiter: CheckedContinuation<Void, Never>?
+
+    func save(_ snapshot: WidgetSnapshot) async {
+        self.snapshots.append(snapshot)
+        self.startedWaiter?.resume()
+        self.startedWaiter = nil
+        guard self.snapshots.count == 1 else { return }
+        await withCheckedContinuation { continuation in
+            self.firstSaveContinuation = continuation
+        }
+    }
+
+    func waitUntilFirstSaveStarted() async {
+        if !self.snapshots.isEmpty {
+            return
+        }
+        await withCheckedContinuation { self.startedWaiter = $0 }
+    }
+
+    func resumeFirstSave() {
+        guard let continuation = self.firstSaveContinuation else { return }
+        self.firstSaveContinuation = nil
+        continuation.resume()
+    }
+
+    func savedSnapshots() -> [WidgetSnapshot] {
+        self.snapshots
+    }
+}
+
 @Suite(.serialized)
 @MainActor
 struct CodexManagedOpenAIWebRefreshTests {
@@ -195,7 +228,7 @@ struct CodexManagedOpenAIWebRefreshTests {
         store.lastCodexAccountScopedRefreshGuard = publicationGuard
 
         let creditsBlocker = BlockingCreditsLoader()
-        let saver = BlockingWidgetSnapshotSaver()
+        let saver = FirstSaveBlockingWidgetSnapshotSaver()
         store._test_providerRefreshOverride = { _ in }
         defer { store._test_providerRefreshOverride = nil }
         store._test_codexCreditsLoaderOverride = {
@@ -212,26 +245,25 @@ struct CodexManagedOpenAIWebRefreshTests {
         }
 
         await refreshTask.value
-        await saver.waitUntilStarted(count: 1)
+        await saver.waitUntilFirstSaveStarted()
+        await creditsBlocker.waitUntilStarted(count: 1)
 
         let firstSnapshots = await saver.savedSnapshots()
-        let firstCodexEntry = try #require(firstSnapshots.first?.entries.first { $0.provider == .codex })
+        let firstSnapshotBeforeCredits = try #require(firstSnapshots.first)
+        #expect(firstSnapshots.count == 1)
+        let firstCodexEntry = try #require(firstSnapshotBeforeCredits.entries.first { $0.provider == .codex })
         #expect(firstCodexEntry.creditsRemaining == nil)
+        await saver.resumeFirstSave()
+        await store.widgetSnapshotPersistTask?.value
 
-        await saver.resumeNext()
         let backgroundTask = try #require(store.creditsRefreshTask)
-        await creditsBlocker.waitUntilStarted(count: 1)
         await creditsBlocker.resumeNext(with: .success(CreditsSnapshot(remaining: 25, events: [], updatedAt: Date())))
         await backgroundTask.value
-        await saver.waitUntilStarted(count: 2)
+        await store.widgetSnapshotPersistTask?.value
 
-        #expect(await saver.startedCount() == 2)
         let secondSnapshots = await saver.savedSnapshots()
         let secondCodexEntry = try #require(secondSnapshots.last?.entries.first { $0.provider == .codex })
         #expect(secondCodexEntry.creditsRemaining == 25)
-
-        await saver.resumeNext()
-        await store.widgetSnapshotPersistTask?.value
     }
 
     @Test
