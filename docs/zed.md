@@ -8,8 +8,9 @@ read_when:
 
 # Zed provider
 
-QuotaKit monitors Zed plan status, billing cycle dates, edit-prediction quota, and overdue invoices through the signed-in
-Zed editor session. An optional browser source adds current-period token spend and its reported spending cap.
+QuotaKit uses one Zed data source at a time. The default editor source shows plan status, billing-cycle dates,
+edit-prediction quota, and overdue invoices. The optional browser source replaces it with plan and prediction usage
+plus current-period token spend and its reported cap; it does not report editor-only cycle dates or invoice warnings.
 
 ## Data source
 
@@ -50,7 +51,9 @@ billing endpoint; it does not use or forward the editor's Keychain credential.
 An expired browser session clears only the automatic cached cookie that produced the rejected request. Manual headers
 remain saved.
 
-The browser response adds token spend, a reported billing cap when available, edit-prediction quota, and plan identity.
+The browser response supplies token spend, a reported billing cap when available, edit-prediction quota, and plan
+identity. It does not include the editor source's billing-cycle reset or overdue-invoice warning. QuotaKit cannot safely
+combine the two sources because the browser response does not prove it belongs to the editor account.
 When Zed omits the spend cap, QuotaKit shows the spend and “Not reported” in details without inventing a cost limit.
 
 ## Snapshot mapping
@@ -59,9 +62,9 @@ When Zed omits the spend cap, QuotaKit shows the spend and “Not reported” in
 | --- | --- |
 | `plan.plan_v3` | Plan label (Free / Pro / Trial / Student / Business) |
 | `plan.usage.edit_predictions` | Primary bar: used/limit or “Unlimited” on Pro+ |
-| `plan.subscription_period.ended_at` | Billing cycle reset / secondary window |
-| `plan.has_overdue_invoices` | Warning note + billing window marker |
-| Browser `current_usage.token_spend` | Optional current-period spend and reported limit |
+| Editor `plan.subscription_period.ended_at` | Billing cycle reset / secondary window (editor source only) |
+| Editor `plan.has_overdue_invoices` | Warning note + billing window marker (editor source only) |
+| Browser `current_usage.token_spend` | Current-period spend and reported limit (browser source only) |
 
 ## Limitations
 

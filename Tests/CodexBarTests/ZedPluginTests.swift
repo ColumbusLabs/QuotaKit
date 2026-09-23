@@ -41,6 +41,8 @@ struct ZedPluginTests {
         #expect(snapshot.details.first?.rows.map(\.value) == ["$2.50", "$10.00", "$7.50"])
         #expect(snapshot.primary?.usedPercent == 12)
         #expect(snapshot.identity?.loginMethod == "Zed Pro")
+        #expect(snapshot.secondary == nil)
+        #expect(snapshot.extraRateWindows == nil)
     }
 
     @Test(arguments: [0.0, 25.0, 250.0, 1500.0], ZedPluginTestSupport.engines)
