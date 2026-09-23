@@ -28,6 +28,28 @@ struct CloudSyncSettingsTests {
     }
 
     @Test
+    func `Mac fleet sync subpreferences are preserved while sync is disabled`() throws {
+        let store = try self.makeFixture("preserved-subpreferences").store
+
+        store.macFleetSyncEnabled = true
+        store.macFleetSyncIncludeSecrets = true
+        store.macFleetSyncSnapshotsEnabled = false
+        store.macFleetSyncShowFleetAccounts = false
+
+        store.macFleetSyncEnabled = false
+
+        #expect(store.macFleetSyncIncludeSecrets)
+        #expect(!store.macFleetSyncSnapshotsEnabled)
+        #expect(!store.macFleetSyncShowFleetAccounts)
+
+        store.macFleetSyncEnabled = true
+
+        #expect(store.macFleetSyncIncludeSecrets)
+        #expect(!store.macFleetSyncSnapshotsEnabled)
+        #expect(!store.macFleetSyncShowFleetAccounts)
+    }
+
+    @Test
     func `preferences subset applies through settings without touching excluded keys`() throws {
         let fixture = try self.makeFixture("preferences")
         let store = fixture.store
