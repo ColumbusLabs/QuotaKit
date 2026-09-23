@@ -40,17 +40,43 @@ struct TailscaleSessionTests {
         let env = RemoteSessionFetcher.tailscaleCLIEnvironment(from: ["PATH": "/usr/bin"])
 
         #expect(env["SHLVL"] == "1")
+        #expect(env["TAILSCALE_BE_CLI"] == "1")
     }
 
     @Test
     func `cli environment preserves an existing terminal context`() {
-        // Already CLI-safe: leave TERM alone and don't fabricate a SHLVL…
+        // Leave TERM alone and don't fabricate a SHLVL…
         let withTerm = RemoteSessionFetcher.tailscaleCLIEnvironment(from: ["TERM": "xterm-256color"])
         #expect(withTerm["SHLVL"] == nil)
+        #expect(withTerm["TERM"] == "xterm-256color")
+        #expect(withTerm["TAILSCALE_BE_CLI"] == "1")
 
         // …and never clobber a caller-provided SHLVL.
         let withShlvl = RemoteSessionFetcher.tailscaleCLIEnvironment(from: ["SHLVL": "3"])
         #expect(withShlvl["SHLVL"] == "3")
+        #expect(withShlvl["TAILSCALE_BE_CLI"] == "1")
+    }
+
+    @Test(arguments: [
+        [String: String](),
+        ["TERM": "xterm-256color"],
+        ["SHLVL": "3"],
+        ["TERM": "xterm-256color", "SHLVL": "1"],
+        ["TAILSCALE_BE_CLI": "0"],
+        ["TERM": "", "TAILSCALE_BE_CLI": ""],
+        ["SHLVL": "3", "TAILSCALE_BE_CLI": "1"],
+    ])
+    func `cli environment forces CLI mode and preserves unrelated values`(_ context: [String: String]) {
+        var original = context
+        original["PATH"] = "/usr/bin:/bin"
+        original["LANG"] = "en_US.UTF-8"
+        var expected = original
+        expected["TAILSCALE_BE_CLI"] = "1"
+        if original["TERM"] == nil, original["SHLVL"] == nil {
+            expected["SHLVL"] = "1"
+        }
+
+        #expect(RemoteSessionFetcher.tailscaleCLIEnvironment(from: original) == expected)
     }
 
     @Test

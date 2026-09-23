@@ -7,6 +7,35 @@ import Testing
 @Suite(.serialized)
 struct UsageStoreSpendDashboardCodexCostCatchUpTests {
     @Test
+    func `combined low power and thermal pressure publishes thermal pause without scanning`() async throws {
+        let store = try Self.makeStore(suite: "combined-thermal-pause")
+        var advanceCount = 0
+        var sleepDurations: [TimeInterval] = []
+        store._test_spendDashboardCodexCostCatchUpStatusOverride = { _ in
+            Self.status(pending: true, key: "pending", processedBytes: 25)
+        }
+        store._test_spendDashboardCodexCostCatchUpAdvanceOverride = { _, _, _ in
+            advanceCount += 1
+            return Self.status(pending: false, key: "complete", processedBytes: 100)
+        }
+        store._test_spendDashboardCodexCostCatchUpResourceStateOverride = { (.battery, true, .serious) }
+        store._test_spendDashboardCodexCostCatchUpSleepOverride = { duration in
+            sleepDurations.append(duration)
+            throw CancellationError()
+        }
+
+        store.startSpendDashboardCodexCostCatchUpIfNeeded(
+            accounts: [Self.account(id: "account", cacheIdentity: "cache-account")])
+        let task = try #require(store.spendDashboardCodexCostCatchUpTask)
+        await task.value
+
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.phase == .paused)
+        #expect(store.spendDashboardCodexCostCatchUpActivity?.pauseReason == .thermal)
+        #expect(sleepDurations == [CodexCostCatchUpPolicy.constrainedRetryDelay])
+        #expect(advanceCount == 0)
+    }
+
+    @Test
     func `dashboard catch-up advances every account cache and publishes a reload revision`() async throws {
         let store = try Self.makeStore(suite: "all-accounts")
         let accounts = [
