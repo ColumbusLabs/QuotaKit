@@ -7,7 +7,7 @@ cd "$ROOT_DIR"
 FILTER='ProviderPluginRuntimeTests|ProviderPluginParityTests|ProviderPluginDetailsParityTests|ProviderPluginExtensionParityTests|ProviderPluginCurrencyTests|Sub2APIPluginGoldenTests|GitKrakenPluginTests|V0PluginTests|UserProviderPluginPortableTests'
 
 echo "plugin engine A/B: JavaScriptCore"
-env -u CODEXBAR_PLUGIN_ENGINE swift test --filter "$FILTER"
+env -u CODEXBAR_PLUGIN_ENGINE swift test --no-parallel --filter "$FILTER"
 
 echo "plugin engine A/B: QuickJS"
-CODEXBAR_PLUGIN_ENGINE=quickjs swift test --skip-build --filter "$FILTER"
+CODEXBAR_PLUGIN_ENGINE=quickjs swift test --skip-build --no-parallel --filter "$FILTER"
