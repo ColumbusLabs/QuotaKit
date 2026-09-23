@@ -209,6 +209,49 @@ struct WidgetEmptyProjectionTests {
     }
 
     @Test
+    func `account switch during queued widget save repairs the published snapshot`() async throws {
+        let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
+        settings.addTokenAccount(provider: .openrouter, label: "First", token: "fixture-first-key")
+        settings.addTokenAccount(provider: .openrouter, label: "Second", token: "fixture-second-key")
+        settings.setActiveTokenAccountIndex(0, for: .openrouter)
+        self.seed(store, providers: [.openrouter, .deepseek])
+
+        let saveGate = WidgetSnapshotSaveGate()
+        var saved: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { snapshot in
+            if saved.isEmpty { await saveGate.pauseFirstSave() }
+            saved.append(snapshot)
+        }
+        store.persistWidgetSnapshot(reason: "synthetic-racing-account-switch")
+        await saveGate.waitUntilFirstSaveStarts()
+        defer { saveGate.releaseFirstSave() }
+
+        let firstAccountSnapshot = try #require(store.lastQueuedWidgetSnapshot)
+        #expect(firstAccountSnapshot.entries.map(\.provider).contains(.openrouter))
+        settings.setActiveTokenAccountIndex(1, for: .openrouter)
+        let selectedAccount = try #require(settings.effectiveSelectedTokenAccount(for: .openrouter))
+        store.activateCachedTokenAccountSnapshot(provider: .openrouter, accountID: selectedAccount.id)
+
+        let filteredSnapshot = try #require(store.lastQueuedWidgetSnapshot)
+        #expect(filteredSnapshot.generatedAt > firstAccountSnapshot.generatedAt)
+        #expect(filteredSnapshot.enabledProviders == firstAccountSnapshot.enabledProviders)
+        #expect(filteredSnapshot.entries.map(\.provider) == [.deepseek])
+        store.snapshots.removeAll()
+
+        saveGate.releaseFirstSave()
+        await store.widgetSnapshotPersistTask?.value
+
+        #expect(saved.count == 2)
+        #expect(saved.first?.entries.map(\.provider).contains(.openrouter) == true)
+        #expect(saved.last?.entries.map(\.provider) == [.deepseek])
+        #expect(saved.last?.entries.first?.updatedAt == firstAccountSnapshot.entries
+            .first(where: { $0.provider == .deepseek })?.updatedAt)
+        #expect(saved.last?.enabledProviders == firstAccountSnapshot.enabledProviders)
+        #expect(store.snapshots.isEmpty)
+        #expect(store.cloudSyncAccountSnapshots().isEmpty)
+    }
+
+    @Test
     func `retained entries respect hidden optional spending`() async throws {
         let (store, settings) = self.makeStore(providers: [.devin])
         settings.showOptionalCreditsAndExtraUsage = true
@@ -328,5 +371,29 @@ struct WidgetEmptyProjectionTests {
                     updatedAt: Date(timeIntervalSince1970: 1_800_000_000 + Double(index))),
                 provider: provider)
         }
+    }
+}
+
+@MainActor
+private final class WidgetSnapshotSaveGate {
+    private var startedContinuation: CheckedContinuation<Void, Never>?
+    private var releaseContinuation: CheckedContinuation<Void, Never>?
+    private(set) var firstSaveStarted = false
+
+    func waitUntilFirstSaveStarts() async {
+        guard !self.firstSaveStarted else { return }
+        await withCheckedContinuation { self.startedContinuation = $0 }
+    }
+
+    func pauseFirstSave() async {
+        self.firstSaveStarted = true
+        self.startedContinuation?.resume()
+        self.startedContinuation = nil
+        await withCheckedContinuation { self.releaseContinuation = $0 }
+    }
+
+    func releaseFirstSave() {
+        self.releaseContinuation?.resume()
+        self.releaseContinuation = nil
     }
 }

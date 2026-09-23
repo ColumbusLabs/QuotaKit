@@ -45,23 +45,37 @@ extension UsageStore {
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
 
-            if let override = self._test_widgetSnapshotSaveOverride {
-                await override(snapshot)
-                return
+            var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? snapshot
+            while true {
+                await self.saveWidgetSnapshot(snapshotToPersist)
+
+                // Account switches can filter the in-memory queue while an earlier async save is
+                // suspended. Repair the persisted projection before completing this serialized task.
+                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
+                guard latestSnapshot.generatedAt != snapshotToPersist.generatedAt else { break }
+                snapshotToPersist = latestSnapshot
             }
 
-            let widgetSnapshotURL = self.widgetSnapshotURL
-            await Task.detached(priority: .utility) {
-                if let widgetSnapshotURL {
-                    WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
-                } else {
-                    WidgetSnapshotStore.save(snapshot)
-                }
-            }.value
             #if canImport(WidgetKit)
             WidgetCenter.shared.reloadAllTimelines()
             #endif
         }
+    }
+
+    private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {
+        if let override = self._test_widgetSnapshotSaveOverride {
+            await override(snapshot)
+            return
+        }
+
+        let widgetSnapshotURL = self.widgetSnapshotURL
+        await Task.detached(priority: .utility) {
+            if let widgetSnapshotURL {
+                WidgetSnapshotStore.save(snapshot, to: widgetSnapshotURL)
+            } else {
+                WidgetSnapshotStore.save(snapshot)
+            }
+        }.value
     }
 
     /// Builds outbound snapshots only from this Mac's UsageStore; remote fleet snapshots live in CloudSyncState.
@@ -179,7 +193,7 @@ extension UsageStore {
                 entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
                 enabledProviders: queuedSnapshot.enabledProviders,
                 usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
-                generatedAt: queuedSnapshot.generatedAt)
+                generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
         }
     }
 
@@ -191,6 +205,8 @@ extension UsageStore {
 
     private func makeWidgetSnapshot(previousSnapshot: WidgetSnapshot?) -> WidgetSnapshot {
         let now = Date()
+        let previousGeneration = self.lastQueuedWidgetSnapshot?.generatedAt ?? previousSnapshot?.generatedAt
+        let generatedAt = previousGeneration.map { max(now, $0.addingTimeInterval(0.001)) } ?? now
         let enabledProviders = self.enabledProviders()
         var entries = UsageProvider.allCases.compactMap { provider in
             self.makeWidgetEntry(
@@ -217,7 +233,7 @@ extension UsageStore {
             entries: entries,
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
-            generatedAt: now)
+            generatedAt: generatedAt)
     }
 
     private func makeWidgetEntry(
