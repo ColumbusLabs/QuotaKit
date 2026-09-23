@@ -54,11 +54,10 @@ struct CodexAccountScopedRefreshTests {
         #expect(store.openAIDashboard == nil)
         #expect(store.lastOpenAIDashboardSnapshot == nil)
         #expect(store.tokenSnapshots[.codex] == tokenSnapshot)
-        // Account invalidation and its follow-up projection are serialized; the first queued write can
-        // coalesce to the latest empty payload, but it must never republish the prior account's quota.
-        #expect(widgetSnapshots.count == 2)
-        #expect(widgetSnapshots.map(\.entries.isEmpty) == [true, true])
-        #expect(widgetSnapshots.map { $0.enabledProviders.contains(.codex) } == [true, true])
+        // Superseded writes coalesce into one empty projection without republishing the prior account.
+        #expect(widgetSnapshots.count == 1)
+        #expect(widgetSnapshots[0].entries.isEmpty)
+        #expect(widgetSnapshots[0].enabledProviders.contains(.codex))
     }
 
     @Test
@@ -749,6 +748,9 @@ struct CodexAccountScopedRefreshTests {
         settings._test_liveSystemCodexAccount = self.liveAccount(email: "beta@example.com")
         let refreshTask = Task { await store.refreshCodexAccountScopedState(allowDisabled: true) }
         await blocker.waitUntilStarted()
+        await store.widgetSnapshotPersistTask?.value
+        #expect(widgetSnapshots.count == 1)
+        #expect(widgetSnapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
         await blocker.resume(with: .success(self.codexSnapshot(email: "beta@example.com", usedPercent: 8)))
         await refreshTask.value
         await store.widgetSnapshotPersistTask?.value
@@ -790,6 +792,35 @@ struct CodexAccountScopedRefreshTests {
         #expect(snapshots.count == 2)
         #expect(snapshots[0].entries.contains(where: { $0.provider == .codex }) == false)
         #expect(snapshots[1].entries.first { $0.provider == .codex }?.creditsRemaining == 77)
+    }
+
+    @Test
+    func `superseded widget save never republishes invalidated codex usage`() async {
+        let settings = self.makeSettingsStore(suite: "CodexAccountScopedRefreshTests-widget-superseded")
+        settings.refreshFrequency = .manual
+
+        let store = self.makeUsageStore(settings: settings)
+        let saver = BlockingWidgetSnapshotSaver()
+        store._test_widgetSnapshotSaveOverride = { snapshot in
+            await saver.save(snapshot)
+        }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.persistWidgetSnapshot(reason: "initial")
+        await saver.waitUntilStarted(count: 1)
+
+        store._setSnapshotForTesting(self.codexSnapshot(email: "alpha@example.com", usedPercent: 8), provider: .codex)
+        store.persistWidgetSnapshot(reason: "stale-account")
+        store.invalidateGenericWidgetUsage(for: .codex)
+
+        await saver.resumeNext()
+        await saver.waitUntilStarted(count: 2)
+        await saver.resumeNext()
+        await store.widgetSnapshotPersistTask?.value
+
+        let snapshots = await saver.savedSnapshots()
+        #expect(snapshots.count == 2)
+        #expect(snapshots.last?.entries.contains(where: { $0.provider == .codex }) == false)
     }
 
     @Test

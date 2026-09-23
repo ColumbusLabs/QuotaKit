@@ -97,6 +97,8 @@ extension UsageStore {
         loadsPersistedSnapshotIfQueueIsUnchanged: Bool = false)
     {
         let previousTask = self.widgetSnapshotPersistTask
+        let persistenceToken = UUID()
+        self.widgetSnapshotPersistenceToken = persistenceToken
         let hasSaveOverride = self._test_widgetSnapshotSaveOverride != nil
         #if canImport(WidgetKit)
         let shouldReloadTimelines = Self.shouldReloadWidgetTimelines(
@@ -106,43 +108,28 @@ extension UsageStore {
         #endif
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
+            guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
 
             var snapshotToPersist = self.lastQueuedWidgetSnapshot ?? fallbackSnapshot
             if loadsPersistedSnapshotIfQueueIsUnchanged,
                snapshotToPersist.generatedAt == fallbackSnapshot.generatedAt
             {
                 let persistedSnapshot = await self.loadWidgetSnapshotForInvalidation()
+                guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
                 guard let latestSnapshot = self.lastQueuedWidgetSnapshot else { return }
                 if let persistedSnapshot {
                     let filteredSnapshot = self.filterPersistedWidgetSnapshotAfterInvalidation(
                         persistedSnapshot,
                         after: max(fallbackSnapshot.generatedAt, latestSnapshot.generatedAt))
-                    if latestSnapshot.generatedAt == fallbackSnapshot.generatedAt {
-                        snapshotToPersist = filteredSnapshot
-                    } else {
-                        // A newer in-process projection is authoritative. Merging the older disk
-                        // image could resurrect usage omitted by the newer provider refresh.
-                        snapshotToPersist = self.filterBlockedProviders(in: latestSnapshot)
-                    }
+                    snapshotToPersist = filteredSnapshot
                     self.lastQueuedWidgetSnapshot = snapshotToPersist
                 } else {
                     snapshotToPersist = latestSnapshot
                 }
             }
 
-            while true {
-                await self.saveWidgetSnapshot(snapshotToPersist)
-
-                // Account switches can filter the in-memory queue while an earlier async save is
-                // suspended. Repair the persisted projection before completing this serialized task.
-                guard let latestSnapshot = self.lastQueuedWidgetSnapshot else {
-                    return
-                }
-                guard latestSnapshot.generatedAt != snapshotToPersist.generatedAt else {
-                    break
-                }
-                snapshotToPersist = latestSnapshot
-            }
+            await self.saveWidgetSnapshot(snapshotToPersist)
+            guard self.widgetSnapshotPersistenceToken == persistenceToken else { return }
 
             #if canImport(WidgetKit)
             if shouldReloadTimelines {
@@ -189,6 +176,7 @@ extension UsageStore {
             else {
                 return nil
             }
+            // Provider-specific by design: preserved Claude quota must still belong to the selected account.
             guard entry.provider == .claude else { return entry }
             guard self.knownLimitsAvailabilityByProvider[.claude]?.isUnavailable != true,
                   let preservedUsage = Self.preservedClaudeWidgetUsage(
@@ -216,18 +204,6 @@ extension UsageStore {
             enabledProviders: snapshot.enabledProviders,
             usageBarsShowUsed: snapshot.usageBarsShowUsed,
             generatedAt: max(Date(), max(snapshot.generatedAt, generation).addingTimeInterval(0.001)))
-    }
-
-    private func filterBlockedProviders(in snapshot: WidgetSnapshot) -> WidgetSnapshot {
-        let entries = snapshot.entries.filter {
-            !self.widgetUsagePreservationBlockedProviders.contains($0.provider)
-        }
-        guard entries.count != snapshot.entries.count else { return snapshot }
-        return WidgetSnapshot(
-            entries: entries,
-            enabledProviders: snapshot.enabledProviders,
-            usageBarsShowUsed: snapshot.usageBarsShowUsed,
-            generatedAt: max(Date(), snapshot.generatedAt.addingTimeInterval(0.001)))
     }
 
     private func saveWidgetSnapshot(_ snapshot: WidgetSnapshot) async {

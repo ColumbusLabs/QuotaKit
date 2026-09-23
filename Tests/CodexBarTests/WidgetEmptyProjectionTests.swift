@@ -12,6 +12,7 @@ struct WidgetEmptyProjectionTests {
         store._test_widgetSnapshotSaveOverride = { saved.append($0) }
         self.seed(store)
         store.persistWidgetSnapshot(reason: "synthetic-success")
+        let before = try #require(store.lastQueuedWidgetSnapshot)
         if !queued { await store.widgetSnapshotPersistTask?.value }
 
         store.snapshots.removeAll()
@@ -20,9 +21,10 @@ struct WidgetEmptyProjectionTests {
         store.persistWidgetSnapshot(reason: "synthetic-all-failed")
         await store.widgetSnapshotPersistTask?.value
 
-        let before = try #require(saved.first)
         let after = try #require(saved.last)
-        #expect(saved.count == 2)
+        // A queued first save may be superseded before it starts; the final projection must
+        // still preserve the original entries and their ages.
+        #expect(queued ? (1...2).contains(saved.count) : saved.count == 2)
         #expect(before.entries.count == 2)
         let encoder = JSONEncoder()
         encoder.outputFormatting = .sortedKeys
@@ -241,7 +243,7 @@ struct WidgetEmptyProjectionTests {
         saveGate.releaseFirstSave()
         await store.widgetSnapshotPersistTask?.value
 
-        #expect(saved.count == 4)
+        #expect(saved.count == 2)
         #expect(saved.first?.entries.map(\.provider).contains(.openrouter) == true)
         #expect(saved.last?.entries.map(\.provider) == [.deepseek])
         #expect(saved.last?.entries.first?.updatedAt == firstAccountSnapshot.entries
@@ -274,7 +276,7 @@ struct WidgetEmptyProjectionTests {
         await store.widgetSnapshotPersistTask?.value
 
         let repairedSnapshot = try #require(saved.last)
-        #expect(saved.count == 3)
+        #expect(saved.count == 2)
         #expect(repairedSnapshot.entries.map(\.provider) == [.deepseek])
         #expect(repairedSnapshot.entries.first?.updatedAt == deepSeekEntry.updatedAt)
         #expect(repairedSnapshot.enabledProviders == originalSnapshot.enabledProviders)
