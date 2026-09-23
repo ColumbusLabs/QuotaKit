@@ -53,6 +53,12 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      `onDemandUsed.val / onDemandCap.val * 100`. A parseable current period
      without either value represents zero usage. The reset timestamp comes from
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
+   - When the selected end has a matching `currentPeriod.start`, or the
+     `billingPeriodStart/End` pair when the current-period end is unavailable,
+     QuotaKit measures the full window duration. Present but invalid, reversed,
+     or future starts remain unclassified; bounds from different periods are
+     never combined. The measured duration is used for weekly and monthly labels
+     near reset, with learned cadence kept only for payloads without start bounds.
    - Plan name does not come from the credits payload. After a successful
      auth-file or SuperGrok OAuth web billing result (CLI-proxy) or the team
       identity-only path, QuotaKit GETs `https://cli-chat-proxy.grok.com/v1/settings`
@@ -88,9 +94,9 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      returned by some successful requests. A current billing period with an
      omitted proto3 `credit_usage_percent` is treated as zero usage. This keeps
      billing visible when `grok agent stdio` returns `Method not found`.
-   - The payload carries no period length, and the remaining time cannot supply
-     one: a weekly window two days from reset looks exactly like a monthly one
-     two days out. `GrokBillingCadenceStore` seeds an unambiguous weekly or
+   - This gRPC payload carries no period length, and the remaining time cannot
+     supply one: a weekly window two days from reset looks exactly like a monthly
+     one two days out. `GrokBillingCadenceStore` seeds an unambiguous weekly or
      monthly cadence from the first reset distance, then refines it from
      recognized rollovers. Monthly-looking gaps are accepted only when the new
      reset is also monthly-distance away, so missed weekly cycles are not
@@ -104,8 +110,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 The primary bar is labeled from the billing window's duration — `Weekly` for a
 4–12 day period, `Monthly` for 20–45 days — and pace ("N% in deficit" / "in
 reserve", plus the run-out estimate) is shown whenever that duration is known
-and the reset falls inside it. Both fetch paths supply a duration: the CLI from
-`billingPeriodMinutes`, the web fallback from the learned cadence above.
+and the reset falls inside it. The CLI supplies `billingPeriodMinutes`; the CLI
+proxy supplies measured period bounds when available; other web payloads use the
+learned cadence above as a fallback. Monthly windows keep their Monthly label
+near reset and continue to use QuotaKit's monthly pace projection.
 
 Before the cadence was learned, the label was inferred from *time until reset*,
 which produced no label at all once fewer than ~3.5 days remained. That dropped

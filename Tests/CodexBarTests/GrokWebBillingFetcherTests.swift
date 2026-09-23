@@ -905,6 +905,45 @@ struct GrokWebBillingFetcherTests {
 
 extension GrokWebBillingFetcherTests {
     @Test
+    func `web strategy does not infer cadence from invalid proxy bounds`() async throws {
+        let reset = Date().addingTimeInterval(6 * 24 * 60 * 60)
+        let futureStart = reset.addingTimeInterval(24 * 60 * 60)
+        let formatter = ISO8601DateFormatter()
+        let resetText = formatter.string(from: reset)
+        let futureStartText = formatter.string(from: futureStart)
+        let invalidData = Data("""
+        {"config":{"creditUsagePercent":40,"currentPeriod":{"start":"\(futureStartText)","end":"\(resetText)"}}}
+        """.utf8)
+        let invalid = try GrokCreditsProxyFetcher.parseSnapshot(invalidData)
+        #expect(invalid.windowMinutes == nil)
+        #expect(!invalid.allowsCadenceFallback)
+
+        let fileURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent("QuotaKit-GrokInvalidCadence-\(UUID().uuidString)")
+        defer { try? FileManager.default.removeItem(at: fileURL) }
+        var strategy = GrokWebFetchStrategy()
+        strategy.cadenceStore = GrokBillingCadenceStore(fileURL: fileURL)
+        let context = Self.webContext(grokHome: nil)
+        let invalidResult = try await strategy.fetch(
+            context,
+            webBilling: { _ in (invalid, "grok-cli-proxy", false) },
+            settingsTier: { _ in nil })
+        #expect(invalidResult.usage.primary?.windowMinutes == nil)
+        #expect(strategy.cadenceStore.learnedWindowMinutes() == nil)
+
+        let missingData = Data("""
+        {"config":{"creditUsagePercent":40,"currentPeriod":{"end":"\(resetText)"}}}
+        """.utf8)
+        let missing = try GrokCreditsProxyFetcher.parseSnapshot(missingData)
+        #expect(missing.allowsCadenceFallback)
+        let missingResult = try await strategy.fetch(
+            context,
+            webBilling: { _ in (missing, "grok-cli-proxy", false) },
+            settingsTier: { _ in nil })
+        #expect(missingResult.usage.primary?.windowMinutes == 7 * 24 * 60)
+    }
+
+    @Test
     func `web fetch can authenticate with browser cookies`() async throws {
         defer {
             GrokWebBillingStubURLProtocol.requests = []
@@ -1029,6 +1068,24 @@ extension GrokWebBillingFetcherTests {
         #expect(usage.primary?.resetsAt == Date(timeIntervalSince1970: 1_800_000_003))
         #expect(usage.accountEmail(for: .grok) == "grok@example.com")
         #expect(usage.loginMethod(for: .grok) == "SuperGrok")
+    }
+
+    @Test
+    func `measured web billing period takes precedence over learned cadence`() {
+        let snapshot = GrokUsageSnapshot(
+            billing: nil,
+            webBilling: GrokWebBillingSnapshot(
+                usedPercent: 67.25,
+                resetsAt: Date(timeIntervalSince1970: 1_800_000_003),
+                windowMinutes: 31 * 24 * 60),
+            credentials: Self.credentials,
+            localSummary: nil,
+            cliVersion: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_799_000_000))
+
+        let usage = snapshot.toUsageSnapshot(webBillingWindowMinutes: 7 * 24 * 60)
+
+        #expect(usage.primary?.windowMinutes == 31 * 24 * 60)
     }
 
     @Test
