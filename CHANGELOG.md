@@ -11,6 +11,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
+- Doubao: save labeled Ark API-key accounts on Mac and select them in the app or CLI without inheriting another account's credentials.
 - Configure visible usage items per provider in Mac settings; menu, preview, Overview, and compact constraint details follow the selection without changing quota ranking or fetching.
 - Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
 - GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.

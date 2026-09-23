@@ -13,9 +13,20 @@ public enum DoubaoProviderDescriptor {
             }
             return ProviderTokenResolution(token: token, source: .environment)
         },
+        tokenAccountSupport: TokenAccountSupport(
+            title: "Doubao API-key accounts",
+            subtitle: "Store labeled Ark API keys. AK/SK pairs and arkcli profiles are not supported here.",
+            placeholder: "Ark API key",
+            injection: .environment(key: DoubaoSettingsReader.apiKeyEnvironmentKeys[0]),
+            requiresManualCookieSource: false,
+            cookieName: nil,
+            environmentKeysToScrub: DoubaoSettingsReader.apiKeyEnvironmentKeys
+                + DoubaoSettingsReader.accessKeyIDEnvironmentKeys
+                + DoubaoSettingsReader.secretAccessKeyEnvironmentKeys),
         authDetector: { environment, _ in
             DoubaoSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
-        })
+        },
+        selectedAccountSourceModeResolver: { base, account, _ in account == nil ? base : .api })
 
     public static func primaryLabel(window: RateWindow?) -> String? {
         guard window?.windowMinutes == nil,
