@@ -249,22 +249,12 @@ struct CodexManagedOpenAIWebRefreshTests {
         await creditsBlocker.waitUntilStarted(count: 1)
 
         let firstSnapshots = await saver.savedSnapshots()
-        let safetyInvalidation = try #require(firstSnapshots.first)
+        let firstSnapshotBeforeCredits = try #require(firstSnapshots.first)
         #expect(firstSnapshots.count == 1)
-        await saver.resumeFirstSave()
-        #expect(safetyInvalidation.entries.isEmpty)
-
-        await store.widgetSnapshotPersistTask?.value
-
-        let refreshSnapshots = await saver.savedSnapshots()
-        let firstCodexSnapshotIndex = try #require(refreshSnapshots.firstIndex { snapshot in
-            snapshot.entries.contains { $0.provider == .codex }
-        })
-        #expect(firstCodexSnapshotIndex > 0)
-        let firstCodexEntry = try #require(refreshSnapshots[firstCodexSnapshotIndex].entries.first {
-            $0.provider == .codex
-        })
+        let firstCodexEntry = try #require(firstSnapshotBeforeCredits.entries.first { $0.provider == .codex })
         #expect(firstCodexEntry.creditsRemaining == nil)
+        await saver.resumeFirstSave()
+        await store.widgetSnapshotPersistTask?.value
 
         let backgroundTask = try #require(store.creditsRefreshTask)
         await creditsBlocker.resumeNext(with: .success(CreditsSnapshot(remaining: 25, events: [], updatedAt: Date())))
