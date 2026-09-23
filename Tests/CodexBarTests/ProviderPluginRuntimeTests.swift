@@ -171,6 +171,108 @@ struct ProviderPluginRuntimeTests {
     }
 
     @Test
+    func `cancellation before engine registration prevents dispatch`() {
+        let gate = ProviderPluginRequestStartGate()
+        var didDispatch = false
+        var didCancelEngineRequest = false
+
+        gate.cancel { didCancelEngineRequest = true }
+        let didStart = gate.start { didDispatch = true }
+
+        #expect(!didStart)
+        #expect(!didDispatch)
+        #expect(!didCancelEngineRequest)
+    }
+
+    @Test
+    func `cancellation after engine registration cancels the dispatched request`() {
+        let gate = ProviderPluginRequestStartGate()
+        var didDispatch = false
+        var didCancelEngineRequest = false
+
+        #expect(gate.start { didDispatch = true })
+        gate.cancel { didCancelEngineRequest = true }
+
+        #expect(didDispatch)
+        #expect(didCancelEngineRequest)
+    }
+
+    @Test
+    func `cancellation racing engine registration waits for dispatch`() async {
+        let gate = ProviderPluginRequestStartGate()
+        let dispatchEntered = DispatchSemaphore(value: 0)
+        let allowRegistrationToFinish = DispatchSemaphore(value: 0)
+        let cancellationAttempted = DispatchSemaphore(value: 0)
+        let engineCancellation = DispatchSemaphore(value: 0)
+
+        let start = Task.detached {
+            gate.start {
+                dispatchEntered.signal()
+                _ = allowRegistrationToFinish.wait(timeout: .now() + 2)
+            }
+        }
+        #expect(await waitForSignal(dispatchEntered, timeout: .seconds(1)))
+
+        let cancel = Task.detached {
+            cancellationAttempted.signal()
+            gate.cancel { engineCancellation.signal() }
+        }
+        #expect(await waitForSignal(cancellationAttempted, timeout: .seconds(1)))
+        let cancellationRanBeforeRegistrationFinished = await waitForSignal(
+            engineCancellation,
+            timeout: .milliseconds(50))
+        #expect(!cancellationRanBeforeRegistrationFinished)
+
+        allowRegistrationToFinish.signal()
+        #expect(await start.value)
+        await cancel.value
+        #expect(await waitForSignal(engineCancellation, timeout: .seconds(1)))
+    }
+
+    #if canImport(JavaScriptCore)
+    @Test
+    func `cancelling a synchronous JavaScriptCore hang leaves a fresh worker available`() async throws {
+        let probe = ProviderPluginCancellationProbe()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              await ctx.http.getJSON("https://api.example.test/start");
+              const stopAt = Date.now() + 5000;
+              while (Date.now() < stopAt) {}
+            }
+            return { primary: { usedPercent: 17 } };
+            """),
+            transport: ProviderHTTPTransportHandler { request in
+                _ = await probe.markStarted()
+                let response = try #require(HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]))
+                return (Data(#"{"ok":true}"#.utf8), response)
+            },
+            timeout: 12,
+            engine: .javaScriptCore)
+        let first = Task {
+            try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
+        }
+
+        #expect(await probe.waitUntilStarted())
+        // The response continuation runs on the same serial JSC queue. Let it
+        // enter the synchronous loop before cancellation to exercise the
+        // uninterruptible-engine case rather than only an in-flight request.
+        try await Task.sleep(for: .milliseconds(250))
+        first.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await first.value }
+
+        let recoveryStart = Date()
+        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "healthy"])
+        #expect(recovered.primary?.usedPercent == 17)
+        #expect(Date().timeIntervalSince(recoveryStart) < 2.5)
+    }
+    #endif
+
+    @Test
     func `HTTP broker rejects OpenRouter management auth outside OpenRouter plugin`() async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(
             settings: """
@@ -664,6 +766,22 @@ struct ProviderPluginRuntimeTests {
             return (Data(body.utf8), response)
         }
     }
+}
+
+private func waitForSignal(
+    _ semaphore: DispatchSemaphore,
+    timeout: DispatchTimeInterval) async -> Bool
+{
+    await Task.detached {
+        blockingWaitForSignal(semaphore, timeout: timeout)
+    }.value
+}
+
+private func blockingWaitForSignal(
+    _ semaphore: DispatchSemaphore,
+    timeout: DispatchTimeInterval) -> Bool
+{
+    semaphore.wait(timeout: .now() + timeout) == .success
 }
 
 private actor CookieAccessRecorder {

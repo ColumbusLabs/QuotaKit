@@ -144,32 +144,35 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
 
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<UsageSnapshot>()
+        let requestStartGate = ProviderPluginRequestStartGate()
         let requestID = UUID()
         return try await withTaskCancellationHandler {
             try await withCheckedThrowingContinuation { continuation in
                 gate.install(continuation)
                 guard !gate.isFinished else { return }
-                worker.fetch(
-                    requestID: requestID,
-                    settings: sanitizedSettings,
-                    secrets: sanitizedSecrets,
-                    now: now,
-                    timeZone: timeZone,
-                    cookieInvalidator: cookieInvalidator,
-                    cookieResolver: cookieResolver,
-                    instanceCookieResolver: instanceCookieResolver)
-                { result in
-                    let mappedResult = result.mapError {
-                        self.redactedError($0, secrets: sanitizedSecrets.values)
+                guard requestStartGate.start({
+                    worker.fetch(
+                        requestID: requestID,
+                        settings: sanitizedSettings,
+                        secrets: sanitizedSecrets,
+                        now: now,
+                        timeZone: timeZone,
+                        cookieInvalidator: cookieInvalidator,
+                        cookieResolver: cookieResolver,
+                        instanceCookieResolver: instanceCookieResolver)
+                    { result in
+                        let mappedResult = result.mapError {
+                            self.redactedError($0, secrets: sanitizedSecrets.values)
+                        }
+                        if case let .failure(error) = mappedResult,
+                           (error as? ProviderPluginError) == .timedOut
+                        {
+                            gate.finish(mappedResult, beforeResume: { self.discard(worker) })
+                        } else {
+                            gate.finish(mappedResult)
+                        }
                     }
-                    if case let .failure(error) = mappedResult,
-                       (error as? ProviderPluginError) == .timedOut
-                    {
-                        gate.finish(mappedResult, beforeResume: { self.discard(worker) })
-                    } else {
-                        gate.finish(mappedResult)
-                    }
-                }
+                }) else { return }
                 Task.detached { [weak self, weak worker] in
                     guard let self, let worker else { return }
                     let nanoseconds = UInt64(self.timeout * 1_000_000_000)
@@ -181,9 +184,15 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                 }
             }
         } onCancel: {
-            if gate.finish(.failure(CancellationError())) {
-                worker.cancelFetch(requestID)
-            }
+            gate.finish(.failure(CancellationError()), beforeResume: {
+                requestStartGate.cancel {
+                    worker.cancelFetch(requestID)
+                    // JavaScriptCore cannot interrupt a synchronous script loop.
+                    // Discard this exact worker so a later fetch gets a fresh
+                    // context even when this request remains stuck on its queue.
+                    self.discard(worker)
+                }
+            })
         }
     }
 
@@ -309,6 +318,39 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
         beforeResume?()
         continuation.resume(with: result)
         return true
+    }
+}
+
+/// Closes the cancellation race between the runtime's finished check and the
+/// engine's synchronous in-flight registration. The dispatch closure runs
+/// while holding the lock, so a concurrent cancel either prevents dispatch or
+/// runs after the engine has registered this request.
+final class ProviderPluginRequestStartGate: @unchecked Sendable {
+    private let lock = NSLock()
+    private var cancelled = false
+    private var started = false
+
+    @discardableResult
+    func start(_ dispatch: () -> Void) -> Bool {
+        self.lock.lock()
+        guard !self.cancelled else {
+            self.lock.unlock()
+            return false
+        }
+        dispatch()
+        self.started = true
+        self.lock.unlock()
+        return true
+    }
+
+    func cancel(_ cancelStartedRequest: () -> Void) {
+        self.lock.lock()
+        self.cancelled = true
+        let shouldCancel = self.started
+        self.lock.unlock()
+        if shouldCancel {
+            cancelStartedRequest()
+        }
     }
 }
 
