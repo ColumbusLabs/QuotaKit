@@ -17,6 +17,17 @@ Doubao reads Coding Plan and Agent Plan quota windows from the official `arkcli`
 
 To keep using API credentials instead, paste an API key or AK/SK pair in provider settings. Environment variables `ARK_API_KEY`, `VOLCENGINE_API_KEY`, and `DOUBAO_API_KEY` remain supported.
 
+### Multiple Ark API keys
+
+Use **Doubao API-key accounts** in Settings → Providers → Doubao to save labeled Ark API keys. Selecting a saved account uses the API route even when the provider-wide source is set to CLI. The shared account switcher and CLI can select one saved key or fetch all saved keys:
+
+```sh
+quotakit usage --provider doubao --account Work
+quotakit usage --provider doubao --all-accounts
+```
+
+Selected keys are isolated from provider-wide and environment API-key aliases, AK/SK credentials, and the ambient `arkcli` session. A failed key does not fall back to another key or to `arkcli`. Removing all saved accounts restores the existing single-account behavior and preserves the provider's API key, AK/SK, region, and source preferences. The account editor accepts Ark API keys only; use the existing provider settings for AK/SK credentials or `arkcli` profiles.
+
 ## Behavior
 - Auto mode honors configured API credentials first so an ambient arkcli SSO session cannot silently switch accounts. Without configured credentials, it uses `arkcli usage plan --format json`.
 - CLI mode uses only `arkcli`; API mode uses only configured AK/SK or Ark API-key credentials.

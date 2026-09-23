@@ -36,7 +36,7 @@ struct TokenAccountSyncCoverageTests {
     }
 
     @Test
-    func `Catalog contains the 31 providers known after Hugging Face and Kimi web accounts`() {
+    func `Catalog contains the 32 providers known after Hugging Face Kimi and Doubao accounts`() {
         // v0.33.0 baseline — 22 providers in TokenAccountSupportCatalog.
         //   Phase G (v0.26.x) added the first 18: openai/claude/deepseek/
         //     antigravity/zai/cursor/opencode/opencodego/factory/minimax/
@@ -49,6 +49,7 @@ struct TokenAccountSyncCoverageTests {
         //   Upstream Neuralwatt sync added Neuralwatt as an API-key provider.
         //   Later upstream syncs added OpenRouter, DeepInfra, IBM Bob, Grok, and Hugging Face accounts.
         //   Kimi web accounts reuse the existing cookie-account sync envelope.
+        //   Doubao adds labeled Ark API-key accounts.
         // If this count changes (up or down), confirm the catalog change
         // was intentional. The set is deliberately listed verbatim — if
         // upstream renames or removes a provider, this test fails loudly
@@ -72,6 +73,8 @@ struct TokenAccountSyncCoverageTests {
             "openrouter", "deepinfra", "ibmbob", "grok", "huggingface",
             // Kimi web-account addition
             "kimi",
+            // Doubao labeled Ark API-key accounts
+            "doubao",
         ]
         let actual = Set(TokenAccountSupportCatalog.allProviders.map(\.rawValue))
         let added = actual.subtracting(expected)
