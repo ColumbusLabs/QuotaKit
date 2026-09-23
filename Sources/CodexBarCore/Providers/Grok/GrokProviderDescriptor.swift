@@ -91,7 +91,8 @@ public enum GrokProviderDescriptor {
                         + "Subscription credits are not converted to dollars."
                 }),
             // Pace needs a real period length, not a guess. Both fetch paths now supply one — the
-            // CLI from `billingPeriodMinutes`, the web fallback from `GrokBillingCadenceStore` — so
+            // CLI from `billingPeriodMinutes`, the CLI proxy from measured bounds when available,
+            // and other web responses from `GrokBillingCadenceStore` — so
             // this no longer keys off the inferred "Weekly"/"Monthly" label. That label goes `nil`
             // whenever fewer than ~3.5 days remain, which silently suppressed pace for the back
             // half of every weekly cycle.

@@ -1,10 +1,73 @@
-import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
+@testable import CodexBarCore
 
 @MainActor
 struct GrokMenuCardModelTests {
+    @Test(arguments: [30.0, 6.0])
+    func `measured proxy weekly bounds preserve late cycle pace`(hoursUntilReset: Double) throws {
+        let reset = try Self.date("2026-08-13T12:00:00Z")
+        let now = reset.addingTimeInterval(-hoursUntilReset * 3600)
+        let proxy = try GrokCreditsProxyFetcher.parseSnapshot(Data("""
+        {
+          "config": {
+            "creditUsagePercent": 90,
+            "currentPeriod": {
+              "start": "2026-08-06T12:00:00Z",
+              "end": "2026-08-13T12:00:00Z"
+            }
+          }
+        }
+        """.utf8), now: now)
+        let usage = GrokUsageSnapshot(
+            billing: nil,
+            webBilling: proxy,
+            credentials: nil,
+            localSummary: nil,
+            cliVersion: nil,
+            updatedAt: now).toUsageSnapshot(webBillingWindowMinutes: 31 * 24 * 60)
+        let window = try #require(usage.primary)
+        let model = try Self.model(now: now, window: window)
+        let metric = try #require(model.metrics.first { $0.id == "primary" })
+
+        #expect(window.windowMinutes == 10080)
+        #expect(metric.title == "Weekly")
+        #expect(metric.pacePercent != nil)
+    }
+
+    @Test
+    func `measured monthly bounds keep the monthly label and QuotaKit pace`() throws {
+        let reset = try Self.date("2026-08-13T12:00:00Z")
+        let now = reset.addingTimeInterval(-6 * 24 * 3600)
+        let proxy = try GrokCreditsProxyFetcher.parseSnapshot(Data("""
+        {
+          "config": {
+            "creditUsagePercent": 90,
+            "currentPeriod": {
+              "start": "2026-07-13T12:00:00Z",
+              "end": "2026-08-13T12:00:00Z"
+            }
+          }
+        }
+        """.utf8), now: now)
+        let usage = GrokUsageSnapshot(
+            billing: nil,
+            webBilling: proxy,
+            credentials: nil,
+            localSummary: nil,
+            cliVersion: nil,
+            updatedAt: now).toUsageSnapshot(webBillingWindowMinutes: 7 * 24 * 60)
+        let window = try #require(usage.primary)
+        let model = try Self.model(now: now, window: window)
+        let metric = try #require(model.metrics.first { $0.id == "primary" })
+
+        #expect(window.windowMinutes == 31 * 24 * 60)
+        #expect(metric.title == "Monthly")
+        #expect(metric.pacePercent != nil)
+        #expect(GrokProviderDescriptor.descriptor.pace.supportsResetWindowPace(window: window, now: now))
+    }
+
     @Test
     func `weekly CLI quota shows projection and pace marker`() throws {
         let now = Date(timeIntervalSince1970: 0)
@@ -143,6 +206,12 @@ struct GrokMenuCardModelTests {
 
         #expect(lines.contains(where: { $0.hasPrefix("Weekly:") }))
         #expect(!lines.contains(where: { $0.hasPrefix("Credits:") }))
+    }
+
+    private static func date(_ value: String) throws -> Date {
+        let formatter = ISO8601DateFormatter()
+        formatter.formatOptions = [.withInternetDateTime]
+        return try #require(formatter.date(from: value))
     }
 
     private static func model(now: Date, window: RateWindow) throws -> UsageMenuCardView.Model {

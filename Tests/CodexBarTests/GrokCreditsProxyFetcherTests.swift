@@ -54,20 +54,162 @@ struct GrokCreditsProxyFetcherTests {
     }
 
     @Test
-    func `derives percent from on demand cap and usage`() throws {
-        let snapshot = try GrokCreditsProxyFetcher.parseSnapshot(
-            Data(
-                """
-                {
-                  "config": {
-                    "onDemandCap": { "val": 1000.0 },
-                    "onDemandUsed": { "val": 250.5 }
-                  }
+    func `measures only matching valid period bounds`() throws {
+        let now = try Self.date("2026-08-12T00:00:00Z")
+        let cases: [(String, Int?)] = [
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-08-06T00:00:00Z",
+                  "end": "2026-08-13T00:00:00Z"
                 }
-                """.utf8))
+                """#,
+                10080),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-07-13T00:00:00Z",
+                  "end": "2026-08-13T00:00:00Z"
+                }
+                """#,
+                44640),
+            (
+                #"""
+                "currentPeriod": {"end": "2026-08-13T00:00:00Z"},
+                "billingPeriodStart": "2026-07-13T00:00:00Z",
+                "billingPeriodEnd": "2026-08-13T00:00:00Z"
+                """#,
+                nil),
+            (
+                #"""
+                "currentPeriod": {"end": "invalid"},
+                "billingPeriodStart": "2026-08-06T00:00:00Z",
+                "billingPeriodEnd": "2026-08-13T00:00:00Z"
+                """#,
+                10080),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "invalid",
+                  "end": "2026-08-13T00:00:00Z"
+                }
+                """#,
+                nil),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-08-14T00:00:00Z",
+                  "end": "2026-08-21T00:00:00Z"
+                }
+                """#,
+                nil),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-08-13T00:00:00Z",
+                  "end": "2026-08-12T00:00:00Z"
+                }
+                """#,
+                nil),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-08-11T00:00:00Z",
+                  "end": "2026-08-11T00:00:00Z"
+                }
+                """#,
+                nil),
+            (
+                #"""
+                "currentPeriod": {
+                  "start": "2026-08-11T00:00:00Z",
+                  "end": "2026-08-11T00:00:30Z"
+                }
+                """#,
+                nil),
+        ]
+
+        for (period, expectedMinutes) in cases {
+            let data = Data("{\"config\":{\"creditUsagePercent\":90,\(period)}}".utf8)
+            let snapshot = try GrokCreditsProxyFetcher.parseSnapshot(data, now: now)
+            #expect(snapshot.usedPercent == 90)
+            #expect(snapshot.windowMinutes == expectedMinutes)
+        }
+    }
+
+    @Test
+    func `unknown usage enrichment retains proxy period bounds`() async throws {
+        let now = try Self.date("2026-08-12T00:00:00Z")
+        let proxy = GrokWebBillingSnapshot(
+            usedPercent: nil,
+            resetsAt: now.addingTimeInterval(24 * 3600),
+            windowMinutes: 10080)
+        let enriched = try await GrokOAuthFetchStrategy.resolvingUnknownUsage(
+            proxy,
+            credentials: Self.credentials,
+            grpcBilling: { _ in
+                GrokWebBillingSnapshot(usedPercent: 90, resetsAt: now.addingTimeInterval(3600))
+            }).snapshot
+
+        #expect(enriched.usedPercent == 90)
+        #expect(enriched.resetsAt == proxy.resetsAt)
+        #expect(enriched.windowMinutes == 10080)
+    }
+
+    @Test
+    func `period without a usage value still keeps its measured duration`() throws {
+        let now = try Self.date("2026-08-12T00:00:00Z")
+        let snapshot = try GrokCreditsProxyFetcher.parseSnapshot(Data("""
+        {
+          "config": {
+            "currentPeriod": {
+              "start": "2026-08-06T00:00:00Z",
+              "end": "2026-08-13T00:00:00Z"
+            }
+          }
+        }
+        """.utf8), now: now)
+
+        #expect(snapshot.usedPercent == 0)
+        #expect(snapshot.windowMinutes == 10080)
+    }
+
+    @Test
+    func `completion never pairs a duration with a different reset`() {
+        let original = GrokWebBillingSnapshot(
+            usedPercent: 90,
+            resetsAt: Date(timeIntervalSince1970: 1_000_000),
+            windowMinutes: 10080)
+        let replaced = original.completing(with: GrokWebBillingSnapshot(
+            usedPercent: nil,
+            resetsAt: Date(timeIntervalSince1970: 2_000_000)))
+        #expect(replaced.resetsAt == Date(timeIntervalSince1970: 2_000_000))
+        #expect(replaced.windowMinutes == nil)
+        let unchanged = original.completing(with: GrokWebBillingSnapshot(usedPercent: nil, resetsAt: nil))
+        #expect(unchanged.resetsAt == original.resetsAt)
+        #expect(unchanged.windowMinutes == 10080)
+    }
+
+    @Test
+    func `derives percent from on demand cap and usage`() throws {
+        let now = try Self.date("2026-08-12T00:00:00Z")
+        let snapshot = try GrokCreditsProxyFetcher.parseSnapshot(Data("""
+        {
+          "config": {
+            "currentPeriod": {
+              "start": "2026-08-06T00:00:00Z",
+              "end": "2026-08-13T00:00:00Z"
+            },
+            "onDemandCap": { "val": 1000.0 },
+            "onDemandUsed": { "val": 250.5 }
+          }
+        }
+        """.utf8), now: now)
+        let expectedReset = try Self.date("2026-08-13T00:00:00Z")
 
         #expect(snapshot.usedPercent == 25.05)
-        #expect(snapshot.resetsAt == nil)
+        #expect(snapshot.resetsAt == expectedReset)
+        #expect(snapshot.windowMinutes == 10080)
     }
 
     @Test
@@ -102,7 +244,10 @@ struct GrokCreditsProxyFetcherTests {
                 """
                 {
                   "config": {
-                    "currentPeriod": { "end": "2026-08-13T00:00:00.123Z" },
+                    "currentPeriod": {
+                      "start": "2026-08-06T00:00:00.123Z",
+                      "end": "2026-08-13T00:00:00.123Z"
+                    },
                     "billingPeriodEnd": "2026-08-14T00:00:00Z"
                   }
                 }
@@ -111,6 +256,8 @@ struct GrokCreditsProxyFetcherTests {
 
         #expect(snapshot.usedPercent == 0)
         #expect(snapshot.resetsAt == expectedReset)
+        #expect(snapshot.windowMinutes == 10080)
+        #expect(snapshot.applying(subscriptionTier: "SuperGrok Heavy").windowMinutes == 10080)
         #expect(snapshot.subscriptionTier == nil)
     }
 

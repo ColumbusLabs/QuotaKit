@@ -1032,6 +1032,24 @@ extension GrokWebBillingFetcherTests {
     }
 
     @Test
+    func `measured web billing period takes precedence over learned cadence`() {
+        let snapshot = GrokUsageSnapshot(
+            billing: nil,
+            webBilling: GrokWebBillingSnapshot(
+                usedPercent: 67.25,
+                resetsAt: Date(timeIntervalSince1970: 1_800_000_003),
+                windowMinutes: 31 * 24 * 60),
+            credentials: Self.credentials,
+            localSummary: nil,
+            cliVersion: nil,
+            updatedAt: Date(timeIntervalSince1970: 1_799_000_000))
+
+        let usage = snapshot.toUsageSnapshot(webBillingWindowMinutes: 7 * 24 * 60)
+
+        #expect(usage.primary?.windowMinutes == 31 * 24 * 60)
+    }
+
+    @Test
     func `usage snapshot carries a learned monthly cadence instead of the weekly default`() {
         // The web payload never states its period length, so a monthly plan is only distinguishable
         // from a weekly one after a rollover has been observed. The learned value must reach the

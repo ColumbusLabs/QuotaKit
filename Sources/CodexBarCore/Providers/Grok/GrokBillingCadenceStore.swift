@@ -5,13 +5,13 @@ import CryptoKit
 import Crypto
 #endif
 
-/// Learns Grok's billing cadence from successive reset timestamps.
+/// Learns Grok's billing cadence from successive reset timestamps as a fallback for billing
+/// payloads that omit matching period bounds.
 ///
-/// The grok.com billing payload reports only a used percent and a reset timestamp — never the
-/// period start or its duration — so a single fetch cannot say whether the window is weekly or
-/// monthly. Deriving the cadence from the *remaining* time fails for most of a cycle: a weekly
-/// window two days from reset is indistinguishable from a monthly one two days from reset. That
-/// ambiguity used to leave the bar unlabeled and suppress pace for the back half of every week.
+/// A single reset timestamp cannot say whether the window is weekly or monthly. Deriving the
+/// cadence from the *remaining* time fails for most of a cycle: a weekly window two days from reset
+/// is indistinguishable from a monthly one two days from reset. The store keeps the bar labeled
+/// when a payload omits its full period bounds; measured bounds remain authoritative when present.
 ///
 /// An unambiguous time-to-reset can seed the cadence on the first fetch. After that, a rollover can
 /// replace it only with a recognized weekly period, or with a monthly period whose new reset is

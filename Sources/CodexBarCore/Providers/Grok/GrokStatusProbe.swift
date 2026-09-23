@@ -30,9 +30,8 @@ public struct GrokUsageSnapshot: Sendable {
         self.subscriptionTier = subscriptionTier
     }
 
-    /// `webBillingWindowMinutes` supplies the billing cadence the web payload omits. Callers on the
-    /// live fetch path pass the value learned by `GrokBillingCadenceStore`. Direct mappings leave
-    /// it unknown rather than guessing weekly for a monthly account late in its cycle.
+    /// `webBillingWindowMinutes` supplies the fallback cadence when billing omits period bounds.
+    /// A measured duration from matching provider bounds takes precedence over the learned value.
     public func toUsageSnapshot(webBillingWindowMinutes: Int? = nil) -> UsageSnapshot {
         // Primary window: credit usage (against included limit) from the CLI RPC,
         // falling back to the web billing RPC used by grok.com when the agent surface lacks billing.
@@ -48,13 +47,12 @@ public struct GrokUsageSnapshot: Sendable {
         } else if let webBilling,
                   let percent = webBilling.usedPercent
         {
-            // The web payload carries no period length, and the remaining time cannot supply one:
-            // a weekly window two days from reset looks exactly like a monthly one two days out.
-            // Leaving it `nil` used to strand the bar unlabeled — and therefore paceless — for the
-            // back half of every week, so the cadence now comes from the caller instead.
+            // Prefer a measured period length from the payload. When it omits matching bounds,
+            // use the learned cadence because remaining time cannot distinguish weekly from
+            // monthly near reset. That ambiguity used to hide the label and pace late in a week.
             primary = RateWindow(
                 usedPercent: percent,
-                windowMinutes: webBillingWindowMinutes,
+                windowMinutes: webBilling.windowMinutes ?? webBillingWindowMinutes,
                 resetsAt: webBilling.resetsAt,
                 resetDescription: nil)
         }

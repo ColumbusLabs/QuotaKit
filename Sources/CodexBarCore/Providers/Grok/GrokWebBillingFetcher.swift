@@ -7,6 +7,8 @@ import FoundationNetworking
 public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let usedPercent: Double?
     public let resetsAt: Date?
+    /// Full duration measured from matching provider period bounds, never from reset time remaining.
+    public let windowMinutes: Int?
     public let subscriptionTier: String?
     /// False when `usedPercent` was inferred rather than read off the wire. The credits frame can
     /// describe a billing period while carrying no percentage field at all, and that shape is
@@ -17,11 +19,13 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public init(
         usedPercent: Double?,
         resetsAt: Date?,
+        windowMinutes: Int? = nil,
         subscriptionTier: String? = nil,
         usedPercentIsWirePublished: Bool = true)
     {
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
+        self.windowMinutes = windowMinutes
         self.subscriptionTier = subscriptionTier
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
     }
@@ -31,6 +35,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         GrokWebBillingSnapshot(
             usedPercent: self.usedPercent,
             resetsAt: self.resetsAt,
+            windowMinutes: self.windowMinutes,
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished)
     }
@@ -42,6 +47,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         GrokWebBillingSnapshot(
             usedPercent: self.usedPercent,
             resetsAt: other.resetsAt ?? self.resetsAt,
+            windowMinutes: other.resetsAt == nil ? self.windowMinutes : other.windowMinutes,
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
             usedPercentIsWirePublished: self.usedPercentIsWirePublished)
     }
@@ -541,7 +547,9 @@ public enum GrokWebBillingFetcher {
         while index < bytes.count, shift < 64 {
             let byte = bytes[index]
             index += 1
-            if shift == 63, byte > 1 { return nil }
+            if shift == 63, byte > 1 {
+                return nil
+            }
             value |= UInt64(byte & 0x7F) << shift
             if byte & 0x80 == 0 {
                 return value

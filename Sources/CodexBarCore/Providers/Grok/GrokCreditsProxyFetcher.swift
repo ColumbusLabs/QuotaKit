@@ -43,7 +43,7 @@ public enum GrokCreditsProxyFetcher {
         return try Self.parseSnapshot(response.data)
     }
 
-    static func parseSnapshot(_ data: Data) throws -> GrokWebBillingSnapshot {
+    static func parseSnapshot(_ data: Data, now: Date = .now) throws -> GrokWebBillingSnapshot {
         let response: CreditsResponse
         do {
             response = try JSONDecoder().decode(CreditsResponse.self, from: data)
@@ -56,14 +56,17 @@ public enum GrokCreditsProxyFetcher {
 
         let subscriptionTier = GrokPlan.displayName(
             from: config.subscriptionTier ?? response.subscriptionTier)
-        let resetsAt =
-            config.currentPeriod?.end.flatMap(Self.parseISO8601)
-            ?? config.billingPeriodEnd.flatMap(Self.parseISO8601)
+        let currentPeriodEnd = config.currentPeriod?.end.flatMap(Self.parseISO8601)
+        let resetsAt = currentPeriodEnd ?? config.billingPeriodEnd.flatMap(Self.parseISO8601)
+        // Match the start to the selected end; never combine different billing periods.
+        let periodStart = currentPeriodEnd == nil ? config.billingPeriodStart : config.currentPeriod?.start
+        let windowMinutes = Self.windowMinutes(start: periodStart, end: resetsAt, now: now)
 
         if let percent = config.creditUsagePercent, percent.isFinite {
             return GrokWebBillingSnapshot(
                 usedPercent: min(100, max(0, percent)),
                 resetsAt: resetsAt,
+                windowMinutes: windowMinutes,
                 subscriptionTier: subscriptionTier)
         }
 
@@ -75,6 +78,7 @@ public enum GrokCreditsProxyFetcher {
             return GrokWebBillingSnapshot(
                 usedPercent: percent,
                 resetsAt: resetsAt,
+                windowMinutes: windowMinutes,
                 subscriptionTier: subscriptionTier)
         }
 
@@ -82,10 +86,21 @@ public enum GrokCreditsProxyFetcher {
             return GrokWebBillingSnapshot(
                 usedPercent: 0,
                 resetsAt: resetsAt,
+                windowMinutes: windowMinutes,
                 subscriptionTier: subscriptionTier)
         }
 
         throw GrokWebBillingError.parseFailed
+    }
+
+    private static func windowMinutes(start: String?, end: Date?, now: Date) -> Int? {
+        guard let start,
+              let startDate = parseISO8601(start),
+              let end, end > startDate, startDate <= now,
+              let minutes = Int(exactly: (end.timeIntervalSince(startDate) / 60).rounded(.down)),
+              minutes > 0
+        else { return nil }
+        return minutes
     }
 
     private static func parseISO8601(_ raw: String) -> Date? {
@@ -106,6 +121,7 @@ public enum GrokCreditsProxyFetcher {
     private struct CreditsConfig: Decodable {
         let creditUsagePercent: Double?
         let currentPeriod: CurrentPeriod?
+        let billingPeriodStart: String?
         let billingPeriodEnd: String?
         let onDemandCap: CreditsAmount?
         let onDemandUsed: CreditsAmount?
@@ -113,6 +129,7 @@ public enum GrokCreditsProxyFetcher {
     }
 
     private struct CurrentPeriod: Decodable {
+        let start: String?
         let end: String?
     }
 
