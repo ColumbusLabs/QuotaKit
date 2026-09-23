@@ -11,6 +11,8 @@ current Columbus Labs product surface and recent release history.
 
 - v0 is now in the iPhone quota provider catalog with its existing billing and
   rate-limit windows. Detailed billing balances remain on the Mac.
+- Distinctly labeled Kimi web accounts now appear as separate usage entries on
+  iPhone.
 
 ### Changed
 

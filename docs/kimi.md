@@ -103,6 +103,24 @@ For advanced users or when automatic import fails:
 6. Copy the `kimi-auth` cookie value (JWT token)
 7. Paste it into the "Auth Token" field in QuotaKit
 
+### Multiple Web Accounts
+
+In Settings → Providers → Kimi, use **Kimi accounts** to save labeled `kimi-auth` tokens or Cookie headers.
+Select an account in the shared account editor; the CLI also supports `--account <label>`,
+`--account-index <index>`, and `--all-accounts`. Saved accounts use the selected Kimi region and each
+request sends only that account's cookie. Selecting one temporarily uses the web source and manual cookie
+settings without changing your saved usage-source or cookie-source preferences. An invalid account fails
+on its own and cannot fall back to another cookie, API key, or browser session.
+
+Saved accounts work with the HTTP web endpoint on Linux and do not need browser-cookie import support.
+The account list uses the existing `providers[].tokenAccounts` configuration; Kimi and Kimi Open Platform
+credentials remain separate. Add accounts issued for the selected region because a single Kimi provider
+setting cannot mix China and International sessions. Kimi usage responses do not currently provide account
+emails, so QuotaKit uses each saved account's label as the existing token-account sync identity. Distinct,
+non-empty labels can sync as separate iPhone entries; if labels collide after case/whitespace normalization,
+sync safely keeps only the selected account for that push. Labels containing `|` remain supported by the
+existing record-name format and iPhone deletion parser.
+
 ### Cookie Environment Variable
 
 Alternatively, set the `KIMI_AUTH_TOKEN` environment variable:

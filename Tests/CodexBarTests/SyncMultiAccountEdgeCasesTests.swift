@@ -186,10 +186,10 @@ struct SyncMultiAccountEdgeCasesTests {
         #expect(cycle3Claude.first?.accountEmail == "alice@x.com")
     }
 
-    // MARK: - E3: Token-account error preserved per-record
+    // MARK: - E3: Mixed identified and identityless account-error fallback
 
     @Test
-    func `R5 E3: Token-account with refresh error emits record with error, others unaffected`() async throws {
+    func `R5 E3: Identityless account refresh error keeps selected account only when sibling has email`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E3-AcctError")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -215,16 +215,15 @@ struct SyncMultiAccountEdgeCasesTests {
 
         let claudes = mock.lastSnapshot?.providers
             .filter { $0.providerID == "claude" } ?? []
-        #expect(claudes.count == 2)
-        let aliceEmit = claudes.first { $0.accountEmail == "alice@x.com" }
-        // Bob's record has accountEmail=nil because his snapshot is nil
-        // (the error path doesn't populate identity). This is real
-        // production behavior — without a successful auth, we don't know
-        // the email. Identify by isError == true.
-        let bobEmit = claudes.first { $0.isError && $0.accountEmail == nil }
-        #expect(aliceEmit?.isError == false)
-        #expect(bobEmit != nil, "Bob's record should be present with isError")
-        #expect(bobEmit?.statusMessage == "Cookie expired")
+        // Bob's failed refresh has no snapshot and therefore no identity. iOS
+        // drops a nil-email row when the same provider also has a real email,
+        // so keep the selected Alice snapshot instead of emitting an
+        // anonymous Bob error that mobile would discard.
+        #expect(claudes.count == 1)
+        let aliceEmit = try #require(claudes.first)
+        #expect(aliceEmit.accountEmail == "alice@x.com")
+        #expect(aliceEmit.isError == false)
+        #expect(!claudes.contains { $0.isError && $0.accountEmail == nil })
     }
 
     // MARK: - E4: Multiple multi-account providers in same push
@@ -442,10 +441,10 @@ struct SyncMultiAccountEdgeCasesTests {
         #expect(mock.deleteCallCount == 0, "no spurious deletes during stable repeated push")
     }
 
-    // MARK: - E9: Token provider with all-error accounts still emits correctly
+    // MARK: - E9: Duplicate identityless account errors stay collision-safe
 
     @Test
-    func `R5 E9: All token accounts in error state still emit 2 error records`() async throws {
+    func `R5 E9: All token accounts without identities keep one representable error record`() async throws {
         let settings = self.makeSettingsStore(suite: "R5E9-AllErrors")
         settings.iCloudSyncEnabled = true
         try settings.setProviderEnabled(
@@ -471,14 +470,14 @@ struct SyncMultiAccountEdgeCasesTests {
 
         let claudes = mock.lastSnapshot?.providers
             .filter { $0.providerID == "claude" } ?? []
-        // The error-snapshots have accountEmail = nil (since
-        // entry.snapshot is nil), so the multi-account emit will produce
-        // 2 records both with accountEmail=nil. Implementation detail
-        // — verify the count at least.
-        #expect(claudes.count == 2)
-        // Both should have isError true.
-        let allError = claudes.allSatisfy(\.isError)
-        #expect(allError)
+        // Both account-specific error snapshots lack identity, and nil maps
+        // to the same CloudKit record key (`...|claude|_`). Keep the selected
+        // provider-level error instead of emitting two records that collide.
+        #expect(claudes.count == 1)
+        let activeError = try #require(claudes.first)
+        #expect(activeError.accountEmail == nil)
+        #expect(activeError.isError)
+        #expect(activeError.statusMessage == "Auth failed")
     }
 
     // MARK: - E10: Codex liveSystem + multi managed transition

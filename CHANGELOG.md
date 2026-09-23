@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
 - Configure visible usage items per provider in Mac settings; menu, preview, Overview, and compact constraint details follow the selection without changing quota ranking or fetching.
 - Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.

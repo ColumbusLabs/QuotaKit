@@ -215,6 +215,7 @@ struct ProviderCredentialCharacterizationTests {
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
         ]
         let cookieProviders: [UsageProvider] = [
+            .kimi,
             .claude, .cursor, .opencode, .opencodego, .factory, .minimax, .manus,
             .augment, .ollama, .abacus, .mistral, .qoder, .stepfun,
         ]
@@ -240,6 +241,7 @@ struct ProviderCredentialCharacterizationTests {
         }
 
         let normalizedCookieHeaders: [UsageProvider: String] = [
+            .kimi: "kimi-auth=account-token",
             .claude: "sessionKey=account-token",
             .cursor: "account-token",
             .opencode: "account-token",

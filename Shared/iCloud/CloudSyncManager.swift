@@ -502,8 +502,9 @@ public final class CloudSyncManager: SyncPushing, @unchecked Sendable {
     /// Stable across pushes so repeated saves overwrite in place.
     ///
     /// **WIRE CONTRACT.** Format: `"{deviceID}|{providerID}|{accountEmail ?? "_"}"`.
-    /// - The pipe `|` separator was chosen because provider IDs never contain it
-    ///   (they're kebab-case ASCII) and neither do email addresses.
+    /// - Provider IDs never contain `|` (they're kebab-case ASCII). The account
+    ///   component may be a user label containing `|`, so readers split only
+    ///   the first two separators and preserve the remainder verbatim.
     /// - The `"_"` sentinel for nil `accountEmail` must exactly match the four
     ///   other composite-key sites: iOS `SnapshotCache.compositeKey`, iOS
     ///   `ProviderSnapshotModel.makeCompositeKey`, iOS

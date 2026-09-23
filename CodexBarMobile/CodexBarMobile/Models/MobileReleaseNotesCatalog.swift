@@ -38,6 +38,8 @@ enum MobileReleaseNotesCatalog {
                         String(
                             localized: "GitKraken AI weekly usage, branding, and quota alerts now sync from QuotaKit Mac."),
                         String(
+                            localized: "Distinctly labeled Kimi web accounts now sync separately to iPhone."),
+                        String(
                             localized: "v0 quota and rate-limit windows now sync to your iPhone; detailed billing remains on your Mac."),
                         String(
                             localized: "Hugging Face billable inference spend and optional ZeroGPU quota now sync from QuotaKit Mac to iPhone."),

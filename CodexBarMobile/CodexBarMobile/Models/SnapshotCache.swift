@@ -632,12 +632,14 @@ struct SnapshotCache: Sendable {
     /// `"deviceID|providerID|accountEmail"` back into `(deviceID, composite)`.
     /// Returns nil on malformed input — caller should skip such records.
     ///
-    /// **Inverse of `CloudSyncManager.perProviderRecordName`.** Both must
-    /// use `|` as separator and expect exactly 3 components. Any layout
-    /// change on one side requires the symmetric change here.
+    /// **Inverse of `CloudSyncManager.perProviderRecordName`.** Device and
+    /// provider IDs occupy the first two components; the account identity is
+    /// the remaining suffix and may itself contain `|` (for example, a
+    /// user-chosen token-account label).
     static func splitRecordName(_ recordName: String) -> (deviceID: String, composite: String)? {
-        let parts = recordName.split(separator: "|", omittingEmptySubsequences: false)
-        guard parts.count == 3 else { return nil }
+        let parts = recordName.split(
+            separator: "|", maxSplits: 2, omittingEmptySubsequences: false)
+        guard parts.count == 3, !parts[0].isEmpty, !parts[1].isEmpty else { return nil }
         let deviceID = String(parts[0])
         let composite = "\(parts[1])|\(parts[2])"
         return (deviceID, composite)
