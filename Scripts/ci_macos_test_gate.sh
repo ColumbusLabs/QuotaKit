@@ -18,6 +18,7 @@ draft_pull_request="${CI_PULL_REQUEST_DRAFT:-false}"
 full_suite_required=false
 settings_appearance_changed=false
 spend_heatmap_changed=false
+spend_dashboard_midnight_dst_changed=false
 
 case "$draft_pull_request" in
   true|false)
@@ -62,6 +63,10 @@ classify_path() {
     Sources/CodexBar/SpendActivityHeatmap.swift|Tests/CodexBarTests/SpendActivityHeatmapTests.swift)
       require_macos_tests "$path" "covered by the spend heatmap suite"
       spend_heatmap_changed=true
+      ;;
+    Tests/CodexBarTests/SpendDashboardMidnightDSTTests.swift)
+      require_macos_tests "$path" "covered by the spend dashboard midnight/DST suite"
+      spend_dashboard_midnight_dst_changed=true
       ;;
     *)
       require_macos_tests "$path" "not covered by portable docs/site checks"
@@ -126,12 +131,21 @@ if [[ "$spend_heatmap_changed" == true ]] && ! grep -Eq \
 then
   full_suite_required=true
 fi
+if [[ "$spend_dashboard_midnight_dst_changed" == true ]] && ! grep -Eq \
+  '^[[:space:]]*(struct|final class|class)[[:space:]]+SpendDashboardMidnightDSTTests[[:space:]:{]' \
+  "${repository_root}/Tests/CodexBarTests/SpendDashboardMidnightDSTTests.swift"
+then
+  full_suite_required=true
+fi
 if [[ "$macos_tests" == true && "$full_suite_required" == false ]]; then
   if [[ "$settings_appearance_changed" == true ]]; then
     macos_test_filter=SettingsWindowAppearanceTests
   fi
   if [[ "$spend_heatmap_changed" == true ]]; then
     macos_test_filter="${macos_test_filter:+${macos_test_filter}|}SpendActivityHeatmapTests"
+  fi
+  if [[ "$spend_dashboard_midnight_dst_changed" == true ]]; then
+    macos_test_filter="${macos_test_filter:+${macos_test_filter}|}SpendDashboardMidnightDSTTests"
   fi
 fi
 if [[ -n "$macos_test_filter" ]]; then
