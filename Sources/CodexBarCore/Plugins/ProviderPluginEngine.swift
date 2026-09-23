@@ -64,6 +64,7 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
         secrets: [String: String],
         now: Date,
         timeZone: TimeZone,
+        cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)

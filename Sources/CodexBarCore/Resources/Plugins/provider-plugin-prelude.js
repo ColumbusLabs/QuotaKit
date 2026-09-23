@@ -80,6 +80,9 @@
     cookieHeader(domain) {
       return new Promise((resolve, reject) => host.cookieHeader(String(domain), resolve, reject));
     },
+    rejectCookie(domain) {
+      host.rejectCookie(String(domain));
+    },
   });
 
   ctx.html = Object.freeze({
