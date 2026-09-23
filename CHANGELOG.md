@@ -20,6 +20,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.
 - Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.
 - Codex cost catch-up: report thermal pressure first when Low Power Mode is also active.
+- OpenCode Go: route labeled API-key accounts independently of ambient keys, keep the saved browser-cookie preference when switching them, and select Manual only for Cookie accounts.
 - Grok: restore billing requests while keeping legacy monthly usage included.
 - Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.
 - Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.

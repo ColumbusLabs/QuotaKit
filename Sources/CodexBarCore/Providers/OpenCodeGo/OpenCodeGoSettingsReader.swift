@@ -17,4 +17,11 @@ public enum OpenCodeGoSettingsReader {
         value = value.trimmingCharacters(in: .whitespacesAndNewlines)
         return value.isEmpty ? nil : value
     }
+
+    static func tokenAccountAPIKey(_ raw: String) -> String? {
+        guard let value = self.apiKey(environment: [self.apiKeyEnvironmentKey: raw]),
+              !value.contains(where: { $0.isWhitespace || $0 == "=" || $0 == ":" })
+        else { return nil }
+        return value
+    }
 }

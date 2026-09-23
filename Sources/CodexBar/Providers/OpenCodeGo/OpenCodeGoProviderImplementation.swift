@@ -25,16 +25,15 @@ struct OpenCodeGoProviderImplementation: ProviderImplementation {
     }
 
     @MainActor
-    func tokenAccountsVisibility(context: ProviderSettingsContext, support: TokenAccountSupport) -> Bool {
-        guard support.requiresManualCookieSource else { return true }
-        if !context.settings.tokenAccounts(for: context.provider).isEmpty {
-            return true
-        }
-        return context.settings.opencodegoCookieSource == .manual
+    func tokenAccountsVisibility(context _: ProviderSettingsContext, support _: TokenAccountSupport) -> Bool {
+        true
     }
 
     @MainActor
     func applyTokenAccountCookieSource(settings: SettingsStore) {
+        guard let account = settings.selectedTokenAccount(for: .opencodego),
+              TokenAccountSupportCatalog.envOverride(for: .opencodego, token: account.token) == nil
+        else { return }
         if settings.opencodegoCookieSource != .manual {
             settings.opencodegoCookieSource = .manual
         }
