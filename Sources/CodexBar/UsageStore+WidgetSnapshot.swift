@@ -39,6 +39,22 @@ extension UsageStore {
         !isRunningTests || hasSaveOverride || hasInjectedSnapshotURL
     }
 
+    static func shouldLoadPersistedWidgetSnapshot(
+        isRunningTests: Bool,
+        hasSaveOverride: Bool,
+        hasInjectedSnapshotURL: Bool) -> Bool
+    {
+        !hasSaveOverride && (!isRunningTests || hasInjectedSnapshotURL)
+    }
+
+    static func shouldReloadWidgetTimelines(
+        isRunningTests: Bool,
+        hasSaveOverride: Bool,
+        hasInjectedSnapshotURL: Bool) -> Bool
+    {
+        !isRunningTests && !hasSaveOverride && !hasInjectedSnapshotURL
+    }
+
     #if DEBUG
     func setWidgetSnapshotLoadOverrideForTesting(
         _ override: (@MainActor () async -> WidgetSnapshot?)?)
@@ -57,10 +73,12 @@ extension UsageStore {
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
         let previousSnapshot = self.lastQueuedWidgetSnapshot ?? {
-            #if DEBUG
-            // Snapshot-save overrides must stay isolated from a developer's real app-group data.
-            guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
-            #endif
+            // Test save overrides never read from the developer's real app-group data in any build.
+            guard Self.shouldLoadPersistedWidgetSnapshot(
+                isRunningTests: self.isWidgetSnapshotTestEnvironment,
+                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+            else { return nil }
             if let widgetSnapshotURL = self.widgetSnapshotURL {
                 return WidgetSnapshotStore.load(from: widgetSnapshotURL)
             }
@@ -80,6 +98,12 @@ extension UsageStore {
     {
         let previousTask = self.widgetSnapshotPersistTask
         let hasSaveOverride = self._test_widgetSnapshotSaveOverride != nil
+        #if canImport(WidgetKit)
+        let shouldReloadTimelines = Self.shouldReloadWidgetTimelines(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: hasSaveOverride,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+        #endif
         self.widgetSnapshotPersistTask = Task { @MainActor in
             _ = await previousTask?.result
 
@@ -121,7 +145,7 @@ extension UsageStore {
             }
 
             #if canImport(WidgetKit)
-            if !hasSaveOverride {
+            if shouldReloadTimelines {
                 WidgetCenter.shared.reloadAllTimelines()
             }
             #endif
@@ -133,11 +157,13 @@ extension UsageStore {
         if let override = WidgetSnapshotLoadTestOverrides.byStore[ObjectIdentifier(self)] {
             return await override()
         }
-        // Never let test-only save overrides fall through to the developer's live app-group container.
-        guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
         #endif
-        // Keep a mistakenly scheduled test task from reading the app-group container as well.
-        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return nil }
+        // Test save overrides never read from the developer's real app-group data in any build.
+        guard Self.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+        else { return nil }
         let widgetSnapshotURL = self.widgetSnapshotURL
         return await Task.detached(priority: .utility) {
             if let widgetSnapshotURL {
@@ -153,12 +179,37 @@ extension UsageStore {
         after generation: Date) -> WidgetSnapshot
     {
         let enabledProviders = Set(self.enabledProviders())
-        let entries = snapshot.entries.filter { entry in
-            // Provider-specific by design: Claude ownership cannot be validated from disk; blocked
-            // providers are removed; unrelated enabled entries remain until live refresh replaces them.
-            entry.provider != .claude && enabledProviders.contains(entry.provider) &&
-                !self.widgetUsagePreservationBlockedProviders.contains(entry.provider) &&
-                (entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage)
+        let expectedClaudeQuotaOwnerKey = snapshot.entries.contains { $0.provider == .claude }
+            ? self.expectedClaudeWidgetQuotaOwnerKey()
+            : nil
+        let entries = snapshot.entries.compactMap { entry -> WidgetSnapshot.ProviderEntry? in
+            guard enabledProviders.contains(entry.provider),
+                  !self.widgetUsagePreservationBlockedProviders.contains(entry.provider),
+                  entry.providerCost == nil || self.settings.showOptionalCreditsAndExtraUsage
+            else {
+                return nil
+            }
+            guard entry.provider == .claude else { return entry }
+            guard self.knownLimitsAvailabilityByProvider[.claude]?.isUnavailable != true,
+                  let preservedUsage = Self.preservedClaudeWidgetUsage(
+                      from: entry,
+                      expectedQuotaOwnerKey: expectedClaudeQuotaOwnerKey)
+            else {
+                return nil
+            }
+            return WidgetSnapshot.ProviderEntry(
+                provider: .claude,
+                updatedAt: preservedUsage.updatedAt,
+                primary: preservedUsage.primary,
+                secondary: preservedUsage.secondary,
+                tertiary: preservedUsage.tertiary,
+                usageRows: preservedUsage.usageRows,
+                creditsRemaining: entry.creditsRemaining,
+                codeReviewRemainingPercent: entry.codeReviewRemainingPercent,
+                tokenUsage: entry.tokenUsage,
+                dailyUsage: entry.dailyUsage,
+                providerCost: entry.providerCost,
+                quotaOwnerKey: preservedUsage.quotaOwnerKey)
         }
         return WidgetSnapshot(
             entries: entries,

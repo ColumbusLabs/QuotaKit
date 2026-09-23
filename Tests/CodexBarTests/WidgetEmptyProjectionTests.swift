@@ -319,6 +319,48 @@ struct WidgetEmptyProjectionTests {
     }
 
     @Test
+    func `cold invalidation preserves Claude quota only for matching account owner`() async throws {
+        let (store, settings) = self.makeStore(providers: [.claude, .minimax])
+        let snapshotURL = try #require(store.widgetSnapshotURL)
+        defer { try? FileManager.default.removeItem(at: snapshotURL.deletingLastPathComponent()) }
+        try FileManager.default.createDirectory(
+            at: snapshotURL.deletingLastPathComponent(),
+            withIntermediateDirectories: true)
+        settings.addTokenAccount(provider: .claude, label: "First", token: "fixture-claude-first")
+        settings.addTokenAccount(provider: .claude, label: "Second", token: "fixture-claude-second")
+        settings.setActiveTokenAccountIndex(0, for: .claude)
+        self.seed(store, providers: [.claude, .minimax])
+
+        store.persistWidgetSnapshot(reason: "synthetic-matching-claude-owner")
+        await store.widgetSnapshotPersistTask?.value
+        let originalSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        let expectedClaudeOwner = try #require(
+            originalSnapshot.entries.first(where: { $0.provider == .claude })?.quotaOwnerKey)
+        #expect(originalSnapshot.entries.count == 2)
+
+        // Model a fresh process: only the persisted projection remains available.
+        store.lastQueuedWidgetSnapshot = nil
+        store.snapshots.removeAll()
+        store.invalidateGenericWidgetUsage(for: .minimax)
+        await store.widgetSnapshotPersistTask?.value
+
+        let repairedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        let claudeEntry = try #require(repairedSnapshot.entries.first { $0.provider == .claude })
+        #expect(repairedSnapshot.entries.map(\.provider) == [.claude])
+        #expect(claudeEntry.quotaOwnerKey == expectedClaudeOwner)
+        #expect(claudeEntry.primary?.usedPercent == 25)
+
+        // A second account may not inherit the first account's disk-backed quota.
+        WidgetSnapshotStore.save(originalSnapshot, to: snapshotURL)
+        settings.setActiveTokenAccountIndex(1, for: .claude)
+        store.lastQueuedWidgetSnapshot = nil
+        store.invalidateGenericWidgetUsage(for: .minimax)
+        await store.widgetSnapshotPersistTask?.value
+        let accountSwitchedSnapshot = try #require(WidgetSnapshotStore.load(from: snapshotURL))
+        #expect(accountSwitchedSnapshot.entries.isEmpty)
+    }
+
+    @Test
     func `account switch republishes newer queue when disk still has the provider`() async throws {
         let (store, settings) = self.makeStore(providers: [.openrouter, .deepseek])
         let snapshotURL = try #require(store.widgetSnapshotURL)

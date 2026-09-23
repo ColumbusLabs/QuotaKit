@@ -24,6 +24,38 @@ struct WidgetSnapshotTestIsolationTests {
     }
 
     @Test
+    func `persisted snapshot reads never fall through to app group from tests`() {
+        #expect(!UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: true, hasSaveOverride: false, hasInjectedSnapshotURL: false))
+        #expect(!UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: true, hasSaveOverride: true, hasInjectedSnapshotURL: false))
+        #expect(!UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: true, hasSaveOverride: true, hasInjectedSnapshotURL: true))
+        #expect(!UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: false, hasSaveOverride: true, hasInjectedSnapshotURL: false))
+        #expect(!UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: false, hasSaveOverride: true, hasInjectedSnapshotURL: true))
+        #expect(UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: true, hasSaveOverride: false, hasInjectedSnapshotURL: true))
+        #expect(UsageStore.shouldLoadPersistedWidgetSnapshot(
+            isRunningTests: false, hasSaveOverride: false, hasInjectedSnapshotURL: false))
+    }
+
+    @Test
+    func `widget timeline reload is suppressed for test persistence paths`() {
+        #expect(!UsageStore.shouldReloadWidgetTimelines(
+            isRunningTests: true, hasSaveOverride: false, hasInjectedSnapshotURL: false))
+        #expect(!UsageStore.shouldReloadWidgetTimelines(
+            isRunningTests: true, hasSaveOverride: true, hasInjectedSnapshotURL: false))
+        #expect(!UsageStore.shouldReloadWidgetTimelines(
+            isRunningTests: true, hasSaveOverride: false, hasInjectedSnapshotURL: true))
+        #expect(!UsageStore.shouldReloadWidgetTimelines(
+            isRunningTests: false, hasSaveOverride: false, hasInjectedSnapshotURL: true))
+        #expect(UsageStore.shouldReloadWidgetTimelines(
+            isRunningTests: false, hasSaveOverride: false, hasInjectedSnapshotURL: false))
+    }
+
+    @Test
     func `persist without any opt-in queues no widget snapshot work`() {
         let store = Self.makeStore(suite: "no-opt-in")
 
