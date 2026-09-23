@@ -1,0 +1,12 @@
+{
+  "images" : [
+    {
+      "filename" : "ProviderIcon-huggingface.svg",
+      "idiom" : "universal"
+    }
+  ],
+  "info" : {
+    "author" : "xcode",
+    "version" : 1
+  }
+}

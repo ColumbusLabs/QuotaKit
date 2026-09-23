@@ -663,6 +663,12 @@ public struct SyncBudgetSnapshot: Codable, Sendable, Equatable {
     /// This account's own contribution when used/limit represent a shared pool.
     public let personalUsedAmount: Double?
 
+    /// A zero or negative limit represents reported spend without a known allowance.
+    /// Keep it on the wire so companion surfaces can show the spend without inventing a cap.
+    public var isSpendOnly: Bool {
+        self.limitAmount <= 0
+    }
+
     public init(
         usedAmount: Double,
         limitAmount: Double,

@@ -48,7 +48,7 @@ struct UserProviderPluginTests {
     }
 
     @Test
-    func `user plugin broker owns identity encoding and rejects compressed responses`() async throws {
+    func `http status capability preserves identity encoding and rejects compressed responses`() async throws {
         let fixture = try Fixture()
         defer { fixture.remove() }
         let source = """
@@ -57,6 +57,7 @@ struct UserProviderPluginTests {
           name: "Encoded Meter",
           endpoints: ["https://encoded.example"],
           settings: [],
+          capabilities: ["http-status"],
           async fetchUsage(ctx) {
             const response = await ctx.http.getJSON("https://encoded.example/usage", {
               headers: { "Accept-Encoding": "gzip" },
@@ -81,6 +82,47 @@ struct UserProviderPluginTests {
         } catch {
             #expect(error.localizedDescription.contains("compressed responses are not allowed"))
         }
+        #expect(transport.lastRequest?.value(forHTTPHeaderField: "Accept-Encoding") == "identity")
+    }
+
+    @Test
+    func `http status capability exposes response status and body after approval`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.remove() }
+        let source = """
+        defineProvider({
+          id: "status-meter",
+          name: "Status Meter",
+          endpoints: ["https://status.example"],
+          settings: [],
+          capabilities: ["http-status"],
+          async fetchUsage(ctx) {
+            const response = await ctx.http.getJSON("https://status.example/usage");
+            if (response.status === 429) {
+              throw ctx.fail.rateLimited(`HTTP ${response.status}: ${response.json.error}`);
+            }
+            return { primary: { usedPercent: response.json.used } };
+          },
+        });
+        """
+        let transport = RecordingTransport(
+            responseJSON: #"{"error":"slow down"}"#,
+            statusCode: 429,
+            responseHeaders: ["Content-Type": "application/json", "Retry-After": "1"])
+        let plugin = try fixture.loader(transport: transport)
+            .load(fileURL: fixture.write(name: "status.js", source: source))
+        let binding = try plugin.approvalBinding(settings: [:])
+        #expect(binding.capabilities == ["http-status"])
+        try fixture.approvals.record(binding)
+
+        do {
+            _ = try await plugin.fetchUsage(settings: [:], secrets: [:], approvalStore: fixture.approvals)
+            Issue.record("Expected classified rate limit")
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .rateLimited)
+            #expect(error.message == "HTTP 429: slow down")
+        }
+        #expect(transport.requestCount == 1)
         #expect(transport.lastRequest?.value(forHTTPHeaderField: "Accept-Encoding") == "identity")
     }
 
@@ -307,11 +349,17 @@ struct UserProviderPluginTests {
 private final class RecordingTransport: ProviderHTTPTransport, @unchecked Sendable {
     private let lock = NSLock()
     private let responseJSON: String
+    private let statusCode: Int
     private let responseHeaders: [String: String]
     private var requests: [URLRequest] = []
 
-    init(responseJSON: String, responseHeaders: [String: String] = ["Content-Type": "application/json"]) {
+    init(
+        responseJSON: String,
+        statusCode: Int = 200,
+        responseHeaders: [String: String] = ["Content-Type": "application/json"])
+    {
         self.responseJSON = responseJSON
+        self.statusCode = statusCode
         self.responseHeaders = responseHeaders
     }
 
@@ -327,7 +375,7 @@ private final class RecordingTransport: ProviderHTTPTransport, @unchecked Sendab
         self.lock.withLock { self.requests.append(request) }
         let response = try HTTPURLResponse(
             url: #require(request.url),
-            statusCode: 200,
+            statusCode: self.statusCode,
             httpVersion: nil,
             headerFields: self.responseHeaders)!
         return (Data(self.responseJSON.utf8), response)

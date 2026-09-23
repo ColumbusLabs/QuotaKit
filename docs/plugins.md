@@ -61,7 +61,10 @@ defineProvider({
 - `auth` (optional): one of the forms below. The named secret must be a declared `secure` setting.
 - `settings`: up to 32 setting definitions. Keys contain 1–64 ASCII letters, digits, or underscores and start with a
   letter. Each entry has `key`, `title`, optional `subtitle`, and `type: "plain" | "secure"` (default `secure`).
-- `capabilities` (optional): currently only `"browser-cookies"`.
+- `capabilities` (optional): `"browser-cookies"` and `"http-status"`.
+- `http-status`: lets the plugin inspect received HTTP response status codes and bodies, including non-2xx responses.
+  The plugin must classify those responses itself; this does not expand approved network origins or bypass host
+  timeouts and response-size limits.
 - `cookieDomains`: required with `browser-cookies`; a non-empty list of normalized DNS host names.
 - `fetchUsage(ctx)`: function returning a snapshot object or a promise for one.
 
@@ -88,6 +91,8 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 
 - `await ctx.http.getJSON(url, opts?)` performs GET and returns `{status, headers, json}`.
 - `await ctx.http.get(url, opts?)` performs GET and returns `{status, headers, bodyText}`.
+- Without `http-status`, the host rejects non-2xx responses before returning them. Declaring this capability allows the
+  plugin to inspect their status and body; it does not add retries or alter origin/authentication checks.
 - `await ctx.http.postJSON(url, {body, headers?})` performs JSON POST. `body` must be JSON-serializable.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
   hard request deadline from 1 through 30 seconds; the default is 15 seconds.
@@ -170,7 +175,8 @@ Transpile failures appear as that plugin's Settings error.
 
 1. Open **Settings → Plugins** and choose **Install…**, or copy one `.js`/`.ts` file into the providers directory.
 2. QuotaKit validates the source and manifest without network, file, cookie, or secret capabilities.
-3. The approval sheet lists exact normalized origins, auth mode, capabilities, secure setting names, and cookie domains.
+3. The approval sheet lists exact normalized origins, auth mode, capabilities (including `http-status`), secure setting
+   names, and cookie domains.
 4. For loopback, IP-literal, or `.local` origins, type every normalized origin exactly before approval.
 5. Enter manifest settings and enable the plugin. Its refresh result appears in its generic menu card.
 

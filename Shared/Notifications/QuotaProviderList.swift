@@ -144,6 +144,8 @@ public enum QuotaProviderList {
         Provider(id: "v0", displayName: "v0"),
         // CodeRabbit reports review/billing details without a quota window, so it cannot emit the
         // transitions represented by this append-only CloudKit subscription catalog.
+        // Appended to preserve every existing CloudKit subscription identifier.
+        Provider(id: "huggingface", displayName: "Hugging Face"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

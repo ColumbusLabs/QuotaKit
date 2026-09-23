@@ -77,5 +77,6 @@ public enum ProviderManifest {
         GitKrakenProviderDescriptor.descriptor,
         V0ProviderDescriptor.descriptor,
         CodeRabbitProviderDescriptor.descriptor,
+        HuggingFaceProviderDescriptor.descriptor,
     ]
 }

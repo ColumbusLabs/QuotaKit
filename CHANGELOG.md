@@ -14,6 +14,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
 - GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.
 - CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.
+- Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
 
 ### Fixed
 

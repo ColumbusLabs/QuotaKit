@@ -111,6 +111,7 @@ complete when the available scan window covers fewer days.
 | xAI | Management key + team ID from config/env → prepaid balance and 30-day daily spend from the Management API (`api`). |
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 | v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
+| Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -626,5 +627,13 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Reads billing allowance and rate-limit data from the v0 Platform API. Detailed billing balances are shown on Mac; iPhone receives the existing generic windows. Scope is URL-encoded on requests and omitted from Mac-to-iPhone sync.
 - Token billing's on-demand balance is shown separately and never added to the billing allowance; unknown values remain unavailable rather than being inferred.
 - Details: `docs/v0.md`.
+
+## Hugging Face
+- Add an access token in QuotaKit Settings → Providers, use a Hugging Face token account, or use credentials already available to the `hf` CLI.
+- Fine-grained tokens need the Hugging Face **Billing read** permission. Classic read tokens can access the billing endpoint.
+- Shows billable Inference Providers usage for the current month, with gross usage, included amount, request count, and spending limit when returned by the API.
+- Shows ZeroGPU GPU-time used/remaining and its reset as a secondary quota window when available. Billing report cutoffs are not treated as quota resets, and no primary percentage allowance is inferred from spend.
+- Identity is token-scoped and cached; changing tokens cannot reuse another account's identity.
+- Details: `docs/huggingface.md`.
 
 See also: `docs/provider.md` for architecture notes.

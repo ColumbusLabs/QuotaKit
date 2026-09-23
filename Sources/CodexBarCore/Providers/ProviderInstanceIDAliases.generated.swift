@@ -75,6 +75,7 @@ extension ProviderInstanceID {
     public static let gitkraken = UsageProvider.gitkraken.instanceID
     public static let v0 = UsageProvider.v0.instanceID
     public static let coderabbit = UsageProvider.coderabbit.instanceID
+    public static let huggingface = UsageProvider.huggingface.instanceID
 }
 
 // swiftformat:enable sortDeclarations
