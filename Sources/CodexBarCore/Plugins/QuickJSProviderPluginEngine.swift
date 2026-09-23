@@ -123,6 +123,76 @@ private final class QuickJSPluginValue: ProviderPluginValue {
     }
 }
 
+private final class QuickJSFetchRequestLifecycle: @unchecked Sendable {
+    private let lock = NSLock()
+    private var activeFetchID: UUID?
+    private var inFlightFetchIDs: Set<UUID> = []
+    private var cancelledFetchIDs: Set<UUID> = []
+    private var watchdog: OpaquePointer?
+
+    var currentWatchdog: OpaquePointer? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.watchdog
+    }
+
+    func setWatchdog(_ watchdog: OpaquePointer?) {
+        self.lock.lock()
+        self.watchdog = watchdog
+        self.lock.unlock()
+    }
+
+    func takeWatchdog() -> OpaquePointer? {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        let watchdog = self.watchdog
+        self.watchdog = nil
+        return watchdog
+    }
+
+    func register(_ requestID: UUID) {
+        self.lock.lock()
+        self.inFlightFetchIDs.insert(requestID)
+        self.lock.unlock()
+    }
+
+    func activate(_ requestID: UUID) -> Bool {
+        self.lock.lock()
+        self.activeFetchID = requestID
+        let isCancelled = self.cancelledFetchIDs.contains(requestID)
+        self.lock.unlock()
+        return !isCancelled
+    }
+
+    func isCancelled(_ requestID: UUID) -> Bool {
+        self.lock.lock()
+        defer { self.lock.unlock() }
+        return self.cancelledFetchIDs.contains(requestID)
+    }
+
+    func cancel(_ requestID: UUID) -> OpaquePointer? {
+        self.lock.lock()
+        guard self.inFlightFetchIDs.contains(requestID) else {
+            self.lock.unlock()
+            return nil
+        }
+        self.cancelledFetchIDs.insert(requestID)
+        let watchdog = self.activeFetchID == requestID ? self.watchdog : nil
+        self.lock.unlock()
+        return watchdog
+    }
+
+    func finish(_ requestID: UUID) {
+        self.lock.lock()
+        self.inFlightFetchIDs.remove(requestID)
+        self.cancelledFetchIDs.remove(requestID)
+        if self.activeFetchID == requestID {
+            self.activeFetchID = nil
+        }
+        self.lock.unlock()
+    }
+}
+
 final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
     static let memoryLimitBytes = 64 * 1024 * 1024
     static let stackLimitBytes = 2 * 1024 * 1024
@@ -149,7 +219,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     private let timeout: TimeInterval
     private let responseSizeLimit: Int
     private let rejectsNonSuccessResponses: Bool
-    private var watchdog: OpaquePointer?
+    private let fetchLifecycle = QuickJSFetchRequestLifecycle()
     private var definition: JSValue?
     private var applyPrelude: JSValue?
     private var fetchUsage: JSValue?
@@ -226,7 +296,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         if let fetchUsage = self.fetchUsage {
             cqjs_free_value(self.context, fetchUsage)
         }
-        if let watchdog = self.watchdog {
+        let watchdog = self.fetchLifecycle.takeWatchdog()
+        if let watchdog {
             cqjs_watchdog_disarm(watchdog)
             cqjs_watchdog_destroy(watchdog)
         }
@@ -236,6 +307,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -245,9 +317,16 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
         completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
     {
+        self.fetchLifecycle.register(requestID)
         self.queue.async {
-            completion(Result {
+            guard !self.fetchLifecycle.isCancelled(requestID) else {
+                self.fetchLifecycle.finish(requestID)
+                completion(.failure(CancellationError()))
+                return
+            }
+            let result = Result {
                 try self.fetchOnQueue(
+                    requestID: requestID,
                     settings: settings,
                     secrets: secrets,
                     now: now,
@@ -255,7 +334,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                     cookieInvalidator: cookieInvalidator,
                     cookieResolver: cookieResolver,
                     instanceCookieResolver: instanceCookieResolver)
-            })
+            }
+            self.fetchLifecycle.finish(requestID)
+            completion(result)
         }
     }
 
@@ -270,10 +351,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         }
     }
 
-    func requestInterrupt() {
-        if let watchdog = self.watchdog {
-            cqjs_watchdog_interrupt(watchdog)
-        }
+    func cancelFetch(_ requestID: UUID) {
+        let watchdog = self.fetchLifecycle.cancel(requestID)
+        if let watchdog { cqjs_watchdog_interrupt(watchdog) }
     }
 
     private func load(source: String, preludeSource: String, allowsDynamicID: Bool) throws {
@@ -284,7 +364,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         else {
             throw ProviderPluginError.load("QuickJS could not create its watchdog")
         }
-        self.watchdog = watchdog
+        self.fetchLifecycle.setWatchdog(watchdog)
         cqjs_watchdog_install(watchdog, self.runtime, self.context)
         cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
         defer { cqjs_watchdog_disarm(watchdog) }
@@ -318,6 +398,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
 
     // swiftlint:disable:next function_parameter_count
     private func fetchOnQueue(
+        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
@@ -326,9 +407,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?) throws -> UsageSnapshot
     {
+        guard self.fetchLifecycle.activate(requestID) else { throw CancellationError() }
+
         JS_UpdateStackTop(self.runtime)
         guard let applyPrelude = self.applyPrelude, let fetchUsage = self.fetchUsage,
-              let watchdog = self.watchdog
+              let watchdog = self.fetchLifecycle.currentWatchdog
         else {
             throw ProviderPluginError.load("QuickJS plugin is not initialized")
         }
@@ -344,6 +427,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         defer { self.fetchState = nil }
         cqjs_watchdog_arm(watchdog, UInt64(self.timeout * 1000))
         defer { cqjs_watchdog_disarm(watchdog) }
+        guard !self.fetchLifecycle.isCancelled(requestID) else { throw CancellationError() }
 
         let ctx = JS_NewObject(self.context)
         let host = JS_NewObject(self.context)
@@ -674,7 +758,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 request.setValue(value, forHTTPHeaderField: name)
             }
         }
-        request.setValue("application/json", forHTTPHeaderField: "Accept")
+        if self.rejectsNonSuccessResponses || request.value(forHTTPHeaderField: "Accept") == nil {
+            request.setValue("application/json", forHTTPHeaderField: "Accept")
+        }
         if self.rejectsNonSuccessResponses {
             request.setValue("identity", forHTTPHeaderField: "Accept-Encoding")
         }
@@ -793,7 +879,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             if let result = box.wait(until: min(deadline, Date().addingTimeInterval(0.05))) {
                 return try result.get()
             }
-            if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
                 throw ProviderPluginError.timedOut
             }
         }
@@ -840,7 +926,14 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func scriptErrorFromException() -> Error {
-        if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+        let deadlineExpired = self.fetchState.map { $0.deadline <= Date() } ?? false
+        let wasInterrupted = self.fetchLifecycle.currentWatchdog.map(cqjs_watchdog_is_interrupted) ?? false
+        if deadlineExpired || wasInterrupted {
+            let exception = JS_GetException(self.context)
+            cqjs_free_value(self.context, exception)
+            return ProviderPluginError.timedOut
+        }
+        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
             let exception = JS_GetException(self.context)
             cqjs_free_value(self.context, exception)
             return ProviderPluginError.timedOut

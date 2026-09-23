@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 70 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 74 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -112,6 +112,7 @@ complete when the available scan window covers fewer days.
 | Zed | Zed editor Keychain session → `cloud.zed.dev/client/users/me` for plan and quota data (`local`). |
 | v0 | v0 Platform API key (`V0_API_KEY`) → billing and rate-limit endpoints (`api`). |
 | Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |
+| Replicate | Cached or manually supplied `replicate.com` session cookie → billing page and user/organization invoice APIs (`web`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.
@@ -636,5 +637,11 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Shows ZeroGPU GPU-time used/remaining and its reset as a secondary quota window when available. Billing report cutoffs are not treated as quota resets, and no primary percentage allowance is inferred from spend.
 - Identity is token-scoped and cached; changing tokens cannot reuse another account's identity.
 - Details: `docs/huggingface.md`.
+
+## Replicate
+- Automatic mode imports Chrome cookies for `replicate.com`; manual mode accepts a Cookie header from the billing page. Successful automatic sessions are cached in Keychain.
+- Shows current-month spend from the selected user's or organization's monthly invoice, plus prepaid credit when the optional balance endpoint is available. No quota or limit is inferred from spend.
+- The Replicate API token is not a website session cookie. QuotaKit reads billing endpoints only and does not modify the account.
+- Details: `docs/replicate.md`.
 
 See also: `docs/provider.md` for architecture notes.

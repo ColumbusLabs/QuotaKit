@@ -6,6 +6,14 @@ import Testing
 @testable import CodexBarCore
 
 struct ProviderPluginRuntimeTests {
+    private static let responsePolicyEngines: [ProviderPluginEngineKind] = {
+        #if canImport(JavaScriptCore)
+        [.quickJS, .javaScriptCore]
+        #else
+        [.quickJS]
+        #endif
+    }()
+
     @Test
     func `missing resource bundle throws a provider load error`() {
         #expect(throws: ProviderPluginError.load(CodexBarCoreResources.missingBundleMessage)) {
@@ -70,6 +78,96 @@ struct ProviderPluginRuntimeTests {
         let request = try #require(await requests.first)
         #expect(request.value(forHTTPHeaderField: "Authorization") == "Bearer secret-value")
         #expect(request.value(forHTTPHeaderField: "X-Client") == "plugin-test")
+    }
+
+    @Test(arguments: Self.responsePolicyEngines)
+    func `user plugin cannot override broker response representation`(engine: ProviderPluginEngineKind) async throws {
+        let requests = RequestRecorder()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            const response = await ctx.http.getJSON("https://api.example.test/usage", {
+              headers: { Accept: "text/html" },
+            });
+            return { primary: { usedPercent: response.json.used } };
+            """),
+            transport: Self.transport(recorder: requests, body: #"{"used":42}"#),
+            rejectsNonSuccessResponses: true,
+            allowsDynamicID: true,
+            engine: engine)
+
+        _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"])
+
+        #expect(await requests.first?.value(forHTTPHeaderField: "Accept") == "application/json")
+    }
+
+    @Test(arguments: Self.responsePolicyEngines)
+    func `cancelling a fetch interrupts its in-flight transport`(engine: ProviderPluginEngineKind) async throws {
+        let probe = ProviderPluginCancellationProbe()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            await ctx.http.getJSON("https://api.example.test/slow");
+            return { primary: { usedPercent: 1 } };
+            """),
+            transport: ProviderHTTPTransportHandler { request in
+                _ = await probe.markStarted()
+                return try await withTaskCancellationHandler {
+                    try await Task.sleep(for: .seconds(30))
+                    let response = try #require(HTTPURLResponse(
+                        url: request.url!,
+                        statusCode: 200,
+                        httpVersion: nil,
+                        headerFields: ["Content-Type": "application/json"]))
+                    return (Data(#"{"used":1}"#.utf8), response)
+                } onCancel: {
+                    Task { await probe.markCancelled() }
+                }
+            },
+            engine: engine)
+        let task = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
+
+        #expect(await probe.waitUntilStarted())
+        task.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await task.value }
+        #expect(await probe.waitUntilCancelled())
+    }
+
+    @Test(arguments: Self.responsePolicyEngines)
+    func `cancelling one concurrent fetch leaves the other fetch running`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let probe = ProviderPluginCancellationProbe()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            const response = await ctx.http.getJSON("https://api.example.test/usage");
+            return { primary: { usedPercent: response.json.used } };
+            """),
+            transport: ProviderHTTPTransportHandler { request in
+                let requestNumber = await probe.markStarted()
+                if requestNumber == 1 {
+                    _ = try await withTaskCancellationHandler {
+                        try await Task.sleep(for: .seconds(30))
+                    } onCancel: {
+                        Task { await probe.markCancelled() }
+                    }
+                }
+                let response = try #require(HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]))
+                return (Data(#"{"used":22}"#.utf8), response)
+            },
+            engine: engine)
+        let first = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
+        #expect(await probe.waitUntilStarted(count: 1))
+        let second = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
+
+        first.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await first.value }
+        #expect(await probe.waitUntilCancelled())
+        #expect(await probe.waitUntilStarted(count: 2))
+        let secondSnapshot = try await second.value
+        #expect(secondSnapshot.primary?.usedPercent == 22)
     }
 
     @Test
@@ -599,5 +697,35 @@ private actor RequestRecorder {
 
     func append(_ request: URLRequest) {
         self.requests.append(request)
+    }
+}
+
+private actor ProviderPluginCancellationProbe {
+    private var startedCount = 0
+    private var cancelledCount = 0
+
+    func markStarted() -> Int {
+        self.startedCount += 1
+        return self.startedCount
+    }
+
+    func markCancelled() {
+        self.cancelledCount += 1
+    }
+
+    func waitUntilStarted(count: Int = 1) async -> Bool {
+        for _ in 0..<300 {
+            if self.startedCount >= count { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return self.startedCount >= count
+    }
+
+    func waitUntilCancelled(count: Int = 1) async -> Bool {
+        for _ in 0..<300 {
+            if self.cancelledCount >= count { return true }
+            try? await Task.sleep(for: .milliseconds(10))
+        }
+        return self.cancelledCount >= count
     }
 }
