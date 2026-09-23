@@ -35,45 +35,20 @@ public enum OneConsoleJSON {
         containingAnyOf keys: Set<String>,
         in value: Any) -> [String: Any]?
     {
-        if let dictionary = value as? [String: Any] {
-            if !keys.isDisjoint(with: dictionary.keys) {
-                return dictionary
-            }
-            for nested in dictionary.values {
-                if let found = self.findObject(containingAnyOf: keys, in: nested) {
-                    return found
-                }
-            }
-        } else if let array = value as? [Any] {
-            for nested in array {
-                if let found = self.findObject(containingAnyOf: keys, in: nested) {
-                    return found
-                }
-            }
+        self.firstMatch(in: value) { dictionary in
+            keys.isDisjoint(with: dictionary.keys) ? nil : dictionary
         }
-        return nil
     }
 
     /// Returns the first value associated with any of `keys` anywhere in `value`.
     public static func findFirstValue(forKeys keys: [String], in value: Any) -> Any? {
         let lowercasedKeys = Set(keys.map { $0.lowercased() })
-        if let dictionary = value as? [String: Any] {
+        return self.firstMatch(in: value) { dictionary in
             for (key, nested) in dictionary where lowercasedKeys.contains(key.lowercased()) {
                 return nested
             }
-            for nested in dictionary.values {
-                if let found = self.findFirstValue(forKeys: keys, in: nested) {
-                    return found
-                }
-            }
-        } else if let array = value as? [Any] {
-            for nested in array {
-                if let found = self.findFirstValue(forKeys: keys, in: nested) {
-                    return found
-                }
-            }
+            return nil
         }
-        return nil
     }
 
     /// Returns the first string value associated with any of `keys` in `value`.
@@ -125,28 +100,57 @@ public enum OneConsoleJSON {
         in value: Any,
         transform: (Any?) -> T?) -> T?
     {
-        if let dictionary = value as? [String: Any] {
+        self.firstMatch(in: value) { dictionary in
             for (key, nested) in dictionary where key.caseInsensitiveCompare(expectedKey) == .orderedSame {
                 if let converted = transform(nested) {
                     return converted
                 }
             }
+            return nil
+        }
+    }
+
+    /// Alibaba checks exact keys in caller order at each dictionary before descending.
+    static func findFirstValue<T>(
+        forExactKeys keys: [String],
+        in value: Any,
+        transform: (Any?) -> T?) -> T?
+    {
+        self.firstMatch(in: value) { dictionary in
+            self.firstValue(forKeys: keys, in: dictionary, transform: transform)
+        }
+    }
+
+    static func firstValue<T>(
+        forKeys keys: [String],
+        in dictionary: [String: Any],
+        transform: (Any?) -> T?) -> T?
+    {
+        for key in keys {
+            if let value = transform(dictionary[key]) {
+                return value
+            }
+        }
+        return nil
+    }
+
+    /// Searches each dictionary before its descendants, preserving container iteration order.
+    static func firstMatch<T>(
+        in value: Any,
+        transform: ([String: Any]) -> T?) -> T?
+    {
+        if let dictionary = value as? [String: Any] {
+            if let found = transform(dictionary) {
+                return found
+            }
             for nested in dictionary.values {
-                if let found = self.findFirstConvertedValue(
-                    forKey: expectedKey,
-                    in: nested,
-                    transform: transform)
-                {
+                if let found = self.firstMatch(in: nested, transform: transform) {
                     return found
                 }
             }
         } else if let array = value as? [Any] {
             for nested in array {
-                if let found = self.findFirstConvertedValue(
-                    forKey: expectedKey,
-                    in: nested,
-                    transform: transform)
-                {
+                if let found = self.firstMatch(in: nested, transform: transform) {
                     return found
                 }
             }
@@ -171,10 +175,18 @@ public enum OneConsoleJSON {
     /// and numeric strings.
     public static func int(_ value: Any?) -> Int? {
         guard let value else { return nil }
-        if let intValue = value as? Int { return intValue }
-        if let int64Value = value as? Int64 { return Int(int64Value) }
-        if let number = value as? NSNumber { return number.intValue }
-        if let doubleValue = value as? Double { return Int(doubleValue) }
+        if let intValue = value as? Int {
+            return intValue
+        }
+        if let int64Value = value as? Int64 {
+            return Int(int64Value)
+        }
+        if let number = value as? NSNumber {
+            return number.intValue
+        }
+        if let doubleValue = value as? Double {
+            return Int(doubleValue)
+        }
         if let string = value as? String {
             return Int(string.trimmingCharacters(in: .whitespacesAndNewlines))
         }

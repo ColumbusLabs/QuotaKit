@@ -223,6 +223,38 @@ struct AlibabaCodingPlanUsageSnapshotTests {
 
 struct AlibabaCodingPlanUsageParsingTests {
     @Test
+    func `quota lookup prefers named quota nested inside an array wrapper`() throws {
+        let json = """
+        {
+          "codingPlanQuotaInfo": [{
+            "codingPlanQuotaInfo": {"per5HourUsedQuota": 90, "per5HourTotalQuota": 100},
+            "per5HourUsedQuota": 20,
+            "per5HourTotalQuota": 100
+          }]
+        }
+        """
+        let snapshot = try AlibabaCodingPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        #expect(snapshot.fiveHourUsedQuota == 90)
+        #expect(snapshot.fiveHourTotalQuota == 100)
+    }
+
+    @Test
+    func `plan lookup prefers current exact keys before nested preferred keys`() throws {
+        let json = """
+        {
+          "packageName": "Current plan",
+          "PLANNAME": "Wrong case",
+          "data": {"planName": "Nested plan"},
+          "codingPlanQuotaInfo": {"per5HourUsedQuota": 20, "per5HourTotalQuota": 100}
+        }
+        """
+        let snapshot = try AlibabaCodingPlanUsageFetcher.parseUsageSnapshot(from: Data(json.utf8))
+
+        #expect(snapshot.planName == "Current plan")
+    }
+
+    @Test
     func `parses quota payload`() throws {
         let now = Date(timeIntervalSince1970: 1_700_000_000)
         let json = """
