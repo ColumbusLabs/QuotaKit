@@ -6,6 +6,35 @@ import Testing
 @testable import CodexBar
 
 struct CodexResetCreditsMenuCardTests {
+    @MainActor
+    @Test
+    func `usage item projection hides credits and reset sections without mutating source model`() throws {
+        let now = Date(timeIntervalSince1970: 1_781_726_400)
+        var model = try Self.model(
+            snapshot: Self.snapshot(
+                now: now,
+                credits: [Self.credit(id: "visible", status: .available, now: now, expiresIn: 86400)]),
+            now: now)
+        model.creditsText = "Credits: 12"
+        model.creditsRemaining = 12
+        model.creditsProgressPercent = 12
+        model.creditsScaleText = "of 100"
+        model.creditsHintText = "Account hint"
+        model.creditsHintCopyText = "Account hint"
+
+        let hidden = model.applyingUsageItemVisibility(hiddenItemIDs: [.credits, .codexResetCredits])
+
+        #expect(model.creditsText == "Credits: 12")
+        #expect(model.codexResetCredits != nil)
+        #expect(hidden.creditsText == nil)
+        #expect(hidden.creditsRemaining == nil)
+        #expect(hidden.creditsProgressPercent == nil)
+        #expect(hidden.creditsScaleText == nil)
+        #expect(hidden.creditsHintText == nil)
+        #expect(hidden.creditsHintCopyText == nil)
+        #expect(hidden.codexResetCredits == nil)
+    }
+
     @Test
     func `presentation uses authoritative count and exact known expiries in stable order`() throws {
         let now = Date(timeIntervalSince1970: 1_781_726_400)

@@ -32,6 +32,39 @@ struct SettingsStoreCoverageTests {
     }
 
     @Test
+    func `usage visibility changes presentation without invalidating fetch work`() throws {
+        let suite = "SettingsStoreCoverageTests-usage-visibility"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let configStore = testConfigStore(suiteName: suite)
+        let settings = Self.makeSettingsStore(userDefaults: defaults, configStore: configStore)
+        let configRevision = settings.configRevision
+        let fetchRevision = settings.providerConfigRevision(for: .codex)
+        let backgroundRevision = settings.backgroundWorkSettingsRevision
+
+        settings.setUsageItemVisible(false, itemID: .metric("codex-spark"), for: .codex)
+        settings.setUsageItemVisible(false, itemID: .metric("codex-spark-weekly"), for: .codex)
+
+        #expect(settings.configRevision == configRevision + 2)
+        #expect(settings.providerConfigRevision(for: .codex) == fetchRevision)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevision)
+        #expect(settings.providerConfig(for: .codex)?.hiddenUsageItemIDs == [
+            "metric:codex-spark",
+            "metric:codex-spark-weekly",
+        ])
+        #expect(settings.codexSparkUsageVisible == false)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.hiddenUsageItemIDs == [
+            "metric:codex-spark",
+            "metric:codex-spark-weekly",
+        ])
+
+        settings.restoreDefaultUsageItemVisibility(for: .codex)
+        #expect(settings.providerConfig(for: .codex)?.hiddenUsageItemIDs == [])
+        #expect(settings.codexSparkUsageVisible)
+        #expect(settings.backgroundWorkSettingsRevision == backgroundRevision)
+    }
+
+    @Test
     func `agent sessions default to opt in disabled`() {
         let settings = Self.makeSettingsStore(suiteName: "SettingsStoreCoverageTests-agent-sessions-default")
 

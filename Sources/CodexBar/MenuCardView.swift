@@ -171,17 +171,18 @@ struct UsageMenuCardView: View {
         let subtitleStyle: SubtitleStyle
         var usesLiveSubtitle: Bool = false
         let planText: String?
-        let metrics: [Metric]
+        var metrics: [Metric]
         let usageNotes: [String]
         var subscriptionNotes: [String] = []
         var providerDetails: [ProviderDetailSection] = []
+        var providerDetailRawTitles: [String?] = []
         let openAIAPIUsage: OpenAIAPIUsageSnapshot?
         let inlineUsageDashboard: InlineUsageDashboardModel?
-        let creditsText: String?
-        let creditsRemaining: Double?
+        var creditsText: String?
+        var creditsRemaining: Double?
         var creditsProgressPercent: Double?, creditsScaleText: String?
-        let creditsHintText: String?
-        let creditsHintCopyText: String?
+        var creditsHintText: String?
+        var creditsHintCopyText: String?
         var codexResetCredits: CodexResetCreditsPresentation?
         let providerCost: ProviderCostSection?
         let tokenUsage: TokenUsageSection?
@@ -1002,6 +1003,9 @@ extension UsageMenuCardView.Model {
                 now: input.now)
         let redacted = Self.redactedText(input: input, subtitle: subtitle)
         let placeholder = Self.placeholder(input: input)
+        let providerDetailPresentation = Self.visibleProviderDetails(
+            input: input,
+            replacedRows: providerCost == nil ? [:] : costPresentation?.replacedDetailRows ?? [:])
 
         return UsageMenuCardView.Model(
             provider: input.provider,
@@ -1015,9 +1019,8 @@ extension UsageMenuCardView.Model {
             metrics: metrics,
             usageNotes: usageNotes,
             subscriptionNotes: Self.subscriptionMetadataNotes(snapshot: input.snapshot, provider: input.provider),
-            providerDetails: Self.visibleProviderDetails(
-                input: input,
-                replacedRows: providerCost == nil ? [:] : costPresentation?.replacedDetailRows ?? [:]),
+            providerDetails: providerDetailPresentation.sections,
+            providerDetailRawTitles: providerDetailPresentation.rawTitles,
             openAIAPIUsage: openAIAPIUsage,
             inlineUsageDashboard: inlineUsageDashboard,
             creditsText: creditsText,
@@ -1033,9 +1036,9 @@ extension UsageMenuCardView.Model {
             progressColor: Self.progressColor(for: input.provider))
     }
 
-    private static func visibleProviderDetails(
+    static func visibleProviderDetails(
         input: Input,
-        replacedRows: [String: Set<String>]) -> [ProviderDetailSection]
+        replacedRows: [String: Set<String>]) -> (sections: [ProviderDetailSection], rawTitles: [String?])
     {
         var details = input.snapshot?.details ?? []
         if !replacedRows.isEmpty {
@@ -1067,12 +1070,17 @@ extension UsageMenuCardView.Model {
                 }
             }
         }
-        if input.provider == .sub2api {
-            details = Self.sub2APILocalizedDetails(details)
+        // Preserve provider-owned raw titles for stable visibility IDs before localization/redaction.
+        let localizedPairs = details.flatMap { rawSection in
+            let localized = input.provider == .sub2api
+                ? Self.sub2APILocalizedDetails([rawSection]) : [rawSection]
+            return Self.localizedProviderDetails(localized, provider: input.provider).map {
+                (section: $0, rawTitle: rawSection.title)
+            }
         }
-        details = Self.localizedProviderDetails(details, provider: input.provider)
-        guard input.hidePersonalInfo else { return details }
-        return details.compactMap { section in
+        let visiblePairs = localizedPairs.compactMap { pair -> (section: ProviderDetailSection, rawTitle: String?)? in
+            guard input.hidePersonalInfo else { return pair }
+            let section = pair.section
             let rows = section.rows.compactMap { row in
                 try? ProviderDetailSection.Row(
                     label: PersonalInfoRedactor.redactEmails(in: row.label, isEnabled: true) ?? row.label,
@@ -1093,11 +1101,13 @@ extension UsageMenuCardView.Model {
                     unit: chart.unit,
                     points: points)
             }
-            return try? ProviderDetailSection(
+            let redacted = try? ProviderDetailSection(
                 title: PersonalInfoRedactor.redactEmails(in: section.title, isEnabled: true),
                 rows: rows,
                 chart: chart)
+            return redacted.map { (section: $0, rawTitle: pair.rawTitle) }
         }
+        return (visiblePairs.map(\.section), visiblePairs.map(\.rawTitle))
     }
 
     private static func email(from input: Input) -> String {

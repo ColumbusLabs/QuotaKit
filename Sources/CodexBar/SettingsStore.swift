@@ -1138,11 +1138,9 @@ extension SettingsStore {
         // This fingerprint gates provider refresh publication, so it must cover only fields a fetch
         // depends on. A purely cosmetic field would otherwise discard an in-flight probe result, and
         // a cosmetic edit schedules no replacement fetch.
-        var fetchRelevant = config
-        fetchRelevant.accentColor = nil
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
-        return (try? encoder.encode(fetchRelevant)) ?? Data()
+        return (try? encoder.encode(config.fetchIdentityConfig)) ?? Data()
     }
 
     func providerEnablementRevision(for provider: UsageProvider) -> UInt64 {

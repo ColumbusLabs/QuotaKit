@@ -20,6 +20,39 @@ struct ZaiMenuCardTests {
         #expect(model.providerDetails.map(\.title) == ["Quota details", "Hourly tokens", "Daily tokens"])
     }
 
+    @MainActor
+    @Test
+    func `detail visibility uses raw titles and does not expose cost summary rows`() throws {
+        let model = try Self.costSummaryModel(style: .inlineSummary)
+
+        #expect(model.providerDetailRawTitles == ["Quota details", "Hourly tokens", "Daily tokens"])
+        #expect(model.usageItemDescriptors.map(\.id) == [.metric("primary"), .detailSection("Quota details")])
+
+        let hidden = model.applyingUsageItemVisibility(hiddenItemIDs: [.detailSection("Quota details")])
+        #expect(hidden.providerDetails.map(\.title) == ["Hourly tokens", "Daily tokens"])
+        #expect(hidden.providerDetailRawTitles == ["Hourly tokens", "Daily tokens"])
+    }
+
+    @MainActor
+    @Test
+    func `detail visibility IDs redact email addresses before persistence`() throws {
+        var model = try Self.costSummaryModel(style: .inlineSummary)
+        let rawTitle = "Account owner@example.com"
+        model.providerDetails = try [ProviderDetailSection(title: rawTitle, rows: [])]
+        model.providerDetailRawTitles = [rawTitle]
+        let itemID = ProviderUsageItemID.detailSection(rawTitle)
+
+        #expect(!itemID.rawValue.contains("owner@example.com"))
+        #expect(model.applyingUsageItemVisibility(hiddenItemIDs: [itemID]).providerDetails.isEmpty)
+        model.providerDetails = []
+        model.providerDetailRawTitles = []
+        let unavailableDescriptors = model.usageItemDescriptors(
+            includingHidden: [itemID],
+            hidePersonalInfo: false)
+        #expect(unavailableDescriptors.contains { $0.id == itemID })
+        #expect(unavailableDescriptors.allSatisfy { !$0.title.contains("owner@example.com") })
+    }
+
     @Test
     func `zai metrics titles are 5-hour weekly and MCP when session token limit present`() throws {
         let now = Date()

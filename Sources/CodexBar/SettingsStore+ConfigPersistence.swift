@@ -218,6 +218,8 @@ extension SettingsStore {
 
     private static func orderIndependentConfigData(_ config: CodexBarConfig) -> Data? {
         var canonical = config.normalized()
+        // Provider presentation preferences never alter the work scheduled by background refresh.
+        canonical.providers = canonical.providers.map(\.fetchIdentityConfig)
         canonical.providers.sort { $0.id.rawValue < $1.id.rawValue }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]

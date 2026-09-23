@@ -96,6 +96,9 @@ window has elapsed.
 - If no providers are selected for Overview, the Overview tab is hidden.
 - Providers → Claude: “Avoid Keychain prompts” selects the Security.framework reader's `Never prompt` policy.
 - The lower-level “Keychain prompt policy” picker remains visible as the source of truth for Claude OAuth prompts.
+- Providers → each provider: “Visible usage items” controls which reported metrics, credits, and titled detail sections appear in its Mac menu, Settings preview, and Overview. Hidden choices remain individually restorable while temporarily unavailable; “Restore Defaults” shows all items again.
+
+Usage visibility is presentation-only: it does not change fetching, quota calculations, headroom ranking, or severity. Compact multi-account rows omit hidden quota labels from their constraint summary while continuing to rank against every quota. The choice is stored in provider config and shared through Mac provider-intent sync; the iPhone snapshot wire format and contents are unchanged.
 
 ## Widgets (high level)
 - Widgets render shared usage snapshots for the supported widget families and
