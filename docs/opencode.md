@@ -10,7 +10,7 @@ read_when:
 ## Data sources
 - Browser cookies from `opencode.ai`.
 - OpenCode Go usage API at `GET https://opencode.ai/zen/go/v1/usage`, authenticated by `OPENCODE_API_KEY` or
-  `providers[].apiKey`.
+  `providers[].apiKey`, or a selected API-key token account.
 - OpenCode Go local history from `~/.local/share/opencode/opencode.db` on macOS and Linux.
 - `POST https://opencode.ai/_server` with server function IDs:
   - `workspaces` (`def39973159c7f0483d8793a822b8dbb10d067e12c65455fcb4608459ba0234f`)
@@ -22,6 +22,13 @@ read_when:
 - Resets computed as `now + resetInSec`.
 
 ## Notes
+- OpenCode Go accounts accept labeled API keys or Cookie headers. In Auto mode, a selected API-key account uses the
+  usage API with that key, isolated from provider-wide and ambient `OPENCODE_API_KEY` values. A selected Cookie
+  account clears those API credentials and uses manual web cookies. Explicit API and Web source choices remain
+  authoritative; a single configured API key still works without token accounts.
+- API-key accounts preserve the saved browser-cookie preference when added, selected, edited, or removed. Cookie
+  accounts select Manual, including when an API-key account is changed to a Cookie header. Keys cannot contain
+  whitespace, `=`, or `:`; surrounding quotes and whitespace are removed before validation.
 - Responses are `text/javascript` with serialized objects; parse via regex.
 - Missing workspace ID or rolling usage fields should raise parse errors; omitted weekly usage stays absent.
 - OpenCode web Auto imports Chrome first, then Dia when their cookie stores exist; Keychain preflight stays scoped

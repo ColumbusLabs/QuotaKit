@@ -264,9 +264,28 @@ struct ProviderCredentialCharacterizationTests {
                 configuredHeader: "config-cookie",
                 selectedAccount: ProviderTokenAccount(
                     id: UUID(), label: "fixture", token: "account-token", addedAt: 0, lastUsed: nil))
+            if provider == .opencodego {
+                // A bare OpenCode Go token is an API key, so cookie settings stay untouched.
+                #expect(resolved.cookieSource == .auto)
+                #expect(resolved.manualCookieHeader == "config-cookie")
+                continue
+            }
             #expect(resolved.cookieSource == .manual)
             #expect(resolved.manualCookieHeader == normalizedCookieHeaders[provider])
         }
+
+        let openCodeGoCookie = ProviderCookieSettingsResolver.resolve(
+            provider: .opencodego,
+            configuredSource: .auto,
+            configuredHeader: "config-cookie",
+            selectedAccount: ProviderTokenAccount(
+                id: UUID(),
+                label: "cookie fixture",
+                token: "Cookie: session=account-token",
+                addedAt: 0,
+                lastUsed: nil))
+        #expect(openCodeGoCookie.cookieSource == .manual)
+        #expect(openCodeGoCookie.manualCookieHeader == "Cookie: session=account-token")
 
         let actual = Set(ProviderDescriptorRegistry.all.compactMap { descriptor in
             TokenAccountSupportCatalog.support(for: descriptor.id) == nil ? nil : descriptor.id

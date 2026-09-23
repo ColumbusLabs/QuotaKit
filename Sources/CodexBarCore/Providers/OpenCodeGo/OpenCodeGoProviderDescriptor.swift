@@ -13,14 +13,26 @@ public enum OpenCodeGoProviderDescriptor {
             return ProviderTokenResolution(token: token, source: .environment)
         },
         tokenAccountSupport: TokenAccountSupport(
-            title: "Session tokens",
-            subtitle: "Store multiple OpenCode Go Cookie headers.",
-            placeholder: "Cookie: …",
+            title: "OpenCode Go accounts",
+            subtitle: "Store multiple OpenCode Go API keys or Cookie headers.",
+            placeholder: "API key or Cookie: …",
             injection: .cookieHeader,
             requiresManualCookieSource: true,
-            cookieName: nil),
+            cookieName: nil,
+            environmentOverride: { token in
+                guard let key = OpenCodeGoSettingsReader.tokenAccountAPIKey(token) else { return nil }
+                return [OpenCodeGoSettingsReader.apiKeyEnvironmentKey: key]
+            },
+            environmentScrubber: { environment, _ in
+                environment.removeValue(forKey: OpenCodeGoSettingsReader.apiKeyEnvironmentKey)
+            }),
         authDetector: { environment, _ in
             OpenCodeGoSettingsReader.apiKey(environment: environment) == nil ? [] : ["api"]
+        },
+        selectedAccountSourceModeResolver: { base, account, _ in
+            guard base == .auto, let account,
+                  OpenCodeGoSettingsReader.tokenAccountAPIKey(account.token) != nil else { return base }
+            return .api
         })
 
     static func makeDescriptor() -> ProviderDescriptor {
@@ -404,8 +416,12 @@ struct OpenCodeGoAPIUsageFetchStrategy: ProviderFetchStrategy {
 
     func shouldFallback(on error: Error, context: ProviderFetchContext) -> Bool {
         guard context.sourceMode == .auto else { return false }
-        if error is CancellationError { return false }
-        if let urlError = error as? URLError, urlError.code == .cancelled { return false }
+        if error is CancellationError {
+            return false
+        }
+        if let urlError = error as? URLError, urlError.code == .cancelled {
+            return false
+        }
         return true
     }
 }

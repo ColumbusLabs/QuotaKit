@@ -61,6 +61,30 @@ struct ProviderCookieSettingsResolverTests {
     }
 
     @Test
+    func `hybrid API account does not become a web Cookie header`() {
+        let settings = ProviderCookieSettingsResolver.resolve(
+            provider: .opencodego,
+            configuredSource: .manual,
+            configuredHeader: "auth=configured-web-session",
+            selectedAccount: Self.account(token: "go_api_account"))
+
+        #expect(settings.cookieSource == .manual)
+        #expect(settings.manualCookieHeader == "auth=configured-web-session")
+    }
+
+    @Test
+    func `hybrid Cookie account still overrides the configured web session`() {
+        let settings = ProviderCookieSettingsResolver.resolve(
+            provider: .opencodego,
+            configuredSource: .manual,
+            configuredHeader: "auth=configured-web-session",
+            selectedAccount: Self.account(token: "auth=account-web-session"))
+
+        #expect(settings.cookieSource == .manual)
+        #expect(settings.manualCookieHeader == "auth=account-web-session")
+    }
+
+    @Test
     func `providers without token account support ignore selected account`() {
         let settings = ProviderCookieSettingsResolver.resolve(
             provider: .mimo,

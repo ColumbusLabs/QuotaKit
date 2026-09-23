@@ -70,7 +70,15 @@ extension CodexAccountScopedRefreshTests {
         while true {
             let persistedSnapshot = snapshotStore.load(
                 for: settings.codexVisibleAccountProjection.visibleAccounts).first?.snapshot
-            if store.completedRefreshCountForTesting >= 2, persistedSnapshot?.secondary?.usedPercent == 56 {
+            if store.completedRefreshCountForTesting >= 2,
+               !store.isRefreshing,
+               persistedSnapshot?.secondary?.usedPercent == 56,
+               store.codexAccountSnapshots.first?.snapshot?.updatedAt == secondTick.updatedAt
+            {
+                // Stop the accelerated timer while the completed in-memory and persisted
+                // projections agree, before another tick can temporarily clear live state.
+                settings.refreshFrequency = .manual
+                store.restartTimerWithSleepOverrideForTesting(nil)
                 break
             }
             try #require(ContinuousClock.now < deadline)
