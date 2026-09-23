@@ -98,6 +98,11 @@ assert_macos_selection() {
 assert_macos_selection SettingsWindowAppearanceTests '[0]' settings-presentation \
   $'M\tSources/CodexBar/PreferencesView.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection SpendDashboardMidnightDSTTests '[0]' spend-dashboard-midnight-dst-test-only \
+  $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift'
+assert_macos_selection 'SpendActivityHeatmapTests|SpendDashboardMidnightDSTTests' '[0]' civil-day-test-only-suites \
+  $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift' \
+  $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift'
 assert_macos_selection 'SettingsWindowAppearanceTests|SpendActivityHeatmapTests' '[0]' two-suites \
   $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
@@ -115,6 +120,10 @@ assert_macos_selection '' '[0,1]' nested-sync-source \
 assert_macos_selection '' '[0,1]' provider-registry \
   $'M\tSources/CodexBarCore/ProviderRegistry.swift' \
   $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection '' '[0,1]' civil-day-test-with-source-fallback \
+  $'M\tTests/CodexBarTests/SpendDashboardMidnightDSTTests.swift' \
+  $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
+  $'M\tSources/CodexBarCore/ProviderRegistry.swift'
 assert_macos_selection '' '[0,1]' unmapped-test-file \
   $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
 assert_macos_selection '' '[0,1]' unrelated-test-suite \
