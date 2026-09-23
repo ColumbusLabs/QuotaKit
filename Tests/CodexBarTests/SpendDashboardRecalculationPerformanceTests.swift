@@ -27,6 +27,12 @@ struct SpendDashboardRecalculationPerformanceTests {
             #expect(repeatedConfiguration.sourceRevisions == firstConfiguration.sourceRevisions)
         }
 
+        settings.updateProviderConfig(provider: .mistral, affectsBackgroundWork: false) { config in
+            config.hiddenUsageItemIDs = ["metric:primary"]
+        }
+        let visibilityConfiguration = SpendDashboardSource.configuration(settings: settings, store: store)
+        #expect(visibilityConfiguration.sourceRevisions == firstConfiguration.sourceRevisions)
+
         #expect(SpendDashboardSnapshotRevisionEncoder.fingerprintComputationCount == firstCount)
         #expect(
             SpendDashboardSource.configuration(settings: settings, store: store).sourceRevisions ==

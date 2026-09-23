@@ -40,6 +40,9 @@ public struct ProviderIntentPayload: Codable, Sendable {
     /// older client that predates accent colors sends. An empty string means the user cleared the
     /// override. A hex string sets it. Without this, an older client would erase a newer Mac's color.
     public var accentColor: String?
+    /// Nil means the sender predates provider usage visibility and must preserve the local selection;
+    /// an empty array is an explicit show-all selection.
+    public var hiddenUsageItemIDs: [String]?
     public var kiloKnownOrganizations: [KiloOrganization]?
     public var kiloEnabledOrganizationIDs: [String]?
     public var deepseekProfileID: String?
@@ -59,6 +62,7 @@ public struct ProviderIntentPayload: Codable, Sendable {
         self.quotaWarnings = config.quotaWarnings
         // Always report, so that clearing an override propagates as an empty string.
         self.accentColor = config.accentColor ?? ""
+        self.hiddenUsageItemIDs = config.hiddenUsageItemIDs
         self.kiloKnownOrganizations = config.kiloKnownOrganizations
         self.kiloEnabledOrganizationIDs = config.kiloEnabledOrganizationIDs
         self.deepseekProfileID = config.deepseekProfileID
@@ -92,6 +96,9 @@ public struct ProviderIntentPayload: Codable, Sendable {
         // An older client omits the field entirely. Keep the local color rather than erase it.
         if let accentColor = self.accentColor {
             result.accentColor = accentColor.isEmpty ? nil : accentColor
+        }
+        if let hiddenUsageItemIDs = self.hiddenUsageItemIDs {
+            result.hiddenUsageItemIDs = hiddenUsageItemIDs
         }
         result.kiloKnownOrganizations = self.kiloKnownOrganizations
         result.kiloEnabledOrganizationIDs = self.kiloEnabledOrganizationIDs

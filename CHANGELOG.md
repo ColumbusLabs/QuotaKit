@@ -10,6 +10,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Added
 
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
+- Configure visible usage items per provider in Mac settings; menu, preview, Overview, and compact constraint details follow the selection without changing quota ranking or fetching.
 - Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.
 - GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.
 - CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.

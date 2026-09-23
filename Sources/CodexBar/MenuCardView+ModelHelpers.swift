@@ -956,17 +956,10 @@ extension UsageMenuCardView.Model {
         if input.provider == .copilot, !input.copilotBudgetExtrasEnabled {
             return []
         }
-        var visibleRateWindows = if input.provider == .codex, !input.codexSparkUsageVisible {
-            extraRateWindows.filter { !Self.isCodexSparkRateWindow($0) }
-        } else {
-            extraRateWindows
-        }
-        if input.provider == .claude,
-           !input.showOptionalCreditsAndExtraUsage || !input.claudeDailyRoutinesUsageVisible
-        {
-            visibleRateWindows.removeAll(where: Self.isClaudeDailyRoutinesRateWindow)
-        }
-        return visibleRateWindows.map { namedWindow in
+        let availableRateWindows = input.provider == .claude && !input.showOptionalCreditsAndExtraUsage
+            ? extraRateWindows.filter { $0.id != "claude-routines" }
+            : extraRateWindows
+        return availableRateWindows.map { namedWindow in
             let paceDetail = Self.extraRateWindowPaceDetail(
                 provider: input.provider,
                 window: namedWindow.window,
@@ -1028,11 +1021,6 @@ extension UsageMenuCardView.Model {
         }
     }
 
-    private static func isCodexSparkRateWindow(_ namedWindow: NamedRateWindow) -> Bool {
-        namedWindow.id == CodexAdditionalRateLimitMapper.sparkWindowID ||
-            namedWindow.id == CodexAdditionalRateLimitMapper.sparkWeeklyWindowID
-    }
-
     private static func kiroOverageRemainingDetail(
         snapshot: UsageSnapshot,
         namedWindow: NamedRateWindow,
@@ -1046,10 +1034,6 @@ extension UsageMenuCardView.Model {
         let total = String(capPhrase.dropFirst(3))
         guard !total.isEmpty else { return nil }
         return String(format: L("%@ of %@ credits left"), remaining, total)
-    }
-
-    private static func isClaudeDailyRoutinesRateWindow(_ namedWindow: NamedRateWindow) -> Bool {
-        namedWindow.id == "claude-routines"
     }
 
     private static let antigravityQuotaSummaryWindowIDPrefix = "antigravity-quota-summary-"

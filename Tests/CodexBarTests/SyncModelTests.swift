@@ -134,6 +134,20 @@ struct SyncModelTests {
     }
 
     @Test
+    func `older provider intents preserve visibility and empty selection clears it`() throws {
+        let local = ProviderConfig(id: .codex, hiddenUsageItemIDs: ["metric:codex-spark"])
+        let olderPayload = try CanonicalSyncJSON.decode(
+            ProviderIntentPayload.self,
+            from: #"{"schemaVersion":1,"provider":"codex"}"#)
+        let preserved = try olderPayload.applying(to: local, secretFields: [:]) { _, _ in true }
+        #expect(preserved.hiddenUsageItemIDs == ["metric:codex-spark"])
+
+        let clearPayload = ProviderIntentPayload(config: ProviderConfig(id: .codex, hiddenUsageItemIDs: []))
+        let cleared = try clearPayload.applying(to: local, secretFields: [:]) { _, _ in true }
+        #expect(cleared.hiddenUsageItemIDs == [])
+    }
+
+    @Test
     func `conflict resolver picks higher edit count then later modified date`() {
         let older = SyncConflictValue(value: "older", editCount: 3, modifiedAt: Date(timeIntervalSince1970: 20))
         let higher = SyncConflictValue(value: "higher", editCount: 4, modifiedAt: Date(timeIntervalSince1970: 10))

@@ -778,7 +778,8 @@ enum SpendDashboardSource {
         providers.compactMap { provider in
             // Provider-specific by design: spend dashboard
             guard provider != .codex else { return nil }
-            var config = settings.providerConfig(for: provider) ?? ProviderConfig(id: provider.instanceID)
+            var config = (settings.providerConfig(for: provider) ?? ProviderConfig(id: provider.instanceID))
+                .fetchIdentityConfig
             config.enabled = nil
             config.quotaWarnings = nil
             // The dashboard follows the effective account, not the whole saved-account collection.

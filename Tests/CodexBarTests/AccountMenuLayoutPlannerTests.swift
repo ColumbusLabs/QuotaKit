@@ -136,6 +136,30 @@ struct AccountMenuLayoutPlannerTests {
     }
 
     @Test
+    func `hidden usage metrics only filter compact constraint details`() throws {
+        let accounts = self.screenshotFixture()
+        let baseline = self.compactRows(in: AccountMenuLayoutPlanner.plan(accounts: accounts))
+        let filtered = self.compactRows(in: AccountMenuLayoutPlanner.plan(
+            accounts: accounts,
+            hiddenMetricIDs: ["claude-weekly-scoped-fable"]))
+
+        #expect(filtered.map(\.accountID) == baseline.map(\.accountID))
+        #expect(filtered.map(\.headroomPercent) == baseline.map(\.headroomPercent))
+        #expect(filtered.map(\.severity) == baseline.map(\.severity))
+        #expect(filtered.map(\.isBestCandidate) == baseline.map(\.isBestCandidate))
+        let constrained = try #require(filtered.first { $0.accountID.opaqueID == "5" })
+        #expect(constrained.constraintDetail == "Weekly 43%")
+        #expect(constrained.headroomPercent == 0)
+        #expect(constrained.severity == .critical)
+
+        let allHidden = self.compactRows(in: AccountMenuLayoutPlanner.plan(
+            accounts: accounts,
+            hiddenMetricIDs: ["primary", "secondary", "claude-weekly-scoped-fable"]))
+        #expect(allHidden.allSatisfy { $0.constraintDetail == nil })
+        #expect(allHidden.map(\.headroomPercent) == baseline.map(\.headroomPercent))
+    }
+
+    @Test
     func `expanded account renders as card in its sorted position`() {
         let accounts = self.screenshotFixture()
         let constrained = accounts[4].id

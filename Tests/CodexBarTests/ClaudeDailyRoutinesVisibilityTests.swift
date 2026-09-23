@@ -104,7 +104,7 @@ struct ClaudeDailyRoutinesMenuCardTests {
             updatedAt: now,
             identity: identity)
         let metadata = try #require(ProviderDefaults.metadata[.claude])
-        func makeModel(showOptionalUsage: Bool, routinesVisible: Bool) -> UsageMenuCardView.Model {
+        func makeModel(showOptionalUsage: Bool) -> UsageMenuCardView.Model {
             UsageMenuCardView.Model.make(.init(
                 provider: .claude,
                 metadata: metadata,
@@ -122,12 +122,11 @@ struct ClaudeDailyRoutinesMenuCardTests {
                 resetTimeDisplayStyle: .countdown,
                 tokenCostUsageEnabled: false,
                 showOptionalCreditsAndExtraUsage: showOptionalUsage,
-                claudeDailyRoutinesUsageVisible: routinesVisible,
                 hidePersonalInfo: false,
                 now: now))
         }
 
-        let visibleModel = makeModel(showOptionalUsage: true, routinesVisible: true)
+        let visibleModel = makeModel(showOptionalUsage: true)
         #expect(visibleModel.metrics.map(\.title) == [
             "Session",
             "Weekly",
@@ -136,10 +135,11 @@ struct ClaudeDailyRoutinesMenuCardTests {
             "Daily Routines",
         ])
 
-        let providerHiddenModel = makeModel(showOptionalUsage: true, routinesVisible: false)
+        let providerHiddenModel = visibleModel.applyingUsageItemVisibility(
+            hiddenItemIDs: [.metric("claude-routines")])
         #expect(providerHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable only"])
 
-        let globalHiddenModel = makeModel(showOptionalUsage: false, routinesVisible: true)
+        let globalHiddenModel = makeModel(showOptionalUsage: false)
         #expect(globalHiddenModel.metrics.map(\.title) == ["Session", "Weekly", "Sonnet", "Fable only"])
     }
 }

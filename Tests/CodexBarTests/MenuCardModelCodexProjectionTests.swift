@@ -822,7 +822,6 @@ struct MenuCardModelCodexProjectionTests {
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
-            codexSparkUsageVisible: false,
             hidePersonalInfo: false,
             now: now))
 
@@ -838,7 +837,7 @@ struct MenuCardModelCodexProjectionTests {
 
 struct MenuCardModelCodexSparkVisibilityTests {
     @Test
-    func `codex spark visibility hides only spark metrics`() throws {
+    func `usage item projection hides only selected codex spark metrics`() throws {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let metadata = try #require(ProviderDefaults.metadata[.codex])
         let identity = ProviderIdentitySnapshot(
@@ -917,16 +916,25 @@ struct MenuCardModelCodexSparkVisibilityTests {
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: true,
-            codexSparkUsageVisible: false,
             hidePersonalInfo: false,
             now: now))
 
-        #expect(!model.metrics.contains { $0.id == "codex-spark" })
-        #expect(!model.metrics.contains { $0.id == "codex-spark-weekly" })
+        #expect(model.metrics.contains { $0.id == "codex-spark" })
+        #expect(model.metrics.contains { $0.id == "codex-spark-weekly" })
         #expect(model.metrics.contains { $0.id == "primary" })
         #expect(model.metrics.contains { $0.id == "secondary" })
         #expect(model.metrics.contains { $0.id == "codex-other-limit" })
         #expect(model.creditsText != nil)
+
+        let hiddenModel = model.applyingUsageItemVisibility(hiddenItemIDs: [
+            .metric("codex-spark"),
+            .metric("codex-spark-weekly"),
+        ])
+        #expect(!hiddenModel.metrics.contains { $0.id == "codex-spark" })
+        #expect(!hiddenModel.metrics.contains { $0.id == "codex-spark-weekly" })
+        #expect(hiddenModel.metrics.contains { $0.id == "primary" })
+        #expect(hiddenModel.metrics.contains { $0.id == "codex-other-limit" })
+        #expect(hiddenModel.creditsText != nil)
 
         let globalOffModel = UsageMenuCardView.Model.make(.init(
             provider: .codex,
@@ -946,7 +954,6 @@ struct MenuCardModelCodexSparkVisibilityTests {
             resetTimeDisplayStyle: .countdown,
             tokenCostUsageEnabled: false,
             showOptionalCreditsAndExtraUsage: false,
-            codexSparkUsageVisible: true,
             hidePersonalInfo: false,
             now: now))
 

@@ -31,6 +31,32 @@ struct CodexBarConfigMigratorTests {
     }
 
     @Test
+    func `legacy hidden usage choices migrate without overriding explicit selections`() throws {
+        let suite = "CodexBarConfigMigratorTests-usage-visibility-\(UUID().uuidString)"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        defer { defaults.removePersistentDomain(forName: suite) }
+        defaults.set(false, forKey: "codexSparkUsageVisible")
+        defaults.set(false, forKey: "claudeDailyRoutinesUsageVisible")
+
+        let configStore = testConfigStore(suiteName: suite)
+        var config = CodexBarConfig.makeDefault()
+        config.setProviderConfig(ProviderConfig(id: .codex, hiddenUsageItemIDs: []))
+        try configStore.save(config)
+
+        let migrated = CodexBarConfigMigrator.loadOrMigrate(
+            configStore: configStore,
+            userDefaults: defaults,
+            stores: Self.legacyStores(
+                secrets: CountingLegacySecretStore(),
+                accountStore: CountingTokenAccountStore()))
+
+        #expect(migrated.providerConfig(for: .codex)?.hiddenUsageItemIDs == [])
+        #expect(migrated.providerConfig(for: .claude)?.hiddenUsageItemIDs == ["metric:claude-routines"])
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.hiddenUsageItemIDs == [])
+    }
+
+    @Test
     func `legacy secret migration completion flag skips repeated scans`() throws {
         let suite = "CodexBarConfigMigratorTests-skip-\(UUID().uuidString)"
         let defaults = try #require(UserDefaults(suiteName: suite))

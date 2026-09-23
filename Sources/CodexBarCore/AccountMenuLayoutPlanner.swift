@@ -94,7 +94,8 @@ public enum AccountMenuLayoutPlanner {
     public static func plan(
         accounts: [ProviderAccountUsageSnapshot],
         expandedAccountIDs: Set<ProviderAccountIdentity> = [],
-        healthyTailExpanded: Bool = false) -> Plan
+        healthyTailExpanded: Bool = false,
+        hiddenMetricIDs: Set<String> = []) -> Plan
     {
         guard accounts.count >= self.compactLayoutMinimumAccountCount else {
             return Plan(rows: accounts.map { .card($0.id) }, usesCompactLayout: false)
@@ -103,7 +104,7 @@ public enum AccountMenuLayoutPlanner {
         var rows: [Row] = accounts.filter(\.isActive).map { .card($0.id) }
 
         let inactive = accounts.filter { !$0.isActive }
-        let compactRows = self.sortedCompactRows(for: inactive)
+        let compactRows = self.sortedCompactRows(for: inactive, hiddenMetricIDs: hiddenMetricIDs)
 
         let collapsible = healthyTailExpanded
             ? []
@@ -143,10 +144,16 @@ public enum AccountMenuLayoutPlanner {
         self.labeledWindows(for: account).map(\.remainingPercent).min()
     }
 
-    private static func sortedCompactRows(for accounts: [ProviderAccountUsageSnapshot]) -> [CompactRow] {
+    private static func sortedCompactRows(
+        for accounts: [ProviderAccountUsageSnapshot],
+        hiddenMetricIDs: Set<String>) -> [CompactRow]
+    {
         let bestCandidateID = self.bestCandidateID(in: accounts)
         let unsorted = accounts.map { account in
-            self.compactRow(for: account, isBestCandidate: account.id == bestCandidateID)
+            self.compactRow(
+                for: account,
+                isBestCandidate: account.id == bestCandidateID,
+                hiddenMetricIDs: hiddenMetricIDs)
         }
         return unsorted.enumerated()
             .sorted { lhs, rhs in
@@ -159,12 +166,13 @@ public enum AccountMenuLayoutPlanner {
 
     private static func compactRow(
         for account: ProviderAccountUsageSnapshot,
-        isBestCandidate: Bool) -> CompactRow
+        isBestCandidate: Bool,
+        hiddenMetricIDs: Set<String>) -> CompactRow
     {
         let windows = self.labeledWindows(for: account)
         let headroom = windows.map(\.remainingPercent).min()
         let constraints = windows
-            .filter { $0.remainingPercent <= self.warningHeadroomPercent }
+            .filter { !hiddenMetricIDs.contains($0.id) && $0.remainingPercent <= self.warningHeadroomPercent }
             .sorted { $0.remainingPercent < $1.remainingPercent }
             .prefix(self.constraintDetailWindowLimit)
             .map {
@@ -199,22 +207,22 @@ public enum AccountMenuLayoutPlanner {
     }
 
     private static func labeledWindows(
-        for account: ProviderAccountUsageSnapshot) -> [(label: String, remainingPercent: Double)]
+        for account: ProviderAccountUsageSnapshot) -> [(id: String, label: String, remainingPercent: Double)]
     {
         guard let snapshot = account.snapshot else { return [] }
         let metadata = ProviderDefaults.metadata[account.provider]
-        var windows: [(label: String, remainingPercent: Double)] = []
+        var windows: [(id: String, label: String, remainingPercent: Double)] = []
         if let primary = snapshot.primary, !primary.isSyntheticPlaceholder {
-            windows.append((metadata?.sessionLabel ?? "Session", primary.remainingPercent))
+            windows.append(("primary", metadata?.sessionLabel ?? "Session", primary.remainingPercent))
         }
         if let secondary = snapshot.secondary {
-            windows.append((metadata?.weeklyLabel ?? "Weekly", secondary.remainingPercent))
+            windows.append(("secondary", metadata?.weeklyLabel ?? "Weekly", secondary.remainingPercent))
         }
         if let tertiary = snapshot.tertiary {
-            windows.append((metadata?.opusLabel ?? "Monthly", tertiary.remainingPercent))
+            windows.append(("tertiary", metadata?.opusLabel ?? "Monthly", tertiary.remainingPercent))
         }
         for extra in snapshot.extraRateWindows ?? [] where extra.usageKnown {
-            windows.append((self.shortLabel(forWindowTitle: extra.title), extra.window.remainingPercent))
+            windows.append((extra.id, self.shortLabel(forWindowTitle: extra.title), extra.window.remainingPercent))
         }
         return windows
     }

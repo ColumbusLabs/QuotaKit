@@ -407,22 +407,16 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
-    func `claude daily routines toggle follows global optional usage setting`() throws {
+    func `claude daily routines use the provider usage visibility controls`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-claude-routines")
         let context = fixture.settingsContext(provider: .claude)
         let toggles = ClaudeProviderImplementation().settingsToggles(context: context)
-        let routinesToggle = try #require(toggles.first {
-            $0.id == "claude-daily-routines-usage-visible"
-        })
+        #expect(!toggles.contains { $0.id == "claude-daily-routines-usage-visible" })
+        #expect(fixture.settings.isUsageItemVisible(.metric("claude-routines"), for: .claude))
 
-        #expect(routinesToggle.binding.wrappedValue)
-        #expect(routinesToggle.isEnabled?() == true)
-
-        routinesToggle.binding.wrappedValue = false
+        fixture.settings.setUsageItemVisible(false, itemID: .metric("claude-routines"), for: .claude)
         #expect(fixture.settings.claudeDailyRoutinesUsageVisible == false)
-
-        fixture.settings.showOptionalCreditsAndExtraUsage = false
-        #expect(routinesToggle.isEnabled?() == false)
+        #expect(!fixture.settings.isUsageItemVisible(.metric("claude-routines"), for: .claude))
     }
 
     @Test
