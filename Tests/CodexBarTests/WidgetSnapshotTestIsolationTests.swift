@@ -34,6 +34,28 @@ struct WidgetSnapshotTestIsolationTests {
     }
 
     @Test
+    func `invalidation without any opt-in queues no widget I O`() async {
+        let store = Self.makeStore(suite: "invalidation-no-opt-in")
+        var loadCount = 0
+        store.setWidgetSnapshotLoadOverrideForTesting {
+            loadCount += 1
+            return nil
+        }
+        defer { store.setWidgetSnapshotLoadOverrideForTesting(nil) }
+
+        store.invalidateGenericWidgetUsage(for: .codex)
+
+        let persistenceTask = store.widgetSnapshotPersistTask
+        if let persistenceTask {
+            await persistenceTask.value
+        }
+
+        #expect(persistenceTask == nil)
+        #expect(store.widgetSnapshotPersistTask == nil)
+        #expect(loadCount == 0)
+    }
+
+    @Test
     func `persist with a save override routes the snapshot through the override`() async {
         let store = Self.makeStore(suite: "override")
         var saved: [WidgetSnapshot] = []

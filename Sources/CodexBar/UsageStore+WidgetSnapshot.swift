@@ -12,6 +12,20 @@ private enum WidgetSnapshotLoadTestOverrides {
 #endif
 
 extension UsageStore {
+    private var isWidgetSnapshotTestEnvironment: Bool {
+        if case .testing = self.startupBehavior {
+            return true
+        }
+        return SettingsStore.isRunningTests
+    }
+
+    private var shouldPersistWidgetSnapshotInCurrentEnvironment: Bool {
+        Self.shouldPersistWidgetSnapshot(
+            isRunningTests: self.isWidgetSnapshotTestEnvironment,
+            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
+            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
+    }
+
     /// Tests must never touch the real app-group container: the widget-snapshot
     /// `open()` can block forever behind macOS 26 app-data (TCC) gating, hanging
     /// the whole suite. A test opts into persistence with an in-memory save
@@ -39,11 +53,7 @@ extension UsageStore {
     #endif
 
     func persistWidgetSnapshot(reason: String) {
-        guard Self.shouldPersistWidgetSnapshot(
-            isRunningTests: SettingsStore.isRunningTests,
-            hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
-            hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
-        else { return }
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
         // A fresh process has token-cost data before a user-authorized Claude OAuth refresh can run.
         // Keep the last queued snapshot in memory so back-to-back writes cannot race the on-disk cache.
         let previousSnapshot = self.lastQueuedWidgetSnapshot ?? {
@@ -126,6 +136,8 @@ extension UsageStore {
         // Never let test-only save overrides fall through to the developer's live app-group container.
         guard self._test_widgetSnapshotSaveOverride == nil else { return nil }
         #endif
+        // Keep a mistakenly scheduled test task from reading the app-group container as well.
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return nil }
         let widgetSnapshotURL = self.widgetSnapshotURL
         return await Task.detached(priority: .utility) {
             if let widgetSnapshotURL {
@@ -172,6 +184,8 @@ extension UsageStore {
             await override(snapshot)
             return
         }
+        // Keep a mistakenly scheduled test task from writing to the app-group container as well.
+        guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
 
         let widgetSnapshotURL = self.widgetSnapshotURL
         await Task.detached(priority: .utility) {
@@ -305,11 +319,7 @@ extension UsageStore {
                 // still contains its old entry. Republish the queue even when it needs no filtering.
                 snapshotToPersist = queuedSnapshot
             }
-            guard Self.shouldPersistWidgetSnapshot(
-                isRunningTests: SettingsStore.isRunningTests,
-                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
-                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
-            else { return }
+            guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
             self.enqueueWidgetSnapshotPersistence(fallbackSnapshot: snapshotToPersist)
         } else {
             let emptySnapshot = WidgetSnapshot(
@@ -318,11 +328,7 @@ extension UsageStore {
                 usageBarsShowUsed: self.settings.usageBarsShowUsed,
                 generatedAt: Date())
             self.lastQueuedWidgetSnapshot = emptySnapshot
-            guard Self.shouldPersistWidgetSnapshot(
-                isRunningTests: SettingsStore.isRunningTests,
-                hasSaveOverride: self._test_widgetSnapshotSaveOverride != nil,
-                hasInjectedSnapshotURL: self.widgetSnapshotURL != nil)
-            else { return }
+            guard self.shouldPersistWidgetSnapshotInCurrentEnvironment else { return }
             self.enqueueWidgetSnapshotPersistence(
                 fallbackSnapshot: emptySnapshot,
                 loadsPersistedSnapshotIfQueueIsUnchanged: true)
