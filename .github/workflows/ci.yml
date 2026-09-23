@@ -32,6 +32,8 @@ jobs:
       macos-tests-deferred: ${{ steps.macos-tests.outputs.macos-tests-deferred }}
       macos-tests-reason: ${{ steps.macos-tests.outputs.macos-tests-reason }}
       changed-path-count: ${{ steps.macos-tests.outputs.changed-path-count }}
+      macos-test-filter: ${{ steps.macos-tests.outputs.macos-test-filter }}
+      macos-shard-indexes: ${{ steps.macos-tests.outputs.macos-shard-indexes }}
       ios-tests: ${{ steps.ios-tests.outputs.ios-tests }}
       ios-tests-reason: ${{ steps.ios-tests.outputs.ios-tests-reason }}
     steps:
@@ -88,6 +90,7 @@ jobs:
           MACOS_TESTS: ${{ steps.macos-tests.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ steps.macos-tests.outputs.macos-tests-reason }}
           CHANGED_PATH_COUNT: ${{ steps.macos-tests.outputs.changed-path-count }}
+          MACOS_TEST_FILTER: ${{ steps.macos-tests.outputs.macos-test-filter }}
         run: |
           set -euo pipefail
           reason="${MACOS_TESTS_REASON:-<unset>}"
@@ -98,6 +101,7 @@ jobs:
             printf '| --- | --- |\n'
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
             printf '| macOS reason | %s |\n' "$reason"
+            printf '| macOS focused suites | `%s` |\n' "${MACOS_TEST_FILTER:-<full suite or skipped>}"
             printf '| Changed path entries | `%s` |\n' "${CHANGED_PATH_COUNT:-<unset>}"
           } >> "$GITHUB_STEP_SUMMARY"
 
@@ -165,7 +169,7 @@ jobs:
       matrix:
         # Two shards amortize SwiftPM's per-shard discovery/cold build.
         # Each shard remains within the 50-minute Swift Test timeout.
-        shard-index: [0, 1]
+        shard-index: ${{ fromJSON(needs.changes.outputs.macos-shard-indexes) }}
         shard-count: [2]
     steps:
       - uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
@@ -210,6 +214,7 @@ jobs:
           swift package --version
 
       - name: Swift Test
+        if: ${{ needs.changes.outputs.macos-test-filter == '' }}
         # Keep small suite batches so a hung suite fails its shard while avoiding one SwiftPM process per suite.
         timeout-minutes: 50
         run: |
@@ -220,8 +225,16 @@ jobs:
             CODEXBAR_TEST_SHARD_COUNT=${{ matrix.shard-count }} \
             ./Scripts/test.sh
 
+      - name: Focused Swift Test
+        if: ${{ needs.changes.outputs.macos-test-filter != '' }}
+        timeout-minutes: 20
+        env:
+          CODEXBAR_TEST_FILTER: ${{ needs.changes.outputs.macos-test-filter }}
+          CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS: 1
+        run: swift test --filter "$CODEXBAR_TEST_FILTER"
+
       - name: Provider plugin engine A/B goldens
-        if: ${{ matrix.shard-index == 0 }}
+        if: ${{ matrix.shard-index == 0 && needs.changes.outputs.macos-test-filter == '' }}
         run: ./Scripts/test-plugin-engines.sh
 
       - name: Summarize macOS shard
@@ -356,6 +369,7 @@ jobs:
           CHANGES_RESULT: ${{ needs.changes.result }}
           MACOS_TESTS: ${{ needs.changes.outputs.macos-tests }}
           MACOS_TESTS_REASON: ${{ needs.changes.outputs.macos-tests-reason }}
+          MACOS_TEST_FILTER: ${{ needs.changes.outputs.macos-test-filter }}
           MACOS_RESULT: ${{ needs.swift-test-macos.result }}
           MACOS_TESTS_DEFERRED: ${{ needs.changes.outputs.macos-tests-deferred }}
           IOS_TESTS: ${{ needs.changes.outputs.ios-tests }}
@@ -376,6 +390,7 @@ jobs:
             printf '| macOS Swift tests required | `%s` |\n' "${MACOS_TESTS:-<unset>}"
             printf '| macOS Swift tests deferred | `%s` |\n' "${MACOS_TESTS_DEFERRED:-<unset>}"
             printf '| macOS gate reason | %s |\n' "$macos_reason"
+            printf '| macOS focused suites | `%s` |\n' "${MACOS_TEST_FILTER:-<full suite or skipped>}"
             printf '| swift-test-macos result | `%s` |\n' "$MACOS_RESULT"
             printf '| iOS simulator tests required | `%s` |\n' "${IOS_TESTS:-<unset>}"
             printf '| iOS gate reason | %s |\n' "$ios_reason"

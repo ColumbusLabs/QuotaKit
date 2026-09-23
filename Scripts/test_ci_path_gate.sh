@@ -74,6 +74,55 @@ assert_gate true agents-contract $'M\tAGENTS.md'
 assert_gate true rename-to-agents-contract $'R100\tdocs/old.md\tAGENTS.md'
 assert_gate true rename-from-agents-contract $'R100\tAGENTS.md\tdocs/new.md'
 assert_gate true source $'M\tSources/CodexBar/App.swift'
+
+assert_macos_selection() {
+  local expected_filter="$1"
+  local expected_shards="$2"
+  local name="$3"
+  local paths_file="${tmp_dir}/${name}.selection.paths"
+  local output_file="${tmp_dir}/${name}.selection.output"
+  shift 3
+
+  printf '%s\n' "$@" > "$paths_file"
+  GITHUB_OUTPUT="$output_file" "${ROOT_DIR}/Scripts/ci_macos_test_gate.sh" "$paths_file" >/dev/null
+  local actual_filter actual_shards
+  actual_filter="$(sed -n 's/^macos-test-filter=//p' "$output_file")"
+  actual_shards="$(sed -n 's/^macos-shard-indexes=//p' "$output_file")"
+  if [[ "$actual_filter" != "$expected_filter" || "$actual_shards" != "$expected_shards" ]]; then
+    printf '%s: expected filter=%s shards=%s, got filter=%s shards=%s\n' \
+      "$name" "$expected_filter" "$expected_shards" "$actual_filter" "$actual_shards" >&2
+    exit 1
+  fi
+}
+
+assert_macos_selection SettingsWindowAppearanceTests '[0]' settings-presentation \
+  $'M\tSources/CodexBar/PreferencesView.swift' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection 'SettingsWindowAppearanceTests|SpendActivityHeatmapTests' '[0]' two-suites \
+  $'M\tTests/CodexBarTests/SpendActivityHeatmapTests.swift' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection SettingsWindowAppearanceTests '[0]' mapped-source-only \
+  $'M\tSources/CodexBar/PreferencesView.swift'
+assert_macos_selection '' '[0,1]' mac-app-entrypoint \
+  $'M\tSources/CodexBar/App.swift' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection '' '[0,1]' widget-persistence \
+  $'M\tSources/CodexBar/UsageStore+WidgetSnapshot.swift' \
+  $'M\tTests/CodexBarTests/WidgetEmptyProjectionTests.swift'
+assert_macos_selection '' '[0,1]' nested-sync-source \
+  $'M\tSources/CodexBar/Sync/SyncCoordinator.swift' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection '' '[0,1]' provider-registry \
+  $'M\tSources/CodexBarCore/ProviderRegistry.swift' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
+assert_macos_selection '' '[0,1]' unmapped-test-file \
+  $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
+assert_macos_selection '' '[0,1]' unrelated-test-suite \
+  $'M\tSources/CodexBar/PreferencesView.swift' \
+  $'M\tTests/CodexBarTests/AbacusProviderTests.swift'
+assert_macos_selection '' '[0,1]' ci-workflow \
+  $'M\t.github/workflows/ci.yml' \
+  $'M\tTests/CodexBarTests/SettingsWindowAppearanceTests.swift'
 assert_gate false docs-site $'M\tdocs/index.html' $'M\tdocs/site.css' $'M\tdocs/site.js' \
   $'M\tdocs/site-locales.mjs' $'M\tdocs/social.html' $'M\tdocs/social.png' \
   $'M\tdocs/CNAME' $'M\tdocs/.nojekyll' $'M\tdocs/llms.txt'
