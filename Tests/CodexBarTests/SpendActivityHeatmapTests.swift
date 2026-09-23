@@ -82,6 +82,59 @@ struct SpendActivityHeatmapTests {
         #expect(series.daily.reduce(0, +) == (1...365).reduce(0, +))
         #expect(visible.first.flatMap(series.date(at:)) == points.last?.day)
         #expect(visible.last.flatMap(series.date(at:)) == points.first?.day)
+        for point in points {
+            let index = try #require(series.daily.indices.first {
+                series.isVisible($0) && series.date(at: $0) == point.day
+            })
+            #expect(series.date(at: index) == calendar.startOfDay(for: point.day))
+            #expect(series.daily[index] == point.totalTokens)
+        }
+    }
+
+    @Test
+    func `midnight daylight saving preserves unscanned days and scanned gaps`() throws {
+        var calendar = Self.calendar
+        calendar.timeZone = try #require(TimeZone(identifier: "America/Santiago"))
+        let now = try #require(calendar.date(from: DateComponents(year: 2026, month: 9, day: 11, hour: 12)))
+        let points = try (0..<SpendActivitySeries.rangeDayCount).map { offset in
+            let date = try #require(calendar.date(byAdding: .day, value: -offset, to: now))
+            return SpendDashboardModel.TokenActivityPoint(
+                day: calendar.startOfDay(for: date),
+                totalTokens: offset >= 30 || offset == 10 ? nil : 1,
+                isScanned: offset < 30)
+        }
+        let series = SpendActivitySeries.make(from: points, now: now, calendar: calendar)
+
+        for point in points {
+            let index = try #require(series.daily.indices.first {
+                series.isVisible($0) && series.date(at: $0) == point.day
+            })
+            #expect(series.isScanned[index] == point.isScanned)
+            #expect(series.isCovered[index] == (point.totalTokens != nil))
+        }
+        #expect(series.coveredDayCount == 29)
+
+        let missingDay = try #require(calendar.date(byAdding: .day, value: -10, to: now))
+        let missingIndex = try #require(series.daily.indices.first {
+            series.isVisible($0) && series.date(at: $0) == calendar.startOfDay(for: missingDay)
+        })
+        let unscannedDay = try #require(calendar.date(byAdding: .day, value: -30, to: now))
+        let unscannedIndex = try #require(series.daily.indices.first {
+            series.isVisible($0) && series.date(at: $0) == calendar.startOfDay(for: unscannedDay)
+        })
+        #expect(series.isScanned[missingIndex])
+        #expect(!series.isCovered[missingIndex])
+        #expect(!series.isScanned[unscannedIndex])
+        #expect(!series.isCovered[unscannedIndex])
+
+        let weekly = series.weeklyActivity()
+        let firstScannedWeek = try #require(weekly.isScanned.firstIndex(of: true))
+        let missingWeek = missingIndex / SpendActivitySeries.dayCount
+        #expect(weekly.isScanned[missingWeek])
+        #expect(!weekly.isCovered[missingWeek])
+        let cumulative = weekly.cumulative()
+        #expect(cumulative.isCovered[firstScannedWeek])
+        #expect(cumulative.isCovered.last == false)
     }
 
     @Test
