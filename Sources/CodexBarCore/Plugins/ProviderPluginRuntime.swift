@@ -174,6 +174,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             sourceMode: sourceMode,
             cookieSource: cookieSource,
             cookieInvalidator: cookieInvalidator,
+            cookieSessionResolver: cookieSessionResolver,
+            cookieSessionInvalidator: cookieSessionInvalidator,
             cookieResolver: cookieResolver,
             instanceCookieResolver: instanceCookieResolver).usage
     }
@@ -186,6 +188,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         sourceMode: ProviderSourceMode = .auto,
         cookieSource: ProviderCookieSource = .auto,
         cookieInvalidator: CookieInvalidator? = nil,
+        cookieSessionResolver: CookieSessionResolver? = nil,
+        cookieSessionInvalidator: CookieSessionInvalidator? = nil,
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> ProviderPluginResult
     {

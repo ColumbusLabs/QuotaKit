@@ -32,6 +32,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: reconcile typed results with browser session iteration.
+
 - Provider plugins: preserve regional cookie candidates and retry rejected sessions.
 
 - Provider plugins: start HTTP attempt deadlines when transport begins.
