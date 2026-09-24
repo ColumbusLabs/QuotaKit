@@ -118,7 +118,7 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
         }
         let cookies = ProviderPluginCookieBroker(
             provider: self.provider, domains: runtime.manifest.cookieDomains, context: context)
-        let usage = try await runtime.fetchUsage(
+        let result = try await runtime.fetchResult(
             settings: values.settings,
             secrets: values.secrets,
             sourceMode: context.sourceMode,
@@ -127,7 +127,12 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
             cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
             cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
-        return self.makeResult(usage: usage, sourceLabel: self.sourceLabel)
+        try Task.checkCancellation()
+        let saved = result.persist.isEmpty ? ProviderSettingsSaveOutcome.unchanged
+            : await context.settingsWriter?(self.provider, result.persist) ?? .failed
+        try Task.checkCancellation()
+        return self.makeResult(
+            usage: result.usage, sourceLabel: result.sourceLabel ?? self.sourceLabel, diagnostic: saved.diagnostic)
     }
 
     public func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

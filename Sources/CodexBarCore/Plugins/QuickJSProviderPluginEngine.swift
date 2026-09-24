@@ -119,6 +119,34 @@ private final class QuickJSPluginValue: ProviderPluginValue {
         JS_IsDate(self.value)
     }
 
+    func propertyNames() throws -> [String] {
+        var names: UnsafeMutablePointer<JSPropertyEnum>?
+        var count: UInt32 = 0
+        guard JS_GetOwnPropertyNames(
+            self.engine.context,
+            &names,
+            &count,
+            self.value,
+            JS_GPN_STRING_MASK | JS_GPN_SYMBOL_MASK) == 0
+        else {
+            throw ProviderPluginError.invalidSnapshot("cannot enumerate result keys")
+        }
+        defer { JS_FreePropertyEnum(self.engine.context, names, count) }
+        guard count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return try (0..<Int(count)).map { index in
+            let key = JS_AtomToValue(self.engine.context, names![index].atom)
+            defer { cqjs_free_value(self.engine.context, key) }
+            guard cqjs_is_string(key) else {
+                throw ProviderPluginError.invalidSnapshot("symbol result keys are not supported")
+            }
+            guard let text = JS_AtomToCString(self.engine.context, names![index].atom) else {
+                throw ProviderPluginError.invalidSnapshot("invalid result key")
+            }
+            defer { JS_FreeCString(self.engine.context, text) }
+            return String(cString: text)
+        }
+    }
+
     func property(_ name: String) -> (any ProviderPluginValue)? {
         QuickJSPluginValue(engine: self.engine, value: JS_GetPropertyStr(self.engine.context, self.value, name))
     }
@@ -316,7 +344,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
     {
         self.worker.async {
             completion(Result {
@@ -398,7 +426,7 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         timeZone: TimeZone,
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
-        instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?) throws -> UsageSnapshot
+        instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?) throws -> ProviderPluginResult
     {
         JS_UpdateStackTop(self.runtime)
         guard let applyPrelude = self.applyPrelude, let fetchUsage = self.fetchUsage,
@@ -469,10 +497,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 throw self.failure(from: result, redactionValues: redactionValues)
             }
         }
-        return try ProviderPluginSnapshotMapper.map(
+        return try ProviderPluginSnapshotMapper.mapResult(
             QuickJSPluginValue(engine: self, value: result),
             provider: self.manifest.id,
-            now: now)
+            now: now,
+            allowsProviderExtensions: !self.enforcesUserResponsePolicy)
     }
 
     private func installHostFunctions(on host: JSValue) throws {

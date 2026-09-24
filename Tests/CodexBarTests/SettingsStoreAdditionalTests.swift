@@ -349,3 +349,110 @@ struct SettingsStoreAdditionalTests {
         return defaults
     }
 }
+
+extension SettingsStoreAdditionalTests {
+    @Test
+    func `plugin settings save returns the outcome and preserves other providers`() async throws {
+        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        settings[providerConfig: .openai, field: .workspace] = "other-project"
+        settings[providerConfig: .fireworks, field: .apiKey] = "fixture-key"
+        let other = settings.providerConfig(for: .openai)
+        let before = settings.providerConfigRevision(for: .fireworks)
+        #expect(await settings.savePluginSettings(
+            provider: .fireworks,
+            values: ["ACCOUNT_SLUG": "fixture"],
+            isCurrent: { true }) == .saved)
+        #expect(settings.fireworksAccountSlug == "fixture")
+        #expect(ProviderPluginResultPolicy.matches(settings.providerConfig(for: .openai), other))
+        #expect(try settings.configStore.load()?.providerConfig(for: .fireworks)?.accountSlug == "fixture")
+        #expect(settings.providerConfigRevision(for: .fireworks) > before)
+        let after = settings.providerConfigRevision(for: .fireworks)
+        #expect(await settings.savePluginSettings(
+            provider: .fireworks,
+            values: ["ACCOUNT_SLUG": "fixture"],
+            isCurrent: { true }) == .unchanged)
+        #expect(settings.providerConfigRevision(for: .fireworks) == after)
+        #expect(await settings.savePluginSettings(
+            provider: .fireworks,
+            values: ["ACCOUNT_SLUG": "stale"],
+            isCurrent: { false }) == .stale)
+        #expect(await settings.savePluginSettings(
+            provider: .openai,
+            values: ["ACCOUNT_SLUG": "wrong-provider"],
+            isCurrent: { true }) == .failed)
+        #expect(settings.fireworksAccountSlug == "fixture")
+    }
+
+    @Test
+    func `plugin settings save failure leaves app state unchanged`() async throws {
+        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        settings[providerConfig: .fireworks, field: .apiKey] = "fixture-key"
+        let before = try settings.configStore.encodedData(for: settings.config)
+        let url = settings.configStore.fileURL
+        try FileManager.default.removeItem(at: url)
+        try FileManager.default.createDirectory(at: url, withIntermediateDirectories: false)
+        defer { try? FileManager.default.removeItem(at: url) }
+        #expect(await settings.savePluginSettings(
+            provider: .fireworks,
+            values: ["ACCOUNT_SLUG": "fixture"],
+            isCurrent: { true }) == .failed)
+        #expect(try settings.configStore.encodedData(for: settings.config) == before)
+    }
+
+    @Test
+    func `plugin settings save rechecks ownership after draining an older save`() async {
+        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        settings[providerConfig: .fireworks, field: .apiKey] = "original-key"
+        let before = settings.providerConfigRevision(for: .fireworks)
+        settings.configPersistTask = Task { @MainActor in
+            settings[providerConfig: .fireworks, field: .apiKey] = "replacement-key"
+        }
+        let outcome = await settings.savePluginSettings(provider: .fireworks, values: ["ACCOUNT_SLUG": "old-account"]) {
+            settings.providerConfigRevision(for: .fireworks) == before
+        }
+        #expect(outcome == .stale)
+        #expect(settings.fireworksAccountSlug.isEmpty)
+        #expect(settings.providerConfig(for: .fireworks)?.apiKey == "replacement-key")
+    }
+}
+
+extension SettingsStoreAdditionalTests {
+    @Test
+    func `app fetch writer refuses a newer provider selection and another provider`() async throws {
+        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        settings.fireworksAPIToken = "original-key"
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings,
+            startupBehavior: .testing)
+        store._cancelPlanUtilizationHistoryLoadForTesting()
+        let context = store.makeFetchContext(provider: .fireworks, override: nil)
+        let writer = try #require(context.settingsWriter)
+        #expect(await writer(.openai, ["ACCOUNT_SLUG": "wrong-provider"]) == .stale)
+        settings.fireworksAPIToken = "replacement-key"
+        #expect(await writer(.fireworks, ["ACCOUNT_SLUG": "old-account"]) == .stale)
+        #expect(settings.fireworksAccountSlug.isEmpty)
+        #expect(settings.fireworksAPIToken == "replacement-key")
+    }
+}
+
+extension SettingsStoreAdditionalTests {
+    @Test
+    func `plugin discovery drains a replacement save and preserves unrelated edits`() async throws {
+        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        settings.fireworksAPIToken = "fixture-key"
+        settings.configPersistTask = Task { @MainActor in
+            settings.configPersistTask = Task { @MainActor in
+                await Task.yield()
+                settings[providerConfig: .openai, field: .workspace] = "new-project"
+            }
+        }
+        #expect(await settings.savePluginSettings(
+            provider: .fireworks,
+            values: ["ACCOUNT_SLUG": "fixture"],
+            isCurrent: { true }) == .saved)
+        #expect(try settings.configStore.load()?.providerConfig(for: .openai)?.workspaceID == "new-project")
+        #expect(settings.fireworksAccountSlug == "fixture")
+    }
+}

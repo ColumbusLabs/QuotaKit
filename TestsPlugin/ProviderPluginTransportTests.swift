@@ -125,7 +125,10 @@ struct ProviderPluginTransportTests {
             allowsDynamicID: false)
         worker.requestInterrupt()
         await #expect(throws: CancellationError.self) {
-            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<UsageSnapshot, Error>) in
+            try await withCheckedThrowingContinuation { (continuation: CheckedContinuation<
+                ProviderPluginResult,
+                Error,
+            >) in
                 worker.fetch(
                     settings: [:],
                     secrets: [:],

@@ -66,7 +66,7 @@ defineProvider({
   The plugin must classify those responses itself; this does not expand approved network origins or bypass host
   timeouts and response-size limits.
 - `cookieDomains`: required with `browser-cookies`; a non-empty list of normalized DNS host names.
-- `fetchUsage(ctx)`: function returning a snapshot object or a promise for one.
+- `fetchUsage(ctx)`: function returning a snapshot or fetch result envelope, or a promise for one.
 
 First-party plugins with the `browser-cookies` capability may call
 `ctx.browser.rejectCookie(domain)` after the declared host rejects an imported browser session. QuotaKit clears only the

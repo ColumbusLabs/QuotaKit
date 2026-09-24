@@ -86,7 +86,7 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
 
     func globalType(of name: String) throws -> String
     func requestInterrupt()
@@ -102,6 +102,7 @@ protocol ProviderPluginValue {
     var isBoolean: Bool { get }
     var isDate: Bool { get }
 
+    func propertyNames() throws -> [String]
     func property(_ name: String) -> (any ProviderPluginValue)?
     func element(at index: Int) -> (any ProviderPluginValue)?
     func stringValue() -> String
@@ -152,6 +153,12 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         false
     }
 
+    func propertyNames() throws -> [String] {
+        let keys = Array((self.value as? [String: Any] ?? [:]).keys)
+        guard keys.count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return keys
+    }
+
     func property(_ name: String) -> (any ProviderPluginValue)? {
         if let object = self.value as? [String: Any], let value = object[name] {
             return JSONProviderPluginValue(value)
@@ -193,9 +200,11 @@ final class JSONProviderPluginValue: ProviderPluginValue {
 
 final class JavaScriptCorePluginValue: ProviderPluginValue {
     let value: JSValue
+    private let keyEnumerator: JSValue
 
-    init(_ value: JSValue) {
+    init(_ value: JSValue, keyEnumerator: JSValue) {
         self.value = value
+        self.keyEnumerator = keyEnumerator
     }
 
     var isObject: Bool {
@@ -230,12 +239,26 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.isDate
     }
 
+    func propertyNames() throws -> [String] {
+        guard let keys = self.keyEnumerator.call(withArguments: [self.value]), keys.isArray else {
+            throw ProviderPluginError.invalidSnapshot("cannot enumerate result keys")
+        }
+        let count = keys.forProperty("length").toDouble()
+        guard count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return try (0..<Int(count)).map { index in
+            guard let key = keys.atIndex(index), key.isString else {
+                throw ProviderPluginError.invalidSnapshot("symbol result keys are not supported")
+            }
+            return key.toString()
+        }
+    }
+
     func property(_ name: String) -> (any ProviderPluginValue)? {
-        self.value.forProperty(name).map(JavaScriptCorePluginValue.init)
+        self.value.forProperty(name).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func element(at index: Int) -> (any ProviderPluginValue)? {
-        self.value.atIndex(index).map(JavaScriptCorePluginValue.init)
+        self.value.atIndex(index).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func stringValue() -> String {

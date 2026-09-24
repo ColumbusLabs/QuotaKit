@@ -166,6 +166,29 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         cookieResolver: CookieResolver? = nil,
         instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> UsageSnapshot
     {
+        try await self.fetchResult(
+            settings: settings,
+            secrets: secrets,
+            now: now,
+            timeZone: timeZone,
+            sourceMode: sourceMode,
+            cookieSource: cookieSource,
+            cookieInvalidator: cookieInvalidator,
+            cookieResolver: cookieResolver,
+            instanceCookieResolver: instanceCookieResolver).usage
+    }
+
+    public func fetchResult(
+        settings: [String: String] = [:],
+        secrets: [String: String] = [:],
+        now: Date = Date(),
+        timeZone: TimeZone = .current,
+        sourceMode: ProviderSourceMode = .auto,
+        cookieSource: ProviderCookieSource = .auto,
+        cookieInvalidator: CookieInvalidator? = nil,
+        cookieResolver: CookieResolver? = nil,
+        instanceCookieResolver: InstanceCookieResolver? = nil) async throws -> ProviderPluginResult
+    {
         let sanitizedSettings = settings.mapValues {
             $0.trimmingCharacters(in: .whitespacesAndNewlines)
         }
@@ -188,7 +211,7 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
             instanceResolver: instanceCookieResolver)
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
         let worker = try self.currentWorker()
-        let gate = ProviderPluginCompletionGate<UsageSnapshot>()
+        let gate = ProviderPluginCompletionGate<ProviderPluginResult>()
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { continuation in
@@ -413,6 +436,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
     private let context: JSContext
     private let applyPrelude: JSValue
     private let fetchUsage: JSValue
+    private let keyEnumerator: JSValue
     private let transport: any ProviderHTTPTransport
     private let responseSizeLimit: Int
     private let enforcesUserResponsePolicy: Bool
@@ -461,6 +485,10 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         guard let context = JSContext() else {
             throw ProviderPluginError.load("JavaScriptCore could not create a context")
         }
+        guard let keyEnumerator = context.evaluateScript("Reflect.ownKeys") else {
+            throw ProviderPluginError.load("JavaScriptCore key enumeration is unavailable")
+        }
+        self.keyEnumerator = keyEnumerator
         self.queue = queue
         self.context = context
         self.transport = transport
@@ -492,7 +520,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         }
         self.fetchUsage = fetchUsage
         self.manifest = try ProviderPluginManifest(
-            definition: JavaScriptCorePluginValue(definition),
+            definition: JavaScriptCorePluginValue(definition, keyEnumerator: self.keyEnumerator),
             allowsDynamicID: allowsDynamicID)
     }
 
@@ -518,7 +546,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
     {
         self.queue.async {
             self.beginFetch(
@@ -542,7 +570,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
     {
         self.context.exception = nil
         let redactionValues = ProviderPluginRedactionValues(secrets.values)
@@ -565,10 +593,11 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             guard let self else { return }
             defer { self.retainedCallbacks[callbackID] = nil }
             do {
-                let snapshot = try ProviderPluginSnapshotMapper.map(
-                    JavaScriptCorePluginValue(value),
+                let snapshot = try ProviderPluginSnapshotMapper.mapResult(
+                    JavaScriptCorePluginValue(value, keyEnumerator: self.keyEnumerator),
                     provider: self.manifest.id,
-                    now: now)
+                    now: now,
+                    allowsProviderExtensions: !self.enforcesUserResponsePolicy)
                 completion(.success(snapshot))
             } catch {
                 completion(.failure(ProviderPluginError
@@ -815,7 +844,8 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         let retryPolicy: ProviderHTTPRetryPolicy
         do {
             retryPolicy = try ProviderPluginHTTPResponse.retryPolicy(
-                options.forProperty("retryPolicy").map(JavaScriptCorePluginValue.init))
+                options.forProperty("retryPolicy")
+                    .map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) })
             guard let dictionary = options.toDictionary() as? [String: Any] else {
                 throw ProviderPluginError.http("request options must be an object")
             }
@@ -980,7 +1010,9 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         from value: JSValue,
         redactionValues: ProviderPluginRedactionValues) -> Error
     {
-        if let error = redactionValues.transportErrors.error(for: JavaScriptCorePluginValue(value)) { return error }
+        if let error = redactionValues.transportErrors.error(for: JavaScriptCorePluginValue(
+            value,
+            keyEnumerator: self.keyEnumerator)) { return error }
         let message = redactionValues.redact(self.message(from: value))
         if let classified = ProviderPluginClassifiedFailureParser.error(from: message) {
             return classified

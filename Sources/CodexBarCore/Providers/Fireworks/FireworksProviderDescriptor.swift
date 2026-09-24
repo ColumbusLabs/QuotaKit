@@ -16,6 +16,12 @@ public enum FireworksProviderDescriptor {
             id: .fireworks,
             settingsSection: .init(FireworksProviderSettingsKey.self),
             credentials: self.credentials,
+            pluginResultPolicy: ProviderPluginResultPolicy(settings: ["ACCOUNT_SLUG": { value, config in
+                guard value.range(of: "^[A-Za-z0-9._-]+$", options: .regularExpression) != nil,
+                      value != ".", value != ".."
+                else { throw ProviderPluginError.invalidSnapshot("invalid discovered account slug") }
+                config.accountSlug = value
+            }]),
             metadata: ProviderMetadata(
                 id: .fireworks,
                 displayName: "Fireworks",
@@ -56,45 +62,27 @@ public enum FireworksProviderDescriptor {
                 menuCard: ProviderMenuCardPresentation(providerCostIsRequiredUsage: true)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [FireworksAPIFetchStrategy()] })),
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "fireworks",
                 aliases: ["fw"],
                 versionDetector: nil))
     }
-}
 
-struct FireworksAPIFetchStrategy: ProviderFetchStrategy {
-    let id = "fireworks.api"
-    let kind: ProviderFetchKind = .apiToken
-    private let transport: any ProviderHTTPTransport
-
-    init(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) {
-        self.transport = transport
-    }
-
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
-        FireworksSettingsReader.apiKey(environment: context.env) != nil
-    }
-
-    func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
-        guard let apiKey = FireworksSettingsReader.apiKey(environment: context.env) else {
-            throw FireworksUsageError.missingCredentials
-        }
-        let usage = try await FireworksUsageFetcher.fetchUsage(
-            apiKey: apiKey,
-            accountSlug: FireworksSettingsReader.accountSlug(environment: context.env),
-            session: self.transport)
-        let sourceLabel = usage.accountSlugWasDiscovered
-            ? "api · \(usage.accountSlug) (auto-discovered)"
-            : "api · \(usage.accountSlug)"
-        return self.makeResult(
-            usage: usage.toUsageSnapshot(),
-            sourceLabel: sourceLabel,
-            fireworksDiscoveredAccountSlug: usage.accountSlugWasDiscovered ? usage.accountSlug : nil)
-    }
-
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
-        false
+    static func scriptStrategy(transport: any ProviderHTTPTransport = ProviderHTTPClient
+        .shared) -> ScriptFetchStrategy
+    {
+        ScriptFetchStrategy(
+            id: "fireworks.js",
+            provider: .fireworks,
+            bundledPlugin: "fireworks",
+            secretKey: "FIREWORKS_API_KEY",
+            transport: transport,
+            resolveValues: { context in
+                guard let key = FireworksSettingsReader.apiKey(environment: context.env) else { return nil }
+                var settings: [String: String] = [:]
+                settings["ACCOUNT_SLUG"] = FireworksSettingsReader.accountSlug(environment: context.env)
+                return .init(settings: settings, secrets: ["FIREWORKS_API_KEY": key])
+            }, isEnabled: { _ in true })
     }
 }
