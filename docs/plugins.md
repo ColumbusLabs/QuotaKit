@@ -100,9 +100,10 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
   plugin to inspect their status and body; it does not add retries or alter origin/authentication checks.
 - `await ctx.http.postJSON(url, {body, headers?})` performs JSON POST. `body` must be JSON-serializable.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
-  hard request deadline from 1 through 30 seconds; the default is 15 seconds. Each attempt’s deadline starts when
+  hard request deadline from 1 through 90 seconds; the default is 15 seconds. Each attempt’s deadline starts when
   its transport task begins, so scheduler delays do not consume the request budget. Queued work remains bounded
-  by the overall fetch deadline and cancellation.
+  by the overall fetch deadline and cancellation. An override does not extend that overall deadline; bundled
+  strategies that need a longer request must also supply a sufficient fetch budget.
 - `opts.retryPolicy: "transientIdempotent"` opts GET into the native single-retry policy: 408, 429, 500, 502, 503, 504,
   timeout, lost connection, connection failure, and DNS failures. The delay is one second or numeric `Retry-After`,
   capped at ten seconds. POST, offline, TLS, and cancellation failures are not retried. This replaces the automatic
