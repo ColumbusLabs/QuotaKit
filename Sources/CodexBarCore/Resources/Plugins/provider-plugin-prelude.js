@@ -98,11 +98,21 @@
     availability(domain) {
       return host.cookieAvailability(String(domain));
     },
-    rejectCookie(domain) {
-      host.rejectCookie(String(domain));
+    rejectCookie(domain, session) {
+      host.rejectCookie(String(domain), session === undefined ? "" : String(session.id));
+    },
+    async *sessions(domain, options) {
+      while (true) {
+        const payload = await new Promise((resolve, reject) =>
+          host.cookieSession(String(domain), Boolean(options && options.cachedOnly), resolve, reject),
+        );
+        const session = JSON.parse(payload);
+        if (session === null) return;
+        yield Object.freeze(session);
+      }
     },
     cookieHeader(domain) {
-      return new Promise((resolve, reject) => host.cookieHeader(String(domain), resolve, reject));
+      return new Promise((resolve, reject) => host.cookieHeader(String(domain), false, resolve, reject));
     },
   });
 

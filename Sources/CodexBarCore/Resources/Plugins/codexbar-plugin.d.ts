@@ -1,3 +1,12 @@
+/** A secret header bound to one declared origin; reject with its opaque ID to advance safely. */
+interface CodexBarCookieSession {
+  readonly id: string;
+  readonly header: string;
+  readonly source: string;
+  readonly origin: string;
+  readonly cachedAt?: number;
+}
+
 type CodexBarJSONPrimitive = boolean | number | string | null;
 type CodexBarJSONValue = CodexBarJSONPrimitive | CodexBarJSONValue[] | { [key: string]: CodexBarJSONValue };
 
@@ -180,7 +189,8 @@ interface CodexBarPluginContext {
   };
   readonly browser: {
     availability(domain: string): "available" | "off" | "manual";
-    rejectCookie(domain: string): void;
+    rejectCookie(domain: string, session?: CodexBarCookieSession): void;
+    sessions(domain: string, options?: { cachedOnly?: boolean }): AsyncIterable<CodexBarCookieSession>;
     cookieHeader(domain: string): Promise<string>;
   };
   readonly html: {

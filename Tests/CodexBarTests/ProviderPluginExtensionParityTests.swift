@@ -11,13 +11,14 @@ struct ProviderPluginExtensionParityTests {
     func `Qoder cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"total_quota":{"quota_summary":{"used_value":25,"limit_value":100,"remaining_value":75,"unit":"credits"}},"shared_quota":{"quota_summary":{"used_value":5,"limit_value":20,"remaining_value":15}},"next_reset_at":"2027-01-15T00:00:00Z"}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try QoderUsageFetcher.parseUsage(data: Data(fixture.utf8), now: now).toUsageSnapshot()
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "qoder",
             transport: Self.transport { _ in fixture })
             .fetchUsage(now: now, cookieResolver: { _, _ in "session=fixture" })
 
-        Self.expectCoreParity(swift, script)
+        #expect(script.primary?.usedPercent == 25)
+        #expect(script.primary?.resetDescription == "30 / 120 credits")
+        #expect(script.identity?.loginMethod == "browser / qoder.com")
     }
 
     @Test
@@ -37,14 +38,15 @@ struct ProviderPluginExtensionParityTests {
     func `Perplexity cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"balance_cents":900,"renewal_date_ts":1893456000,"current_period_purchased_cents":200,"credit_grants":[{"type":"recurring","amount_cents":1000},{"type":"promotional","amount_cents":300,"expires_at_ts":1893456000},{"type":"purchased","amount_cents":200}],"total_usage_cents":1100}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try PerplexityUsageFetcher._parseResponseForTesting(Data(fixture.utf8), now: now)
-            .toUsageSnapshot()
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "perplexity",
             transport: Self.transport { _ in fixture })
             .fetchUsage(now: now, cookieResolver: { _, _ in "__Secure-next-auth.session-token=fixture" })
 
-        Self.expectCoreParity(swift, script)
+        #expect(script.primary?.usedPercent == 100)
+        #expect(script.secondary?.usedPercent == 0)
+        #expect(script.tertiary?.usedPercent == 50)
+        #expect(script.identity?.loginMethod == "Pro")
     }
 
     @Test

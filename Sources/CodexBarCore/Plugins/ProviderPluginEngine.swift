@@ -14,6 +14,16 @@ struct ProviderPluginContextOptions: Sendable {
     var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
     var cookieSource: ProviderCookieSource = .auto
     var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
+    var cookieSessionResolver: ProviderPluginRuntime.CookieSessionResolver?
+    var cookieSessionInvalidator: ProviderPluginRuntime.CookieSessionInvalidator?
+
+    func rejectCookie(domain: String, id: String) {
+        if !id.isEmpty, let invalidate = self.cookieSessionInvalidator {
+            invalidate(domain, id)
+        } else {
+            self.cookieInvalidator?(domain)
+        }
+    }
 }
 
 enum ProviderPluginSourceLint {

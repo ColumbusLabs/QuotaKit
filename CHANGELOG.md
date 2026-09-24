@@ -30,6 +30,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: preserve regional cookie candidates and retry rejected sessions.
+
 - Provider plugins: start HTTP attempt deadlines when transport begins.
 
 - Provider plugins: match native currency display formatting.

@@ -6,6 +6,38 @@ struct ProviderPluginCookieBrokerTests {
     private let domains: Set<String> = ["cloud.example.test", "community.example.test"]
 
     @Test
+    func `China manual capture is never issued for global domain`() throws {
+        let snapshot = ProviderSettingsSnapshot.make(qoder: .init(
+            cookieSource: .manual,
+            manualCookieHeader: "curl https://qoder.com.cn -H 'Cookie: session=china-fixture'"))
+        let settings = try #require(QoderProviderDescriptor.descriptor.settingsSection.cookieSettings(from: snapshot))
+        let broker = ProviderPluginCookieBroker(
+            provider: .qoder,
+            domains: ["qoder.com", "qoder.com.cn"],
+            settings: settings,
+            importer: { _ in throw URLError(.unknown) })
+        #expect(throws: ProviderPluginError.self) { try broker.cookieHeader(domain: "qoder.com") }
+        #expect(try broker.cookieHeader(domain: "qoder.com.cn") == "session=china-fixture")
+    }
+
+    @Test
+    func `rejected cached cookie advances to browser session`() throws {
+        try self.isolated { () throws in
+            let domain = "cloud.example.test"
+            CookieHeaderCache.store(
+                provider: .manus,
+                scope: .providerVariant(domain),
+                cookieHeader: "session=stale",
+                sourceLabel: "Fixture")
+            let broker = self.broker()
+            #expect(try broker.cookieHeader(domain: domain) == "session=stale")
+            broker.rejectCookie(domain: domain)
+            #expect(CookieHeaderCache.load(provider: .manus, scope: .providerVariant(domain)) == nil)
+            #expect(try broker.cookieHeader(domain: domain) == "session=\(domain)")
+        }
+    }
+
+    @Test
     func `two domains import and cache independent sessions`() throws {
         try self.isolated {
             let broker = self.broker()
@@ -88,13 +120,13 @@ struct ProviderPluginCookieBrokerTests {
                 Issue.record("Manual and Off must not import")
                 throw URLError(.unknown)
             })
-            for domain in self.domains {
+            for domain in self.domains.sorted() {
                 CookieHeaderCache.store(
                     provider: .manus,
                     scope: .providerVariant(domain),
                     cookieHeader: "session=cached",
                     sourceLabel: "Fixture")
-                if source == .manual {
+                if source == .manual, domain == self.domains.min() {
                     #expect(try broker.cookieHeader(domain: domain) == "session=manual")
                 } else {
                     #expect(throws: ProviderPluginError.self) { try broker.cookieHeader(domain: domain) }
@@ -121,9 +153,93 @@ struct ProviderPluginCookieBrokerTests {
         }
     }
 
+    @Test
+    func `candidate order skips duplicates and late rejection cannot evict successor`() throws {
+        try self.isolated { () throws in
+            let domain = "cloud.example.test"
+            let scope = CookieHeaderCache.Scope.providerVariant(domain)
+            CookieHeaderCache.store(
+                provider: .manus,
+                scope: scope,
+                cookieHeader: "session=cached",
+                sourceLabel: "Cached")
+            let imports = LockIsolated(0)
+            let broker = self.broker(importer: { _ in
+                imports.setValue(imports.value + 1)
+                return [
+                    ("session=cached", "Duplicate"),
+                    ("session=first", "Profile 1"),
+                    ("session=second", "Profile 2"),
+                ]
+            })
+            let cached = try #require(try broker.nextSession(domain: domain))
+            #expect(cached.header == "session=cached")
+            #expect(cached.source == "Cached")
+            #expect(imports.value == 0)
+            broker.rejectCookie(domain: domain, id: cached.id)
+            #expect(CookieHeaderCache.load(provider: .manus, scope: scope) == nil)
+            let first = try #require(try broker.nextSession(domain: domain))
+            let second = try #require(try broker.nextSession(domain: domain))
+            #expect(first.source == "Profile 1")
+            #expect(second.source == "Profile 2")
+            #expect(first.origin == "https://\(domain)")
+            #expect(imports.value == 1)
+            let otherDomain = "community.example.test"
+            let other = try #require(try broker.nextSession(domain: otherDomain))
+            broker.rejectCookie(domain: domain, id: other.id)
+            #expect(CookieHeaderCache.load(provider: .manus, scope: scope)?.cookieHeader == second.header)
+            #expect(CookieHeaderCache.load(
+                provider: .manus,
+                scope: .providerVariant(otherDomain))?.cookieHeader == other.header)
+            broker.rejectCookie(domain: domain, id: first.id)
+            #expect(CookieHeaderCache.load(provider: .manus, scope: scope)?.cookieHeader == second.header)
+            #expect(try broker.nextSession(domain: domain) == nil)
+            broker.rejectCookie(domain: domain, id: second.id)
+            #expect(CookieHeaderCache.load(provider: .manus, scope: scope) == nil)
+        }
+    }
+
+    @Test
+    func `legacy regional cache is bound by its authoritative source suffix`() throws {
+        try self.isolated { () throws in
+            CookieHeaderCache.store(
+                provider: .qoder,
+                cookieHeader: "session=china",
+                sourceLabel: "Chrome / qoder.com.cn")
+            let broker = ProviderPluginCookieBroker(
+                provider: .qoder,
+                domains: ["qoder.com", "qoder.com.cn"],
+                settings: .init(
+                    cookieSource: .auto,
+                    manualCookieHeader: nil),
+                importer: { _ in [] })
+            #expect(try broker.nextSession(domain: "qoder.com") == nil)
+            let china = try #require(try broker.nextSession(domain: "qoder.com.cn"))
+            #expect(china.header == "session=china")
+            broker.rejectCookie(domain: "qoder.com.cn", id: china.id)
+            #expect(CookieHeaderCache.load(provider: .qoder) == nil)
+        }
+    }
+
+    @Test
+    func `browser domain filtering excludes other regions and lookalikes`() {
+        for domain in [".qoder.com.cn", "www.qoder.com.cn", "not-qoder.com", "qoder.com.evil.test"] {
+            #expect(!ProviderPluginCookieBroker.matches(cookieDomain: domain, domain: "qoder.com"))
+        }
+        #expect(ProviderPluginCookieBroker.matches(cookieDomain: ".perplexity.ai", domain: "www.perplexity.ai"))
+        #expect(ProviderPluginCookieBroker.matches(cookieDomain: ".www.qoder.com.cn", domain: "qoder.com.cn"))
+        #if os(macOS)
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "qoder.com").domainMatch == .exact)
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "www.perplexity.ai").domains == [
+            "www.perplexity.ai",
+            "perplexity.ai",
+        ])
+        #endif
+    }
+
     private func broker(
         source: ProviderCookieSource = .auto,
-        importer: @escaping ProviderPluginCookieBroker.Importer = { ("session=\($0)", "Fixture") })
+        importer: @escaping ProviderPluginCookieBroker.Importer = { [("session=\($0)", "Fixture")] })
         -> ProviderPluginCookieBroker
     {
         ProviderPluginCookieBroker(

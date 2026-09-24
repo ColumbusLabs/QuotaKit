@@ -11,6 +11,7 @@ private enum QuickJSHostFunction: Int32 {
     case cookieAvailability
     case rejectCookie
     case cookieHeader
+    case cookieSession
     case cacheGet
     case cacheSet
     case log
@@ -478,8 +479,9 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         for (function, name, count) in [
             (QuickJSHostFunction.settingGet, "settingGet", 2),
             (.http, "http", 6),
-            (.cookieHeader, "cookieHeader", 3),
-            (.rejectCookie, "rejectCookie", 1),
+            (.cookieHeader, "cookieHeader", 4),
+            (.rejectCookie, "rejectCookie", 2),
+            (.cookieSession, "cookieSession", 4),
             (.cookieAvailability, "cookieAvailability", 1),
             (.cacheGet, "cacheGet", 1),
             (.cacheSet, "cacheSet", 3),
@@ -524,14 +526,16 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 _ = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
                 guard let state = self.fetchState else { return self.makeString("off") }
                 return self.makeString(state.contextOptions.cookieSource.pluginAvailability(
-                    hasResolver: (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
+                    hasResolver: state.contextOptions.cookieSessionResolver != nil
+                        || (self.manifest.id.firstPartyProvider != nil && state.cookieResolver != nil)
                         || state.instanceCookieResolver != nil))
             case .rejectCookie:
                 let domain = try self.manifest.cookieDomain(values.first.map { try self.string(from: $0) } ?? "")
-                self.fetchState?.contextOptions.cookieInvalidator?(domain)
+                let id = values.count > 1 ? try self.string(from: values[1]) : ""
+                self.fetchState?.contextOptions.rejectCookie(domain: domain, id: id)
                 return cqjs_undefined()
-            case .cookieHeader:
-                try self.hostCookieHeader(values)
+            case .cookieHeader, .cookieSession:
+                try self.hostCookieHeader(values, session: function == .cookieSession)
                 return cqjs_undefined()
             case .cacheGet:
                 return try self.hostCacheGet(values)
@@ -632,8 +636,8 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
         }
     }
 
-    private func hostCookieHeader(_ arguments: UnsafeBufferPointer<JSValue>) throws {
-        guard arguments.count >= 3, let state = self.fetchState else {
+    private func hostCookieHeader(_ arguments: UnsafeBufferPointer<JSValue>, session: Bool) throws {
+        guard arguments.count >= 4, let state = self.fetchState else {
             throw ProviderPluginError.secretAccess("cookie bridge is unavailable")
         }
         do {
@@ -642,10 +646,23 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
                 throw ProviderPluginError.secretAccess("browser cookies are disabled for this provider")
             }
             let header: String
-            if let provider = self.manifest.id.firstPartyProvider, let resolver = state.cookieResolver {
+            let payload: String
+            if session, let resolver = state.contextOptions.cookieSessionResolver {
+                let cachedOnly = JS_ToBool(self.context, arguments[1]) == 1
+                let candidate = try self.blockingValue(timeout: self.timeout) { try await resolver(domain, cachedOnly) }
+                guard candidate == nil || candidate?.origin == "https://\(domain)" else {
+                    throw ProviderPluginError.secretAccess("cookie session origin does not match its domain")
+                }
+                header = candidate?.header ?? ""
+                payload = try candidate?.json() ?? "null"
+            } else if !session, let provider = self.manifest.id.firstPartyProvider,
+                      let resolver = state.cookieResolver
+            {
                 header = try self.blockingValue(timeout: self.timeout) { try await resolver(provider, domain) }
-            } else if let resolver = state.instanceCookieResolver {
+                payload = header
+            } else if !session, let resolver = state.instanceCookieResolver {
                 header = try self.blockingValue(timeout: self.timeout) { try await resolver(self.manifest.id, domain) }
+                payload = header
             } else {
                 throw ProviderPluginError.secretAccess("browser cookie access is unavailable")
             }
@@ -653,11 +670,11 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
             for pair in CookieHeaderNormalizer.pairs(from: header) {
                 state.redactionValues.insert(pair.value)
             }
-            let value = self.makeString(header)
+            let value = self.makeString(payload)
             defer { cqjs_free_value(self.context, value) }
-            try self.invoke(arguments[1], argument: value)
+            try self.invoke(arguments[2], argument: value)
         } catch {
-            try self.reject(arguments[2], error: error, redactionValues: state.redactionValues)
+            try self.reject(arguments[3], error: error, redactionValues: state.redactionValues)
         }
     }
 

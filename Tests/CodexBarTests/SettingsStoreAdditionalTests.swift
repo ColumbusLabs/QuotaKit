@@ -6,6 +6,20 @@ import Testing
 @MainActor
 struct SettingsStoreAdditionalTests {
     @Test
+    func `Qoder settings preserve captured origin and migrate plain headers to global`() {
+        let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-qoder-origin")
+        settings.qoderCookieSource = .manual
+        let capture = "curl https://qoder.com.cn -H 'Cookie: session=china-fixture'"
+        settings.qoderCookieHeader = capture
+        let china: QoderProviderSettings = settings.resolvedCookieSettings(provider: .qoder, tokenOverride: nil)
+        #expect(settings.providerConfig(for: .qoder)?.cookieHeader == capture)
+        #expect(china.manualCookieOrigin == "https://qoder.com.cn")
+        settings.qoderCookieHeader = "session=legacy-fixture"
+        let legacy: QoderProviderSettings = settings.resolvedCookieSettings(provider: .qoder, tokenOverride: nil)
+        #expect(legacy.manualCookieOrigin == "https://qoder.com")
+    }
+
+    @Test
     func `typed provider config bindings normalize every standard field`() {
         let settings = Self.makeSettingsStore(suite: "SettingsStoreAdditionalTests-provider-config-bindings")
 

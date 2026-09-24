@@ -124,6 +124,8 @@ public final class ScriptFetchStrategy: ProviderFetchStrategy, @unchecked Sendab
             sourceMode: context.sourceMode,
             cookieSource: cookies.cookieSource,
             cookieInvalidator: { cookies.rejectCookie(domain: $0) },
+            cookieSessionResolver: { try cookies.nextSession(domain: $0, cachedOnly: $1) },
+            cookieSessionInvalidator: { cookies.rejectCookie(domain: $0, id: $1) },
             cookieResolver: { _, domain in try cookies.cookieHeader(domain: domain) })
         return self.makeResult(usage: usage, sourceLabel: self.sourceLabel)
     }

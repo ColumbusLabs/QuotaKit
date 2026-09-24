@@ -130,7 +130,20 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
   route an origin-less pasted header to one explicitly selected tenant. Missing cookie resolvers report `"off"`.
   `cookieHeader` also enforces Off/API-only policy, even if the plugin skips this check.
 - `await ctx.browser.cookieHeader(domain)` returns a cookie header only with the `browser-cookies` capability and for a
-  declared domain. The app imports from Chrome only. Cookie values are secret-equivalent and redacted.
+  declared domain. User plugins import from Chrome; bundled providers retain their declared browser order.
+  Cookie values are secret-equivalent and redacted.
+- `for await (const session of ctx.browser.sessions(domain))` visits origin-bound candidates in order: the exclusive
+  manual credential, or the cached session followed by browser profiles in the provider's import order. Each candidate
+  has `{id, header, source, origin}`. Enumeration is scoped to one declared domain and stops when candidates are exhausted.
+  Manual regional captures retain their origin through settings projection; an origin-less legacy header is restricted
+  to the selected domain. Qoder's legacy headers select the global site.
+  The optional `{cachedOnly: true}` argument yields manual/cached candidates without importing browser profiles;
+  cached candidates include `cachedAt` as Unix seconds. This lets a regional provider try its newest cached session
+  before importing any fresh cookies, even when that session belongs to its second domain.
+- `ctx.browser.rejectCookie(domain, session)` rejects that candidate after an authentication failure. It conditionally
+  evicts the matching persistent entry without deleting a newer session or another domain's cache. The opaque candidate
+  ID makes late rejections safe. Continuing the iterator visits the next candidate; a successful fetch can return
+  immediately. `cookieHeader` remains available for providers needing only one header.
 - `ctx.html.metaContent(html, name)` returns the first matching quoted meta value or `null`.
 - `ctx.html.matchFirst(html, regexSource, flags?)` returns the first capture/full match or `null`.
 - `ctx.log(...values)` writes to the instance-scoped plugin log. Known secrets and cookie values are redacted.

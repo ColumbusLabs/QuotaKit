@@ -1,4 +1,5 @@
 import Foundation
+@testable import CodexBarCore
 
 public struct PerplexityUsageSnapshot: Sendable {
     public let recurringTotal: Double
