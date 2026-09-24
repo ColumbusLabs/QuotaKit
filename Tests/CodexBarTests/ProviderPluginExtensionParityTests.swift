@@ -25,13 +25,57 @@ struct ProviderPluginExtensionParityTests {
     func `Manus cookie plugin matches Swift generic projection`() async throws {
         let fixture = #"{"totalCredits":1200,"freeCredits":200,"periodicCredits":300,"refreshCredits":40,"maxRefreshCredits":100,"proMonthlyCredits":1000,"eventCredits":0,"addonCredits":0,"nextRefreshTime":"2027-01-15T00:00:00Z","refreshInterval":"daily"}"#
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try ManusUsageFetcher.parseResponse(Data(fixture.utf8)).toUsageSnapshot(now: now)
+        let swift = try ManusReferenceParser.parseResponse(Data(fixture.utf8)).toUsageSnapshot(now: now)
         let script = try await ProviderPluginRuntime(
             bundledPlugin: "manus",
             transport: Self.transport { _ in fixture })
             .fetchUsage(now: now, cookieResolver: { _, _ in "session_id=fixture-session" })
 
         Self.expectCoreParity(swift, script)
+    }
+
+    @Test(arguments: [
+        #"{"data":{"totalCredits":5},"result":{}}"#,
+        #"{"data":null,"result":{"totalCredits":5},"response":{"refreshInterval":"daily"}}"#,
+        #"{"response":{"totalCredits":5},"availableCredits":{}}"#,
+    ])
+    func `Manus ignores unused lower priority envelopes`(body: String) async throws {
+        let swift = try ManusReferenceParser.parseResponse(Data(body.utf8)).toUsageSnapshot()
+        let script = try await ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+            .fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        #expect(swift.identity?.loginMethod == "Balance: 5 credits")
+        #expect(script.identity?.loginMethod == swift.identity?.loginMethod)
+    }
+
+    @Test(arguments: ["0", "false", #""""#])
+    func `Manus rejects selected primitive envelopes`(payload: String) async throws {
+        let body = "{\"data\":\(payload),\"result\":{\"totalCredits\":5}}"
+        #expect(throws: (any Error).self) {
+            try ManusReferenceParser.parseResponse(Data(body.utf8))
+        }
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+        await #expect(throws: ProviderFetchClassifiedError.self) {
+            try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        }
+    }
+
+    @Test(arguments: ["", "data", "result", "response", "availableCredits"])
+    func `Manus plugin rejects missing credits and preserves explicit zero`(envelope: String) async throws {
+        for payload in ["{}", #"{"error":"session expired"}"#, #"{"refreshInterval":"daily"}"#] {
+            let body = envelope.isEmpty ? payload : "{\"\(envelope)\":\(payload)}"
+            let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+            do {
+                _ = try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+                Issue.record("Expected missing credits failure for \(body)")
+            } catch {
+                #expect(error.localizedDescription.contains("missing expected credits fields"))
+            }
+        }
+        let payload = #"{"totalCredits":0}"#
+        let body = envelope.isEmpty ? payload : "{\"\(envelope)\":\(payload)}"
+        let runtime = try ProviderPluginRuntime(bundledPlugin: "manus", transport: Self.transport { _ in body })
+        let snapshot = try await runtime.fetchUsage(cookieResolver: { _, _ in "session_id=fixture-session" })
+        #expect(snapshot.identity?.loginMethod == "Balance: 0 credits")
     }
 
     @Test
@@ -115,7 +159,7 @@ struct ProviderPluginExtensionParityTests {
     }
 
     @Test
-    func `xAI plugin matches generic Swift projection and details golden`() async throws {
+    func `xAI plugin matches the cut-over golden`() async throws {
         let transport = Self.transport { request in
             if request.url?.path.hasSuffix("/prepaid/balance") == true {
                 return #"{"total":{"val":"-1000"}}"#
@@ -123,21 +167,22 @@ struct ProviderPluginExtensionParityTests {
             return #"{"timeSeries":[{"dataPoints":[{"timestamp":"2027-01-15T00:00:00Z","values":[1.5]}]}],"limitReached":false}"#
         }
         let now = Date(timeIntervalSince1970: 1_800_000_000)
-        let swift = try await XAIBillingFetcher.fetchUsage(
-            managementKey: "fixture-key",
-            teamID: "team-1234",
-            transport: transport,
-            now: now).toUsageSnapshot()
         let script = try await ProviderPluginRuntime(bundledPlugin: "xai", transport: transport)
             .fetchUsage(
                 settings: ["XAI_TEAM_ID": "team-1234"],
                 secrets: ["XAI_MANAGEMENT_API_KEY": "fixture-key"],
                 now: now)
 
-        #expect(script.primary == swift.primary)
-        #expect(script.providerCost == swift.providerCost)
-        #expect(script.identity?.loginMethod == swift.identity?.loginMethod)
-        #expect(script.details == swift.details)
+        #expect(script.primary == nil)
+        #expect(script.secondary == nil)
+        #expect(script.tertiary == nil)
+        #expect(script.providerCost?.used == 10)
+        #expect(script.providerCost?.limit == 0)
+        #expect(script.providerCost?.currencyCode == "USD")
+        #expect(script.providerCost?.period == "Prepaid credits")
+        #expect(script.identity?.providerID == .xai)
+        #expect(script.identity?.loginMethod == "Management API")
+        #expect(script.dataConfidence == .exact)
         let details = try #require(script.details.first)
         #expect(details.title == "Billing summary")
         #expect(try details.rows.first == .init(label: "Prepaid balance", value: "$10.00"))
