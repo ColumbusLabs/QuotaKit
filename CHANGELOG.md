@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Chutes: move quota retrieval to the bundled provider plugin.
+
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
 
 ### Fixed

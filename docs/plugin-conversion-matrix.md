@@ -26,9 +26,9 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 
 | Status | Count |
 |---|---:|
-| `cut-over` | 7 |
+| `cut-over` | 8 |
 | `converted` | 9 |
-| `convertible-now` | 8 |
+| `convertible-now` | 7 |
 | `needs-cookie-import` | 19 |
 | `needs-files/subprocess/oauth-broker` | 15 |
 | `needs-pty/webview/native` | 9 |
@@ -94,7 +94,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | litellm | `cut-over` | Yes | Bundled on both plugin engines with configured HTTPS/private-network HTTP origins, key-bound user/team budgets, and self-scoped spend-only fallback. |
 | deepgram | `cut-over` | Yes | Cut over on JavaScriptCore: project discovery, aggregation, configured origins, numeric validation, and classified auth/permission/rate/network/API/parse failures match native behavior; the native fetch core is Linux-only. |
 | poe | `converted` | Yes | Converted: fixed-origin bearer GET balance/history pagination with daily points and model/type summaries. |
-| chutes | `convertible-now` | No | Verified bearer GET fan-out on the canonical origin; dynamic quota lanes map to named windows. |
+| chutes | `cut-over` | Yes | Bundled plugin owns subscription usage and optional quota detail requests. |
 | neuralwatt | `convertible-now` | No | Verified canonical bearer GET; quota lanes and prepaid cost/energy project generically. |
 | clawrouter | `cut-over` | Yes | Cut over on JavaScriptCore: validated configured origins, classified failures, exact confidence, budget/ledger details, and provider charts match native behavior; the native fetch core is Linux-only. |
 | longcat | `needs-cookie-import` | No | Skipped: browser-cookie retry needs domain/path-aware cookie selection across multiple imported sessions; the generic broker currently returns one flattened header. |
