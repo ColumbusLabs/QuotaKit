@@ -173,6 +173,8 @@ and 120 characters per detail string. Wrong types and limit violations fail the 
 
 Chutes uses the bundled `chutes.ts` plugin for subscription usage and optional quota details.
 
+ai& uses a bundled `aiand.ts` plugin for request log spending.
+
 TypeScript files are transpiled with the bundled Sucrase 3.35.1 build using its `typescript` transform. Use ordinary
 type syntax but no module imports, JSX, decorators, or runtime TypeScript features that require module resolution.
 Transpiled output is cached in `~/Library/Caches/QuotaKit/plugins/` under a filename containing the SHA-256 of the source
