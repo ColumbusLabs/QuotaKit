@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- DeepInfra: use the bundled billing plugin for API key balances.
+
 - ai&: retrieve request log spending through the bundled provider plugin.
 
 - Chutes: move quota retrieval to the bundled provider plugin.

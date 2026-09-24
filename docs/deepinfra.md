@@ -19,7 +19,12 @@ You can instead set `DEEPINFRA_API_KEY` or `DEEPINFRA_TOKEN` in QuotaKit's envir
 
 ## Data source
 
-QuotaKit sends the key as a bearer token to:
+The bundled JavaScript plugin handles billing requests and parsing on both QuickJS and JavaScriptCore. It is always
+enabled for DeepInfra; `CODEXBAR_JS_PROVIDERS` is not required. Swift retains provider registration, API-key resolution,
+and the existing settings and presentation. Both billing requests are required, use 30-second deadlines, and retain
+the shared single-retry policy for transient failures.
+
+CodexBar sends the key as a bearer token to:
 
 - `GET https://api.deepinfra.com/payment/checklist?compute_owed=true` for prepaid balance, recent spend, spending limit, and suspension state.
 - `GET https://api.deepinfra.com/payment/usage?from=current` for current-month spend.

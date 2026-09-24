@@ -169,6 +169,8 @@ and a three-letter uppercase currency. Dates are JavaScript `Date` values or ISO
 always scoped to the manifest's instance ID. Data confidence defaults to `unknown`. Details allow at most 8 sections, 24 rows per section, 120 chart points,
 and 120 characters per detail string. Wrong types and limit violations fail the whole fetch instead of truncating it.
 
+DeepInfra uses a bundled JavaScript plugin for API key billing.
+
 ## TypeScript
 
 Chutes uses the bundled `chutes.ts` plugin for subscription usage and optional quota details.
