@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Manus and T3 Chat: retrieve browser usage through bundled plugins.
+
 - Provider plugins: use typed result mapping for OpenAI and Fireworks billing.
 
 - Provider plugins: retain unknown quota usage and numeric detail progress.

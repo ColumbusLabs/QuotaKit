@@ -37,6 +37,19 @@ enum CookiePluginFixtures {
         return reference
     }
 
+    static func t3chat(_ text: String, now: Date = Date()) async throws -> T3ChatUsageSnapshot {
+        let reference = try T3ChatUsageParser.parseJSONLines(text, now: now)
+        for engine in BundledPluginTestSupport.engines {
+            let usage = try await self.runtime("t3chat", data: Data(text.utf8), engine: engine)
+                .fetchUsage(now: now, cookieResolver: { _, _ in "session=fixture" })
+            let expected = reference.toUsageSnapshot()
+            #expect(usage.primary == expected.primary)
+            #expect(usage.secondary == expected.secondary)
+            #expect(usage.identity?.loginMethod == expected.identity?.loginMethod)
+        }
+        return reference
+    }
+
     static func perplexity(_ data: Data, now: Date = Date()) async throws -> PerplexityUsageSnapshot {
         let reference: PerplexityUsageSnapshot
         do {
