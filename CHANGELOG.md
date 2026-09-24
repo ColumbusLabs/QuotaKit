@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- ZenMux: retrieve plan usage through the bundled provider plugin.
+
 - DeepInfra: use the bundled billing plugin for API key balances.
 
 - ai&: retrieve request log spending through the bundled provider plugin.

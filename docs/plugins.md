@@ -171,6 +171,8 @@ and 120 characters per detail string. Wrong types and limit violations fail the 
 
 DeepInfra uses a bundled JavaScript plugin for API key billing.
 
+ZenMux uses the bundled `zenmux.js` plugin for management API usage.
+
 ## TypeScript
 
 Chutes uses the bundled `chutes.ts` plugin for subscription usage and optional quota details.
