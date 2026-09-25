@@ -14,6 +14,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Provider plugins: bounded persistent storage and Sakana billing plugin.
 
+- LiteLLM: optionally show per-model token and request activity for the last 30 days while retaining personal and team budgets.
+- Claude Admin API: optionally show 30-day workspace spend while retaining organization totals.
+
 - Mac preferences: export and import portable display and notification settings without accounts, credentials, or consent.
 - Provider switcher: customize local navigation and selection shortcuts.
 

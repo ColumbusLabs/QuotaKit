@@ -92,7 +92,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | grok | `needs-pty/webview/native` | No | Persistent stdio JSON-RPC, auth/session files, cookies, logs, and binary gRPC-web are strongly native. |
 | groq | `needs-cookie-import` | No | Skipped: Stytch session exchange and console history remain a multi-step auth flow. |
 | llmproxy | `needs-pty/webview/native` | No | Its origin is user-selected and may be private HTTP, conflicting with the manifest's fixed HTTPS origins. |
-| litellm | `cut-over` | Yes | Bundled on both plugin engines with configured HTTPS/private-network HTTP origins, key-bound user/team budgets, and self-scoped spend-only fallback. |
+| litellm | `cut-over` | Yes | Cut over on both engines: configured HTTPS/private-network HTTP, key-bound user/team lookups, budgets, optional user-scoped model activity, spend-only and identity-only snapshots; the native fetch twin is deleted. |
 | deepgram | `cut-over` | Yes | Cut over on JavaScriptCore: project discovery, aggregation, configured origins, numeric validation, and classified auth/permission/rate/network/API/parse failures match native behavior; the native fetch core is Linux-only. |
 | poe | `converted` | Yes | Converted: fixed-origin bearer GET balance/history pagination with daily points and model/type summaries. |
 | chutes | `cut-over` | Yes | Bundled plugin owns subscription usage and optional quota detail requests. |
