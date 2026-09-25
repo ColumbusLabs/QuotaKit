@@ -76,7 +76,7 @@ that remain cheap to convert. Remaining buckets name the next blocker after this
 | perplexity | `converted` | Yes | Converted: declared-domain cookie import and generic recurring, bonus, and purchased credit windows. |
 | mimo | `needs-files/subprocess/oauth-broker` | No | The canonical pipeline includes the file-based local usage fallback as well as browser sessions; cookies alone cannot preserve it. |
 | doubao | `needs-files/subprocess/oauth-broker` | No | Full parity needs a CLI subprocess or Volcengine HMAC signing and POST-based plan calls. |
-| sakana | `convertible-now` | No | Manual cookie credentials already enter through the core descriptor; two fixed-origin HTML GETs and generic quota/PAYG detail projection fit the host. |
+| sakana | `cut-over` | Yes | Manual cookie credentials already enter through the core descriptor; two fixed-origin HTML GETs and generic quota/PAYG detail projection fit the host. |
 | abacus | `needs-host-extension` | No | Billing duration subtracts one Calendar.current month; the host exposes daily resets but no calendar/month subtraction with timezone parity. |
 | mistral | `needs-cookie-import` | No | CSRF extraction and dependent GETs fit scripts, but auth rejection iterates alternate browser profiles and preserves session selection. |
 | deepseek | `needs-files/subprocess/oauth-broker` | No | Platform auth/profile selection reads Chromium localStorage, and the result has a bespoke history model. |
