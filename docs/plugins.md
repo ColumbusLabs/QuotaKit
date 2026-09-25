@@ -89,7 +89,7 @@ example, `acme-usage` and `API_KEY` use `QUOTAKIT_PLUGIN_ACME_USAGE_API_KEY`.
 
 ## `ctx` API
 
-`ctx` exists only during `fetchUsage`. QuotaKit uses JavaScriptCore on Apple platforms and QuickJS on Linux; both
+`ctx` exists only during `fetchUsage`. QuotaKit uses QuickJS-NG 0.17.0 and JavaScriptCore on Apple platforms; both
 provide ECMAScript built-ins but no browser or Node environment. `Intl` is engine-dependent and unavailable in QuickJS,
 so portable third-party plugins must use the host helpers below instead of ECMA-402. `fetch`, `XMLHttpRequest`, timers,
 `require`, `process`, and filesystem APIs are unavailable.

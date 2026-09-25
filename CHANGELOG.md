@@ -14,6 +14,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Provider plugins: update the pinned QuickJS-NG runtime to 0.17.0.
+
 - ZenMux: retrieve plan usage through the bundled provider plugin.
 
 - DeepInfra: use the bundled billing plugin for API key balances.
