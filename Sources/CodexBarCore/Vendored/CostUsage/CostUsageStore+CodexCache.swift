@@ -772,6 +772,7 @@ extension CostUsageStore {
                 codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
+                codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
                 codexBufferedSubagentLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .subagent) : nil,
                 codexBufferedUnresolvedForkLines: isHydrated

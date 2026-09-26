@@ -6,6 +6,48 @@ struct CodexPaginatedHistoryAccountingTests {
     private typealias Usage = (input: Int, cached: Int, output: Int)
 
     @Test
+    func `bounded paginated fork checkpoint restores accounting after store reopen`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let day = try env.makeLocalNoon(year: 2026, month: 9, day: 16)
+        let dayKey = CostUsageScanner.CostUsageDayRange.dayKey(from: day)
+        let path = env.root.appendingPathComponent("bounded-page.jsonl").path
+        let forkState = CostUsageScanner.CodexForkAccountingState(
+            metadata: CostUsageScanner.CodexSessionMetadata(
+                sessionId: "continued-thread",
+                forkedFromId: "original-ancestor",
+                forkTimestamp: env.isoString(for: day),
+                projectPath: nil,
+                isSubagentThread: false,
+                subagentHistoryStartOrdinal: nil,
+                historyBaseThreadId: "continued-thread"),
+            inheritedTotals: CostUsageCodexTotals(input: 1000, cached: 800, output: 100),
+            remainingInheritedTotals: CostUsageCodexTotals(input: 900, cached: 750, output: 90))
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 200, days: [:])
+        usage.parsedBytes = 100
+        usage.sessionId = "continued-thread"
+        usage.forkedFromId = "original-ancestor"
+        usage.forkBaselineDependencyKey = "parent-snapshot"
+        usage.codexScanFileId = "7:42"
+        usage.codexScanTargetSize = 200
+        usage.codexScanComplete = false
+        usage.codexReplacementScanPending = true
+        usage.codexNextUsageRowIndex = 1
+        usage.codexForkAccountingState = forkState
+        var cache = CostUsageCache()
+        cache.scanSinceKey = dayKey
+        cache.scanUntilKey = dayKey
+        cache.files[path] = usage
+        #expect(!CostUsageStoreAccess.replace(cacheRoot: env.cacheRoot, cache: cache).catchUpRequired)
+
+        let reopened = CostUsageStore(cacheRoot: env.cacheRoot).syncLoadCodexCache(calendar: .current)
+        let restored = try #require(reopened.files[path])
+        #expect(restored.codexReplacementScanPending == true)
+        #expect(restored.codexNextUsageRowIndex == 1)
+        #expect(restored.codexForkAccountingState == forkState)
+    }
+
+    @Test
     func `paginated continuation does not bill the original ancestor's whole thread`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
