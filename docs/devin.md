@@ -58,3 +58,7 @@ GET https://app.devin.ai/api/<internal-org-id>/billing/quota/usage
 The response supplies daily and weekly usage percentages plus reset timestamps. QuotaKit omits the daily quota when Devin sets `hide_daily_quota` to `true`, while retaining weekly usage and extra balance.
 If Devin changes or expires the browser
 session, sign in again and refresh QuotaKit.
+
+## Automatic auth troubleshooting
+
+Automatic session import reads Chrome local storage for `app.devin.ai`. A **no session** error means no supported session was found. A **could not read Chrome local storage** error means a discovered store could not be opened; reopen Chrome and Devin's Usage page or use manual auth. A **token rejected** error comes from Devin's API and needs sign-in or a replacement manual token. A **missing organization** error needs the organization setup above. Do not share session values in reports.

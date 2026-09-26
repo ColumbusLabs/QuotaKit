@@ -36,33 +36,12 @@ enum DevinSessionImporter {
         let sourceLabel: String
     }
 
-    struct LocalStorageCandidate {
-        let label: String
-        let url: URL
-    }
-
-    static func importSession(
-        browserDetection: BrowserDetection,
-        organizationOverride: String? = nil,
-        logger: ((String) -> Void)? = nil) -> SessionInfo?
-    {
-        #if DEBUG
-        if let override = self.taskImportSessionOverrideStore?.importSession {
-            return override(browserDetection, organizationOverride, logger)
-        }
-        #endif
-
-        let sessions = self.importSessions(
-            browserDetection: browserDetection,
-            organizationOverride: organizationOverride,
-            logger: logger)
-        return sessions.first
-    }
 
     static func importSessions(
         browserDetection: BrowserDetection,
+        candidates: [ChromiumLocalStorageDiscovery.Candidate]? = nil,
         organizationOverride: String? = nil,
-        logger: ((String) -> Void)? = nil) -> [SessionInfo]
+        logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
     {
         #if DEBUG
         if let override = self.taskImportSessionOverrideStore?.importSession {
@@ -71,14 +50,24 @@ enum DevinSessionImporter {
         #endif
 
         let log: (String) -> Void = { msg in logger?("[devin-storage] \(msg)") }
-        let candidates = self.chromeLocalStorageCandidates(browserDetection: browserDetection)
+        let candidates = candidates ?? ChromiumLocalStorageDiscovery
+            .candidates(browsers: self.localStorageBrowsers(browserDetection: browserDetection))
+
         if !candidates.isEmpty {
             log("Chrome local storage candidates: \(candidates.count)")
         }
 
         var sessions: [SessionInfo] = []
+        var unreadableStorage = false
         for candidate in candidates {
-            let storage = self.readLocalStorage(from: candidate.url, logger: log)
+            let storage: [String: String]
+            do {
+                storage = try self.readLocalStorage(from: candidate.url, logger: log)
+            } catch {
+                unreadableStorage = true
+                log("Could not read Chrome local storage in \(candidate.label)")
+                continue
+            }
             guard let session = self.session(
                 from: storage,
                 organizationOverride: organizationOverride,
@@ -95,6 +84,7 @@ enum DevinSessionImporter {
         sessions = self.rankSessions(self.deduplicateSessions(sessions))
 
         if sessions.isEmpty {
+            if unreadableStorage { throw DevinUsageError.browserStorageUnreadable }
             log("No Devin session found in browser local storage")
         }
         return sessions
@@ -117,34 +107,17 @@ enum DevinSessionImporter {
     }
 
     static func accessToken(from storage: [String: String]) -> String? {
-        for (key, value) in storage where self.isAuth1StorageKey(key) {
-            guard let json = self.jsonObject(from: value),
-                  let token = self.findAuth1Token(in: json)
-            else {
-                continue
+        func firstToken(matching matches: (String) -> Bool, parse: (Any) -> String?) -> String? {
+            for (key, value) in storage where matches(key) {
+                if let json = self.jsonObject(from: value), let token = parse(json) {
+                    return token
+                }
             }
-            return token
+            return nil
         }
-
-        for (key, value) in storage where self.isAuth0StorageKey(key) {
-            guard let json = self.jsonObject(from: value),
-                  let token = self.findAccessToken(in: json)
-            else {
-                continue
-            }
-            return token
-        }
-
-        for value in storage.values {
-            guard let json = self.jsonObject(from: value),
-                  let token = self.findAccessToken(in: json)
-            else {
-                continue
-            }
-            return token
-        }
-
-        return nil
+        return firstToken(matching: self.isAuth1StorageKey, parse: self.findAuth1Token)
+            ?? firstToken(matching: self.isAuth0StorageKey, parse: self.findAccessToken)
+            ?? firstToken(matching: { _ in true }, parse: self.findAccessToken)
     }
 
     static func deduplicateSessions(_ sessions: [SessionInfo]) -> [SessionInfo] {
@@ -245,29 +218,7 @@ enum DevinSessionImporter {
         return order.browsersWithProfileData(using: browserDetection)
     }
 
-    private static func chromeProfileLocalStorageDirs(root: URL, labelPrefix: String) -> [LocalStorageCandidate] {
-        guard let entries = try? FileManager.default.contentsOfDirectory(
-            at: root,
-            includingPropertiesForKeys: [.isDirectoryKey],
-            options: [.skipsHiddenFiles])
-        else { return [] }
-
-        return entries.filter { url in
-            guard let isDir = (try? url.resourceValues(forKeys: [.isDirectoryKey]).isDirectory), isDir else {
-                return false
-            }
-            let name = url.lastPathComponent
-            return name == "Default" || name.hasPrefix("Profile ") || name.hasPrefix("user-")
-        }
-        .sorted { $0.lastPathComponent < $1.lastPathComponent }
-        .compactMap { dir in
-            let levelDBURL = dir.appendingPathComponent("Local Storage").appendingPathComponent("leveldb")
-            guard FileManager.default.fileExists(atPath: levelDBURL.path) else { return nil }
-            return LocalStorageCandidate(label: "\(labelPrefix) \(dir.lastPathComponent)", url: levelDBURL)
-        }
-    }
-
-    static func readLocalStorage(from levelDBURL: URL, logger: ((String) -> Void)? = nil) -> [String: String] {
+    static func readLocalStorage(from levelDBURL: URL, logger: ((String) -> Void)? = nil) throws -> [String: String] {
 
         let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
             for: self.storageOrigin,
@@ -276,7 +227,19 @@ enum DevinSessionImporter {
         let textEntries = SweetCookieKit.ChromiumLocalStorageReader.readTextEntries(
             in: levelDBURL,
             logger: logger)
-        return self.localStorageValues(from: entries, textEntries: textEntries)
+        let storage = self.localStorageValues(from: entries, textEntries: textEntries)
+        if self.accessToken(from: storage) == nil {
+            // The best-effort reader swallows I/O errors; distinguish an inaccessible store from a sign-out.
+            let files = try FileManager.default.contentsOfDirectory(
+                at: levelDBURL,
+                includingPropertiesForKeys: nil,
+                options: [.skipsHiddenFiles])
+            for file in files where ["ldb", "log"].contains(file.pathExtension.lowercased()) {
+                let handle = try FileHandle(forReadingFrom: file)
+                try handle.close()
+            }
+        }
+        return storage
     }
 
     static func localStorageValues(
@@ -423,15 +386,11 @@ enum DevinSessionImporter {
         return String(key[range.upperBound...])
     }
 
-    private static func cleanedOrgID(_ raw: String) -> String? {
+    private static func cleanedOrgID(_ raw: String?) -> String? {
+        guard let raw else { return nil }
         let value = self.decodedStorageValue(raw)
         guard DevinUsageFetcher.isInternalOrganizationID(value) else { return nil }
         return value
-    }
-
-    private static func cleanedOrgID(_ raw: String?) -> String? {
-        guard let raw else { return nil }
-        return self.cleanedOrgID(raw)
     }
 
     private static func cleanedSlug(_ raw: String?) -> String? {

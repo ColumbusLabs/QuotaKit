@@ -17,7 +17,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
-- Devin: identify missing organization context, isolate browser sessions, and honor explicit organization selection.
+- Devin: identify missing organization context, isolate browser sessions, honor explicit organization selection, and distinguish unreadable Chrome storage from sign-out.
 - Cursor costs: estimate omitted event costs from cached model prices and retain priced, estimated, and unpriced request coverage.
 - Kimi: parse Code API ratio quota pools, reconcile zero placeholders with matching counts, preserve absent weekly quota, and show monthly Total usage.
 - Grok: use the JSON-RPC method-not-found code for team billing fallback, even when CLI error wording changes.
