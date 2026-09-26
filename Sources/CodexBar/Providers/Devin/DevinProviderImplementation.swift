@@ -40,7 +40,7 @@ struct DevinProviderImplementation: ProviderImplementation {
             ProviderCookieSourceUI.subtitle(
                 source: context.settings.devinCookieSource,
                 keychainDisabled: context.settings.debugDisableKeychainAccess,
-                auto: "Automatically imports the app.devin.ai session from Chrome.",
+                auto: "Automatically imports the app.devin.ai session from supported Chromium browsers.",
                 manual: "Paste an Authorization Bearer token from app.devin.ai.",
                 off: "Paste an Authorization Bearer token from app.devin.ai.")
         }
@@ -49,7 +49,7 @@ struct DevinProviderImplementation: ProviderImplementation {
             ProviderSettingsPickerDescriptor(
                 id: "devin-cookie-source",
                 title: "Auth source",
-                subtitle: "Automatically imports the app.devin.ai session from Chrome.",
+                subtitle: "Automatically imports the app.devin.ai session from supported Chromium browsers.",
                 dynamicSubtitle: subtitle,
                 binding: cookieBinding,
                 options: cookieOptions,
@@ -64,7 +64,8 @@ struct DevinProviderImplementation: ProviderImplementation {
             ProviderSettingsFieldDescriptor(
                 id: "devin-organization",
                 title: "Organization",
-                subtitle: "Optional. Use the slug from app.devin.ai/org/<slug>, or paste the full Devin org URL.",
+                subtitle: "Optional for automatic auth. Use a slug, URL, or internal org-... / org_... ID. " +
+                    "Manual auth may need the x-cog-org-id header from a successful Devin quota request.",
                 kind: .plain,
                 placeholder: "org/example-org",
                 binding: context.stringBinding(\.devinOrganization),

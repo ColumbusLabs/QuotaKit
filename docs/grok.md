@@ -35,7 +35,9 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
    - We spawn `grok agent stdio` and call `initialize` + `x.ai/billing` (no params).
    - **Known limitation:** in grok 0.1.210 the `x.ai/billing` extension method
      is only wired in the interactive TUI; the agent-stdio surface returns
-     `-32601 Method not found`. Personal/unknown principals continue to the web
+     `-32601 Method not found`. QuotaKit uses the JSON-RPC error code rather
+     than English message text to recognize this unsupported method.
+     Personal/unknown principals continue to the web
      fallback, while a team principal degrades to identity-only with an explicit
      unsupported-team-usage diagnostic. When xAI exposes billing on the agent
      protocol, no code change is required.

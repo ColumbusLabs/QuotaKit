@@ -683,8 +683,9 @@ struct KimiUsageResponseParsingTests {
         """
 
         let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
-        #expect(snapshot.weekly.limit == "2048")
-        #expect(snapshot.weekly.used == "375")
+        #expect(snapshot.weekly?.limit == "2048")
+        #expect(snapshot.weekly?.used == "375")
+
         #expect(snapshot.rateLimit?.limit == "200")
         #expect(snapshot.rateLimit?.used == "19")
 
@@ -779,10 +780,10 @@ struct KimiUsageResponseParsingTests {
 
         let snapshot = try KimiUsageFetcher.parseCodeAPIUsage(from: Data(json.utf8))
 
-        #expect(snapshot.weekly.limit == "1000")
-        #expect(snapshot.weekly.used == "40")
-        #expect(snapshot.weekly.remaining == "960")
-        #expect(snapshot.weekly.resetTime == "2026-01-09T15:23:13Z")
+        #expect(snapshot.weekly?.limit == "1000")
+        #expect(snapshot.weekly?.used == "40")
+        #expect(snapshot.weekly?.remaining == "960")
+        #expect(snapshot.weekly?.resetTime == "2026-01-09T15:23:13Z")
         #expect(snapshot.rateLimit?.limit == "100")
         #expect(snapshot.rateLimit?.used == nil)
         #expect(snapshot.rateLimit?.remaining == "99")

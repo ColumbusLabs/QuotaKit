@@ -168,6 +168,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var modelsUsed: [String]?
         var modelBreakdowns: [ModelBreakdown]?
         var unpricedRequestCount: Int?
+        var pricedRequestCount: Int?
         var unmeteredRequestCount: Int?
         var estimatedRequestCount: Int?
 
@@ -184,6 +185,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.modelsUsed = entry.modelsUsed
             self.modelBreakdowns = entry.modelBreakdowns?.map(ModelBreakdown.init)
             self.unpricedRequestCount = entry.unpricedRequestCount
+            self.pricedRequestCount = entry.pricedRequestCount
             self.unmeteredRequestCount = entry.unmeteredRequestCount
             self.estimatedRequestCount = entry.estimatedRequestCount
         }
@@ -203,7 +205,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
                 modelBreakdowns: self.modelBreakdowns?.map(\.dailyReportValue),
                 unpricedRequestCount: self.unpricedRequestCount,
                 unmeteredRequestCount: self.unmeteredRequestCount,
-                estimatedRequestCount: self.estimatedRequestCount)
+                estimatedRequestCount: self.estimatedRequestCount,
+                pricedRequestCount: self.pricedRequestCount)
         }
     }
 

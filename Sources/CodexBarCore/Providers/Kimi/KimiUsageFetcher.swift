@@ -158,6 +158,7 @@ public struct KimiUsageFetcher: Sendable {
             rateLimitWindow: snapshot.rateLimitWindow,
             subscriptionBalance: subscription.stats?.subscriptionBalance,
             subscriptionCodeWeeklyLimit: subscription.stats?.ratelimitCode7d,
+            codeUsagePools: snapshot.codeUsagePools,
             planName: snapshot.planName ?? subscription.planName,
             updatedAt: now)
     }
@@ -165,13 +166,21 @@ public struct KimiUsageFetcher: Sendable {
     static func parseCodeAPIUsage(from data: Data, now: Date = Date()) throws -> KimiUsageSnapshot {
         let response = try JSONDecoder().decode(KimiCodeAPIUsageResponse.self, from: data)
         let rateLimit = response.limits?.first
-        return KimiUsageSnapshot(
+        let snapshot = KimiUsageSnapshot(
             weekly: response.usage,
             rateLimit: rateLimit?.detail,
             rateLimitWindow: rateLimit?.window,
             subscriptionBalance: nil,
+            codeUsagePools: response.usages,
             planName: response.planName,
             updatedAt: now)
+        let usage = snapshot.toUsageSnapshot()
+        guard usage.primary != nil || usage.secondary != nil || usage.extraRateWindows?.isEmpty == false else {
+            throw DecodingError.dataCorrupted(.init(
+                codingPath: [],
+                debugDescription: "No supported quota windows in Code usage response"))
+        }
+        return snapshot
     }
 
     static func codeAPIUsageEndpoint(baseURL: URL) -> URL {
@@ -221,6 +230,7 @@ public struct KimiUsageFetcher: Sendable {
                 return try await KimiUsageFetcher.fetchUsageStats(
                     authToken: authToken,
                     region: region,
+
                     sessionInfo: sessionInfo,
                     transport: transport)
             }
@@ -230,6 +240,7 @@ public struct KimiUsageFetcher: Sendable {
                 return try await KimiUsageFetcher.fetchPlan(
                     authToken: authToken,
                     region: region,
+
                     sessionInfo: sessionInfo,
                     transport: transport)
             }

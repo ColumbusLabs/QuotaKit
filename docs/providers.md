@@ -65,7 +65,7 @@ complete when the available scan window covers fewer days.
 | Alibaba Token Plan | Signed-in Bailian CLI (`cli`) → subscription summary API via browser or manual cookies (`web`). |
 | Qwen Cloud | Qwen Cloud 5-hour/weekly Token Plan APIs via browser or manual cookies (`web`). |
 | Droid/Factory | API key (`FACTORY_API_KEY` / config) → web cookies → stored tokens → local storage → WorkOS cookies (`auto`, `api`, `web`). |
-| Devin | Chrome localStorage session or manual Bearer token → daily and weekly quota API (`web`). |
+| Devin | Chromium localStorage session or manual Bearer token → daily and weekly quota API (`web`). |
 | z.ai | API token from config/env → quota API (`api`). |
 | Manus | Browser `session_id` cookie (auto/manual/env) → credits API (`web`). |
 | MiniMax | Manual/browser session via Coding Plan web path (`web`), or Coding Plan API token (`api`). |
@@ -170,7 +170,7 @@ complete when the available scan window covers fewer days.
 - Details: `docs/zai.md`.
 
 ## Devin
-- Automatic auth reads the current `auth1_session` token and organization metadata from Chrome localStorage.
+- Automatic auth reads the current `auth1_session` token and organization metadata from supported Chromium browsers' localStorage.
 - Manual auth accepts the `Authorization: Bearer ...` value from an app.devin.ai request.
 - Usage endpoint: `GET /api/<internal-org-id>/billing/quota/usage`.
 - Shows daily and weekly quota percentages with their reset timestamps.

@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Venice: show subscription credits through an explicit browser Web source, accepting Venice auth and Clerk session cookies.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
 
@@ -17,6 +18,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- OpenRouter: explain the required API key field when only a separate Management API key is configured.
+- Devin: identify missing organization context, isolate browser sessions across supported Chromium browsers, honor explicit organization selection, and distinguish unreadable storage from sign-out.
+- Cursor costs: estimate omitted event costs from cached model prices and retain priced, estimated, and unpriced request coverage.
+- Kimi: parse Code API ratio quota pools, reconcile zero placeholders with matching counts, preserve absent weekly quota, and show monthly Total usage.
+- Grok: use the JSON-RPC method-not-found code for team billing fallback, even when CLI error wording changes.
+- Cursor: show current paid and unexpired trial Grok Bot allowances without treating trial expiry as a recurring reset.
+
 
 - Provider plugins: discard results from disabled, reconfigured, removed, or reloaded plugins and keep refresh activity tied to the current request.
 - Security: preserve browser-cookie denial across restarts and CLI configuration, and stage credential writes privately before atomic replacement (reported in #3986). Thanks @bo-vavrik!

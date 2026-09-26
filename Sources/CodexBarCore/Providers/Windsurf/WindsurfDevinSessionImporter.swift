@@ -50,24 +50,7 @@ enum WindsurfDevinSessionImporter {
     }
     #endif
     static let defaultPreferredBrowsers: [Browser] = [.chrome]
-    static let fallbackBrowsers: [Browser] = [
-        .chromeBeta,
-        .chromeCanary,
-        .edge,
-        .edgeBeta,
-        .edgeCanary,
-        .brave,
-        .braveBeta,
-        .braveNightly,
-        .vivaldi,
-        .arc,
-        .arcBeta,
-        .arcCanary,
-        .dia,
-        .chatgptAtlas,
-        .chromium,
-        .helium,
-    ]
+    static let fallbackBrowsers = ChromiumLocalStorageDiscovery.defaultBrowsers.filter { $0 != .chrome }
 
     struct SessionInfo: Equatable {
         let session: WindsurfDevinSessionAuth
