@@ -8,6 +8,7 @@ extension StatusItemController {
             "optional=\(self.settings.showOptionalCreditsAndExtraUsage ? "1" : "0")",
             "costEnabled=\(self.settings.costUsageEnabled ? "1" : "0")",
             "codexLocalCost=\(self.settings.codexLocalSessionCostLedgerEnabled ? "1" : "0")",
+            "claudeScopedWeekly=\(self.settings.claudeModelScopedWeeklyUsageVisible ? "1" : "0")",
         ].joined(separator: "|")
     }
 

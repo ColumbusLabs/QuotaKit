@@ -21,6 +21,9 @@ read_when:
 - When claude-swap owns Claude's menu presentation, the provider widget uses the active swap account even if
   per-account widgets are disabled. Retained quota stays bound to an opaque account fingerprint and keeps its original
   measurement age; missing or changed owners cannot inherit ambient or another swap account's quota.
+- Claude Usage widgets show known model-scoped weekly quotas after Session, Weekly, and Opus. The default-on
+  **Preferences → Providers → Claude → Show model-specific weekly usage in widgets** toggle controls only these
+  desktop widget rows; it does not change fetching, menus, history, notifications, hooks, or iPhone sync.
 - If no snapshot is available, widgets fall back to preview/empty data.
 
 ## Extension

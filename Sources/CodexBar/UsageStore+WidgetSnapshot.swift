@@ -765,7 +765,7 @@ extension UsageStore {
                     percentLeft: window.window.remainingPercent)
             })
         }
-        if provider == .claude {
+        if provider == .claude, self.settings.claudeModelScopedWeeklyUsageVisible {
             rows.append(contentsOf: Self.claudeScopedWeeklyWidgetRows(snapshot: snapshot))
         }
         return rows.filter { $0.percentLeft != nil }

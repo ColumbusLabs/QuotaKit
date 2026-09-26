@@ -454,6 +454,7 @@ extension SettingsStore {
     private struct OptionalCreditsDefaults {
         let showOptionalCreditsAndExtraUsage: Bool
         let claudeDailyRoutinesUsageVisible: Bool
+        let claudeModelScopedWeeklyUsageVisible: Bool
         let codexSparkUsageVisible: Bool
     }
 
@@ -687,6 +688,7 @@ extension SettingsStore {
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
+            claudeModelScopedWeeklyUsageVisible: optionalCreditsDefaults.claudeModelScopedWeeklyUsageVisible,
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
             codexExternalOAuthSourcesAllowed: codexExternalOAuthSourcesAllowed,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
@@ -720,6 +722,8 @@ extension SettingsStore {
                 "showOptionalCreditsAndExtraUsage", fallback: true, from: userDefaults),
             claudeDailyRoutinesUsageVisible: Self.loadBoolDefault(
                 "claudeDailyRoutinesUsageVisible", fallback: true, from: userDefaults),
+            claudeModelScopedWeeklyUsageVisible: Self.loadBoolDefault(
+                "claudeModelScopedWeeklyUsageVisible", fallback: true, from: userDefaults),
             codexSparkUsageVisible: Self.loadBoolDefault(
                 "codexSparkUsageVisible", fallback: true, from: userDefaults))
     }

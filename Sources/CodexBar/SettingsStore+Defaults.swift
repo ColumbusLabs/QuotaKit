@@ -737,6 +737,11 @@ extension SettingsStore {
         set { self.setDefault(\.claudeDailyRoutinesUsageVisible, newValue, key: "claudeDailyRoutinesUsageVisible") }
     }
 
+    var claudeModelScopedWeeklyUsageVisible: Bool {
+        get { self.defaultsState.claudeModelScopedWeeklyUsageVisible }
+        set { self.setDefault(\.claudeModelScopedWeeklyUsageVisible, newValue, key: "claudeModelScopedWeeklyUsageVisible") }
+    }
+
     var codexSparkUsageVisible: Bool {
         get { self.defaultsState.codexSparkUsageVisible }
         set { self.setDefault(\.codexSparkUsageVisible, newValue, key: "codexSparkUsageVisible") }
