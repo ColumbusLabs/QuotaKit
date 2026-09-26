@@ -506,30 +506,18 @@ extension SettingsStore {
             userDefaults: userDefaults,
             hadPreviousInstallationState: hadPreviousInstallationState)
         let adaptiveActivityScanConsent = Self.loadAdaptiveActivityScanConsent(userDefaults: userDefaults)
-        let refreshAllProvidersOnMenuOpen = userDefaults.object(
-            forKey: "refreshAllProvidersOnMenuOpen") as? Bool ?? false
-        let launchAtLogin = userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false
-        let debugMenuEnabled = userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false
         let debugDisableKeychainAccess = Self.loadDebugDisableKeychainAccess(userDefaults: userDefaults)
-        let debugFileLoggingEnabled = userDefaults.object(forKey: "debugFileLoggingEnabled") as? Bool ?? false
         let debugLogLevelRaw = userDefaults.string(forKey: "debugLogLevel") ?? CodexBarLog.Level.verbose.rawValue
         if Self.isRunningTests, userDefaults.string(forKey: "debugLogLevel") == nil {
             userDefaults.set(debugLogLevelRaw, forKey: "debugLogLevel")
         }
-        let debugLoadingPatternRaw = userDefaults.string(forKey: "debugLoadingPattern")
-        let debugKeepCLISessionsAlive = userDefaults.object(forKey: "debugKeepCLISessionsAlive") as? Bool ?? false
         let notificationDefaults = Self.loadNotificationDefaults(userDefaults: userDefaults)
         let quotaWarnings = Self.loadQuotaWarningDefaults(userDefaults: userDefaults)
-        let quotaWarningMarkersVisibleDefault = userDefaults.object(forKey: "quotaWarningMarkersVisible") as? Bool
-        let quotaWarningMarkersVisible = quotaWarningMarkersVisibleDefault ?? true
-        if Self.isRunningTests, quotaWarningMarkersVisibleDefault == nil {
-            userDefaults.set(true, forKey: "quotaWarningMarkersVisible")
-        }
-        let paceVisibleDefault = userDefaults.object(forKey: "paceVisible") as? Bool
-        let paceVisible = paceVisibleDefault ?? true
-        if Self.isRunningTests, paceVisibleDefault == nil {
-            userDefaults.set(true, forKey: "paceVisible")
-        }
+        let quotaWarningMarkersVisible = Self.loadBoolDefault(
+            "quotaWarningMarkersVisible",
+            fallback: true,
+            from: userDefaults)
+        let paceVisible = Self.loadBoolDefault("paceVisible", fallback: true, from: userDefaults)
         let weeklyProgressWorkDays = userDefaults.object(forKey: "weeklyProgressWorkDays") as? Int
         let workdayTickAppearanceRaw = userDefaults.string(forKey: "workdayTickAppearance")
             ?? WorkdayTickAppearance.subtle.rawValue
@@ -557,13 +545,8 @@ extension SettingsStore {
         let storedMenuBarLayout = Self.loadMenuBarLayout(userDefaults: userDefaults)
         let menuBarLayoutConditionals = Self.loadMenuBarLayoutConditionals(userDefaults: userDefaults)
         let menuBarLayoutOverridesRaw = Self.loadMenuBarLayoutOverrides(userDefaults: userDefaults)
-        let menuBarLayoutSizeRaw = userDefaults.string(forKey: "menuBarLayoutSize")
-            ?? MenuBarLayoutSize.regular.rawValue
-        let menuBarLayoutGapRaw = userDefaults.string(forKey: "menuBarLayoutGap")
-            ?? MenuBarLayoutGap.regular.rawValue
         let rawVerticalAdjustment = userDefaults.object(forKey: "menuBarLayoutVerticalAdjustment") as? Int
         let menuBarLayoutVerticalAdjustment = max(-20, min(20, rawVerticalAdjustment ?? 0))
-        let copilotBudgetExtrasEnabled = userDefaults.object(forKey: "copilotBudgetExtrasEnabled") as? Bool ?? false
         let copilotIconSecondaryWindowIDRaw = Self.loadCopilotIconSecondaryWindowIDRaw(userDefaults: userDefaults)
         let costUsageEnabled = userDefaults.object(forKey: "tokenCostUsageEnabled") as? Bool ?? false
         let codexLocalSessionCostLedgerEnabled = userDefaults.object(
@@ -577,19 +560,10 @@ extension SettingsStore {
         if costUsageEnabled, storedBucketTimeZone.isEmpty, !costUsageBucketTimeZoneIdentifier.isEmpty {
             userDefaults.set(costUsageBucketTimeZoneIdentifier, forKey: "tokenCostUsageBucketTimeZone")
         }
-        let openCodexUsageLogsEnabled = userDefaults.object(forKey: "openCodexUsageLogsEnabled") as? Bool ?? false
-        let hideNativeCodexCostWhenOpenCodexPresent = userDefaults.object(
-            forKey: "hideNativeCodexCostWhenOpenCodexPresent") as? Bool ?? false
-        let spendDashboardHiddenSourceIDs = userDefaults.stringArray(forKey: "spendDashboardHiddenSourceIDs") ?? []
-        let costComparisonPeriodsEnabled = userDefaults.object(
-            forKey: "costComparisonPeriodsEnabled") as? Bool ?? false
         let costSummaryDisplayStyleRaw = Self.loadCostSummaryDisplayStyleRaw(
             userDefaults: userDefaults,
             costUsageEnabled: costUsageEnabled)
-        let hidePersonalInfo = userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false
-        let randomBlinkEnabled = userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false
         let confettiOnReset = Self.loadConfettiOnResetDefaults(userDefaults: userDefaults)
-        let menuBarShowsHighestUsage = userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false
         let claudeOAuthKeychainReadStrategyRaw = Self.loadClaudeOAuthKeychainReadStrategyRaw(userDefaults: userDefaults)
         let claudeOAuthKeychainPromptModeRaw = Self.loadClaudeOAuthKeychainPromptModeRaw(userDefaults: userDefaults)
         // Explicit consent for reading Claude Code's Keychain item (#2634). Default OFF; never enabled silently.
@@ -604,11 +578,10 @@ extension SettingsStore {
         }
         let openAIWebDefaults = Self.loadOpenAIWebDefaults(userDefaults: userDefaults)
         let backgroundWorkLowPowerModePreference = Self.loadLowPowerModePreference(userDefaults: userDefaults)
-        let providerStorageFootprintsDefault = userDefaults.object(forKey: "providerStorageFootprintsEnabled") as? Bool
-        let providerStorageFootprintsEnabled = providerStorageFootprintsDefault ?? false
-        if Self.isRunningTests, providerStorageFootprintsDefault == nil {
-            userDefaults.set(false, forKey: "providerStorageFootprintsEnabled")
-        }
+        let providerStorageFootprintsEnabled = Self.loadBoolDefault(
+            "providerStorageFootprintsEnabled",
+            fallback: false,
+            from: userDefaults)
         let jetbrainsIDEBasePath = userDefaults.string(forKey: "jetbrainsIDEBasePath") ?? ""
         let mergeIcons = userDefaults.object(forKey: "mergeIcons") as? Bool ?? true
         let switcherShowsIcons = userDefaults.object(forKey: "switcherShowsIcons") as? Bool ?? true
@@ -641,14 +614,15 @@ extension SettingsStore {
         return SettingsDefaultsState(
             refreshFrequency: refreshFrequency,
             adaptiveActivityScanConsent: adaptiveActivityScanConsent,
-            refreshAllProvidersOnMenuOpen: refreshAllProvidersOnMenuOpen,
-            launchAtLogin: launchAtLogin,
-            debugMenuEnabled: debugMenuEnabled,
+            refreshAllProvidersOnMenuOpen: userDefaults.object(
+                forKey: "refreshAllProvidersOnMenuOpen") as? Bool ?? false,
+            launchAtLogin: userDefaults.object(forKey: "launchAtLogin") as? Bool ?? false,
+            debugMenuEnabled: userDefaults.object(forKey: "debugMenuEnabled") as? Bool ?? false,
             debugDisableKeychainAccess: debugDisableKeychainAccess,
-            debugFileLoggingEnabled: debugFileLoggingEnabled,
+            debugFileLoggingEnabled: userDefaults.object(forKey: "debugFileLoggingEnabled") as? Bool ?? false,
             debugLogLevelRaw: debugLogLevelRaw,
-            debugLoadingPatternRaw: debugLoadingPatternRaw,
-            debugKeepCLISessionsAlive: debugKeepCLISessionsAlive,
+            debugLoadingPatternRaw: userDefaults.string(forKey: "debugLoadingPattern"),
+            debugKeepCLISessionsAlive: userDefaults.object(forKey: "debugKeepCLISessionsAlive") as? Bool ?? false,
             statusChecksEnabled: notificationDefaults.statusChecksEnabled,
             sessionQuotaNotificationsEnabled: notificationDefaults.sessionQuotaNotificationsEnabled,
             quotaWarningNotificationsEnabled: quotaWarnings.notificationsEnabled,
@@ -681,25 +655,29 @@ extension SettingsStore {
             storedMenuBarLayout: storedMenuBarLayout,
             menuBarLayoutConditionals: menuBarLayoutConditionals,
             menuBarLayoutOverridesRaw: menuBarLayoutOverridesRaw,
-            menuBarLayoutSizeRaw: menuBarLayoutSizeRaw,
-            menuBarLayoutGapRaw: menuBarLayoutGapRaw,
+            menuBarLayoutSizeRaw: userDefaults.string(forKey: "menuBarLayoutSize")
+                ?? MenuBarLayoutSize.regular.rawValue,
+            menuBarLayoutGapRaw: userDefaults.string(forKey: "menuBarLayoutGap")
+                ?? MenuBarLayoutGap.regular.rawValue,
             menuBarLayoutVerticalAdjustment: menuBarLayoutVerticalAdjustment,
-            copilotBudgetExtrasEnabled: copilotBudgetExtrasEnabled,
+            copilotBudgetExtrasEnabled: userDefaults.object(forKey: "copilotBudgetExtrasEnabled") as? Bool ?? false,
             copilotIconSecondaryWindowIDRaw: copilotIconSecondaryWindowIDRaw,
             costUsageEnabled: costUsageEnabled,
             codexLocalSessionCostLedgerEnabled: codexLocalSessionCostLedgerEnabled,
             costUsageHistoryDays: costUsageHistoryDays,
             costUsageBucketTimeZoneIdentifier: costUsageBucketTimeZoneIdentifier,
-            openCodexUsageLogsEnabled: openCodexUsageLogsEnabled,
-            hideNativeCodexCostWhenOpenCodexPresent: hideNativeCodexCostWhenOpenCodexPresent,
-            spendDashboardHiddenSourceIDs: spendDashboardHiddenSourceIDs,
-            costComparisonPeriodsEnabled: costComparisonPeriodsEnabled,
+            openCodexUsageLogsEnabled: userDefaults.object(forKey: "openCodexUsageLogsEnabled") as? Bool ?? false,
+            hideNativeCodexCostWhenOpenCodexPresent: userDefaults.object(
+                forKey: "hideNativeCodexCostWhenOpenCodexPresent") as? Bool ?? false,
+            spendDashboardHiddenSourceIDs: userDefaults.stringArray(forKey: "spendDashboardHiddenSourceIDs") ?? [],
+            costComparisonPeriodsEnabled: userDefaults.object(
+                forKey: "costComparisonPeriodsEnabled") as? Bool ?? false,
             costSummaryDisplayStyleRaw: costSummaryDisplayStyleRaw,
-            hidePersonalInfo: hidePersonalInfo,
-            randomBlinkEnabled: randomBlinkEnabled,
+            hidePersonalInfo: userDefaults.object(forKey: "hidePersonalInfo") as? Bool ?? false,
+            randomBlinkEnabled: userDefaults.object(forKey: "randomBlinkEnabled") as? Bool ?? false,
             confettiOnSessionLimitResetsEnabled: confettiOnReset.session,
             confettiOnWeeklyLimitResetsEnabled: confettiOnReset.weekly,
-            menuBarShowsHighestUsage: menuBarShowsHighestUsage,
+            menuBarShowsHighestUsage: userDefaults.object(forKey: "menuBarShowsHighestUsage") as? Bool ?? false,
             claudeOAuthKeychainPromptModeRaw: claudeOAuthKeychainPromptModeRaw,
             claudeOAuthKeychainReadStrategyRaw: claudeOAuthKeychainReadStrategyRaw,
             claudeOAuthDirectKeychainReadAllowed: claudeOAuthDirectKeychainReadAllowed,
@@ -734,48 +712,22 @@ extension SettingsStore {
     }
 
     private static func loadOptionalCreditsDefaults(userDefaults: UserDefaults) -> OptionalCreditsDefaults {
-        let creditsExtrasDefault = userDefaults.object(forKey: "showOptionalCreditsAndExtraUsage") as? Bool
-        let showOptionalCreditsAndExtraUsage = creditsExtrasDefault ?? true
-        if Self.isRunningTests, creditsExtrasDefault == nil {
-            userDefaults.set(true, forKey: "showOptionalCreditsAndExtraUsage")
-        }
-
-        let claudeDailyRoutinesUsageVisibleDefault = userDefaults.object(
-            forKey: "claudeDailyRoutinesUsageVisible") as? Bool
-        let claudeDailyRoutinesUsageVisible = claudeDailyRoutinesUsageVisibleDefault ?? true
-        if Self.isRunningTests, claudeDailyRoutinesUsageVisibleDefault == nil {
-            userDefaults.set(true, forKey: "claudeDailyRoutinesUsageVisible")
-        }
-
-        let codexSparkUsageVisibleDefault = userDefaults.object(forKey: "codexSparkUsageVisible") as? Bool
-        let codexSparkUsageVisible = codexSparkUsageVisibleDefault ?? true
-        if Self.isRunningTests, codexSparkUsageVisibleDefault == nil {
-            userDefaults.set(true, forKey: "codexSparkUsageVisible")
-        }
-
-        return OptionalCreditsDefaults(
-            showOptionalCreditsAndExtraUsage: showOptionalCreditsAndExtraUsage,
-            claudeDailyRoutinesUsageVisible: claudeDailyRoutinesUsageVisible,
-            codexSparkUsageVisible: codexSparkUsageVisible)
+        OptionalCreditsDefaults(
+            showOptionalCreditsAndExtraUsage: Self.loadBoolDefault(
+                "showOptionalCreditsAndExtraUsage", fallback: true, from: userDefaults),
+            claudeDailyRoutinesUsageVisible: Self.loadBoolDefault(
+                "claudeDailyRoutinesUsageVisible", fallback: true, from: userDefaults),
+            codexSparkUsageVisible: Self.loadBoolDefault(
+                "codexSparkUsageVisible", fallback: true, from: userDefaults))
     }
 
     private static func loadOpenAIWebDefaults(userDefaults: UserDefaults) -> (
         accessEnabled: Bool,
         batterySaverEnabled: Bool)
     {
-        let accessDefault = userDefaults.object(forKey: "openAIWebAccessEnabled") as? Bool
-        let accessEnabled = accessDefault ?? false
-        if Self.isRunningTests, accessDefault == nil {
-            userDefaults.set(false, forKey: "openAIWebAccessEnabled")
-        }
-
-        let batterySaverDefault = userDefaults.object(forKey: "openAIWebBatterySaverEnabled") as? Bool
-        let batterySaverEnabled = batterySaverDefault ?? false
-        if Self.isRunningTests, batterySaverDefault == nil {
-            userDefaults.set(false, forKey: "openAIWebBatterySaverEnabled")
-        }
-
-        return (accessEnabled, batterySaverEnabled)
+        (
+            accessEnabled: Self.loadBoolDefault("openAIWebAccessEnabled", fallback: false, from: userDefaults),
+            batterySaverEnabled: Self.loadBoolDefault("openAIWebBatterySaverEnabled", fallback: false, from: userDefaults))
     }
 
     private static func hadPreviousAppLaunch(userDefaults: UserDefaults) -> Bool {
@@ -831,7 +783,10 @@ extension SettingsStore {
     private static func loadNotificationDefaults(userDefaults: UserDefaults) -> NotificationDefaults {
         NotificationDefaults(
             statusChecksEnabled: userDefaults.object(forKey: "statusChecksEnabled") as? Bool ?? true,
-            sessionQuotaNotificationsEnabled: self.loadSessionQuotaNotificationsDefault(userDefaults: userDefaults),
+            sessionQuotaNotificationsEnabled: self.loadBoolDefault(
+                "sessionQuotaNotificationsEnabled",
+                fallback: true,
+                from: userDefaults),
             predictivePaceWarningNotificationsEnabled: userDefaults.object(
                 forKey: "predictivePaceWarningNotificationsEnabled") as? Bool ?? false)
     }
@@ -1030,12 +985,12 @@ extension SettingsStore {
         var onScreenAlertEnabled: Bool
     }
 
-    private static func loadSessionQuotaNotificationsDefault(userDefaults: UserDefaults) -> Bool {
-        let stored = userDefaults.object(forKey: "sessionQuotaNotificationsEnabled") as? Bool
+    private static func loadBoolDefault(_ key: String, fallback: Bool, from defaults: UserDefaults) -> Bool {
+        let stored = defaults.object(forKey: key) as? Bool
         if Self.isRunningTests, stored == nil {
-            userDefaults.set(true, forKey: "sessionQuotaNotificationsEnabled")
+            defaults.set(fallback, forKey: key)
         }
-        return stored ?? true
+        return stored ?? fallback
     }
 
     private static func loadQuotaWarningDefaults(userDefaults: UserDefaults) -> LoadedQuotaWarningDefaults {
@@ -1056,39 +1011,18 @@ extension SettingsStore {
             userDefaults.set(weeklyThresholdsRaw, forKey: "quotaWarningWeeklyThresholds")
         }
 
-        let sessionDefault = userDefaults.object(forKey: "quotaWarningSessionEnabled") as? Bool
-        let sessionEnabled = sessionDefault ?? true
-        if Self.isRunningTests, sessionDefault == nil {
-            userDefaults.set(true, forKey: "quotaWarningSessionEnabled")
-        }
-
-        let weeklyDefault = userDefaults.object(forKey: "quotaWarningWeeklyEnabled") as? Bool
-        let weeklyEnabled = weeklyDefault ?? true
-        if Self.isRunningTests, weeklyDefault == nil {
-            userDefaults.set(true, forKey: "quotaWarningWeeklyEnabled")
-        }
-
-        let soundDefault = userDefaults.object(forKey: "quotaWarningSoundEnabled") as? Bool
-        let soundEnabled = soundDefault ?? true
-        if Self.isRunningTests, soundDefault == nil {
-            userDefaults.set(true, forKey: "quotaWarningSoundEnabled")
-        }
-
-        let onScreenAlertDefault = userDefaults.object(forKey: "quotaWarningOnScreenAlertEnabled") as? Bool
-        let onScreenAlertEnabled = onScreenAlertDefault ?? false
-        if Self.isRunningTests, onScreenAlertDefault == nil {
-            userDefaults.set(false, forKey: "quotaWarningOnScreenAlertEnabled")
-        }
-
         return LoadedQuotaWarningDefaults(
             notificationsEnabled: notificationsEnabled,
             thresholdsRaw: thresholdsRaw,
             sessionThresholdsRaw: sessionThresholdsRaw,
             weeklyThresholdsRaw: weeklyThresholdsRaw,
-            sessionEnabled: sessionEnabled,
-            weeklyEnabled: weeklyEnabled,
-            soundEnabled: soundEnabled,
-            onScreenAlertEnabled: onScreenAlertEnabled)
+            sessionEnabled: Self.loadBoolDefault("quotaWarningSessionEnabled", fallback: true, from: userDefaults),
+            weeklyEnabled: Self.loadBoolDefault("quotaWarningWeeklyEnabled", fallback: true, from: userDefaults),
+            soundEnabled: Self.loadBoolDefault("quotaWarningSoundEnabled", fallback: true, from: userDefaults),
+            onScreenAlertEnabled: Self.loadBoolDefault(
+                "quotaWarningOnScreenAlertEnabled",
+                fallback: false,
+                from: userDefaults))
     }
 }
 

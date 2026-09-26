@@ -692,6 +692,11 @@ extension SettingsStore {
         }
     }
 
+    var claudeWebExtrasEnabled: Bool {
+        get { self.claudeWebExtrasEnabledRaw }
+        set { self.claudeWebExtrasEnabledRaw = newValue }
+    }
+
     private var claudeWebExtrasEnabledRaw: Bool {
         get { self.defaultsState.claudeWebExtrasEnabledRaw }
         set {
