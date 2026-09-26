@@ -5,6 +5,31 @@ import Testing
 @testable import CodexBarCore
 
 struct DevinSessionImporterTests {
+    @Test(arguments: Browser.defaultImportOrder.filter(\.usesChromiumProfileStore))
+    func `imports Devin from each supported Chromium browser without cookies`(_ browser: Browser) throws {
+        let home = FileManager.default.temporaryDirectory.appendingPathComponent("devin-browser-\(UUID())")
+        defer { try? FileManager.default.removeItem(at: home) }
+        let root = try #require(ChromiumProfileLocator.roots(for: [browser], homeDirectories: [home]).first)
+        let storage = root.url.appendingPathComponent("Profile 2/Local Storage/leveldb")
+        try Self.writeLog([
+            StorageEntry(key: "auth1_session", value: #"{"token":"auth1_synthetic-browser-fixture"}"#),
+            StorageEntry(key: "last-internal-org-for-external-org-v1-example", value: #""org_example12345""#),
+        ], to: storage)
+        let detection = BrowserDetection(homeDirectory: home.path, cacheTTL: 0)
+        let browsers = DevinSessionImporter.localStorageBrowsers(browserDetection: detection)
+        #expect(browsers == [browser])
+        let candidates = ChromiumProfileLocator.roots(for: browsers, homeDirectories: [home]).flatMap {
+            ChromiumLocalStorageDiscovery.profileCandidates(root: $0.url, labelPrefix: $0.labelPrefix)
+        }
+
+        let sessions = try DevinSessionImporter.importSessions(browserDetection: detection, candidates: candidates)
+
+        #expect(sessions.count == 1)
+        #expect(sessions.first?.sourceLabel == "\(browser.displayName) Profile 2")
+        #expect(sessions.first?.accessToken == "auth1_synthetic-browser-fixture")
+        #expect(sessions.first?.internalOrganizationID == "org_example12345")
+    }
+
     @Test(arguments: [false, true])
     func `an unreadable profile only fails import when no other session is available`(_ hasSession: Bool) throws {
         let directory = FileManager.default.temporaryDirectory.appendingPathComponent("devin-storage-\(UUID())")

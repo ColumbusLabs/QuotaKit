@@ -872,6 +872,16 @@ extension ProviderSettingsDescriptorTests {
 
         #expect(detailLine == "web")
     }
+
+    @Test
+    func `devin automatic auth explains Chromium browser support`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devin-browsers")
+        fixture.settings.devinCookieSource = .auto
+        let picker = try #require(DevinProviderImplementation()
+            .settingsPickers(context: fixture.settingsContext(provider: .devin)).first)
+
+        #expect(picker.subtitle == "Automatically imports the app.devin.ai session from supported Chromium browsers.")
+    }
 }
 
 extension ProviderSettingsDescriptorTests {

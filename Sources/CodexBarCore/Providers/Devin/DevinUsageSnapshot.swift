@@ -17,12 +17,14 @@ public enum DevinUsageError: LocalizedError, Sendable {
     public var errorDescription: String? {
         switch self {
         case .noSession:
-            "No Devin session found. Automatic import needs Chrome on macOS; open app.devin.ai and Usage & Limits. " +
+            "No Devin session found. Sign in to app.devin.ai in a supported Chromium browser on macOS, " +
+                "then open Usage & Limits. " +
                 Self.manualAuthHelp
         case .browserStorageUnreadable:
-            "Could not read Chrome local storage for Devin. Reopen Chrome and try again. " + Self.manualAuthHelp
+            "Could not read Chromium local storage for Devin. Reopen your browser and try again. " + Self.manualAuthHelp
         case .missingOrganization:
-            "No Devin organization was found. For automatic auth, open the organization's Usage page in Chrome. " +
+            "No Devin organization was found. For automatic auth, open the organization's Usage page " +
+                "in your browser. " +
                 "For manual auth, set Organization to the internal org-... or org_... ID from a successful quota " +
                 "request's x-cog-org-id header."
         case .invalidCredentials:

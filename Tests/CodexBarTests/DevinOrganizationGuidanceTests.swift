@@ -19,7 +19,7 @@ struct DevinOrganizationGuidanceTests {
     }
 
     private static let guidance =
-        "No Devin organization was found. For automatic auth, open the organization's Usage page in Chrome. " +
+        "No Devin organization was found. For automatic auth, open the organization's Usage page in your browser. " +
         "For manual auth, set Organization to the internal org-... or org_... ID from a successful quota " +
         "request's x-cog-org-id header."
 

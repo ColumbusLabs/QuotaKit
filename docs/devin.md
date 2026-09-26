@@ -17,13 +17,12 @@ The Devin provider tracks included daily and weekly usage quotas from
 2. Open the organization Usage & Limits page once.
 3. Enable **Devin** in **Settings → Providers**.
 
-Automatic mode reads only the Devin session and organization metadata from Chrome localStorage. It does not scan other
-browsers or import other sites' sessions. Current decoded session values take precedence over raw storage fallback
+Automatic mode reads only the Devin session and organization metadata from supported Chromium browser localStorage. It does not import other sites' sessions. Current decoded session values take precedence over raw storage fallback
 data. QuotaKit sends the session token only to `https://app.devin.ai`.
 
 For accounts with multiple organizations, set **Organization** to select one explicitly. An internal `org-...` or
-`org_...` ID takes precedence over Chrome's cached organization metadata. A slug uses only its matching cached ID;
-open that organization's Usage & Limits page in Chrome if the metadata is missing.
+`org_...` ID takes precedence over the browser's cached organization metadata. A slug uses only its matching cached ID;
+open that organization's Usage & Limits page in your Chromium browser if the metadata is missing.
 
 ## Manual Auth
 
@@ -32,11 +31,11 @@ from an app.devin.ai API request. The organization field accepts a slug, an inte
 full organization URL. Manual mode does not import a browser session.
 
 Some Auth1 sessions need the internal organization ID even when the same token works in the browser. If Devin returns
-`No organizations found for auth1 user`, CodexBar reports organization guidance rather than treating the token as expired:
+`No organizations found for auth1 user`, QuotaKit reports organization guidance rather than treating the token as expired:
 
 1. Open the organization's **Usage & Limits** page in the browser where you are signed in.
 2. In Developer Tools → Network, inspect a successful `/billing/quota/usage` request.
-3. Copy its `x-cog-org-id` request-header value into CodexBar's **Organization** field, then refresh.
+3. Copy its `x-cog-org-id` request-header value into QuotaKit's **Organization** field, then refresh.
 
 The internal-ID path is already supported; manual mode does not discover IDs from public slugs. Other 401/403 responses
 still report invalid or expired credentials. For automatic auth with missing organization metadata, open the
@@ -61,4 +60,4 @@ session, sign in again and refresh QuotaKit.
 
 ## Automatic auth troubleshooting
 
-Automatic session import reads Chrome local storage for `app.devin.ai`. A **no session** error means no supported session was found. A **could not read Chrome local storage** error means a discovered store could not be opened; reopen Chrome and Devin's Usage page or use manual auth. A **token rejected** error comes from Devin's API and needs sign-in or a replacement manual token. A **missing organization** error needs the organization setup above. Do not share session values in reports.
+Automatic session import reads Chromium local storage for `app.devin.ai`. A **no session** error means no supported session was found. A **could not read Chromium local storage** error means a discovered store could not be opened; reopen your browser and Devin's Usage page or use manual auth. A **token rejected** error comes from Devin's API and needs sign-in or a replacement manual token. A **missing organization** error needs the organization setup above. Do not share session values in reports.
