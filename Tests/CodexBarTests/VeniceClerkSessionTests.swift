@@ -35,6 +35,49 @@ struct VeniceClerkSessionTests {
             == "__session=primary")
     }
 
+    @Test
+    func `rejected legacy browser session falls through to Clerk in the same profile`() async throws {
+        let cookies = try [
+            #require(HTTPCookie(properties: [
+                .name: VeniceCookieHeader.sessionCookieName, .value: "expired",
+                .domain: "venice.ai", .path: "/",
+            ])),
+            #require(HTTPCookie(properties: [
+                .name: "__session", .value: "synthetic-session",
+                .domain: "venice.ai", .path: "/",
+            ])),
+        ]
+        let headers = VeniceCookieHeader.headers(from: cookies)
+        #expect(headers == ["__venice-auth.session-token=expired", "__session=synthetic-session"])
+        let transport = ProviderHTTPTransportHandler { request in
+            let code = request.value(forHTTPHeaderField: "Authorization") == "Bearer expired" ? 401 : 200
+            return try Self.response(request, code: code)
+        }
+        let strategy = VeniceWebFetchStrategy(
+            usageLoader: { try await VeniceWebUsageFetcher.fetchUsage(cookieHeader: $0, transport: transport) },
+            sessionLoader: { _ in headers.map {
+                VeniceResolvedSession(cookieHeader: $0, sourceLabel: "Chrome fixture")
+            } })
+        let settings = ProviderSettingsSnapshot.make(venice: VeniceProviderSettings(
+            cookieSource: .auto, manualCookieHeader: nil))
+        let detection = BrowserDetection(cacheTTL: 0)
+        let context = ProviderFetchContext(
+            runtime: .cli,
+            sourceMode: .web,
+            includeCredits: true,
+            webTimeout: 1,
+            webDebugDumpHTML: false,
+            verbose: false,
+            env: [:],
+            settings: settings,
+            fetcher: UsageFetcher(),
+            claudeFetcher: ClaudeUsageFetcher(browserDetection: detection),
+            browserDetection: detection)
+        let result = try await strategy.fetch(context)
+        #expect(result.sourceLabel == "Chrome fixture")
+        #expect(!result.usage.details.isEmpty)
+    }
+
     @Test(arguments: ["venice.ai", ".venice.ai", "clerk.venice.ai", ".clerk.venice.ai", "notvenice.ai"])
     func `browser session cookies are restricted to the Venice site`(domain: String) throws {
         let cookie = try #require(HTTPCookie(properties: [

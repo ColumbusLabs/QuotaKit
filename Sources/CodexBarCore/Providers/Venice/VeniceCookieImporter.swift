@@ -58,10 +58,13 @@ public enum VeniceCookieImporter {
             let sessionRecords = mergedRecords.filter { VeniceCookieHeader.isSessionCookieName($0.name) }
             guard !sessionRecords.isEmpty else { continue }
             let httpCookies = BrowserCookieClient.makeHTTPCookies(sessionRecords, origin: query.origin)
-            guard let cookieHeader = VeniceCookieHeader.header(from: httpCookies) else { continue }
+            let cookieHeaders = VeniceCookieHeader.headers(from: httpCookies)
+            guard !cookieHeaders.isEmpty else { continue }
             let names = Set(httpCookies.map(\.name)).sorted().joined(separator: ", ")
             log("Found Venice session cookie (\(names)) in \(label)")
-            sessions.append(VeniceResolvedSession(cookieHeader: cookieHeader, sourceLabel: label))
+            sessions.append(contentsOf: cookieHeaders.map {
+                VeniceResolvedSession(cookieHeader: $0, sourceLabel: label)
+            })
         }
         return sessions
     }

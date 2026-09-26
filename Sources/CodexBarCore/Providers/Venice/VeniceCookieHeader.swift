@@ -20,10 +20,14 @@ public enum VeniceCookieHeader {
     }
 
     public static func header(from cookies: [HTTPCookie]) -> String? {
+        self.headers(from: cookies).first
+    }
+
+    public static func headers(from cookies: [HTTPCookie]) -> [String] {
         let cookies = cookies.filter {
             $0.domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: ".")) == "venice.ai"
         }
-        return self.header(from: cookies.map { (name: $0.name, value: $0.value) })
+        return self.headers(from: cookies.map { (name: $0.name, value: $0.value) })
     }
 
     public static func header(from raw: String?) -> String? {
@@ -32,6 +36,10 @@ public enum VeniceCookieHeader {
     }
 
     public static func header(from pairs: [(name: String, value: String)]) -> String? {
+        self.headers(from: pairs).first
+    }
+
+    public static func headers(from pairs: [(name: String, value: String)]) -> [String] {
         var exact: (name: String, value: String)?
         var clerk: (name: String, value: String)?
         var chunks: [Int: (name: String, value: String)] = [:]
@@ -53,10 +61,11 @@ public enum VeniceCookieHeader {
             chunks[index] = (name, value)
         }
 
-        if let exact {
-            return "\(exact.name)=\(exact.value)"
-        }
-        return self.reassembledChunkHeader(chunks) ?? clerk.map { "\($0.name)=\($0.value)" }
+        var headers: [String] = []
+        if let exact { headers.append("\(exact.name)=\(exact.value)") }
+        if let chunkHeader = self.reassembledChunkHeader(chunks) { headers.append(chunkHeader) }
+        if let clerk { headers.append("\(clerk.name)=\(clerk.value)") }
+        return headers
     }
 
     private static func reassembledChunkHeader(_ chunks: [Int: (name: String, value: String)]) -> String? {
