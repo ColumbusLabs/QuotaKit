@@ -344,14 +344,14 @@ struct CursorUsageEventsFetcherTests {
                 totalCents: 100),
             Self.event(
                 timestampMS: 1_700_000_001_000,
-                model: "gpt-5",
+                model: "fixture-unpriced",
                 input: 7,
                 totalCents: nil),
         ]
 
         let report = CursorUsageEventsFetcher.makeDailyReport(from: events, calendar: Self.utcCalendar)
         let priced = report.data[0].modelBreakdowns?.first { $0.modelName == "claude-4.5-sonnet" }
-        let unpriced = report.data[0].modelBreakdowns?.first { $0.modelName == "gpt-5" }
+        let unpriced = report.data[0].modelBreakdowns?.first { $0.modelName == "fixture-unpriced" }
 
         #expect(report.data.count == 1)
         #expect(Self.approxEqual(report.data[0].costUSD, 1.0))
@@ -403,7 +403,7 @@ struct CursorUsageEventsFetcherTests {
                 totalCents: 100),
             Self.event(
                 timestampMS: 1_700_172_800_000,
-                model: "gpt-5",
+                model: "fixture-unpriced",
                 input: 7,
                 totalCents: nil),
         ]

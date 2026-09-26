@@ -17,6 +17,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cursor costs: estimate omitted event costs from cached model prices and retain priced, estimated, and unpriced request coverage.
 - Kimi: parse Code API ratio quota pools, reconcile zero placeholders with matching counts, preserve absent weekly quota, and show monthly Total usage.
 - Grok: use the JSON-RPC method-not-found code for team billing fallback, even when CLI error wording changes.
 - Cursor: show current paid and unexpired trial Grok Bot allowances without treating trial expiry as a recurring reset.
