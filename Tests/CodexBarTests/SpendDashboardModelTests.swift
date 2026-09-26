@@ -191,9 +191,9 @@ struct SpendDashboardModelTests {
             requestedDays: SpendDashboardSource.scanDays,
             now: Self.now,
             calendar: Self.calendar)
-        #expect(allTime.requestedDays == 41)
+        #expect(allTime.requestedDays == SpendDashboardSource.scanDays)
         #expect(allTime.groups.first?.totalCost == 15)
-        #expect(allTime.groups.first?.coveredDayCount == 41)
+        #expect(allTime.groups.first?.coveredDayCount == SpendDashboardSource.scanDays)
 
         let futureSnapshot = Self.snapshot(
             currency: "USD",

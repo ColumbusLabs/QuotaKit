@@ -39,7 +39,7 @@ public enum CostReportingPeriod: Hashable, Sendable, RawRepresentable {
         }
     }
 
-    public func bounds(now: Date, calendar: Calendar = .current, earliest: Date? = nil) -> ClosedRange<Date> {
+    public func bounds(now: Date, calendar: Calendar = .current) -> ClosedRange<Date> {
         let calendar = CostUsageLocalDay.gregorianCalendar(matching: calendar)
         let end = calendar.startOfDay(for: now)
         let start: Date = switch self {
@@ -50,8 +50,8 @@ public enum CostReportingPeriod: Hashable, Sendable, RawRepresentable {
         return calendar.startOfDay(for: min(start, end))...end
     }
 
-    public func days(now: Date, calendar: Calendar = .current, earliest: Date? = nil) -> Int {
-        let bounds = self.bounds(now: now, calendar: calendar, earliest: earliest)
+    public func days(now: Date, calendar: Calendar = .current) -> Int {
+        let bounds = self.bounds(now: now, calendar: calendar)
         return (calendar.dateComponents([.day], from: bounds.lowerBound, to: bounds.upperBound).day ?? 0) + 1
     }
 

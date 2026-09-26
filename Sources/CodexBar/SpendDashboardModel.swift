@@ -338,13 +338,8 @@ struct SpendDashboardModel: Equatable, Sendable {
         }
         let period = reportingPeriod
             ?? (requestedDays >= SpendDashboardSource.scanDays ? .allTime : .rolling(days: max(1, requestedDays)))
-        let earliest = inputs.flatMap { input in
-            input.snapshot.daily.compactMap {
-                Self.day($0.date, provider: input.provider, displayCalendar: calculationCalendar)
-            }
-        }.min() ?? now
-        let bounds = period.bounds(now: now, calendar: calculationCalendar, earliest: earliest)
-        let days = period.days(now: now, calendar: calculationCalendar, earliest: earliest)
+        let bounds = period.bounds(now: now, calendar: calculationCalendar)
+        let days = period.days(now: now, calendar: calculationCalendar)
         let groups = Dictionary(grouping: classifiedInputs, by: { $0.currencyCode })
             .map { currencyCode, inputs in
                 Self.buildCurrencyGroup(
