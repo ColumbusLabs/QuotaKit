@@ -20,6 +20,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: preserve unavailable plugin settings and secrets across app and CLI config writes.
+
 - Security: preserve explicit browser cookie denial for CLI refresh and stage credential files with owner-only permissions before writing.
 
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width

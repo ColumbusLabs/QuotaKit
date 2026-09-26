@@ -3160,7 +3160,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact shared construct dispatches a provider-owned capability at the generic integration boundary."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/Config/CodexBarConfig.swift",
-            line: 158,
+            line: 276,
             anchor: "region: provider == .alibabatokenplan ? alibabaTokenPlanRegion.rawValue : nil)",
             expectedProviderIDs: ["alibabatokenplan"],
             expectedReferenceCount: 1,

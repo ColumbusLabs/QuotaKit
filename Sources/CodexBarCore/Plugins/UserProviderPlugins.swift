@@ -459,7 +459,7 @@ public enum UserProviderPluginManager {
             }
         }
         try approvalStore.remove(instanceID: plugin.manifest.id)
-        config.providers.removeAll { $0.id == plugin.manifest.id }
+        config.removeProviderConfig(for: plugin.manifest.id)
         if let historyDirectory {
             let historyURL = historyDirectory.appendingPathComponent("\(plugin.manifest.id.rawValue).json")
             if FileManager.default.fileExists(atPath: historyURL.path) {

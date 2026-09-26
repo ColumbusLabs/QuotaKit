@@ -302,5 +302,6 @@ Never synced by the Mac fleet feature, by design: `hooks` (sync payloads structu
 ## Notes
 - Fields not relevant to a provider are ignored.
 - Omitted providers are appended with defaults during normalization.
+- Unknown or retired provider entries are retained with all their fields, settings, and secrets in their original array positions during unrelated saves. This also applies when plugin discovery fails or the plugin runtime is unavailable. `config providers` labels unavailable entries as `plugin (not loaded)`; `config dump` includes them but redacts their opaque fields unless `--show-secrets` is explicitly requested. Remove plugin data through explicit plugin deletion, or remove the entry by editing the file.
 - Keep the file private; it contains secrets.
 - Validate the file with `quotakit config validate` (JSON output available with `--format json`).
