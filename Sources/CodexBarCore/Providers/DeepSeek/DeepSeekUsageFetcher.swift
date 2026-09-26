@@ -228,13 +228,19 @@ public struct DeepSeekUsageSnapshot: Sendable {
         for category in usage.categoryBreakdown {
             rows.append(.makeRow(label: Self.categoryLabel(category.category), value: category.tokens.formatted()))
         }
-        return [.makeSection(
+        var sections = [ProviderDetailSection.makeSection(
             title: "Detailed usage",
             rows: rows,
             chart: usage.daily.isEmpty ? nil : .makeChart(
                 title: "Daily tokens",
                 unit: "tokens",
                 points: usage.daily.map { ($0.date, Double($0.totalTokens)) }))]
+        if !usage.modelCosts.isEmpty {
+            sections.append(.makeSection(
+                title: "Spend",
+                rows: usage.modelCosts.map { .makeRow(label: $0.model, value: cost($0.cost)) }))
+        }
+        return sections
     }
 
     private static func categoryLabel(_ category: DeepSeekUsageCategory) -> String {

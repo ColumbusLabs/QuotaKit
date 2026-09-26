@@ -64,7 +64,9 @@ DeepSeek Platform in Chrome. Authentication failures returned as top-level or ne
   e.g. `$50.00 (Paid: $40.00 / Granted: $10.00)`.
 - The API separates granted balance from topped-up balance; QuotaKit labels these as granted vs. paid credit.
 - With optional extra usage enabled, the menu shows today's and the current month's cost and tokens,
-  request counts, cache/input/output categories, the top model, and a current-month token chart.
+  request counts, cache/input/output categories, the top model, per-model spend, and a current-month token chart.
+- Per-model spend uses the Platform account's current-month totals across API keys in the selected currency.
+  Models with missing or invalid costs are omitted; reported zero costs remain visible.
 - The amount and cost requests run concurrently. After balance arrives, QuotaKit waits up to five seconds for
   automatic Chrome resolution and detailed usage. The deadline remains bounded even if a local Chrome read does not
   respond to cancellation. If the optional work fails or times out, the balance and previously validated profile list

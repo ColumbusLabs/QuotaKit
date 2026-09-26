@@ -56,6 +56,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      `onDemandUsed.val / onDemandCap.val * 100`. A parseable current period
      without either value represents zero usage. The reset timestamp comes from
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
+   - When `productUsage` entries are valid and their percentages compose the same
+     reported credit percentage, the menu shows a Grok product breakdown. Invalid
+     entries or a mismatched total leave the credit percentage intact and omit
+     the breakdown. Shares are never borrowed from a different billing surface.
    - When the selected end has a matching `currentPeriod.start`, or the
      `billingPeriodStart/End` pair when the current-period end is unavailable,
      QuotaKit measures the full window duration. Present but invalid, reversed,

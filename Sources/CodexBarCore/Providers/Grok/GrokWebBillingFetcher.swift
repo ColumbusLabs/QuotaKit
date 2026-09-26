@@ -4,6 +4,16 @@ import Foundation
 import FoundationNetworking
 #endif
 
+public struct GrokProductUsage: Sendable, Equatable {
+    public let product: String
+    public let usedPercent: Double
+
+    public init(product: String, usedPercent: Double) {
+        self.product = product
+        self.usedPercent = usedPercent
+    }
+}
+
 public struct GrokWebBillingSnapshot: Sendable, Equatable {
     public let usedPercent: Double?
     public let resetsAt: Date?
@@ -17,6 +27,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
     /// reported as 0 for the surface's own no-usage-yet contract. A caller that merges two billing
     /// surfaces must not promote such a value to a published percent.
     public let usedPercentIsWirePublished: Bool
+    /// Shares compose this payload's credit usage percentage; empty when the composition is unverified.
+    public let productUsage: [GrokProductUsage]
 
     public init(
         usedPercent: Double?,
@@ -24,7 +36,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         windowMinutes: Int? = nil,
         allowsCadenceFallback: Bool = true,
         subscriptionTier: String? = nil,
-        usedPercentIsWirePublished: Bool = true)
+        usedPercentIsWirePublished: Bool = true,
+        productUsage: [GrokProductUsage] = [])
     {
         self.usedPercent = usedPercent
         self.resetsAt = resetsAt
@@ -32,6 +45,7 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
         self.allowsCadenceFallback = allowsCadenceFallback
         self.subscriptionTier = subscriptionTier
         self.usedPercentIsWirePublished = usedPercentIsWirePublished
+        self.productUsage = productUsage
     }
 
     /// Overlay the CLI settings plan name. Usage percent stays on the existing credits rules.
@@ -42,7 +56,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             windowMinutes: self.windowMinutes,
             allowsCadenceFallback: self.allowsCadenceFallback,
             subscriptionTier: GrokPlan.displayName(from: raw) ?? self.subscriptionTier,
-            usedPercentIsWirePublished: self.usedPercentIsWirePublished)
+            usedPercentIsWirePublished: self.usedPercentIsWirePublished,
+            productUsage: self.productUsage)
     }
 
     /// Keep period and plan metadata a second billing surface did not publish. Usage percent
@@ -55,7 +70,8 @@ public struct GrokWebBillingSnapshot: Sendable, Equatable {
             windowMinutes: other.resetsAt == nil ? self.windowMinutes : other.windowMinutes,
             allowsCadenceFallback: other.resetsAt == nil ? self.allowsCadenceFallback : other.allowsCadenceFallback,
             subscriptionTier: self.subscriptionTier ?? other.subscriptionTier,
-            usedPercentIsWirePublished: self.usedPercentIsWirePublished)
+            usedPercentIsWirePublished: self.usedPercentIsWirePublished,
+            productUsage: self.productUsage)
     }
 }
 
