@@ -49,8 +49,7 @@ struct MuseTokenHistoryPresentationTests {
             modelBreakdowns: [.init(
                 modelName: "unknown",
                 costUSD: nil,
-                totalTokens: nil,
-                incompleteRequestCount: 1)],
+                totalTokens: nil)],
             unmeteredRequestCount: 1)
         #expect(CostHistoryChartMenuView._availableMetricsForTesting(provider: .muse, daily: [entry]) == [.tokens])
         #expect(CostHistoryChartMenuView._defaultMetricForTesting(provider: .muse, daily: []) == .tokens)
