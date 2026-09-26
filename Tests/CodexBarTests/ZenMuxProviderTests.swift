@@ -228,7 +228,7 @@ struct ZenMuxProviderTests {
         #expect(descriptor.fetchPlan.sourceModes == [.auto, .api])
 
         let implementation = try #require(ProviderImplementationRegistry.implementation(for: .zenmux))
-        #expect(implementation is ZenMuxProviderImplementation)
+        #expect(implementation.id == .zenmux)
     }
 
     @Test @MainActor
