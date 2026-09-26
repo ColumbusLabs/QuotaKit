@@ -10,6 +10,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Added
 - Agent sessions: opt-in Stay Awake holds the Mac awake while a local agent process is live, then releases it automatically.
 - Notifications: opt-in, account-scoped credential expiry alerts use shared delivery, including Augment keepalive.
+- Provider plugins: show opted-in plugins as switcher tabs with scoped refresh, while retaining standalone plugin cards.
 - Venice: show subscription credits through an explicit browser Web source, accepting Venice auth and Clerk session cookies.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.

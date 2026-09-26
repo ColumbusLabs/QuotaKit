@@ -1009,7 +1009,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "The memory-pressure debug fixture installs its synthetic entry in the Codex cache slot."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1113,
+            line: 1139,
             anchor: "controller.refreshOpenMenuIfStillVisible(menu, provider: .codex)",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific app branch passes its already-selected identity to a shared helper."),
@@ -2340,7 +2340,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 390,
+            line: 404,
             anchor: "if provider == .qoder {",
             expectedProviderIDs: ["claude", "helmcode", "qoder"],
             expectedReferenceCount: 4,
@@ -2348,7 +2348,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 464,
+            line: 478,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 4,
@@ -2356,7 +2356,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 485,
+            line: 499,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 4,
@@ -2364,7 +2364,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 558,
+            line: 572,
             anchor: "?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2372,7 +2372,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 617,
+            line: 631,
             anchor: "self.lazyStatusItem(for: provider ?? .codex)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2380,7 +2380,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 714,
+            line: 728,
             anchor: "return .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2435,16 +2435,16 @@ struct ProviderArchitectureGatekeeperTests {
             expectedReferenceFingerprint: ["codex@0"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
-            path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1146,
-            anchor: "return .provider((self.resolvedMenuProvider(enabledProviders: enabledProviders) ?? .codex).instanceID)",
+            path: "Sources/CodexBar/StatusItemController+UserPlugins.swift",
+            line: 53,
+            anchor: "let fallbackProviderID = (self.resolvedMenuProvider(enabledProviders: enabledProviders) ?? .codex).instanceID",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
             expectedReferenceFingerprint: ["codex@0"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Menu.swift",
-            line: 1159,
+            line: 1169,
             anchor: "return self.store.enabledFirstPartyProvidersForDisplay().first ?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2460,7 +2460,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+MenuSwitcherWarmup.swift",
-            line: 117,
+            line: 118,
             anchor: "let currentProvider = selectedProvider ?? enabledProviders.first ?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2500,15 +2500,15 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+ProviderNavigation.swift",
-            line: 59,
-            anchor: ".provider((self.navigationResolvedProvider(enabledProviders: enabledProviders) ?? .codex).instanceID)",
+            line: 63,
+            anchor: "self.navigationResolvedProvider(enabledProviders: enabledProviders) ?? .codex",
             expectedProviderIDs: ["codex"],
-            expectedReferenceCount: 4,
-            expectedReferenceFingerprint: ["codex@0", "codex@9", "codex@11", "codex@18"],
+            expectedReferenceCount: 2,
+            expectedReferenceFingerprint: ["codex@0", "codex@9"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+ProviderNavigation.swift",
-            line: 96,
+            line: 91,
             anchor: "return .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2524,7 +2524,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController.swift",
-            line: 907,
+            line: 903,
             anchor: "if provider == .codex {",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
