@@ -1580,6 +1580,7 @@ final class SyncCoordinator {
             && provider.costSummary == nil
             && provider.budget == nil
             && provider.hyperBalance == nil
+            && provider.providerDetails?.isEmpty != false
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.codexCreditLimit == nil
             && provider.crossModelUsage == nil
