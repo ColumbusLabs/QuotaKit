@@ -32,7 +32,8 @@ struct BifrostProviderImplementation: ProviderImplementation {
                 placeholder: "Paste Bifrost virtual key…",
                 binding: context.providerConfigBinding(.apiKey),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "bifrost-base-url",
                 title: "Base URL",
@@ -41,7 +42,8 @@ struct BifrostProviderImplementation: ProviderImplementation {
                 placeholder: "https://bifrost.example.com",
                 binding: context.providerConfigBinding(.endpoint),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
         ]
     }
 }

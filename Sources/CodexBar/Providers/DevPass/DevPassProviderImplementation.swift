@@ -22,6 +22,7 @@ struct DevPassProviderImplementation: ProviderImplementation {
                 id: "devpass-dashboard",
                 title: "Open DevPass",
                 url: URL(string: "https://devpass.llmgateway.io/dashboard"))],
-            isVisible: nil)]
+            isVisible: nil,
+            onActivate: nil)]
     }
 }

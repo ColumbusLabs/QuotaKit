@@ -52,7 +52,8 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
             placeholder: "Cookie: …",
             binding: context.binding(\.helmcodeCookieHeader),
             actions: [],
-            isVisible: { context.settings.helmcodeCookieSource == .manual })]
+            isVisible: { context.settings.helmcodeCookieSource == .manual },
+            onActivate: nil)]
     }
 }
 

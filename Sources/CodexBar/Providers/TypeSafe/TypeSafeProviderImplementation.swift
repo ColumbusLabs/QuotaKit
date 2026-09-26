@@ -55,6 +55,7 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
                 id: "typesafe-open-billing",
                 title: "Open TypeSafe Billing",
                 url: URL(string: "https://console.typesafe.ai/settings/billing"))],
-            isVisible: { context.settings.typesafeCookieSource == .manual })]
+            isVisible: { context.settings.typesafeCookieSource == .manual },
+            onActivate: nil)]
     }
 }

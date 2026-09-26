@@ -18,6 +18,7 @@ struct VercelProviderImplementation: ProviderImplementation {
             placeholder: "Paste API key…",
             binding: context.providerConfigBinding(.apiKey),
             actions: [],
-            isVisible: nil)]
+            isVisible: nil,
+            onActivate: nil)]
     }
 }
