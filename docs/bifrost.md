@@ -60,6 +60,15 @@ API-spend row without inventing a quota window. A response without budget rows s
 A disabled key (`is_active: false`) keeps showing its remaining budgets and rate limits with an
 inactive-key marker, rather than being treated as an error, unless it has neither budgets nor rate limits.
 
+When `rate_limits` contains components, each source supplies its own token/request windows and usage. The singular
+`rate_limit` is Bifrost's tightest-per-dimension compatibility merge of those components, not a separate total or pool,
+so it is used only when the component list is absent, null, or empty. Source names remain visible even on the first
+component. Rate-window IDs use the scope, dimension, and component position so reused or missing backend IDs cannot
+drop another source's usage or produce duplicate rate-window IDs. See the upstream
+[quota response schema](https://github.com/maximhq/bifrost/blob/main/docs/openapi/schemas/management/governance.yaml#L703).
+A last-reset timestamp alone does not imply a configured token/request quota: Bifrost includes these timestamps for
+unused dimensions too. A positive limit or a nonempty reset duration is required to display that dimension.
+
 Bifrost's `override_amount`/`override_mode`/`override_cycles_remaining` fields determine the effective budget limit.
 Duration shorthand supplies labels and orders budget windows. The quota response omits the owner's calendar-alignment
 policy, so CodexBar does not guess reset dates or exact window lengths for `d`/`w`/`M`/`Q`/`Y` periods. Sub-day Go-style

@@ -17,7 +17,8 @@ struct BifrostPluginTests {
          {"model":"fixture-empty","provider":"openai","total_cost":0,"total_tokens":0}]}],
      "rate_limit":{"id":"rl_1","token_max_limit":1000000,"token_current_usage":345678,
                    "token_reset_duration":"1d","request_max_limit":5000,"request_current_usage":120},
-     "rate_limits":[{"id":"rl_1","token_max_limit":1000000,"token_current_usage":345678},
+     "rate_limits":[{"id":"rl_1","token_max_limit":1000000,"token_current_usage":345678,
+                     "token_reset_duration":"1d","request_max_limit":5000,"request_current_usage":120},
                     {"id":"rl_2","source_name":"Team pool","token_max_limit":200000,
                      "token_current_usage":100,"request_reset_duration":"1h"}]}
     """#
@@ -47,10 +48,10 @@ struct BifrostPluginTests {
         #expect(try abs(#require(usage.details[1].rows[0].progress?.usedPercent) - 33.736) < 0.000001)
         let windows = try #require(usage.extraRateWindows)
         #expect(windows.map(\.id) == [
-            "bifrost-tokens",
-            "bifrost-requests",
-            "bifrost-tokens-rl_2",
-            "bifrost-requests-rl_2",
+            "bifrost-tokens-0",
+            "bifrost-requests-0",
+            "bifrost-tokens-1",
+            "bifrost-requests-1",
         ])
         #expect(windows.map(\.usageKnown) == [true, true, true, false])
         #expect(windows.map(\.window.usedPercent) == [34.5678, 2.4, 0.05, 0])

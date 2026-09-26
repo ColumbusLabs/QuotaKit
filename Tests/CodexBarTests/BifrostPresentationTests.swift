@@ -9,7 +9,7 @@ final class BifrostPresentationTests: XCTestCase {
     func test_resetOnlyQuotaRendersUnavailable() async throws {
         let snapshot = try await BifrostPluginTests.fetch(BifrostPluginTests.quota, engine: .quickJS)
         let model = try Self.model(snapshot)
-        let metric = try XCTUnwrap(model.metrics.first { $0.id == "bifrost-requests-rl_2" })
+        let metric = try XCTUnwrap(model.metrics.first { $0.id == "bifrost-requests-1" })
         XCTAssertTrue(metric.statusText?.contains("Unavailable") == true)
         XCTAssertNotNil(model.providerDetails.first { $0.title == "Budgets" }?.rows.first?.progress)
     }

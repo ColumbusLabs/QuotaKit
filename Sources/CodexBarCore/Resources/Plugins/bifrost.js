@@ -188,11 +188,16 @@ defineProvider({
           _nullishCoalesce(a.timing.seconds, () => Infinity) - _nullishCoalesce(b.timing.seconds, () => Infinity) ||
           compare(a.id, b.id),
       );
-    const limits = scopes.flatMap((scope) =>
-      [...(scope.body.rate_limit == null ? [] : [object(scope.body.rate_limit)]), ...array(scope.body.rate_limits)].map(
-        (limit) => ({ scope, limit }),
-      ),
-    );
+    const limits = scopes.flatMap((scope) => {
+      const components = array(scope.body.rate_limits);
+      // rate_limit is a compatibility merge of these components, not another pool.
+      const selected = components.length
+        ? components
+        : scope.body.rate_limit == null
+          ? []
+          : [object(scope.body.rate_limit)];
+      return selected.map((limit, index) => ({ scope, limit, index }));
+    });
     if (root.is_active === false && !budgets.length && !limits.length) {
       throw ctx.fail.permissionDenied("Bifrost virtual key is inactive and has no budgets or rate limits to display.");
     }
@@ -227,29 +232,22 @@ defineProvider({
     const extraWindows = [...windows.slice(2), ...allWindows.filter((window) => window.scope.id)].map(
       ({ id, title, window }) => ({ id, title, window }),
     );
-    const seen = new Set();
-    const rateStart = extraWindows.length;
-    limits.forEach(({ scope, limit }, index) => {
-      const id = text(limit.id),
-        source = text(limit.source_name);
-      const scopedID = scope.id + id;
-      if (id && seen.has(scopedID)) return;
-      if (id) seen.add(scopedID);
-      const suffix = index === 0 ? "" : `-${id || extraWindows.length - rateStart}`;
+    limits.forEach(({ scope, limit, index }) => {
+      const source = text(limit.source_name);
       for (const [key, title] of [
         ["token", "Tokens"],
         ["request", "Requests"],
       ]) {
         const max = number(limit[`${key}_max_limit`]),
           used = _nullishCoalesce(number(limit[`${key}_current_usage`]), () => 0);
-        const reset = limit[`${key}_reset_duration`],
-          last = limit[`${key}_last_reset`];
-        const time = timing(reset, last),
+        const reset = text(limit[`${key}_reset_duration`]),
           known = max !== undefined && max > 0;
-        if (!known && reset == null && last == null) continue;
+        // Last-reset timestamps are serialized even for unconfigured dimensions.
+        if (!known && !reset) continue;
+        const time = timing(reset, limit[`${key}_last_reset`]);
         extraWindows.push({
-          id: `bifrost-${scope.id}${key}s${suffix}`,
-          title: bounded([scope.title, index === 0 ? undefined : source, title].filter(Boolean).join(" ")),
+          id: `bifrost-${scope.id}${key}s-${index}`,
+          title: bounded([scope.title, source, title].filter(Boolean).join(" ")),
           usageKnown: known,
           window: {
             usedPercent: known ? ctx.pct(used, max) : 0,
