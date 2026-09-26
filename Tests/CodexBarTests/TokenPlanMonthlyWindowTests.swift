@@ -108,6 +108,7 @@ struct TokenPlanMonthlyWindowTests {
             snapshot: try? result.get(),
             credits: nil,
             creditsError: nil,
+            dashboard: nil,
             dashboardError: nil,
             tokenSnapshot: nil,
             tokenError: nil,
