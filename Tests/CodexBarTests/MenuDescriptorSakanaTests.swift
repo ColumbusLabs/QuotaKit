@@ -30,7 +30,7 @@ struct MenuDescriptorSakanaTests {
 
     private static func menuLines(showOptionalUsage: Bool) throws -> [String] {
         let suite = "MenuDescriptorSakanaTests-\(showOptionalUsage)"
-        let settings = testSettingsStore(suiteName: suite, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: suite)
         settings.statusChecksEnabled = false
         settings.showOptionalCreditsAndExtraUsage = showOptionalUsage
 
