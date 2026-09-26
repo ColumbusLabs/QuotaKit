@@ -59,6 +59,28 @@ extension CostUsageStore {
         return Self.cache(from: snapshot)
     }
 
+    func loadCodexScan(calendar: Calendar) -> (cache: CostUsageCache, stamp: CodexScanStamp?) {
+        _ = self.removeLegacyCodexArtifactIfPresent()
+        if let retained = self.retainedCodexScan,
+           retained.stamp == self.currentCodexScanStamp()
+        {
+            let compatible = retained.cache.timeZoneIdentifier == nil
+                || retained.cache.timeZoneIdentifier == calendar.timeZone.identifier
+            return (compatible ? retained.cache : CostUsageCache(), retained.stamp)
+        }
+        self.retainedCodexScan = nil
+        let firstRead = self.readStampedCodexScanSnapshot()
+        if firstRead == nil { self.reopenCodexScanConnection() }
+        guard let read = firstRead ?? self.readStampedCodexScanSnapshot() else {
+            return (CostUsageCache(), nil)
+        }
+        let compatible = read.snapshot.metadata.timeZoneIdentifier == nil
+            || read.snapshot.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+        let cache = compatible ? Self.cache(from: read.snapshot) : CostUsageCache()
+        if compatible { self.retainedCodexScan = (read.stamp, cache) }
+        return (cache, read.stamp)
+    }
+
     /// Loads the Codex manifest and aggregate tables while hydrating event-level state only for
     /// the supplied paths. A nil path set is the compatibility/full-rescan mode used by regular
     /// reports; bounded catch-up always passes an explicit working set.
@@ -82,8 +104,19 @@ extension CostUsageStore {
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
         rowBudget: Int = CostUsageStore.defaultRowBudget,
         fileBudgetBytes: Int64 = CostUsageStore.defaultFileBudgetBytes,
-        skipIdenticalContent: Bool = false) -> CostUsageStoreBudgetResult
+        skipIdenticalContent: Bool = false,
+        expectedScanStamp: CodexScanStamp? = nil) -> CostUsageStoreBudgetResult
     {
+        self.lastCodexSaveReusedContent = false
+        self.lastCodexSaveStamp = nil
+        self.retainedCodexScan = nil
+        if let expectedScanStamp, self.currentCodexScanStamp() != expectedScanStamp {
+            return CostUsageStoreBudgetResult(
+                deletedRows: 0,
+                rowCount: 0,
+                fileBytes: 0,
+                catchUpRequired: true)
+        }
         var cache = cache
         Self.reconcileCompletedCodexCatchUp(cache: &cache)
         let previous = self.readSnapshot()
@@ -98,6 +131,14 @@ extension CostUsageStore {
         {
             Self.identicalContentPreLockCheckpointForTesting?(self.databaseURL)
             guard self.beginSaveTransaction() else {
+                return CostUsageStoreBudgetResult(
+                    deletedRows: 0,
+                    rowCount: previous.files.count,
+                    fileBytes: 0,
+                    catchUpRequired: true)
+            }
+            if let expectedScanStamp, self.currentCodexScanStamp() != expectedScanStamp {
+                _ = self.rollbackSaveTransaction()
                 return CostUsageStoreBudgetResult(
                     deletedRows: 0,
                     rowCount: previous.files.count,
@@ -160,11 +201,16 @@ extension CostUsageStore {
                 retry.catchUpRequired = true
                 return retry
             }
+            self.lastCodexSaveReusedContent = result.deletedRows == 0
+            self.lastCodexSaveStamp = self.currentCodexScanStamp()
             return result
         }
         let aggregatePricing = self.aggregatePricingContext()
         let restoredPreviousFiles = Self.cache(from: previous).files
         let saved = self.withSaveTransaction(default: false) {
+            guard expectedScanStamp == nil || self.currentCodexScanStamp() == expectedScanStamp else {
+                return false
+            }
             // Rebuild the per-file baseline under the writer lock. Another process may have
             // committed between the optimistic read and this transaction.
             let lockedPrevious = self.readSnapshotInCurrentTransaction()
@@ -1942,13 +1988,37 @@ extension CostUsageStore {
 struct CostUsageStoreLoad: @unchecked Sendable {
     var store: CostUsageStore
     var cache: CostUsageCache
+    var scanStamp: CostUsageStore.CodexScanStamp? = nil
 }
 
 enum CostUsageStoreAccess {
+    private final class ScanStoreRegistry: @unchecked Sendable {
+        private let lock = NSLock()
+        private var entries: [(path: String, store: CostUsageStore)] = []
+        private let capacity = 4
+
+        func store(cacheRoot: URL?) -> CostUsageStore {
+            let candidate = CostUsageStore(cacheRoot: cacheRoot)
+            let path = candidate.databaseURL.standardizedFileURL.path
+            return self.lock.withLock {
+                let store: CostUsageStore = if let index = self.entries.firstIndex(where: { $0.path == path }) {
+                    self.entries.remove(at: index).store
+                } else {
+                    candidate
+                }
+                self.entries.append((path, store))
+                if self.entries.count > self.capacity { self.entries.removeFirst() }
+                return store
+            }
+        }
+    }
+
+    private static let scanStores = ScanStoreRegistry()
+
     static func load(cacheRoot: URL?, calendar: Calendar) -> CostUsageStoreLoad {
-        let store = CostUsageStore(cacheRoot: cacheRoot)
-        let cache = store.syncLoadCodexCache(calendar: calendar)
-        return CostUsageStoreLoad(store: store, cache: cache)
+        let store = self.scanStores.store(cacheRoot: cacheRoot)
+        let loaded = store.syncLoadCodexScan(calendar: calendar)
+        return CostUsageStoreLoad(store: store, cache: loaded.cache, scanStamp: loaded.stamp)
     }
 
     static func loadCodexWorkingSet(
@@ -1979,7 +2049,7 @@ enum CostUsageStoreAccess {
     }
 
     static func read(cacheRoot: URL?, calendar: Calendar = .current) -> CostUsageCache {
-        self.load(cacheRoot: cacheRoot, calendar: calendar).cache
+        CostUsageStore(cacheRoot: cacheRoot).syncLoadCodexCache(calendar: calendar)
     }
 
     static func readCodexCatchUpProjection(
@@ -2036,14 +2106,28 @@ enum CostUsageStoreAccess {
         calendar: Calendar,
         requestedScanWindow: (sinceKey: String, untilKey: String),
         reportWindow: (sinceKey: String, untilKey: String)? = nil,
-        skipIdenticalContent: Bool = false) -> CostUsageStoreBudgetResult
+        skipIdenticalContent: Bool = false,
+        expectedScanStamp: CostUsageStore.CodexScanStamp? = nil,
+        requireScanStamp: Bool = false) -> CostUsageStoreBudgetResult
     {
-        store.syncSaveCodexCache(
+        if requireScanStamp, expectedScanStamp == nil {
+            return CostUsageStoreBudgetResult(
+                deletedRows: 0,
+                rowCount: 0,
+                fileBytes: 0,
+                catchUpRequired: true)
+        }
+        let result = store.syncSaveCodexCache(
             cache,
             calendar: calendar,
             requestedScanWindow: requestedScanWindow,
             reportWindow: reportWindow,
-            skipIdenticalContent: skipIdenticalContent)
+            skipIdenticalContent: skipIdenticalContent,
+            expectedScanStamp: expectedScanStamp)
+        if !result.catchUpRequired, result.deletedRows == 0 {
+            store.syncRetainUnchangedCodexScan(cache)
+        }
+        return result
     }
 
     @discardableResult
