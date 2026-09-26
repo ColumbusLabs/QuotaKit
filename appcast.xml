@@ -5,6 +5,58 @@
         <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
         <description>QuotaKit for Mac updates distributed by Columbus Labs.</description>
         <item>
+            <title>0.32.4.30</title>
+            <pubDate>Sat, 26 Sep 2026 16:09:19 -0400</pubDate>
+            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
+            <sparkle:version>79.30.1.11.3</sparkle:version>
+            <sparkle:shortVersionString>0.32.4.30</sparkle:shortVersionString>
+            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
+            <description><![CDATA[<h2>QuotaKit 0.32.4.30 Mobile 1.11.3</h2>
+<h3>Added</h3>
+<ul>
+<li>Replicate: show current-month billing spend and optional credit balance from a saved or browser session, with labeled account support and iPhone spend sync.</li>
+<li>Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.</li>
+<li>Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.</li>
+<li>Doubao: save labeled Ark API-key accounts on Mac and select them in the app or CLI without inheriting another account's credentials.</li>
+<li>Configure visible usage items per provider in Mac settings; menu, preview, Overview, and compact constraint details follow the selection without changing quota ranking or fetching.</li>
+<li>Cursor: pin the Grok Bot weekly allowance independently in custom menu-bar layouts when that allowance is available.</li>
+<li>GitKraken AI: show personal weekly credits and optional shared organization usage from the account API.</li>
+<li>CodeRabbit CLI usage on Mac, including review and billing details; these detail rows are not currently included in iPhone sync.</li>
+<li>Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.</li>
+<li>Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.</li>
+</ul>
+<h3>Fixed</h3>
+<ul>
+<li>Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.</li>
+<li>OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.</li>
+<li>Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.</li>
+<li>Tailscale discovery: force headless CLI mode without replacing the user's terminal environment.</li>
+<li>Codex cost catch-up: report thermal pressure first when Low Power Mode is also active.</li>
+<li>Claude CLI: read terminal redraws as the current screen and dismiss an old panel before switching usage views.</li>
+<li>OpenCode Go: route labeled API-key accounts independently of ambient keys, keep the saved browser-cookie preference when switching them, and select Manual only for Cookie accounts.</li>
+<li>Grok: restore billing requests while keeping legacy monthly usage included.</li>
+<li>Grok: label weekly and monthly credit periods from measured billing bounds, keeping pace accurate near reset and leaving invalid periods unclassified.</li>
+<li>Kimi: honor Manual cookie settings instead of discovering desktop or browser credentials.</li>
+<li>Menu bar: assign stable status-item identities before sizing and preserve saved placement through visibility changes and teardown.</li>
+<li>Usage & Spend: keep daily coverage, charts, and historical pace aligned to calendar days across daylight-saving transitions and different bucket time zones.</li>
+<li>OAuth providers: preserve reserved characters in refresh credentials and reject malformed Vertex AI refresh responses.</li>
+<li>Claude: give accurate recovery steps for OAuth tokens missing the usage scope.</li>
+<li>Alibaba and Qwen Cloud: preserve reserved characters in console security tokens and gateway request parameters.</li>
+<li>Kimi: select China or International hosts for Code API usage, web membership, cookies, and dashboard links while keeping existing China settings as the default.</li>
+<li>LongCat: keep expiring fuel balances visible beside reset dates and reject malformed or overflowing quota values.</li>
+<li>LiteLLM: show team budget amounts beside reset dates, use the bundled provider plugin, and recover spend reports with self-scoped access when management access is unavailable.</li>
+<li>Mistral: avoid overflowing billing-token totals and unsafe model rankings while preserving valid cost data.</li>
+<li>Antigravity widgets: use the provider's ordered quota families; menu cards now remeasure when cached content changes height.</li>
+<li>Cost caches: replace saved pricing and Pi session data atomically so repeated updates cannot corrupt an existing cache.</li>
+<li>MiniMax: retain transport error identity for retry and cached-usage decisions while keeping readable failure messages.</li>
+<li>OpenRouter: distinguish API-key caps from spendable balance, preserve pay-as-you-go usage details, and report key authorization failures accurately.</li>
+<li>Menu bar: refresh cached menu appearance, place single-quota status badges on the visible meter, and show exhausted automatic quotas in switcher progress.</li>
+</ul>
+<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
+]]></description>
+            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.30/QuotaKit-macos-universal-0.32.4.30.zip" length="80373687" type="application/octet-stream" sparkle:edSignature="VFBAGSuBNPdjclNBW53ji8BHip4cutgiCaOQIv8vqbQLzI9iZA0/zgu+WLqp85goMvFU4LEo28Cx1dheWYr5Dg=="/>
+        </item>
+        <item>
             <title>0.32.4.29</title>
             <pubDate>Sun, 20 Sep 2026 18:19:47 -0400</pubDate>
             <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
@@ -53,22 +105,6 @@
 <p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
 ]]></description>
             <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.28/QuotaKit-macos-universal-0.32.4.28.zip" length="80905158" type="application/octet-stream" sparkle:edSignature="/JqQ7oJOchuCv63nq2WPflOhROtZxppdoNQLEvirzxZzvsG17oFtOU0Kvk6rFuFBpCkWs8Cz4dQUN7ENFhuoDg=="/>
-        </item>
-        <item>
-            <title>0.32.4.27</title>
-            <pubDate>Fri, 04 Sep 2026 08:49:10 -0400</pubDate>
-            <link>https://raw.githubusercontent.com/ColumbusLabs/QuotaKit/main/appcast.xml</link>
-            <sparkle:version>79.27.1.11.3</sparkle:version>
-            <sparkle:shortVersionString>0.32.4.27</sparkle:shortVersionString>
-            <sparkle:minimumSystemVersion>14.0</sparkle:minimumSystemVersion>
-            <description><![CDATA[<h2>QuotaKit 0.32.4.27 Mobile 1.11.3</h2>
-<h3>Fixed</h3>
-<ul>
-<li>Codex: prioritize and independently publish the most recent closed day so current live sessions and older backlog cannot delay yesterday's corrected estimate.</li>
-</ul>
-<p><a href="https://github.com/ColumbusLabs/QuotaKit/blob/main/CHANGELOG.md">View full changelog</a></p>
-]]></description>
-            <enclosure url="https://github.com/ColumbusLabs/QuotaKit/releases/download/v0.32.4.27/QuotaKit-macos-universal-0.32.4.27.zip" length="81297822" type="application/octet-stream" sparkle:edSignature="MYfqvkrrFxDBv2tWSS8KH1yjpx1HBpLUbJUD84ab5S4HLXMWTlWLEgWlaNvT+JtTaUkbfDQM/vpK00ncp7+CCQ=="/>
         </item>
     </channel>
 </rss>
