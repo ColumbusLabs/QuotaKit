@@ -73,6 +73,8 @@ envelope. CodexBar does not need
 - Execute exactly the argument array `cswap --list --json`. Never invoke a shell or accept config-defined passthrough
   arguments.
 - Require `schemaVersion == 1`; reject unknown versions and partial top-level shapes.
+- An optional boolean `supportsAccountSwitching` disables activation for read-only adapters while retaining usage,
+  labels, and the active marker. The absent field defaults to `true` for existing schema-v1 adapters.
 - Bound runtime and stdout, terminate on timeout, and retain the last successful snapshot with a stale marker.
 - Parse only slot number, active state, usage status, 5-hour/7-day percentages, optional `usage.scoped` display names
   and percentages, reset timestamps, display-only `organizationName` (always present, may be empty), and optional

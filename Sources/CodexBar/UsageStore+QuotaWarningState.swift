@@ -48,6 +48,7 @@ extension UsageStore {
     struct QuotaWarningAccountContext {
         let displayName: String?
         let discriminator: String?
+        let observedAt: Date
     }
 
     struct QuotaWarningTransition {
@@ -74,6 +75,7 @@ extension UsageStore {
 
     struct QuotaWarningState {
         var lastRemaining: Double?
+        var observedAt: Date = .distantPast
         var firedThresholds: Set<Int> = []
         var source: SessionQuotaWindowSource?
     }

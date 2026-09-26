@@ -1065,7 +1065,7 @@ public enum ClaudeOAuthCredentialsStore {
                 return nil
             }
             let storedFingerprint = ClaudeOAuthCredentialsStore.loadClaudeKeychainFingerprint()
-            guard currentFingerprint != storedFingerprint else { return nil }
+            guard cached.credentials.isExpired || currentFingerprint != storedFingerprint else { return nil }
 
             do {
                 guard let data = try ClaudeOAuthCredentialsStore.loadFromClaudeKeychainNonInteractive() else {

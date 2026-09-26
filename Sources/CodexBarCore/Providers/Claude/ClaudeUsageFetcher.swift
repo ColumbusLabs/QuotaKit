@@ -1257,7 +1257,7 @@ extension ClaudeUsageFetcher {
 
         let result = try await SubprocessRunner.run(
             binary: claudeBinary,
-            arguments: ["/usage"],
+            arguments: ClaudeCLISession.probeSettingsArguments + ["/usage"],
             environment: environment,
             timeout: timeout,
             standardInput: FileHandle.nullDevice,

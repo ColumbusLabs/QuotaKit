@@ -55,6 +55,8 @@ Admin API key setup:
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
+- An expired cached token is checked against the live Claude Keychain entry when no-prompt access is available;
+  background refresh does not open an interactive Keychain prompt.
 
 ### Debug selection (debug menu enabled)
 - The Debug pane can force OAuth / Web / CLI.
@@ -108,6 +110,8 @@ Admin API key setup:
   1) Safari: `~/Library/Cookies/Cookies.binarycookies`
   2) Chrome/Chromium forks: `~/Library/Application Support/Google/Chrome/*/Cookies`
   3) Firefox: `~/Library/Application Support/Firefox/Profiles/*/cookies.sqlite`
+- A stale cached browser cookie triggers a no-prompt browser session rediscovery. If rediscovery finds a session,
+  QuotaKit reports the new request's actual timeout, cancellation, or server error rather than the stale cookie error.
 - Domain: `claude.ai`.
 - Cookie name required:
   - `sessionKey` (value prefix `sk-ant-...`).
@@ -204,6 +208,8 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 
 ## CLI PTY (fallback)
 - Runs `claude` in a PTY session (`ClaudeCLISession`).
+- Usage probes pass a process-only `remoteControlAtStartup: false` setting through PTY, watchdog, and direct fallback
+  launches. Saved Claude settings and profiles are unchanged.
 - Default behavior: exit after each probe; Debug → "Keep CLI sessions alive" keeps it running between probes.
 - Probe working directory: `~/Library/Application Support/CodexBar/ClaudeProbe` with local Claude settings that disable
   deep-link URL handler registration during headless probes.
@@ -251,6 +257,14 @@ Compact multi-account layout proof (synthetic accounts and usage data):
   - Compatible local cost reports are memoized beside the JSON history cache and validated against source, pricing, window, and time-zone stamps on restart.
   - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/claude-v2.json`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
+
+## Quota warnings
+
+OAuth and CLI warning episodes follow verified account identity when available. Samples without identity keep an
+independent unresolved episode, even when their reset time and remaining quota resemble the last known account.
+Credential changes retire unresolved quota and predictive episodes while preserving known account and OAuth-owner
+histories. A verified OAuth owner mapping can reconcile owner-scoped thresholds with the account; hooks and
+predictive warnings keep their own source keys.
 
 ## Key files
 - OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`

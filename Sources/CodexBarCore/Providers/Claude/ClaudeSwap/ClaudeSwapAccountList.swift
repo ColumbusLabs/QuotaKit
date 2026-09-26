@@ -12,10 +12,17 @@ import Foundation
 public struct ClaudeSwapAccountList: Equatable, Sendable {
     public let activeAccountNumber: Int?
     public let accounts: [ClaudeSwapAccountRow]
+    /// Additive schema-v1 capability; older adapters remain switchable.
+    public let supportsAccountSwitching: Bool
 
-    public init(activeAccountNumber: Int?, accounts: [ClaudeSwapAccountRow]) {
+    public init(
+        activeAccountNumber: Int?,
+        accounts: [ClaudeSwapAccountRow],
+        supportsAccountSwitching: Bool = true)
+    {
         self.activeAccountNumber = activeAccountNumber
         self.accounts = accounts
+        self.supportsAccountSwitching = supportsAccountSwitching
     }
 }
 
@@ -164,6 +171,12 @@ public enum ClaudeSwapListParser {
         guard let rawActiveAccountNumber = object["activeAccountNumber"] else {
             throw ClaudeSwapListParserError.malformedShape("missing activeAccountNumber")
         }
+        let rawSupportsAccountSwitching = object["supportsAccountSwitching"] ?? true
+        guard let supportsAccountSwitching = rawSupportsAccountSwitching as? NSNumber,
+              CFGetTypeID(supportsAccountSwitching) == CFBooleanGetTypeID()
+        else {
+            throw ClaudeSwapListParserError.malformedShape("supportsAccountSwitching is not a boolean")
+        }
         let activeAccountNumber: Int? = switch rawActiveAccountNumber {
         case is NSNull: nil
         case let number as Int where number > 0: number
@@ -185,7 +198,10 @@ public enum ClaudeSwapListParser {
         guard activeSlots == (activeAccountNumber.map { [$0] } ?? []) else {
             throw ClaudeSwapListParserError.malformedShape("active account fields disagree")
         }
-        return ClaudeSwapAccountList(activeAccountNumber: activeAccountNumber, accounts: accounts)
+        return ClaudeSwapAccountList(
+            activeAccountNumber: activeAccountNumber,
+            accounts: accounts,
+            supportsAccountSwitching: supportsAccountSwitching.boolValue)
     }
 
     private static func parseRow(_ row: [String: Any]) throws -> ClaudeSwapAccountRow {

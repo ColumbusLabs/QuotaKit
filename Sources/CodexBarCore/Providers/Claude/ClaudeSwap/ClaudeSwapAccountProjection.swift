@@ -43,7 +43,7 @@ public enum ClaudeSwapAccountProjection {
                 displayLabel: label,
                 accountEmail: row.email.isEmpty ? nil : row.email,
                 isActive: row.isActive,
-                canActivate: !row.isActive && self.canActivate(row),
+                canActivate: list.supportsAccountSwitching && !row.isActive && self.canActivate(row),
                 snapshot: snapshot,
                 error: self.errorText(for: row, snapshot: snapshot, now: now),
                 sourceLabel: self.sourceLabel)
