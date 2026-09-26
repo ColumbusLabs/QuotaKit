@@ -1614,3 +1614,8 @@
 "antigravity_cost_estimate_hint" = "Lokalne użycie × publiczne ceny API · to nie opłaty ani kredyty Antigravity";
 "antigravity_quota_window_note" = "Koszt okna obejmuje wszystkie modele · pokazane okno to najbardziej ograniczona rodzina";
 "antigravity_no_priced_token_history" = "Brak wycenionej historii tokenów Antigravity.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Udostępnij podsumowanie użycia…";
+"Usage snapshot unavailable" = "Podsumowanie użycia niedostępne";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit nie może przygotować podsumowania użycia do udostępnienia. Odśwież Zużycie i wydatki, a następnie spróbuj ponownie.";

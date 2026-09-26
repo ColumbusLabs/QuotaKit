@@ -1613,3 +1613,8 @@
 "antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
 "antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
 "antigravity_no_priced_token_history" = "Fiyatlandırılmış Antigravity token geçmişi yok.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";

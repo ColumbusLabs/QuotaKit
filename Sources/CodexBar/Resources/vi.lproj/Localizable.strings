@@ -1612,3 +1612,8 @@
 "antigravity_cost_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải phí hay tín dụng Antigravity";
 "antigravity_quota_window_note" = "Chi phí cửa sổ bao gồm mọi mô hình · cửa sổ hiển thị là nhóm bị giới hạn nhất";
 "antigravity_no_priced_token_history" = "Không có lịch sử token Antigravity được định giá.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
+"Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";

@@ -1623,3 +1623,8 @@
 "antigravity_cost_estimate_hint" = "本地用量 × 公开 API 价格 · 并非 Antigravity 账单或额度";
 "antigravity_quota_window_note" = "窗口费用涵盖所有模型 · 所示窗口为最受限的模型系列";
 "antigravity_no_priced_token_history" = "没有可计价的 Antigravity 令牌历史记录。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "分享用量概览…";
+"Usage snapshot unavailable" = "用量概览不可用";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit 无法准备可分享的用量概览。请刷新“用量和支出”后重试。";

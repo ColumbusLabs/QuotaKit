@@ -1615,3 +1615,8 @@
 "antigravity_cost_estimate_hint" = "مصرف محلی × قیمت‌های عمومی API · هزینه یا اعتبار Antigravity نیست";
 "antigravity_quota_window_note" = "هزینهٔ بازه همهٔ مدل‌ها را دربر می‌گیرد · بازهٔ نمایش‌داده‌شده محدودترین خانواده است";
 "antigravity_no_priced_token_history" = "تاریخچهٔ قیمت‌گذاری‌شدهٔ توکن Antigravity موجود نیست.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "اشتراک‌گذاری نمای کلی استفاده…";
+"Usage snapshot unavailable" = "نمای کلی استفاده در دسترس نیست";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit نتوانست نمای کلی استفاده قابل اشتراک‌گذاری را آماده کند. استفاده و هزینه را تازه‌سازی کنید و دوباره امتحان کنید.";

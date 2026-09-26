@@ -1610,3 +1610,8 @@
 "antigravity_cost_estimate_hint" = "Uso local × prezos públicos da API · non son cargos nin créditos de Antigravity";
 "antigravity_quota_window_note" = "O custo da xanela inclúe todos os modelos · a xanela amosada é a familia máis limitada";
 "antigravity_no_priced_token_history" = "Non hai historial de tokens de Antigravity con prezo dispoñible.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Compartir resumo do uso…";
+"Usage snapshot unavailable" = "Resumo do uso non dispoñible";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit non puido preparar un resumo do uso para compartir. Actualiza Uso e gasto e téntao de novo.";

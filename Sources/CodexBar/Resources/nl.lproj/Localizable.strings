@@ -1610,3 +1610,8 @@
 "antigravity_cost_estimate_hint" = "Lokaal gebruik × publieke API-prijzen · geen Antigravity-kosten of -tegoeden";
 "antigravity_quota_window_note" = "Vensterkosten omvatten alle modellen · getoond venster is de meest beperkte familie";
 "antigravity_no_priced_token_history" = "Geen geprijsde Antigravity-tokengeschiedenis beschikbaar.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Gebruiksoverzicht delen…";
+"Usage snapshot unavailable" = "Gebruiksoverzicht niet beschikbaar";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kon geen deelbaar gebruiksoverzicht maken. Vernieuw Gebruik en uitgaven en probeer het opnieuw.";

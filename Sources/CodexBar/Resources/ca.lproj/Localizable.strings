@@ -1614,3 +1614,8 @@
 "antigravity_cost_estimate_hint" = "Ús local × preus públics de l'API · no són càrrecs ni crèdits d'Antigravity";
 "antigravity_quota_window_note" = "El cost de la finestra inclou tots els models · la finestra mostrada és la família més limitada";
 "antigravity_no_priced_token_history" = "No hi ha historial de tokens d'Antigravity amb preu disponible.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Comparteix la instantània d'ús…";
+"Usage snapshot unavailable" = "Instantània d'ús no disponible";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit no ha pogut preparar una instantània d'ús per compartir. Actualitza Ús i despesa i torna-ho a provar.";

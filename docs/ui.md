@@ -12,6 +12,7 @@ read_when:
 - Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
 
 ## Menu bar
+- Overview offers Share Usage Snapshot when its Usage & Spend summary has shareable data. The local preview uses the same spend sources, hidden-source choices, calendar, and currency as that summary; Copy Image exports PNG and TIFF without uploading anything.
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
 - Stacked switcher provider labels remain on one line so row content stays aligned.

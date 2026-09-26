@@ -1615,3 +1615,8 @@
 "antigravity_cost_estimate_hint" = "الاستخدام المحلي × أسعار واجهة البرمجة العامة · ليست رسوم أو أرصدة Antigravity";
 "antigravity_quota_window_note" = "تكلفة النافذة تشمل كل النماذج · النافذة المعروضة هي الفئة الأكثر تقييدًا";
 "antigravity_no_priced_token_history" = "لا يتوفر سجل رموز Antigravity مُسعّر.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "مشاركة ملخص الاستخدام…";
+"Usage snapshot unavailable" = "ملخص الاستخدام غير متاح";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "تعذر على QuotaKit إعداد ملخص استخدام قابل للمشاركة. حدّث الاستخدام والإنفاق ثم حاول مرة أخرى.";

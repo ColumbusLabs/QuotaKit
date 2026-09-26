@@ -1614,3 +1614,8 @@
 "antigravity_cost_estimate_hint" = "Penggunaan lokal × harga API publik · bukan tagihan atau kredit Antigravity";
 "antigravity_quota_window_note" = "Biaya jendela mencakup semua model · jendela yang ditampilkan adalah keluarga paling terbatas";
 "antigravity_no_priced_token_history" = "Tidak ada riwayat token Antigravity berharga yang tersedia.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Bagikan ringkasan penggunaan…";
+"Usage snapshot unavailable" = "Ringkasan penggunaan tidak tersedia";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit tidak dapat menyiapkan ringkasan penggunaan untuk dibagikan. Segarkan Penggunaan & pengeluaran, lalu coba lagi.";

@@ -1612,3 +1612,8 @@
 "antigravity_cost_estimate_hint" = "Локальное использование × публичные цены API · это не счета и не кредиты Antigravity";
 "antigravity_quota_window_note" = "Стоимость окна включает все модели · показано окно самого ограниченного семейства";
 "antigravity_no_priced_token_history" = "Нет оценённой истории токенов Antigravity.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поделиться сводкой использования…";
+"Usage snapshot unavailable" = "Сводка использования недоступна";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit не удалось подготовить сводку использования для отправки. Обновите раздел «Использование и расходы» и повторите попытку.";
