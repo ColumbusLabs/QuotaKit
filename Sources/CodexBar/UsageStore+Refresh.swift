@@ -83,21 +83,23 @@ extension UsageStore {
         let generation: UInt64
     }
 
-    private static func warningAccountDiscriminator(
+    private func warningAccountDiscriminators(
         provider: UsageProvider,
         tokenAccount: ProviderTokenAccount?,
         result: ProviderFetchResult,
-        context: ProviderRefreshOutcomeContext) -> String?
+        context: ProviderRefreshOutcomeContext) -> (quota: String?, source: String?)
     {
         if let tokenAccount {
-            return self.warningTokenAccountDiscriminator(tokenAccount)
+            let key = Self.warningTokenAccountDiscriminator(tokenAccount)
+            return (key, key)
         }
         // Provider-specific by design: Codex owner keys and Claude OAuth observations scope warning deduplication.
         if provider == .codex {
-            return context.codexSessionQuotaOwnerKey?.rawValue
+            let key = context.codexSessionQuotaOwnerKey?.rawValue
+            return (key, key)
         }
-        guard provider == .claude else { return nil }
-        return self.warningClaudeAccountDiscriminator(
+        guard provider == .claude else { return (nil, nil) }
+        return self.warningClaudeAccountDiscriminators(
             strategyKind: result.strategyKind,
             observation: context.claudeOAuthActiveAccountObservation,
             oauthHistoryOwnerIdentifier: result.claudeOAuthHistoryOwnerIdentifier)
@@ -831,7 +833,7 @@ extension UsageStore {
             current: profileStable,
             previous: self.snapshots[provider.instanceID])
         let backfilled = stabilized.backfillingResetTimes(from: resetBackfillSource)
-        let warningAccountDiscriminator = Self.warningAccountDiscriminator(
+        let warningAccounts = self.warningAccountDiscriminators(
             provider: provider,
             tokenAccount: publication.currentTokenAccount,
             result: result,
@@ -839,7 +841,10 @@ extension UsageStore {
         self.handleQuotaWarningTransitions(
             provider: provider,
             snapshot: backfilled,
-            accountDiscriminator: warningAccountDiscriminator)
+            accountDiscriminator: warningAccounts.quota,
+            hookAccountDiscriminator: warningAccounts.source,
+            requiresKnownAccount: provider == .claude &&
+                (result.strategyKind == .oauth || result.strategyKind == .cli))
         self.handleSessionQuotaTransition(
             provider: provider,
             snapshot: backfilled,
@@ -847,7 +852,9 @@ extension UsageStore {
         self.handlePredictivePaceWarningTransitions(
             provider: provider,
             snapshot: backfilled,
-            accountDiscriminatorOverride: provider == .claude ? warningAccountDiscriminator : nil)
+            accountDiscriminatorOverride: provider == .claude ? warningAccounts.source : nil,
+            requiresKnownAccount: provider == .claude &&
+                (result.strategyKind == .oauth || result.strategyKind == .cli))
         if provider == .codex {
             self.handleCodexResetCreditNotifications(snapshot: backfilled)
         }
@@ -1372,7 +1379,7 @@ extension UsageStore {
     }
 
     private func clearClaudeCredentialDerivedStateForCredentialSwap() {
-        // Provider-specific by design: retire Claude projections but preserve known accounts' warning episodes.
+        // Retire Claude projections while preserving scoped warning episodes, including unresolved accounts.
         self.widgetUsagePreservationBlockedProviders.insert(.claude)
         self.snapshots.removeValue(forKey: .claude)
         self.lastKnownResetSnapshots.removeValue(forKey: .claude)
@@ -1386,9 +1393,6 @@ extension UsageStore {
         self.failureGates[.claude]?.reset()
         self.tokenFailureGates[.claude]?.reset()
         self.clearSessionQuotaTransitionState(provider: .claude)
-        self.quotaWarningState = self.quotaWarningState.filter {
-            $0.key.provider != .claude || $0.key.accountDiscriminator != nil
-        }
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
 

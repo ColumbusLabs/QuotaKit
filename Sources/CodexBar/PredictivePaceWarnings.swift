@@ -105,7 +105,8 @@ extension UsageStore {
     func handlePredictivePaceWarningTransitions(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
-        accountDiscriminatorOverride: String? = nil)
+        accountDiscriminatorOverride: String? = nil,
+        requiresKnownAccount: Bool = false)
     {
         guard self.settings.predictivePaceWarningNotificationsEnabled else {
             self.predictivePaceWarningNotifiedKeys = Set(
@@ -113,6 +114,7 @@ extension UsageStore {
             return
         }
         guard provider == .codex || provider == .claude else { return }
+        guard !requiresKnownAccount || accountDiscriminatorOverride != nil else { return }
         guard let accountDiscriminator = self.predictivePaceWarningAccountDiscriminator(
             provider: provider,
             snapshot: snapshot,
@@ -223,6 +225,53 @@ extension UsageStore {
         return "email:\(account)"
     }
 
+    func warningClaudeAccountDiscriminators(
+        strategyKind: ProviderFetchKind,
+        observation: ClaudeOAuthActiveAccountObservation,
+        oauthHistoryOwnerIdentifier: String? = nil) -> (quota: String?, source: String?)
+    {
+        guard strategyKind == .oauth || strategyKind == .cli else { return (nil, nil) }
+        let knownAccount = Self.warningClaudeActiveAccountDiscriminator(observation: observation)
+        let unknownAccount = "claude-account:unknown"
+        var account = knownAccount
+        var source = knownAccount ?? unknownAccount
+        if strategyKind == .oauth,
+           let owner = oauthHistoryOwnerIdentifier?
+               .trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !owner.isEmpty
+        {
+            let ownerKey = "claude-oauth-owner:\(owner)"
+            source = knownAccount ?? ownerKey
+            if let boundIdentity = Self.loadClaudeOAuthAccountUuidMap(from: self.settings.userDefaults)[owner] {
+                let boundAccount = "claude-account:\(boundIdentity)"
+                guard account == nil || account == boundAccount else { return (nil, nil) }
+                self.reconcileClaudeQuotaWarningOwner(ownerKey, account: boundAccount)
+                account = boundAccount
+            }
+        }
+        if let account {
+            self.reconcileClaudeQuotaWarningOwner(unknownAccount, account: account)
+            self.lastClaudeQuotaWarningAccount = account
+        }
+        return (account ?? source, source)
+    }
+
+    private func reconcileClaudeQuotaWarningOwner(_ owner: String, account: String) {
+        for (key, prior) in self.quotaWarningState where key.provider == .claude && key.accountDiscriminator == owner {
+            let accountKey = QuotaWarningStateKey(
+                provider: key.provider, window: key.window,
+                accountDiscriminator: account, windowID: key.windowID)
+            if prior.observedAt >= (self.quotaWarningState[accountKey]?.observedAt ?? .distantPast) {
+                self.quotaWarningState[accountKey] = prior
+            }
+            if owner == "claude-account:unknown" {
+                self.quotaWarningState[accountKey]?.sharedWithUnresolvedAccount = true
+            }
+            self.quotaWarningState.removeValue(forKey: key)
+        }
+    }
+
+    // Keep the pure discriminator helper for existing callers and parser tests. Refreshes use the
+    // instance method above so verified ownership and warning episodes can be reconciled.
     static func warningClaudeAccountDiscriminator(
         strategyKind: ProviderFetchKind,
         observation: ClaudeOAuthActiveAccountObservation,
@@ -232,18 +281,12 @@ extension UsageStore {
         case .cli:
             return self.warningClaudeActiveAccountDiscriminator(observation: observation)
         case .oauth:
-            if let activeAccount = self.warningClaudeActiveAccountDiscriminator(
-                observation: observation)
-            {
-                return activeAccount
+            if let account = self.warningClaudeActiveAccountDiscriminator(observation: observation) {
+                return account
             }
             guard let owner = oauthHistoryOwnerIdentifier?
-                .trimmingCharacters(in: .whitespacesAndNewlines)
-                .lowercased(),
-                !owner.isEmpty
+                .trimmingCharacters(in: .whitespacesAndNewlines).lowercased(), !owner.isEmpty
             else { return nil }
-            // OAuth usage has no email. Keep a credential-scoped fallback so warning episodes remain
-            // account-scoped when Claude's active-account metadata is unavailable.
             return "claude-oauth-owner:\(owner)"
         case .apiToken, .localProbe, .web, .webDashboard:
             return nil
