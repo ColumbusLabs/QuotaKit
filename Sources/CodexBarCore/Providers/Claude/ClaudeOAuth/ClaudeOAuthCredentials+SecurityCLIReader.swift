@@ -42,8 +42,8 @@ extension ClaudeOAuthCredentialsStore {
     }
 
     /// Attempts a Claude keychain read via `/usr/bin/security` when the experimental reader is enabled.
-    /// - Important: Production reads require an explicit user or QuotaKit CLI capability, and the stored Never policy
-    ///   always blocks the CLI because `security` can prompt.
+    /// Production reads require explicit consent or a QuotaKit CLI capability. The stored prompt policy
+    /// also gates this external reader because `/usr/bin/security` can prompt.
     static func loadFromClaudeKeychainViaSecurityCLIIfEnabled(
         interaction: ProviderInteraction,
         readStrategy: ClaudeOAuthKeychainReadStrategy = ClaudeOAuthKeychainReadStrategyPreference.current())
@@ -98,13 +98,14 @@ extension ClaudeOAuthCredentialsStore {
         // the process-launch boundary so no caller can bypass it by selecting the experimental reader.
         guard self.keychainAccessAllowed else { return nil }
         let interactionMetadata = interaction == .userInitiated ? "user" : "background"
-        guard ClaudeOAuthKeychainPromptPreference.storedMode() != .never else {
+        let promptMode = ClaudeOAuthKeychainPromptPreference.storedMode()
+        guard promptMode == .always || promptMode == .onlyOnUserAction && interaction == .userInitiated else {
             self.log.debug(
                 "Claude keychain security CLI read skipped by prompt policy",
                 metadata: [
                     "reader": "securityCLI",
                     "callerInteraction": interactionMetadata,
-                    "promptMode": ClaudeOAuthKeychainPromptMode.never.rawValue,
+                    "promptMode": promptMode.rawValue,
                 ])
             return nil
         }

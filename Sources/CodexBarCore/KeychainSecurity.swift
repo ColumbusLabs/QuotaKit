@@ -105,6 +105,14 @@ enum KeychainLegacyInteraction {
 /// Test processes fail closed before touching the user's Keychain, even when a test enables
 /// higher-level Keychain logic with `KeychainAccessGate.withTaskOverrideForTesting(false)`.
 public enum KeychainSecurity {
+    #if DEBUG
+    enum Mutation: Equatable, Sendable {
+        case add, delete, update
+    }
+
+    @TaskLocal static var mutationOverrideForTesting: (@Sendable (Mutation, [String: Any]) -> OSStatus)?
+    #endif
+
     public enum InteractionPolicy: Sendable {
         case nonInteractive
         case userInitiatedPrompt
@@ -154,6 +162,9 @@ public enum KeychainSecurity {
         _ attributesToUpdate: CFDictionary,
         interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
     {
+        #if DEBUG
+        if let override = self.mutationOverrideForTesting { return override(.update, query as? [String: Any] ?? [:]) }
+        #endif
         guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }
@@ -169,6 +180,9 @@ public enum KeychainSecurity {
         _ result: UnsafeMutablePointer<CFTypeRef?>?,
         interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
     {
+        #if DEBUG
+        if let override = self.mutationOverrideForTesting { return override(.add, attributes as? [String: Any] ?? [:]) }
+        #endif
         guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }
@@ -183,6 +197,9 @@ public enum KeychainSecurity {
         _ query: CFDictionary,
         interactionPolicy: InteractionPolicy = .nonInteractive) -> OSStatus
     {
+        #if DEBUG
+        if let override = self.mutationOverrideForTesting { return override(.delete, query as? [String: Any] ?? [:]) }
+        #endif
         guard self.executorOverrideForTesting != nil || !KeychainTestSafety.shouldBlockRealKeychainAccess() else {
             return errSecInteractionNotAllowed
         }

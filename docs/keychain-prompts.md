@@ -89,6 +89,19 @@ Keychain access:
 Avoid "Allow all applications" unless you intentionally want every app to access that item. Do not paste or share the
 item's secret value when asking for help.
 
+## Cache ACL and no-UI checks
+
+QuotaKit identifies a bundled CLI through the running executable's kernel path, including launches through a symlink.
+An external symlink is not added to the cache item's trusted applications. Unbundled development binaries keep their
+cache in memory. Before a background secret read, a no-UI attributes check inspects the current decrypt ACL and code
+signature. Inconclusive checks retry up to three times; only a confirmed ACL rejection starts a five-minute cache
+cooldown.
+
+When fresh data is available, QuotaKit can replace **its own** stale cache item using no-UI deletion and creation.
+Failed replacement is attempted once per cooldown. A locked or inconclusive Keychain remains retryable and is not
+replaced. Concurrent signature checks share an in-flight result, but a completed success is revalidated on the next
+operation so changes to sealed app resources cannot rely on stale approval.
+
 ## What to include in a support issue
 
 - QuotaKit version and install source: GitHub release, Homebrew cask, Sparkle update, or another source.

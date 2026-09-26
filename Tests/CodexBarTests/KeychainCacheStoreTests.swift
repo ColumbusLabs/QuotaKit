@@ -23,7 +23,7 @@ struct KeychainCacheStoreTests {
         switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
         case let .found(loaded):
             #expect(loaded == entry)
-        case .missing, .temporarilyUnavailable, .invalid:
+        case .missing, .interactionRequired, .temporarilyUnavailable, .invalid:
             #expect(Bool(false), "Expected implicit test cache entry")
         }
     }
@@ -79,7 +79,7 @@ struct KeychainCacheStoreTests {
         switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
         case let .found(loaded):
             #expect(loaded == entry)
-        case .missing, .temporarilyUnavailable, .invalid:
+        case .missing, .interactionRequired, .temporarilyUnavailable, .invalid:
             #expect(Bool(false), "Expected keychain cache entry")
         }
     }
@@ -100,7 +100,7 @@ struct KeychainCacheStoreTests {
         switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
         case let .found(loaded):
             #expect(loaded == second)
-        case .missing, .temporarilyUnavailable, .invalid:
+        case .missing, .interactionRequired, .temporarilyUnavailable, .invalid:
             #expect(Bool(false), "Expected overwritten keychain cache entry")
         }
     }
@@ -119,7 +119,7 @@ struct KeychainCacheStoreTests {
         switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
         case .missing:
             #expect(true)
-        case .found, .temporarilyUnavailable, .invalid:
+        case .found, .interactionRequired, .temporarilyUnavailable, .invalid:
             #expect(Bool(false), "Expected keychain cache entry to be cleared")
         }
     }
@@ -191,9 +191,9 @@ struct KeychainCacheStoreTests {
         #expect(observed.value?.0 == service)
         #expect(observed.value?.1 == key.account)
         switch result {
-        case .temporarilyUnavailable:
+        case .interactionRequired:
             break
-        case .found, .invalid, .missing:
+        case .found, .invalid, .missing, .temporarilyUnavailable:
             Issue.record("Expected an unsafe cache item to remain unavailable")
         }
     }
@@ -213,7 +213,7 @@ struct KeychainCacheStoreTests {
         switch result {
         case .missing:
             break
-        case .found, .temporarilyUnavailable, .invalid:
+        case .found, .interactionRequired, .temporarilyUnavailable, .invalid:
             Issue.record("Expected a missing preflight item to skip the secret-data query")
         }
     }
@@ -284,7 +284,7 @@ struct KeychainCacheStoreTests {
         switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
         case let .found(loaded):
             #expect(loaded == entry)
-        case .missing, .temporarilyUnavailable, .invalid:
+        case .missing, .interactionRequired, .temporarilyUnavailable, .invalid:
             #expect(Bool(false), "Expected override not to mutate test store")
         }
     }
@@ -308,7 +308,7 @@ struct KeychainCacheStoreTests {
                     switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
                     case let .found(loaded):
                         #expect(loaded == entry)
-                    case .missing, .temporarilyUnavailable, .invalid:
+                    case .missing, .interactionRequired, .temporarilyUnavailable, .invalid:
                         #expect(Bool(false), "Expected in-process memory cache entry")
                     }
                     #expect(KeychainCacheStore.keys(category: "cookie").contains(key))
@@ -316,7 +316,7 @@ struct KeychainCacheStoreTests {
                     switch KeychainCacheStore.load(key: key, as: TestEntry.self) {
                     case .missing:
                         break
-                    case .found, .temporarilyUnavailable, .invalid:
+                    case .found, .interactionRequired, .temporarilyUnavailable, .invalid:
                         #expect(Bool(false), "Expected memory cache entry to be cleared")
                     }
                 }
@@ -472,7 +472,6 @@ struct KeychainCacheStoreTests {
         ])
 
         let paths = KeychainCacheStore.trustedApplicationPathsForCacheAccess(
-            bundleURL: root,
             executableURL: executable,
             fileExists: { existing.contains($0) })
 
@@ -501,11 +500,9 @@ struct KeychainCacheStoreTests {
     func `cache ACL refuses bare dev binaries without an app bundle`() {
         // Trusting an ephemeral `swift build` binary would freeze a broken ACL
         // onto the shared item; the packaged app would then prompt on every read.
-        let bundleURL = URL(fileURLWithPath: "/Users/dev/project/.build/debug")
         let executable = URL(fileURLWithPath: "/Users/dev/project/.build/debug/CodexBarCLI")
 
         let paths = KeychainCacheStore.trustedApplicationPathsForCacheAccess(
-            bundleURL: bundleURL,
             executableURL: executable,
             fileExists: { _ in true })
 

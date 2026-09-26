@@ -84,11 +84,24 @@ public enum KeychainPromptHandler {
 }
 
 public enum KeychainAccessPreflight {
-    public enum Outcome: Sendable {
+    public enum Outcome: Sendable, Equatable {
         case allowed
+        /// The item is readable, but its decrypt ACL does not trust the current executable.
         case interactionRequired
+        /// The check could not complete without UI (for example a locked keychain), or the decrypt
+        /// ACL could not be inspected; unlike `interactionRequired`, nothing proved a stable rejection.
+        case temporarilyUnavailable
         case notFound
         case failure(Int)
+
+        public var requiresInteraction: Bool {
+            switch self {
+            case .interactionRequired, .temporarilyUnavailable:
+                true
+            case .allowed, .failure, .notFound:
+                false
+            }
+        }
     }
 
     private struct GenericPasswordKey: Hashable {
@@ -99,6 +112,12 @@ public enum KeychainAccessPreflight {
     private final class GenericPasswordCheckMemo: @unchecked Sendable {
         private let lock = NSLock()
         private var outcomes: [GenericPasswordKey: Outcome] = [:]
+
+        func invalidate(service: String) {
+            self.lock.withLock {
+                self.outcomes = self.outcomes.filter { $0.key.service != service }
+            }
+        }
 
         func outcome(
             for key: GenericPasswordKey,
@@ -121,9 +140,11 @@ public enum KeychainAccessPreflight {
     #if DEBUG
     final class CheckGenericPasswordOverrideStore: @unchecked Sendable {
         let check: (String, String?) -> Outcome
+        let retryDelay: () -> Void
 
-        init(check: @escaping (String, String?) -> Outcome) {
+        init(check: @escaping (String, String?) -> Outcome, retryDelay: @escaping () -> Void) {
             self.check = check
+            self.retryDelay = retryDelay
         }
     }
 
@@ -135,10 +156,11 @@ public enum KeychainAccessPreflight {
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
         _ override: ((String, String?) -> Outcome)?,
+        retryDelay: @escaping () -> Void = {},
         operation: () throws -> T) rethrows -> T
     {
         try self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map(CheckGenericPasswordOverrideStore.init(check:)))
+            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
         {
             try operation()
         }
@@ -146,11 +168,12 @@ public enum KeychainAccessPreflight {
 
     static func withCheckGenericPasswordOverrideForTesting<T>(
         _ override: ((String, String?) -> Outcome)?,
+        retryDelay: @escaping () -> Void = {},
         isolation _: isolated (any Actor)? = #isolation,
         operation: () async throws -> T) async rethrows -> T
     {
         try await self.$taskCheckGenericPasswordOverrideStore.withValue(
-            override.map(CheckGenericPasswordOverrideStore.init(check:)))
+            override.map { CheckGenericPasswordOverrideStore(check: $0, retryDelay: retryDelay) })
         {
             try await operation()
         }
@@ -177,8 +200,41 @@ public enum KeychainAccessPreflight {
         return self.checkGenericPasswordUncached(service: service, account: account)
     }
 
+    static func invalidateGenericPasswordChecks(service: String) {
+        self.genericPasswordCheckMemo?.invalidate(service: service)
+    }
+
+    /// Retry only inconclusive no-UI checks; the operation memo above stores their final outcome.
+    private static let temporarilyUnavailableRetryCount = 3
+    private static let temporarilyUnavailableRetryDelayMicroseconds: UInt32 = 30000
+
     private static func checkGenericPasswordUncached(service: String, account: String?) -> Outcome {
         #if os(macOS)
+        var outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+        var attempt = 1
+        while case .temporarilyUnavailable = outcome, attempt < self.temporarilyUnavailableRetryCount {
+            self.waitBeforePreflightRetry()
+            outcome = self.performGenericPasswordPreflightAttempt(service: service, account: account)
+            attempt += 1
+        }
+        return outcome
+        #else
+        return .notFound
+        #endif
+    }
+
+    #if os(macOS)
+    private static func waitBeforePreflightRetry() {
+        #if DEBUG
+        if let override = self.taskCheckGenericPasswordOverrideStore {
+            override.retryDelay()
+            return
+        }
+        #endif
+        usleep(self.temporarilyUnavailableRetryDelayMicroseconds)
+    }
+
+    private static func performGenericPasswordPreflightAttempt(service: String, account: String?) -> Outcome {
         #if DEBUG
         if let override = self.taskCheckGenericPasswordOverrideStore {
             return override.check(service, account)
@@ -191,16 +247,27 @@ public enum KeychainAccessPreflight {
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
         switch status {
         case errSecSuccess:
-            guard let item = self.keychainItem(fromPreflightResult: result),
-                  self.decryptACLAllowsCurrentProcess(item: item)
-            else {
+            guard let item = self.keychainItem(fromPreflightResult: result) else {
+                self.log.info(
+                    "Keychain preflight could not inspect the item's decrypt ACL",
+                    metadata: ["service": service])
+                return .temporarilyUnavailable
+            }
+            switch self.evaluateDecryptACL(item: item) {
+            case .allowed:
+                self.log.debug("Keychain preflight allowed", metadata: ["service": service])
+                return .allowed
+            case .rejected:
                 self.log.info(
                     "Keychain preflight requires interaction for the current process",
                     metadata: ["service": service])
                 return .interactionRequired
+            case .indeterminate:
+                self.log.info(
+                    "Keychain preflight could not inspect the item's decrypt ACL",
+                    metadata: ["service": service])
+                return .temporarilyUnavailable
             }
-            self.log.debug("Keychain preflight allowed", metadata: ["service": service])
-            return .allowed
         case errSecItemNotFound:
             self.log.debug(
                 "Keychain preflight not found",
@@ -210,17 +277,15 @@ public enum KeychainAccessPreflight {
             self.log.info(
                 "Keychain preflight requires interaction",
                 metadata: ["service": service])
-            return .interactionRequired
+            return .temporarilyUnavailable
         default:
             self.log.warning(
                 "Keychain preflight failed",
                 metadata: ["service": service, "status": "\(status)"])
             return .failure(Int(status))
         }
-        #else
-        return .notFound
-        #endif
     }
+    #endif
 
     #if os(macOS)
     static func makeGenericPasswordPreflightQuery(service: String, account: String?) -> [String: Any] {
@@ -241,18 +306,24 @@ public enum KeychainAccessPreflight {
         return query
     }
 
-    static func decryptACLAllowsCurrentProcess(
-        trustedApplicationValidationResults: [Bool]?,
-        promptSelector: SecKeychainPromptSelector) -> Bool
+    static func evaluateDecryptACL(
+        trustedApplicationValidationStatuses: [OSStatus?]?,
+        promptSelector: SecKeychainPromptSelector) -> DecryptACLEvaluation
     {
         // Any non-zero selector can require authentication based on the caller's signature state.
         // A background preflight cannot prove that condition safe, so fail closed.
-        guard promptSelector.rawValue == 0 else { return false }
+        guard promptSelector.rawValue == 0 else { return .rejected }
         // A nil application list means the ACL does not restrict callers. For an explicit list, at least one
         // stored code-signing requirement must validate against the invoking executable. A path match alone is
         // insufficient: legacy ACLs can retain an old build's signature at the same path and still show UI.
-        guard let trustedApplicationValidationResults else { return true }
-        return trustedApplicationValidationResults.contains(true)
+        guard let trustedApplicationValidationStatuses else { return .allowed }
+        if trustedApplicationValidationStatuses.contains(errSecSuccess) {
+            return .allowed
+        }
+        // The legacy validator reports a completed signature mismatch as CSSMERR_CSP_VERIFY_FAILED.
+        // Missing symbols and other errors cannot establish that the ACL rejects this executable.
+        return trustedApplicationValidationStatuses.allSatisfy { $0 == OSStatus(CSSMERR_CSP_VERIFY_FAILED) }
+            ? .rejected : .indeterminate
     }
 
     private static func keychainItem(fromPreflightResult result: AnyObject?) -> SecKeychainItem? {
@@ -262,7 +333,16 @@ public enum KeychainAccessPreflight {
         return unsafeDowncast(value as AnyObject, to: SecKeychainItem.self)
     }
 
-    private static func decryptACLAllowsCurrentProcess(item: SecKeychainItem) -> Bool {
+    /// `.rejected` means validation ran to completion and no trusted application matched this
+    /// executable — a stable outcome. `.indeterminate` means inspection itself failed and the
+    /// result may differ on retry.
+    enum DecryptACLEvaluation: Equatable {
+        case allowed
+        case rejected
+        case indeterminate
+    }
+
+    private static func evaluateDecryptACL(item: SecKeychainItem) -> DecryptACLEvaluation {
         guard let copyItemAccess = self.securityFunction(
             named: "SecKeychainItemCopyAccess",
             as: SecKeychainItemCopyAccessFunction.self),
@@ -272,7 +352,7 @@ public enum KeychainAccessPreflight {
             let copyACLContents = self.securityFunction(
                 named: "SecACLCopyContents",
                 as: SecACLCopyContentsFunction.self)
-        else { return false }
+        else { return .indeterminate }
 
         var access: SecAccess?
         guard copyItemAccess(item, &access) == errSecSuccess,
@@ -280,52 +360,79 @@ public enum KeychainAccessPreflight {
               let rawACLs = copyMatchingACLs(access, kSecACLAuthorizationDecrypt)?.takeRetainedValue(),
               let acls = rawACLs as? [SecACL],
               !acls.isEmpty
-        else { return false }
+        else { return .indeterminate }
 
         let currentPaths = KeychainCacheStore.invokingApplicationPathsForCacheAccess()
-        guard !currentPaths.isEmpty else { return false }
+        guard !currentPaths.isEmpty else { return .indeterminate }
 
+        var inspectionIncomplete = false
         for acl in acls {
             var applications: CFArray?
             var description: CFString?
             var selector = SecKeychainPromptSelector()
             guard copyACLContents(acl, &applications, &description, &selector) == errSecSuccess else {
+                inspectionIncomplete = true
                 continue
             }
             guard let applications else {
-                if self.decryptACLAllowsCurrentProcess(
-                    trustedApplicationValidationResults: nil,
-                    promptSelector: selector)
+                if self.evaluateDecryptACL(
+                    trustedApplicationValidationStatuses: nil,
+                    promptSelector: selector) == .allowed
                 {
-                    return true
+                    return .allowed
                 }
                 continue
             }
-            guard let trustedApplications = applications as? [SecTrustedApplication] else { continue }
+            guard let trustedApplications = applications as? [SecTrustedApplication] else {
+                inspectionIncomplete = true
+                continue
+            }
             let validationResults = trustedApplications.flatMap { application in
                 currentPaths.map { currentPath in
                     self.trustedApplication(application, validatesExecutableAt: currentPath)
                 }
             }
-            if self.decryptACLAllowsCurrentProcess(
-                trustedApplicationValidationResults: validationResults,
+            switch self.evaluateDecryptACL(
+                trustedApplicationValidationStatuses: validationResults,
                 promptSelector: selector)
             {
-                return true
+            case .allowed:
+                return .allowed
+            case .indeterminate:
+                inspectionIncomplete = true
+            case .rejected:
+                break
             }
         }
-        return false
+        return inspectionIncomplete ? .indeterminate : .rejected
     }
+
+    private static let validationMemo = ValidationMemo()
 
     static func trustedApplication(
         _ application: SecTrustedApplication,
-        validatesExecutableAt path: String) -> Bool
+        validatesExecutableAt path: String) -> OSStatus?
     {
         guard let validate = self.securityFunction(
             named: "SecTrustedApplicationValidateWithPath",
             as: SecTrustedApplicationValidateWithPathFunction.self)
-        else { return false }
-        return path.withCString { validate(application, $0) == errSecSuccess }
+        else { return nil }
+        return self.validationMemo.validate(
+            trustedApplication: self.trustedApplicationRepresentation(application), path: path)
+        {
+            path.withCString { validate(application, $0) }
+        }
+    }
+
+    private static func trustedApplicationRepresentation(_ application: SecTrustedApplication) -> Data? {
+        // CopyData only contains the path; the full representation also distinguishes signing requirements.
+        guard let copy = self.securityFunction(
+            named: "SecTrustedApplicationCopyExternalRepresentation",
+            as: SecTrustedApplicationCopyExternalRepresentationFunction.self)
+        else { return nil }
+        var data: Unmanaged<CFData>?
+        guard copy(application, &data) == errSecSuccess else { return nil }
+        return data?.takeRetainedValue() as Data?
     }
 
     private typealias SecKeychainItemCopyAccessFunction = @convention(c) (
@@ -342,6 +449,9 @@ public enum KeychainAccessPreflight {
     private typealias SecTrustedApplicationValidateWithPathFunction = @convention(c) (
         SecTrustedApplication,
         UnsafePointer<CChar>) -> OSStatus
+    private typealias SecTrustedApplicationCopyExternalRepresentationFunction = @convention(c) (
+        SecTrustedApplication,
+        UnsafeMutablePointer<Unmanaged<CFData>?>) -> OSStatus
 
     private nonisolated(unsafe) static let securityFrameworkHandle: UnsafeMutableRawPointer? = dlopen(
         "/System/Library/Frameworks/Security.framework/Security",
