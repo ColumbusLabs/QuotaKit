@@ -18,7 +18,7 @@ Get an API key from [OpenRouter Settings](https://openrouter.ai/settings/keys), 
 export OPENROUTER_API_KEY="sk-or-v1-..."
 ```
 
-The optional `OPENROUTER_MANAGEMENT_API_KEY` is a separate credential used only for the account Activity API. It is sent only to `openrouter.ai`; it is never forwarded to a configured API proxy. A management key configured as `OPENROUTER_API_KEY` can also access Activity when the official Current Key response identifies it as a management key. A separately configured management key takes precedence for Activity; the selected API key continues to provide account credits and current-key usage.
+The optional `OPENROUTER_MANAGEMENT_API_KEY` does not replace the required API key field. It is a separate credential used only for the account Activity API. It is sent only to `openrouter.ai`; it is never forwarded to a configured API proxy. A management key configured as `OPENROUTER_API_KEY` can also access Activity when the official Current Key response identifies it as a management key. A separately configured management key takes precedence for Activity; the selected API key continues to provide account credits and current-key usage.
 
 CLI configuration:
 

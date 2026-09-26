@@ -7,13 +7,13 @@ defineProvider({
     {
       key: "OPENROUTER_API_KEY",
       title: "API key",
-      subtitle: "API key for credits and key quota. Management keys can also access account Activity on the official API.",
+      subtitle: "Required regular or Management API key for credits and key quota. Management keys can access account Activity on the official API.",
       type: "secure",
     },
     {
       key: "OPENROUTER_MANAGEMENT_API_KEY",
       title: "Management API key",
-      subtitle: "Optional Activity credential; takes precedence over a management key in the API key field.",
+      subtitle: "Optional additional Activity credential. Does not replace the required API key field.",
       type: "secure",
     },
     { key: "OPENROUTER_API_URL", title: "API URL", type: "plain" },
