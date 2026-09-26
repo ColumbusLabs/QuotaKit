@@ -37,7 +37,7 @@ The bundled JavaScript plugin owns requests and quota parsing on both QuickJS an
 `CODEXBAR_JS_PROVIDERS`. Swift retains provider registration, credential resolution, and settings. Each request keeps
 its 15-second deadline. PAYG enrichment follows the app's optional-usage preference or the CLI's credits option.
 
-CodexBar requests:
+QuotaKit requests:
 
 - `GET https://zenmux.ai/api/v1/management/subscription/detail`
 - `GET https://zenmux.ai/api/v1/management/payg/balance` as best-effort credit enrichment

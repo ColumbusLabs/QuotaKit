@@ -24,7 +24,7 @@ enabled for DeepInfra; `CODEXBAR_JS_PROVIDERS` is not required. Swift retains pr
 and the existing settings and presentation. Both billing requests are required, use 30-second deadlines, and retain
 the shared single-retry policy for transient failures.
 
-CodexBar sends the key as a bearer token to:
+QuotaKit sends the key as a bearer token to:
 
 - `GET https://api.deepinfra.com/payment/checklist?compute_owed=true` for prepaid balance, recent spend, spending limit, and suspension state.
 - `GET https://api.deepinfra.com/payment/usage?from=current` for current-month spend.
