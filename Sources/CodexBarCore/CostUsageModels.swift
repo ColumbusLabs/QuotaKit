@@ -1,5 +1,18 @@
 import Foundation
 
+package enum CostUsageIncompleteRequests {
+    /// Clamp malformed counts and saturate totals so an overflow cannot erase the partial marker.
+    package static func sum(_ counts: some Sequence<Int>) -> Int {
+        var total = 0
+        for count in counts {
+            let next = total.addingReportingOverflow(max(0, count))
+            if next.overflow { return Int.max }
+            total = next.partialValue
+        }
+        return total
+    }
+}
+
 package struct CostUsageTokenActivityCache: Sendable, Equatable {
     package let daily: [CostUsageDailyReport.Entry]
     package let coverageSinceKey: String
@@ -406,6 +419,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
         public let priorityCostUSD: Double?
         public let standardTokens: Int?
         public let priorityTokens: Int?
+        public let incompleteRequestCount: Int?
 
         private enum CodingKeys: String, CodingKey {
             case modelName
@@ -423,6 +437,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             case priorityCostUSD
             case standardTokens
             case priorityTokens
+            case incompleteRequestCount
         }
 
         public init(from decoder: Decoder) throws {
@@ -444,6 +459,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.priorityCostUSD = try container.decodeIfPresent(Double.self, forKey: .priorityCostUSD)
             self.standardTokens = try container.decodeIfPresent(Int.self, forKey: .standardTokens)
             self.priorityTokens = try container.decodeIfPresent(Int.self, forKey: .priorityTokens)
+            self.incompleteRequestCount = try container.decodeIfPresent(Int.self, forKey: .incompleteRequestCount)
         }
 
         public init(
@@ -459,7 +475,8 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             standardCostUSD: Double? = nil,
             priorityCostUSD: Double? = nil,
             standardTokens: Int? = nil,
-            priorityTokens: Int? = nil)
+            priorityTokens: Int? = nil,
+            incompleteRequestCount: Int? = nil)
         {
             self.modelName = modelName
             self.costUSD = costUSD
@@ -474,6 +491,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.priorityCostUSD = priorityCostUSD
             self.standardTokens = standardTokens
             self.priorityTokens = priorityTokens
+            self.incompleteRequestCount = incompleteRequestCount
         }
     }
 
@@ -496,6 +514,14 @@ public struct CostUsageDailyReport: Sendable, Decodable {
         public let pricedRequestCount: Int?
         public let unmeteredRequestCount: Int?
         public let estimatedRequestCount: Int?
+
+        package var hasOnlyIncompleteRequests: Bool {
+            self.incompleteRequestCount > 0 && self.totalTokens == nil && self.costUSD == nil
+        }
+
+        public var incompleteRequestCount: Int {
+            CostUsageIncompleteRequests.sum((self.modelBreakdowns ?? []).compactMap(\.incompleteRequestCount))
+        }
 
         public var coverageCounts: CostUsageCoverageCounts {
             self.coverageCounts(detail: .exact)

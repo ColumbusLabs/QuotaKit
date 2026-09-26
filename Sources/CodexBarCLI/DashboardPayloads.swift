@@ -262,16 +262,34 @@ struct DashboardCreditsPayload: Encodable {
 struct DashboardCostPayload: Encodable {
     let todayUSD: Double?
     let last30DaysUSD: Double?
+    let todayIncompleteRequestCount: Int?
+    let last30DaysIncompleteRequestCount: Int?
+
+    init(
+        todayUSD: Double?,
+        last30DaysUSD: Double?,
+        todayIncompleteRequestCount: Int? = nil,
+        last30DaysIncompleteRequestCount: Int? = nil)
+    {
+        self.todayUSD = todayUSD
+        self.last30DaysUSD = last30DaysUSD
+        self.todayIncompleteRequestCount = todayIncompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
+        self.last30DaysIncompleteRequestCount = last30DaysIncompleteRequestCount.flatMap { $0 > 0 ? $0 : nil }
+    }
 
     private enum CodingKeys: String, CodingKey {
         case todayUSD
         case last30DaysUSD
+        case todayIncompleteRequestCount
+        case last30DaysIncompleteRequestCount
     }
 
     func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.todayUSD, forKey: .todayUSD)
         try container.encode(self.last30DaysUSD, forKey: .last30DaysUSD)
+        try container.encodeIfPresent(self.todayIncompleteRequestCount, forKey: .todayIncompleteRequestCount)
+        try container.encodeIfPresent(self.last30DaysIncompleteRequestCount, forKey: .last30DaysIncompleteRequestCount)
     }
 }
 
