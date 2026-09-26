@@ -13,6 +13,101 @@ import CSQLite3
 
 struct CostUsageStoreTests {
     @Test
+    func `unchanged Codex scan reuses one decoded snapshot`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+
+        #if DEBUG
+        var reads = 0
+        CostUsageStore.snapshotReadForTesting = { url in
+            if url == writer.databaseURL { reads += 1 }
+        }
+        defer { CostUsageStore.snapshotReadForTesting = nil }
+        #endif
+        let first = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        let second = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(first.store === second.store)
+        #expect(first.scanStamp != nil)
+        #expect(second.cache.files == first.cache.files)
+        #if DEBUG
+        #expect(reads == 1)
+        #endif
+        let saved = CostUsageStoreAccess.save(
+            store: second.store,
+            cache: second.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            skipIdenticalContent: true,
+            expectedScanStamp: second.scanStamp,
+            requireScanStamp: true)
+        #expect(!saved.catchUpRequired)
+        let third = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(third.cache.files == second.cache.files)
+        #if DEBUG
+        #expect(reads == 1)
+        #endif
+        var otherCalendar = calendar
+        otherCalendar.timeZone = try #require(TimeZone(identifier: "America/Los_Angeles"))
+        let otherZone = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: otherCalendar)
+        #expect(otherZone.cache.files.isEmpty)
+    }
+
+    @Test
+    func `external Codex save invalidates scan and rejects stale receipt`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files["/sessions/a.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 1, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        let stale = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+
+        cache.files["/sessions/b.jsonl"] = CostUsageFileUsage(mtimeUnixMs: 2, size: 0, days: [:])
+        _ = writer.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        let refused = CostUsageStoreAccess.save(
+            store: stale.store,
+            cache: stale.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+            expectedScanStamp: stale.scanStamp,
+            requireScanStamp: true)
+        #expect(refused.catchUpRequired)
+        let fresh = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(fresh.cache.files["/sessions/b.jsonl"] != nil)
+    }
+
+    @Test
+    func `scanner store retention stays bounded by cache root`() throws {
+        let fixtures = try (0..<5).map { _ in try StoreFixture() }
+        defer { fixtures.forEach { $0.remove() } }
+        let calendar = Calendar(identifier: .gregorian)
+        let first = CostUsageStoreAccess.load(cacheRoot: fixtures[0].root, calendar: calendar)
+        for fixture in fixtures.dropFirst() {
+            _ = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        }
+        let reloaded = CostUsageStoreAccess.load(cacheRoot: fixtures[0].root, calendar: calendar)
+        #expect(first.store !== reloaded.store)
+    }
+
+    @Test
     func `changed Codex file writes stay bounded as unchanged files grow`() async throws {
         func changedSaveWrites(fileCount: Int) async throws -> Int {
             let fixture = try StoreFixture()

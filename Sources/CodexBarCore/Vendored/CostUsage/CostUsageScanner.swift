@@ -6671,6 +6671,7 @@ enum CostUsageScanner {
     private static func saveCodexCache(
         _ cache: inout CostUsageCache,
         store: CostUsageStore,
+        scanStamp: CostUsageStore.CodexScanStamp?,
         range: CostUsageDayRange,
         previousReport: CostUsageCodexPreviousReport?,
         hydratedPaths: Set<String>? = nil,
@@ -6694,7 +6695,9 @@ enum CostUsageScanner {
                 calendar: range.calendar,
                 requestedScanWindow: (sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey),
                 reportWindow: (sinceKey: range.sinceKey, untilKey: range.untilKey),
-                skipIdenticalContent: true)
+                skipIdenticalContent: true,
+                expectedScanStamp: scanStamp,
+                requireScanStamp: true)
         }
         if saveResult.catchUpRequired {
             cache.codexScanCatchUpPending = true
@@ -7254,6 +7257,7 @@ enum CostUsageScanner {
                 Self.saveCodexCache(
                     &cache,
                     store: loadedCache.store,
+                    scanStamp: loadedCache.scanStamp,
                     range: range,
                     previousReport: previousReport,
                     independentlyVerifiedCodexWindow: independentlyVerifiedCodexWindow,
@@ -7958,6 +7962,7 @@ enum CostUsageScanner {
             Self.saveCodexCache(
                 &cache,
                 store: loadedCache.store,
+                scanStamp: loadedCache.scanStamp,
                 range: range,
                 previousReport: previousReport,
                 hydratedPaths: options.useCodexCatchUpWorkingSet
