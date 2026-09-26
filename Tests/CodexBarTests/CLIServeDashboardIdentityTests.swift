@@ -44,7 +44,7 @@ struct CLIServeDashboardIdentityTests {
 
     @Test
     func `warm dashboard responses retain the requested fill mode through toggles`() async throws {
-        let (_, cache) = makeServeTestCache()
+        let cache = CLIServeResponseCache()
         let counter = DashboardFillBuildCounter()
         for showUsed in [false, true, false, true] {
             let key = try CodexBarCLI.serveDashboardOperationKey(
