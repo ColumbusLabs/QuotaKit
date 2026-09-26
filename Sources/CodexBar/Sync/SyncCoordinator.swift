@@ -1558,6 +1558,7 @@ final class SyncCoordinator {
             && provider.rateWindows.isEmpty
             && provider.costSummary == nil
             && provider.budget == nil
+            && provider.hyperBalance == nil
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.codexCreditLimit == nil
             && provider.crossModelUsage == nil

@@ -1727,6 +1727,34 @@ struct SyncCoordinatorTests {
     }
 
     @Test
+    func `Hyper balance only snapshot reaches per provider sync`() async throws {
+        let settings = self.makeSettingsStore(suite: "SyncCoord-hyper-balance")
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .hyper,
+            metadata: #require(ProviderDefaults.metadata[.hyper]),
+            enabled: true)
+
+        let store = self.makeUsageStore(settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(
+                primary: nil,
+                secondary: nil,
+                hyperBalance: 42.5,
+                updatedAt: Date(timeIntervalSince1970: 1_700_000_000)),
+            provider: .hyper)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let hyper = try #require(mock.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == UsageProvider.hyper.rawValue
+        })
+        #expect(hyper.provider.hyperBalance?.balance == 42.5)
+    }
+
+    @Test
     func `identity only Copilot plan remains in per provider sync`() async throws {
         let settings = self.makeSettingsStore(suite: "SyncCoord-copilot-identity-only")
         settings.iCloudSyncEnabled = true
