@@ -123,6 +123,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Hugging Face: show current-month billable inference spend, optional ZeroGPU quota, account identity, and secure token setup from provider settings or the Hugging Face CLI token file.
 - Zed: optionally use a separate browser session for token spend and its reported cap in place of editor-sourced cycle and invoice details.
 - Widgets: offer Burn Down for compatible provider quotas, including Devin daily/weekly and Cursor billing cycles, with accurate labels and preserved Codex/Claude selections (#3097). Thanks @thatlev!
+- Codex: add a debug-only local Workspaces project and session inspector that follows source, history, and privacy settings and cancels loads when closed. Thanks @AmrMohamad!
 
 ### Fixed
 
