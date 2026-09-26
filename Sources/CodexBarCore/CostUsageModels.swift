@@ -265,6 +265,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     public let updatedAt: Date
     let quotaProjectionMemo = CostUsageQuotaProjectionMemo()
 
+    /// Coverage is established and its read completed; partial history cannot imply a complete window.
     public var historyIsFullyScanned: Bool {
         self.historyCoverageIsEstablished && !self.historyScanIsPartial
     }
@@ -319,13 +320,6 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.hourly = hourly
         self.quotaSlices = quotaSlices
         self.updatedAt = updatedAt
-    }
-
-    /// Coverage is established *and* the read of that coverage ran to completion. Surfaces that
-    /// fabricate certainty — zero-filling absent days, dropping a partial-history hint, marking a
-    /// window complete — must gate on this rather than on `historyCoverageIsEstablished` alone.
-    public var historyIsFullyScanned: Bool {
-        self.historyCoverageIsEstablished && !self.historyScanIsPartial
     }
 
     public func currentDayEntry(calendar: Calendar = .current) -> CostUsageDailyReport.Entry? {
