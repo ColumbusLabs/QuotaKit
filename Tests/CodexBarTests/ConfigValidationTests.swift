@@ -495,6 +495,24 @@ struct ConfigValidationTests {
     }
 
     @Test
+    func `legacy config copy stages private destination before loading`() throws {
+        let fileManager = FileManager.default
+        let home = try Self.makeTemporaryHome()
+        defer { try? fileManager.removeItem(at: home) }
+        let legacy = Self.legacyConfigURL(in: home)
+        try fileManager.createDirectory(at: legacy.deletingLastPathComponent(), withIntermediateDirectories: true)
+        let original = Data(#"{"version":1,"providers":[]}"#.utf8)
+        try original.write(to: legacy)
+        let destination = Self.preferredConfigURL(in: home)
+
+        _ = try CodexBarConfigStore(fileURL: destination).load()
+
+        #expect(try Data(contentsOf: destination) == original)
+        let attributes = try fileManager.attributesOfItem(atPath: destination.path)
+        #expect((attributes[.posixPermissions] as? NSNumber)?.intValue == 0o600)
+    }
+
+    @Test
     func `config store default url prefers existing xdg default over legacy config`() throws {
         let fileManager = FileManager.default
         let home = try Self.makeTemporaryHome()

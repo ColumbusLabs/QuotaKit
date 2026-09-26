@@ -20,7 +20,7 @@ API keys, manual cookie headers, source selection, ordering, and token accounts 
 - `~/.quotakit/config.json` by default for new QuotaKit installs.
 - `~/.quotakit/config.json` is copied to the QuotaKit default path when the preferred file is absent.
 - The directory is created if missing.
-- Writes on macOS and Linux stage a `0600` file in a private `0700` directory beside the destination, then sync and atomically replace the destination. Failed writes preserve the previous file.
+- Writes on macOS and Linux create a `0600` file inside a private `0700` staging directory beside the destination before writing any bytes, then sync and atomically replace the destination. Failed writes preserve the previous file and remove staging.
 
 ## Root shape
 ```json
@@ -295,10 +295,78 @@ QuotaKit has two separate CloudKit paths in the private database of
 
 The three Mac fleet sub-options are unavailable while Mac fleet sync is off, iCloud is unavailable, or a newer QuotaKit version is required. Turning sync off retains their saved choices for when it is enabled again.
 
+The **Macs** list offers **Remove** for other devices, including stale duplicates left after a reinstall. Removal deletes that device record and its cached usage snapshots from iCloud; it leaves shared settings, credentials, and this Mac intact. Sync must be enabled and available. Failed removals remain visible and report a sync error. A Mac still running QuotaKit with sync enabled can publish its records again.
+
 Never synced by the Mac fleet feature, by design: `hooks` (sync payloads structurally cannot create or modify hook rules — they execute local binaries), machine-local paths (`claudeSwapExecutablePath`, `codexProfileHomePaths`, `awsProfile`/`awsAuthMode`, `source`, `codexActiveSource`, `cookieSource`), menu-bar layout/geometry, debug settings, usage history, and cost ledgers. A provider is never auto-enabled on a Mac where its required local CLI is missing. Records carry a schema version; older app versions pause sync instead of rewriting newer payloads. The CLI does not talk to CloudKit — the app applies remote changes to `config.json` and watches the file, so CLI edits reload into the running app. (CLI/hand edits currently apply locally only; pushing them to other Macs is a known follow-up.) Only changes made while Mac fleet sync is enabled push to the fleet: the app tracks per-provider dirty state and never re-uploads unchanged state at launch.
 
 ## Notes
 - Fields not relevant to a provider are ignored.
 - Omitted providers are appended with defaults during normalization.
+- Unknown or retired provider entries are retained with all their fields, settings, and secrets in their original array positions during unrelated saves. This also applies when plugin discovery fails or the plugin runtime is unavailable. `config providers` labels unavailable entries as `plugin (not loaded)`; `config dump` includes them but redacts their opaque fields unless `--show-secrets` is explicitly requested. Remove plugin data through explicit plugin deletion, or remove the entry by editing the file.
 - Keep the file private; it contains secrets.
 - Validate the file with `quotakit config validate` (JSON output available with `--format json`).
+
+## Portable UI preferences
+
+On macOS, **Settings → General → Portable preferences** exports or imports a versioned `preferences.json`
+for dotfiles. UserDefaults remains the runtime owner; the file is an explicit snapshot, not a watched second
+configuration source. Provider settings remain in `config.json`, which may contain credentials.
+
+```sh
+quotakit config preferences export --file ~/dotfiles/quotakit/preferences.json
+quotakit config preferences import --file ~/dotfiles/quotakit/preferences.json --json
+```
+
+Export without `--file` writes JSON to stdout. The CLI exports stored overrides (unset preferences keep the
+app's defaults); Settings exports the effective preferences. CLI import queues an intentional local edit:
+the running app applies it through its normal settings setters, or applies it at its next launch. The CLI
+reports `{"status":"queued"}`. Multiple pending imports merge, with the latest supplied value winning.
+`--defaults-domain` can select an alternate app preferences domain; it defaults to `com.columbuslabs.quotakit.mac`.
+These commands transfer macOS UI preferences and are unavailable on Linux.
+
+```json
+{
+  "version": 1,
+  "preferences": {
+    "refreshFrequency": "fiveMinutes",
+    "hidePersonalInfo": true,
+    "mergeIcons": true,
+    "mergedOverviewSelectedProviders": ["codex", "claude"],
+    "switcherShortcuts": {
+      "previous": "shift+left",
+      "next": "shift+right",
+      "select2": "alt+cmd+2"
+    }
+  }
+}
+```
+
+The allowlist covers the existing iCloud preferences projection: refresh frequency and refresh-on-open;
+provider status checks; session, threshold and predictive pace notifications; session/weekly thresholds
+and notification windows; sound, on-screen alerts and threshold markers; pace visibility, workweek days
+and tick appearance; usage/reset display; local cost display, comparisons and summary style; privacy,
+blink/confetti effects, highest-usage selection, optional credits/extra usage, changelog links, currency
+and alphabetical provider sorting. JSON keys match the `SyncedPreferences` fields. It additionally includes
+`mergeIcons`, `mergeIconsStacked`, `switcherShowsIcons`, `mergedOverviewLayout`,
+`mergedOverviewSelectedProviders`, and `switcherShortcuts`. An overview selection is applied intentionally
+to the receiving Mac's active providers, including an empty selection. `weeklyProgressWorkDays: null`
+restores the seven-day default. Missing keys leave the receiving Mac's settings unchanged. Unknown preference keys,
+unsupported versions, invalid types and invalid shortcut mappings are rejected before applying changes.
+
+Credentials, accounts, hooks, launch at login, global hotkeys, local paths, device identity, iCloud switches,
+debug settings, and consent are excluded. Import does not enable activity-scan consent. Only the existing
+iCloud projection syncs onward; the additional menu settings and switcher shortcuts stay local unless
+explicitly exported and imported. Import does not modify `config.json` or iCloud's remote-update suppression.
+
+### Provider switcher shortcuts
+
+**Settings → General → Provider Switcher Shortcuts…** edits the same mapping as `switcherShortcuts` above.
+Defaults are `left`/`right` for `previous`/`next` and `cmd+1` through `cmd+9` for `select1` through `select9`.
+Selection refers to positions in the visible switcher, including Overview when present. These are local
+menu shortcuts, not global provider-opening hotkeys.
+
+Combine `ctrl`, `alt`, `shift` and `cmd` with an ASCII letter, digit, `left` or `right`; letters and digits
+require Command, Control or Option. `none` disables an action. Modifier order and letter case are normalized.
+Omitted actions retain their defaults. Duplicate assignments (including conflicts with defaults) and
+reserved commands are rejected. Reserved combinations are `cmd+r`, `cmd+,`, `cmd+q`, `cmd+h`, `cmd+m`,
+`cmd+w` and `alt+cmd+h`; Escape, Tab, Return and up/down arrows remain available to menu navigation.

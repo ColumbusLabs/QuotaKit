@@ -14,6 +14,11 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Provider plugins: bounded persistent storage and Sakana billing plugin.
 
+- Mac preferences: export and import portable display and notification settings without accounts, credentials, or consent.
+- Provider switcher: customize local navigation and selection shortcuts.
+
+- Mac fleet sync: remove stale Macs and their usage snapshots from the iCloud Sync pane.
+
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
@@ -69,6 +74,13 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - MiniMax: discover browser storage across the shared Chromium catalog.
 
+- Provider plugins: preserve unavailable plugin settings and secrets across app and CLI config writes.
+
+- Security: preserve explicit browser cookie denial for CLI refresh and stage credential files with owner-only permissions before writing.
+
+- Mistral: count consumed tokens covered by plans across API, Le Chat, and Vibe Code billing categories (#3963).
+- Grok: classify unavailable billing RPC methods by JSON-RPC code so team history survives wording changes (#3947).
+- Codex: prefer the fresh CLI usage response plan over cached account metadata after a subscription change (#3389).
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.

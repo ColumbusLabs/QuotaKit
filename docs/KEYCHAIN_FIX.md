@@ -34,10 +34,11 @@ Startup persists its resolved OpenAI web-access preference before loading app st
 preference saves Codex `cookieSource: "off"` even when an older config selected Auto, so CLI refresh also honors the
 denial. Explicitly enabling web access later restores Auto; selecting a cookie source in Settings remains available.
 
-Credential-bearing file writes share `CredentialFileWriter`: each write creates a `0700` staging directory
-beside the destination and an exclusive `0600` file before writing bytes. The writer syncs and atomically
-renames it over the destination on the same volume, then removes the staging directory. A failed write leaves
-the previous destination intact.
+Credential-bearing file writes share `CredentialFileWriter`: each write creates its own `0700` staging directory
+beside the destination and an exclusive `0600` file before writing bytes. The writer syncs the file and atomically
+renames it over the destination on the same volume, then removes its staging directory. A failed write leaves the
+previous destination intact. Config, token accounts, Codex auth/promotion, Antigravity OAuth, Gemini OAuth/curl requests,
+and file-backed cookie/session stores use this path.
 
 ## Current keychain surfaces for Claude
 

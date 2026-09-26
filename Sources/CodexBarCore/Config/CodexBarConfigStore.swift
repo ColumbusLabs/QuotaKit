@@ -45,9 +45,8 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         }
         guard self.fileManager.fileExists(atPath: self.fileURL.path) else { return nil }
         let data = try Data(contentsOf: self.fileURL)
-        let decoder = JSONDecoder()
         do {
-            let decoded = try decoder.decode(CodexBarConfig.self, from: data)
+            let decoded = try CodexBarConfig.decode(from: data)
             return self.applyingCodexCookieDenial(to: decoded.normalized())
         } catch {
             throw CodexBarConfigStoreError.decodeFailed(error.localizedDescription)
@@ -110,11 +109,8 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     }
 
     public func encodedData(for config: CodexBarConfig) throws -> Data {
-        let normalized = config.normalized()
-        let encoder = JSONEncoder()
-        encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
         do {
-            return try encoder.encode(normalized)
+            return try config.normalized().encodedData()
         } catch {
             throw CodexBarConfigStoreError.encodeFailed(error.localizedDescription)
         }

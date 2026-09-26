@@ -41,6 +41,7 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      fallback, while a team principal degrades to identity-only with an explicit
      unsupported-team-usage diagnostic. When xAI exposes billing on the agent
      protocol, no code change is required.
+   - Missing methods are classified by JSON-RPC code `-32601` independent of error wording; the team fallback retains local token history.
    - One non-obvious quirk: grok's ACP parser does not unescape `\/` in method
      names. `Foundation.JSONSerialization.data` defaults to escaping forward
      slashes, so payloads must be re-encoded with `\/` → `/` before being

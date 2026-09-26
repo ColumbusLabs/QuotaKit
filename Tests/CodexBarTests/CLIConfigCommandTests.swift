@@ -332,6 +332,9 @@ struct CLIConfigCommandTests {
         process.arguments = ["config", "dump"] + (showSecrets ? ["--show-secrets"] : [])
         process.environment = ProcessInfo.processInfo.environment.merging([
             CodexBarConfigStore.pathEnvironmentKey: configURL.path,
+            "HOME": configURL.deletingLastPathComponent().path,
+            "CFFIXED_USER_HOME": configURL.deletingLastPathComponent().path,
+            "CODEX_HOME": configURL.deletingLastPathComponent().appendingPathComponent(".codex").path,
             // Spawned CLI binaries match no test-process name pattern; make the
             // keychain suppression explicit instead of relying on env inheritance.
             "CODEXBAR_SUPPRESS_TEST_KEYCHAIN_ACCESS": "1",

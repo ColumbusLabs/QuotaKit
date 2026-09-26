@@ -1445,13 +1445,13 @@ public struct UsageFetcher: Sendable {
                     }
                 },
                 accountOrganization: nil,
-                loginMethod: account?.account.flatMap { details in
+                loginMethod: rateLimitsPlan ?? account?.account.flatMap { details in
                     if case let .chatgpt(_, plan) = details {
                         plan
                     } else {
                         nil
                     }
-                } ?? rateLimitsPlan)
+                })
             let credits = Self.makeCredits(from: limits, rateLimitsByLimitId: limitsResponse.rateLimitsByLimitId)
             let resetCredits = Self.makeResetCredits(from: limitsResponse.rateLimitResetCredits)
             let shouldReturnUnavailableUsage = credits == nil || rateLimitsPlan != nil
