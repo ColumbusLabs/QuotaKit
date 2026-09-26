@@ -1431,6 +1431,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "6fd5257bc1319193",
             "154f5c0cc5ea50d3",
             "606a690018e2845e",
             "91a311c1117c5d33",

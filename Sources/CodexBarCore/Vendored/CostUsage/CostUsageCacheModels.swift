@@ -288,9 +288,9 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 
 struct CostUsageFileUsage: Codable, Equatable {
     /// Older or absent revisions require bounded reparsing before cached rows can be reused.
-    /// Revision 3 reparses all revision-2 files once to repair rowless duplicate entries.
+    /// Revision 4 reparses older rows to repair paginated continuation accounting.
     /// Older entries cannot distinguish a truly empty fragment from suppressed usage.
-    static let currentCodexParserRevision = 3
+    static let currentCodexParserRevision = 4
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -321,6 +321,12 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    var codexNextUsageRowIndex: Int?
+    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]?
+    var codexPendingSourcePricing: [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence]?
+    var codexPendingSourcePricingAnchor: CostUsageCodexTokenIndexAnchor?
+    var codexStagedRecoveryRows: [CostUsageScanner.CodexUsageRow]?
+    var codexStagedRecoverySnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenSnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]?
     var codexTokenTimestampsMonotonic: Bool?
@@ -334,6 +340,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexReplacementScanPending: Bool?
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
+    var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?
