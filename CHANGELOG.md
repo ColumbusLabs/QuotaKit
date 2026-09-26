@@ -9,6 +9,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Mac fleet sync: remove stale Macs and their usage snapshots from the iCloud Sync pane.
+
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 

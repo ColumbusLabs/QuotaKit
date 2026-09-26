@@ -31,6 +31,9 @@ final class CloudSyncCoordinator {
             initialConfiguration: settings.configSnapshot,
             initialPreferences: settings.syncedPreferences,
             initialIncludeSecrets: settings.macFleetSyncIncludeSecrets)
+        self.state.removeDeviceHandler = { [weak self] deviceID in
+            await self?.engine.removeDevice(deviceID)
+        }
     }
 
     func start() {
