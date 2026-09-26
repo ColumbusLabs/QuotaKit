@@ -44,6 +44,16 @@ struct CostReportingPeriodTests {
     }
 
     @Test
+    func `available history is bounded to the last 365 calendar days`() {
+        let now = self.date("2026-09-26T20:00:00Z")
+        let period = CostReportingPeriod.allTime
+        #expect(period.days(now: now, calendar: self.calendar) == 365)
+        let older = self.entry("2025-09-25", cost: 7)
+        let today = self.entry("2026-09-26", cost: 3)
+        #expect(period.entries([older, today], now: now, calendar: self.calendar).map(\.date) == [today.date])
+    }
+
+    @Test
     func `legacy windows and explicit CLI days retain rolling semantics`() throws {
         #expect(CostReportingPeriod.migrated(rawValue: nil, legacyDays: 90) == .rolling(days: 90))
         #expect(CostReportingPeriod.migrated(rawValue: nil, legacyDays: nil) == .rolling(days: 30))

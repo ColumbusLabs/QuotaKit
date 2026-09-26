@@ -190,7 +190,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
     let codexHistoryDays: Int
     let inputIdentities: [InputIdentity]
     let requestedDays: Int
-    let reportingPeriod: CostReportingPeriod
+    let reportingPeriod: CostReportingPeriod?
     let effectiveNowDay: Date
     let calendarIdentifier: String
     let bucketTimeZoneIdentifier: String
@@ -206,7 +206,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
         inputs: [SpendDashboardModel.ProviderInput],
         inputRevision: UInt64 = 0,
         requestedDays: Int,
-        reportingPeriod: CostReportingPeriod = .rolling(days: 30),
+        reportingPeriod: CostReportingPeriod? = nil,
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,
@@ -248,7 +248,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
 struct SpendDashboardModelBuildRequest: Sendable {
     let inputs: [SpendDashboardModel.ProviderInput]
     let requestedDays: Int
-    let reportingPeriod: CostReportingPeriod
+    let reportingPeriod: CostReportingPeriod?
     let now: Date
     let calendar: Calendar
     let preferredCurrencyCode: String
@@ -263,7 +263,7 @@ struct SpendDashboardModelBuildRequest: Sendable {
         inputs: [SpendDashboardModel.ProviderInput],
         inputRevision: UInt64 = 0,
         requestedDays: Int,
-        reportingPeriod: CostReportingPeriod = .rolling(days: 30),
+        reportingPeriod: CostReportingPeriod? = nil,
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,

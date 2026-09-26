@@ -159,8 +159,9 @@ extension UsageStore {
         {
             return
         }
-        self.tokenSnapshots[provider.instanceID] = snapshot
-        self.publishTokenSnapshotState(snapshot, for: provider)
+        let displayed = snapshot.reporting(self.settings.costReportingPeriod)
+        self.tokenSnapshots[provider.instanceID] = displayed
+        self.publishTokenSnapshotState(displayed, for: provider)
     }
 
     func publishConfirmedEmptyTokenSnapshot(for provider: UsageProvider) {
@@ -170,23 +171,25 @@ extension UsageStore {
 
     private func publishTokenSnapshotState(_ snapshot: CostUsageTokenSnapshot?, for provider: UsageProvider) {
         self.tokenSnapshotPublicationRevisions[provider.instanceID, default: 0] &+= 1
+        let displayed = snapshot?.reporting(self.settings.costReportingPeriod)
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
-            snapshot: snapshot?.reporting(self.settings.costReportingPeriod),
+            snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
+            semanticFingerprint: displayed.map(self.spendDashboardSnapshotSemanticFingerprint))
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
     func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
-        self.tokenSnapshots[provider.instanceID] = snapshot
+        let displayed = snapshot.reporting(self.settings.costReportingPeriod)
+        self.tokenSnapshots[provider.instanceID] = displayed
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
-            snapshot: snapshot,
+            snapshot: displayed,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(snapshot))
+            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(displayed))
     }
 
     func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
