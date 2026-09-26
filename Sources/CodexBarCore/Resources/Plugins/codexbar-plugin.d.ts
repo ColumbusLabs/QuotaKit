@@ -89,7 +89,9 @@ interface CodexBarDetailSection {
 }
 
 interface CodexBarUsageSnapshot {
-  /** At least one rate window, cost, non-empty detail section, or non-empty identity field is required. */
+  /** Explicitly declares successful response with no displayable usage or identity. Other fields are validated. */
+  empty?: boolean;
+  /** Without empty: true, at least one window, cost, non-empty detail section, or identity field is required. */
   primary?: CodexBarRateWindow | null;
   secondary?: CodexBarRateWindow | null;
   tertiary?: CodexBarRateWindow | null;
@@ -184,6 +186,8 @@ interface CodexBarPluginContext {
     nextDailyReset(timeZone: string, hour: number): Date;
   };
   readonly format: {
+    /** Native en_US currency formatting, including decimal half-even rounding and signed zero. */
+    currency(value: number, currencyCode: string): string;
     number(value: number, options?: { minimumFractionDigits?: number; maximumFractionDigits?: number }): string;
     usd(value: number): string;
     monthDay(value: Date | number | string): string;
