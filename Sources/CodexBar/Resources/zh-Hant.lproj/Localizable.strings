@@ -1380,6 +1380,8 @@
 "Tracked tokens" = "已追蹤 token";
 "Subscriptions" = "訂閱";
 "By subscription" = "依訂閱";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "尚無模型層級歷史";
 "Daily estimated spend" = "每日預估支出";
 "Hourly estimated spend" = "每小時預估支出";

@@ -223,7 +223,9 @@ struct SpendDashboardPartialCostTests {
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             #expect(spendDashboardGroupCostText(group).hasPrefix("~"))
             #expect(spendDashboardGroupTokenText(group) == "240")
-            #expect(spendDashboardPartialSubscriptionsText(group) == "1 of 3 subscriptions have spend")
+            #expect(spendDashboardProviderCountTitle(group) == "Subscriptions")
+            #expect(spendDashboardProviderPanelTitle(group) == "By subscription")
+            #expect(spendDashboardPartialSourceCoverageText(group) == "1 of 3 subscriptions have spend")
             #expect(spendDashboardHistoryCaption(group, requestedDays: 30).contains("Partial estimate"))
         }
     }

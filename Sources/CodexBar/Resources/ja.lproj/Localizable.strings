@@ -1350,6 +1350,8 @@
 "Tracked tokens" = "追跡対象トークン";
 "Subscriptions" = "サブスクリプション";
 "By subscription" = "サブスクリプション別";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "モデル別の履歴はありません";
 "Daily estimated spend" = "日別推定支出";
 "Hourly estimated spend" = "時間別推定支出";

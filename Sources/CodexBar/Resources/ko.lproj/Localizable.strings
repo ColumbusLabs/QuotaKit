@@ -1319,6 +1319,8 @@
 "Tracked tokens" = "추적된 토큰";
 "Subscriptions" = "구독";
 "By subscription" = "구독별";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "모델별 내역이 없습니다";
 "Daily estimated spend" = "일별 예상 지출";
 "Hourly estimated spend" = "시간별 예상 지출";

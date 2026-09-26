@@ -270,6 +270,13 @@ final class UsageStore {
     @ObservationIgnored var _test_providerFetchOutcomeOverride: (@MainActor (
         UsageProvider) async -> ProviderFetchOutcome)?
     @ObservationIgnored var _test_tokenUsageRefreshOverride: (@MainActor (UsageProvider, Bool) async -> Void)?
+    @ObservationIgnored var _test_tokenUsageResultLoaderOverride: (@MainActor (
+        UsageProvider,
+        Bool,
+        Date,
+        String?,
+        Int,
+        Bool) async throws -> CostUsageTokenResult)?
     @ObservationIgnored var _test_tokenUsageSnapshotLoaderOverride: (@MainActor (
         UsageProvider,
         Bool,
@@ -442,6 +449,10 @@ final class UsageStore {
     @ObservationIgnored var lastTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [ProviderInstanceID: String] = [:]
     @ObservationIgnored var tokenFetchFailureCooldowns: [ProviderInstanceID: TokenFetchFailureCooldown] = [:]
+    @ObservationIgnored var piHistoryScopeFingerprint: String?
+    @ObservationIgnored var piHistoryScopeGeneration: UInt64 = 0
+    @ObservationIgnored var piHistoryScopeRefreshTask: Task<Bool, Never>?
+    @ObservationIgnored var _test_piHistoryScopeResolver: (@Sendable ([String: String]) async throws -> String)?
     @ObservationIgnored var lastSpendDashboardTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastSpendDashboardTokenFetchScope: [ProviderInstanceID: String] = [:]
     @ObservationIgnored var spendDashboardTokenRefreshInFlight: Set<ProviderInstanceID> = []
@@ -1486,6 +1497,8 @@ extension UsageStore {
             return
         }
 
+        guard await self.refreshPiHistoryScope(for: provider) else { return }
+
         guard !self.tokenRefreshInFlight.contains(provider.instanceID) else { return }
 
         let now = Date()
@@ -1530,18 +1543,30 @@ extension UsageStore {
         let startedAt = Date()
         self.tokenCostLogger
             .debug("cost usage start provider=\(provider.rawValue) force=\(force)")
+        let refreshContext = TokenUsageRefreshContext(
+            provider: provider,
+            now: now,
+            historyDays: historyDays,
+            costScopeSignature: costScopeSignature,
+            publicationScope: publicationScope,
+            startedAt: startedAt)
 
         do {
             // Codex cost usage scans the explicit token-cost scope: selected managed account by
             // default, or this Mac's ambient Codex home when the local ledger is enabled.
-            let snapshot = try await self.loadTokenUsageSnapshot(
+            let result = try await self.loadTokenUsageSnapshot(
                 provider: provider,
                 force: force,
                 now: now,
                 codexHomePath: costScope.codexHomePath,
                 historyDays: historyDays,
-                cursorCookieHeaderOverride: cursorCookieHeaderOverride)
+                cursorCookieHeaderOverride: cursorCookieHeaderOverride,
+                includePiSessions: self.shouldIncludePiSessionsInTokenSnapshot(for: provider))
             try Task.checkCancellation()
+            guard self.tokenAccountingScopeIsCurrent(result.accounting, for: provider) else {
+                throw TokenSnapshotError.historyUnavailable
+            }
+            let snapshot = result.snapshot
             let completedCostScopeSignature = self.completedTokenCostScopeSignature(
                 provider: provider,
                 historyDays: historyDays,
@@ -1566,7 +1591,8 @@ extension UsageStore {
             self.startCodexCostCatchUpIfNeeded(afterRefreshing: provider)
 
             guard !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil else {
-                self.publishConfirmedEmptyTokenSnapshot(for: provider)
+                if !snapshot.historyCoverageIsEstablished { return }
+                self.publishConfirmedEmptyTokenSnapshot(for: provider, accounting: result.accounting)
                 self.tokenErrors[provider.instanceID] = Self.tokenCostNoDataMessage(for: provider)
                 self.tokenFailureGates[provider.instanceID]?.recordSuccess()
                 return
@@ -1576,7 +1602,7 @@ extension UsageStore {
                 snapshot: snapshot,
                 historyDays: historyDays,
                 startedAt: startedAt)
-            self.publishTokenSnapshot(snapshot, for: provider)
+            self.publishTokenSnapshot(snapshot, for: provider, accounting: result.accounting)
             self.tokenErrors[provider.instanceID] = nil
             self.tokenFailureGates[provider.instanceID]?.recordSuccess()
             self.persistWidgetSnapshot(reason: "token-usage")

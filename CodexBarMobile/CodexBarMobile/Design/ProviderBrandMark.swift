@@ -47,6 +47,7 @@ enum ProviderBrandAsset {
         "llmman",
         "nous",
         "muse",
+        "pi",
         "jetbrains",
         "ibmbob",
         "kilo",

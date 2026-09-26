@@ -687,3 +687,8 @@ See also: `docs/provider.md` for architecture notes.
 - Reuses the Muse CLI OAuth login. Keychain reads use a no-prompt preflight and fail when access would require interaction.
 - Shows 5-hour and weekly subscription windows and local token history; dollar costs remain unavailable.
 - Details: `docs/muse.md`.
+## Pi
+- Reads local Pi and OMP transcripts for token history and API-rate cost estimates; no credentials are needed.
+- When enabled as its own spend source, shared Codex and Claude views exclude the same Pi rows from combined totals.
+- Incomplete or unsupported transcript evidence remains unavailable rather than becoming zero.
+- Details: `docs/pi.md`.

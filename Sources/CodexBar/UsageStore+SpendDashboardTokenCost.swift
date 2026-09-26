@@ -20,7 +20,8 @@ extension UsageStore {
         return CurrentProviderConfigTokenPublication(
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
-            semanticFingerprint: publication.semanticFingerprint)
+            semanticFingerprint: publication.semanticFingerprint,
+            accounting: publication.accounting)
     }
 
     func spendDashboardTokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
@@ -64,6 +65,8 @@ extension UsageStore {
             return
         }
 
+        guard await self.refreshPiHistoryScope(for: provider) else { return }
+
         guard !self.spendDashboardTokenRefreshInFlight.contains(provider.instanceID) else { return }
 
         let now = Date()
@@ -97,14 +100,19 @@ extension UsageStore {
         }
 
         do {
-            let snapshot = try await self.loadTokenUsageSnapshot(
+            let result = try await self.loadTokenUsageSnapshot(
                 provider: provider,
                 force: force,
                 now: now,
                 codexHomePath: costScope.codexHomePath,
                 historyDays: historyDays,
-                cursorCookieHeaderOverride: cursorCookieHeaderOverride)
+                cursorCookieHeaderOverride: cursorCookieHeaderOverride,
+                includePiSessions: self.shouldIncludePiSessionsInTokenSnapshot(for: provider))
+            let snapshot = result.snapshot
             try Task.checkCancellation()
+            guard self.tokenAccountingScopeIsCurrent(result.accounting, for: provider) else {
+                throw TokenSnapshotError.historyUnavailable
+            }
             let completedCostScopeSignature = self.completedTokenCostScopeSignature(
                 provider: provider,
                 historyDays: historyDays,
@@ -127,10 +135,13 @@ extension UsageStore {
             self.lastSpendDashboardTokenFetchScope[provider.instanceID] = completedCostScopeSignature
 
             guard !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil else {
-                self.publishSpendDashboardConfirmedEmptyTokenSnapshot(for: provider)
+                if snapshot.historyCoverageIsEstablished {
+                    self.publishSpendDashboardConfirmedEmptyTokenSnapshot(
+                        for: provider, accounting: result.accounting)
+                }
                 return
             }
-            self.publishSpendDashboardTokenSnapshot(snapshot, for: provider)
+            self.publishSpendDashboardTokenSnapshot(snapshot, for: provider, accounting: result.accounting)
         } catch {
             guard self.spendDashboardTokenRefreshPublicationIsCurrent(
                 provider: provider,
@@ -169,31 +180,37 @@ extension UsageStore {
 
     private func publishSpendDashboardTokenSnapshot(
         _ snapshot: CostUsageTokenSnapshot,
-        for provider: UsageProvider)
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
     {
-        self.publishSpendDashboardTokenSnapshotState(snapshot, for: provider)
+        self.publishSpendDashboardTokenSnapshotState(snapshot, for: provider, accounting: accounting)
     }
 
-    private func publishSpendDashboardConfirmedEmptyTokenSnapshot(for provider: UsageProvider) {
-        self.publishSpendDashboardTokenSnapshotState(nil, for: provider)
+    private func publishSpendDashboardConfirmedEmptyTokenSnapshot(
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
+    {
+        self.publishSpendDashboardTokenSnapshotState(nil, for: provider, accounting: accounting)
     }
 
     #if DEBUG
     func _setSpendDashboardTokenSnapshotForTesting(
         _ snapshot: CostUsageTokenSnapshot?,
-        for provider: UsageProvider)
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
     {
         if let snapshot {
-            self.publishSpendDashboardTokenSnapshot(snapshot, for: provider)
+            self.publishSpendDashboardTokenSnapshot(snapshot, for: provider, accounting: accounting)
         } else {
-            self.publishSpendDashboardConfirmedEmptyTokenSnapshot(for: provider)
+            self.publishSpendDashboardConfirmedEmptyTokenSnapshot(for: provider, accounting: accounting)
         }
     }
     #endif
 
     private func publishSpendDashboardTokenSnapshotState(
         _ snapshot: CostUsageTokenSnapshot?,
-        for provider: UsageProvider)
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
     {
         self.spendDashboardTokenPublicationRevisions[provider.instanceID, default: 0] &+= 1
         self.spendDashboardTokenPublications[provider.instanceID] = TokenSnapshotPublication(
@@ -201,7 +218,8 @@ extension UsageStore {
             publicationRevision: self.spendDashboardTokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.spendDashboardTokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
+            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint),
+            accounting: accounting)
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 

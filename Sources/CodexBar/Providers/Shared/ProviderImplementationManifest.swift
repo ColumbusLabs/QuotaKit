@@ -93,5 +93,6 @@ enum ProviderImplementationManifest {
         { LLMManProviderImplementation() },
         { NousProviderImplementation() },
         { MuseProviderImplementation() },
+        { PiProviderImplementation() },
     ]
 }
