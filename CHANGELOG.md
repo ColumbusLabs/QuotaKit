@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Codex and Claude local cost history now lines up with observed weekly quota resets, including exact reset-day usage and explicit partial estimates.
 - Cost history: choose a calendar month-to-date reporting period or the available 365-day horizon across Mac menus, Usage & Spend, CLI, HTTP, and widgets.
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.

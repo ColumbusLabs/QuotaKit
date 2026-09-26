@@ -116,7 +116,9 @@ public enum CodexProviderDescriptor {
                 secondaryGloballyCapsPrimary: true,
                 menuCard: ProviderMenuCardPresentation(
                     creditsVisibility: .requiresValueOrError,
-                    supportsInlineTokenCostDashboard: true)),
+                    costVisibilityResolver: { $0.showOptionalUsage },
+                    supportsInlineTokenCostDashboard: true,
+                    showsQuotaWeekCost: true)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .web, .cli, .oauth, .api],
                 pipeline: ProviderFetchPipeline(resolveStrategies: self.resolveStrategies)),

@@ -617,7 +617,12 @@ struct ProvidersPane: View {
             workDaysPerWeek: self.settings.weeklyProgressWorkDays,
             workdayTickAppearance: self.settings.workdayTickAppearance,
             paceVisible: self.settings.paceVisible,
-            now: now)
+            costUsageBucketCalendar: self.settings.costUsageBucketCalendar,
+            now: now,
+            observedWeeklyResets: ProviderDescriptorRegistry.descriptor(for: provider)
+                .presentation.menuCard.showsQuotaWeekCost
+                ? self.store.weeklyQuotaWindowResetObservations(for: provider, snapshot: snapshot)
+                : [])
         return UsageMenuCardView.Model.make(input)
     }
 

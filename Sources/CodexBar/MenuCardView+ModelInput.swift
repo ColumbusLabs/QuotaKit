@@ -44,7 +44,9 @@ extension UsageMenuCardView.Model {
         let paceVisible: Bool
         let usesLiveSubtitle: Bool
         let preferredCurrencyCode: String
+        let costUsageBucketCalendar: Calendar
         let now: Date
+        let observedWeeklyResets: [CostUsageQuotaResetObservation]
 
         init(
             provider: UsageProvider,
@@ -86,7 +88,9 @@ extension UsageMenuCardView.Model {
             paceVisible: Bool = true,
             usesLiveSubtitle: Bool = false,
             preferredCurrencyCode: String = "auto",
-            now: Date)
+            costUsageBucketCalendar: Calendar = .current,
+            now: Date,
+            observedWeeklyResets: [CostUsageQuotaResetObservation] = [])
         {
             self.provider = provider
             self.metadata = metadata
@@ -127,7 +131,9 @@ extension UsageMenuCardView.Model {
             self.paceVisible = paceVisible
             self.usesLiveSubtitle = usesLiveSubtitle
             self.preferredCurrencyCode = preferredCurrencyCode
+            self.costUsageBucketCalendar = costUsageBucketCalendar
             self.now = now
+            self.observedWeeklyResets = observedWeeklyResets
         }
     }
 }
