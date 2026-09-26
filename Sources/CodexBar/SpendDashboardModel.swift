@@ -244,9 +244,13 @@ struct SpendDashboardModel: Equatable, Sendable {
 
     struct SessionRow: Identifiable, Equatable, Sendable {
         let id: String
+        var rank: Int
+        let sessionID: String
         let sourceID: String
         let provider: UsageProvider
-        let displayName: String
+        let title: String?
+        let projectName: String?
+        let projectPath: String?
         let lastActivity: Date
         let totalTokens: Int?
         let totalCost: Double?
@@ -1188,22 +1192,44 @@ struct SpendDashboardModel: Equatable, Sendable {
                 }?.modelName
                 return SessionRow(
                     id: "\(summary.input.id):\(session.sessionID)",
+                    rank: 0,
+                    sessionID: session.sessionID,
                     sourceID: summary.input.id,
                     provider: summary.input.provider,
-                    displayName: summary.input.displayName,
+                    title: session.title,
+                    projectName: session.projectName,
+                    projectPath: session.projectPath,
                     lastActivity: session.lastActivity,
                     totalTokens: session.totalTokens,
                     totalCost: session.costUSD.map { $0 * summary.costMultiplier },
                     modelName: modelName)
             }
         }
-        .sorted { lhs, rhs in
-            if lhs.lastActivity != rhs.lastActivity {
-                return lhs.lastActivity > rhs.lastActivity
-            }
-            return lhs.id < rhs.id
+        .sorted(by: Self.sessionOrder)
+        return rows.prefix(Self.sessionRowLimit).enumerated().map { rank, row in
+            var ranked = row
+            ranked.rank = rank + 1
+            return ranked
         }
-        return Array(rows.prefix(12))
+    }
+
+    static let sessionRowLimit = 50
+
+    private static func sessionOrder(_ lhs: SessionRow, _ rhs: SessionRow) -> Bool {
+        switch (lhs.totalCost, rhs.totalCost) {
+        case let (left?, right?) where left != right: return left > right
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: break
+        }
+        switch (lhs.totalTokens, rhs.totalTokens) {
+        case let (left?, right?) where left != right: return left > right
+        case (_?, nil): return true
+        case (nil, _?): return false
+        default: break
+        }
+        if lhs.lastActivity != rhs.lastActivity { return lhs.lastActivity > rhs.lastActivity }
+        return lhs.id < rhs.id
     }
 
     private static func hourlyPoints(
