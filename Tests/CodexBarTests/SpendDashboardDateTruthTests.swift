@@ -40,6 +40,8 @@ struct SpendDashboardDateTruthTests {
         #expect(group.coveredDayCount == 2)
         #expect(group.dailyPoints.map(\.day) == [june30, july1])
         #expect(group.dailyPoints.map(\.cost) == [1, 2])
+        #expect(group.dailySummaries.map(\.day) == [june30, july1])
+        #expect(group.dailySummaries.map(\.totalCost) == [1, 2])
     }
 
     @Test
@@ -67,6 +69,8 @@ struct SpendDashboardDateTruthTests {
         #expect(group.coveredDayCount == 2)
         #expect(group.dailyPoints.map(\.day) == [june30, july1])
         #expect(group.dailyPoints.map(\.cost) == [1, 2])
+        #expect(group.dailySummaries.map(\.day) == [june30, july1])
+        #expect(group.dailySummaries.map(\.totalCost) == [1, 2])
     }
 
     @Test
@@ -207,6 +211,7 @@ struct SpendDashboardDateTruthTests {
         #expect(group.totalCost == nil)
         #expect(group.totalTokens == nil)
         #expect(group.dailyPoints.isEmpty)
+        #expect(group.dailySummaries.isEmpty)
     }
 
     @Test

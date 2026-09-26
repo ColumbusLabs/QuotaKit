@@ -296,6 +296,7 @@ struct SpendDashboardPane: View {
     @Bindable var store: UsageStore
     @State private var isVisible = false
     @State private var userSelectedBackground = false
+    @State private var isDataControlsExpanded = true
 
     init(settings: SettingsStore, store: UsageStore) {
         self.settings = settings
@@ -306,10 +307,10 @@ struct SpendDashboardPane: View {
         ScrollView {
             VStack(alignment: .leading, spacing: 18) {
                 self.header
+                self.refreshStatus
                 self.codexCostCatchUpPanel
                 self.content
-                self.provenance
-                self.shareAction
+                self.dataControls
             }
             .padding(24)
         }
@@ -594,7 +595,10 @@ struct SpendDashboardPane: View {
                     })
             }
         }
+    }
 
+    @ViewBuilder
+    private var refreshStatus: some View {
         if self.controller.failedSourceCount > 0 {
             Label(
                 spendDashboardRefreshFailureText(self.controller.failedSourceCount),
@@ -604,19 +608,32 @@ struct SpendDashboardPane: View {
         }
     }
 
+    private var dataControls: some View {
+        SpendDashboardPanel {
+            DisclosureGroup(isExpanded: self.$isDataControlsExpanded) {
+                VStack(alignment: .leading, spacing: 12) {
+                    self.provenance
+                    Divider()
+                    self.shareAction
+                }
+                .padding(.top, 12)
+            } label: {
+                Label {
+                    Text(L("List-price equivalent — not a billing receipt."))
+                        .font(.caption)
+                } icon: {
+                    Image(systemName: "lock.shield.fill")
+                }
+            }
+            .accessibilityIdentifier("spend-dashboard-data-controls")
+        }
+    }
+
     private var provenance: some View {
         VStack(alignment: .leading, spacing: 10) {
-            HStack(alignment: .top, spacing: 10) {
-                Image(systemName: "lock.shield.fill")
-                    .foregroundStyle(.secondary)
-                Text(L("List-price equivalent — not a billing receipt."))
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
-                Spacer()
-                Toggle(L("Track costs"), isOn: self.$settings.costUsageEnabled)
-                    .toggleStyle(.switch)
-                    .controlSize(.small)
-            }
+            Toggle(L("Track costs"), isOn: self.$settings.costUsageEnabled)
+                .toggleStyle(.switch)
+                .controlSize(.small)
             if self.settings.costUsageEnabled {
                 Toggle(L("Include OpenCodex usage logs"), isOn: self.$settings.openCodexUsageLogsEnabled)
                     .toggleStyle(.switch)
@@ -826,6 +843,7 @@ struct SpendDashboardCurrencySection: View {
             } else {
                 SpendDailyChart(group: self.group)
             }
+            SpendDailyLedger(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
         }
         .environment(\.timeZone, self.group.timeZone)
         .environment(\.calendar, self.group.calendar)

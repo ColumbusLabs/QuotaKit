@@ -38,8 +38,11 @@ sessions, Codex projects, and a 365-day token heatmap. A heatmap day with no cov
 and is not clickable. Custom list-price overlays are documented in `docs/model-pricing.md`.
 Usage details group each provider's account or local-history sources with its model rows. The first six models
 show by default, and **Show all** reveals the rest. Projects and sessions share a detail selector; daily and
-hourly charts share a trend selector when hourly history exists. A selected day can be cleared from the summary.
-Incomplete source costs retain an approximate marker and unknown amounts remain unknown.
+hourly charts share a trend selector when hourly history exists. The daily ledger remains below either chart mode and
+lists local calendar days, active providers, tracked tokens, requests, and estimated spend for the shared covered
+window. Proven zero days remain zero; unknown amounts stay unavailable and known partial subtotals carry an approximate
+marker. A selected day can be cleared from the summary. The expanded data-controls section contains source selection,
+the cost-tracking options, and JSON/share exports.
 
 OpenCodex `~/.opencodex/usage.jsonl` is an opt-in, read-only spend source (off by default). It is not a quota
 Provider. When both OpenCodex logs and native Codex sessions are present they stay as separate sources under the

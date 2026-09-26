@@ -48,7 +48,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
-- Usage & Spend groups accounts, local-history sources, and all model rows under each provider. Compact detail and day/hour selectors retain partial-cost warnings, local calendar boundaries, privacy controls, and exports.
+- Usage & Spend groups accounts, local-history sources, and all model rows under each provider. Compact detail and day/hour selectors retain partial-cost warnings and local calendar boundaries. A daily ledger remains visible in either chart mode, while an expanded data-controls section keeps source selection, privacy context, and exports together.
 
 - Manus and T3 Chat: retrieve browser usage through bundled plugins.
 

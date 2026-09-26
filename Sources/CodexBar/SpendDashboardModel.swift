@@ -150,6 +150,44 @@ struct SpendDashboardModel: Equatable, Sendable {
         }
     }
 
+    struct DailyProviderRow: Identifiable, Equatable, Sendable {
+        let sourceID: String
+        let provider: UsageProvider
+        let displayName: String
+        let totalTokens: Int?
+        let requestCount: Int?
+        let totalCost: Double?
+        let incompleteRequestCount: Int
+        let hasPartialCost: Bool
+
+        var id: String { self.sourceID }
+
+        var isKnownIdle: Bool {
+            self.incompleteRequestCount == 0 && self.totalCost == 0 &&
+                self.totalTokens == 0 && self.requestCount == 0
+        }
+    }
+
+    struct DailySummary: Identifiable, Equatable, Sendable {
+        let day: Date
+        let providers: [DailyProviderRow]
+        let totalTokens: Int?
+        let requestCount: Int?
+        let totalCost: Double?
+
+        var id: Date { self.day }
+
+        var incompleteRequestCount: Int {
+            CostUsageIncompleteRequests.sum(self.providers.map(\.incompleteRequestCount))
+        }
+
+        var hasPartialCost: Bool {
+            if self.providers.contains(where: \.hasPartialCost) { return true }
+            let values = self.providers.map(\.totalCost)
+            return values.contains { $0 != nil } && values.contains { $0 == nil }
+        }
+    }
+
     struct TokenActivityPoint: Identifiable, Equatable, Sendable {
         let day: Date
         /// `nil` means at least one included source cannot establish coverage for this day.
@@ -181,6 +219,7 @@ struct SpendDashboardModel: Equatable, Sendable {
         let providers: [ProviderRow]
         let models: [ModelRow]
         let dailyPoints: [DailyPoint]
+        let dailySummaries: [DailySummary]
         let totalTokens: Int?
         let totalCost: Double?
         let coveredDayCount: Int
@@ -214,6 +253,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             models: [ModelRow],
             projects: [ProjectRow] = [],
             dailyPoints: [DailyPoint],
+            dailySummaries: [DailySummary] = [],
             totalTokens: Int?,
             totalCost: Double?,
             coveredDayCount: Int,
@@ -235,6 +275,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             self.providers = providers
             self.models = models
             self.dailyPoints = dailyPoints
+            self.dailySummaries = dailySummaries
             self.totalTokens = totalTokens
             self.totalCost = totalCost
             self.coveredDayCount = coveredDayCount
@@ -565,6 +606,7 @@ struct SpendDashboardModel: Equatable, Sendable {
             models: modelSummary.rows,
             projects: Self.projectRows(summaries: summaries, bounds: bounds, calendar: calendar),
             dailyPoints: dailyPoints,
+            dailySummaries: Self.dailySummaries(summaries: summaries, calendar: calendar),
             totalTokens: Self.knownIntSum(providers.map(\.totalTokens)),
             totalCost: Self.knownCostSum(providers.map(\.totalCost)),
             coveredDayCount: Self.commonCoverageDayCount(summaries: summaries, calendar: calendar),
@@ -894,6 +936,123 @@ struct SpendDashboardModel: Equatable, Sendable {
         return aggregate == dailyTotal
     }
 
+    private static func hasCompleteRequestHistory(
+        _ input: ProviderInput,
+        displayCalendar: Calendar) -> Bool
+    {
+        guard input.snapshot.historyCoverageIsEstablished,
+              !input.snapshot.historyScanIsPartial
+        else { return false }
+        let coverage = Self.sourceCoverageInterval(input: input, displayCalendar: displayCalendar)
+        var dailyTotal = 0
+        for entry in input.snapshot.daily {
+            guard let day = Self.day(entry.date, provider: input.provider, displayCalendar: displayCalendar) else {
+                guard Self.nonnegative(entry.requestCount) == 0 else { return false }
+                continue
+            }
+            guard coverage.contains(day) else { continue }
+            guard let requests = Self.nonnegative(entry.requestCount) else { return false }
+            let next = dailyTotal.addingReportingOverflow(requests)
+            guard !next.overflow else { return false }
+            dailyTotal = next.partialValue
+        }
+        guard let aggregate = input.snapshot.last30DaysRequests else { return true }
+        return Self.nonnegative(aggregate) == dailyTotal
+    }
+
+    private static func dailySummaries(
+        summaries: [InputSummary],
+        calendar: Calendar) -> [DailySummary]
+    {
+        guard summaries.contains(where: { $0.totalCost != nil || !$0.entries.isEmpty }),
+              let coverage = Self.commonCoverageInterval(summaries: summaries)
+        else { return [] }
+
+        let indexed = summaries.map { summary in
+            (
+                summary: summary,
+                entries: Dictionary(grouping: summary.entries, by: \.day),
+                tokensComplete: !summary.historyScanIsPartial
+                    && Self.hasCompleteTokenHistory(summary.input, displayCalendar: calendar),
+                requestsComplete: Self.hasCompleteRequestHistory(summary.input, displayCalendar: calendar))
+        }
+        var result: [DailySummary] = []
+        var day = coverage.lowerBound
+        while day <= coverage.upperBound {
+            let rows = indexed.map {
+                Self.dailyProviderRow(
+                    summary: $0.summary,
+                    entries: $0.entries[day] ?? [],
+                    tokensComplete: $0.tokensComplete,
+                    requestsComplete: $0.requestsComplete)
+            }
+            let sortedRows = rows.enumerated().sorted { lhs, rhs in
+                switch (lhs.element.totalCost, rhs.element.totalCost) {
+                case let (left?, right?) where left != right: return left > right
+                case (_?, nil): return true
+                case (nil, _?): return false
+                default: return lhs.offset < rhs.offset
+                }
+            }.map(\.element)
+            result.append(DailySummary(
+                day: day,
+                providers: sortedRows,
+                totalTokens: Self.completeIntSum(rows.map(\.totalTokens)),
+                requestCount: Self.completeIntSum(rows.map(\.requestCount)),
+                totalCost: Self.knownCostSum(rows.map(\.totalCost))))
+            guard let nextDay = calendar.date(byAdding: .day, value: 1, to: day),
+                  nextDay > day
+            else { return result }
+            day = calendar.startOfDay(for: nextDay)
+        }
+        return result
+    }
+
+    private static func dailyProviderRow(
+        summary: InputSummary,
+        entries: [WindowEntry],
+        tokensComplete: Bool,
+        requestsComplete: Bool) -> DailyProviderRow
+    {
+        let costs = entries.map {
+            Self.validCost($0.entry.costUSD).map { $0 * summary.costMultiplier }
+        }
+        let emptyCost: Double? = summary.totalCost != nil && !summary.historyScanIsPartial ? 0 : nil
+        let totalCost = summary.hasInvalidCostHistory
+            ? nil : entries.isEmpty ? emptyCost : Self.completeCostSum(costs)
+        let incompleteRequestCount = CostUsageIncompleteRequests.sum(
+            entries.map(\.entry.incompleteRequestCount))
+        let hasPartialCost = summary.historyScanIsPartial || incompleteRequestCount > 0 || entries.contains { item in
+            let coverage = item.entry.coverageCounts
+            return coverage.unpriced > 0 || coverage.unmetered > 0
+        }
+        return DailyProviderRow(
+            sourceID: summary.input.id,
+            provider: summary.input.provider,
+            displayName: summary.input.displayName,
+            totalTokens: Self.dailyIntegerTotal(
+                entries: entries,
+                isComplete: tokensComplete,
+                value: \.totalTokens),
+            requestCount: Self.dailyIntegerTotal(
+                entries: entries,
+                isComplete: requestsComplete,
+                value: \.requestCount),
+            totalCost: totalCost,
+            incompleteRequestCount: incompleteRequestCount,
+            hasPartialCost: hasPartialCost)
+    }
+
+    private static func dailyIntegerTotal(
+        entries: [WindowEntry],
+        isComplete: Bool,
+        value: KeyPath<CostUsageDailyReport.Entry, Int?>) -> Int?
+    {
+        guard isComplete else { return nil }
+        guard !entries.isEmpty else { return 0 }
+        return Self.completeIntSum(entries.map { Self.nonnegative($0.entry[keyPath: value]) })
+    }
+
     private static func dailyPoints(summaries: [InputSummary]) -> [DailyPoint] {
         var aggregates: [DailyKey: DailyAccumulator] = [:]
         for summary in summaries where !summary.hasInvalidCostHistory {
@@ -1092,17 +1251,21 @@ struct SpendDashboardModel: Equatable, Sendable {
         return scanStart...scanEnd
     }
 
-    private static func commonCoverageDayCount(summaries: [InputSummary], calendar: Calendar) -> Int {
-        guard let first = summaries.first?.coveredInterval else { return 0 }
+    private static func commonCoverageInterval(summaries: [InputSummary]) -> ClosedRange<Date>? {
+        guard let first = summaries.first?.coveredInterval else { return nil }
         var intersection = first
         for summary in summaries.dropFirst() {
-            guard let interval = summary.coveredInterval else { return 0 }
+            guard let interval = summary.coveredInterval else { return nil }
             let start = max(intersection.lowerBound, interval.lowerBound)
             let end = min(intersection.upperBound, interval.upperBound)
-            guard start <= end else { return 0 }
+            guard start <= end else { return nil }
             intersection = start...end
         }
-        return Self.dayCount(in: intersection, calendar: calendar)
+        return intersection
+    }
+
+    private static func commonCoverageDayCount(summaries: [InputSummary], calendar: Calendar) -> Int {
+        Self.dayCount(in: Self.commonCoverageInterval(summaries: summaries), calendar: calendar)
     }
 
     private static func dayCount(in interval: ClosedRange<Date>?, calendar: Calendar) -> Int {
