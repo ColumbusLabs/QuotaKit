@@ -5,18 +5,20 @@ import Testing
 
 struct AlibabaTokenPlanMenuCardModelTests {
     @Test
-    func `Personal monthly-only usage is labeled Monthly while Team credits stay Credits`() throws {
+    func `restored Personal monthly-only usage keeps the Monthly label`() throws {
         let now = Date(timeIntervalSince1970: 1_790_000_000)
         let snapshot = try AlibabaTokenPlanPersonalUsageParser.parse(
             from: Data(#"{"per1MonthPercentage":0.25}"#.utf8),
             subscriptionData: nil,
             quotaConfigData: nil,
             now: now).toUsageSnapshot()
+        let restored = try JSONDecoder().decode(UsageSnapshot.self, from: JSONEncoder().encode(snapshot))
+        #expect(restored.alibabaTokenPlanUsage == nil)
         let metadata = try #require(ProviderDefaults.metadata[.alibabatokenplan])
         let model = UsageMenuCardView.Model.make(.init(
             provider: .alibabatokenplan,
             metadata: metadata,
-            snapshot: snapshot,
+            snapshot: restored,
             credits: nil,
             creditsError: nil,
             dashboard: nil,
@@ -35,8 +37,8 @@ struct AlibabaTokenPlanMenuCardModelTests {
 
         #expect(model.metrics.map(\.title) == ["Monthly"])
         #expect(AlibabaTokenPlanProviderDescriptor.descriptor.presentation
-            .rateWindowLabels(metadata: metadata, snapshot: snapshot).primary == "Monthly")
-        #expect(AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot) == "Monthly")
+            .rateWindowLabels(metadata: metadata, snapshot: restored).primary == "Monthly")
+        #expect(AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: restored) == "Monthly")
     }
 
     @Test
@@ -110,7 +112,7 @@ struct AlibabaTokenPlanMenuCardModelTests {
             hidePersonalInfo: false,
             now: now))
 
-        #expect(model.metrics.map(\.title) == ["Credits"])
+        #expect(model.metrics.map(\.title) == ["Monthly"])
         let monthly = try #require(model.metrics.first { $0.id == "primary" })
         #expect(monthly.percentLabel == "10% left")
         #expect(monthly.detailText == "900 / 1,000 credits used")

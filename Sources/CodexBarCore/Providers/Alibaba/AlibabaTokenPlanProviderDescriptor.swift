@@ -20,9 +20,8 @@ public enum AlibabaTokenPlanProviderDescriptor {
     }
 
     public static func primaryLabel(snapshot: UsageSnapshot) -> String? {
-        if snapshot.alibabaTokenPlanUsage?.monthlyWindow != nil,
-           snapshot.primary?.windowMinutes == 30 * 24 * 60
-        {
+        // The generic rate window survives cache restoration; the typed Token Plan payload does not.
+        if snapshot.primary?.windowMinutes == 30 * 24 * 60 {
             return "Monthly"
         }
         return self.primaryLabel(window: snapshot.primary)
