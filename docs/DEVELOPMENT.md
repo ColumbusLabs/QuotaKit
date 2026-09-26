@@ -130,6 +130,10 @@ make test
 
 ### Format And Lint
 
+`Scripts/install_lint_tools.sh` installs repository-pinned SwiftFormat and SwiftLint archives after checksum verification.
+SwiftFormat targets the package's Swift 6.2 language floor. Plugin TypeScript is transpiled by the bundled runtime;
+this repository does not currently install or run the upstream TypeScript, Oxlint, or Oxfmt validation toolchain.
+
 ```bash
 ./Scripts/lint.sh lint
 ./Scripts/lint.sh format
