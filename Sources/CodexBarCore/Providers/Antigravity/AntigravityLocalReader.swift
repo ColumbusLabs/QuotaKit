@@ -108,7 +108,7 @@ enum AntigravityLocalReader {
             let source = try self.readJSONL(cache.paths, budget: budget)
             return try self.aggregate(
                 source, discoveryComplete: cache.isComplete, calendar: calendar, budget: budget)
-        } catch ScanFailure.exhausted {
+        } catch ScanFailure.exhausted, ScanFailure.schemaExhausted {
             return DailyReportResult(
                 report: .init(data: [], summary: nil), coverage: .partial, statistics: budget.statistics)
         }
