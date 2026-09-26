@@ -165,6 +165,9 @@ Example:
   - pi sessions count assistant-message usage rows and attribute `openai-codex` assistant usage to Codex.
   - pi assistant usage is bucketed by assistant-turn timestamp, so mixed-model pi sessions can contribute to multiple
     days/models correctly.
+  - Conversation rows retain their canonical project folder and use the rollout's original working directory when
+    resolving a relative `CODEX_SQLITE_HOME`. Thread names come from the matching Codex state database or session
+    index, so projects sharing one Git root keep their own session metadata.
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
 - Cache:
