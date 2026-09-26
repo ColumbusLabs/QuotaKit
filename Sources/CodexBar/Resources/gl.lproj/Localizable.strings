@@ -1599,3 +1599,7 @@
 "Restore Defaults" = "Restaurar valores predeterminados";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Escolle as filas de uso que aparecen no menú deste provedor, na vista previa de Configuración e na Vista xeral.";
 "%@ (unavailable)" = "%@ (non dispoñible)";
+"overview_layout_title" = "Deseño do Resumo";
+"overview_layout_subtitle" = "Escolle canta información mostra o Resumo.";
+"overview_layout_detailed" = "Detallado";
+"overview_layout_compact" = "Compacto";

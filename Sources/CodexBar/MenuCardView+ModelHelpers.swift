@@ -364,6 +364,10 @@ extension UsageMenuCardView.Model {
             self.placeholder != nil
     }
 
+    func showsOverviewSupplementalContent(compact: Bool) -> Bool {
+        !compact || self.metrics.isEmpty
+    }
+
     var creditsOnlyInlineUsageDashboard: Bool {
         self.creditsText != nil &&
             self.inlineUsageDashboard != nil &&

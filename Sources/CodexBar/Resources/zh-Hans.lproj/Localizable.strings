@@ -1612,3 +1612,7 @@
 "Restore Defaults" = "恢复默认设置";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "选择要在此提供商的菜单、设置预览和概览中显示的用量行。";
 "%@ (unavailable)" = "%@（不可用）";
+"overview_layout_title" = "概览布局";
+"overview_layout_subtitle" = "选择“概览”显示的信息量。";
+"overview_layout_detailed" = "详细";
+"overview_layout_compact" = "紧凑";

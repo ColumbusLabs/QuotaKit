@@ -117,6 +117,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Overview: choose Detailed or Compact in Menu settings, with labeled usage bars, the existing provider navigation, and useful details for providers without quota bars (#2616). Thanks @Zihao-Qi!
 - Replicate: show current-month billing spend and optional credit balance from a saved or browser session, with labeled account support and iPhone spend sync.
 - Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.
