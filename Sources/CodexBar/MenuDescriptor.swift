@@ -93,6 +93,7 @@ struct MenuDescriptor {
         updateReady: Bool,
         includeContextualActions: Bool = true,
         codexWorkspacesMenuEnabled: Bool = false,
+        isKeepingAwake: Bool = false,
         agentSessionsEnabled: Bool = false,
         agentSessionLabelStyle: AgentSessionLabelStyle = .project,
         localAgentSessions: [AgentSession] = [],
@@ -148,6 +149,9 @@ struct MenuDescriptor {
             if !actions.entries.isEmpty {
                 sections.append(actions)
             }
+        }
+        if isKeepingAwake {
+            sections.append(Section(entries: [.text("Stay Awake: local agent session is live", .secondary)]))
         }
         if agentSessionsEnabled {
             sections.append(Self.agentSessionsSection(

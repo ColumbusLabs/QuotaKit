@@ -277,6 +277,8 @@ extension UsageStore {
                         for: account,
                         priorSnapshot: priorSnapshot,
                         activeVisibleAccountID: originalVisibleAccountID))
+            self.handleCodexCredentialOutcome(
+                outcome, account: account, snapshot: resolved.usage, projection: currentProjection)
             if let snapshot = resolved.snapshot {
                 snapshots.append(CodexAccountUsageSnapshot(
                     account: snapshot.account,
@@ -1292,6 +1294,10 @@ extension UsageStore {
         account: ProviderTokenAccount,
         priorSnapshot: TokenAccountUsageSnapshot? = nil) -> ResolvedAccountOutcome
     {
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: Self.warningTokenAccountDiscriminator(account) ?? "default",
+            result: outcome.result)
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
@@ -1525,6 +1531,10 @@ extension UsageStore {
         if case .failure = outcome.result, let account,
            self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id
         { return }
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: Self.warningTokenAccountDiscriminator(account) ?? "default",
+            result: outcome.result)
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)

@@ -96,6 +96,7 @@ extension UsageStore {
 
     func clearDisabledProviderState(enabledProviders: Set<ProviderInstanceID>) {
         for provider in UsageProvider.allCases where !enabledProviders.contains(provider.instanceID) {
+            self.retireCredentialNotifications(provider: provider)
             if self.currentProviderRefreshAllowsDisabledPublication(provider) {
                 self.clearProviderRuntimeState(provider)
             } else {
