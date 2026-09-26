@@ -11,6 +11,9 @@ read_when:
 ## Snapshot pipeline
 - `WidgetSnapshotStore` writes compact JSON snapshots to the app-group container.
 - Widgets read the snapshot and render usage/credits/history states.
+- Usage and Switcher tiles emphasize the most constrained general quota, preserve other allowances as detail rows, and show full provider names. Code-review and model-specific allowances do not replace a provider's general quota headline. Providers without quota bars keep credits or local-cost information useful.
+- WidgetKit owns the outer margins. Small, medium, and large tiles share the same rendering and quota-selection rules; overflow labels disclose omitted detail rows. Snapshot and reset dates remain live relative text between timeline updates.
+- Snapshot age labels advance between timeline reloads. Stale token-cost rows track their own saved timestamp once they lag quota data by more than ten minutes. Fetching new usage still depends on app refresh and WidgetKit accepting a timeline.
 - The app writes snapshots after the main refresh pipeline and token-usage refreshes; narrow single-provider refresh paths may wait for the next snapshot write.
 - Automatic provider refresh is the sole periodic trigger for token/cost refreshes; the token/cost TTL only determines
   eligibility when that refresh runs. Automatic local-history scans have a 15-minute minimum (30 minutes in low-power
