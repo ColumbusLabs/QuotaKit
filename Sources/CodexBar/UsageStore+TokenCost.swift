@@ -457,7 +457,6 @@ extension UsageStore {
 
     func tokenRefreshFailureIsCoolingDown(provider: UsageProvider, now: Date) -> Bool {
         guard let failure = self.tokenFetchFailureCooldowns[provider.instanceID],
-              self.tokenFetchTTL != nil,
               now >= failure.attemptedAt,
               now < failure.retryAfter
         else { return false }
@@ -612,7 +611,7 @@ extension UsageStore {
     nonisolated static func tokenFetchFailureRetryDelay(_ error: Error, ttl: TimeInterval?) -> TimeInterval? {
         switch error {
         case CostUsageError.timedOut: ttl
-        case CursorStatusProbeError.costRequestForbidden: ttl.map { max($0, 6 * 60 * 60) }
+        case CursorStatusProbeError.costRequestForbidden: max(ttl ?? 0, 6 * 60 * 60)
         default: nil
         }
     }

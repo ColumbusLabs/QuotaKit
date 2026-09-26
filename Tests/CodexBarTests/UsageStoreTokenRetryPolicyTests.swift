@@ -13,8 +13,8 @@ struct UsageStoreTokenRetryPolicyTests {
     }
 
     @Test(arguments: [nil, 900, 1800, 43200] as [TimeInterval?])
-    func `forbidden costs wait at least six hours when automatic refresh is enabled`(ttl: TimeInterval?) {
+    func `forbidden costs wait at least six hours at every refresh cadence`(ttl: TimeInterval?) {
         #expect(UsageStore.tokenFetchFailureRetryDelay(CursorStatusProbeError.costRequestForbidden, ttl: ttl)
-            == ttl.map { max($0, 21600) })
+            == max(ttl ?? 0, 21600))
     }
 }

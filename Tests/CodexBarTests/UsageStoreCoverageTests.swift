@@ -132,10 +132,12 @@ struct UsageStoreCoverageTests {
         #expect(store.tokenError(for: .cursor) == nil)
     }
 
-    @Test
-    func `forbidden Cursor costs cool down without a snapshot and recover on scope changes`() async throws {
-        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-cursor-forbidden-cost")
-        settings.refreshFrequency = .oneMinute
+    @Test(arguments: [false, true])
+    func `forbidden Cursor costs cool down without a snapshot and recover on scope changes`(
+        manualCadence: Bool) async throws
+    {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-cursor-forbidden-cost-\(manualCadence)")
+        settings.refreshFrequency = manualCadence ? .manual : .oneMinute
         settings.costUsageEnabled = true
         settings.cursorCookieSource = .manual
         settings.cursorCookieHeader = "fixture=cursor-a"
