@@ -460,7 +460,7 @@ struct AntigravityLocalReaderTests {
     func `field 2 root envelope with step table timestamps aggregates complete coverage`() async throws {
         let fixture = try Fixture()
         let stepUUID = "step-abc-123"
-        let genBlob = Fixture.blobWithRootEnvelope(stepUUID: stepUUID, model: "gemini-3.7-flash", seconds: nil)
+        let genBlob = Fixture.blobWithRootEnvelope(stepUUID: stepUUID, model: "fixture-model-a", seconds: nil)
         let stepBlob = Fixture.stepMetadataBlob(stepUUID: stepUUID, seconds: 1_787_832_000, nanos: 250_000_000)
         try fixture.database(blobs: [genBlob], stepBlobs: [stepBlob])
         let report = try fixture.report()
@@ -469,7 +469,7 @@ struct AntigravityLocalReaderTests {
         #expect(report.report.data.first?.inputTokens == 111)
         #expect(report.report.data.first?.outputTokens == 30)
         #expect(report.report.data.first?.reasoningTokens == 7)
-        #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "gemini-3.7-flash")
+        #expect(report.report.data.first?.modelBreakdowns?.first?.modelName == "fixture-model-a")
         #expect(try await fixture.snapshot().last30DaysTokens == 198)
     }
 
