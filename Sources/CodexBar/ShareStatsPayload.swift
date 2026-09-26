@@ -112,6 +112,7 @@ struct ShareStatsPayload: Sendable, Equatable {
     let currencies: [ShareStatsCurrencyPayload]
     let totalTokens: Int?
     let hasPartialTokens: Bool
+    let hasPartialModels: Bool
 
     init(
         days: Int,
@@ -120,7 +121,8 @@ struct ShareStatsPayload: Sendable, Equatable {
         topModels: [ShareStatsModelPayload],
         currencies: [ShareStatsCurrencyPayload],
         totalTokens: Int?,
-        hasPartialTokens: Bool = false)
+        hasPartialTokens: Bool = false,
+        hasPartialModels: Bool = false)
     {
         self.days = days
         self.periodEnd = periodEnd
@@ -129,6 +131,11 @@ struct ShareStatsPayload: Sendable, Equatable {
         self.currencies = currencies
         self.totalTokens = totalTokens
         self.hasPartialTokens = hasPartialTokens
+        self.hasPartialModels = hasPartialModels
+    }
+
+    var modelRankingDetail: String {
+        self.hasPartialModels ? "PARTIAL" : "BY USAGE"
     }
 
     var hasShareableData: Bool {
@@ -267,14 +274,28 @@ enum ShareStatsBuilder {
                     coveredDayCount: row.coveredDayCount)
             }
         }
-        let sanitizedModels = model.groups.filter {
-            $0.modelHistoryCompleteness == .complete
-        }.flatMap { group in
-            group.models.compactMap { row -> ShareStatsModelPayload? in
+        var hasPartialModels = false
+        let sanitizedModels = model.groups.flatMap { group -> [ShareStatsModelPayload] in
+            let knownIncomplete = group.incompleteModelProviders.union(
+                group.providers.filter { $0.incompleteRequestCount > 0 }.map(\.provider))
+            let incompleteProviders = group.modelHistoryCompleteness == .incomplete && knownIncomplete.isEmpty
+                ? Set(group.providers.map(\.provider)) : knownIncomplete
+            hasPartialModels = hasPartialModels || !incompleteProviders.isEmpty
+            guard group.selectedDay == nil else {
+                hasPartialModels = hasPartialModels || !group.models.isEmpty || group.providers.contains {
+                    $0.totalTokens != 0 || $0.totalCost != 0
+                }
+                return []
+            }
+            return group.models.compactMap { row -> ShareStatsModelPayload? in
                 let estimatedCost = self.finiteCost(row.totalCost)
-                guard let modelName = ShareStatsSanitizer.modelName(row.modelName),
+                guard !incompleteProviders.contains(row.provider), row.incompleteRequestCount == 0,
+                      let modelName = ShareStatsSanitizer.modelName(row.modelName),
                       row.totalTokens != nil
-                else { return nil }
+                else {
+                    hasPartialModels = true
+                    return nil
+                }
                 return ShareStatsModelPayload(
                     provider: row.provider,
                     providerName: row.providerName,
@@ -298,7 +319,13 @@ enum ShareStatsBuilder {
                 modelFamilies[key] = ShareStatsModelFamilyAccumulator(key: key, row: row)
             }
         }
-        let topModels = modelFamilies.values.compactMap(\.payload).sorted { lhs, rhs in
+        let topModels = modelFamilies.values.compactMap { family -> ShareStatsModelPayload? in
+            guard let payload = family.payload else {
+                hasPartialModels = true
+                return nil
+            }
+            return payload
+        }.sorted { lhs, rhs in
             switch (lhs.totalTokens, rhs.totalTokens) {
             case let (left?, right?) where left != right: return left > right
             case (_?, nil): return true
@@ -327,7 +354,8 @@ enum ShareStatsBuilder {
             topModels: topModels,
             currencies: currencies,
             totalTokens: totalTokens,
-            hasPartialTokens: hasPartialTokens)
+            hasPartialTokens: hasPartialTokens,
+            hasPartialModels: hasPartialModels)
         return payload.hasShareableData ? payload : nil
     }
 
@@ -428,7 +456,7 @@ enum ShareStatsFormatting {
             return "\(provider.providerName)\(subscription): \(metrics.joined(separator: " · "))"
         })
         if !payload.topModels.isEmpty {
-            lines.append("Top models:")
+            lines.append(payload.hasPartialModels ? "Top models (partial):" : "Top models:")
             lines.append(contentsOf: payload.topModels.prefix(5).map { model in
                 var metrics: [String] = []
                 if let tokens = model.totalTokens {

@@ -283,7 +283,10 @@ retain their own usage and errors; ambient credits are not presented as a shared
   menu, which hides an untouched Antigravity model family. Only the producer can set this: a zero `usedPercent` also
    stands for a lane whose usage the provider never reported, and the payload does not carry that distinction.
 - `providers[].credits`: Remaining credits or balance when available.
-- `providers[].cost`: Local cost data when available.
+- `providers[].cost`: Local cost data when available, otherwise provider-reported 30-day USD history.
+  Reported history preserves a known zero and leaves `todayUSD` null because completed UTC days are not
+  necessarily local Today. Other currencies or window lengths remain unavailable; local cost retains precedence.
+  Optional incomplete-request counts mark excluded usage without inventing a dollar amount.
 - `providers[].display`: UI hints for ordering and coloring.
 - `providers[].error`: Provider error payload when the latest fetch failed.
 - `providers[].updatedAt`: Best-known update timestamp for the provider row.

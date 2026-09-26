@@ -76,6 +76,8 @@ named percentages are omitted from those older projections without removing the 
 - Manual refresh updates the open card subtitle and persistent Refresh-row spinner in place. Repeated clicks share the
   active request, and the existing row geometry remains fixed through success or failure.
 - Codex credits can add a separate “Buy Credits…” menu action.
+- Shared stats retain complete providers' model history when another provider is incomplete and mark the
+  resulting model list as partial. A selected day never presents its models as a full-window ranking.
 - Claude capped Extra Usage follows the used/remaining fill preference; spending amounts and “% used” copy stay unchanged.
 - Codex OpenAI web extras: code review remaining and usage breakdown render when dashboard data is attached.
 - Codex and Claude cost cards: a Recent windows list under the daily bars shows each quota window's

@@ -1,5 +1,18 @@
 import Foundation
 
+package enum CostUsageIncompleteRequests {
+    /// Clamp malformed counts and saturate totals so an overflow cannot erase the partial marker.
+    package static func sum(_ counts: some Sequence<Int>) -> Int {
+        var total = 0
+        for count in counts {
+            let next = total.addingReportingOverflow(max(0, count))
+            if next.overflow { return Int.max }
+            total = next.partialValue
+        }
+        return total
+    }
+}
+
 package struct CostUsageTokenActivityCache: Sendable, Equatable {
     package let daily: [CostUsageDailyReport.Entry]
     package let coverageSinceKey: String
