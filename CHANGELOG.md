@@ -27,6 +27,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Security: preserve explicit browser cookie denial for CLI refresh and stage credential files with owner-only permissions before writing.
 
+- Grok: classify unavailable billing RPC methods by JSON-RPC code so team history survives wording changes (#3947).
 - Codex: prefer the fresh CLI usage response plan over cached account metadata after a subscription change (#3389).
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
