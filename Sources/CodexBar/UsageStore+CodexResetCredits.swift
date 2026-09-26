@@ -171,6 +171,7 @@ extension ProviderFetchOutcome {
                 sourceLabel: result.sourceLabel,
                 strategyID: result.strategyID,
                 strategyKind: result.strategyKind,
+                supplementalUsageTask: result.supplementalUsageTask,
                 codexResetCreditsAttempted: result.codexResetCreditsAttempted,
                 codexPATCredentialOwner: result.codexPATCredentialOwner,
                 codexMonthlyLimitEnrichmentFailed: result.codexMonthlyLimitEnrichmentFailed,

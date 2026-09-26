@@ -543,6 +543,11 @@ extension UsageStore {
             provider: provider,
             outcome: outcome,
             context: context)
+        self.scheduleSupplementalUsageUpdate(
+            provider: provider,
+            outcome: outcome,
+            generation: context.generation,
+            accountID: context.tokenAccount?.id)
         return nil
     }
 

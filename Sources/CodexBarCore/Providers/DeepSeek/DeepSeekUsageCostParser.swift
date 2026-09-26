@@ -180,6 +180,7 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
     public let topModel: String?
     public let categoryBreakdown: [DeepSeekCategoryBreakdown]
     public let daily: [DeepSeekDailyUsage]
+    public let modelCosts: [DeepSeekModelCost]
     public let currency: String
     public let updatedAt: Date
 
@@ -194,6 +195,7 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
         categoryBreakdown: [DeepSeekCategoryBreakdown],
         daily: [DeepSeekDailyUsage],
         currency: String,
+        modelCosts: [DeepSeekModelCost] = [],
         updatedAt: Date)
     {
         self.todayTokens = todayTokens
@@ -205,8 +207,19 @@ public struct DeepSeekUsageSummary: Sendable, Equatable {
         self.topModel = topModel
         self.categoryBreakdown = categoryBreakdown
         self.daily = daily
+        self.modelCosts = modelCosts
         self.currency = currency
         self.updatedAt = updatedAt
+    }
+}
+
+public struct DeepSeekModelCost: Sendable, Equatable {
+    public let model: String
+    public let cost: Double
+
+    public init(model: String, cost: Double) {
+        self.model = model
+        self.cost = cost
     }
 }
 
@@ -474,7 +487,7 @@ enum DeepSeekUsageCostParser {
         let monthResult = self.aggregateMonth(ctx: dailyCtx)
 
         // Model and category breakdown from totals
-        let (topModel, categoryBreakdown) = self.buildBreakdowns(
+        let (topModel, categoryBreakdown, modelCosts) = self.buildBreakdowns(
             totalAmounts: input.totalAmounts,
             totalCosts: input.totalCosts)
 
@@ -492,6 +505,7 @@ enum DeepSeekUsageCostParser {
             categoryBreakdown: categoryBreakdown,
             daily: dailyUsages,
             currency: input.currency,
+            modelCosts: modelCosts,
             updatedAt: input.now)
     }
 
@@ -598,11 +612,12 @@ enum DeepSeekUsageCostParser {
 
     private static func buildBreakdowns(
         totalAmounts: [DeepSeekModelUsage],
-        totalCosts: [DeepSeekCostModelUsage]) -> (String?, [DeepSeekCategoryBreakdown])
+        totalCosts: [DeepSeekCostModelUsage]) -> (String?, [DeepSeekCategoryBreakdown], [DeepSeekModelCost])
     {
         var modelTokens: [String: Int] = [:]
         var categoryTokens: [DeepSeekUsageCategory: Int] = [:]
         var categoryCosts: [DeepSeekUsageCategory: Double] = [:]
+        var modelCosts = ModelCostTotals()
 
         for modelUsage in totalAmounts {
             guard let model = modelUsage.model else { continue }
@@ -619,12 +634,20 @@ enum DeepSeekUsageCostParser {
         }
 
         for costUsage in totalCosts {
-            guard costUsage.model != nil else { continue }
-            for item in costUsage.usage ?? [] {
-                guard let category = DeepSeekUsageCategory(rawValue: item.type ?? "") else { continue }
+            guard let model = costUsage.model else { continue }
+            guard let items = costUsage.usage else {
+                modelCosts.add(nil, model: model)
+                continue
+            }
+            for item in items {
+                guard let category = DeepSeekUsageCategory(rawValue: item.type ?? "") else {
+                    modelCosts.add(nil, model: model)
+                    continue
+                }
                 if category != .request {
-                    let amount = Self.parseCostAmount(item.amount)
-                    categoryCosts[category, default: 0] += amount
+                    let amount = item.amount.flatMap { Double($0.trimmingCharacters(in: .whitespacesAndNewlines)) }
+                    categoryCosts[category, default: 0] += amount ?? 0
+                    modelCosts.add(amount, model: model)
                 }
             }
         }
@@ -642,7 +665,33 @@ enum DeepSeekUsageCostParser {
                 cost: categoryCosts[category]))
         }
 
-        return (topModel, breakdown)
+        return (topModel, breakdown, modelCosts.values)
+    }
+
+    private struct ModelCostTotals {
+        private var totals: [String: Double] = [:]
+        private var unavailable: Set<String> = []
+
+        mutating func add(_ amount: Double?, model rawModel: String?) {
+            guard let model = rawModel?.trimmingCharacters(in: .whitespacesAndNewlines),
+                  !model.isEmpty, !self.unavailable.contains(model)
+            else { return }
+            if let amount, amount.isFinite, amount.sign != .minus {
+                let total = (self.totals[model] ?? 0) + amount
+                if total.isFinite {
+                    self.totals[model] = total
+                    return
+                }
+            }
+            self.unavailable.insert(model)
+            self.totals.removeValue(forKey: model)
+        }
+
+        var values: [DeepSeekModelCost] {
+            self.totals.map { DeepSeekModelCost(model: $0.key, cost: $0.value) }.sorted {
+                $0.cost == $1.cost ? $0.model < $1.model : $0.cost > $1.cost
+            }
+        }
     }
 
     private static func buildDailyUsages(ctx: DailyAggregationContext) -> [DeepSeekDailyUsage] {

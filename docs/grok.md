@@ -22,6 +22,21 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
 - Token accounts classify at fetch time: bearer → OAuth, `Cookie:` / `name=value` → cookies, `xai-` management keys rejected.
 - Selecting a SuperGrok token account remaps Auto to OAuth or Web so it cannot hit an empty `.oauth` pipeline.
 
+## Usage-limit reset credits
+
+When optional usage is enabled, a successful Grok CLI, OAuth, or web billing
+fetch also asks grok.com's `GetRemainingResets` endpoint for unused
+usage-limit reset credits. The request has a two-second bound and never blocks
+the primary usage result on failure. OAuth uses the credential captured by the
+winning billing request; web billing uses the exact manual, cached, or imported
+cookie that succeeded. Cookie and bearer identities are never mixed.
+
+The parser keeps redemption token IDs only in a short-lived in-memory cache.
+The usage snapshot holds available expiration dates for the Mac menu and
+provider settings. That field is omitted from JSON and iCloud sync; it is
+refetched live. A late response updates the menu only while its refresh
+generation, account selection, and usage timestamp still match.
+
 ## Data sources + fallback order
 
 1) **`~/.grok/auth.json` (primary identity source)**
@@ -56,6 +71,10 @@ The grok.com billing gRPC-web endpoint remains a best-effort fallback.
      `onDemandUsed.val / onDemandCap.val * 100`. A parseable current period
      without either value represents zero usage. The reset timestamp comes from
      `config.currentPeriod.end`, then `config.billingPeriodEnd`.
+   - When `productUsage` entries are valid and their percentages compose the same
+     reported credit percentage, the menu shows a Grok product breakdown. Invalid
+     entries or a mismatched total leave the credit percentage intact and omit
+     the breakdown. Shares are never borrowed from a different billing surface.
    - When the selected end has a matching `currentPeriod.start`, or the
      `billingPeriodStart/End` pair when the current-period end is unavailable,
      QuotaKit measures the full window duration. Present but invalid, reversed,
