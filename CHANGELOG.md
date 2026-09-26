@@ -18,6 +18,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Codex: keep background credits and plan-history tasks owned by their current refresh, and restart a verified running app-server daemon after promoting a managed account to the system home.
+- Mac fleet sync: continue watching config changes after atomic file replacement during watcher startup or callbacks.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.

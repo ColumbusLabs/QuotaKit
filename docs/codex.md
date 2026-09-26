@@ -179,7 +179,12 @@ These account rows intentionally exclude pi sessions because pi history is machi
 Codex account. The normal Codex cost menu and CLI scan continue to include supported pi history. The dashboard labels
 its values as local estimates and keeps currencies separate.
 
+## Managed account promotion and background tasks
+
+After a managed account is promoted to the system Codex home, QuotaKit restarts an already running Codex app-server daemon for that same home. It first checks a recognized daemon PID and the CLI's `version` response against the resolved control socket, including socket and home symlinks. If the CLI probe or restart fails, the account switch remains complete and the app displays a manual-restart note. Credits and plan-history background tasks keep ownership tokens so an older cancelled task cannot clear a replacement task's handle.
+
 ## Key files
+
 - Web: `Sources/QuotaKitCore/OpenAIWeb/*`
 - CLI RPC + diagnostic PTY parser: `Sources/QuotaKitCore/UsageFetcher.swift`,
   `Sources/QuotaKitCore/Providers/Codex/CodexStatusProbe.swift`

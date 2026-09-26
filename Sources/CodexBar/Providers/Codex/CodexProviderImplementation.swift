@@ -273,6 +273,10 @@ struct CodexProviderImplementation: ProviderImplementation {
         let projection = context.settings.codexVisibleAccountProjection
         guard !projection.visibleAccounts.isEmpty else { return }
 
+        if let note = context.codexAccountPromotionCoordinator?.daemonRestartNote {
+            entries.append(.text(note, .secondary))
+        }
+
         let isInteractionBlocked = context.codexAccountPromotionCoordinator?.isInteractionBlocked() ?? false
 
         let submenuItems = projection.visibleAccounts.map { account in

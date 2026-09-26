@@ -1194,7 +1194,7 @@ extension CodexBackgroundRefreshCoalescingTests {
         }
     }
 
-    private func cancelCreditsWork(
+    func cancelCreditsWork(
         store: UsageStore,
         blocker: BlockingCreditsLoader,
         tasks: [Task<Void, Never>]) async

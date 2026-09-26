@@ -297,6 +297,8 @@ The three Mac fleet sub-options are unavailable while Mac fleet sync is off, iCl
 
 Never synced by the Mac fleet feature, by design: `hooks` (sync payloads structurally cannot create or modify hook rules — they execute local binaries), machine-local paths (`claudeSwapExecutablePath`, `codexProfileHomePaths`, `awsProfile`/`awsAuthMode`, `source`, `codexActiveSource`, `cookieSource`), menu-bar layout/geometry, debug settings, usage history, and cost ledgers. A provider is never auto-enabled on a Mac where its required local CLI is missing. Records carry a schema version; older app versions pause sync instead of rewriting newer payloads. The CLI does not talk to CloudKit — the app applies remote changes to `config.json` and watches the file, so CLI edits reload into the running app. (CLI/hand edits currently apply locally only; pushing them to other Macs is a known follow-up.) Only changes made while Mac fleet sync is enabled push to the fleet: the app tracks per-provider dirty state and never re-uploads unchanged state at launch.
 
+Atomic replacements by CLI tools or editors remain observable during watcher startup and change callbacks; subsequent in-place edits are still detected. App-originated writes keep their self-write suppression.
+
 ## Notes
 - Fields not relevant to a provider are ignored.
 - Omitted providers are appended with defaults during normalization.
