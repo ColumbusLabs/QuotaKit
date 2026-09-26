@@ -21,13 +21,21 @@ final class BifrostPresentationTests: XCTestCase {
         let directory = URL(fileURLWithPath: path, isDirectory: true)
         try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
         let after = try await BifrostPluginTests.fetch(BifrostPluginTests.quota, engine: .quickJS)
-        let before = try after.with(extraRateWindows: after.extraRateWindows?.map {
-            NamedRateWindow(id: $0.id, title: $0.title, window: $0.window)
-        }).with(details: after.details.map { section in
-            try ProviderDetailSection(title: section.title, rows: section.rows.map {
-                try .init(label: $0.label, value: $0.value, secondaryValue: $0.secondaryValue)
-            })
-        })
+        let before = try UsageSnapshot(
+            primary: after.primary,
+            secondary: after.secondary,
+            tertiary: after.tertiary,
+            extraRateWindows: after.extraRateWindows,
+            providerCost: after.providerCost,
+            costUsage: after.costUsage,
+            details: after.details.map { section in
+                try ProviderDetailSection(title: section.title, rows: section.rows.map {
+                    try .init(label: $0.label, value: $0.value, secondaryValue: $0.secondaryValue)
+                })
+            },
+            updatedAt: after.updatedAt,
+            identity: after.identity,
+            dataConfidence: after.dataConfidence)
         try CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             for (name, snapshot) in [("before", before), ("after", after)] {
                 let view = try AnyView(UsageMenuCardView(model: Self.model(snapshot), width: 360)
