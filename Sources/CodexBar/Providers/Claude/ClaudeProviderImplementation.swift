@@ -19,6 +19,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     @MainActor
     func observeSettings(_ settings: SettingsStore) {
         _ = settings.claudeUsageDataSource
+        _ = settings.claudeWorkspaceSpendEnabled
         _ = settings.claudeAdminAPIKey
         _ = settings.claudeCookieSource
         _ = settings.claudeCookieHeader
@@ -93,6 +94,18 @@ struct ClaudeProviderImplementation: ProviderImplementation {
             set: { context.settings.claudeSwapShowSingleAccount = $0 })
 
         return [
+            ProviderSettingsToggleDescriptor(
+                id: "claude-workspace-spend",
+                title: "Show workspace spend",
+                subtitle: "Break down Admin API spend by workspace over the last 30 days.",
+                binding: context.binding(\.claudeWorkspaceSpendEnabled),
+                statusText: nil,
+                actions: [],
+                isVisible: nil,
+                isEnabled: nil,
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
             ProviderSettingsToggleDescriptor(
                 id: "claude-oauth-direct-keychain-read",
                 title: "Allow reading Claude Code's credentials",
