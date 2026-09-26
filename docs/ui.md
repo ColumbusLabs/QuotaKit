@@ -7,21 +7,30 @@ read_when:
 
 # UI & icon
 
+## Settings
+- Provider accent colors use the hex field and color picker; the picker previews the selected color, while Reset restores the provider default without a duplicate swatch.
+
 ## Menu bar
 - LSUIElement app: no Dock icon; status item uses custom NSImage.
 - Merge Icons toggle combines providers into one status item with a switcher.
+- Stacked switcher provider labels remain on one line so row content stays aligned.
 - With the automatic metric selected, switcher progress honors a provider's exhausted-quota policy before showing
   weekly progress. Healthy allowances, explicit metric choices, and providers that opt out retain their selection rules.
 - Cached status menus refresh their effective appearance when the system appearance changes, including previously opened
   nested menus.
 - Provider status items use stable autosave names and are reused across provider toggles so macOS can preserve icon
   positions.
+- Normal quit removes status items with their stable identities intact, preventing retained blank menu bar slots while
+  preserving saved placement.
 - When Overview has selected providers, the switcher includes an Overview tab that renders up to 6 provider rows.
+- Overview spend uses the native menu background rather than an extra accent tint.
 - Overview row order follows provider order; selecting a row jumps to that provider detail card.
 - The global open-menu keyboard shortcut toggles the currently tracked menu closed before opening a new one.
 - Display → Menu Bar → Layout provides presets plus a token editor. Tokens can be clicked to append, dragged from the
   palette, reordered between one or two lines, dragged out, or removed with Delete. Layouts can be global or overridden
   per provider. Manual edits select the Custom preset.
+- Palette chips retain their natural label widths and wrap to the next row instead of squeezing longer names into
+  equal-width columns.
 - Small/Regular controls the token font scale. Tight/Regular controls status-item padding. Compact stacked uses two
   tightly spaced lines sized to fit the menu bar.
 
@@ -105,3 +114,5 @@ Usage visibility is presentation-only: it does not change fetching, quota calcul
   provider picker; detailed pipeline in `docs/widgets.md`.
 
 See also: `docs/widgets.md`.
+
+Cost-history submenus keep tall charts in an app-owned scrollable viewport. The Token/Cost picker sits below the chart so hovering near the top does not trigger native menu auto-scrolling; it aligns with the chart's content edge.

@@ -819,7 +819,8 @@ final class SyncCoordinator {
             azureOpenAIInfo: Self.mapAzureOpenAIInfo(provider: provider, snapshot: snapshot),
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
-            crossModelUsage: nil)
+            crossModelUsage: nil,
+            hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot))
     }
 
     static func syncedStatusMessage(
@@ -1557,6 +1558,7 @@ final class SyncCoordinator {
             && provider.rateWindows.isEmpty
             && provider.costSummary == nil
             && provider.budget == nil
+            && provider.hyperBalance == nil
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.codexCreditLimit == nil
             && provider.crossModelUsage == nil
@@ -1879,7 +1881,7 @@ final class SyncCoordinator {
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
-             .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate:
+             .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

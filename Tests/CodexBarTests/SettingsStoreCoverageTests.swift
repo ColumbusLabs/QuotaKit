@@ -1018,12 +1018,12 @@ struct SettingsStoreCoverageTests {
 
     @Test
     func `preferred currency picker matches every supported exchange currency`() {
-        let pickerCurrencies = PreferredCurrencyOption.allCases
-            .filter { $0 != .auto }
-            .map(\.rawValue)
+        let pickerCurrencies = Array(PreferredCurrencyOption.codes.dropFirst())
 
         #expect(pickerCurrencies == CurrencyExchange.supportedCurrencies)
-        #expect(PreferredCurrencyOption.aed.label == "AED (د.إ)")
+        #expect(PreferredCurrencyOption.label(for: "AED") == "AED (د.إ)")
+        #expect(PreferredCurrencyOption.label(for: "TRY") == "TRY (₺)")
+        #expect(PreferredCurrencyOption.label(for: "UAH") == "UAH (₴)")
     }
 
     private static func makeSettingsStore(

@@ -24,6 +24,7 @@ enum ProviderDetailSection: Identifiable {
     case alibabaTokenPlan(SyncAlibabaTokenPlan)
     case deepSeek(SyncDeepSeekUsage)
     case crossModel(SyncCrossModelUsage)
+    case hyper(SyncHyperBalance)
     case claudeAdmin(SyncClaudeAdminUsage)
     case claudeExtra(SyncClaudeExtraUsage)
     case openCodeGoZen(SyncOpenCodeGoZenBalance)
@@ -65,6 +66,8 @@ enum ProviderDetailSection: Identifiable {
             "deepseek"
         case .crossModel:
             "crossmodel"
+        case .hyper:
+            "hyper"
         case .claudeAdmin:
             "claude-admin"
         case .claudeExtra:
@@ -98,8 +101,13 @@ enum ProviderDetailSectionDispatcher {
         for provider: ProviderUsageSnapshot,
         hasRateWindowPace: Bool) -> [ProviderDetailSection]
     {
-        var sections: [ProviderDetailSection] = []
+        self.structuredSections(for: provider) + self.accountSections(
+            for: provider,
+            hasRateWindowPace: hasRateWindowPace)
+    }
 
+    private static func structuredSections(for provider: ProviderUsageSnapshot) -> [ProviderDetailSection] {
+        var sections: [ProviderDetailSection] = []
         if provider.providerID == "kiro", let value = provider.kiroCredits {
             sections.append(.kiro(value))
         }
@@ -151,6 +159,17 @@ enum ProviderDetailSectionDispatcher {
         if provider.providerID == "crossmodel", let value = provider.crossModelUsage {
             sections.append(.crossModel(value))
         }
+        if provider.providerID == "hyper", let value = provider.hyperBalance {
+            sections.append(.hyper(value))
+        }
+        return sections
+    }
+
+    private static func accountSections(
+        for provider: ProviderUsageSnapshot,
+        hasRateWindowPace: Bool) -> [ProviderDetailSection]
+    {
+        var sections: [ProviderDetailSection] = []
         if provider.providerID == "claude", let value = provider.claudeAdminUsage {
             sections.append(.claudeAdmin(value))
         }
@@ -189,6 +208,8 @@ enum ProviderDetailSectionDispatcher {
         case "moonshot" where provider.moonshotBalance != nil:
             true
         case "crossmodel" where provider.crossModelUsage != nil:
+            true
+        case "hyper" where provider.hyperBalance != nil:
             true
         default:
             false
@@ -251,6 +272,8 @@ struct ProviderDetailSectionView: View {
             DeepSeekUsageCard(usage: usage, tintColor: self.tintColor)
         case let .crossModel(usage):
             CrossModelUsageCard(usage: usage, tintColor: self.tintColor)
+        case let .hyper(balance):
+            HyperBalanceCard(balance: balance, tintColor: self.tintColor)
         case let .claudeAdmin(usage):
             ClaudeAdminUsageCard(usage: usage, tintColor: self.tintColor)
         case let .claudeExtra(extraUsage):

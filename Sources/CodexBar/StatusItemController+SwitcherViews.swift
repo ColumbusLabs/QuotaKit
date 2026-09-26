@@ -115,7 +115,6 @@ final class ProviderSwitcherView: NSView {
                     image: segment.image,
                     target: self,
                     action: #selector(self.handleSelection(_:)))
-                stacked.setAllowsTwoLineTitle(self.rowCount >= 3)
                 if self.rowCount >= 4 {
                     stacked.setTitleFontSize(NSFont.smallSystemFontSize - 3)
                 }
@@ -1018,6 +1017,10 @@ extension ProviderSwitcherView {
 
     func _test_buttonDesiredWidths() -> [CGFloat] {
         self.buttons.map(Self.maxToggleWidth(for:))
+    }
+
+    func _test_segmentTitles() -> [String] {
+        self.segments.map(\.title)
     }
 
     func _test_buttonContentFrames() -> [NSRect?] {

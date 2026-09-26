@@ -88,6 +88,9 @@ final class ProviderSnapshotModel {
     /// JSON-encoded `SyncCrossModelUsage` — opaque blob, decoded on read.
     /// Populated only for `providerID == "crossmodel"`.
     var crossModelUsageData: Data?
+    /// JSON-encoded `SyncHyperBalance` — opaque blob, decoded on read.
+    /// Optional to keep existing local stores lightweight-migratable.
+    var hyperBalanceData: Data?
 
     @Relationship(deleteRule: .cascade, inverse: \UtilizationEntryModel.provider)
     var utilizationEntries: [UtilizationEntryModel] = []
@@ -109,6 +112,7 @@ final class ProviderSnapshotModel {
         perplexityCreditsData: Data? = nil,
         codexResetCreditsData: Data? = nil,
         crossModelUsageData: Data? = nil,
+        hyperBalanceData: Data? = nil,
         device: DeviceRecord? = nil)
     {
         self.compositeKey = Self.makeCompositeKey(
@@ -129,6 +133,7 @@ final class ProviderSnapshotModel {
         self.perplexityCreditsData = perplexityCreditsData
         self.codexResetCreditsData = codexResetCreditsData
         self.crossModelUsageData = crossModelUsageData
+        self.hyperBalanceData = hyperBalanceData
         self.device = device
     }
 

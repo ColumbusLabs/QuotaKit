@@ -5,6 +5,24 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Added
+
+- Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
+- Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
+
+### Improved
+
+- Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
+
+### Fixed
+
+- Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
+  columns.
+- Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.
+- Cost history: keep tall chart rows in a bounded scrollable viewport, protect the native menu's top auto-scroll gutter, and align the Token/Cost picker with chart content.
+
 ## 0.32.4.30 — 2026-09-26
 
 ### Added
@@ -22,6 +40,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Menu bar: prevent blank status-item slots after normal quit while preserving saved icon positions. Thanks to the upstream reporter and verifier, @mymatejackson and @giuseppebisemi.
 - Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.
 - OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.

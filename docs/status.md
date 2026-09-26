@@ -14,6 +14,8 @@ read_when:
 ## Behavior
 - Toggle: Settings → Advanced → “Check provider status”.
 - `UsageStore` polls status and stores `ProviderStatus` for indicator/description.
+- Component-group disclosure chevrons rotate when expanded or collapsed; child rows and menu height update
+  immediately.
 - Menu shows incident summary + freshness; icon overlays indicator.
 
 ## Workspace incidents

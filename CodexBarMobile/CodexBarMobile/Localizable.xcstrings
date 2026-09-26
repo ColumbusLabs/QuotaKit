@@ -15931,6 +15931,34 @@
         }
       }
     },
+    "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charm Hyper の残高が QuotaKit Mac から iPhone に同期され、Hypercredits として表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charm Hyper 余额现在会从 QuotaKit Mac 同步到 iPhone，并以 Hypercredits 显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Charm Hyper 餘額現在會從 QuotaKit Mac 同步到 iPhone，並以 Hypercredits 顯示。"
+          }
+        }
+      }
+    },
     "Replicate monthly billing spend now syncs from QuotaKit Mac to iPhone, with separate cards for saved accounts.": {
       "localizations": {
         "en": {

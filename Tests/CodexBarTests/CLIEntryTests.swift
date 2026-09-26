@@ -670,6 +670,25 @@ final class CLIEntryTests: XCTestCase {
             environment: [:]))
     }
 
+    func test_sourceModeRequiresWebSupportAllowsHyperAPIKeyOnLinuxGate() {
+        XCTAssertFalse(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .hyper,
+            environment: ["HYPER_API_KEY": "fixture-key"]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .hyper,
+            environment: ["HYPER_API_KEY": " \n "]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .auto,
+            provider: .hyper,
+            environment: [:]))
+        XCTAssertTrue(CodexBarCLI.sourceModeRequiresWebSupport(
+            .web,
+            provider: .hyper,
+            environment: ["HYPER_API_KEY": "fixture-key"]))
+    }
+
     private static func runCLI(
         arguments: [String],
         environment: [String: String] = [:]) throws -> (status: Int32, stdout: Data, stderr: Data)

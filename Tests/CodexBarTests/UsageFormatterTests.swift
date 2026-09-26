@@ -632,6 +632,15 @@ struct UsageFormatterTests {
         #expect(explicitAED.hasPrefix("AED"))
         #expect(explicitAED.range(of: #"\.\d{2}$"#, options: .regularExpression) != nil)
 
+        for code in ["TRY", "NZD", "SEK", "NOK", "DKK", "PLN", "BRL", "MXN", "ZAR", "THB", "IDR", "VND", "UAH"] {
+            let rate = try #require(exchange.rate(for: code))
+            #expect(rate > 0)
+            #expect(abs((exchange.convert(usdAmount: 10, to: code) ?? 0) - 10 * rate) < epsilon)
+            #expect(abs((exchange.convert(amount: 10, from: code, to: "USD") ?? 0) - 10 / rate) < epsilon)
+            #expect(!UsageFormatter.convertedCostString(
+                10, preferredCurrency: code, providerCurrency: "USD").isEmpty)
+        }
+
         // CHF is supported: conversion through the USD pivot works both ways.
         let chfRate = exchange.rate(for: "CHF") ?? 0.80
         #expect(abs((exchange.convert(usdAmount: 10.0, to: "CHF") ?? 0) - 10.0 * chfRate) < epsilon)

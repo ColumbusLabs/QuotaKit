@@ -8,6 +8,21 @@ import Testing
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
     @Test
+    func `Hyper preserves off manual and automatic cookie settings`() throws {
+        let registration = HyperProviderDescriptor.descriptor.settingsSection
+        for source in ProviderCookieSource.allCases {
+            let header = source == .manual ? "session=fixture" : nil
+            let snapshot = ProviderSettingsSnapshot(
+                HyperProviderSettings(cookieSource: source, manualCookieHeader: header),
+                for: HyperProviderSettingsKey.self)
+            let resolved = try #require(registration.cookieSettings(from: snapshot))
+
+            #expect(resolved.cookieSource == source)
+            #expect(resolved.manualCookieHeader == header)
+        }
+    }
+
+    @Test
     func `bedrock discloses monitoring charges before credentials in either authentication mode`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bedrock-charges")
         let context = fixture.settingsContext(provider: .bedrock)
