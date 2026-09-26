@@ -292,7 +292,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Direct-fork baseline corrections require bounded reparsing of older native files.
+    /// Fork-baseline and paginated continuation corrections require bounded reparsing of older files.
     static let currentCodexParserRevision = 5
 
     var mtimeUnixMs: Int64
@@ -324,8 +324,13 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    var codexNextUsageRowIndex: Int?
     /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
     var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]? = nil
+    var codexPendingSourcePricing: [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence]?
+    var codexPendingSourcePricingAnchor: CostUsageCodexTokenIndexAnchor?
+    var codexStagedRecoveryRows: [CostUsageScanner.CodexUsageRow]?
+    var codexStagedRecoverySnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenSnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]?
     var codexTokenTimestampsMonotonic: Bool?
@@ -339,6 +344,7 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexReplacementScanPending: Bool?
     var codexInventoryValidationGeneration: String?
     var codexJSONLResumeState: CostUsageJsonl.ResumeState?
+    var codexForkAccountingState: CostUsageScanner.CodexForkAccountingState?
     var codexBufferedSubagentLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexBufferedUnresolvedForkLines: [CostUsageScanner.CodexBufferedFastLine]?
     var codexHasBufferedSubagentLines: Bool?

@@ -538,6 +538,8 @@ extension CostUsageStore {
         var interleavedTotals: Bool?
         var replacementScanColdStart: Bool?
         var parserRevision: Int?
+        var hasExactUsageRowIndex: Bool? = nil
+        var forkAccountingState: CostUsageScanner.CodexForkAccountingState? = nil
     }
 
     private struct StoredPriorityState: Codable {
@@ -742,8 +744,23 @@ extension CostUsageStore {
                     ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
                 codexWorkspaceContentFingerprint: details.workspaceFingerprint,
                 codexRows: details.hasRows && isHydrated ? restoredRows : nil,
-                codexPendingPricing: isHydrated
-                    ? Self.bufferedPricingEvidence(buffers) : nil,
+                codexNextUsageRowIndex: details.hasExactUsageRowIndex == true
+                    ? file.scanState.nextUsageRowIndex : nil,
+                codexPendingPricing: isHydrated ? Self.bufferedPricingEvidence(buffers) : nil,
+                codexPendingSourcePricing: isHydrated ? buffers.first { $0.kind == .sourcePricingEvidence }.map {
+                    (try? JSONDecoder().decode(
+                        [CostUsageScanner.CodexSourcePricingKey: CostUsageScanner.CodexPricingEvidence].self,
+                        from: $0.payload)) ?? [:]
+                } : nil,
+                codexPendingSourcePricingAnchor: isHydrated ? buffers.first { $0.kind == .sourcePricingAnchor }.flatMap {
+                    try? JSONDecoder().decode(CostUsageCodexTokenIndexAnchor.self, from: $0.payload)
+                } : nil,
+                codexStagedRecoveryRows: isHydrated ? buffers.first { $0.kind == .stagedRecoveryRows }.flatMap {
+                    try? JSONDecoder().decode([CostUsageScanner.CodexUsageRow].self, from: $0.payload)
+                } : nil,
+                codexStagedRecoverySnapshots: isHydrated ? buffers.first { $0.kind == .stagedRecoverySnapshots }.flatMap {
+                    try? JSONDecoder().decode([CostUsageCodexTokenSnapshot].self, from: $0.payload)
+                } : nil,
                 codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
                 codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
@@ -763,6 +780,7 @@ extension CostUsageStore {
                 codexJSONLResumeState: isHydrated ? file.scanState.resumePayload.flatMap {
                     try? JSONDecoder().decode(CostUsageJsonl.ResumeState.self, from: $0)
                 } : nil,
+                codexForkAccountingState: isHydrated ? details.forkAccountingState : nil,
                 codexBufferedSubagentLines: isHydrated
                     ? Self.bufferedLines(buffers, kind: .subagent) : nil,
                 codexBufferedUnresolvedForkLines: isHydrated
@@ -1176,6 +1194,8 @@ extension CostUsageStore {
             interleavedTotals: usage.hasInterleavedTotals,
             replacementScanColdStart: coldStartStaging ? true : nil,
             parserRevision: usage.codexParserRevision)
+        details.hasExactUsageRowIndex = usage.codexNextUsageRowIndex != nil
+        details.forkAccountingState = usage.codexForkAccountingState
         if replacementPending {
             // Keep the committed generation's hydration markers. The staged parser state is
             // carried by the accumulator/buffers, while old rows and snapshots stay in place.
@@ -1203,8 +1223,8 @@ extension CostUsageStore {
                 resumePayload: usage.codexJSONLResumeState.flatMap { try? JSONEncoder().encode($0) },
                 tokenTimestampsMonotonic: usage.codexTokenTimestampsMonotonic,
                 nextUsageRowIndex: replacementPending
-                    ? 0
-                    : CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
+                    ? usage.codexNextUsageRowIndex ?? 0
+                    : usage.codexNextUsageRowIndex ?? CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
                 replacementScanPending: replacementPending ? true : nil,
                 lastModel: usage.lastModel,
                 lastTurnID: usage.lastCodexTurnID,
@@ -1318,7 +1338,7 @@ extension CostUsageStore {
         _ = self.upsertAccumulator(CostUsageStoreAccumulator(
             path: path,
             eventCount: snapshotCount,
-            nextUsageRowIndex: CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
+            nextUsageRowIndex: usage.codexNextUsageRowIndex ?? CostUsageScanner.nextCodexUsageRowIndex(usage.codexRows),
             countedTotals: Self.totals(usage.lastCountedTotals),
             rawTotalsBaseline: Self.totals(usage.lastRawTotalsBaseline),
             rawTotalsWatermark: Self.totals(usage.lastRawTotalsWatermark),
@@ -1814,15 +1834,25 @@ extension CostUsageStore {
     }
 
     private func persistBuffers(path: String, usage: CostUsageFileUsage) {
-        let pricingPayload = usage.codexPendingPricing.flatMap { try? JSONEncoder().encode($0) }
-        _ = self.replaceBufferedLines(path: path, kind: .pricingEvidence, lines: pricingPayload.map {
-            [CostUsageStoreBufferedLine(
-                path: path,
-                kind: .pricingEvidence,
-                lineIndex: 0,
-                ordinal: nil,
-                endOffset: nil,
-                payload: $0)]
+        let stagedSnapshots = usage.codexStagedRecoverySnapshots.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .stagedRecoverySnapshots, lines: stagedSnapshots.map {
+            [CostUsageStoreBufferedLine(path: path, kind: .stagedRecoverySnapshots, lineIndex: 0, payload: $0)]
+        } ?? [])
+        let stagedRows = usage.codexStagedRecoveryRows.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .stagedRecoveryRows, lines: stagedRows.map {
+            [CostUsageStoreBufferedLine(path: path, kind: .stagedRecoveryRows, lineIndex: 0, payload: $0)]
+        } ?? [])
+        let sourcePricing = usage.codexPendingSourcePricing.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .sourcePricingEvidence, lines: sourcePricing.map {
+            [CostUsageStoreBufferedLine(path: path, kind: .sourcePricingEvidence, lineIndex: 0, payload: $0)]
+        } ?? [])
+        let sourceAnchor = usage.codexPendingSourcePricingAnchor.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .sourcePricingAnchor, lines: sourceAnchor.map {
+            [CostUsageStoreBufferedLine(path: path, kind: .sourcePricingAnchor, lineIndex: 0, payload: $0)]
+        } ?? [])
+        let pricing = usage.codexPendingPricing.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .pricingEvidence, lines: pricing.map {
+            [CostUsageStoreBufferedLine(path: path, kind: .pricingEvidence, lineIndex: 0, payload: $0)]
         } ?? [])
         let pairs: [(CostUsageStoreBufferedLineKind, [CostUsageScanner.CodexBufferedFastLine]?)] = [
             (.subagent, usage.codexBufferedSubagentLines),

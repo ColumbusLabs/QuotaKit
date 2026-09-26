@@ -99,6 +99,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Antigravity: skip foreign SQLite databases without inventing empty history.
 - Antigravity: preserve history around UUID-less bookkeeping steps without assigning uncertain dates.
 - Antigravity: match local token-history timestamps by turn ID and preserve valid history around reordered steps.
+- Codex costs: recover excess cached request rows from validated session files while retaining supported historical pricing through bounded scans.
+- Codex costs: count paginated continuation usage once and retain its fork baseline and request index across cached resumes.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.

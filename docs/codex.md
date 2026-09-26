@@ -170,6 +170,10 @@ Example:
   - Direct forks preserve the inherited origin of cumulative counters, including empty intermediate sessions.
     Repeated inherited snapshots contribute no new usage; descendants count only their own deltas. Changes to an
     ancestor invalidate the descendant baseline, and parser revision 5 repairs cached files through bounded reparsing.
+  - Paginated continuation files count only their owned usage when `history_base.thread_id` identifies an earlier
+    page. Bounded scans retain the validated fork baseline and exact request index across restarts.
+  - Excess cached request rows are replayed from unchanged source files. The previous ledger stays available during
+    bounded recovery; pricing is retained only for validated source requests and byte boundaries.
   - pi sessions count assistant-message usage rows and attribute `openai-codex` assistant usage to Codex.
   - pi assistant usage is bucketed by assistant-turn timestamp, so mixed-model pi sessions can contribute to multiple
     days/models correctly.
@@ -179,7 +183,7 @@ Example:
   - Native conversation rows reuse the corrected cached per-file totals and existing pricing tables. They are hidden
     when pi usage joins the aggregate because the native-only rows would not reconcile with the merged total.
 - Cache:
-  - Native + merged provider cache: `~/Library/Caches/CodexBar/cost-usage/codex-v11.json`
+  - Native Codex session store: `~/Library/Caches/CodexBar/cost-usage/cost-usage.sqlite`
   - pi-compatible session cache: `~/Library/Caches/CodexBar/cost-usage/pi-sessions-v7.json`
 - Window: configurable 1-365 day rolling history, with a 60s minimum refresh interval.
 
