@@ -1,5 +1,7 @@
+import AppKit
 import CodexBarCore
 import Foundation
+import SwiftUI
 
 struct RaycastProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .raycast
@@ -22,17 +24,29 @@ struct RaycastProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        [ProviderCookieSourceUI.picker(
+        let binding = Binding(
+            get: { context.settings.raycastCookieSource.rawValue },
+            set: { raw in
+                context.settings.raycastCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+        return [ProviderSettingsPickerDescriptor(
             id: "raycast-cookie-source",
-            context: context,
-            source: \.raycastCookieSource,
-            allowsOff: true,
-            subtitles: {
-                .init(
-                    auto: L("Automatic imports Chrome cookies from www.raycast.com."),
-                    manual: L("Paste a Cookie header captured from %@.", "the account settings page"),
-                    off: L("%@ cookies are disabled.", "Raycast"))
+            title: "Cookie source",
+            subtitle: "Choose how QuotaKit reads your Raycast session.",
+            dynamicSubtitle: {
+                ProviderCookieSourceUI.subtitle(
+                    source: context.settings.raycastCookieSource,
+                    keychainDisabled: context.settings.debugDisableKeychainAccess,
+                    auto: "Automatic imports Chrome cookies from www.raycast.com.",
+                    manual: "Paste a Cookie header captured from the account settings page.",
+                    off: "Raycast cookies are disabled.")
             },
+            binding: binding,
+            options: ProviderCookieSourceUI.options(
+                allowsOff: true,
+                keychainDisabled: context.settings.debugDisableKeychainAccess),
+            isVisible: nil,
+            onChange: nil,
             trailingText: {
                 ProviderCookieRefreshAction.trailingText(
                     provider: .raycast,
@@ -55,11 +69,18 @@ struct RaycastProviderImplementation: ProviderImplementation {
             subtitle: "Paste the Cookie header from a www.raycast.com/settings request. It must contain __raycast_session.",
             kind: .secure,
             placeholder: "__raycast_session=…; csrf_token=…",
-            binding: context.binding(\.raycastCookieHeader),
-            actions: [.openURL(
+            binding: context.providerConfigBinding(.cookieHeader),
+            actions: [ProviderSettingsActionDescriptor(
                 id: "raycast-open-settings",
                 title: "Open Raycast Account",
-                url: URL(string: "https://www.raycast.com/settings"))],
-            isVisible: { context.settings.raycastCookieSource == .manual })]
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://www.raycast.com/settings") {
+                        NSWorkspace.shared.open(url)
+                    }
+                })],
+            isVisible: { context.settings.raycastCookieSource == .manual },
+            onActivate: nil)]
     }
 }
