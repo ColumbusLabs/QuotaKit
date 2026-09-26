@@ -1,5 +1,7 @@
+import AppKit
 import CodexBarCore
 import Foundation
+import SwiftUI
 
 struct TypeSafeProviderImplementation: ProviderImplementation {
     let id: UsageProvider = .typesafe
@@ -17,17 +19,29 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
 
     @MainActor
     func settingsPickers(context: ProviderSettingsContext) -> [ProviderSettingsPickerDescriptor] {
-        [ProviderCookieSourceUI.picker(
+        let binding = Binding(
+            get: { context.settings.typesafeCookieSource.rawValue },
+            set: { raw in
+                context.settings.typesafeCookieSource = ProviderCookieSource(rawValue: raw) ?? .auto
+            })
+        return [ProviderSettingsPickerDescriptor(
             id: "typesafe-cookie-source",
-            context: context,
-            source: \.typesafeCookieSource,
-            allowsOff: false,
-            subtitles: {
-                .init(
+            title: "Cookie source",
+            subtitle: "Choose how QuotaKit reads your TypeSafe session.",
+            dynamicSubtitle: {
+                ProviderCookieSourceUI.subtitle(
+                    source: context.settings.typesafeCookieSource,
+                    keychainDisabled: context.settings.debugDisableKeychainAccess,
                     auto: "Automatic imports Chrome cookies from typesafe.ai.",
                     manual: "Paste a Cookie header captured from the TypeSafe billing page.",
                     off: "TypeSafe cookies are disabled.")
             },
+            binding: binding,
+            options: ProviderCookieSourceUI.options(
+                allowsOff: false,
+                keychainDisabled: context.settings.debugDisableKeychainAccess),
+            isVisible: nil,
+            onChange: nil,
             trailingText: {
                 ProviderCookieRefreshAction.trailingText(
                     provider: .typesafe,
@@ -50,11 +64,17 @@ struct TypeSafeProviderImplementation: ProviderImplementation {
             subtitle: "Paste the Cookie header from a billing-page request.",
             kind: .secure,
             placeholder: "Cookie: …",
-            binding: context.binding(\.typesafeCookieHeader),
-            actions: [.openURL(
+            binding: context.providerConfigBinding(.cookieHeader),
+            actions: [ProviderSettingsActionDescriptor(
                 id: "typesafe-open-billing",
                 title: "Open TypeSafe Billing",
-                url: URL(string: "https://console.typesafe.ai/settings/billing"))],
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://console.typesafe.ai/settings/billing") {
+                        NSWorkspace.shared.open(url)
+                    }
+                })],
             isVisible: { context.settings.typesafeCookieSource == .manual },
             onActivate: nil)]
     }

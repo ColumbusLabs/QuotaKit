@@ -9,6 +9,11 @@ extension SettingsStore {
 
     var typesafeCookieSource: ProviderCookieSource {
         get { self.resolvedCookieSource(provider: .typesafe, fallback: .auto) }
-        set { self.setCookieSource(newValue, provider: .typesafe) }
+        set {
+            self.updateProviderConfig(provider: .typesafe) { entry in
+                entry.cookieSource = newValue
+            }
+            self.logProviderModeChange(provider: .typesafe, field: "cookieSource", value: newValue.rawValue)
+        }
     }
 }
