@@ -153,16 +153,16 @@ extension AntigravityLocalReader {
                     database,
                     neededStepOccurrences: neededStepOccurrences,
                     progress: progress)
-                guard stepScan.isComplete else {
+                guard stepScan.isComplete,
+                      self.embeddedTimestampsAgree(neededStepOccurrences, with: stepScan, botIDUses: rows.botIDUses)
+                else {
                     rows.source.isComplete = false
                     return rows.source
                 }
                 let recoveredCount = self.appendRecoveredEvents(
-                    to: &rows.source,
+                    to: &rows,
                     session: session,
-                    pendingRows: rows.pendingTimestampRows,
-                    stepTimestamps: stepScan.timestamps,
-                    stepOccurrences: rows.stepOccurrences)
+                    stepScan: stepScan)
                 if recoveredCount < rows.pendingTimestampRows.count {
                     rows.source.isComplete = false
                 }
@@ -187,20 +187,30 @@ extension AntigravityLocalReader {
         var source: SourceResult
         var pendingTimestampRows: [PendingTimestampRow]
         var stepOccurrences: [String: [StepOccurrence]]
+        var botIDUses: [String: Int]
     }
 
     private struct StepOccurrence {
         let row: Int64
         let timestampMs: Int64?
+        let botID: String?
     }
 
     private struct StepTimestamp {
         let row: Int64
         let timestampMs: Int64?
+        let botID: String?
+    }
+
+    private struct ExactStepTimestamp {
+        let stepUUID: String
+        let timestampMs: Int64
     }
 
     private struct StepTimestampScan {
         let timestamps: [String: [Int64]]
+        let byBotID: [String: ExactStepTimestamp]
+        let ambiguousBotIDs: Set<String>
         let isComplete: Bool
     }
 
@@ -229,7 +239,9 @@ extension AntigravityLocalReader {
         neededStepOccurrences: [String: [StepOccurrence]],
         progress: SQLProgress) throws -> StepTimestampScan
     {
-        guard !neededStepOccurrences.isEmpty else { return StepTimestampScan(timestamps: [:], isComplete: true) }
+        guard !neededStepOccurrences.isEmpty else {
+            return StepTimestampScan(timestamps: [:], byBotID: [:], ambiguousBotIDs: [], isComplete: true)
+        }
         let neededStepUUIDCounts = neededStepOccurrences.mapValues(\.count)
         let stepProgress = StepScanProgress(progress: progress)
         let registered = sqlite3_create_function_v2(
@@ -246,7 +258,9 @@ extension AntigravityLocalReader {
             nil,
             nil,
             nil)
-        guard registered == SQLITE_OK else { return StepTimestampScan(timestamps: [:], isComplete: false) }
+        guard registered == SQLITE_OK else {
+            return StepTimestampScan(timestamps: [:], byBotID: [:], ambiguousBotIDs: [], isComplete: false)
+        }
         var statement: OpaquePointer?
         defer {
             withExtendedLifetime(stepProgress) {
@@ -274,9 +288,11 @@ extension AntigravityLocalReader {
             throw failure
         }
         guard prepared == SQLITE_OK, let statement else {
-            return StepTimestampScan(timestamps: [:], isComplete: false)
+            return StepTimestampScan(timestamps: [:], byBotID: [:], ambiguousBotIDs: [], isComplete: false)
         }
         var stepTimestamps: [String: [StepTimestamp]] = [:]
+        var exactByBotID: [String: ExactStepTimestamp] = [:]
+        var ambiguousBotIDs = Set<String>()
         var isComplete = false
         var rowsAreValid = true
         while true {
@@ -319,16 +335,80 @@ extension AntigravityLocalReader {
                 rowsAreValid = false
                 continue
             }
+            if let botID = parsed.botID {
+                self.recordExactBotID(
+                    botID,
+                    stepUUID: stepUUID,
+                    timestampMs: parsed.timestampMs,
+                    exact: &exactByBotID,
+                    ambiguous: &ambiguousBotIDs)
+            }
             if neededStepUUIDCounts[stepUUID] != nil {
                 stepTimestamps[stepUUID, default: []].append(StepTimestamp(
                     row: sqlite3_column_int64(statement, 0),
-                    timestampMs: parsed.timestampMs))
+                    timestampMs: parsed.timestampMs,
+                    botID: parsed.botID))
             }
         }
+        // Preserve ambiguous rows' positions; removing them would shift later timestamps into their slots.
+        let positionalEntries = Dictionary(uniqueKeysWithValues: stepTimestamps.map { entry in
+            (entry.key, entry.value.map { step in
+                StepTimestamp(
+                    row: step.row,
+                    timestampMs: step.botID.map { ambiguousBotIDs.contains($0) } == true ? nil : step.timestampMs,
+                    botID: step.botID)
+            })
+        })
         let resolved = self.resolveStepTimestamps(
-            stepTimestamps,
+            positionalEntries,
             neededStepOccurrences: neededStepOccurrences)
-        return StepTimestampScan(timestamps: resolved, isComplete: isComplete && rowsAreValid)
+        return StepTimestampScan(
+            timestamps: resolved,
+            byBotID: exactByBotID,
+            ambiguousBotIDs: ambiguousBotIDs,
+            isComplete: isComplete && rowsAreValid)
+    }
+
+    private static func recordExactBotID(
+        _ botID: String,
+        stepUUID: String,
+        timestampMs: Int64?,
+        exact: inout [String: ExactStepTimestamp],
+        ambiguous: inout Set<String>)
+    {
+        guard !ambiguous.contains(botID) else { return }
+        guard let timestampMs else {
+            exact.removeValue(forKey: botID)
+            ambiguous.insert(botID)
+            return
+        }
+        if let existing = exact[botID] {
+            if existing.timestampMs != timestampMs || existing.stepUUID != stepUUID {
+                exact.removeValue(forKey: botID)
+                ambiguous.insert(botID)
+            }
+        } else {
+            exact[botID] = ExactStepTimestamp(stepUUID: stepUUID, timestampMs: timestampMs)
+        }
+    }
+
+    private static func embeddedTimestampsAgree(
+        _ occurrences: [String: [StepOccurrence]],
+        with stepScan: StepTimestampScan,
+        botIDUses: [String: Int]) -> Bool
+    {
+        for (stepUUID, rows) in occurrences {
+            for row in rows {
+                guard let timestampMs = row.timestampMs, let botID = row.botID else { continue }
+                guard !stepScan.ambiguousBotIDs.contains(botID) else { return false }
+                if let exact = stepScan.byBotID[botID],
+                   exact.stepUUID != stepUUID || (botIDUses[botID] == 1 && exact.timestampMs != timestampMs)
+                {
+                    return false
+                }
+            }
+        }
+        return true
     }
 
     private static func resolveStepTimestamps(
@@ -374,6 +454,7 @@ extension AntigravityLocalReader {
         var result = SourceResult()
         var pendingTimestampRows: [PendingTimestampRow] = []
         var stepOccurrences: [String: [StepOccurrence]] = [:]
+        var botIDUses: [String: Int] = [:]
         while true {
             try budget.check()
             let step = sqlite3_step(statement)
@@ -421,13 +502,18 @@ extension AntigravityLocalReader {
                 result.isComplete = false
                 continue
             }
+            if let botID = turn.usage?.botID {
+                botIDUses[botID, default: 0] += 1
+            }
             if let stepUUID = turn.stepUUID {
                 stepOccurrences[stepUUID, default: []].append(StepOccurrence(
                     row: row,
-                    timestampMs: turn.timestampMs))
+                    timestampMs: turn.timestampMs,
+                    botID: turn.usage?.botID))
             }
             if turn.timestampMs == nil, let stepUUID = turn.stepUUID {
-                pendingTimestampRows.append(PendingTimestampRow(row: row, stepUUID: stepUUID, turn: turn))
+                pendingTimestampRows.append(PendingTimestampRow(
+                    row: row, stepUUID: stepUUID, turn: turn))
                 continue
             }
             guard let event = Event(session: session, row: row, turn: turn, cacheWrite: 0) else {
@@ -439,26 +525,44 @@ extension AntigravityLocalReader {
         return ParsedRows(
             source: result,
             pendingTimestampRows: pendingTimestampRows,
-            stepOccurrences: stepOccurrences)
+            stepOccurrences: stepOccurrences,
+            botIDUses: botIDUses)
     }
 
     private static func appendRecoveredEvents(
-        to source: inout SourceResult,
+        to rows: inout ParsedRows,
         session: String,
-        pendingRows: [PendingTimestampRow],
-        stepTimestamps: [String: [Int64]],
-        stepOccurrences: [String: [StepOccurrence]]) -> Int
+        stepScan: StepTimestampScan) -> Int
     {
         var occurrenceOffsets: [String: [Int64: Int]] = [:]
-        for (stepUUID, occurrences) in stepOccurrences {
+        for (stepUUID, occurrences) in rows.stepOccurrences {
             let sorted = occurrences.map(\.row).sorted()
             guard Set(sorted).count == sorted.count else { continue }
             occurrenceOffsets[stepUUID] = Dictionary(
                 uniqueKeysWithValues: sorted.enumerated().map { ($0.element, $0.offset) })
         }
         var recoveredCount = 0
-        for pending in pendingRows.sorted(by: { $0.row < $1.row }) {
-            guard let timestamps = stepTimestamps[pending.stepUUID],
+        for pending in rows.pendingTimestampRows.sorted(by: { $0.row < $1.row }) {
+            if let botID = pending.turn.usage?.botID {
+                if stepScan.ambiguousBotIDs.contains(botID) {
+                    // Conflicting step timestamps for one bot ID: withhold rather than guess.
+                    continue
+                }
+                if let exact = stepScan.byBotID[botID] {
+                    guard exact.stepUUID == pending.stepUUID else { continue }
+                }
+                // All generations participate, including rows with an embedded timestamp.
+                if rows.botIDUses[botID] == 1, let exact = stepScan.byBotID[botID] {
+                    var turn = pending.turn
+                    turn.timestampMs = exact.timestampMs
+                    if let event = Event(session: session, row: pending.row, turn: turn, cacheWrite: 0) {
+                        rows.source.events.append(event)
+                        recoveredCount += 1
+                    }
+                    continue
+                }
+            }
+            guard let timestamps = stepScan.timestamps[pending.stepUUID],
                   let offset = occurrenceOffsets[pending.stepUUID]?[pending.row]
             else {
                 continue
@@ -467,11 +571,11 @@ extension AntigravityLocalReader {
             var turn = pending.turn
             turn.timestampMs = timestamps[offset]
             if let event = Event(session: session, row: pending.row, turn: turn, cacheWrite: 0) {
-                source.events.append(event)
+                rows.source.events.append(event)
                 recoveredCount += 1
             }
         }
-        source.events.sort { $0.row < $1.row }
+        rows.source.events.sort { $0.row < $1.row }
         return recoveredCount
     }
     #endif

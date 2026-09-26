@@ -22,6 +22,11 @@ struct AntigravityProtoReader {
         var output = 0
         var reasoning = 0
         var responseID: String?
+        fileprivate var botIdentifier = AuxiliaryIdentifier()
+
+        var botID: String? {
+            self.botIdentifier.value
+        }
     }
 
     struct ParsedTurn: Equatable, Sendable {
@@ -77,15 +82,45 @@ struct AntigravityProtoReader {
         }
     }
 
+    fileprivate struct AuxiliaryIdentifier: Equatable, Sendable {
+        private(set) var value: String?
+        private var isValid = true
+
+        static func == (lhs: Self, rhs: Self) -> Bool {
+            // Parser invalidity is not part of finalized event identity or copied-row deduplication.
+            lhs.value == rhs.value
+        }
+
+        mutating func read(_ field: Field) throws {
+            do {
+                let value = try field.string()
+                if self.isValid {
+                    self.value = value
+                }
+            } catch AntigravityLocalReader.ScanFailure.invalid {
+                self.invalidate()
+            }
+        }
+
+        mutating func invalidate() {
+            self.value = nil
+            self.isValid = false
+        }
+    }
+
     mutating func readVarint() -> UInt64? {
         var result: UInt64 = 0
         for index in 0..<10 {
             guard self.offset < self.bytes.endIndex else { break }
             let byte = self.bytes[self.offset]
             self.offset += 1
-            if index == 9, byte > 1 { break }
+            if index == 9, byte > 1 {
+                break
+            }
             result |= UInt64(byte & 0x7F) << (index * 7)
-            if byte & 0x80 == 0 { return result }
+            if byte & 0x80 == 0 {
+                return result
+            }
         }
         self.isMalformed = true
         return nil
@@ -162,11 +197,18 @@ struct AntigravityProtoReader {
         }
     }
 
+    struct StepMetadata: Equatable, Sendable {
+        var stepUUID: String?
+        var botID: String?
+        var timestampMs: Int64?
+    }
+
     static func parseStepMetadata(
         _ bytes: [UInt8],
-        checkCancellation: () throws -> Void = {}) throws -> (stepUUID: String?, timestampMs: Int64?)?
+        checkCancellation: () throws -> Void = {}) throws -> StepMetadata?
     {
         var stepUUID: String?
+        var botIdentifier = AuxiliaryIdentifier()
         var time = Timestamp()
         var timestampIsValid = true
         do {
@@ -179,6 +221,17 @@ struct AntigravityProtoReader {
                     } catch AntigravityLocalReader.ScanFailure.invalid {
                         timestampIsValid = false
                     }
+                case 9:
+                    // Malformed auxiliary IDs disable exact matching, even if a later envelope is valid.
+                    do {
+                        try self.fields(field.message(), checkCancellation: checkCancellation) { subfield in
+                            if subfield.number == 7 {
+                                try botIdentifier.read(subfield)
+                            }
+                        }
+                    } catch AntigravityLocalReader.ScanFailure.invalid {
+                        botIdentifier.invalidate()
+                    }
                 case 12:
                     stepUUID = try field.string()
                 default:
@@ -186,7 +239,7 @@ struct AntigravityProtoReader {
                 }
             }
             let ms = timestampIsValid ? try time.milliseconds() : nil
-            return (stepUUID, ms)
+            return StepMetadata(stepUUID: stepUUID, botID: botIdentifier.value, timestampMs: ms)
         } catch AntigravityLocalReader.ScanFailure.invalid {
             return nil
         }
@@ -223,6 +276,7 @@ struct AntigravityProtoReader {
             case 1: usage.systemPrompt = try field.counter()
             case 2: usage.newInput = try field.counter()
             case 5: usage.cacheRead = try field.counter()
+            case 7: try usage.botIdentifier.read(field)
             case 9: usage.output = try field.counter()
             case 10: usage.reasoning = try field.counter()
             case 11: usage.responseID = try field.string()
