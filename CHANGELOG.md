@@ -19,6 +19,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Merged cost reports retain priced and unpriced request coverage from each source.
 - Codex cost history retains observed pricing model and service tier when a bounded session rescan outlives its trace evidence.
 - Usage & Spend: show ranked, titled Codex sessions with project context while honoring hidden personal information.
 - Cost history: keep 30-day CLI JSON totals accurate when a longer history is selected, read Priority traces on Linux, and apply the correct long-context boundary to OpenAI models recorded by Claude Code.

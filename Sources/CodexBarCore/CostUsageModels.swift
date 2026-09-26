@@ -229,10 +229,10 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         let tokens = entries.compactMap(\.totalTokens)
         let requests = entries.compactMap(\.requestCount)
         var mix = CostUsageTokenMix()
-        var coverage = CostUsageCoverageCounts()
+        var coverage = CostUsageCoverageAccumulator()
         for entry in entries {
             mix.merge(.from(entry: entry))
-            coverage.merge(entry.coverageCounts)
+            coverage.add(entry)
         }
         let coversFullHistory = days >= self.historyDays
         let windowMetered = coversFullHistory ? self.meteredCostUSD : nil
@@ -243,7 +243,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
             totalRequests: requests.isEmpty ? nil : requests.reduce(0, +),
             entryCount: entries.count,
             tokenMix: mix,
-            coverage: coverage,
+            coverage: coverage.counts,
             provenance: CostProvenance.forWindow(
                 snapshot: self.costProvenance,
                 hasWindowCosts: !costs.isEmpty,
@@ -467,12 +467,24 @@ public struct CostUsageDailyReport: Sendable, Decodable {
         public let unpricedRequestCount: Int?
         public let unmeteredRequestCount: Int?
         public let estimatedRequestCount: Int?
+        public let pricedRequestCount: Int?
 
         public var coverageCounts: CostUsageCoverageCounts {
-            let unpriced = max(0, self.unpricedRequestCount ?? 0)
-            let unmetered = max(0, self.unmeteredRequestCount ?? 0)
-            let estimated = max(0, self.estimatedRequestCount ?? 0)
-            if let requests = self.requestCount, requests > 0 {
+            self.coverageCounts(detail: .exact)
+        }
+
+        package func coverageCounts(detail: CostUsageCoverageDetail) -> CostUsageCoverageCounts {
+            let unpriced = detail == .exact ? max(0, self.unpricedRequestCount ?? 0) : 0
+            let unmetered = detail == .exact ? max(0, self.unmeteredRequestCount ?? 0) : 0
+            let estimated = detail == .exact ? max(0, self.estimatedRequestCount ?? 0) : 0
+            if detail == .exact, let priced = self.pricedRequestCount {
+                return CostUsageCoverageCounts(
+                    priced: max(0, priced),
+                    unpriced: unpriced,
+                    unmetered: unmetered,
+                    estimated: estimated)
+            }
+            if detail != .rows, let requests = self.requestCount, requests > 0 {
                 let priced = if self.costUSD != nil {
                     max(0, requests - unpriced - unmetered - estimated)
                 } else {
@@ -521,6 +533,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             case unpricedRequestCount
             case unmeteredRequestCount
             case estimatedRequestCount
+            case pricedRequestCount
         }
 
         public init(from decoder: Decoder) throws {
@@ -549,6 +562,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.unpricedRequestCount = try container.decodeIfPresent(Int.self, forKey: .unpricedRequestCount)
             self.unmeteredRequestCount = try container.decodeIfPresent(Int.self, forKey: .unmeteredRequestCount)
             self.estimatedRequestCount = try container.decodeIfPresent(Int.self, forKey: .estimatedRequestCount)
+            self.pricedRequestCount = try container.decodeIfPresent(Int.self, forKey: .pricedRequestCount)
         }
 
         public init(
@@ -565,7 +579,8 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             modelBreakdowns: [ModelBreakdown]?,
             unpricedRequestCount: Int? = nil,
             unmeteredRequestCount: Int? = nil,
-            estimatedRequestCount: Int? = nil)
+            estimatedRequestCount: Int? = nil,
+            pricedRequestCount: Int? = nil)
         {
             self.date = date
             self.inputTokens = inputTokens
@@ -581,6 +596,7 @@ public struct CostUsageDailyReport: Sendable, Decodable {
             self.unpricedRequestCount = unpricedRequestCount
             self.unmeteredRequestCount = unmeteredRequestCount
             self.estimatedRequestCount = estimatedRequestCount
+            self.pricedRequestCount = pricedRequestCount
         }
 
         private static func decodeModelsUsed(from container: KeyedDecodingContainer<CodingKeys>) -> [String]? {
@@ -795,6 +811,9 @@ extension CostUsageDailyReport {
     }
 
     private struct EntryAccumulator {
+        var coverage = CostUsageCoverageAccumulator()
+        var entryCount = 0
+        var hasExplicitCoverage = false
         var inputTokens: Int = 0
         var sawInputTokens = false
         var cacheReadTokens: Int = 0
@@ -822,6 +841,11 @@ extension CostUsageDailyReport {
         var breakdowns: [String: BreakdownAccumulator] = [:]
 
         mutating func add(_ entry: Entry) {
+            self.coverage.add(entry)
+            self.entryCount += 1
+            self.hasExplicitCoverage = self.hasExplicitCoverage
+                || entry.pricedRequestCount != nil || entry.unpricedRequestCount != nil
+                || entry.unmeteredRequestCount != nil || entry.estimatedRequestCount != nil
             let entryDerivedTotalTokens = (entry.inputTokens ?? 0)
                 + (entry.cacheReadTokens ?? 0)
                 + (entry.cacheCreationTokens ?? 0)
@@ -906,6 +930,7 @@ extension CostUsageDailyReport {
                         })
             }()
             let modelsUsed = self.modelsUsed.isEmpty ? nil : self.modelsUsed.sorted()
+            let includeCoverage = self.entryCount > 1 || self.hasExplicitCoverage
             return Entry(
                 date: date,
                 inputTokens: self.sawInputTokens ? self.inputTokens : nil,
@@ -918,9 +943,10 @@ extension CostUsageDailyReport {
                 costUSD: self.sawCost ? self.costUSD : nil,
                 modelsUsed: modelsUsed,
                 modelBreakdowns: modelBreakdowns,
-                unpricedRequestCount: self.sawUnpricedRequestCount ? self.unpricedRequestCount : nil,
-                unmeteredRequestCount: self.sawUnmeteredRequestCount ? self.unmeteredRequestCount : nil,
-                estimatedRequestCount: self.sawEstimatedRequestCount ? self.estimatedRequestCount : nil)
+                unpricedRequestCount: includeCoverage ? self.coverage.exact?.unpriced : nil,
+                unmeteredRequestCount: includeCoverage ? self.coverage.exact?.unmetered : nil,
+                estimatedRequestCount: includeCoverage ? self.coverage.exact?.estimated : nil,
+                pricedRequestCount: includeCoverage ? self.coverage.exact?.priced : nil)
         }
     }
 
