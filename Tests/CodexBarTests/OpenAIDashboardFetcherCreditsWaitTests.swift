@@ -349,7 +349,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     }
 
     @Test
-    func `api merge prefers the page derived plan over the generic api plan`() {
+    func `scoped API merge does not inherit an unproven page plan`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "user@example.com",
             accountID: "workspace-fixture",
@@ -372,11 +372,11 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         let snapshot = OpenAIDashboardFetcher.snapshotByMergingAPI(
             apiData: apiData,
             verifiedEmail: "user@example.com",
-            subscription: nil,
+            subscriptionResult: .unavailable,
             previous: previous,
             updatedAt: Date(timeIntervalSince1970: 2))
 
-        #expect(snapshot.accountPlan == "Pro 5x")
+        #expect(snapshot.accountPlan == "pro")
     }
 
     @Test
@@ -465,11 +465,11 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
         #expect(snapshot.primaryLimit?.usedPercent == 44)
         #expect(snapshot.creditsRemaining == 7.5)
         #expect(snapshot.accountPlan == "pro")
-        #expect(snapshot.creditEvents.count == 1)
-        #expect(snapshot.dailyBreakdown.count == 1)
-        #expect(snapshot.usageBreakdown.count == 1)
-        #expect(snapshot.codeReviewRemainingPercent == 81)
-        #expect(snapshot.creditsPurchaseURL == "https://chatgpt.com/checkout")
+        #expect(snapshot.creditEvents.isEmpty)
+        #expect(snapshot.dailyBreakdown.isEmpty)
+        #expect(snapshot.usageBreakdown.isEmpty)
+        #expect(snapshot.codeReviewRemainingPercent == nil)
+        #expect(snapshot.creditsPurchaseURL == nil)
         #expect(snapshot.subscriptionRenewsAt != nil)
         #expect(
             snapshot.updatedAt == Date(timeIntervalSince1970: 2),
@@ -582,7 +582,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
     func `empty scrape keeps previous page history`() {
         let previous = OpenAIDashboardSnapshot(
             signedInEmail: "keep@example.com",
-            accountID: "workspace-fixture",
+            accountID: nil,
             codeReviewRemainingPercent: 70,
             creditEvents: [
                 CreditEvent(date: Date(timeIntervalSince1970: 1_700_000_000), service: "Codex", creditsUsed: 3),
@@ -605,7 +605,7 @@ struct OpenAIDashboardFetcherCreditsWaitTests {
             updatedAt: Date(timeIntervalSince1970: 1))
         let incoming = OpenAIDashboardSnapshot(
             signedInEmail: "keep@example.com",
-            accountID: "workspace-fixture",
+            accountID: nil,
             codeReviewRemainingPercent: nil,
             creditEvents: [],
             dailyBreakdown: [],

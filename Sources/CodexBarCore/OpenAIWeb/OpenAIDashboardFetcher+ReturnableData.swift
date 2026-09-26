@@ -34,6 +34,22 @@ extension OpenAIDashboardFetcher {
         !allowPageScrape
     }
 
+    nonisolated static func verifiedAPISnapshot(
+        apiData: DashboardAPIData?,
+        verifiedEmail: String?,
+        previous: OpenAIDashboardSnapshot?) throws -> OpenAIDashboardSnapshot
+    {
+        guard let apiData, apiData.hasUsageData,
+              let verifiedEmail = CodexIdentityResolver.normalizeEmail(verifiedEmail)
+        else {
+            throw FetchError.noDashboardData(body: "OpenAI dashboard APIs unavailable and page scrape disabled.")
+        }
+        return self.snapshotByMergingAPI(
+            apiData: apiData,
+            verifiedEmail: verifiedEmail,
+            previous: previous)
+    }
+
     nonisolated static func shouldWaitForPageIdentity(
         verifiedSignedInEmail: String?, pageSignedInEmail: String?) -> Bool
     {
@@ -48,6 +64,17 @@ extension OpenAIDashboardFetcher {
         subscriptionResult: OpenAISubscriptionFetchResult = .unavailable,
         previous: OpenAIDashboardSnapshot?) throws -> OpenAIDashboardSnapshot?
     {
+        if let apiData,
+           ManagedCodexAccount.normalizeWorkspaceAccountID(apiData.accountID) != nil,
+           apiData.hasUsageData,
+           let verifiedSignedInEmail = CodexIdentityResolver.normalizeEmail(verifiedSignedInEmail)
+        {
+            // Even a matching email cannot prove the page selected the API workspace.
+            return self.snapshotByMergingAPI(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previous)
+        }
         guard let apiData,
               let verifiedSignedInEmail,
               !verifiedSignedInEmail.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty,
@@ -73,7 +100,8 @@ extension OpenAIDashboardFetcher {
         updatedAt: Date = Date()) -> OpenAIDashboardSnapshot
     {
         let email = verifiedEmail.trimmingCharacters(in: .whitespacesAndNewlines)
-        let previous = self.dashboardEmailsMatch(email, previous?.signedInEmail)
+        let previous = ManagedCodexAccount.normalizeWorkspaceAccountID(apiData.accountID) == nil
+            && self.dashboardEmailsMatch(email, previous?.signedInEmail)
             && self.dashboardCanReuseSnapshot(previous, accountID: apiData.accountID) ? previous : nil
         let usesAPIBalance = apiData.creditsRemaining != nil || apiData.creditsAvailable != nil
         return OpenAIDashboardSnapshot(
@@ -110,7 +138,8 @@ extension OpenAIDashboardFetcher {
         from previous: OpenAIDashboardSnapshot?,
         subscriptionResult: OpenAISubscriptionFetchResult = .unavailable) -> OpenAIDashboardSnapshot
     {
-        guard let previous, self.dashboardEmailsMatch(snapshot.signedInEmail, previous.signedInEmail),
+        guard ManagedCodexAccount.normalizeWorkspaceAccountID(snapshot.accountID) == nil,
+              let previous, self.dashboardEmailsMatch(snapshot.signedInEmail, previous.signedInEmail),
               self.dashboardCanReuseSnapshot(previous, accountID: snapshot.accountID)
         else {
             return snapshot

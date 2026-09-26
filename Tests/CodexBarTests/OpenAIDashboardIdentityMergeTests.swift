@@ -10,7 +10,7 @@ struct OpenAIDashboardIdentityMergeTests {
         for workspace in [nil, false] as [Bool?] {
             let previous = self.previous(email: "owner@example.com", accountID: accountID, workspace: workspace)
             let api = OpenAIDashboardFetcher.snapshotByMergingAPI(
-                apiData: self.apiData(), verifiedEmail: "owner@example.com", previous: previous)
+                apiData: self.apiData(accountID: nil), verifiedEmail: "owner@example.com", previous: previous)
             let page = OpenAIDashboardFetcher.fillingMissingPageFields(
                 self.incoming(email: "owner@example.com", accountID: nil), from: previous)
             for result in [api, page] {
@@ -80,13 +80,14 @@ struct OpenAIDashboardIdentityMergeTests {
 
     @Test
     func `normalized matching identities preserve history and independently missing fields`() {
-        let previous = self.previous(email: " Owner@Example.COM \n").withSubscriptionMetadata(nil)
+        let previous = self.previous(
+            email: " Owner@Example.COM \n", accountID: nil, workspace: false).withSubscriptionMetadata(nil)
         let apiResult = OpenAIDashboardFetcher.snapshotByMergingAPI(
-            apiData: self.apiData(),
+            apiData: self.apiData(accountID: nil),
             verifiedEmail: "owner@example.com",
             previous: previous)
         let pageResult = OpenAIDashboardFetcher.fillingMissingPageFields(
-            self.incoming(email: "owner@example.com"),
+            self.incoming(email: "owner@example.com", accountID: nil),
             from: previous)
 
         for result in [apiResult, pageResult] {
@@ -96,7 +97,7 @@ struct OpenAIDashboardIdentityMergeTests {
             #expect(result.dailyBreakdown == previous.dailyBreakdown)
             #expect(result.usageBreakdown == previous.usageBreakdown)
             #expect(result.creditsRemaining == 1234)
-            #expect(result.balanceIsWorkspace == true)
+            #expect(result.balanceIsWorkspace == false)
             #expect(result.codexCreditLimit == previous.codexCreditLimit)
             #expect(result.secondaryLimit == previous.secondaryLimit)
             #expect(result.creditsPurchaseURL == previous.creditsPurchaseURL)
@@ -105,17 +106,13 @@ struct OpenAIDashboardIdentityMergeTests {
         #expect(apiResult.accountPlan == previous.accountPlan)
     }
 
-    @Test(arguments: [nil, "", "other@example.com"] as [String?])
-    func `missing page identity waits and mismatched page returns verified API data`(pageEmail: String?) throws {
+    @Test(arguments: [nil, "", "other@example.com", "owner@example.com"] as [String?])
+    func `scoped API never pairs unproven page fields even with matching email`(pageEmail: String?) throws {
         let result = try OpenAIDashboardFetcher.snapshotForUnpairedPage(
             apiData: self.apiData(balance: 14),
             verifiedSignedInEmail: "owner@example.com",
             pageSignedInEmail: pageEmail,
             previous: self.previous(email: "other@example.com"))
-        if pageEmail?.isEmpty != false {
-            #expect(result == nil)
-            return
-        }
         let snapshot = try #require(result)
 
         #expect(snapshot.signedInEmail == "owner@example.com")
@@ -133,14 +130,70 @@ struct OpenAIDashboardIdentityMergeTests {
     }
 
     @Test
-    func `matching page identity allows the normal page merge`() throws {
+    func `unscoped API with matching page email may use page fields`() throws {
         let result = try OpenAIDashboardFetcher.snapshotForUnpairedPage(
-            apiData: self.apiData(balance: 14),
+            apiData: self.apiData(balance: 14, accountID: nil),
             verifiedSignedInEmail: " Owner@Example.COM \n",
             pageSignedInEmail: "owner@example.com",
             previous: nil)
 
         #expect(result == nil)
+    }
+
+    @Test
+    func `same email page cannot acquire another workspace API identity`() throws {
+        let scrape = OpenAIDashboardFetcher.ScrapeResult(
+            loginRequired: false,
+            workspacePicker: false,
+            cloudflareInterstitial: false,
+            href: nil,
+            bodyText: "Credits remaining 0",
+            signedInEmail: "owner@example.com",
+            authStatus: nil,
+            accountPlan: "Workspace B plan",
+            creditsPurchaseURL: nil,
+            rows: [],
+            usageBreakdown: [],
+            usageBreakdownDebug: nil,
+            usageBreakdownError: nil,
+            scrollY: 0,
+            scrollHeight: 0,
+            viewportHeight: 0,
+            creditsHeaderPresent: true,
+            creditsHeaderInViewport: true,
+            didScrollToCredits: false)
+        let parsed = OpenAIDashboardFetcher.parseDashboardScrape(
+            scrape,
+            apiData: self.apiData(balance: 42),
+            verifiedSignedInEmail: "owner@example.com")
+        #expect(parsed.accountID == nil)
+        #expect(parsed.accountPlan == "Workspace B plan")
+        #expect(parsed.balanceIsWorkspace == nil)
+        let paired = try #require(OpenAIDashboardFetcher.snapshotForUnpairedPage(
+            apiData: self.apiData(balance: 42),
+            verifiedSignedInEmail: "owner@example.com",
+            pageSignedInEmail: scrape.signedInEmail,
+            previous: self.previous(email: "owner@example.com")))
+        #expect(paired.accountID == "workspace-a")
+        #expect(paired.accountPlan == "business")
+        #expect(paired.creditsRemaining == 42)
+        #expect(paired.creditEvents.isEmpty)
+        #expect(paired.codeReviewRemainingPercent == nil)
+    }
+
+    @Test
+    func `disabled page scrape surfaces failed API preflight despite cached dashboard`() {
+        do {
+            _ = try OpenAIDashboardFetcher.verifiedAPISnapshot(
+                apiData: nil,
+                verifiedEmail: "owner@example.com",
+                previous: self.previous(email: "owner@example.com"))
+            Issue.record("A cached dashboard must not turn a failed API preflight into success")
+        } catch is OpenAIDashboardFetcher.FetchError {
+            // The caller can publish its existing stale-data error state.
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test(arguments: ["missing API", "missing verification", "blank verification"])
@@ -185,9 +238,12 @@ struct OpenAIDashboardIdentityMergeTests {
         }
     }
 
-    private func apiData(balance: Double? = nil) -> OpenAIDashboardFetcher.DashboardAPIData {
+    private func apiData(
+        balance: Double? = nil,
+        accountID: String? = "workspace-a") -> OpenAIDashboardFetcher.DashboardAPIData
+    {
         OpenAIDashboardFetcher.DashboardAPIData(
-            accountID: "workspace-a",
+            accountID: accountID,
             primaryLimit: self.window(used: 12),
             secondaryLimit: nil,
             extraRateWindows: [],

@@ -131,7 +131,7 @@ struct CodexWorkspaceBalanceDashboardTests {
     }
 
     @Test
-    func `merges keep provenance with the selected numeric balance`() {
+    func `scoped API drops cached page fields and keeps current balance provenance`() {
         let previous = self.snapshot(balance: 1234, available: true, workspace: true)
         let inherited = OpenAIDashboardFetcher.snapshotByMergingAPI(
             apiData: self.apiData(),
@@ -145,8 +145,8 @@ struct CodexWorkspaceBalanceDashboardTests {
             self.snapshot(balance: 12),
             from: previous)
 
-        #expect(inherited.creditsRemaining == 1234)
-        #expect(inherited.balanceIsWorkspace == true)
+        #expect(inherited.creditsRemaining == nil)
+        #expect(inherited.balanceIsWorkspace == nil)
         #expect(replaced.creditsRemaining == 12)
         #expect(replaced.balanceIsWorkspace != true)
         #expect(pageReplaced.creditsRemaining == 12)
@@ -154,7 +154,7 @@ struct CodexWorkspaceBalanceDashboardTests {
     }
 
     @Test
-    func `page placeholder cannot replace the API hidden balance state`() {
+    func `page placeholder cannot inherit an unproven API workspace scope`() {
         let scrape = OpenAIDashboardFetcher.ScrapeResult(
             loginRequired: false,
             workspacePicker: false,
@@ -187,8 +187,10 @@ struct CodexWorkspaceBalanceDashboardTests {
             previousSnapshot: self.snapshot(balance: 1234, available: true, workspace: true))
 
         #expect(parsed.hasReturnableData)
-        #expect(page.creditsRemaining == nil)
-        #expect(page.toCreditsSnapshot()?.balanceReadSucceeded == false)
+        #expect(parsed.accountID == nil)
+        #expect(parsed.balanceIsWorkspace == nil)
+        #expect(page.accountID == nil)
+        #expect(page.creditsRemaining == 0)
     }
 
     @Test

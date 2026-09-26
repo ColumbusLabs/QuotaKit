@@ -114,6 +114,11 @@ public struct OpenAIDashboardFetcher {
         apiData: DashboardAPIData?,
         verifiedSignedInEmail: String?) -> DashboardScrapeData
     {
+        // The page exposes an email, but no workspace account ID. Its fields cannot be
+        // paired with an account-scoped API response for another workspace of that email.
+        let apiData = apiData.flatMap {
+            ManagedCodexAccount.normalizeWorkspaceAccountID($0.accountID) == nil ? $0 : nil
+        }
         let bodyText = scrape.bodyText ?? ""
         let codeReview = OpenAIDashboardParser.parseCodeReviewRemainingPercent(bodyText: bodyText)
         let events = OpenAIDashboardParser.parseCreditEvents(rows: scrape.rows)
@@ -261,19 +266,24 @@ public struct OpenAIDashboardFetcher {
             (preflight.apiData, preflight.verifiedSignedInEmail)
         logLine("dashboard phase=api_preflight_done elapsed=\(Self.phaseElapsed(since: startedAt))")
 
+        if let apiData,
+           apiData.hasUsageData,
+           ManagedCodexAccount.normalizeWorkspaceAccountID(apiData.accountID) != nil,
+           let verifiedSignedInEmail
+        {
+            logLine("account-scoped usage API supplied verified data; page workspace is unproven")
+            return try Self.verifiedAPISnapshot(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previousSnapshot)
+        }
+
         if Self.shouldSkipPageScrape(allowPageScrape: allowPageScrape) {
-            if let apiData, apiData.hasUsageData, let verifiedSignedInEmail {
-                logLine("usage api supplied verified dashboard data; skipping WebView")
-                return Self.snapshotByMergingAPI(
-                    apiData: apiData,
-                    verifiedEmail: verifiedSignedInEmail,
-                    previous: previousSnapshot)
-            }
-            if let previousSnapshot {
-                logLine("page scrape disabled; returning previous dashboard snapshot")
-                return previousSnapshot
-            }
-            throw FetchError.noDashboardData(body: "OpenAI dashboard APIs unavailable and page scrape disabled.")
+            logLine("page scrape disabled; requiring a verified API reading")
+            return try Self.verifiedAPISnapshot(
+                apiData: apiData,
+                verifiedEmail: verifiedSignedInEmail,
+                previous: previousSnapshot)
         }
 
         let remainingTimeout = try Self.requiredRemainingTimeout(until: deadline)
