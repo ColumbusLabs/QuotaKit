@@ -164,8 +164,8 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                         let mappedResult = result.mapError {
                             self.redactedError($0, secrets: sanitizedSecrets.values)
                         }
-                        if case let .failure(error) = mappedResult,
-                           (error as? ProviderPluginError) == .timedOut
+                        if case let .failure(error) = result,
+                           (error as? ProviderPluginError) == .timedOut || error is CancellationError
                         {
                             gate.finish(mappedResult, beforeResume: { self.discard(worker) })
                         } else {
@@ -177,22 +177,21 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                     guard let self, let worker else { return }
                     let nanoseconds = UInt64(self.timeout * 1_000_000_000)
                     try? await Task.sleep(nanoseconds: nanoseconds)
-                    gate.finish(.failure(ProviderPluginError.timedOut), beforeResume: {
-                        worker.cancelFetch(requestID)
+                    if gate.finish(.failure(ProviderPluginError.timedOut), beforeResume: {
                         self.discard(worker)
-                    })
+                    }) {
+                        worker.cancelFetch(requestID)
+                    }
                 }
             }
         } onCancel: {
-            gate.finish(.failure(CancellationError()), beforeResume: {
-                requestStartGate.cancel {
-                    worker.cancelFetch(requestID)
-                    // JavaScriptCore cannot interrupt a synchronous script loop.
-                    // Discard this exact worker so a later fetch gets a fresh
-                    // context even when this request remains stuck on its queue.
-                    self.discard(worker)
-                }
-            })
+            if gate.finish(.failure(CancellationError()), beforeResume: {
+                // JavaScriptCore cannot interrupt a synchronous script loop.
+                // Retire this worker before a resumed caller can retry.
+                self.discard(worker)
+            }) {
+                requestStartGate.cancel { worker.cancelFetch(requestID) }
+            }
         }
     }
 
@@ -308,15 +307,16 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
             return false
         }
         self.finished = true
-        guard let continuation = self.continuation else {
+        // Publish the retired worker before either an installed or pending
+        // continuation can resume and issue another fetch.
+        beforeResume?()
+        let continuation = self.continuation
+        if continuation == nil {
             self.pendingResult = result
-            self.lock.unlock()
-            return true
         }
         self.continuation = nil
         self.lock.unlock()
-        beforeResume?()
-        continuation.resume(with: result)
+        continuation?.resume(with: result)
         return true
     }
 }
@@ -416,7 +416,9 @@ private final class ProviderPluginCancelableTask: @unchecked Sendable {
         if self.cancelled || self.finished {
             let shouldCancel = self.cancelled
             self.lock.unlock()
-            if shouldCancel { task.cancel() }
+            if shouldCancel {
+                task.cancel()
+            }
             return
         }
         self.task = task
