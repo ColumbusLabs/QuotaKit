@@ -40,13 +40,13 @@ Alternatively, set the environment variable `SAKANA_COOKIE` to the raw cookie he
 - Reset dates are parsed as **UTC**, not the device's local time zone. The billing page always server-renders
   "Resets on <date>" in UTC — the browser only corrects it to the viewer's local time client-side, after JS
   hydration, which this HTML-only fetcher never runs. (Parsing with `TimeZone.current` instead shifted every reset
-  by the device's UTC offset; see [#1826](https://github.com/steipete/CodexBar/issues/1826).) The fetcher detects
+  by the device's UTC offset; see [#1826](https://github.com/steipete/QuotaKit/issues/1826).) The fetcher detects
   `"MMMM d, yyyy 'at' h:mm a"` format strings.
 - Plan name and price label (e.g. `Standard $20/mo`) are joined and surfaced as the `loginMethod` identity field for
   plan display in the menu.
 - Token cost tracking (`supportsTokenCost: false`): not supported; cost summary is unavailable. Sakana has no
   organization-level usage/cost API to query historically, only the per-request `usage` object returned by chat
-  completions calls (which CodexBar never makes), so there is no local-log source to scan the way Claude/Codex are.
+  completions calls (which QuotaKit never makes), so there is no local-log source to scan the way Claude/Codex are.
 - Credits row (`supportsCredits: false`): not shown. The shared credits-card UI path (`MenuCardView+Costs.swift`)
   has no Sakana branch and would just render the static `creditsHint` string instead of the fetched balance, so
   `supportsCredits` stays off; the balance is surfaced explicitly instead (see below).
@@ -58,7 +58,7 @@ Sakana also sells prepaid credit for pay-as-you-go API usage (the model IDs `fug
 the subscription quota windows above. `console.sakana.ai/billing` renders this data server-side under its
 "Pay as you go" tab, but that tab's markup is only present in the HTML response when the request URL includes
 `?tab=payAsYouGo` — the default `/billing` response (used for the subscription quota fetch above) does not include
-it. CodexBar issues a **second, best-effort** GET to `https://console.sakana.ai/billing?tab=payAsYouGo` with the same
+it. QuotaKit issues a **second, best-effort** GET to `https://console.sakana.ai/billing?tab=payAsYouGo` with the same
 cookie header alongside the subscription request — skipped entirely (no request made) when
 `context.includeOptionalUsage` is `false`, i.e. Settings → Advanced → "Show optional credits and extra usage" is
 disabled.
@@ -68,7 +68,7 @@ disabled.
   currently selected on the console (defaults to the last 30 days). React renders this text with `<!-- -->`
   hydration-boundary comments splitting the label from the amount; the parser strips those before reading the value.
 - **Date range label**: the raw text of the "Usage date range" picker button (e.g. `Jun 02, 2026 - Jul 01, 2026`),
-  kept only as context — CodexBar does not currently interpret it as start/end dates.
+  kept only as context — QuotaKit does not currently interpret it as start/end dates.
 
 This second fetch never throws and never blocks the primary result: if it fails (network error, non-200, wrong
 origin, empty body, or the expected markup isn't found), the pay-as-you-go fields are simply absent from that
@@ -122,15 +122,15 @@ There is no `quotakit config set` command for `cookieHeader`; use one of the pat
 
 ## Related files
 
-- `Sources/CodexBarCore/Providers/Sakana/`
+- `Sources/QuotaKitCore/Providers/Sakana/`
   - `SakanaProviderDescriptor.swift` — provider metadata, fetch plan, CLI config
   - `SakanaSettingsReader.swift` — `SAKANA_COOKIE` env key, cookie normalizer
-- `Sources/CodexBarCore/Resources/Plugins/sakana.js` — billing and PAYG parsing into generic usage/details
-- `Sources/CodexBarCore/Plugins/ProviderPluginHTTPResponse.swift` — bounded optional GET collection
-- `Sources/CodexBar/Providers/Sakana/`
+- `Sources/QuotaKitCore/Resources/Plugins/sakana.js` — billing and PAYG parsing into generic usage/details
+- `Sources/QuotaKitCore/Plugins/ProviderPluginHTTPResponse.swift` — bounded optional GET collection
+- `Sources/QuotaKit/Providers/Sakana/`
   - `SakanaProviderImplementation.swift` — settings UI, availability check
-- `Sources/CodexBar/MenuCardView+Costs.swift` — live menu-card balance and usage section
-- `Sources/CodexBar/MenuDescriptor.swift` — text-descriptor balance and usage rows
+- `Sources/QuotaKit/MenuCardView+Costs.swift` — live menu-card balance and usage section
+- `Sources/QuotaKit/MenuDescriptor.swift` — text-descriptor balance and usage rows
 - `TestsPlugin/SakanaPluginTests.swift` — parser and request parity on both engines
 - `TestsPlugin/ProviderPluginOptionalRequestTests.swift` — collection, cancellation, and response policy tests
 - Dashboard: `https://console.sakana.ai/billing` (subscription tab), `https://console.sakana.ai/billing?tab=payAsYouGo`

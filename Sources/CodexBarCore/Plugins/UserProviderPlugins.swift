@@ -85,7 +85,7 @@ public final class ProviderPluginApprovalStore: @unchecked Sendable {
 
     public static var defaultURL: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Application Support/CodexBar/plugin-approvals.json")
+            .appendingPathComponent("Library/Application Support/QuotaKit/plugin-approvals.json")
     }
 
     private let fileURL: URL
@@ -185,7 +185,12 @@ public struct UserProviderPlugin: @unchecked Sendable {
         let key = settingKey.uppercased().map { character in
             character.isASCII && (character.isLetter || character.isNumber) ? character : "_"
         }
-        return "CODEXBAR_PLUGIN_\(id)_\(String(key))"
+        return "QUOTAKIT_PLUGIN_\(id)_\(String(key))"
+    }
+
+    private static func legacyEnvironmentKey(instanceID: ProviderInstanceID, settingKey: String) -> String {
+        self.environmentKey(instanceID: instanceID, settingKey: settingKey)
+            .replacingOccurrences(of: "QUOTAKIT_PLUGIN_", with: "CODEXBAR_PLUGIN_")
     }
 
     private static func applyingEnvironmentOverrides(
@@ -196,7 +201,9 @@ public struct UserProviderPlugin: @unchecked Sendable {
         var resolved = secrets
         for setting in manifest.settings where setting.kind == .secure {
             let key = self.environmentKey(instanceID: manifest.id, settingKey: setting.key)
-            if let value = environment[key]?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
+            let legacyKey = self.legacyEnvironmentKey(instanceID: manifest.id, settingKey: setting.key)
+            let override = environment[key] ?? environment[legacyKey]
+            if let value = override?.trimmingCharacters(in: .whitespacesAndNewlines), !value.isEmpty {
                 resolved[setting.key] = value
             }
         }
@@ -230,12 +237,12 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
 
     public static var defaultProvidersDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent(".config/codexbar/providers", isDirectory: true)
+            .appendingPathComponent(".config/quotakit/providers", isDirectory: true)
     }
 
     public static var defaultCacheDirectory: URL {
         FileManager.default.homeDirectoryForCurrentUser
-            .appendingPathComponent("Library/Caches/CodexBar/plugins", isDirectory: true)
+            .appendingPathComponent("Library/Caches/QuotaKit/plugins", isDirectory: true)
     }
 
     private let providersDirectory: URL
@@ -409,10 +416,10 @@ public final class UserProviderPluginLoader: @unchecked Sendable {
         if let exception = context.exception {
             throw ProviderPluginError.load("Sucrase failed to initialize: \(exception.toString() ?? "unknown error")")
         }
-        context.setObject(source, forKeyedSubscript: "__codexbarTypeScriptSource" as NSString)
+        context.setObject(source, forKeyedSubscript: "__quotakitTypeScriptSource" as NSString)
         context.exception = nil
         let result = context.evaluateScript(
-            "sucrase.transform(__codexbarTypeScriptSource, {transforms:['typescript']}).code")
+            "sucrase.transform(__quotakitTypeScriptSource, {transforms:['typescript']}).code")
         if let exception = context.exception {
             throw ProviderPluginError
                 .load("TypeScript transpilation failed: \(exception.toString() ?? "unknown error")")

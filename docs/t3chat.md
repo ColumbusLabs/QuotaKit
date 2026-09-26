@@ -113,7 +113,7 @@ data, while `quotakit cost --provider t3chat` is unsupported.
 
 ## Key files
 
-- `Sources/CodexBarCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
-- `Sources/CodexBarCore/Resources/Plugins/t3chat.js` — tRPC request, response decoding, and window mapping
-- `Sources/CodexBar/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
-- `Sources/CodexBar/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence
+- `Sources/QuotaKitCore/Providers/T3Chat/T3ChatProviderDescriptor.swift` — provider metadata and fetch pipeline
+- `Sources/QuotaKitCore/Resources/Plugins/t3chat.js` — tRPC request, response decoding, and window mapping
+- `Sources/QuotaKit/Providers/T3Chat/T3ChatProviderImplementation.swift` — settings pickers and bindings
+- `Sources/QuotaKit/Providers/T3Chat/T3ChatSettingsStore.swift` — cookie source and header persistence
