@@ -1,4 +1,4 @@
-import CodexBarCore
+@testable import CodexBarCore
 import Foundation
 import Testing
 @testable import CodexBar
@@ -1087,7 +1087,7 @@ struct UsageStoreWidgetSnapshotVisibilityTests {
         store.persistWidgetSnapshot(reason: "token-plan-monthly-label-test")
         await store.widgetSnapshotPersistTask?.value
 
-        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == provider })
+        let entry = try #require(widgetSnapshots.last?.entries.first { $0.provider == provider.instanceID })
         #expect(entry.usageRows?.map(\.title) == ["Monthly"])
     }
 }
