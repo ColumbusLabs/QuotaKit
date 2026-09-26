@@ -58,11 +58,14 @@ public struct CodexBarConfigStore: @unchecked Sendable {
         // The CLI reads config independently of the Mac app. Honor a stored web-access denial
         // even while an app config save is pending or when the config file cannot be rewritten.
         // An explicitly selected config path has separate CLI ownership.
-        let hasExplicitConfigPath = [Self.pathEnvironmentKey, Self.legacyPathEnvironmentKey,
-                                     Self.xdgConfigHomeEnvironmentKey].contains {
+        let hasExplicitConfigFile = [Self.pathEnvironmentKey, Self.legacyPathEnvironmentKey].contains {
             !(self.environment[$0]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
         }
-        guard !hasExplicitConfigPath else { return config }
+        let xdgHome = self.environment[Self.xdgConfigHomeEnvironmentKey]?
+            .trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
+        let hasEffectiveXDGHome = !xdgHome.isEmpty &&
+            ((xdgHome as NSString).expandingTildeInPath as NSString).isAbsolutePath
+        guard !hasExplicitConfigFile, !hasEffectiveXDGHome else { return config }
         let accessEnabled: Bool?
         if let override = self.openAIWebAccessEnabledOverride {
             accessEnabled = override

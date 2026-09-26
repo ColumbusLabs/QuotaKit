@@ -37,6 +37,18 @@ struct CodexConfigCookieDenialTests {
                 openAIWebAccessEnabledOverride: false,
                 environment: [CodexBarConfigStore.pathEnvironmentKey: url.path])
             #expect(try explicitStore.load()?.providerConfig(for: .codex)?.cookieSource == source)
+
+            let relativeXDGStore = CodexBarConfigStore(
+                fileURL: url,
+                openAIWebAccessEnabledOverride: false,
+                environment: [CodexBarConfigStore.xdgConfigHomeEnvironmentKey: "relative/config"])
+            #expect(try relativeXDGStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
+
+            let absoluteXDGStore = CodexBarConfigStore(
+                fileURL: url,
+                openAIWebAccessEnabledOverride: false,
+                environment: [CodexBarConfigStore.xdgConfigHomeEnvironmentKey: directory.path])
+            #expect(try absoluteXDGStore.load()?.providerConfig(for: .codex)?.cookieSource == source)
         }
 
         let absentStore = CodexBarConfigStore(
