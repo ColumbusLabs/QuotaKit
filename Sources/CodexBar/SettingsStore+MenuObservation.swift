@@ -37,6 +37,7 @@ extension SettingsStore {
         _ = self.kiroMenuBarDisplayMode
         _ = self.historicalTrackingEnabled
         _ = self.multiAccountMenuLayout
+        _ = self.accountWidgetsEnabled
         _ = self.menuBarMetricPreferencesRaw
         _ = self.menuBarLayout
         _ = self.menuBarLayoutOverrides

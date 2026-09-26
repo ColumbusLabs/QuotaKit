@@ -1593,3 +1593,6 @@
 "Restore Defaults" = "Standaardinstellingen herstellen";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Kies welke gebruiksrijen worden weergegeven in het menu van deze provider, het instellingenvoorbeeld en het overzicht.";
 "%@ (unavailable)" = "%@ (niet beschikbaar)";
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Accounts voor widgets actueel houden";
+"account_widgets_description" = "Kies een account in elke Account Usage-widget. Werkt maximaal zes accounts per aanbieder bij.";

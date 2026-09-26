@@ -21,6 +21,8 @@ public struct ClaudeUsageSnapshot: Sendable {
     public let updatedAt: Date
     public let accountEmail: String?
     public let accountOrganization: String?
+    /// Verified principal and organization from the credential that produced this usage.
+    public let accountID: String?
     public let loginMethod: String?
     public let rawText: String?
     /// Present only when the credential used for this OAuth fetch matches the current Claude Keychain item.
@@ -53,7 +55,8 @@ public struct ClaudeUsageSnapshot: Sendable {
         oauthCredentialOwner: ClaudeOAuthCredentialOwner? = nil,
         oauthKeychainCredentialMismatch: Bool = false,
         oauthKeychainCredentialAbsent: Bool = false,
-        oauthKeychainCredentialUnavailable: Bool = false)
+        oauthKeychainCredentialUnavailable: Bool = false,
+        accountID: String? = nil)
     {
         self.primary = primary
         self.primaryWindowKind = primaryWindowKind
@@ -64,6 +67,7 @@ public struct ClaudeUsageSnapshot: Sendable {
         self.updatedAt = updatedAt
         self.accountEmail = accountEmail
         self.accountOrganization = accountOrganization
+        self.accountID = accountID
         self.loginMethod = loginMethod
         self.rawText = rawText
         self.oauthKeychainPersistentRefHash = oauthKeychainPersistentRefHash

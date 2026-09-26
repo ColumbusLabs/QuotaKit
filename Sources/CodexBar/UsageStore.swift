@@ -174,6 +174,9 @@ final class UsageStore {
     var lastSourceLabels: [ProviderInstanceID: String] = [:]
     var lastFetchAttempts: [ProviderInstanceID: [ProviderFetchAttempt]] = [:]
     var accountSnapshots: [ProviderInstanceID: [TokenAccountUsageSnapshot]] = [:]
+    @ObservationIgnored var widgetVerifiedTokenSnapshots: WidgetVerifiedTokenSnapshots = [:]
+    @ObservationIgnored let widgetAccountSnapshotStore: (any WidgetAccountSnapshotStoring)?
+    @ObservationIgnored let widgetTimelineReloader: @MainActor () -> Void
     var tokenAccountLiveStateProviders: Set<ProviderInstanceID> = []
     var codexAccountSnapshots: [CodexAccountUsageSnapshot] = []
     var kiloScopeSnapshots: [KiloScopeSnapshot] = []
@@ -518,6 +521,8 @@ final class UsageStore {
         environmentBase: [String: String] = ProcessInfo.processInfo.environment,
         pluginApprovalStore: ProviderPluginApprovalStore = ProviderPluginApprovalStore(),
         widgetSnapshotURL: URL? = nil,
+        widgetAccountSnapshotStore: (any WidgetAccountSnapshotStoring)? = nil,
+        widgetTimelineReloader: @escaping @MainActor () -> Void = UsageStore.reloadWidgetTimelines,
         planUtilizationHistoryLoadGateForTesting: PlanUtilizationHistoryLoadGate? = nil)
     {
         self.codexFetcher = fetcher
@@ -537,6 +542,15 @@ final class UsageStore {
         self.quotaTransitionWriter = quotaTransitionWriter
         self.codexAccountUsageSnapshotStore = codexAccountUsageSnapshotStore ??
             (self.startupBehavior.automaticallyStartsBackgroundWork ? FileCodexAccountUsageSnapshotStore() : nil)
+        let widgetStore = widgetAccountSnapshotStore ??
+            (self.startupBehavior.automaticallyStartsBackgroundWork ? FileWidgetAccountSnapshotStore() : nil)
+        self.widgetAccountSnapshotStore = widgetStore
+        self.widgetTimelineReloader = widgetTimelineReloader
+        if settings.accountWidgetsEnabled {
+            self.widgetVerifiedTokenSnapshots = widgetStore?.load() ?? [:]
+        } else {
+            widgetStore?.save([:])
+        }
         self.planUtilizationPersistenceCoordinator = PlanUtilizationHistoryPersistenceCoordinator(
             store: planHistoryStore)
         self.providerMetadata = registry.metadata

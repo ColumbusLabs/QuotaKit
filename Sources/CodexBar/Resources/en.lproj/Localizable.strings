@@ -1597,3 +1597,6 @@
 "Restore Defaults" = "Restore Defaults";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Choose which usage rows appear in this provider's menu, Settings preview, and Overview.";
 "%@ (unavailable)" = "%@ (unavailable)";
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Keep accounts updated for widgets";
+"account_widgets_description" = "Choose an account in each Account Usage widget. Refreshes up to six accounts per provider.";

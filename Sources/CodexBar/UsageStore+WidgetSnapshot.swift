@@ -12,6 +12,12 @@ private enum WidgetSnapshotLoadTestOverrides {
 #endif
 
 extension UsageStore {
+    static func reloadWidgetTimelines() {
+        #if canImport(WidgetKit)
+        WidgetCenter.shared.reloadAllTimelines()
+        #endif
+    }
+
     private var isWidgetSnapshotTestEnvironment: Bool {
         if case .testing = self.startupBehavior {
             return true
@@ -130,6 +136,7 @@ extension UsageStore {
                         $0) })
                     snapshotToPersist = WidgetSnapshot(
                         entries: latestSnapshot.enabledProviders.compactMap { freshEntries[$0] ?? retainedEntries[$0] },
+                        accounts: latestSnapshot.accounts,
                         enabledProviders: latestSnapshot.enabledProviders,
                         usageBarsShowUsed: latestSnapshot.usageBarsShowUsed,
                         generatedAt: filteredSnapshot.generatedAt)
@@ -145,7 +152,7 @@ extension UsageStore {
 
             #if canImport(WidgetKit)
             if shouldReloadTimelines {
-                WidgetCenter.shared.reloadAllTimelines()
+                self.widgetTimelineReloader()
             }
             #endif
         }
@@ -346,9 +353,12 @@ extension UsageStore {
         // A later success cannot make an older queued account publication current again.
         if let queuedSnapshot = self.lastQueuedWidgetSnapshot {
             let snapshotToPersist: WidgetSnapshot
-            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) {
+            if queuedSnapshot.entries.contains(where: { $0.provider == provider.instanceID }) ||
+                queuedSnapshot.accounts.contains(where: { $0.provider == provider.instanceID })
+            {
                 snapshotToPersist = WidgetSnapshot(
                     entries: queuedSnapshot.entries.filter { $0.provider != provider.instanceID },
+                    accounts: queuedSnapshot.accounts.filter { $0.provider != provider.instanceID },
                     enabledProviders: queuedSnapshot.enabledProviders,
                     usageBarsShowUsed: queuedSnapshot.usageBarsShowUsed,
                     generatedAt: max(Date(), queuedSnapshot.generatedAt.addingTimeInterval(0.001)))
@@ -380,6 +390,9 @@ extension UsageStore {
     func invalidateWidgetUsageIfTerminalFailure(for provider: UsageProvider, after error: Error) {
         let priorUsage = self.snapshots[provider.instanceID] ?? self.lastKnownResetSnapshots[provider.instanceID]
         guard !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorUsage != nil) else { return }
+        if self.widgetVerifiedTokenSnapshots.removeValue(forKey: provider) != nil {
+            self.widgetAccountSnapshotStore?.save(self.widgetVerifiedTokenSnapshots)
+        }
         self.invalidateGenericWidgetUsage(for: provider)
     }
 
@@ -411,6 +424,7 @@ extension UsageStore {
         }
         return WidgetSnapshot(
             entries: entries,
+            accounts: self.makeWidgetAccountEntries(now: now),
             enabledProviders: enabledProviders,
             usageBarsShowUsed: self.settings.usageBarsShowUsed,
             generatedAt: generatedAt)
@@ -654,7 +668,7 @@ extension UsageStore {
             updatedAt: snapshot.updatedAt)
     }
 
-    private func widgetUsageRows(
+    func widgetUsageRows(
         provider: UsageProvider,
         snapshot: UsageSnapshot,
         now: Date) -> [WidgetSnapshot.WidgetUsageRowSnapshot]

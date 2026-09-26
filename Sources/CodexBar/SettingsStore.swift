@@ -541,6 +541,7 @@ extension SettingsStore {
         let notificationPushToiOSEnabled = userDefaults.object(
             forKey: "notificationPushToiOSEnabled") as? Bool ?? true
         let multiAccountMenuLayoutRaw = Self.loadMultiAccountMenuLayoutRaw(userDefaults: userDefaults)
+        let accountWidgetsEnabled = userDefaults.bool(forKey: "accountWidgetsEnabled")
         let resolvedPreferences = Self.loadMenuBarMetricPreferences(userDefaults: userDefaults)
         let storedMenuBarLayout = Self.loadMenuBarLayout(userDefaults: userDefaults)
         let menuBarLayoutConditionals = Self.loadMenuBarLayoutConditionals(userDefaults: userDefaults)
@@ -652,6 +653,7 @@ extension SettingsStore {
             iCloudSyncEnabled: iCloudSyncEnabled,
             notificationPushToiOSEnabled: notificationPushToiOSEnabled,
             multiAccountMenuLayoutRaw: multiAccountMenuLayoutRaw,
+            accountWidgetsEnabled: accountWidgetsEnabled,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             storedMenuBarLayout: storedMenuBarLayout,
             menuBarLayoutConditionals: menuBarLayoutConditionals,

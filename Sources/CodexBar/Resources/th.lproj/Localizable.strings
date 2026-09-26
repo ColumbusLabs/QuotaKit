@@ -1598,3 +1598,6 @@
 "Restore Defaults" = "คืนค่าเริ่มต้น";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "เลือกแถวการใช้งานที่จะแสดงในเมนูของผู้ให้บริการนี้ ตัวอย่างการตั้งค่า และภาพรวม";
 "%@ (unavailable)" = "%@ (ไม่พร้อมใช้งาน)";
+"section_widgets" = "วิดเจ็ต";
+"account_widgets_title" = "อัปเดตบัญชีสำหรับวิดเจ็ต";
+"account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";

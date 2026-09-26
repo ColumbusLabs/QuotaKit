@@ -1596,3 +1596,6 @@
 "Restore Defaults" = "Varsayılanları Geri Yükle";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
 "%@ (unavailable)" = "%@ (kullanılamıyor)";
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";

@@ -1597,3 +1597,6 @@
 "Restore Defaults" = "Pulihkan Default";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Pilih baris penggunaan yang muncul di menu penyedia ini, pratinjau Pengaturan, dan Ringkasan.";
 "%@ (unavailable)" = "%@ (tidak tersedia)";
+"section_widgets" = "Widget";
+"account_widgets_title" = "Perbarui akun untuk widget";
+"account_widgets_description" = "Pilih akun di setiap widget Account Usage. Memperbarui hingga enam akun per penyedia.";

@@ -1594,3 +1594,6 @@
 "Restore Defaults" = "Відновити типові значення";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Виберіть, які рядки використання відображатимуться в меню цього постачальника, попередньому перегляді налаштувань і огляді.";
 "%@ (unavailable)" = "%@ (недоступний)";
+"section_widgets" = "Віджети";
+"account_widgets_title" = "Оновлювати дані облікових записів для віджетів";
+"account_widgets_description" = "Виберіть обліковий запис у кожному віджеті Account Usage. Оновлює до шести облікових записів для кожного постачальника.";

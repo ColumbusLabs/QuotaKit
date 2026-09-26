@@ -1594,3 +1594,6 @@
 "Restore Defaults" = "Standardeinstellungen wiederherstellen";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wähle aus, welche Nutzungszeilen im Menü dieses Anbieters, in der Einstellungsvorschau und in der Übersicht angezeigt werden.";
 "%@ (unavailable)" = "%@ (nicht verfügbar)";
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Konten für Widgets aktuell halten";
+"account_widgets_description" = "Wähle in jedem Account Usage-Widget ein Konto aus. Aktualisiert bis zu sechs Konten pro Anbieter.";

@@ -171,17 +171,20 @@ public struct WidgetSnapshot: Codable, Sendable {
     }
 
     public let entries: [ProviderEntry]
+    public let accounts: [AccountEntry]
     public let enabledProviders: [ProviderInstanceID]
     public let usageBarsShowUsed: Bool
     public let generatedAt: Date
 
     public init(
         entries: [ProviderEntry],
+        accounts: [AccountEntry] = [],
         enabledProviders: [ProviderInstanceID]? = nil,
         usageBarsShowUsed: Bool = false,
         generatedAt: Date)
     {
         self.entries = entries
+        self.accounts = accounts
         self.enabledProviders = enabledProviders ?? entries.map(\.provider)
         self.usageBarsShowUsed = usageBarsShowUsed
         self.generatedAt = generatedAt
@@ -189,6 +192,7 @@ public struct WidgetSnapshot: Codable, Sendable {
 
     private enum CodingKeys: String, CodingKey {
         case entries
+        case accounts
         case enabledProviders
         case usageBarsShowUsed
         case generatedAt
@@ -197,6 +201,7 @@ public struct WidgetSnapshot: Codable, Sendable {
     public init(from decoder: Decoder) throws {
         let container = try decoder.container(keyedBy: CodingKeys.self)
         self.entries = try container.decode([ProviderEntry].self, forKey: .entries)
+        self.accounts = try container.decodeIfPresent([AccountEntry].self, forKey: .accounts) ?? []
         self.generatedAt = try container.decode(Date.self, forKey: .generatedAt)
         self.enabledProviders = try container.decodeIfPresent([ProviderInstanceID].self, forKey: .enabledProviders)
             ?? self.entries.map(\.provider)
@@ -206,6 +211,9 @@ public struct WidgetSnapshot: Codable, Sendable {
     public func encode(to encoder: Encoder) throws {
         var container = encoder.container(keyedBy: CodingKeys.self)
         try container.encode(self.entries, forKey: .entries)
+        if !self.accounts.isEmpty {
+            try container.encode(self.accounts, forKey: .accounts)
+        }
         try container.encode(self.enabledProviders, forKey: .enabledProviders)
         try container.encode(self.usageBarsShowUsed, forKey: .usageBarsShowUsed)
         try container.encode(self.generatedAt, forKey: .generatedAt)
@@ -244,7 +252,7 @@ public enum WidgetSnapshotStore {
     }
 
     public static func load(bundleID: String? = Bundle.main.bundleIdentifier) -> WidgetSnapshot? {
-        guard !self.isBoundedIOCircuitBreakerTripped() else { return nil }
+        guard !TestProcessSafety.isRunning, !self.isBoundedIOCircuitBreakerTripped() else { return nil }
         return self.load(from: self.snapshotURL(bundleID: bundleID))
     }
 
@@ -259,7 +267,7 @@ public enum WidgetSnapshotStore {
     }
 
     public static func save(_ snapshot: WidgetSnapshot, bundleID: String? = Bundle.main.bundleIdentifier) {
-        guard !self.isBoundedIOCircuitBreakerTripped() else { return }
+        guard !TestProcessSafety.isRunning, !self.isBoundedIOCircuitBreakerTripped() else { return }
         self.save(snapshot, to: self.snapshotURL(bundleID: bundleID))
     }
 

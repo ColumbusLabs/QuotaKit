@@ -1595,3 +1595,6 @@
 "Restore Defaults" = "Восстановить настройки по умолчанию";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Выберите, какие строки использования отображаются в меню этого провайдера, в предпросмотре настроек и в обзоре.";
 "%@ (unavailable)" = "%@ (недоступно)";
+"section_widgets" = "Виджеты";
+"account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
+"account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";

@@ -1593,3 +1593,6 @@
 "Restore Defaults" = "Återställ standardvärden";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Välj vilka användningsrader som visas i den här leverantörens meny, förhandsvisningen i Inställningar och Översikt.";
 "%@ (unavailable)" = "%@ (inte tillgänglig)";
+"section_widgets" = "Widgetar";
+"account_widgets_title" = "Håll konton uppdaterade för widgetar";
+"account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";

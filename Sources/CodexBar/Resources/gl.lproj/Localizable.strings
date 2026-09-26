@@ -1593,3 +1593,6 @@
 "Restore Defaults" = "Restaurar valores predeterminados";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Escolle as filas de uso que aparecen no menú deste provedor, na vista previa de Configuración e na Vista xeral.";
 "%@ (unavailable)" = "%@ (non dispoñible)";
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Manter as contas actualizadas para os widgets";
+"account_widgets_description" = "Escolle unha conta en cada widget Account Usage. Actualiza ata seis contas por provedor.";

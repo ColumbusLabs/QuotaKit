@@ -1597,3 +1597,6 @@
 "Restore Defaults" = "Restaura els valors predeterminats";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Trieu quines files d'ús es mostren al menú d'aquest proveïdor, a la previsualització de Configuració i a la vista general.";
 "%@ (unavailable)" = "%@ (no disponible)";
+"section_widgets" = "Ginys";
+"account_widgets_title" = "Mantén els comptes actualitzats per als ginys";
+"account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";

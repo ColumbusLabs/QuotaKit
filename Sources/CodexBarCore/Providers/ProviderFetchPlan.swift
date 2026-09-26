@@ -25,6 +25,8 @@ public struct ProviderFetchContext: Sendable {
     public let sourceMode: ProviderSourceMode
     public let includeCredits: Bool
     public let includeOptionalUsage: Bool
+    /// Requests verified ownership for account-scoped publication without enabling browser enrichment.
+    public let includeAccountIdentity: Bool
     /// Whether this fetch should wait for optional usage data (such as prepaid balances) to
     /// complete instead of bounding it with the short optional join grace. Usage-snapshot
     /// reads enable this; guard and diagnostic commands keep the bounded join so a slow
@@ -65,6 +67,7 @@ public struct ProviderFetchContext: Sendable {
         sourceMode: ProviderSourceMode,
         includeCredits: Bool,
         includeOptionalUsage: Bool = true,
+        includeAccountIdentity: Bool = false,
         requiresOptionalUsageCompleteness: Bool = false,
         webTimeout: TimeInterval,
         webDebugDumpHTML: Bool,
@@ -88,6 +91,7 @@ public struct ProviderFetchContext: Sendable {
         self.sourceMode = sourceMode
         self.includeCredits = includeCredits
         self.includeOptionalUsage = includeOptionalUsage
+        self.includeAccountIdentity = includeAccountIdentity
         self.requiresOptionalUsageCompleteness = requiresOptionalUsageCompleteness
         self.webTimeout = webTimeout
         self.webDebugDumpHTML = webDebugDumpHTML

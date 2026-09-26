@@ -1625,3 +1625,6 @@
 "Restore Defaults" = "回復預設值";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "選擇要在此供應商的選單、設定預覽與概覽中顯示的用量列。";
 "%@ (unavailable)" = "%@（無法使用）";
+"section_widgets" = "小工具";
+"account_widgets_title" = "為小工具保持帳戶更新";
+"account_widgets_description" = "在每個 Account Usage 小工具中選擇一個帳戶。每個供應商最多重新整理六個帳戶。";

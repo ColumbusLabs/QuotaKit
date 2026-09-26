@@ -315,6 +315,14 @@ extension SettingsStore {
         set { self.setOptionalDefault(\.kiroMenuBarDisplayModeRaw, newValue.rawValue, key: "kiroMenuBarDisplayMode") }
     }
 
+    var accountWidgetsEnabled: Bool {
+        get { self.defaultsState.accountWidgetsEnabled }
+        set {
+            self.defaultsState.accountWidgetsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "accountWidgetsEnabled")
+        }
+    }
+
     var multiAccountMenuLayout: MultiAccountMenuLayout {
         get { MultiAccountMenuLayout(rawValue: self.defaultsState.multiAccountMenuLayoutRaw) ?? .segmented }
         set {

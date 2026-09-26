@@ -1598,3 +1598,6 @@
 "Restore Defaults" = "بازیابی پیش‌فرض‌ها";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "انتخاب کنید کدام ردیف‌های استفاده در منوی این ارائه‌دهنده، پیش‌نمایش تنظیمات و نمای کلی نمایش داده شوند.";
 "%@ (unavailable)" = "%@ (در دسترس نیست)";
+"section_widgets" = "ویجت‌ها";
+"account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
+"account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";
