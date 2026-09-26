@@ -59,6 +59,12 @@ QuotaKit calls the selected region's `/coding/v1/usages` API with the key. Set
 `KIMI_CODE_BASE_URL` only when testing a compatible HTTPS proxy or alternate host with an explicit API key.
 QuotaKit never forwards a Kimi Code CLI credential to an endpoint override or to the International host.
 
+Both the older count-based response and the newer `usages` ratio pools are supported. Ratio pools take
+precedence for the 5-hour, weekly, and monthly Total usage windows they provide. Missing windows stay
+absent; percentages retain the API's precision and do not imply request counts. The monthly Total usage
+pool is available directly from the Code API, without requiring browser authentication, and optional web
+enrichment cannot replace it. Legacy rate-limit counts remain available when no 5-hour ratio is reported.
+
 ### Method 2: Kimi Code CLI
 
 In the default China region, if you are signed in with the official Kimi Code CLI, Auto mode can reuse its fresh
