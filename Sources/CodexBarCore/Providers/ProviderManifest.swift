@@ -87,5 +87,8 @@ public enum ProviderManifest {
         RaycastProviderDescriptor.descriptor,
         HelmcodeProviderDescriptor.descriptor,
         TypeSafeProviderDescriptor.descriptor,
+        AtlasCloudProviderDescriptor.descriptor,
+        VercelProviderDescriptor.descriptor,
+        LLMManProviderDescriptor.descriptor,
     ]
 }

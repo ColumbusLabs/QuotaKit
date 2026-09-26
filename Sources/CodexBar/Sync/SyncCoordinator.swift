@@ -820,7 +820,28 @@ final class SyncCoordinator {
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             crossModelUsage: nil,
-            hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot))
+            hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot),
+            providerDetails: Self.mapProviderDetails(provider: provider, snapshot: snapshot))
+    }
+
+    private static func mapProviderDetails(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
+    {
+        guard provider == .atlascloud || provider == .vercel || provider == .llmman,
+              let details = snapshot?.details,
+              !details.isEmpty
+        else { return nil }
+        return details.map { section in
+            SyncProviderDetailSection(
+                title: section.title,
+                rows: section.rows.map { row in
+                    SyncProviderDetailSection.Row(
+                        label: row.label,
+                        value: row.value,
+                        secondaryValue: row.secondaryValue)
+                })
+        }
     }
 
     static func syncedStatusMessage(

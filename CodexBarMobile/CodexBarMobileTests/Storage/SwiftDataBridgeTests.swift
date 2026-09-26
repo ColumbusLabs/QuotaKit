@@ -33,7 +33,8 @@ struct SwiftDataBridgeTests {
         utilization: [SyncUtilizationSeries]? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil,
         costSummary: SyncCostSummary? = nil,
-        hyperBalance: SyncHyperBalance? = nil) -> ProviderUsageSnapshot
+        hyperBalance: SyncHyperBalance? = nil,
+        providerDetails: [SyncProviderDetailSection]? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -49,7 +50,8 @@ struct SwiftDataBridgeTests {
             rateWindows: [],
             utilizationHistory: utilization,
             codexResetCredits: codexResetCredits,
-            hyperBalance: hyperBalance)
+            hyperBalance: hyperBalance,
+            providerDetails: providerDetails)
     }
 
     private func makeCostSummary(
@@ -264,6 +266,36 @@ struct SwiftDataBridgeTests {
         #expect(updated.hyperBalanceData == nil)
         let rehydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
         #expect(rehydrated.providers.first?.hyperBalance == nil)
+    }
+
+    @Test
+    func `Detail-only provider rows persist and clear without affecting legacy fields`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let details = [SyncProviderDetailSection(
+            title: "Account balance",
+            rows: [.init(label: "Available balance", value: "$95.50")])]
+        let populated = self.makeSnapshot(
+            deviceID: "device-atlas",
+            providers: [self.makeProvider(
+                id: "atlascloud",
+                name: "Atlas Cloud",
+                lastUpdated: self.ts1,
+                providerDetails: details)],
+            timestamp: self.ts1)
+        try SwiftDataBridge.upsert(deviceSnapshots: [populated], into: context)
+        let stored = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(stored.providerDetailsData != nil)
+        let hydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+        #expect(hydrated.providers.first?.providerDetails == details)
+
+        let cleared = self.makeSnapshot(
+            deviceID: "device-atlas",
+            providers: [self.makeProvider(id: "atlascloud", name: "Atlas Cloud", lastUpdated: self.ts2)],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [cleared], into: context)
+        let updated = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(updated.providerDetailsData == nil)
     }
 
     @Test

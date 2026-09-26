@@ -54,6 +54,9 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .crof, environmentKey: "CROF_API_KEY"),
             .init(provider: .doubao, environmentKey: "ARK_API_KEY"),
             .init(provider: .hyper, environmentKey: "HYPER_API_KEY"),
+            .init(provider: .atlascloud, environmentKey: "ATLASCLOUD_API_KEY"),
+            .init(provider: .vercel, environmentKey: "AI_GATEWAY_API_KEY"),
+            .init(provider: .llmman, environmentKey: "LLMMAN_API_KEY"),
         ]
 
         for fixture in fixtures {
@@ -404,6 +407,7 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .sub2api, environment: ["SUB2API_API_KEY": "token"], mode: "api"),
             .init(provider: .moonshot, environment: ["MOONSHOT_API_KEY": "token"], mode: "api"),
             .init(provider: .ollama, environment: ["OLLAMA_API_KEY": "token"], mode: "api"),
+            .init(provider: .llmman, environment: ["LLMMAN_API_KEY": "token"], mode: "api"),
             .init(provider: .openai, environment: ["OPENAI_ADMIN_KEY": "token"], mode: "api"),
             .init(provider: .openrouter, environment: ["OPENROUTER_API_KEY": "token"], mode: "api"),
             .init(provider: .stepfun, environment: ["STEPFUN_TOKEN": "token"], mode: "api"),

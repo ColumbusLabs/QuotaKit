@@ -175,6 +175,7 @@ enum SwiftDataBridge {
         let codexResetCreditsData = provider.codexResetCredits.flatMap { try? encoder.encode($0) }
         let crossModelUsageData = provider.crossModelUsage.flatMap { try? encoder.encode($0) }
         let hyperBalanceData = provider.hyperBalance.flatMap { try? encoder.encode($0) }
+        let providerDetailsData = provider.providerDetails.flatMap { try? encoder.encode($0) }
 
         let model: ProviderSnapshotModel
         if let existing {
@@ -190,6 +191,7 @@ enum SwiftDataBridge {
             existing.codexResetCreditsData = codexResetCreditsData
             existing.crossModelUsageData = crossModelUsageData
             existing.hyperBalanceData = hyperBalanceData
+            existing.providerDetailsData = providerDetailsData
             existing.device = device
             model = existing
         } else {
@@ -209,6 +211,7 @@ enum SwiftDataBridge {
                 codexResetCreditsData: codexResetCreditsData,
                 crossModelUsageData: crossModelUsageData,
                 hyperBalanceData: hyperBalanceData,
+                providerDetailsData: providerDetailsData,
                 device: device)
             context.insert(created)
             model = created
@@ -335,6 +338,9 @@ enum SwiftDataBridge {
                 let hyperBalance = row.hyperBalanceData.flatMap {
                     try? decoder.decode(SyncHyperBalance.self, from: $0)
                 }
+                let providerDetails = row.providerDetailsData.flatMap {
+                    try? decoder.decode([SyncProviderDetailSection].self, from: $0)
+                }
 
                 // Reconstruct utilization history by grouping the flat entry rows
                 // back into series. Sort by series name for stability, and by
@@ -376,7 +382,8 @@ enum SwiftDataBridge {
                     perplexityCredits: perplexityCredits,
                     codexResetCredits: codexResetCredits,
                     crossModelUsage: crossModelUsage,
-                    hyperBalance: hyperBalance))
+                    hyperBalance: hyperBalance,
+                    providerDetails: providerDetails))
             }
 
             // Skip devices that have no provider rows — they're placeholders from

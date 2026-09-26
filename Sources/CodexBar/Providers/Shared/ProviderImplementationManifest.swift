@@ -88,5 +88,8 @@ enum ProviderImplementationManifest {
         { RaycastProviderImplementation() },
         { HelmcodeProviderImplementation() },
         { TypeSafeProviderImplementation() },
+        { AtlasCloudProviderImplementation() },
+        { VercelProviderImplementation() },
+        { LLMManProviderImplementation() },
     ]
 }

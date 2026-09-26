@@ -241,6 +241,9 @@ struct SettingsStoreAdditionalTests {
             .xkiro: [.automatic, .primary],
             .raycast: [.automatic, .primary],
             .typesafe: [.automatic],
+            .hyper: [.automatic],
+            .atlascloud: [.automatic],
+            .vercel: [.automatic],
         ]
 
         for provider in UsageProvider.allCases {

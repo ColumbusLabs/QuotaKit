@@ -8,6 +8,7 @@ enum ProviderDetailPrimarySection {
 }
 
 enum ProviderDetailSection: Identifiable {
+    case providerDetails([SyncProviderDetailSection])
     case kiro(SyncKiroCredits)
     case bedrock(SyncBedrockCost)
     case moonshot(SyncMoonshotBalance)
@@ -34,6 +35,8 @@ enum ProviderDetailSection: Identifiable {
 
     var id: String {
         switch self {
+        case .providerDetails:
+            "provider-details"
         case .kiro:
             "kiro"
         case .bedrock:
@@ -108,6 +111,9 @@ enum ProviderDetailSectionDispatcher {
 
     private static func structuredSections(for provider: ProviderUsageSnapshot) -> [ProviderDetailSection] {
         var sections: [ProviderDetailSection] = []
+        if let details = provider.providerDetails, !details.isEmpty {
+            sections.append(.providerDetails(details))
+        }
         if provider.providerID == "kiro", let value = provider.kiroCredits {
             sections.append(.kiro(value))
         }
@@ -240,6 +246,28 @@ struct ProviderDetailSectionView: View {
 
     var body: some View {
         switch self.section {
+        case let .providerDetails(details):
+            VStack(alignment: .leading, spacing: 14) {
+                ForEach(Array(details.enumerated()), id: \.offset) { _, section in
+                    if let title = section.title {
+                        Text(title).font(.headline)
+                    }
+                    ForEach(Array(section.rows.enumerated()), id: \.offset) { _, row in
+                        HStack(alignment: .firstTextBaseline) {
+                            Text(row.label).foregroundStyle(.secondary)
+                            Spacer(minLength: 12)
+                            VStack(alignment: .trailing, spacing: 2) {
+                                Text(row.value).monospacedDigit()
+                                if let secondary = row.secondaryValue {
+                                    Text(secondary).font(.caption).foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            .padding(16)
+            .qkCardBackground(cornerRadius: 14)
         case let .kiro(credits):
             KiroCreditsCard(credits: credits, tintColor: self.tintColor)
         case let .bedrock(cost):

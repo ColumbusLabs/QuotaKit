@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 80 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 85 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -121,6 +121,9 @@ complete when the available scan window covers fewer days.
 | Aixy | Project API key → key-scoped usage and applicable budgets (`api`). |
 | xKiro | API key → daily free-token allowance (`api`). |
 | Raycast | Chrome or manually supplied website session → monthly AI credits (`web`). |
+| Atlas Cloud | Account-wide available USD balance from a configured API key (`api`). |
+| Vercel AI Gateway | Team-wide USD credit balance and lifetime spend from a configured API key (`api`). |
+| llmman | Local daemon memory, loaded models, and stored models from a configured private-network endpoint (`api`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.

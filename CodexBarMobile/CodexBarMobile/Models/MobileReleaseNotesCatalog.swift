@@ -53,6 +53,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts."),
                         String(
                             localized: "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."),
+                        String(
+                            localized: "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."),
                     ]),
             ]),
         ReleaseNotesVersion(

@@ -20296,6 +20296,34 @@
           }
         }
       }
+    },
+    "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud と Vercel AI Gateway の残高、および llmman のモデルメモリが QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud 和 Vercel AI Gateway 余额以及 llmman 模型内存现在会从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud 和 Vercel AI Gateway 餘額以及 llmman 模型記憶體現在會從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
     }
   },
   "version": "1.0"

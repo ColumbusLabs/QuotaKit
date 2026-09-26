@@ -7,6 +7,30 @@ import Testing
 @MainActor
 @Suite(.serialized)
 struct ProviderSettingsDescriptorTests {
+    @Test(arguments: [UsageProvider.atlascloud, .vercel])
+    func `balance providers keep API keys in their own config`(provider: UsageProvider) throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-\(provider.rawValue)")
+        let implementation: any ProviderImplementation = provider == .atlascloud
+            ? AtlasCloudProviderImplementation() : VercelProviderImplementation()
+        let fields = implementation.settingsFields(context: fixture.settingsContext(provider: provider))
+        #expect(fields.map(\.id) == ["\(provider.rawValue)-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: provider)?.apiKey == "fixture-key")
+    }
+
+    @Test
+    func `llmman keeps its API key and daemon address in its own config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-llmman")
+        let fields = LLMManProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .llmman))
+        #expect(fields.map(\.id) == ["llmman-api-key", "llmman-base-url"])
+        #expect(fields.map(\.kind) == [.secure, .plain])
+        fields[0].binding.wrappedValue = "fixture-key"
+        fields[1].binding.wrappedValue = "192.168.1.10:17434"
+        #expect(fixture.settings.providerConfig(for: .llmman)?.apiKey == "fixture-key")
+        #expect(fixture.settings.providerConfig(for: .llmman)?.enterpriseHost == "192.168.1.10:17434")
+    }
+
     @Test
     func `Hyper preserves off manual and automatic cookie settings`() throws {
         let registration = HyperProviderDescriptor.descriptor.settingsSection

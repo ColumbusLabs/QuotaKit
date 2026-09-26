@@ -85,6 +85,9 @@ extension ProviderInstanceID {
     public static let raycast = UsageProvider.raycast.instanceID
     public static let helmcode = UsageProvider.helmcode.instanceID
     public static let typesafe = UsageProvider.typesafe.instanceID
+    public static let atlascloud = UsageProvider.atlascloud.instanceID
+    public static let vercel = UsageProvider.vercel.instanceID
+    public static let llmman = UsageProvider.llmman.instanceID
 }
 
 // swiftformat:enable sortDeclarations

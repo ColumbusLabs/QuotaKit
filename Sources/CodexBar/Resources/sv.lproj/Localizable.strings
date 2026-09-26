@@ -1031,6 +1031,9 @@
 "Requests" = "Förfrågningar";
 "Antigravity login timed out" = "Antigravity-inloggning tog för lång tid";
 "%@ requests" = "%@ förfrågningar";
+"Open llmman" = "Öppna llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Lagras i ~/.quotakit/config.json. Behövs bara när llmman serve kräver API-nycklar.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Adress till llmman serve. Standard är http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Öppna StepFun-plattformen";
 "CodexBar will ask macOS Keychain for your OpenCode cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din OpenCode-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Endpoint" = "Slutpunkt";
