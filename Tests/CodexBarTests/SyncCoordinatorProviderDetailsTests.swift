@@ -1,4 +1,4 @@
-import CodexBarCore
+@testable import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
@@ -64,7 +64,7 @@ struct SyncCoordinatorProviderDetailsTests {
         for provider in providers {
             settings.setProviderEnabled(
                 provider: provider,
-                metadata: #require(ProviderDefaults.metadata[provider]),
+                metadata: try #require(ProviderDefaults.metadata[provider]),
                 enabled: true)
             store._setSnapshotForTesting(
                 UsageSnapshot(

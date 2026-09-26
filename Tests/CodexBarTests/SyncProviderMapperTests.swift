@@ -2,7 +2,7 @@
 //
 // Scoped to this file: the native-usage fixtures pack several trailing
 // values per line so each model breakdown reads as one row. Re-enabled at EOF.
-import CodexBarCore
+@testable import CodexBarCore
 import CodexBarSync
 import Foundation
 import Testing
