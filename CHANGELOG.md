@@ -17,6 +17,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Fixed
+- Cursor: show current paid and unexpired trial Grok Bot allowances without treating trial expiry as a recurring reset.
 
 - Cursor costs: pause automatic menu and spend-dashboard retries for six hours after HTTP 403 while allowing explicit refresh and account-change recovery (#3910, #3918).
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).

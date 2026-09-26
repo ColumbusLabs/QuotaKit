@@ -113,11 +113,11 @@ When Cursor rejects a cost request with HTTP 403, ordinary menu and spend-dashbo
 ## Snapshot mapping
 - Primary/secondary: QuotaKit's explicit Cursor layout stores request, Auto, API, or plan-fallback lanes according to the `cursorRateWindowLayout` discriminator.
 - Tertiary: unused for current QuotaKit Cursor snapshots; older synced snapshots remain backward-compatible.
-- Extra: Grok Bot weekly included usage from `get-sand-usage-status` when the account has a non-zero Bot allowance.
+- Extra: Grok Bot usage from `get-sand-usage-status` when the account has a paid allowance or an unexpired trial. The current `includedLimitZero` field takes precedence over the older allowance flag. Exhausted active trials remain visible; missing, malformed, or expired trial dates do not grant an allowance.
 - Menu bar: when Grok Bot usage is known, its percentage can be pinned as a separate token in a custom Cursor layout;
   unknown or synthetic placeholder windows are not offered as tokens.
 - Provider cost: Extra usage USD. A capped individual budget wins; team accounts without a user cap use the shared team on-demand budget.
-- Reset: billing cycle end date for monthly bars; Grok Bot uses `nextResetTimestampUtc` (weekly).
+- Reset: billing cycle end date for monthly bars; paid Grok Bot uses `nextResetTimestampUtc`, even if a trial-expiry field is also present. Trial-only allowances have no recurring reset or duration because trial expiration does not replenish quota.
 
 ## Key files
 - `Sources/CodexBarCore/Providers/Cursor/CursorStatusProbe.swift`
