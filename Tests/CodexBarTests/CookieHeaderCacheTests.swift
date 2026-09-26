@@ -409,7 +409,7 @@ struct CookieHeaderCacheTests {
             {
             case .missing:
                 #expect(true)
-            case .found, .temporarilyUnavailable, .invalid:
+            case .found, .interactionRequired, .temporarilyUnavailable, .invalid:
                 #expect(Bool(false), "Expected temporary miss not to migrate legacy cache")
             }
         }
@@ -433,7 +433,7 @@ struct CookieHeaderCacheTests {
             switch KeychainCacheStore.load(key: key, as: CookieHeaderCache.Entry.self) {
             case .missing:
                 #expect(true)
-            case .found, .temporarilyUnavailable, .invalid:
+            case .found, .interactionRequired, .temporarilyUnavailable, .invalid:
                 #expect(Bool(false), "Expected invalid cookie cache to be cleared")
             }
         }

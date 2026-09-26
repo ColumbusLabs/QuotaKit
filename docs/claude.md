@@ -53,6 +53,8 @@ Admin API key setup:
   - `Only on user action` (default): interactive prompts are reserved for user-initiated repair flows.
   - `Always allow prompts`: allows interactive prompts in both user and background flows.
 - This setting only affects Claude OAuth Keychain prompting behavior; it does not switch your Claude usage source.
+- The experimental `/usr/bin/security` reader follows the stored policy: background reads that can prompt require
+  `Always allow prompts` and an explicitly permitted QuotaKit operation. `Never prompt` blocks this reader.
 - If Preferences → Advanced → Disable Keychain access is enabled, this policy remains visible but inactive until
   Keychain access is re-enabled.
 - An expired cached token is checked against the live Claude Keychain entry when no-prompt access is available;
@@ -68,6 +70,8 @@ Admin API key setup:
   - QuotaKit OAuth cache when available.
   - File fallback: `~/.claude/.credentials.json`.
   - Claude CLI Keychain bootstrap/repair fallback: `Claude Code-credentials`.
+- Fresh credentials from an allowed source can replace a QuotaKit-owned OAuth cache item whose ACL rejects the
+  current build. This uses no-UI Keychain operations and does not delete Claude Code's credential item.
 - On Claude Code 2.1.x, `Claude Code-credentials` may contain only MCP server OAuth state (`mcpOAuth`) with no `claudeAiOauth`. QuotaKit treats that as an OAuth configuration error, does not run background delegated `claude /status` refresh, and surfaces re-auth guidance. Use Web or CLI usage source, or restore a valid Claude OAuth keychain entry. See #1844.
 - Requires `user:profile` scope (CLI tokens with only `user:inference` cannot call usage).
 - Missing-scope recovery requires a Claude Code sign-in token with `user:profile` usage access. `claude setup-token`

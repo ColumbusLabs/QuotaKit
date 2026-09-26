@@ -107,7 +107,7 @@ struct ClaudeOAuthCredentialsStoreNeverPromptCacheTests {
                 return try ClaudeOAuthCredentials.parse(data: entry.data).accessToken
             case .missing:
                 return nil
-            case .invalid, .temporarilyUnavailable:
+            case .invalid, .interactionRequired, .temporarilyUnavailable:
                 Issue.record("Expected a valid or missing test cache entry")
                 return nil
             }

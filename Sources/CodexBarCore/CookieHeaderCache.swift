@@ -147,6 +147,7 @@ public enum CookieHeaderCache {
 
     private enum LoadOutcome {
         case authoritative(Entry?, loadedFromLegacy: Bool)
+        case interactionRequired
         case temporarilyUnavailable
     }
 
@@ -202,6 +203,8 @@ public enum CookieHeaderCache {
                 return committed
             case .temporarilyUnavailable:
                 return self.commitTemporaryDisplaySnapshotIfCurrent(key: key, generation: generation)
+            case .interactionRequired:
+                return self.commitBlockedDisplaySnapshotIfCurrent(key: key, generation: generation)
             }
         }
         if Date() >= cached.refreshAfter {
@@ -249,6 +252,8 @@ public enum CookieHeaderCache {
             }
         case .temporarilyUnavailable:
             self.deferDisplayRetryIfCurrent(key: key, generation: generation)
+        case .interactionRequired:
+            self.suspendDisplayRetryIfCurrent(key: key, generation: generation)
         }
         self.displayCacheLock.lock()
         self.displayRevalidationsInFlight.remove(key)
@@ -405,7 +410,7 @@ public enum CookieHeaderCache {
         switch self.loadOutcome(provider: provider, scope: scope, migrateLegacy: true) {
         case let .authoritative(entry, _):
             entry
-        case .temporarilyUnavailable:
+        case .interactionRequired, .temporarilyUnavailable:
             nil
         }
     }
@@ -420,7 +425,7 @@ public enum CookieHeaderCache {
                         return visible
                     }
                     return entry
-                case .temporarilyUnavailable:
+                case .interactionRequired, .temporarilyUnavailable:
                     if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
                         return visible
                     }
@@ -463,6 +468,12 @@ public enum CookieHeaderCache {
             }
             self.log.debug("Cookie cache temporarily unavailable", metadata: ["provider": provider.rawValue])
             return .temporarilyUnavailable
+        case .interactionRequired:
+            if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
+                return .authoritative(visible, loadedFromLegacy: false)
+            }
+            self.log.debug("Cookie cache requires interaction", metadata: ["provider": provider.rawValue])
+            return .interactionRequired
         case .invalid:
             if case let .visible(visible) = self.resolveRefreshRead(key: key, persisted: nil) {
                 return .authoritative(visible, loadedFromLegacy: false)
@@ -508,7 +519,7 @@ public enum CookieHeaderCache {
         case let .found(entry):
             _ = self.removeLegacyEntry(for: provider)
             return entry
-        case .temporarilyUnavailable:
+        case .interactionRequired, .temporarilyUnavailable:
             return nil
         case .invalid:
             KeychainCacheStore.clear(key: key)
@@ -840,7 +851,7 @@ public enum CookieHeaderCache {
         switch KeychainCacheStore.load(key: key, as: Entry.self) {
         case .found, .invalid:
             return true
-        case .missing, .temporarilyUnavailable:
+        case .interactionRequired, .missing, .temporarilyUnavailable:
             return false
         }
     }
@@ -939,6 +950,36 @@ public enum CookieHeaderCache {
 }
 
 extension CookieHeaderCache {
+    private static func commitBlockedDisplaySnapshotIfCurrent(
+        key: KeychainCacheStore.Key,
+        generation: UInt64) -> Entry?
+    {
+        self.displayCacheLock.lock()
+        defer { self.displayCacheLock.unlock() }
+        guard self.displayGenerations[key, default: 0] == generation else {
+            return self.displayCache[key]?.entry
+        }
+        if let current = self.displayCache[key] {
+            return current.entry
+        }
+        self.displayCache[key] = self.blockedDisplaySnapshot(key: key, entry: nil)
+        return nil
+    }
+
+    private static func suspendDisplayRetryIfCurrent(key: KeychainCacheStore.Key, generation: UInt64) {
+        self.displayCacheLock.lock()
+        defer { self.displayCacheLock.unlock() }
+        guard self.displayGenerations[key, default: 0] == generation,
+              let current = self.displayCache[key]
+        else { return }
+        self.displayCache[key] = self.blockedDisplaySnapshot(key: key, entry: current.entry)
+    }
+
+    private static func blockedDisplaySnapshot(key: KeychainCacheStore.Key, entry: Entry?) -> DisplaySnapshot {
+        // Use the cache owner's existing deadline; display reads must never extend the cooldown.
+        DisplaySnapshot(entry: entry, refreshAfter: KeychainCacheStore.interactionRequiredRetryDate(for: key) ?? Date())
+    }
+
     private static func currentEntryMatches(
         _ expected: Entry?,
         provider: UsageProvider,
@@ -956,7 +997,7 @@ extension CookieHeaderCache {
                 return self.entriesMatch(legacy, expected)
             }
             return expected == nil
-        case .invalid, .temporarilyUnavailable:
+        case .interactionRequired, .invalid, .temporarilyUnavailable:
             return false
         }
     }
@@ -1232,7 +1273,7 @@ extension CookieHeaderCache {
                             entry,
                             gateGeneration: gateGeneration,
                             coordinator: coordinator)
-                    case .temporarilyUnavailable:
+                    case .interactionRequired, .temporarilyUnavailable:
                         let legacyEntry = scope == nil ? self.loadLegacyEntry(for: provider) : nil
                         return .keychainTemporarilyUnavailable(
                             legacyEntry: legacyEntry,
@@ -1319,8 +1360,11 @@ extension CookieHeaderCache {
                     {
                         return .stored
                     }
-                    if case .temporarilyUnavailable = KeychainCacheStore.load(key: key, as: Entry.self) {
+                    switch KeychainCacheStore.load(key: key, as: Entry.self) {
+                    case .interactionRequired, .temporarilyUnavailable:
                         return .storageUnavailable
+                    case .found, .invalid, .missing:
+                        break
                     }
                     return .rejected
                 }
@@ -1350,7 +1394,7 @@ extension CookieHeaderCache {
                     return self.entriesMatch(legacy, entry) ? .matches : .changed
                 }
                 return entry == nil ? .matches : .changed
-            case .temporarilyUnavailable:
+            case .interactionRequired, .temporarilyUnavailable:
                 return .storageUnavailable
             case .invalid:
                 return .changed
@@ -1362,7 +1406,7 @@ extension CookieHeaderCache {
                 return self.optionalEntriesMatch(self.loadLegacyEntry(for: provider), expectedLegacyEntry)
                     ? .matches
                     : .changed
-            case .temporarilyUnavailable:
+            case .interactionRequired, .temporarilyUnavailable:
                 return .storageUnavailable
             case .found, .invalid:
                 return .changed
@@ -1383,7 +1427,7 @@ extension CookieHeaderCache {
         switch KeychainCacheStore.load(key: key, as: Entry.self) {
         case let .found(current):
             return current.authenticationFailurePolicy == .stopFallback
-        case .temporarilyUnavailable:
+        case .interactionRequired, .temporarilyUnavailable:
             return true
         case .missing:
             return scope == nil

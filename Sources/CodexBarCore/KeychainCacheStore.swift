@@ -22,6 +22,8 @@ public enum KeychainCacheStore {
     public enum LoadResult<Entry> {
         case found(Entry)
         case missing
+        /// The cache requires repair or is backing off after a failed no-UI write.
+        case interactionRequired
         case temporarilyUnavailable
         case invalid
     }
@@ -46,6 +48,8 @@ public enum KeychainCacheStore {
     @TaskLocal private static var forceRealKeychainPath = false
     #if DEBUG
     @TaskLocal private static var operationRecorder: OperationRecorder?
+    @TaskLocal static var taskInteractionRequiredNowOverride: Date?
+    @TaskLocal static var taskInteractionRequiredRetryIntervalOverride: TimeInterval?
 
     enum Operation: Equatable, Sendable {
         case load
@@ -83,6 +87,12 @@ public enum KeychainCacheStore {
     private nonisolated(unsafe) static var testStore: [TestStoreKey: Data]?
     private nonisolated(unsafe) static var implicitTestStore: [TestStoreKey: Data] = [:]
     private nonisolated(unsafe) static var testStoreRefCount = 0
+    // Repeated legacy ACL validation can accumulate Security.framework allocations. Share a cooldown
+    // across reads and failed replacements, while allowing fresh data to repair our own cache item.
+    private static let interactionRequiredCacheLock = NSLock()
+    private nonisolated(unsafe) static var interactionRequiredRetryDates:
+        [TestStoreKey: (retryDate: Date, repairAttempted: Bool)] = [:]
+    private static let interactionRequiredRetryInterval: TimeInterval = 5 * 60
 
     public static func load<Entry: Codable>(
         key: Key,
@@ -107,6 +117,7 @@ public enum KeychainCacheStore {
         }
         guard self.canUseRealKeychain else { return .missing }
         #if os(macOS)
+        guard self.interactionRequiredRetryDate(for: key) == nil else { return .interactionRequired }
         // Requesting secret bytes can surface a legacy ACL prompt even when the query carries
         // `kSecUseAuthenticationUIFail`. Probe attributes and the item reference first, then ask
         // for data only when the decrypt ACL already trusts this exact executable without UI.
@@ -118,20 +129,19 @@ public enum KeychainCacheStore {
             break
         case .interactionRequired:
             self.log.info("Keychain cache item is unavailable without interaction (\(key.account))")
+            self.cacheInteractionRequired(for: key)
+            return .interactionRequired
+        case .temporarilyUnavailable:
+            self.log.info("Keychain cache temporarily unavailable (\(key.account)), will retry on next access")
             return .temporarilyUnavailable
         case .notFound:
             return .missing
         case let .failure(status):
             return self.loadResultForKeychainReadFailure(status: OSStatus(status), key: key)
         }
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.serviceName,
-            kSecAttrAccount as String: key.account,
-            kSecMatchLimit as String: kSecMatchLimitOne,
-            kSecReturnData as String: true,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
+        var query = self.itemQuery(for: key)
+        query[kSecMatchLimit as String] = kSecMatchLimitOne
+        query[kSecReturnData as String] = true
 
         var result: AnyObject?
         let status = KeychainSecurity.copyMatching(query as CFDictionary, &result)
@@ -141,12 +151,11 @@ public enum KeychainCacheStore {
                 self.log.error("Keychain cache item was empty (\(key.account))")
                 return .invalid
             }
-            let decoder = Self.makeDecoder()
-            guard let decoded = try? decoder.decode(Entry.self, from: data) else {
+            let decoded = Self.decode(data, as: type)
+            if case .invalid = decoded {
                 self.log.error("Failed to decode keychain cache (\(key.account))")
-                return .invalid
             }
-            return .found(decoded)
+            return decoded
         default:
             return self.loadResultForKeychainReadFailure(status: status, key: key)
         }
@@ -187,26 +196,29 @@ public enum KeychainCacheStore {
             return false
         }
 
-        let preflight = KeychainAccessPreflight.checkGenericPassword(
-            service: self.serviceName,
-            account: key.account)
+        let query = self.itemQuery(for: key)
+        let preflight: KeychainAccessPreflight.Outcome = if self.interactionRequiredRetryDate(for: key) != nil {
+            .interactionRequired
+        } else {
+            KeychainAccessPreflight.checkGenericPassword(service: self.serviceName, account: key.account)
+        }
         switch preflight {
         case .allowed, .notFound:
             break
         case .interactionRequired:
-            self.log.info("Keychain cache store requires interaction (\(key.account)); skipping")
+            // Decrypt authorization is not required to delete our own stale cache. Never discard it on a read:
+            // replace only when fresh data is available, and bound retries if no-UI deletion is refused.
+            guard self.cacheInteractionRequired(for: key, attemptingRepair: true),
+                  self.clearResultForKeychainDeleteStatus(
+                      KeychainSecurity.delete(query as CFDictionary), key: key, preserveRepair: true) != .failed
+            else { return false }
+        case .temporarilyUnavailable:
+            self.log.info("Keychain cache store temporarily unavailable (\(key.account)); skipping")
             return false
         case let .failure(status):
             self.log.error("Keychain cache store preflight failed (\(key.account)): \(status)")
             return false
         }
-
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.serviceName,
-            kSecAttrAccount as String: key.account,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
 
         if case .allowed = preflight {
             let updateStatus = KeychainSecurity.update(
@@ -229,7 +241,7 @@ public enum KeychainCacheStore {
             addQuery[kSecAttrAccess as String] = access
         }
 
-        let addStatus = KeychainSecurity.add(addQuery as CFDictionary, nil)
+        var addStatus = KeychainSecurity.add(addQuery as CFDictionary, nil)
         if addStatus == errSecDuplicateItem {
             // Another first-party process may have inserted the same cache item after our missing preflight.
             // Revalidate its ACL before resolving the benign race with an update.
@@ -237,12 +249,15 @@ public enum KeychainCacheStore {
                 service: self.serviceName,
                 account: key.account)
             else { return false }
-            return KeychainSecurity.update(
+            addStatus = KeychainSecurity.update(
                 query as CFDictionary,
-                [kSecValueData as String: data] as CFDictionary) == errSecSuccess
+                [kSecValueData as String: data] as CFDictionary)
         }
         if addStatus != errSecSuccess {
-            self.log.error("Keychain cache add failed (\(key.account)): \(addStatus)")
+            self.cacheInteractionRequired(for: key, attemptingRepair: true)
+            self.log.error("Keychain cache write failed (\(key.account)): \(addStatus)")
+        } else {
+            self.invalidateCachedPreflight(for: key)
         }
         return addStatus == errSecSuccess
         #else
@@ -275,27 +290,9 @@ public enum KeychainCacheStore {
         }
         guard self.canUseRealKeychain else { return .failed }
         #if os(macOS)
-        switch KeychainAccessPreflight.checkGenericPassword(
-            service: self.serviceName,
-            account: key.account)
-        {
-        case .allowed:
-            break
-        case .notFound:
-            return .missing
-        case .interactionRequired:
-            self.log.info("Keychain cache delete requires interaction (\(key.account)); skipping")
-            return .failed
-        case let .failure(status):
-            self.log.error("Keychain cache delete preflight failed (\(key.account)): \(status)")
-            return .failed
-        }
-        var query: [String: Any] = [
-            kSecClass as String: kSecClassGenericPassword,
-            kSecAttrService as String: self.serviceName,
-            kSecAttrAccount as String: key.account,
-        ]
-        KeychainNoUIQuery.apply(to: &query)
+        if self.interactionRequiredRetryDate(for: key) != nil,
+           !self.cacheInteractionRequired(for: key, attemptingRepair: true) { return .failed }
+        let query = self.itemQuery(for: key)
         return self.clearResultForKeychainDeleteStatus(KeychainSecurity.delete(query as CFDictionary), key: key)
         #else
         return .failed
@@ -546,10 +543,7 @@ public enum KeychainCacheStore {
     /// True when the running executable has no `.app` bundle ancestor.
     static let isUnbundledProcess: Bool = {
         #if os(macOS)
-        if Self.appBundleURL(containing: Bundle.main.bundleURL) != nil {
-            return false
-        }
-        if let executableURL = Bundle.main.executableURL,
+        if let executableURL = Self.runningExecutableURLForCacheAccess,
            Self.appBundleURL(containing: executableURL) != nil
         {
             return false
@@ -620,6 +614,12 @@ public enum KeychainCacheStore {
     }
     #endif
 
+    private static func decode<Entry: Codable>(_ data: Data?, as type: Entry.Type) -> LoadResult<Entry> {
+        guard let data else { return .missing }
+        guard let decoded = try? self.makeDecoder().decode(type, from: data) else { return .invalid }
+        return .found(decoded)
+    }
+
     private static func makeEncoder() -> JSONEncoder {
         let encoder = JSONEncoder()
         encoder.dateEncodingStrategy = .iso8601
@@ -633,6 +633,16 @@ public enum KeychainCacheStore {
     }
 
     #if os(macOS)
+    private static func itemQuery(for key: Key) -> [String: Any] {
+        var query: [String: Any] = [
+            kSecClass as String: kSecClassGenericPassword,
+            kSecAttrService as String: self.serviceName,
+            kSecAttrAccount as String: key.account,
+        ]
+        KeychainNoUIQuery.apply(to: &query)
+        return query
+    }
+
     static func loadResultForKeychainReadFailure<Entry>(
         status: OSStatus,
         key: Key) -> LoadResult<Entry>
@@ -650,12 +660,13 @@ public enum KeychainCacheStore {
         }
     }
 
-    static func clearResultForKeychainDeleteStatus(_ status: OSStatus, key: Key) -> ClearResult {
+    static func clearResultForKeychainDeleteStatus(
+        _ status: OSStatus, key: Key, preserveRepair: Bool = false) -> ClearResult
+    {
         switch status {
-        case errSecSuccess:
-            return .removed
-        case errSecItemNotFound:
-            return .missing
+        case errSecSuccess, errSecItemNotFound:
+            self.invalidateCachedPreflight(for: key, preserveRepair: preserveRepair)
+            return status == errSecSuccess ? .removed : .missing
         case errSecInteractionNotAllowed:
             self.log.info("Keychain cache delete temporarily unavailable (\(key.account))")
             return .failed
@@ -766,12 +777,7 @@ public enum KeychainCacheStore {
             : self.testStore ?? (self.shouldUseImplicitTestStore ? self.implicitTestStore : nil)
         else { return nil }
         let testKey = TestStoreKey(service: self.serviceName, account: key.account)
-        guard let data = store[testKey] else { return .missing }
-        let decoder = Self.makeDecoder()
-        guard let decoded = try? decoder.decode(Entry.self, from: data) else {
-            return .invalid
-        }
-        return .found(decoded)
+        return Self.decode(store[testKey], as: type)
     }
 
     private static func storeInTestStore(key: Key, entry: some Codable) -> Bool? {
@@ -784,9 +790,8 @@ public enum KeychainCacheStore {
             self.implicitTestStore[testKey] = data
             return true
         }
-        if var store = self.testStore {
-            store[testKey] = data
-            self.testStore = store
+        if self.testStore != nil {
+            self.testStore?[testKey] = data
             return true
         }
         if self.shouldUseImplicitTestStore {
@@ -803,10 +808,8 @@ public enum KeychainCacheStore {
         if self.forceImplicitTestStore {
             return self.implicitTestStore.removeValue(forKey: testKey) != nil
         }
-        if var store = self.testStore {
-            let removed = store.removeValue(forKey: testKey) != nil
-            self.testStore = store
-            return removed
+        if self.testStore != nil {
+            return self.testStore?.removeValue(forKey: testKey) != nil
         }
         if self.shouldUseImplicitTestStore {
             return self.implicitTestStore.removeValue(forKey: testKey) != nil
@@ -834,12 +837,7 @@ public enum KeychainCacheStore {
         self.disabledAccessMemoryLock.lock()
         defer { self.disabledAccessMemoryLock.unlock() }
         let memoryKey = TestStoreKey(service: self.serviceName, account: key.account)
-        guard let data = self.disabledAccessMemoryStore[memoryKey] else { return .missing }
-        let decoder = Self.makeDecoder()
-        guard let decoded = try? decoder.decode(Entry.self, from: data) else {
-            return .invalid
-        }
-        return .found(decoded)
+        return Self.decode(self.disabledAccessMemoryStore[memoryKey], as: type)
     }
 
     private static func storeInDisabledAccessMemory(key: Key, entry: some Codable) -> Bool {
@@ -877,6 +875,61 @@ public enum KeychainCacheStore {
         let identifier = String(account.dropFirst(prefix.count))
         guard !identifier.isEmpty else { return nil }
         return Key(category: category, identifier: identifier)
+    }
+}
+
+extension KeychainCacheStore {
+    private static func invalidateCachedPreflight(for key: Key, preserveRepair: Bool = false) {
+        KeychainAccessPreflight.invalidateGenericPasswordChecks(service: self.serviceName)
+        guard !preserveRepair else { return }
+        self.interactionRequiredCacheLock.withLock {
+            _ = self.interactionRequiredRetryDates.removeValue(forKey: .init(
+                service: self.serviceName, account: key.account))
+        }
+    }
+
+    static func interactionRequiredRetryDate(for key: Key) -> Date? {
+        self.interactionRequiredCacheLock.withLock {
+            let cacheKey = TestStoreKey(service: self.serviceName, account: key.account)
+            guard let retryDate = self.interactionRequiredRetryDates[cacheKey]?.retryDate else { return nil }
+            guard self.interactionRequiredNow < retryDate else {
+                self.interactionRequiredRetryDates.removeValue(forKey: cacheKey)
+                return nil
+            }
+            return retryDate
+        }
+    }
+
+    @discardableResult
+    fileprivate static func cacheInteractionRequired(for key: Key, attemptingRepair: Bool = false) -> Bool {
+        self.interactionRequiredCacheLock.withLock {
+            let cacheKey = TestStoreKey(service: self.serviceName, account: key.account)
+            let deadline = self.interactionRequiredNow.addingTimeInterval(self.currentInteractionRequiredRetryInterval)
+            var state = self.interactionRequiredRetryDates[cacheKey] ?? (deadline, false)
+            if state.retryDate <= self.interactionRequiredNow { state = (deadline, false) }
+            guard !attemptingRepair || !state.repairAttempted else { return false }
+            state.repairAttempted = state.repairAttempted || attemptingRepair
+            self.interactionRequiredRetryDates[cacheKey] = state
+            return true
+        }
+    }
+
+    private static var interactionRequiredNow: Date {
+        #if DEBUG
+        if let override = self.taskInteractionRequiredNowOverride {
+            return override
+        }
+        #endif
+        return Date()
+    }
+
+    private static var currentInteractionRequiredRetryInterval: TimeInterval {
+        #if DEBUG
+        if let override = self.taskInteractionRequiredRetryIntervalOverride {
+            return override
+        }
+        #endif
+        return self.interactionRequiredRetryInterval
     }
 }
 
