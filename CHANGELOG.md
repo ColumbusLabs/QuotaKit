@@ -9,6 +9,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Mac preferences: export and import portable display and notification settings without accounts, credentials, or consent.
+- Provider switcher: customize local navigation and selection shortcuts.
+
 - Mac fleet sync: remove stale Macs and their usage snapshots from the iCloud Sync pane.
 
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
