@@ -345,38 +345,30 @@ enum DevinSessionImporter {
         override: String?) -> (organization: String?, internalOrganizationID: String?)?
     {
         let overrideSlug = override.flatMap(self.slug(fromNormalizedOrganization:))
-        var fallbackSlug: String?
-        var fallbackInternalOrgID: String?
-
-        for (key, value) in storage {
-            let object = self.jsonObject(from: value)
-            let internalOrgID = self.cleanedOrgID(self.firstString(
-                in: object,
-                matching: ["internalOrgId", "internal_org_id", "org_id", "orgId"]))
-                ?? self.internalOrgIDFromStorageKey(key)
-            let slug = self.cleanedSlug(
-                self.slugFromPostAuthKey(key) ??
-                    self.firstString(in: object, matching: ["orgName", "org_name", "externalOrgId", "external_org_id"]))
-
-            if let overrideSlug, slug == overrideSlug {
-                return (override, internalOrgID)
-            }
-
-            if fallbackSlug == nil, let slug {
-                fallbackSlug = slug
-            }
-            if fallbackInternalOrgID == nil, let internalOrgID {
-                fallbackInternalOrgID = internalOrgID
-            }
+        let candidates = storage.keys.sorted().flatMap { key in
+            self.organizationCandidates(
+                in: storage[key].flatMap(self.jsonObject(from:)),
+                keyContext: OrganizationCandidate(
+                    slug: self.cleanedSlug(self.slugFromPostAuthKey(key)),
+                    internalOrganizationID: self.internalOrgIDFromStorageKey(key)))
         }
 
+        if let overrideSlug {
+            let matching = candidates.filter { $0.slug == overrideSlug }
+            if let candidate = matching.first(where: { $0.internalOrganizationID != nil }) ?? matching.first {
+                return (override, candidate.internalOrganizationID)
+            }
+        }
         guard override == nil else { return nil }
 
-        if let fallbackSlug {
-            return ("org/\(fallbackSlug)", fallbackInternalOrgID)
+        let candidate = candidates.first { $0.slug != nil && $0.internalOrganizationID != nil }
+            ?? candidates.first { $0.slug != nil }
+            ?? candidates.first
+        if let slug = candidate?.slug {
+            return ("org/\(slug)", candidate?.internalOrganizationID)
         }
-        if let fallbackInternalOrgID {
-            return ("organizations/\(fallbackInternalOrgID)", fallbackInternalOrgID)
+        if let internalOrgID = candidate?.internalOrganizationID {
+            return ("organizations/\(internalOrgID)", internalOrgID)
         }
 
         return nil
@@ -420,27 +412,42 @@ enum DevinSessionImporter {
         return self.cleanedOrgID(String(key[range]))
     }
 
-    private static func firstString(in object: Any?, matching keys: Set<String>) -> String? {
-        if let dictionary = object as? [String: Any] {
-            for (key, value) in dictionary {
-                if keys.contains(key), let string = value as? String, !string.isEmpty {
-                    return string
-                }
-                if let found = self.firstString(in: value, matching: keys) {
-                    return found
-                }
-            }
+    private struct OrganizationCandidate {
+        let slug: String?
+        let internalOrganizationID: String?
+
+        var isEmpty: Bool {
+            self.slug == nil && self.internalOrganizationID == nil
+        }
+    }
+
+    private static func organizationCandidates(
+        in object: Any?,
+        keyContext: OrganizationCandidate? = nil) -> [OrganizationCandidate]
+    {
+        let dictionary = object as? [String: Any] ?? [:]
+        let slug = ["orgName", "org_name", "externalOrgId", "external_org_id"]
+            .compactMap { self.cleanedSlug(dictionary[$0] as? String) }.first
+        let internalOrgID = ["internalOrgId", "internal_org_id", "org_id", "orgId"]
+            .compactMap { self.cleanedOrgID(dictionary[$0] as? String) }.first
+        let conflictsWithKey =
+            (slug != nil && keyContext?.slug != nil && slug != keyContext?.slug) ||
+            (internalOrgID != nil && keyContext?.internalOrganizationID != nil &&
+                internalOrgID != keyContext?.internalOrganizationID)
+        let direct = OrganizationCandidate(
+            slug: slug ?? (conflictsWithKey ? nil : keyContext?.slug),
+            internalOrganizationID: internalOrgID ?? (conflictsWithKey ? nil : keyContext?.internalOrganizationID))
+        var candidates = direct.isEmpty ? [] : [direct]
+        if conflictsWithKey, let keyContext, !keyContext.isEmpty {
+            candidates.append(keyContext)
         }
 
-        if let array = object as? [Any] {
-            for value in array {
-                if let found = self.firstString(in: value, matching: keys) {
-                    return found
-                }
-            }
+        // Child objects have their own organization identity; never complete a pair across records.
+        let children = object as? [Any] ?? dictionary.keys.sorted().compactMap { dictionary[$0] }
+        for child in children {
+            candidates.append(contentsOf: self.organizationCandidates(in: child))
         }
-
-        return nil
+        return candidates
     }
 
     private static func slug(fromNormalizedOrganization organization: String) -> String? {

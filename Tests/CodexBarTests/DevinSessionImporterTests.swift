@@ -254,6 +254,66 @@ struct DevinSessionImporterTests {
         #expect(result.internalOrganizationID == "org_selected123")
     }
 
+    @Test(arguments: ["records", "siblings", "array", "key-and-child"], [false, true])
+    func `organization fields from unrelated records never form a pair`(_ shape: String, _ explicit: Bool) {
+        let storage: [String: String] = switch shape {
+        case "records":
+            [
+                "post-auth-v3-org_name-selected": "{}",
+                "feature-flags-cache:org_unrelated123": "{}",
+            ]
+        case "siblings":
+            ["member-info-v1": #"{"first":{"org_name":"selected"},"second":{"org_id":"org_unrelated123"}}"#]
+        case "array":
+            ["member-info-v1": #"[{"org_name":"selected"},{"org_id":"org_unrelated123"}]"#]
+        default:
+            ["post-auth-v3-org_name-selected": #"{"value":{"internalOrgId":"org_unrelated123"}}"#]
+        }
+
+        let result = DevinSessionImporter.organizationInfo(
+            from: storage,
+            organizationOverride: explicit ? "selected" : nil)
+
+        #expect(result.organization == "org/selected")
+        #expect(result.internalOrganizationID == nil)
+    }
+
+    @Test(arguments: [false, true])
+    func `complete matching metadata wins over an incomplete candidate`(_ explicit: Bool) {
+        let result = DevinSessionImporter.organizationInfo(
+            from: [
+                "a-post-auth-v3-org_name-selected": "{}",
+                "member-info-v1": #"{"value":{"org_name":"selected","org_id":"org_selected123"}}"#,
+                "feature-flags-cache:org_unrelated123": "{}",
+            ],
+            organizationOverride: explicit ? "selected" : nil)
+
+        #expect(result.organization == "org/selected")
+        #expect(result.internalOrganizationID == "org_selected123")
+    }
+
+    @Test
+    func `post auth key slug retains its direct organization ID`() {
+        let result = DevinSessionImporter.organizationInfo(
+            from: ["post-auth-v3-org_name-selected": #"{"internalOrgId":"org_selected123"}"#],
+            organizationOverride: nil)
+
+        #expect(result.organization == "org/selected")
+        #expect(result.internalOrganizationID == "org_selected123")
+    }
+
+    @Test(arguments: [false, true])
+    func `conflicting key and JSON organizations stay separate`(_ explicit: Bool) {
+        let result = DevinSessionImporter.organizationInfo(
+            from: [
+                "post-auth-v3-org_name-selected": #"{"orgName":"other","internalOrgId":"org_other12345"}"#,
+            ],
+            organizationOverride: explicit ? "selected" : nil)
+
+        #expect(result.organization == (explicit ? "org/selected" : "org/other"))
+        #expect(result.internalOrganizationID == (explicit ? nil : "org_other12345"))
+    }
+
     private struct StorageEntry {
         var origin = "https://app.devin.ai"
         let key: String
