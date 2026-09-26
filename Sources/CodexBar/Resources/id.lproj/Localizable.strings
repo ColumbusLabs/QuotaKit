@@ -1603,3 +1603,8 @@
 "Restore Defaults" = "Pulihkan Default";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Pilih baris penggunaan yang muncul di menu penyedia ini, pratinjau Pengaturan, dan Ringkasan.";
 "%@ (unavailable)" = "%@ (tidak tersedia)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Bagikan ringkasan penggunaan…";
+"Usage snapshot unavailable" = "Ringkasan penggunaan tidak tersedia";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit tidak dapat menyiapkan ringkasan penggunaan untuk dibagikan. Segarkan Penggunaan & pengeluaran, lalu coba lagi.";

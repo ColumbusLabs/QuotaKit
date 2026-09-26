@@ -1603,3 +1603,8 @@
 "Restore Defaults" = "Przywróć domyślne";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wybierz wiersze użycia wyświetlane w menu tego dostawcy, podglądzie ustawień i przeglądzie.";
 "%@ (unavailable)" = "%@ (niedostępne)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Udostępnij podsumowanie użycia…";
+"Usage snapshot unavailable" = "Podsumowanie użycia niedostępne";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit nie może przygotować podsumowania użycia do udostępnienia. Odśwież Zużycie i wydatki, a następnie spróbuj ponownie.";

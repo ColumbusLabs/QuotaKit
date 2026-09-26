@@ -1598,3 +1598,8 @@
 "Restore Defaults" = "Restaurar valores predeterminados";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Elige qué filas de uso aparecen en el menú de este proveedor, en la vista previa de Ajustes y en Resumen.";
 "%@ (unavailable)" = "%@ (no disponible)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Compartir instantánea de uso…";
+"Usage snapshot unavailable" = "Instantánea de uso no disponible";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit no pudo preparar una instantánea de uso para compartir. Actualiza Uso y gasto y vuelve a intentarlo.";

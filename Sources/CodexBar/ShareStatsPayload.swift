@@ -377,6 +377,41 @@ enum ShareStatsBuilder {
     }
 }
 
+@MainActor
+enum ShareStatsPayloadFactory {
+    static func make(model: SpendDashboardModel, store: UsageStore) -> ShareStatsPayload? {
+        ShareStatsBuilder.make(
+            model: model,
+            subscriptionNames: self.subscriptionNames(model: model, store: store))
+    }
+
+    private static func subscriptionNames(
+        model: SpendDashboardModel,
+        store: UsageStore) -> [String: ShareStatsSubscriptionName]
+    {
+        var names: [String: ShareStatsSubscriptionName] = [:]
+        for group in model.groups {
+            for row in group.providers {
+                let snapshots: [UsageSnapshot?] = if row.provider == .codex,
+                                                     row.id.hasPrefix("codex:")
+                {
+                    [
+                        store.codexAccountSnapshots.first {
+                            row.id == "codex:\($0.id)"
+                        }?.snapshot,
+                    ]
+                } else {
+                    [store.snapshot(for: row.provider.instanceID)]
+                }
+                if let name = ShareStatsSubscriptionName.first(from: snapshots, provider: row.provider) {
+                    names[row.id] = name
+                }
+            }
+        }
+        return names
+    }
+}
+
 enum ShareStatsFormatting {
     static func compactCount(_ value: Int) -> String {
         let magnitude = abs(Double(value))

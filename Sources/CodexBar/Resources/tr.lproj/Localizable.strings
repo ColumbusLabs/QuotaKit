@@ -1602,3 +1602,8 @@
 "Restore Defaults" = "Varsayılanları Geri Yükle";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
 "%@ (unavailable)" = "%@ (kullanılamıyor)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";

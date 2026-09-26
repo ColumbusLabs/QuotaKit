@@ -1601,3 +1601,8 @@
 "Restore Defaults" = "Khôi phục mặc định";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Chọn các hàng sử dụng xuất hiện trong menu của nhà cung cấp này, bản xem trước Cài đặt và Tổng quan.";
 "%@ (unavailable)" = "%@ (không khả dụng)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
+"Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";

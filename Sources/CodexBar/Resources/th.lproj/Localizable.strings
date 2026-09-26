@@ -1604,3 +1604,8 @@
 "Restore Defaults" = "คืนค่าเริ่มต้น";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "เลือกแถวการใช้งานที่จะแสดงในเมนูของผู้ให้บริการนี้ ตัวอย่างการตั้งค่า และภาพรวม";
 "%@ (unavailable)" = "%@ (ไม่พร้อมใช้งาน)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "แชร์ภาพรวมการใช้งาน…";
+"Usage snapshot unavailable" = "ภาพรวมการใช้งานไม่พร้อมใช้งาน";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit ไม่สามารถเตรียมภาพรวมการใช้งานสำหรับแชร์ได้ รีเฟรชการใช้งานและค่าใช้จ่ายแล้วลองอีกครั้ง";

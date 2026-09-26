@@ -1603,3 +1603,8 @@
 "Restore Defaults" = "Restore Defaults";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Choose which usage rows appear in this provider's menu, Settings preview, and Overview.";
 "%@ (unavailable)" = "%@ (unavailable)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Share Usage Snapshot…";
+"Usage snapshot unavailable" = "Usage snapshot unavailable";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again.";

@@ -1612,3 +1612,8 @@
 "Restore Defaults" = "恢复默认设置";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "选择要在此提供商的菜单、设置预览和概览中显示的用量行。";
 "%@ (unavailable)" = "%@（不可用）";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "分享用量概览…";
+"Usage snapshot unavailable" = "用量概览不可用";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit 无法准备可分享的用量概览。请刷新“用量和支出”后重试。";

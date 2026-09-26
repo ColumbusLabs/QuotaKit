@@ -1603,3 +1603,8 @@
 "Restore Defaults" = "Restaura els valors predeterminats";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Trieu quines files d'ús es mostren al menú d'aquest proveïdor, a la previsualització de Configuració i a la vista general.";
 "%@ (unavailable)" = "%@ (no disponible)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Comparteix la instantània d'ús…";
+"Usage snapshot unavailable" = "Instantània d'ús no disponible";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit no ha pogut preparar una instantània d'ús per compartir. Actualitza Ús i despesa i torna-ho a provar.";

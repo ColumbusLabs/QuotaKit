@@ -1599,3 +1599,8 @@
 "Restore Defaults" = "Standaardinstellingen herstellen";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Kies welke gebruiksrijen worden weergegeven in het menu van deze provider, het instellingenvoorbeeld en het overzicht.";
 "%@ (unavailable)" = "%@ (niet beschikbaar)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Gebruiksoverzicht delen…";
+"Usage snapshot unavailable" = "Gebruiksoverzicht niet beschikbaar";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kon geen deelbaar gebruiksoverzicht maken. Vernieuw Gebruik en uitgaven en probeer het opnieuw.";

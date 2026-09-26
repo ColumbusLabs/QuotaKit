@@ -1600,3 +1600,8 @@
 "Restore Defaults" = "Відновити типові значення";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Виберіть, які рядки використання відображатимуться в меню цього постачальника, попередньому перегляді налаштувань і огляді.";
 "%@ (unavailable)" = "%@ (недоступний)";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поділитися оглядом використання…";
+"Usage snapshot unavailable" = "Огляд використання недоступний";
+"QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit не вдалося підготувати огляд використання для поширення. Оновіть розділ «Використання й витрати» та повторіть спробу.";
