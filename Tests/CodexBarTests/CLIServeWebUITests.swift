@@ -147,12 +147,13 @@ struct CLIServeWebUITests {
     }
 
     @Test
-    func `web ui keeps healthy ambient summary when active swap account has no usage`() {
+    func `web ui keeps shared local spend inside account groups`() {
         let html = self.html
-        #expect(html.contains("const activeAccount = accounts.find(account => account.active === true)"))
-        #expect(html.contains("visibleWindows(activeAccount.windows).length > 0"))
-        #expect(html.contains("provider.cost || provider.credits || provider.status"))
-        #expect(html.contains("if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider)"))
+        #expect(html.contains("function appendCostSummary(card, provider"))
+        #expect(html.contains("appendCostSummary(summary, provider)"))
+        #expect(html.contains("${provider.name || provider.id} local spend"))
+        #expect(html.contains("Provider data: ${provider.error.message"))
+        #expect(!html.contains("if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider)"))
     }
 
     @Test

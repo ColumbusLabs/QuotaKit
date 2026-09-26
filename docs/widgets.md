@@ -18,6 +18,9 @@ read_when:
   requests without changing provider usage/status freshness or the user-selected provider refresh cadence.
 - Claude local cost/token history remains eligible for widget snapshots when its account does not expose numeric
   session or weekly quota data.
+- When claude-swap owns Claude's menu presentation, the provider widget uses the active swap account even if
+  per-account widgets are disabled. Retained quota stays bound to an opaque account fingerprint and keeps its original
+  measurement age; missing or changed owners cannot inherit ambient or another swap account's quota.
 - If no snapshot is available, widgets fall back to preview/empty data.
 
 ## Extension

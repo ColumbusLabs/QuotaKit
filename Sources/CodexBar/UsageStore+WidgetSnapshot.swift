@@ -179,7 +179,7 @@ extension UsageStore {
     {
         let enabledProviders = Set(self.enabledProviders())
         let expectedClaudeQuotaOwnerKey = snapshot.entries.contains { $0.provider == .claude }
-            ? self.expectedClaudeWidgetQuotaOwnerKey()
+            ? self.expectedClaudeWidgetQuotaOwnerKeyForCurrentPresentation()
             : nil
         let entries = snapshot.entries.compactMap { entry -> WidgetSnapshot.ProviderEntry? in
             guard enabledProviders.contains(entry.provider),
@@ -421,14 +421,23 @@ extension UsageStore {
         now: Date,
         previousEntry: WidgetSnapshot.ProviderEntry?) -> WidgetSnapshot.ProviderEntry?
     {
-        let claudeSwapAccount = provider == .claude
-            ? self.claudeSwapActiveAccountOverride(for: provider.instanceID)
+        // A stale ambient probe may belong to another account while the swap adapter owns Claude.
+        let swapOwnsClaude = provider == .claude && self.settings.claudeSwapEnabled &&
+            ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+                provider: provider,
+                accountCount: self.claudeSwapAccountSnapshots.count,
+                showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        let claudeSwapAccount = swapOwnsClaude
+            ? self.claudeSwapAccountSnapshots.first(where: \.isActive)
             : nil
-        let snapshot = claudeSwapAccount?.snapshot ?? self.snapshots[provider.instanceID]
+        let snapshot = swapOwnsClaude
+            ? claudeSwapAccount?.snapshot
+            : self.snapshots[provider.instanceID]
         let storedTokenSnapshot = self.tokenSnapshotForCurrentProviderConfig(for: provider)?.snapshot
-        let expectedClaudeQuotaOwnerKey: String? = if provider == .claude {
-            claudeSwapAccount.map(Self.claudeSwapWidgetQuotaOwnerKey)
-                ?? self.expectedClaudeWidgetQuotaOwnerKey()
+        let expectedClaudeQuotaOwnerKey: String? = if swapOwnsClaude {
+            claudeSwapAccount.flatMap(Self.claudeSwapWidgetQuotaOwnerKey)
+        } else if provider == .claude {
+            self.expectedClaudeWidgetQuotaOwnerKey()
         } else {
             nil
         }
@@ -488,8 +497,8 @@ extension UsageStore {
             nil
         }
         let quotaOwnerKey: String? = if provider == .claude {
-            if let claudeSwapAccount {
-                Self.claudeSwapWidgetQuotaOwnerKey(claudeSwapAccount)
+            if swapOwnsClaude {
+                snapshot != nil ? expectedClaudeQuotaOwnerKey : preservedClaudeUsage?.quotaOwnerKey
             } else {
                 snapshot != nil ? self.liveClaudeWidgetQuotaOwnerKey() : preservedClaudeUsage?.quotaOwnerKey
             }
@@ -522,9 +531,23 @@ extension UsageStore {
     }
 
     private nonisolated static func claudeSwapWidgetQuotaOwnerKey(
-        _ account: ProviderAccountUsageSnapshot) -> String
+        _ account: ProviderAccountUsageSnapshot) -> String?
     {
-        "\(account.id.source):\(account.id.opaqueID)"
+        ClaudeSwapRetainedUsageStore.ownershipFingerprint(for: account)
+            .map { "claude/swap:\(account.id.opaqueID):\($0)" }
+    }
+
+    private func expectedClaudeWidgetQuotaOwnerKeyForCurrentPresentation() -> String? {
+        if self.settings.claudeSwapEnabled,
+           ClaudeSwapMenuPrecedence.prefersClaudeSwap(
+               provider: .claude,
+               accountCount: self.claudeSwapAccountSnapshots.count,
+               showSingleAccount: self.settings.claudeSwapShowSingleAccount)
+        {
+            return self.claudeSwapAccountSnapshots.first(where: \.isActive)
+                .flatMap(Self.claudeSwapWidgetQuotaOwnerKey)
+        }
+        return self.expectedClaudeWidgetQuotaOwnerKey()
     }
 
     private func expectedClaudeWidgetQuotaOwnerKey() -> String? {

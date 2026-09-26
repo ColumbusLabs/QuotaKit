@@ -143,8 +143,11 @@ Example:
 - Web dashboard fills credits only when OAuth/CLI do not provide them.
 - CLI RPC: `account/rateLimits/read` → credits balance.
 - CLI PTY diagnostics can still parse `Credits:` from saved/manual `/status` output.
+- When a balance has no reported monthly cap, the menu chooses the next power-of-ten token scale for its bar and label.
+  Reported caps keep their own scale.
 
 ## Cost usage (local log scan)
+- A queued refresh does not restart a cost-history worker after it exits paused. A later explicit refresh can retry.
 - Menu source selection:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
   - **Local session cost estimates** is a Codex-only opt-in that instead scans this Mac's ambient `$CODEX_HOME`

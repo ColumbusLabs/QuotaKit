@@ -1016,11 +1016,14 @@ extension CLIServeWebUI {
             const unit = provider.credits.unit ? ` ${provider.credits.unit}` : "";
             metrics.append(metric("Remaining", `${amount(provider.credits.remaining)}${unit}`));
           }
-          if (provider.cost?.todayUSD !== null && provider.cost?.todayUSD !== undefined) {
-            metrics.append(metric("Today", dollars(provider.cost.todayUSD)));
-          }
-          if (provider.cost?.last30DaysUSD !== null && provider.cost?.last30DaysUSD !== undefined) {
-            metrics.append(metric("Last 30 days", dollars(provider.cost.last30DaysUSD)));
+          appendCostSummary(card, provider, metrics);
+          return card;
+        }
+
+        function appendCostSummary(card, provider, metrics = node("div", "metrics")) {
+          for (const [label, key] of [["Today", "todayUSD"], ["Last 30 days", "last30DaysUSD"]]) {
+            const value = provider.cost?.[key];
+            if (value !== null && value !== undefined) metrics.append(metric(label, dollars(value)));
           }
           if (metrics.childElementCount) card.append(metrics);
 
@@ -1029,7 +1032,6 @@ extension CLIServeWebUI {
             const chart = renderCostChart(history);
             if (chart) card.append(chart);
           }
-          return card;
         }
 
         function updateFreshness() {
@@ -1077,14 +1079,16 @@ extension CLIServeWebUI {
               group.append(node("h2", "group-title", `${provider.name || provider.id} accounts`));
               const grid = node("div", "grid");
               for (const account of accounts) grid.append(renderAccountCard(provider, account));
-              if (provider.accountsError) grid.append(node("p", "error-message", provider.accountsError));
+              const summary = node("article", "card");
+              summary.style.setProperty("--accent", accentColor(provider.display?.accentColor));
+              summary.append(node("h3", "provider-name", `${provider.name || provider.id} local spend`));
+              appendCostSummary(summary, provider);
+              if (summary.childElementCount > 1) grid.append(summary);
               group.append(grid);
+              if (provider.error) group.append(node("p", "error-message",
+                `Provider data: ${provider.error.message || "Provider data is unavailable."}`));
+              if (provider.accountsError) group.append(node("p", "error-message", provider.accountsError));
               sections.push(group);
-              const activeAccount = accounts.find(account => account.active === true);
-              const activeHasUsableWindows = activeAccount && visibleWindows(activeAccount.windows).length > 0;
-              const hasAmbientSummary = visibleWindows(provider.windows).length > 0 ||
-                provider.cost || provider.credits || provider.status;
-              if (!activeHasUsableWindows && hasAmbientSummary) rest.push(provider);
             } else {
               rest.push(provider);
             }
