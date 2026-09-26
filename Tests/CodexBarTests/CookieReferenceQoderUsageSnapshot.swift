@@ -1,4 +1,5 @@
 import Foundation
+@testable import CodexBarCore
 
 public struct QoderUsageSnapshot: Sendable {
     public let usedCredits: Double

@@ -11,14 +11,48 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
 
+- Provider plugins: bounded persistent storage and Sakana billing plugin.
+
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
 ### Improved
 
+- Manus and T3 Chat: retrieve browser usage through bundled plugins.
+
+- Provider plugins: use typed result mapping for OpenAI and Fireworks billing.
+
+- Provider plugins: retain unknown quota usage and numeric detail progress.
+
+- Provider plugins: update the pinned QuickJS-NG runtime to 0.17.0.
+
+- ZenMux: retrieve plan usage through the bundled provider plugin.
+
+- DeepInfra: use the bundled billing plugin for API key balances.
+
+- ai&: retrieve request log spending through the bundled provider plugin.
+
+- Chutes: move quota retrieval to the bundled provider plugin.
+
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
 
 ### Fixed
+
+- Provider plugins: reconcile typed results with browser session iteration.
+
+- Provider plugins: preserve regional cookie candidates and retry rejected sessions.
+
+- Provider plugins: start HTTP attempt deadlines when transport begins.
+
+- Provider plugins: match native currency display formatting.
+
+- Provider plugins: preserve transport failures and cancellation across both script engines.
+
+- Provider plugins: expose cookie availability without credential reads and block API-only cookie access.
+
+- Provider plugins: isolate cached browser sessions by cookie domain.
+
+- MiniMax: discover browser storage across the shared Chromium catalog.
 
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.

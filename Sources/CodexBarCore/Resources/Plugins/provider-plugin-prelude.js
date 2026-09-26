@@ -1,12 +1,22 @@
+// oxlint-disable-next-line no-unused-expressions -- IIFE evaluated by the plugin engine for its side effects
 (function applyProviderPluginPrelude(ctx, host) {
   "use strict";
 
+  const httpRejection = (reject) => (failure) => reject(Object.assign(new Error(failure.message), failure));
+  const get = (url, opts, wantsJSON) =>
+    new Promise((resolve, reject) =>
+      host.http(String(url), opts || {}, "GET", wantsJSON, resolve, httpRejection(reject)),
+    );
+
   ctx.http = Object.freeze({
     getJSON(url, opts) {
-      return new Promise((resolve, reject) => host.http(String(url), opts || {}, "GET", true, resolve, reject));
+      return get(url, opts, true);
     },
     get(url, opts) {
-      return new Promise((resolve, reject) => host.http(String(url), opts || {}, "GET", false, resolve, reject));
+      return get(url, opts, false);
+    },
+    getWithOptional(url, optionalURL, opts) {
+      return get(url, { ...opts, optionalURL: String(optionalURL) }, false);
     },
     post(url, opts) {
       return jsonPost(url, opts, false);
@@ -32,10 +42,13 @@
     const hostOptions = { bodyJSON };
     if (opts.headers !== undefined) hostOptions.headers = opts.headers;
     if (opts.timeoutSeconds !== undefined) hostOptions.timeoutSeconds = opts.timeoutSeconds;
+    if (opts.retryPolicy !== undefined) hostOptions.retryPolicy = opts.retryPolicy;
     if (opts.openRouterManagementAuth !== undefined) {
       hostOptions.openRouterManagementAuth = opts.openRouterManagementAuth;
     }
-    return new Promise((resolve, reject) => host.http(String(url), hostOptions, "POST", wantsJSON, resolve, reject));
+    return new Promise((resolve, reject) =>
+      host.http(String(url), hostOptions, "POST", wantsJSON, resolve, httpRejection(reject)),
+    );
   }
 
   ctx.settings = Object.freeze({
@@ -44,6 +57,18 @@
     },
     getSecret(key) {
       return host.settingGet(String(key), true);
+    },
+  });
+
+  ctx.storage = Object.freeze({
+    get(key) {
+      return host.storage("get", key, undefined);
+    },
+    set(key, value) {
+      host.storage("set", key, value);
+    },
+    remove(key) {
+      host.storage("remove", key, undefined);
     },
   });
 
@@ -63,7 +88,7 @@
     failureKinds.networkFailure,
     failureKinds.apiFailure,
   ]);
-  const classifiedFailure = kind => (message, options) => {
+  const classifiedFailure = (kind) => (message, options) => {
     let retryAfter = "";
     if (options !== undefined) {
       if (!retryableFailureKinds.has(kind)) {
@@ -78,17 +103,31 @@
       }
       retryAfter = String(seconds);
     }
-    return new Error("__CODEXBAR_FAILURE_V2__:" + kind + ":" + retryAfter + ":" + String(message));
+    return new Error(`__CODEXBAR_FAILURE_V2__:${kind}:${retryAfter}:${String(message)}`);
   };
-  ctx.fail = Object.freeze(Object.fromEntries(
-    Object.entries(failureKinds).map(([name, kind]) => [name, classifiedFailure(kind)])));
+  ctx.fail = Object.freeze(
+    Object.fromEntries(Object.entries(failureKinds).map(([name, kind]) => [name, classifiedFailure(kind)])),
+  );
 
   ctx.browser = Object.freeze({
-    cookieHeader(domain) {
-      return new Promise((resolve, reject) => host.cookieHeader(String(domain), resolve, reject));
+    availability(domain) {
+      return host.cookieAvailability(String(domain));
     },
-    rejectCookie(domain) {
-      host.rejectCookie(String(domain));
+    rejectCookie(domain, session) {
+      host.rejectCookie(String(domain), session === undefined ? "" : String(session.id));
+    },
+    async *sessions(domain, options) {
+      while (true) {
+        const payload = await new Promise((resolve, reject) =>
+          host.cookieSession(String(domain), Boolean(options && options.cachedOnly), resolve, reject),
+        );
+        const session = JSON.parse(payload);
+        if (session === null) return;
+        yield Object.freeze(session);
+      }
+    },
+    cookieHeader(domain) {
+      return new Promise((resolve, reject) => host.cookieHeader(String(domain), false, resolve, reject));
     },
   });
 
@@ -111,10 +150,19 @@
     },
   });
 
-  ctx.log = (...args) => host.log(args.map(value => {
-    if (typeof value === "string") return value;
-    try { return JSON.stringify(value); } catch (_) { return String(value); }
-  }).join(" "));
+  ctx.log = (...args) =>
+    host.log(
+      args
+        .map((value) => {
+          if (typeof value === "string") return value;
+          try {
+            return JSON.stringify(value);
+          } catch {
+            return String(value);
+          }
+        })
+        .join(" "),
+    );
 
   ctx.cache = Object.freeze({
     get(key) {
@@ -145,7 +193,9 @@
     currency(value, currencyCode) {
       return host.formatCurrency(Number(value), String(currencyCode));
     },
-    number(value, options) { return formatNumber(value, options); },
+    number(value, options) {
+      return formatNumber(value, options);
+    },
     usd(value) {
       const numeric = Number(value);
       const sign = numeric < 0 ? "-$" : "$";
@@ -188,14 +238,24 @@
     return decodeURIComponent(escaped);
   }
 
-  const nowMillis = Number(ctx.__quotaKitNowMillis);
-  delete ctx.__quotaKitNowMillis;
+  const nowMillis = Number(ctx.__codexbarNowMillis);
+  delete ctx.__codexbarNowMillis;
   ctx.date = Object.freeze({
-    now() { return parseDate(nowMillis); },
-    nowMillis() { return nowMillis; },
-    iso(value) { return parseDate(String(value)); },
-    unixSeconds(value) { return parseDate(Number(value) * 1000); },
-    unixMillis(value) { return parseDate(Number(value)); },
+    now() {
+      return parseDate(nowMillis);
+    },
+    nowMillis() {
+      return nowMillis;
+    },
+    iso(value) {
+      return parseDate(String(value));
+    },
+    unixSeconds(value) {
+      return parseDate(Number(value) * 1000);
+    },
+    unixMillis(value) {
+      return parseDate(Number(value));
+    },
     nextDailyReset(timeZone, hour) {
       const resetHour = Number(hour);
       if (!Number.isInteger(resetHour) || resetHour < 0 || resetHour > 23) {
@@ -215,6 +275,7 @@
 
   ctx.pct = (used, limit) => host.pct(Number(used), Number(limit));
   ctx.amountFromPercent = (percent, limit) => host.amountFromPercent(Number(percent), Number(limit));
+  ctx.isDetailLabel = (value) => typeof value === "string" && host.isDetailLabel(value);
 
   return ctx;
-})
+});

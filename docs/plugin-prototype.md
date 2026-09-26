@@ -103,7 +103,7 @@ built-ins, but no browser or Node host environment. Tests assert that `fetch`, `
   JSON-serializable. The serialized body is passed directly to the broker and is never logged.
 - `await ctx.http.post(url, {body, headers?})` sends the same JSON POST and returns `{status, headers, bodyText}`.
   Use it to classify HTTP failures before parsing a response that may contain a non-JSON error page.
-- `opts.headers` may contain string header values. `opts.timeoutSeconds` sets a hard deadline from 1 through 30 seconds
+- `opts.headers` may contain string header values. `opts.timeoutSeconds` sets a hard deadline from 1 through 90 seconds
   (default 15), responses are capped at 5 MiB, and transport uses `ProviderHTTPClient`, including its same-origin HTTPS
   redirect policy.
 - `ctx.settings.get(key)` reads only a declared `plain` setting; `ctx.settings.getSecret(key)` reads only a declared
@@ -188,10 +188,28 @@ runtime needs a public interrupt API or a killable helper-process boundary befor
 The same watchdog is production-default for first-party cut-over providers. It is part of the shared runtime, not the
 prototype flag, so cut-over providers retain timeout and fresh-context recovery without `CODEXBAR_JS_PROVIDERS`.
 
+## Fetch result envelope
+
+`fetchUsage` may return a bare snapshot or `{ usage, sourceLabel?, card?, persist? }`. The two forms cannot be mixed;
+unknown result and top-level snapshot keys fail validation. Both engines apply the same mapper before any settings write.
+`sourceLabel` replaces the strategy's default label for that fetch and must contain 1–256 UTF-8 bytes without control
+characters. `persist` is an object with at most 16 string values of 1–256 bytes; the descriptor must explicitly allow
+every key. Null, arrays, wrong types, unknown keys, and cross-provider requests fail the entire result.
+
+Card payloads are descriptor-owned, never arbitrary Swift decoding. OpenAI's `card.openAIAPIUsage` adapter accepts daily
+cost, token, request, model, and line-item history for the existing native chart. It rejects unknown fields, bounds the
+history to 366 buckets and 10,000 breakdown entries, and validates finite numbers, safe integer counts, names, and dates.
+No other provider or user-installed plugin receives that adapter by declaring a card field.
+
+Fireworks alone allows `persist: { ACCOUNT_SLUG: "discovered-slug" }`. The app/CLI writer rechecks ownership, applies the
+provider's allowlist, and returns saved, unchanged, stale, or failed. Successful usage survives a stale or failed save
+with a diagnostic. The runtime itself never writes config; a missing writer also reports a failed save. There is no
+secret-write capability or arbitrary config-field access.
+
 ## Current limitations
 
 The remaining bundled-conversion flag is macOS-only and compiled out when JavaScriptCore is unavailable. It supports bundled
-first-party IDs and the generic snapshot and declarative details only: no provider-specific Swift payloads,
+first-party IDs, generic snapshots and declarative details, and descriptor-allowlisted result adapters. It has no
 OAuth/refresh broker, local files or databases, subprocesses,
 arbitrary/form POST bodies, PTY, WebView, binary/protobuf responses, private-network HTTP, or unvalidated dynamic
 origins. The separate user-plugin path adds local `.js`/`.ts` discovery, approval, and settings without changing these
@@ -202,5 +220,6 @@ first-party flag semantics. Browser cookies remain restricted to declared domain
 
 Display-only provider payloads now use `details` on both the Swift and JavaScript paths. The remaining bespoke
 `UsageSnapshot` fields drive behavior rather than presentation: Codex reset-credit actions, Command Code refresh
-stabilization, DeepSeek profile selection/transition state, and provider-derived token-cost pipelines for OpenAI API,
-Mistral, and OpenCode Go. They are not plugin compatibility shims.
+stabilization, DeepSeek profile selection/transition state, and provider-derived token-cost pipelines for Mistral and
+OpenCode Go. They are not plugin compatibility shims. OpenAI API history now comes from its bundled plugin through the
+typed card adapter.

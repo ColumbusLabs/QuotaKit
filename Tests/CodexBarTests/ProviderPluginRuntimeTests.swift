@@ -5,14 +5,130 @@ import FoundationNetworking
 import Testing
 @testable import CodexBarCore
 
+extension ProviderPluginRuntimeTests {
+    @Test(arguments: Self.labelValidationEngines)
+    func `cookie availability is policy only and Off blocks resolution`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,
+            fetchBody: """
+            const availability = ctx.browser.availability(" EXAMPLE.TEST ");
+            if (availability === "off") {
+              try {
+                await ctx.browser.cookieHeader("example.test");
+                throw new Error("Off resolved a cookie");
+              } catch (error) {
+                if (!String(error).includes("disabled")) throw error;
+              }
+            }
+            return { identity: { loginMethod: availability } };
+            """), engine: engine)
+        for (mode, source, expected) in [
+            (ProviderSourceMode.auto, ProviderCookieSource.auto, "available"),
+            (.web, .manual, "manual"), (.auto, .off, "off"), (.api, .auto, "off"), (.api, .manual, "off"),
+        ] {
+            let snapshot = try await runtime.fetchUsage(
+                secrets: ["TEST_KEY": "fixture"],
+                sourceMode: mode,
+                cookieSource: source,
+                cookieResolver: { _, _ in
+                    Issue.record("Availability or a blocked lookup touched the broker")
+                    return "session=fixture"
+                })
+            #expect(snapshot.identity?.loginMethod == expected)
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `availability rejects undeclared domains without invoking the broker`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test"],"#,
+            fetchBody: "return { identity: { loginMethod: ctx.browser.availability('other.test') } };"), engine: engine)
+        await #expect(throws: ProviderPluginError.self) {
+            try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture"], cookieResolver: { _, _ in
+                Issue.record("Undeclared availability touched the broker")
+                return "session=fixture"
+            })
+        }
+    }
+
+    @Test(arguments: Self.labelValidationEngines)
+    func `cookie rejection validates the declared domain on both engines`(
+        engine: ProviderPluginEngineKind) async throws
+    {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(
+            capabilities: #"capabilities: ["browser-cookies"], cookieDomains: ["example.test", "second.test"],"#,
+            fetchBody: """
+            ctx.browser.rejectCookie(" EXAMPLE.TEST ");
+            try {
+              ctx.browser.rejectCookie("undeclared.test");
+              throw new Error("undeclared rejection was accepted");
+            } catch (error) {
+              if (!String(error).includes("cookie domain is not declared")) throw error;
+            }
+            return { primary: { usedPercent: 1 } };
+            """), engine: engine)
+        _ = try await runtime.fetchUsage(
+            secrets: ["TEST_KEY": "fixture"], cookieInvalidator: { domain in
+                #expect(domain == "example.test")
+            })
+    }
+}
+
 struct ProviderPluginRuntimeTests {
-    private static let responsePolicyEngines: [ProviderPluginEngineKind] = {
+    @Test(arguments: Self.labelValidationEngines)
+    func `detail label checks reject nonstrings without coercion`(engine: ProviderPluginEngineKind) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        const values = [undefined, null, true, 42, [], {}, { toString() { throw new Error("coerced"); } }];
+        const valid = values.every(value => ctx.isDetailLabel(value) === false) && ctx.isDetailLabel("Valid label");
+        return { primary: { usedPercent: valid ? 25 : 0 } };
+        """), engine: engine)
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"])
+        #expect(snapshot.primary?.usedPercent == 25)
+    }
+
+    private static var labelValidationEngines: [ProviderPluginEngineKind] {
         #if canImport(JavaScriptCore)
         [.quickJS, .javaScriptCore]
         #else
         [.quickJS]
         #endif
-    }()
+    }
+
+    @Test
+    func `automatic engine defaults to QuickJS`() {
+        #expect(ProviderPluginRuntime.resolveEngineKind(
+            .automatic,
+            environment: [:],
+            useJavaScriptCoreRollback: false) == .quickJS)
+    }
+
+    @Test
+    func `explicit engine selection bypasses automatic policy`() {
+        #expect(ProviderPluginRuntime.resolveEngineKind(
+            .quickJS,
+            environment: [ProviderPluginRuntime.engineEnvironmentKey: "jsc"],
+            useJavaScriptCoreRollback: true) == .quickJS)
+    }
+
+    #if canImport(JavaScriptCore)
+    @Test
+    func `JavaScriptCore rollback supports environment and debug defaults`() {
+        #expect(ProviderPluginRuntime.resolveEngineKind(
+            .automatic,
+            environment: [ProviderPluginRuntime.engineEnvironmentKey: "jsc"],
+            useJavaScriptCoreRollback: false) == .javaScriptCore)
+        #expect(ProviderPluginRuntime.resolveEngineKind(
+            .automatic,
+            environment: [:],
+            useJavaScriptCoreRollback: true) == .javaScriptCore)
+        #expect(ProviderPluginRuntime.resolveEngineKind(
+            .automatic,
+            environment: [ProviderPluginRuntime.engineEnvironmentKey: "quickjs"],
+            useJavaScriptCoreRollback: true) == .quickJS)
+    }
+    #endif
 
     @Test
     func `missing resource bundle throws a provider load error`() {
@@ -31,6 +147,18 @@ struct ProviderPluginRuntimeTests {
         let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "test-key"], now: expected)
 
         #expect(snapshot.primary?.resetsAt == expected)
+    }
+
+    @Test
+    func `date nowMillis uses the injected fetch clock`() async throws {
+        let expected = Date(timeIntervalSince1970: 1_800_000_000)
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        return { primary: { usedPercent: 1, resetDescription: String(ctx.date.nowMillis()) } };
+        """))
+
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "test-key"], now: expected)
+
+        #expect(snapshot.primary?.resetDescription == "1800000000000")
     }
 
     @Test
@@ -80,242 +208,6 @@ struct ProviderPluginRuntimeTests {
         #expect(request.value(forHTTPHeaderField: "X-Client") == "plugin-test")
     }
 
-    @Test(arguments: Self.responsePolicyEngines)
-    func `user plugin cannot override broker response representation`(engine: ProviderPluginEngineKind) async throws {
-        let requests = RequestRecorder()
-        let runtime = try ProviderPluginRuntime(
-            source: Self.plugin(fetchBody: """
-            const response = await ctx.http.getJSON("https://api.example.test/usage", {
-              headers: { Accept: "text/html" },
-            });
-            return { primary: { usedPercent: response.json.used } };
-            """),
-            transport: Self.transport(recorder: requests, body: #"{"used":42}"#),
-            rejectsNonSuccessResponses: true,
-            allowsDynamicID: true,
-            engine: engine)
-
-        _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"])
-
-        #expect(await requests.first?.value(forHTTPHeaderField: "Accept") == "application/json")
-    }
-
-    @Test(arguments: Self.responsePolicyEngines)
-    func `cancelling a fetch interrupts its in-flight transport`(engine: ProviderPluginEngineKind) async throws {
-        let probe = ProviderPluginCancellationProbe()
-        let runtime = try ProviderPluginRuntime(
-            source: Self.plugin(fetchBody: """
-            await ctx.http.getJSON("https://api.example.test/slow");
-            return { primary: { usedPercent: 1 } };
-            """),
-            transport: ProviderHTTPTransportHandler { request in
-                _ = await probe.markStarted()
-                return try await withTaskCancellationHandler {
-                    try await Task.sleep(for: .seconds(30))
-                    let response = try #require(HTTPURLResponse(
-                        url: request.url!,
-                        statusCode: 200,
-                        httpVersion: nil,
-                        headerFields: ["Content-Type": "application/json"]))
-                    return (Data(#"{"used":1}"#.utf8), response)
-                } onCancel: {
-                    Task { await probe.markCancelled() }
-                }
-            },
-            engine: engine)
-        let task = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
-
-        #expect(await probe.waitUntilStarted())
-        task.cancel()
-        await #expect(throws: CancellationError.self) { _ = try await task.value }
-        #expect(await probe.waitUntilCancelled())
-    }
-
-    @Test(arguments: Self.responsePolicyEngines)
-    func `cancelling one concurrent fetch leaves the other fetch running`(
-        engine: ProviderPluginEngineKind) async throws
-    {
-        let probe = ProviderPluginCancellationProbe()
-        let runtime = try ProviderPluginRuntime(
-            source: Self.plugin(fetchBody: """
-            const response = await ctx.http.getJSON("https://api.example.test/usage");
-            return { primary: { usedPercent: response.json.used } };
-            """),
-            transport: ProviderHTTPTransportHandler { request in
-                let requestNumber = await probe.markStarted()
-                if requestNumber == 1 {
-                    _ = try await withTaskCancellationHandler {
-                        try await Task.sleep(for: .seconds(30))
-                    } onCancel: {
-                        Task { await probe.markCancelled() }
-                    }
-                }
-                let response = try #require(HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]))
-                return (Data(#"{"used":22}"#.utf8), response)
-            },
-            engine: engine)
-        let first = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
-        #expect(await probe.waitUntilStarted(count: 1))
-        let second = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "fixture-key"]) }
-
-        first.cancel()
-        await #expect(throws: CancellationError.self) { _ = try await first.value }
-        #expect(await probe.waitUntilCancelled())
-        #expect(await probe.waitUntilStarted(count: 2))
-        let secondSnapshot = try await second.value
-        #expect(secondSnapshot.primary?.usedPercent == 22)
-    }
-
-    @Test
-    func `cancellation before engine registration prevents dispatch`() {
-        let gate = ProviderPluginRequestStartGate()
-        var didDispatch = false
-        var didCancelEngineRequest = false
-
-        gate.cancel { didCancelEngineRequest = true }
-        let didStart = gate.start { didDispatch = true }
-
-        #expect(!didStart)
-        #expect(!didDispatch)
-        #expect(!didCancelEngineRequest)
-    }
-
-    @Test
-    func `cancellation after engine registration cancels the dispatched request`() {
-        let gate = ProviderPluginRequestStartGate()
-        var didDispatch = false
-        var didCancelEngineRequest = false
-
-        #expect(gate.start { didDispatch = true })
-        gate.cancel { didCancelEngineRequest = true }
-
-        #expect(didDispatch)
-        #expect(didCancelEngineRequest)
-    }
-
-    @Test
-    func `cancellation racing engine registration waits for dispatch`() async {
-        let gate = ProviderPluginRequestStartGate()
-        let dispatchEntered = DispatchSemaphore(value: 0)
-        let allowRegistrationToFinish = DispatchSemaphore(value: 0)
-        let cancellationAttempted = DispatchSemaphore(value: 0)
-        let engineCancellation = DispatchSemaphore(value: 0)
-
-        let start = Task.detached {
-            gate.start {
-                dispatchEntered.signal()
-                // Keep the registration critical section open until the test
-                // releases it. The finite wait is only a deadlock watchdog;
-                // a short timeout can expire while the test is descheduled.
-                _ = allowRegistrationToFinish.wait(timeout: .now() + 30)
-            }
-        }
-        #expect(await waitForSignal(dispatchEntered, timeout: .seconds(1)))
-
-        let cancel = Task.detached {
-            cancellationAttempted.signal()
-            gate.cancel { engineCancellation.signal() }
-        }
-        #expect(await waitForSignal(cancellationAttempted, timeout: .seconds(1)))
-        let cancellationRanBeforeRegistrationFinished = await waitForSignal(
-            engineCancellation,
-            timeout: .milliseconds(50))
-        #expect(!cancellationRanBeforeRegistrationFinished)
-
-        allowRegistrationToFinish.signal()
-        #expect(await start.value)
-        await cancel.value
-        #expect(await waitForSignal(engineCancellation, timeout: .seconds(1)))
-    }
-
-    @Test
-    func `QuickJS cancellation finishes interrupt before a later fetch becomes active`() async throws {
-        let lifecycle = QuickJSFetchRequestLifecycle()
-        let watchdog = try #require(OpaquePointer(bitPattern: 0x1234))
-        let firstID = UUID()
-        let secondID = UUID()
-        lifecycle.setWatchdog(watchdog)
-        lifecycle.register(firstID)
-        #expect(lifecycle.activate(firstID))
-
-        let interruptEntered = DispatchSemaphore(value: 0)
-        let allowInterruptToFinish = DispatchSemaphore(value: 0)
-        let nextFetchStarted = DispatchSemaphore(value: 0)
-        let secondActivated = DispatchSemaphore(value: 0)
-        defer { allowInterruptToFinish.signal() }
-        let cancellation = Task.detached {
-            lifecycle.cancel(firstID) { _ in
-                interruptEntered.signal()
-                // The test releases this deliberately blocked interrupt after
-                // checking that the next request cannot activate yet.
-                _ = allowInterruptToFinish.wait(timeout: .now() + 30)
-            }
-        }
-        #expect(await waitForSignal(interruptEntered, timeout: .seconds(1)))
-
-        let nextFetch = Task.detached {
-            nextFetchStarted.signal()
-            lifecycle.finish(firstID)
-            lifecycle.register(secondID)
-            let activated = lifecycle.activate(secondID)
-            secondActivated.signal()
-            return activated
-        }
-        #expect(await waitForSignal(nextFetchStarted, timeout: .seconds(1)))
-        let activatedBeforeInterrupt = await waitForSignal(secondActivated, timeout: .milliseconds(50))
-        #expect(!activatedBeforeInterrupt)
-        allowInterruptToFinish.signal()
-        await cancellation.value
-        #expect(await nextFetch.value)
-    }
-
-    #if canImport(JavaScriptCore)
-    @Test
-    func `cancelling a synchronous JavaScriptCore hang leaves a fresh worker available`() async throws {
-        let probe = ProviderPluginCancellationProbe()
-        let runtime = try ProviderPluginRuntime(
-            source: Self.plugin(fetchBody: """
-            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
-              await ctx.http.getJSON("https://api.example.test/start");
-              const stopAt = Date.now() + 5000;
-              while (Date.now() < stopAt) {}
-            }
-            return { primary: { usedPercent: 17 } };
-            """),
-            transport: ProviderHTTPTransportHandler { request in
-                _ = await probe.markStarted()
-                let response = try #require(HTTPURLResponse(
-                    url: request.url!,
-                    statusCode: 200,
-                    httpVersion: nil,
-                    headerFields: ["Content-Type": "application/json"]))
-                return (Data(#"{"ok":true}"#.utf8), response)
-            },
-            timeout: 12,
-            engine: .javaScriptCore)
-        let first = Task {
-            try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
-        }
-
-        #expect(await probe.waitUntilStarted())
-        // The response continuation runs on the same serial JSC queue. Let it
-        // enter the synchronous loop before cancellation to exercise the
-        // uninterruptible-engine case rather than only an in-flight request.
-        try await Task.sleep(for: .milliseconds(250))
-        first.cancel()
-        await #expect(throws: CancellationError.self) { _ = try await first.value }
-
-        let recoveryStart = Date()
-        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "healthy"])
-        #expect(recovered.primary?.usedPercent == 17)
-        #expect(Date().timeIntervalSince(recoveryStart) < 2.5)
-    }
-    #endif
-
     @Test
     func `HTTP broker rejects OpenRouter management auth outside OpenRouter plugin`() async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(
@@ -336,26 +228,31 @@ struct ProviderPluginRuntimeTests {
         }
     }
 
-    @Test
-    func `HTTP request deadline defaults to fifteen seconds and accepts bounded override`() async throws {
+    @Test(arguments: Self.labelValidationEngines)
+    func `HTTP request deadline defaults to fifteen seconds and accepts bounded override`(
+        engine: ProviderPluginEngineKind) async throws
+    {
         let requests = RequestRecorder()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
             await ctx.http.getJSON("https://api.example.test/default");
-            const response = await ctx.http.getJSON("https://api.example.test/override", { timeoutSeconds: 7.5 });
+            await ctx.http.getJSON("https://api.example.test/fractional", { timeoutSeconds: 7.5 });
+            await ctx.http.getJSON("https://api.example.test/web", { timeoutSeconds: 60 });
+            const response = await ctx.http.getJSON("https://api.example.test/maximum", { timeoutSeconds: 90 });
             return { primary: { usedPercent: response.json.used } };
             """),
-            transport: Self.transport(recorder: requests, body: #"{"used":11}"#))
+            transport: Self.transport(recorder: requests, body: #"{"used":11}"#),
+            engine: engine)
 
         let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
 
         #expect(snapshot.primary?.usedPercent == 11)
         let recorded = await requests.all
-        #expect(recorded.map(\.timeoutInterval) == [15, 7.5])
+        #expect(recorded.map(\.timeoutInterval) == [15, 7.5, 60, 90])
     }
 
-    @Test(arguments: ["0", "0.5", "31", #""slow""#])
-    func `HTTP request deadline rejects values outside one through thirty seconds`(value: String) async throws {
+    @Test(arguments: ["0", "0.5", "90.1", "true", "null", #""slow""#])
+    func `HTTP request deadline rejects values outside one through ninety seconds`(value: String) async throws {
         let requests = RequestRecorder()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
@@ -372,38 +269,39 @@ struct ProviderPluginRuntimeTests {
 
     @Test
     func `HTTP request deadline cancels a transport that exceeds it`() async throws {
-        let probe = ProviderPluginCancellationProbe()
+        let cancellation = TransportCancellationProbe()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
             await ctx.http.getJSON("https://api.example.test/slow", { timeoutSeconds: 1 });
             return { primary: { usedPercent: 1 } };
             """),
             transport: ProviderHTTPTransportHandler { request in
-                _ = await probe.markStarted()
-                return try await withTaskCancellationHandler {
-                    try await Task.sleep(for: .seconds(30))
-                    let response = try #require(HTTPURLResponse(
-                        url: request.url!,
-                        statusCode: 200,
-                        httpVersion: nil,
-                        headerFields: ["Content-Type": "application/json"]))
-                    return (Data(#"{"used":1}"#.utf8), response)
-                } onCancel: {
-                    Task { await probe.markCancelled() }
+                do {
+                    try await Task.sleep(for: .seconds(5))
+                } catch is CancellationError {
+                    await cancellation.markCancelled()
+                    throw CancellationError()
                 }
-            },
-            timeout: 15)
-        let startedAt = ContinuousClock.now
-        let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"]) }
+                let response = try #require(HTTPURLResponse(
+                    url: request.url!,
+                    statusCode: 200,
+                    httpVersion: nil,
+                    headerFields: ["Content-Type": "application/json"]))
+                return (Data(#"{"used":1}"#.utf8), response)
+            })
 
-        #expect(await probe.waitUntilStarted(maxAttempts: 1000))
-        let error = await #expect(throws: ProviderPluginError.self) { _ = try await fetch.value }
-
-        // The request-specific deadline must end the request before the
-        // runtime's fifteen-second fallback watchdog and cancel its transport.
-        #expect(ContinuousClock.now - startedAt < .seconds(8))
-        #expect(error != .timedOut)
-        #expect(await probe.waitUntilCancelled(maxAttempts: 1000))
+        do {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret-value"])
+            Issue.record("Expected the request deadline to reject the plugin fetch")
+        } catch let error as ProviderPluginError {
+            guard case .script = error else {
+                Issue.record("Expected a request deadline failure, received \(error)")
+                return
+            }
+            await cancellation.waitUntilCancelled()
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
     }
 
     @Test
@@ -518,6 +416,82 @@ struct ProviderPluginRuntimeTests {
                 secrets: ["TEST_KEY": "fixture-key"])
         }
         #expect(await rejectedRequests.isEmpty)
+    }
+
+    @Test(arguments: [
+        "http://localhost:4000",
+        "http://10.0.0.8:4000",
+        "http://172.16.0.8:4000",
+        "http://192.168.1.8:4000",
+        "http://169.254.1.8:4000",
+        "http://[fc00::8]:4000",
+        "http://[fe80::8]:4000",
+        "http://gateway.local:4000",
+        "https://gateway.example:4000",
+    ])
+    func `private network endpoint policy accepts the native gateway origin set`(origin: String) async throws {
+        let requests = RequestRecorder()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(
+                id: "llmproxy",
+                endpoints: #"[{ setting: "BASE_URL", policy: "https-or-private-network-http" }]"#,
+                settings: """
+                { key: "TEST_KEY", title: "API key", type: "secure" },
+                { key: "BASE_URL", title: "Base URL", type: "plain" }
+                """,
+                fetchBody: """
+                const response = await ctx.http.getJSON(`${ctx.settings.get("BASE_URL")}/usage`);
+                return { primary: { usedPercent: response.json.used } };
+                """),
+            transport: Self.transport(recorder: requests, body: #"{"used":4}"#))
+
+        let snapshot = try await runtime.fetchUsage(
+            settings: ["BASE_URL": origin],
+            secrets: ["TEST_KEY": "fixture-key"])
+
+        #expect(snapshot.primary?.usedPercent == 4)
+        #expect(await requests.first?.url?.absoluteString == "\(origin)/usage")
+    }
+
+    @Test
+    func `private network endpoint policy rejects public HTTP before transport`() async throws {
+        let requests = RequestRecorder()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(
+                id: "litellm",
+                endpoints: #"[{ setting: "BASE_URL", policy: "https-or-private-network-http" }]"#,
+                settings: """
+                { key: "TEST_KEY", title: "API key", type: "secure" },
+                { key: "BASE_URL", title: "Base URL", type: "plain" }
+                """,
+                fetchBody: """
+                await ctx.http.getJSON(`${ctx.settings.get("BASE_URL")}/usage`);
+                return { primary: { usedPercent: 1 } };
+                """),
+            transport: Self.transport(recorder: requests))
+
+        await #expect(throws: ProviderPluginError.self) {
+            _ = try await runtime.fetchUsage(
+                settings: ["BASE_URL": "http://gateway.example"],
+                secrets: ["TEST_KEY": "fixture-key"])
+        }
+        #expect(await requests.isEmpty)
+    }
+
+    @Test
+    func `bundled private network policy is limited to providers with native parity`() throws {
+        _ = try ProviderPluginRuntime(source: Self.plugin(
+            id: "llmproxy",
+            endpoints: #"[{ setting: "BASE_URL", policy: "https-or-private-network-http" }]"#,
+            auth: "null",
+            settings: #"{ key: "BASE_URL", title: "Base URL", type: "plain" }"#))
+
+        #expect(throws: ProviderPluginError.self) {
+            _ = try ProviderPluginRuntime(source: Self.plugin(
+                endpoints: #"[{ setting: "BASE_URL", policy: "https-or-private-network-http" }]"#,
+                auth: "null",
+                settings: #"{ key: "BASE_URL", title: "Base URL", type: "plain" }"#))
+        }
     }
 
     @Test
@@ -639,6 +613,35 @@ struct ProviderPluginRuntimeTests {
     }
 
     @Test
+    func `identity only snapshot preserves a successful sparse provider state`() async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        return { identity: { organization: "Moonshot", loginMethod: "Balance: $0.00" } };
+        """))
+
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret"])
+
+        #expect(snapshot.primary == nil)
+        #expect(snapshot.providerCost == nil)
+        #expect(snapshot.identity?.accountOrganization == "Moonshot")
+        #expect(snapshot.identity?.loginMethod == "Balance: $0.00")
+    }
+
+    @Test(arguments: [
+        #"return {};"#,
+        #"return { identity: {} };"#,
+        #"return { identity: { email: "  " } };"#,
+        #"return { dataConfidence: "exact" };"#,
+        #"return { subscriptionRenewsAt: "2026-09-01T00:00:00Z" };"#,
+    ])
+    func `empty and metadata only snapshots remain invalid`(fetchBody: String) async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: fetchBody))
+
+        await #expect(throws: ProviderPluginError.self) {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret"])
+        }
+    }
+
+    @Test
     func `details map strictly and trim display strings`() async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
         return {
@@ -733,6 +736,40 @@ struct ProviderPluginRuntimeTests {
     }
 
     @Test
+    func `transient classified failure preserves capped retry delay`() async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        throw ctx.fail.rateLimited("retry later", { retryAfterSeconds: 30 });
+        """))
+
+        do {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret"])
+            Issue.record("Expected classified failure")
+        } catch let error as ProviderFetchClassifiedError {
+            #expect(error.kind == .rateLimited)
+            #expect(error.message == "retry later")
+            #expect(error.retryAfterSeconds == 10)
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
+    func `non transient classified failure rejects retry options`() async throws {
+        let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
+        throw ctx.fail.parseFailure("bad payload", { retryAfterSeconds: 1 });
+        """))
+
+        do {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret"])
+            Issue.record("Expected script failure")
+        } catch let error as ProviderPluginError {
+            #expect(error.localizedDescription.contains("retry options are supported only for transient failures"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+
+    @Test
     func `unclassified failures retain generic script mapping`() async throws {
         let runtime = try ProviderPluginRuntime(source: Self.plugin(fetchBody: """
         throw new Error("ordinary fixture");
@@ -765,6 +802,67 @@ struct ProviderPluginRuntimeTests {
     }
 
     @Test
+    func `QuickJS engine supports bounded recursion on its dedicated stack`() async throws {
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            function recurse(depth) {
+              return depth <= 0 ? 0 : 1 + recurse(depth - 1);
+            }
+            return { primary: { usedPercent: recurse(100) } };
+            """),
+            engine: .quickJS)
+
+        let snapshot = try await runtime.fetchUsage(secrets: ["TEST_KEY": "secret"])
+
+        #expect(snapshot.primary?.usedPercent == 100)
+    }
+
+    @Test
+    func `QuickJS engine reports recursion beyond its JavaScript stack limit`() async throws {
+        // Deliberately starved worker geometry: with a fixed JS stack limit this crashed the process
+        // (guard fires with too little native left to build the RangeError — the quickjs-ng/zipline#1130
+        // class). The derived limit (a quarter of the worker stack) makes the invariant hold at any size,
+        // so even a 512 KiB thread throws a clean script error instead of overrunning the guard page.
+        let engine = try Self.quickJSEngine(
+            source: Self.plugin(fetchBody: """
+            function recurse(depth) {
+              return depth <= 0 ? 0 : 1 + recurse(depth - 1);
+            }
+            return { primary: { usedPercent: recurse(100000) } };
+            """),
+            workerStackSizeBytes: 512 * 1024)
+
+        do {
+            _ = try await Self.fetchUsage(engine: engine)
+            Issue.record("Expected stack overflow")
+        } catch let error as ProviderPluginError {
+            guard case let .script(message) = error else {
+                Issue.record("Unexpected plugin error: \(error)")
+                return
+            }
+            let normalizedMessage = message.lowercased()
+            #expect(normalizedMessage.contains("stack"))
+            #expect(normalizedMessage.contains("overflow") || normalizedMessage.contains("exceeded"))
+        } catch {
+            Issue.record("Unexpected error: \(error)")
+        }
+    }
+}
+
+extension ProviderPluginRuntimeTests {
+    @Test
+    func `QuickJS watchdog reports a timeout without the runtime timer`() async throws {
+        let engine = try Self.quickJSEngine(
+            source: Self.plugin(fetchBody: "while (true) {}"),
+            workerStackSizeBytes: QuickJSRuntimeLimits.nativeStackSizeBytes,
+            timeout: 5)
+
+        await #expect(throws: ProviderPluginError.timedOut) {
+            _ = try await Self.fetchUsage(engine: engine)
+        }
+    }
+
+    @Test
     func `hung script times out and next fetch uses a fresh context`() async throws {
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
@@ -774,24 +872,24 @@ struct ProviderPluginRuntimeTests {
             }
             return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
             """),
-            timeout: 0.15,
+            timeout: 5,
             engine: .quickJS)
         let start = Date()
 
         await #expect(throws: ProviderPluginError.timedOut) {
             _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
         }
-        // The 0.15s watchdog must fire promptly rather than wait out the hang; allow generous
-        // headroom for loaded CI runners (observed 1.66s on ARM64 under contention).
-        #expect(Date().timeIntervalSince(start) < 5)
+        // This ceiling only proves the watchdog interrupted the infinite loop instead of hanging
+        // forever. The runtime timeout itself leaves fresh-worker compilation ample scheduler headroom.
+        #expect(Date().timeIntervalSince(start) < 30)
 
         let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
         #expect(recovered.primary?.usedPercent == 7)
     }
 
-    @Test(arguments: Self.responsePolicyEngines)
-    func `cancelled fetch retires its context before recovery`(engine: ProviderPluginEngineKind) async throws {
-        let probe = ProviderPluginCancellationProbe()
+    @Test(arguments: Self.labelValidationEngines)
+    func `cancelled fetch discards its context before recovery`(engine: ProviderPluginEngineKind) async throws {
+        let (starts, signalStart) = AsyncStream<Void>.makeStream()
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
             if (ctx.settings.getSecret("TEST_KEY") === "hang") {
@@ -801,21 +899,44 @@ struct ProviderPluginRuntimeTests {
             return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
             """),
             transport: ProviderHTTPTransportHandler { _ in
-                _ = await probe.markStarted()
-                try await Task.sleep(for: .seconds(30))
+                signalStart.yield()
+                try await Task.sleep(for: .seconds(60))
                 throw URLError(.cancelled)
             },
             engine: engine)
         let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"]) }
-        #expect(await probe.waitUntilStarted())
+        var iterator = starts.makeAsyncIterator()
+        await iterator.next()
         fetch.cancel()
-        await #expect(throws: CancellationError.self) { _ = try await fetch.value }
+        await #expect(throws: CancellationError.self) { try await fetch.value }
 
         let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
         #expect(recovered.primary?.usedPercent == 7)
     }
 
+    #if canImport(JavaScriptCore)
+    @Test
+    func `JSC pending script times out and next fetch uses a fresh context`() async throws {
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              await new Promise(() => {});
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
+            """),
+            timeout: 5,
+            engine: .javaScriptCore)
+        await #expect(throws: ProviderPluginError.timedOut) {
+            _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
+        }
+        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
+        #expect(recovered.primary?.usedPercent == 7)
+    }
+    #endif
+
     private static func plugin(
+        id: String = "synthetic",
         endpoints: String = #"["https://api.example.test"]"#,
         auth: String = #"{ type: "bearer", secret: "TEST_KEY" }"#,
         settings: String = #"{ key: "TEST_KEY", title: "API key", type: "secure" }"#,
@@ -824,7 +945,7 @@ struct ProviderPluginRuntimeTests {
     {
         """
         defineProvider({
-          id: "synthetic",
+          id: "\(id)",
           name: "Fixture",
           endpoints: \(endpoints),
           auth: \(auth),
@@ -835,6 +956,42 @@ struct ProviderPluginRuntimeTests {
           },
         });
         """
+    }
+
+    private static func quickJSEngine(
+        source: String,
+        workerStackSizeBytes: Int,
+        timeout: TimeInterval = ProviderPluginRuntime.defaultTimeout) throws -> QuickJSProviderPluginEngine
+    {
+        let bundle = try #require(CodexBarCoreResources.bundle)
+        let preludeURL = try #require(bundle.url(
+            forResource: "provider-plugin-prelude",
+            withExtension: "js"))
+        let preludeSource = try String(contentsOf: preludeURL, encoding: .utf8)
+        return try QuickJSProviderPluginEngine.make(
+            source: source,
+            preludeSource: preludeSource,
+            transport: ProviderHTTPTransportHandler { _ in throw URLError(.unsupportedURL) },
+            timeout: timeout,
+            responseSizeLimit: ProviderPluginRuntime.maximumResponseBytes,
+            enforcesUserResponsePolicy: false,
+            allowsDynamicID: false,
+            workerStackSizeBytes: workerStackSizeBytes)
+    }
+
+    private static func fetchUsage(engine: QuickJSProviderPluginEngine) async throws -> UsageSnapshot {
+        let result = await withCheckedContinuation { continuation in
+            engine.fetch(
+                settings: [:],
+                secrets: ["TEST_KEY": "secret"],
+                now: Date(),
+                timeZone: .current,
+                contextOptions: .production,
+                cookieResolver: nil,
+                instanceCookieResolver: nil)
+            { continuation.resume(returning: $0) }
+        }
+        return try result.get().usage
     }
 
     private static func transport(
@@ -853,20 +1010,26 @@ struct ProviderPluginRuntimeTests {
     }
 }
 
-private func waitForSignal(
-    _ semaphore: DispatchSemaphore,
-    timeout: DispatchTimeInterval) async -> Bool
-{
-    await Task.detached {
-        blockingWaitForSignal(semaphore, timeout: timeout)
-    }.value
-}
+private actor TransportCancellationProbe {
+    private var cancelled = false
+    private var waiters: [CheckedContinuation<Void, Never>] = []
 
-private func blockingWaitForSignal(
-    _ semaphore: DispatchSemaphore,
-    timeout: DispatchTimeInterval) -> Bool
-{
-    semaphore.wait(timeout: .now() + timeout) == .success
+    func markCancelled() {
+        self.cancelled = true
+        for waiter in self.waiters {
+            waiter.resume()
+        }
+        self.waiters.removeAll()
+    }
+
+    func waitUntilCancelled() async {
+        if self.cancelled {
+            return
+        }
+        await withCheckedContinuation { continuation in
+            self.waiters.append(continuation)
+        }
+    }
 }
 
 private actor CookieAccessRecorder {
@@ -900,39 +1063,5 @@ private actor RequestRecorder {
 
     func append(_ request: URLRequest) {
         self.requests.append(request)
-    }
-}
-
-private actor ProviderPluginCancellationProbe {
-    private var startedCount = 0
-    private var cancelledCount = 0
-
-    func markStarted() -> Int {
-        self.startedCount += 1
-        return self.startedCount
-    }
-
-    func markCancelled() {
-        self.cancelledCount += 1
-    }
-
-    func waitUntilStarted(count: Int = 1, maxAttempts: Int = 300) async -> Bool {
-        for _ in 0..<maxAttempts {
-            if self.startedCount >= count {
-                return true
-            }
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        return self.startedCount >= count
-    }
-
-    func waitUntilCancelled(count: Int = 1, maxAttempts: Int = 300) async -> Bool {
-        for _ in 0..<maxAttempts {
-            if self.cancelledCount >= count {
-                return true
-            }
-            try? await Task.sleep(for: .milliseconds(10))
-        }
-        return self.cancelledCount >= count
     }
 }

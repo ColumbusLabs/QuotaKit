@@ -1,5 +1,4 @@
 import Foundation
-import SweetCookieKit
 
 public enum GrokProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
@@ -23,15 +22,6 @@ public enum GrokProviderDescriptor {
                 tokenAccountToken: account.token,
                 manualCookieHeader: nil).sourceMode ?? base
         })
-
-    /// Grok is normally signed in through Chrome; avoid touching unrelated browser keychains.
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -70,7 +60,8 @@ public enum GrokProviderDescriptor {
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
                 debugLogUnavailableMessage: "Grok debug log not yet implemented",
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
+                    reason: "Avoid unrelated browser Keychain prompts"),
                 dashboardURL: "https://grok.com/?_s=usage",
                 changelogURL: "https://x.ai/news",
                 statusPageURL: nil,

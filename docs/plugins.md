@@ -56,17 +56,20 @@ defineProvider({
   letter of `name` with a neutral tint. File/SVG icons are not supported.
 - `endpoints`: 1–16 declared network origins. A fixed endpoint is a normalized HTTPS origin such as
   `https://api.example.com` (no path, query, fragment, or user info). A settings-derived endpoint is
-  `{setting: "BASE_URL", policy: "https"}` or `{setting: "BASE_URL", policy: "https-or-loopback-http"}`. Its setting
-  must be declared as `plain`. HTTP is allowed only for unauthenticated loopback targets.
+  `{setting: "BASE_URL", policy: "https"}`, `"https-or-loopback-http"`, or
+  `"https-or-private-network-http"`. Its setting must be declared as `plain`. The private-network policy permits
+  authenticated HTTP only to a validated private origin after exact-origin typed approval.
 - `auth` (optional): one of the forms below. The named secret must be a declared `secure` setting.
 - `settings`: up to 32 setting definitions. Keys contain 1–64 ASCII letters, digits, or underscores and start with a
   letter. Each entry has `key`, `title`, optional `subtitle`, and `type: "plain" | "secure"` (default `secure`).
-- `capabilities` (optional): `"browser-cookies"` and `"http-status"`.
+- `capabilities` (optional): `"browser-cookies"`, `"http-status"`, and `"persistent-storage"`.
 - `http-status`: lets the plugin inspect received HTTP response status codes and bodies, including non-2xx responses.
   The plugin must classify those responses itself; this does not expand approved network origins or bypass host
   timeouts and response-size limits.
+- `persistent-storage`: grants bounded, non-secret state scoped to this plugin instance. Adding or removing this
+  capability changes the approval binding.
 - `cookieDomains`: required with `browser-cookies`; a non-empty list of normalized DNS host names.
-- `fetchUsage(ctx)`: function returning a snapshot object or a promise for one.
+- `fetchUsage(ctx)`: function returning a snapshot or fetch result envelope, or a promise for one.
 
 First-party plugins with the `browser-cookies` capability may call
 `ctx.browser.rejectCookie(domain)` after the declared host rejects an imported browser session. QuotaKit clears only the
@@ -82,14 +85,15 @@ auth: { type: "header", header: "X-Custom-Key", secret: "API_KEY" }
 auth: { type: "authorization-scheme", scheme: "Token", secret: "API_KEY" }
 ```
 
-The host owns the authentication header; plugin request options cannot override it. Authenticated origins must be
-HTTPS. Secure settings can be overridden for CLI use with
+The host owns the authentication header; plugin request options cannot override it. Authenticated public origins use
+HTTPS; authenticated private-network HTTP requires the endpoint policy and typed origin approval above. Secure settings
+can be overridden for CLI use with
 `QUOTAKIT_PLUGIN_<PLUGIN_ID>_<SETTING_KEY>`, uppercased with non-alphanumeric characters replaced by underscores. For
 example, `acme-usage` and `API_KEY` use `QUOTAKIT_PLUGIN_ACME_USAGE_API_KEY`.
 
 ## `ctx` API
 
-`ctx` exists only during `fetchUsage`. QuotaKit uses JavaScriptCore on Apple platforms and QuickJS on Linux; both
+`ctx` exists only during `fetchUsage`. QuotaKit uses QuickJS-NG 0.17.0 and JavaScriptCore on Apple platforms; both
 provide ECMAScript built-ins but no browser or Node environment. `Intl` is engine-dependent and unavailable in QuickJS,
 so portable third-party plugins must use the host helpers below instead of ECMA-402. `fetch`, `XMLHttpRequest`, timers,
 `require`, `process`, and filesystem APIs are unavailable.
@@ -102,20 +106,59 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 - `await ctx.http.post(url, {body, headers?})` sends the same JSON POST and returns `{status, headers, bodyText}` so a
   plugin can classify non-JSON error pages before parsing a successful response.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
-  hard request deadline from 1 through 30 seconds; the default is 15 seconds.
+  hard request deadline from 1 through 90 seconds; the default is 15 seconds. Each attempt’s deadline starts when
+  its transport task begins, so scheduler delays do not consume the request budget. Queued work remains bounded
+  by the overall fetch deadline and cancellation. An override does not extend that overall deadline; bundled
+  strategies that need a longer request must also supply a sufficient fetch budget.
+- `opts.retryPolicy: "transientIdempotent"` opts GET into the native single-retry policy: 408, 429, 500, 502, 503, 504,
+  timeout, lost connection, connection failure, and DNS failures. The delay is one second or numeric `Retry-After`,
+  capped at ten seconds. POST, offline, TLS, and cancellation failures are not retried. This replaces the automatic
+  status-based fetch replay for that request; explicit `ctx.fail` retry options should not add another retry.
+- HTTP rejections are `Error` objects on both engines. Native failures expose `transportCode` (the Foundation URL-error
+  code), `transportClass` (`timeout`, `dns`, `offline`, `cancelled`, `tls`, `connection`, or `other`), and `retryable`.
+  Rejected HTTP responses expose `status` and class `http`. Plugins can use these fields when choosing a `ctx.fail`
+  classification. Rethrow cancellation unchanged; uncaught cancellation remains a Swift `CancellationError`, and
+  cancelling the refresh interrupts its pending request and retry delay.
 - `ctx.settings.get(key)` reads a declared `plain` setting.
 - `ctx.settings.getSecret(key)` reads a declared `secure` setting. Missing values return `null`; kind mismatches and
   undeclared keys throw.
 - `ctx.fail` creates classified errors for `authenticationExpired`, `missingCredential`, `permissionDenied`,
   `rateLimited`, `providerUnavailable`, `parseFailure`, `networkFailure`, and `apiFailure`. Throw the returned error,
   for example `throw ctx.fail.rateLimited("Provider rate limit reached")`; ordinary errors retain generic mapping.
+  Every plugin automatically gets one delayed retry when a request returns 408, 429, 500, 502, 503, or 504. A numeric
+  `Retry-After` header sets the delay; otherwise the delay is 1 second, and the host clamps it to 10 seconds. A plugin
+  that needs provider-specific handling—such as a non-numeric `Retry-After`, quota data in the error body, or a vendor
+  retry field—declares `http-status`, receives the response, and throws `ctx.fail.rateLimited(message,
+  {retryAfterSeconds})` or another transient classified failure. Both paths share one retry budget and never retry the
+  retry. Cancellation during the delay stops the retry.
+- `ctx.browser.availability(domain)` returns `"available"`, `"manual"`, or `"off"` for a declared cookie domain.
+  It inspects source/cookie policy only, without accessing the broker, Keychain, or browser. It does not promise a
+  usable session. API-only (and other non-web) source modes report `"off"`; Manual reports `"manual"`, so plugins can
+  route an origin-less pasted header to one explicitly selected tenant. Missing cookie resolvers report `"off"`.
+  `cookieHeader` also enforces Off/API-only policy, even if the plugin skips this check.
 - `await ctx.browser.cookieHeader(domain)` returns a cookie header only with the `browser-cookies` capability and for a
-  declared domain. The app imports from Chrome only. Cookie values are secret-equivalent and redacted.
+  declared domain. User plugins import from Chrome; bundled providers retain their declared browser order.
+  Cookie values are secret-equivalent and redacted.
+- `for await (const session of ctx.browser.sessions(domain))` visits origin-bound candidates in order: the exclusive
+  manual credential, or the cached session followed by browser profiles in the provider's import order. Each candidate
+  has `{id, header, source, origin}`. Enumeration is scoped to one declared domain and stops when candidates are exhausted.
+  Manual regional captures retain their origin through settings projection; an origin-less legacy header is restricted
+  to the selected domain. Qoder's legacy headers select the global site.
+  The optional `{cachedOnly: true}` argument yields manual/cached candidates without importing browser profiles;
+  cached candidates include `cachedAt` as Unix seconds. This lets a regional provider try its newest cached session
+  before importing any fresh cookies, even when that session belongs to its second domain.
+- `ctx.browser.rejectCookie(domain, session)` rejects that candidate after an authentication failure. It conditionally
+  evicts the matching persistent entry without deleting a newer session or another domain's cache. The opaque candidate
+  ID makes late rejections safe. Continuing the iterator visits the next candidate; a successful fetch can return
+  immediately. `cookieHeader` remains available for providers needing only one header.
 - `ctx.html.metaContent(html, name)` returns the first matching quoted meta value or `null`.
 - `ctx.html.matchFirst(html, regexSource, flags?)` returns the first capture/full match or `null`.
 - `ctx.log(...values)` writes to the instance-scoped plugin log. Known secrets and cookie values are redacted.
 - `ctx.cache.get(key)` and `ctx.cache.set(key, value, ttlSeconds)` provide a per-runtime memory cache. TTL is capped at
   24 hours.
+- `ctx.storage.get(key)`, `set(key, value)`, and `remove(key)` provide non-secret strings persisted under
+  `~/Library/Application Support/QuotaKit/plugin-storage/` when `persistent-storage` is declared. State is isolated by
+  instance ID and deleted with the plugin. Keys are 1–128 UTF-8 bytes; at most 64 entries and 64 KiB total are kept.
 - `ctx.date.iso(text)`, `unixSeconds(number)`, and `unixMillis(number)` create JavaScript dates.
 - `ctx.date.nextDailyReset(timeZoneIdentifier, hour)` returns the next wall-clock reset in an IANA time zone.
 - `ctx.env.timeZone` is the host's current IANA time-zone identifier; zero-offset GMT aliases are normalized to `UTC`.
@@ -170,8 +213,28 @@ Percentages must be finite and are clamped to 0–100. Window minutes are positi
 and a three-letter uppercase currency. Dates are JavaScript `Date` values or ISO-8601 strings. Snapshot identity is
 always scoped to the manifest's instance ID. Data confidence defaults to `unknown`. Details allow at most 8 sections, 24 rows per section, 120 chart points,
 and 120 characters per detail string. Wrong types and limit violations fail the whole fetch instead of truncating it.
+Named extra windows accept an optional `usageKnown` boolean (default `true`). Set it to `false` for reset-only limits:
+the window remains visible as **Unavailable**, and its placeholder `usedPercent` is not presented as measured usage.
+Detail rows accept optional `progress` (a finite consumed fraction from 0 through 1) and `usageValue` (finite raw usage).
+The host maps the fraction to native progress with `used: progress, total: 1`; `usageValue` is preserved independently.
+Absent or null numeric fields leave existing text-only rows unchanged. A supplied `usageKnown` must be a boolean,
+including when the window uses the nested `window` form; null is invalid.
+An identity-only snapshot is useful for balance-only or zero-usage provider states and renders its available account,
+organization, plan/login-method, and account-ID fields in the menu and CLI. A verified response with no displayable data
+may return `{empty: true}` with optional identity. This creates no artificial rate window; every supplied field is still
+validated. An empty object, an empty `identity` object, or metadata such as confidence and subscription dates without
+displayable usage or identity remains invalid unless `empty: true` is explicitly declared.
+
+
+DeepInfra uses a bundled JavaScript plugin for API key billing.
+
+ZenMux uses the bundled `zenmux.js` plugin for management API usage.
 
 ## TypeScript
+
+Chutes uses the bundled `chutes.ts` plugin for subscription usage and optional quota details.
+
+ai& uses a bundled `aiand.ts` plugin for request log spending.
 
 TypeScript files are transpiled with the bundled Sucrase 3.35.1 build using its `typescript` transform. Use ordinary
 type syntax but no module imports, JSX, decorators, or runtime TypeScript features that require module resolution.
@@ -183,7 +246,7 @@ Transpile failures appear as that plugin's Settings error.
 
 1. Open **Settings → Plugins** and choose **Install…**, or copy one `.js`/`.ts` file into the providers directory.
 2. QuotaKit validates the source and manifest without network, file, cookie, or secret capabilities.
-3. The approval sheet lists exact normalized origins, auth mode, capabilities (including `http-status`), secure setting
+3. The approval sheet lists exact normalized origins, auth mode, capabilities (including persistent storage), secure setting
    names, and cookie domains.
 4. For loopback, IP-literal, or `.local` origins, type every normalized origin exactly before approval.
 5. Enter manifest settings and enable the plugin. Its refresh result appears in its generic menu card.

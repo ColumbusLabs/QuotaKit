@@ -7,6 +7,28 @@ public enum ProviderPluginEngineKind: Equatable, Sendable {
     case quickJS
 }
 
+struct ProviderPluginContextOptions: Sendable {
+    static let production = Self(optionalRequestTimeoutSeconds: nil)
+
+    let optionalRequestTimeoutSeconds: TimeInterval?
+    // Internal test control; public runtime initializers always use the production budget.
+    var optionalCollectionBudget: Duration = .milliseconds(200)
+    var storage: ProviderPluginStorage?
+    var beforeHTTPAttempt: (@Sendable () async throws -> Void)?
+    var cookieSource: ProviderCookieSource = .auto
+    var cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?
+    var cookieSessionResolver: ProviderPluginRuntime.CookieSessionResolver?
+    var cookieSessionInvalidator: ProviderPluginRuntime.CookieSessionInvalidator?
+
+    func rejectCookie(domain: String, id: String) {
+        if !id.isEmpty, let invalidate = self.cookieSessionInvalidator {
+            invalidate(domain, id)
+        } else {
+            self.cookieInvalidator?(domain)
+        }
+    }
+}
+
 enum ProviderPluginSourceLint {
     static func validateBundled(_ source: String, name: String) throws {
         if source.range(of: #"\bIntl\s*\."#, options: .regularExpression) != nil {
@@ -24,7 +46,7 @@ enum ProviderPluginEngineFactory {
         transport: any ProviderHTTPTransport,
         timeout: TimeInterval,
         responseSizeLimit: Int,
-        rejectsNonSuccessResponses: Bool,
+        enforcesUserResponsePolicy: Bool,
         allowsDynamicID: Bool) throws -> any ProviderPluginEngine
     {
         switch kind {
@@ -37,7 +59,7 @@ enum ProviderPluginEngineFactory {
                 preludeSource: preludeSource,
                 transport: transport,
                 responseSizeLimit: responseSizeLimit,
-                rejectsNonSuccessResponses: rejectsNonSuccessResponses,
+                enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                 allowsDynamicID: allowsDynamicID)
             #else
             throw ProviderPluginError.load("JavaScriptCore is unavailable on this platform")
@@ -49,7 +71,7 @@ enum ProviderPluginEngineFactory {
                 transport: transport,
                 timeout: timeout,
                 responseSizeLimit: responseSizeLimit,
-                rejectsNonSuccessResponses: rejectsNonSuccessResponses,
+                enforcesUserResponsePolicy: enforcesUserResponsePolicy,
                 allowsDynamicID: allowsDynamicID)
         }
     }
@@ -60,18 +82,17 @@ protocol ProviderPluginEngine: AnyObject, Sendable {
 
     // swiftlint:disable:next function_parameter_count
     func fetch(
-        requestID: UUID,
         settings: [String: String],
         secrets: [String: String],
         now: Date,
         timeZone: TimeZone,
-        cookieInvalidator: ProviderPluginRuntime.CookieInvalidator?,
+        contextOptions: ProviderPluginContextOptions,
         cookieResolver: ProviderPluginRuntime.CookieResolver?,
         instanceCookieResolver: ProviderPluginRuntime.InstanceCookieResolver?,
-        completion: @escaping @Sendable (Result<UsageSnapshot, Error>) -> Void)
+        completion: @escaping @Sendable (Result<ProviderPluginResult, Error>) -> Void)
 
     func globalType(of name: String) throws -> String
-    func cancelFetch(_ requestID: UUID)
+    func requestInterrupt()
 }
 
 protocol ProviderPluginValue {
@@ -80,16 +101,17 @@ protocol ProviderPluginValue {
     var isNull: Bool { get }
     var isUndefined: Bool { get }
     var isString: Bool { get }
-    var isBoolean: Bool { get }
     var isNumber: Bool { get }
+    var isBoolean: Bool { get }
     var isDate: Bool { get }
 
+    func propertyNames() throws -> [String]
     func property(_ name: String) -> (any ProviderPluginValue)?
     func element(at index: Int) -> (any ProviderPluginValue)?
     func stringValue() -> String
-    func boolValue() -> Bool
     func int32Value() -> Int32
     func doubleValue() -> Double
+    func boolValue() -> Bool
     func dateValue() -> Date?
 }
 
@@ -120,18 +142,24 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         self.value is String
     }
 
-    var isBoolean: Bool {
-        guard let number = self.value as? NSNumber else { return false }
-        return CFGetTypeID(number) == CFBooleanGetTypeID()
-    }
-
     var isNumber: Bool {
         guard let number = self.value as? NSNumber else { return false }
         return CFGetTypeID(number) != CFBooleanGetTypeID()
     }
 
+    var isBoolean: Bool {
+        guard let number = self.value as? NSNumber else { return false }
+        return CFGetTypeID(number) == CFBooleanGetTypeID()
+    }
+
     var isDate: Bool {
         false
+    }
+
+    func propertyNames() throws -> [String] {
+        let keys = Array((self.value as? [String: Any] ?? [:]).keys)
+        guard keys.count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return keys
     }
 
     func property(_ name: String) -> (any ProviderPluginValue)? {
@@ -153,16 +181,16 @@ final class JSONProviderPluginValue: ProviderPluginValue {
         self.value as? String ?? String(describing: self.value)
     }
 
-    func boolValue() -> Bool {
-        (self.value as? NSNumber)?.boolValue ?? false
-    }
-
     func int32Value() -> Int32 {
         (self.value as? NSNumber)?.int32Value ?? 0
     }
 
     func doubleValue() -> Double {
         (self.value as? NSNumber)?.doubleValue ?? .nan
+    }
+
+    func boolValue() -> Bool {
+        (self.value as? NSNumber)?.boolValue ?? false
     }
 
     func dateValue() -> Date? {
@@ -175,9 +203,11 @@ final class JSONProviderPluginValue: ProviderPluginValue {
 
 final class JavaScriptCorePluginValue: ProviderPluginValue {
     let value: JSValue
+    private let keyEnumerator: JSValue
 
-    init(_ value: JSValue) {
+    init(_ value: JSValue, keyEnumerator: JSValue) {
         self.value = value
+        self.keyEnumerator = keyEnumerator
     }
 
     var isObject: Bool {
@@ -200,32 +230,42 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.isString
     }
 
-    var isBoolean: Bool {
-        self.value.isBoolean
-    }
-
     var isNumber: Bool {
         self.value.isNumber
+    }
+
+    var isBoolean: Bool {
+        self.value.isBoolean
     }
 
     var isDate: Bool {
         self.value.isDate
     }
 
+    func propertyNames() throws -> [String] {
+        guard let keys = self.keyEnumerator.call(withArguments: [self.value]), keys.isArray else {
+            throw ProviderPluginError.invalidSnapshot("cannot enumerate result keys")
+        }
+        let count = keys.forProperty("length").toDouble()
+        guard count <= 64 else { throw ProviderPluginError.invalidSnapshot("object exceeds 64 keys") }
+        return try (0..<Int(count)).map { index in
+            guard let key = keys.atIndex(index), key.isString else {
+                throw ProviderPluginError.invalidSnapshot("symbol result keys are not supported")
+            }
+            return key.toString()
+        }
+    }
+
     func property(_ name: String) -> (any ProviderPluginValue)? {
-        self.value.forProperty(name).map(JavaScriptCorePluginValue.init)
+        self.value.forProperty(name).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func element(at index: Int) -> (any ProviderPluginValue)? {
-        self.value.atIndex(index).map(JavaScriptCorePluginValue.init)
+        self.value.atIndex(index).map { JavaScriptCorePluginValue($0, keyEnumerator: self.keyEnumerator) }
     }
 
     func stringValue() -> String {
         self.value.toString()
-    }
-
-    func boolValue() -> Bool {
-        self.value.toBool()
     }
 
     func int32Value() -> Int32 {
@@ -236,8 +276,35 @@ final class JavaScriptCorePluginValue: ProviderPluginValue {
         self.value.toDouble()
     }
 
+    func boolValue() -> Bool {
+        self.value.toBool()
+    }
+
     func dateValue() -> Date? {
         self.value.toDate()
     }
 }
 #endif
+
+final class ProviderPluginRedactionValues: @unchecked Sendable {
+    let transportErrors = ProviderPluginHTTPResponse.TransportErrors()
+    private let lock = NSLock()
+    private var values: Set<String>
+
+    init(_ values: some Sequence<String>) {
+        self.values = Set(values.filter { !$0.isEmpty })
+    }
+
+    func insert(_ value: String) {
+        guard !value.isEmpty else { return }
+        _ = self.lock.withLock { self.values.insert(value) }
+    }
+
+    func redact(_ message: String) -> String {
+        self.lock.withLock {
+            self.values.reduce(message) { partial, value in
+                partial.replacingOccurrences(of: value, with: "<redacted>")
+            }
+        }
+    }
+}

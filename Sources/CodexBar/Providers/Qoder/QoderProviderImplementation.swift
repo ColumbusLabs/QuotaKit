@@ -69,9 +69,14 @@ struct QoderProviderImplementation: ProviderImplementation {
                 isVisible: nil,
                 onChange: nil,
                 trailingText: {
-                    guard let entry = CookieHeaderCache.loadForDisplay(provider: .qoder) else { return nil }
-                    let when = entry.storedAt.relativeDescription()
-                    return "Cached: \(entry.sourceLabel) • \(when)"
+                    let entries = [nil, "qoder.com", "qoder.com.cn"].compactMap { domain in
+                        CookieHeaderCache.loadForDisplay(provider: .qoder, scope: domain.map {
+                            .providerVariant($0)
+                        })
+                    }
+                    return entries.max(by: { $0.storedAt < $1.storedAt }).map {
+                        "Cached: \($0.sourceLabel) • \($0.storedAt.relativeDescription())"
+                    }
                 }),
         ]
     }
