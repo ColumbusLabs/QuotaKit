@@ -194,10 +194,7 @@ private final class QuickJSPluginValue: ProviderPluginValue {
 
 final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendable {
     static let memoryLimitBytes = 64 * 1024 * 1024
-
-    static func transpileTypeScript(source: String, sucraseSource: String) throws -> String {
-        try QuickJSTypeScriptTranspiler.transpile(source: source, sucraseSource: sucraseSource)
-    }
+    static let stackLimitBytes = 2 * 1024 * 1024
 
     private struct FetchState {
         let contextOptions: ProviderPluginContextOptions

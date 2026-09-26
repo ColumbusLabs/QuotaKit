@@ -11,7 +11,6 @@ struct ProviderPluginSnapshotContractTests {
         #endif
     }()
 
-    @Test(arguments: Self.engines)
     @Test(arguments: ProviderPluginTransportTests.engines)
     func `extra window knowledge preserves false and defaults to true`(engine: ProviderPluginEngineKind) async throws {
         let runtime = try ProviderPluginTransportTests.runtime(engine, body: """

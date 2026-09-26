@@ -54,7 +54,7 @@ public enum ChutesProviderDescriptor {
                     secondaryDescriptionMode: .detailWhenResetDatePresent)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] }))
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "chutes",
                 aliases: ["chutes.ai"],

@@ -46,7 +46,7 @@ public enum AiAndProviderDescriptor {
             }),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .api],
-                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] }))
+                pipeline: ProviderFetchPipeline(resolveStrategies: { _ in [Self.scriptStrategy()] })),
             cli: ProviderCLIConfig(
                 name: "aiand",
                 aliases: ["ai&", "ai-and"],

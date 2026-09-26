@@ -44,4 +44,48 @@ struct SyncCoordinatorProviderDetailsTests {
         })
         #expect(record.provider.providerDetails?.first?.rows.first?.value == "$95.50")
     }
+
+    @Test
+    func `plugin detail rows survive Mac mapping into per-provider iPhone records`() async throws {
+        let suite = "SyncCoordinatorPluginDetailsTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.iCloudSyncEnabled = true
+        let providers: [UsageProvider] = [.devpass, .raycast, .typesafe, .xkiro, .poe, .sakana]
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        for provider in providers {
+            settings.setProviderEnabled(
+                provider: provider,
+                metadata: #require(ProviderDefaults.metadata[provider]),
+                enabled: true)
+            store._setSnapshotForTesting(
+                UsageSnapshot(
+                    primary: nil,
+                    secondary: nil,
+                    details: [.makeSection(
+                        title: "Account details",
+                        rows: [.makeRow(label: "Value", value: provider.rawValue)])],
+                    updatedAt: Date()),
+                provider: provider)
+        }
+        let pusher = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: pusher)
+        await coordinator.pushCurrentSnapshot()
+
+        for provider in providers {
+            let envelope = try #require(pusher.lastPerProviderEnvelopes.first {
+                $0.provider.providerID == provider.rawValue
+            })
+            #expect(envelope.provider.rateWindows.isEmpty)
+            #expect(envelope.provider.providerDetails?.first?.rows.first?.value == provider.rawValue)
+        }
+    }
 }

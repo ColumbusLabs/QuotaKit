@@ -40,6 +40,14 @@ final class ConfigFileWatcher: @unchecked Sendable {
         }
     }
 
+    static func withAppWrite(_ data: Data, watcher: ConfigFileWatcher?, operation: () throws -> Void) rethrows {
+        guard let watcher else { return try operation() }
+        try watcher.lock.withLock {
+            try operation()
+            watcher.expectedAppWriteHash = CanonicalSyncJSON.hash(data: data)
+        }
+    }
+
     private func arm() {
         guard !self.lock.withLock({ self.stopped }) else { return }
         self.source?.cancel()

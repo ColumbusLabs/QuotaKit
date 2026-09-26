@@ -40,7 +40,7 @@ struct ProviderPluginCookieBrokerTests {
 
     @Test
     func `two domains import and cache independent sessions`() throws {
-        try self.isolated {
+        try self.isolated { () throws in
             let broker = self.broker()
             CookieHeaderCache.store(provider: .manus, cookieHeader: "session=legacy", sourceLabel: "Fixture")
             for domain in self.domains {
@@ -62,7 +62,7 @@ struct ProviderPluginCookieBrokerTests {
 
     @Test
     func `rejection evicts only the observed domain and preserves newer sessions`() throws {
-        try self.isolated {
+        try self.isolated { () throws in
             let broker = self.broker()
             for domain in self.domains {
                 _ = try broker.cookieHeader(domain: domain)
@@ -91,7 +91,7 @@ struct ProviderPluginCookieBrokerTests {
 
     @Test
     func `failed import persistence still pins the issued session`() throws {
-        try self.isolated {
+        try self.isolated { () throws in
             let broker = self.broker()
             let domain = "cloud.example.test"
             let issued = try KeychainCacheStore.withStoreFailureStatusOverrideForTesting(-25308) {
@@ -116,7 +116,7 @@ struct ProviderPluginCookieBrokerTests {
 
     @Test(arguments: [ProviderCookieSource.off, .manual])
     func `manual and off do not import or mutate cached sessions`(source: ProviderCookieSource) throws {
-        try self.isolated {
+        try self.isolated { () throws in
             let broker = self.broker(source: source, importer: { _ in
                 Issue.record("Manual and Off must not import")
                 throw URLError(.unknown)
@@ -142,7 +142,7 @@ struct ProviderPluginCookieBrokerTests {
 
     @Test
     func `single domain retains its existing cache and undeclared domains fail closed`() throws {
-        try self.isolated {
+        try self.isolated { () throws in
             CookieHeaderCache.store(provider: .manus, cookieHeader: "session=existing", sourceLabel: "Fixture")
             let broker = ProviderPluginCookieBroker(
                 provider: .manus,

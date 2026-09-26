@@ -828,7 +828,12 @@ final class SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
     {
-        guard provider == .atlascloud || provider == .vercel || provider == .llmman,
+        // These providers expose useful rows that have no dedicated iPhone payload. In particular,
+        // DevPass and Poe can have details without a rate window or cost summary.
+        let supported: Set<UsageProvider> = [
+            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana,
+        ]
+        guard supported.contains(provider),
               let details = snapshot?.details,
               !details.isEmpty
         else { return nil }
