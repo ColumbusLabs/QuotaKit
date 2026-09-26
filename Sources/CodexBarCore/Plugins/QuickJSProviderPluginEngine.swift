@@ -850,17 +850,18 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func scriptErrorFromException() -> Error {
-        if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
-            let exception = JS_GetException(self.context)
-            cqjs_free_value(self.context, exception)
-            return ProviderPluginError.timedOut
-        }
         let exception = JS_GetException(self.context)
         defer { cqjs_free_value(self.context, exception) }
+        if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            return ProviderPluginError.timedOut
+        }
         return ProviderPluginError.script((try? self.message(from: exception)) ?? "unknown QuickJS exception")
     }
 
     private func failure(from value: JSValue, redactionValues: ProviderPluginRedactionValues) -> Error {
+        if let watchdog = self.watchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            return ProviderPluginError.timedOut
+        }
         if let error = redactionValues.transportErrors.error(for:
             QuickJSPluginValue(engine: self, value: cqjs_dup_value(self.context, value))) { return error }
         let message = redactionValues.redact((try? self.message(from: value)) ?? "unknown plugin failure")

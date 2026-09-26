@@ -226,6 +226,16 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
         contextOptions.cookieSessionInvalidator = cookieSessionInvalidator
         let worker = try self.currentWorker()
         let gate = ProviderPluginCompletionGate<ProviderPluginResult>()
+        let finish: @Sendable (Result<ProviderPluginResult, Error>) -> Void = { [weak worker] result in
+            gate.finish(result.mapError { self.redactedError($0, secrets: sanitizedSecrets.values) }) {
+                if case let .failure(error) = result,
+                   error is CancellationError || error as? ProviderPluginError == .timedOut, let worker
+                {
+                    worker.requestInterrupt()
+                    self.discard(worker)
+                }
+            }
+        }
         return try await withTaskCancellationHandler {
             try Task.checkCancellation()
             return try await withCheckedThrowingContinuation { continuation in
@@ -238,25 +248,15 @@ public final class ProviderPluginRuntime: @unchecked Sendable {
                     timeZone: timeZone,
                     contextOptions: contextOptions,
                     cookieResolver: cookieResolver,
-                    instanceCookieResolver: instanceCookieResolver)
-                { result in
-                    gate.finish(result.mapError { self.redactedError($0, secrets: sanitizedSecrets.values) })
-                }
-                Task.detached { [weak self, weak worker] in
-                    guard let self, let worker else { return }
-                    let nanoseconds = UInt64(self.timeout * 1_000_000_000)
-                    try? await Task.sleep(nanoseconds: nanoseconds)
-                    if gate.finish(.failure(ProviderPluginError.timedOut)) {
-                        worker.requestInterrupt()
-                        self.discard(worker)
-                    }
+                    instanceCookieResolver: instanceCookieResolver,
+                    completion: finish)
+                Task.detached {
+                    try? await Task.sleep(for: .seconds(self.timeout))
+                    finish(.failure(ProviderPluginError.timedOut))
                 }
             }
         } onCancel: {
-            if gate.finish(.failure(CancellationError())) {
-                worker.requestInterrupt()
-                self.discard(worker)
-            }
+            finish(.failure(CancellationError()))
         }
     }
 
@@ -378,23 +378,20 @@ private final class ProviderPluginCompletionGate<Value: Sendable>: @unchecked Se
         self.lock.unlock()
     }
 
-    @discardableResult
-    func finish(_ result: Result<Value, Error>) -> Bool {
+    func finish(_ result: Result<Value, Error>, beforeResume: () -> Void) {
         self.lock.lock()
         guard !self.finished else {
             self.lock.unlock()
-            return false
+            return
         }
         self.finished = true
-        guard let continuation = self.continuation else {
-            self.pendingResult = result
-            self.lock.unlock()
-            return true
-        }
+        // Retire failed workers before a resumed caller can request another fetch.
+        beforeResume()
+        let continuation = self.continuation
+        if continuation == nil { self.pendingResult = result }
         self.continuation = nil
         self.lock.unlock()
-        continuation.resume(with: result)
-        return true
+        continuation?.resume(with: result)
     }
 }
 
