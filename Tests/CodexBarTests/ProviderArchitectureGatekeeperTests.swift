@@ -1598,25 +1598,25 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This Codex account projection passes its fixed provider identity to shared spend infrastructure."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 211,
+            line: 228,
             anchor: "lines.append(Self.costEstimateHint(provider: .codex))",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific app branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 234,
+            line: 251,
             anchor: "lines.append(Self.costEstimateHint(provider: .codex))",
             expectedProviderIDs: ["codex"],
             reason: "This provider-specific app branch passes its already-selected identity to a shared helper."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 616,
+            line: 681,
             anchor: "let account = try context.resolvedAccounts(for: .cursor).first",
             expectedProviderIDs: ["cursor"],
             reason: "The Cursor-only cookie-settings resolver passes its fixed identity to token-account helpers."),
         SuppressedProviderReference(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 617,
+            line: 682,
             anchor: "return context.settingsSnapshot(for: .cursor, account: account)?.cursor",
             expectedProviderIDs: ["cursor"],
             reason: "The Cursor-only cookie-settings resolver passes its fixed identity to token-account helpers."),
@@ -2386,7 +2386,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 728,
+            line: 702,
             anchor: "return .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4966,7 +4966,7 @@ struct ProviderArchitectureGatekeeperTests {
                 "including Vertex AI's shared transcript scanner would change its error-surfacing behavior."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 300,
+            line: 316,
             anchor: "provider == .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4974,7 +4974,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact CLI construct preserves the provider-specific command and output contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 385,
+            line: 420,
             anchor: "let projects = provider == .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -4982,7 +4982,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact CLI construct preserves the provider-specific command and output contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 626,
+            line: 691,
             anchor: "guard provider == .cursor else { return nil }",
             expectedProviderIDs: ["cursor"],
             expectedReferenceCount: 1,
@@ -4990,7 +4990,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact CLI construct preserves the provider-specific command and output contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCLI/CLICostCommand.swift",
-            line: 646,
+            line: 711,
             anchor: "guard provider == .cursor, settings?.cookieSource == .manual else { return nil }",
             expectedProviderIDs: ["cursor"],
             expectedReferenceCount: 1,

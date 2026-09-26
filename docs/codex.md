@@ -150,6 +150,12 @@ Example:
   Reported caps keep their own scale.
 
 ## Cost usage (local log scan)
+
+For a manual comparison with another development machine, run `quotakit cost --provider codex --remote <ssh-host>`.
+Both hosts scan their own native Codex logs once and return separate summaries, retaining their own day boundaries,
+pricing provenance, missing values, and incomplete-request counts. Only bounded totals cross SSH. A remote error keeps
+the local result and returns a nonzero exit code. See [CLI host reporting](cli.md) for the versioned summary contract.
+
 - A queued refresh does not restart a cost-history worker after it exits paused. A later explicit refresh can retry.
 - Menu source selection:
   - By default, a selected managed account keeps its own `CODEX_HOME` session history.
