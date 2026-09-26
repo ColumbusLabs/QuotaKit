@@ -64,7 +64,8 @@ struct GrokWebBillingFetcherTests {
         ]
         var attemptedHeaders: [String] = []
 
-        let result = try await GrokWebFetchStrategy.fetchFirstValidCookieSession(sessions) { cookieHeader, _ in
+        let result = try await GrokWebFetchStrategy.fetchFirstValidCookieSessionWithHeader(sessions) {
+            cookieHeader, _ in
             attemptedHeaders.append(cookieHeader)
             guard cookieHeader.contains("valid") else {
                 throw GrokWebBillingError.requestFailed(401, "stale")
@@ -75,6 +76,7 @@ struct GrokWebBillingFetcherTests {
         }
 
         #expect(attemptedHeaders == ["sso=stale", "sso=valid"])
+        #expect(result.2 == "sso=valid")
         #expect(result.0.usedPercent == 12)
         #expect(result.1 == "Chrome Profile 2")
     }

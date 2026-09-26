@@ -152,7 +152,7 @@ extension UsageStore {
     }
 }
 
-private struct TokenAccountFetchResult {
+struct TokenAccountFetchResult {
     let index: Int
     let account: ProviderTokenAccount
     let outcome: ProviderFetchOutcome
@@ -634,6 +634,12 @@ extension UsageStore {
                 self.accountSnapshots[provider.instanceID] = snapshots
             }
         }
+
+        self.scheduleSupplementalUsageUpdates(
+            provider: provider,
+            results: results,
+            selectedAccountID: effectiveSelected.id,
+            generation: generation)
 
         if let selectedOutcome, let resolvedSelectedAccount {
             await self.applySelectedOutcome(
@@ -1577,6 +1583,11 @@ extension UsageStore {
                 provider: provider,
                 snapshot: backfilled,
                 account: account)
+            self.scheduleSupplementalUsageUpdate(
+                provider: provider,
+                result: result,
+                generation: generation,
+                accountID: account?.id)
         case let .failure(error):
             await MainActor.run {
                 if provider == .claude,

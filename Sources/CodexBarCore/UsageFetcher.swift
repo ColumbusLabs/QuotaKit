@@ -174,6 +174,8 @@ public struct UsageSnapshot: Codable, Sendable {
     public let bedrockUsage: BedrockUsageSnapshot?
     public let groqConsoleUsage: GroqConsoleUsageSnapshot?
     public let codexResetCredits: CodexRateLimitResetCreditsSnapshot?
+    /// Live-only display inventory; redemption token identifiers never enter the snapshot.
+    public let grokResetCredits: GrokRateLimitResetCreditsSnapshot?
     public let claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot?
     public let mistralUsage: MistralUsageSnapshot?
     public let deepgramUsage: DeepgramUsageSnapshot?
@@ -276,6 +278,7 @@ public struct UsageSnapshot: Codable, Sendable {
         bedrockUsage: BedrockUsageSnapshot? = nil,
         groqConsoleUsage: GroqConsoleUsageSnapshot? = nil,
         codexResetCredits: CodexRateLimitResetCreditsSnapshot? = nil,
+        grokResetCredits: GrokRateLimitResetCreditsSnapshot? = nil,
         claudeAdminAPIUsage: ClaudeAdminAPIUsageSnapshot? = nil,
         mistralUsage: MistralUsageSnapshot? = nil,
         deepgramUsage: DeepgramUsageSnapshot? = nil,
@@ -329,6 +332,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.bedrockUsage = bedrockUsage
         self.groqConsoleUsage = groqConsoleUsage
         self.codexResetCredits = codexResetCredits
+        self.grokResetCredits = grokResetCredits
         self.claudeAdminAPIUsage = claudeAdminAPIUsage
         self.mistralUsage = mistralUsage
         self.deepgramUsage = deepgramUsage
@@ -358,6 +362,10 @@ public struct UsageSnapshot: Codable, Sendable {
 
     public func withCodexResetCredits(_ resetCredits: CodexRateLimitResetCreditsSnapshot?) -> UsageSnapshot {
         self.replacing(codexResetCredits: .value(resetCredits))
+    }
+
+    public func withGrokResetCredits(_ resetCredits: GrokRateLimitResetCreditsSnapshot?) -> UsageSnapshot {
+        self.replacing(grokResetCredits: .value(resetCredits))
     }
 
     public func withSubscriptionMetadata(expiresAt: Date?, renewsAt: Date?) -> UsageSnapshot {
@@ -419,6 +427,7 @@ public struct UsageSnapshot: Codable, Sendable {
         self.codexResetCredits = try? container.decodeIfPresent(
             CodexRateLimitResetCreditsSnapshot.self,
             forKey: .codexResetCredits)
+        self.grokResetCredits = nil // Refresh live; do not persist redemption inventory.
         self.claudeAdminAPIUsage = try? container.decodeIfPresent(
             ClaudeAdminAPIUsageSnapshot.self,
             forKey: .claudeAdminAPIUsage)
@@ -660,6 +669,7 @@ public struct UsageSnapshot: Codable, Sendable {
         deepseekDetailedUsageState: Replacement<DeepSeekDetailedUsageState> = .unchanged,
         deepseekPlatformProfiles: Replacement<[DeepSeekPlatformProfile]> = .unchanged,
         codexResetCredits: Replacement<CodexRateLimitResetCreditsSnapshot?> = .unchanged,
+        grokResetCredits: Replacement<GrokRateLimitResetCreditsSnapshot?> = .unchanged,
         subscriptionExpiresAt: Replacement<Date?> = .unchanged,
         subscriptionRenewsAt: Replacement<Date?> = .unchanged,
         identity: Replacement<ProviderIdentitySnapshot?> = .unchanged,
@@ -694,6 +704,7 @@ public struct UsageSnapshot: Codable, Sendable {
             bedrockUsage: self.bedrockUsage,
             groqConsoleUsage: self.groqConsoleUsage,
             codexResetCredits: codexResetCredits.resolving(self.codexResetCredits),
+            grokResetCredits: grokResetCredits.resolving(self.grokResetCredits),
             claudeAdminAPIUsage: self.claudeAdminAPIUsage,
             mistralUsage: self.mistralUsage,
             deepgramUsage: self.deepgramUsage,
