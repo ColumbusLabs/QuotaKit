@@ -1,4 +1,4 @@
-import CodexBarCore
+import CodexBarCore // swiftlint:disable file_length
 import Foundation
 
 // Token-account orchestration and its shared state transitions remain together to preserve actor isolation.

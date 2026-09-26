@@ -1,4 +1,4 @@
-import AppKit
+import AppKit // swiftlint:disable file_length
 import CodexBarCore
 import Foundation
 import Observation
@@ -1447,6 +1447,7 @@ extension UsageStore {
         }
     }
 
+    // swiftlint:disable:next function_body_length
     func refreshTokenUsage(_ provider: UsageProvider, force: Bool) async {
         guard ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.supportsTokenCost else {
             self.resetTokenUsageState(for: provider)
