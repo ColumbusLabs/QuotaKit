@@ -14,6 +14,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Improved
 
+- Codex cost storage avoids rewriting unchanged session files when another file updates.
 - Claude cost reports restore compatible cached results across app launches.
 - Claude and Vertex cost caches avoid rewriting identical history JSON after an unchanged rescan.
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.

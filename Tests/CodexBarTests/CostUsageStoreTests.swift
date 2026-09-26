@@ -13,6 +13,41 @@ import CSQLite3
 
 struct CostUsageStoreTests {
     @Test
+    func `changed Codex file writes stay bounded as unchanged files grow`() async throws {
+        func changedSaveWrites(fileCount: Int) async throws -> Int {
+            let fixture = try StoreFixture()
+            defer { fixture.remove() }
+            let store = CostUsageStore(cacheRoot: fixture.root)
+            var cache = CostUsageCache()
+            cache.scanSinceKey = "2026-08-01"
+            cache.scanUntilKey = "2026-08-01"
+            cache.files = Dictionary(uniqueKeysWithValues: (0..<fileCount).map { index in
+                ("/sessions/\(index).jsonl", CostUsageFileUsage(
+                    mtimeUnixMs: 1000, size: 0, days: [:]))
+            })
+            _ = store.syncSaveCodexCache(
+                cache, calendar: .current,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+            var changed = store.syncLoadCodexCache(calendar: .current)
+            changed.lastScanUnixMs += 1000
+            changed.files["/sessions/0.jsonl"]?.lastModel = "test-model"
+            let before = await store.persistenceWriteMetricsForTesting()
+            let result = store.syncSaveCodexCache(
+                changed, calendar: .current,
+                requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"),
+                skipIdenticalContent: true)
+            let after = await store.persistenceWriteMetricsForTesting()
+            #expect(!result.catchUpRequired)
+            #expect(store.syncLoadCodexCache(calendar: .current).files == changed.files)
+            return after.rows - before.rows
+        }
+
+        let small = try await changedSaveWrites(fileCount: 2)
+        let large = try await changedSaveWrites(fileCount: 12)
+        #expect(large <= small + 5)
+    }
+
+    @Test
     func `pending Codex pricing survives a staged replacement reload`() throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
