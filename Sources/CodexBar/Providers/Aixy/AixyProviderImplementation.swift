@@ -31,7 +31,8 @@ struct AixyProviderImplementation: ProviderImplementation {
                 placeholder: "Paste Aixy API key…",
                 binding: context.providerConfigBinding(.apiKey),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "aixy-base-url",
                 title: "Base URL",
@@ -40,7 +41,8 @@ struct AixyProviderImplementation: ProviderImplementation {
                 placeholder: "https://api.aixy-gateway.com",
                 binding: context.providerConfigBinding(.endpoint),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
         ]
     }
 }
