@@ -18,6 +18,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Antigravity: skip foreign SQLite databases without inventing empty history.
 - Antigravity: preserve history around UUID-less bookkeeping steps without assigning uncertain dates.
 - Antigravity: match local token-history timestamps by turn ID and preserve valid history around reordered steps.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
