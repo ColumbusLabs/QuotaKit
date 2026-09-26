@@ -54,6 +54,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Chutes: move quota retrieval to the bundled provider plugin.
 
+- Codex cost storage avoids rewriting unchanged session files when another file updates.
+- Claude cost reports restore compatible cached results across app launches.
+- Claude and Vertex cost caches avoid rewriting identical history JSON after an unchanged rescan.
 - Mac UI: animate provider-status disclosure chevrons, keep stacked switcher labels aligned, remove the redundant accent-color swatch, and remove the tint behind Overview spend.
 
 ### Fixed
@@ -81,6 +84,15 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Mistral: count consumed tokens covered by plans across API, Le Chat, and Vibe Code billing categories (#3963).
 - Grok: classify unavailable billing RPC methods by JSON-RPC code so team history survives wording changes (#3947).
 - Codex: prefer the fresh CLI usage response plan over cached account metadata after a subscription change (#3389).
+- Merged cost reports retain priced and unpriced request coverage from each source.
+- Codex cost history retains observed pricing model and service tier when a bounded session rescan outlives its trace evidence.
+- Usage & Spend: show ranked, titled Codex sessions with project context while honoring hidden personal information.
+- Cost history: keep 30-day CLI JSON totals accurate when a longer history is selected, read Priority traces on Linux, and apply the correct long-context boundary to OpenAI models recorded by Claude Code.
+- Usage & Spend: keep Codex conversation names, project paths, and each rollout's SQLite-home context in session history.
+- Codex costs: preserve inherited cumulative counters across direct forks and empty intermediate sessions (upstream #3524).
+
+- OpenCode Go: include recorded local token counts in daily and per-model history without inventing costs or treating missing counts as zero (upstream #4000).
+
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.

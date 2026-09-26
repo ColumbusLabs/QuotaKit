@@ -14,6 +14,28 @@ struct CostUsageScannerClaudeMemoTests {
     }
 
     @Test
+    func `identical Claude cache saves retain the artifact stamp`() throws {
+        let env = try CostUsageTestEnvironment()
+        defer { env.cleanup() }
+        let cacheURL = CostUsageClaudeCacheIO.cacheFileURL(provider: .claude, cacheRoot: env.cacheRoot)
+        var cache = CostUsageCache()
+        cache.lastScanUnixMs = 1
+        let first = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        let bytes = try Data(contentsOf: cacheURL)
+
+        let second = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        #expect(second == first)
+        #expect(try Data(contentsOf: cacheURL) == bytes)
+
+        cache.lastScanUnixMs = 2
+        _ = try #require(CostUsageClaudeCacheIO.save(
+            provider: .claude, cache: cache, cacheRoot: env.cacheRoot))
+        #expect(CostUsageClaudeCacheIO.load(provider: .claude, cacheRoot: env.cacheRoot).lastScanUnixMs == 2)
+    }
+
+    @Test
     func `identical warm refresh only inventories sources`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
@@ -33,7 +55,7 @@ struct CostUsageScannerClaudeMemoTests {
     }
 
     @Test
-    func `cold process reuses unchanged files from the persisted cache`() throws {
+    func `cold process restores the compatible report memo`() throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
         let day = try env.makeLocalNoon(year: 2026, month: 7, day: 1)
@@ -41,14 +63,15 @@ struct CostUsageScannerClaudeMemoTests {
         _ = try self.writeEvent(env: env, day: day, path: "project/second.jsonl", id: "second", input: 20)
         let options = self.options(env: env)
         let initial = self.load(day: day, options: options)
+        let memoURL = CostUsageClaudeReportMemo.reportMemoFileURL(cacheFileURL: self.cacheURL(env: env))
+        #expect(FileManager.default.fileExists(atPath: memoURL.path))
         CostUsageScanner.evictClaudeReportMemoForTesting(provider: .claude, cacheRoot: env.cacheRoot)
 
         let (restarted, metrics) = self.recordedLoad(day: day, options: options)
 
         #expect(restarted.data == initial.data)
         #expect(restarted.summary == initial.summary)
-        #expect(metrics.cacheDecodes == 1)
-        #expect(metrics.transcriptParses == 0)
+        #expect(metrics == CostUsageScanner.ClaudeScanWorkMetrics())
     }
 
     @Test

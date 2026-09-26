@@ -740,7 +740,7 @@ struct SpendDashboardCurrencySection: View {
 
             SpendProviderPanel(group: self.group)
             SpendModelPanel(group: self.group, metric: self.$modelMetric)
-            SpendSessionPanel(group: self.group)
+            SpendSessionPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
             if !self.group.projects.isEmpty {
                 SpendProjectPanel(group: self.group, hidePersonalInfo: self.hidePersonalInfo)
             }
@@ -1237,21 +1237,33 @@ private struct SpendProviderIcon: View {
 
 private struct SpendSessionPanel: View {
     let group: SpendDashboardModel.CurrencyGroup
+    let hidePersonalInfo: Bool
+    @State private var showsAllRows = false
+
+    private static let collapsedRowCount = 8
 
     var body: some View {
         if !self.group.sessions.isEmpty {
             SpendDashboardPanel {
                 VStack(alignment: .leading, spacing: 0) {
                     Text(L("Sessions")).font(.headline).padding(.bottom, 8)
-                    ForEach(Array(self.group.sessions.enumerated()), id: \.element.id) { index, row in
-                        if index > 0 {
+                    ForEach(self.visibleRows) { row in
+                        let identity = row.displayIdentity(hidePersonalInfo: self.hidePersonalInfo)
+                        let subtitle = row.displaySubtitle(
+                            hidePersonalInfo: self.hidePersonalInfo,
+                            calendar: self.group.calendar)
+                        if row.rank > 1 {
                             Divider()
                         }
                         HStack(spacing: 10) {
+                            Text(spendDashboardRankText(row.rank))
+                                .font(.caption.monospacedDigit())
+                                .foregroundStyle(.tertiary)
+                                .frame(width: 26, alignment: .leading)
                             SpendProviderIcon(provider: row.provider, sourceKind: .native)
                             VStack(alignment: .leading, spacing: 2) {
-                                Text(row.displayName).lineLimit(1)
-                                Text(row.modelName ?? SpendActivityDateFormatting.mediumDateString(row.lastActivity))
+                                Text(identity.name).lineLimit(1).help(identity.name)
+                                Text(subtitle)
                                     .font(.caption)
                                     .foregroundStyle(.secondary)
                             }
@@ -1264,9 +1276,18 @@ private struct SpendSessionPanel: View {
                         }
                         .padding(.vertical, 9)
                     }
+                    SpendPanelExpandButton(
+                        rowCount: self.group.sessions.count,
+                        collapsedRowCount: Self.collapsedRowCount,
+                        showsAllRows: self.$showsAllRows)
                 }
             }
         }
+    }
+
+    private var visibleRows: ArraySlice<SpendDashboardModel.SessionRow> {
+        self.group.sessions.prefix(
+            self.showsAllRows ? self.group.sessions.count : Self.collapsedRowCount)
     }
 }
 

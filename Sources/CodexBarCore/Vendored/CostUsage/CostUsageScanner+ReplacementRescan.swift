@@ -291,6 +291,23 @@ extension CostUsageScanner {
             sessionId: sessionId,
             fileIdentity: input.metadata.path,
             state: &state)
+        // A pruned trace can omit model/tier evidence for a request that was priced by an
+        // earlier scan. Keep that evidence while a bounded replacement stages its new ledger.
+        var priorPricing: [String: CodexPricingEvidence] = [:]
+        if !plan.parserRevisionNeedsReplacement,
+           input.cached?.codexScanFileId == input.metadata.fileId,
+           input.cached?.sessionId == sessionId
+        {
+            priorPricing = input.cached?.codexPendingPricing ?? [:]
+            for row in migratedCached?.codexRows ?? [] {
+                priorPricing[Self.codexUsageRowKey(sessionId: sessionId, row: row)] =
+                    CodexPricingEvidence(pricingModel: row.pricingModel, pricingMode: row.pricingMode)
+            }
+        }
+        let classifiedRows = Self.codexRowsWithPricingMetadata(
+            uniqueRows,
+            priorityTurns: context.resources.priorityTurns,
+            preservingPricingFrom: { priorPricing[Self.codexUsageRowKey(sessionId: sessionId, row: $0)] })
         context.workRecorder?.record(processed: uniqueRows.count, repriced: uniqueRows.count)
         let usageDays = plan.usageDays
         let duplicateWithoutUniqueUsage = plan.scanComplete
@@ -303,7 +320,7 @@ extension CostUsageScanner {
         let accounting = Self.codexRescanAccounting(
             plan: plan,
             context: context,
-            uniqueRows: uniqueRows,
+            uniqueRows: classifiedRows,
             sessionId: sessionId)
         let usage = Self.makeFileUsage(
             mtimeUnixMs: input.metadata.mtimeUnixMs,
@@ -332,7 +349,7 @@ extension CostUsageScanner {
                 ? migratedCached?.codexCostNanos
                 : Self.mergeCostMaps(
                     accounting.costBaseline,
-                    Self.codexCostNanos(rows: uniqueRows, range: context.range)),
+                    Self.codexCostNanos(rows: classifiedRows, range: context.range)),
             codexPrioritySurchargeNanos: nil,
             codexStandardCostNanos: nil,
             codexPriorityCostNanos: nil,
@@ -344,14 +361,16 @@ extension CostUsageScanner {
                 : Self.mergeIntMaps(accounting.priorityTokenBaseline, accounting.priorityTokens),
             codexTurnIDs: plan.replacementPending
                 ? migratedCached?.codexTurnIDs
-                : Self.mergeCodexTurnIDs(accounting.turnIDBaseline, rows: uniqueRows),
+                : Self.mergeCodexTurnIDs(accounting.turnIDBaseline, rows: classifiedRows),
             // Do not merge replayed rows with the committed generation. Pending passes need no
             // event rows; completion receives the full replay from the parser and replaces them.
             codexRows: plan.replacementPending
                 ? nil
                 : Self.codexRowsWithPricingMetadata(
                     accounting.persistedRows,
-                    priorityTurns: context.resources.priorityTurns),
+                    priorityTurns: context.resources.priorityTurns,
+                    preservingPricingFrom: { priorPricing[Self.codexUsageRowKey(sessionId: sessionId, row: $0)] }),
+            codexPendingPricing: plan.replacementPending && !priorPricing.isEmpty ? priorPricing : nil,
             codexTokenSnapshots: parsed.tokenSnapshots,
             codexTokenCheckpoints: plan.replacementPending
                 ? nil
@@ -387,6 +406,9 @@ extension CostUsageScanner {
         let session = CodexScannedSession(
             id: sessionId,
             days: plan.replacementPending ? [:] : accounting.usageDays)
-        return CodexRescanMaterialized(usage: usage, session: session, rows: plan.replacementPending ? [] : uniqueRows)
+        return CodexRescanMaterialized(
+            usage: usage,
+            session: session,
+            rows: plan.replacementPending ? [] : classifiedRows)
     }
 }

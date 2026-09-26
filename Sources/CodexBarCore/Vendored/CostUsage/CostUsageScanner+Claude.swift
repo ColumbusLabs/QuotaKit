@@ -761,6 +761,7 @@ extension CostUsageScanner {
 
         if shouldMutateCache {
             try checkCancellation?()
+            let priorCache = cache
             if options.forceRescan {
                 cache = CostUsageCache()
             }
@@ -802,7 +803,10 @@ extension CostUsageScanner {
             Self.pruneDays(cache: &cache, sinceKey: range.scanSinceKey, untilKey: range.scanUntilKey)
             cache.scanSinceKey = range.scanSinceKey
             cache.scanUntilKey = range.scanUntilKey
-            cache.lastScanUnixMs = nowMs
+            // A refresh with identical source content should keep its cache stamp and memo valid.
+            if cache != priorCache {
+                cache.lastScanUnixMs = nowMs
+            }
         }
 
         let report = Self.buildClaudeReportFromCache(

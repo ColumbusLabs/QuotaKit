@@ -467,7 +467,9 @@ struct CostHistoryChartMenuView: View {
     private func sessionRow(_ session: CostUsageSessionBreakdown) -> some View {
         HStack(alignment: .top, spacing: 8) {
             VStack(alignment: .leading, spacing: 1) {
-                Text(L("Session %@", Self.shortSessionID(session.sessionID)))
+                Text(self.hidePersonalInfo
+                    ? L("Session %@", Self.shortSessionID(session.sessionID))
+                    : session.title ?? L("Session %@", Self.shortSessionID(session.sessionID)))
                     .font(.caption)
                     .foregroundStyle(.secondary)
                     .lineLimit(1)
@@ -492,7 +494,7 @@ struct CostHistoryChartMenuView: View {
         .accessibilityElement(children: .combine)
     }
 
-    static func shortSessionID(_ sessionID: String) -> String {
+    nonisolated static func shortSessionID(_ sessionID: String) -> String {
         let trimmed = sessionID.trimmingCharacters(in: .whitespacesAndNewlines)
         guard trimmed.count > 12 else { return trimmed }
         return "\(trimmed.prefix(4))...\(trimmed.suffix(8))"

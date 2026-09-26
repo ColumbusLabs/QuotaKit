@@ -575,6 +575,7 @@ public struct CostUsageFetcher: Sendable {
             includePiSessions: includePiSessions,
             shouldMergePiUsage: shouldMergePiUsage,
             scanOptions: scanOptions,
+            environment: environment,
             piOptions: piOptions)
         let scanResult = try await Self.loadLocalTokenScanResult(
             provider: provider,
@@ -639,6 +640,7 @@ public struct CostUsageFetcher: Sendable {
         let includePiSessions: Bool
         let shouldMergePiUsage: Bool
         let scanOptions: CostUsageScanner.Options
+        let environment: [String: String]
         let piOptions: PiSessionCostScanner.Options
     }
 
@@ -771,6 +773,10 @@ public struct CostUsageFetcher: Sendable {
                 if piDaily?.data.isEmpty == false {
                     sessions = []
                 }
+                sessions = Self.codexSessionsWithThreadTitles(
+                    sessions,
+                    sessionsRoot: CostUsageScanner.codexSessionsRoots(options: scanOptions).first,
+                    environment: options.environment)
             }
             return LocalTokenScanResult(
                 daily: daily,
@@ -781,6 +787,39 @@ public struct CostUsageFetcher: Sendable {
                     || Self.codexHistoryCoverageIsEstablished(options: scanOptions),
                 historySinceDayKey: historyRange.sinceKey,
                 historyUntilDayKey: historyRange.untilKey)
+        }
+    }
+
+    /// Codex thread titles live outside rollout files; resolve them after the cost scan.
+    static func codexSessionsWithThreadTitles(
+        _ sessions: [CostUsageSessionBreakdown],
+        sessionsRoot: URL?,
+        environment: [String: String] = ProcessInfo.processInfo.environment) -> [CostUsageSessionBreakdown]
+    {
+        guard !sessions.isEmpty,
+              let sessionsRoot,
+              sessionsRoot.lastPathComponent == "sessions"
+        else { return sessions }
+        let home = sessionsRoot.deletingLastPathComponent()
+        let indexedNames = CodexThreadMetadataReader.indexedThreadNames(
+            codexHomeDirectory: home,
+            sessionIDs: Set(sessions.map(\.sessionID)))
+        let groups = Dictionary(grouping: sessions) { session in
+            CodexThreadMetadataReader(
+                codexHomeDirectory: home,
+                environment: environment,
+                resolvedWorkingDirectory: session.workingDirectory.map {
+                    URL(fileURLWithPath: $0, isDirectory: true)
+                }).databaseURL
+        }
+        var metadata: [String: CodexThreadMetadata] = [:]
+        for (database, group) in groups {
+            metadata.merge(CodexThreadMetadataReader(databaseURL: database).metadata(
+                for: Set(group.map(\.sessionID)), indexedNames: indexedNames)) { _, latest in latest }
+        }
+        return sessions.map { session in
+            guard let title = metadata[session.sessionID]?.title else { return session }
+            return session.withTitle(title)
         }
     }
 
@@ -1218,7 +1257,7 @@ public struct CostUsageFetcher: Sendable {
                     historyUntilDayKey: range.untilKey,
                     costProvenance: .listPriceEstimate,
                     projects: Self.mergedProjectBreakdowns(projects),
-                    sessions: sessions,
+                    sessions: Self.codexSessionsWithThreadTitles(sessions, sessionsRoot: roots.first),
                     updatedAt: scanTimes.min()),
                 lastRefreshAt: piMerged || staleSnapshotUpdatedAt != nil ? nil : nativeScanAt,
                 staleSnapshotUpdatedAt: staleSnapshotUpdatedAt,

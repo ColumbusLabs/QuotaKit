@@ -162,14 +162,20 @@ extension CostUsageStore {
             }
             return result
         }
-        let canReuseStoredRows = previous.metadata.timeZoneIdentifier == calendar.timeZone.identifier
         let aggregatePricing = self.aggregatePricingContext()
+        let restoredPreviousFiles = Self.cache(from: previous).files
         let saved = self.withSaveTransaction(default: false) {
-            self.deleteRemovedFiles(previous: previous, cache: cache)
-            let previousFilesByPath = Dictionary(uniqueKeysWithValues: previous.files.map { ($0.path, $0) })
-            let snapshotCountsByPath = previous.tokenSnapshots
+            // Rebuild the per-file baseline under the writer lock. Another process may have
+            // committed between the optimistic read and this transaction.
+            let lockedPrevious = self.readSnapshotInCurrentTransaction()
+            let restoredFiles = lockedPrevious == previous ? restoredPreviousFiles : [:]
+            let canReuseStoredRows = lockedPrevious.metadata.timeZoneIdentifier == calendar.timeZone.identifier
+            self.deleteRemovedFiles(previous: lockedPrevious, cache: cache)
+            let previousFilesByPath = Dictionary(uniqueKeysWithValues: lockedPrevious.files.map { ($0.path, $0) })
+            let snapshotCountsByPath = lockedPrevious.tokenSnapshots
                 .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
-            let rowCountsByPath = previous.usageRows.reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
+            let rowCountsByPath = lockedPrevious.usageRows.reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
+            let aggregatesByPath = Dictionary(grouping: lockedPrevious.fileDayAggregates, by: \.path)
             var persistedFiles = 0
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
                 self.persistFile(
@@ -179,7 +185,9 @@ extension CostUsageStore {
                         file: previousFilesByPath[path],
                         snapshotCount: snapshotCountsByPath[path] ?? 0,
                         rowCount: rowCountsByPath[path] ?? 0,
-                        canReuseRows: canReuseStoredRows),
+                        canReuseRows: canReuseStoredRows,
+                        usage: restoredFiles[path],
+                        aggregates: aggregatesByPath[path]?.map(\.aggregate) ?? []),
                     calendar: calendar,
                     aggregatePricing: aggregatePricing)
                 persistedFiles += 1
@@ -189,9 +197,9 @@ extension CostUsageStore {
             var metadata = Self.metadata(
                 cache: cache,
                 calendar: calendar,
-                preservingVerifiedCoverageFrom: previous.metadata)
+                preservingVerifiedCoverageFrom: lockedPrevious.metadata)
             if Self.verifiedScopeChanged(
-                previous: previous.metadata,
+                previous: lockedPrevious.metadata,
                 timeZoneIdentifier: calendar.timeZone.identifier,
                 rootPaths: cache.roots?.keys.sorted())
             {
@@ -575,6 +583,8 @@ extension CostUsageStore {
         var snapshotCount: Int
         var rowCount: Int
         var canReuseRows: Bool
+        var usage: CostUsageFileUsage? = nil
+        var aggregates: [CostUsageStoreDayAggregate]? = nil
     }
 
     private struct CurrentCodexRootDevice {
@@ -732,6 +742,8 @@ extension CostUsageStore {
                     ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
                 codexWorkspaceContentFingerprint: details.workspaceFingerprint,
                 codexRows: details.hasRows && isHydrated ? restoredRows : nil,
+                codexPendingPricing: isHydrated
+                    ? Self.bufferedPricingEvidence(buffers) : nil,
                 codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
                 codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
@@ -1126,6 +1138,18 @@ extension CostUsageStore {
         let snapshotCount = sourceSnapshots.count
         let rowCount = sourceRows.count
         let replacementPending = usage.codexReplacementScanPending == true
+        if baseline.canReuseRows,
+           !replacementPending,
+           baseline.file != nil,
+           baseline.usage == usage,
+           rowCount == baseline.rowCount,
+           snapshotCount == baseline.snapshotCount,
+           let persistedAggregates = baseline.aggregates,
+           persistedAggregates.sorted(by: { ($0.day, $0.model) < ($1.day, $1.model) })
+               == Self.fileAggregates(usage, pricing: aggregatePricing)
+        {
+            return
+        }
         let committedDetails = baseline.file?.scanState.detailsPayload.flatMap {
             try? JSONDecoder().decode(StoredFileDetails.self, from: $0)
         }
@@ -1790,6 +1814,16 @@ extension CostUsageStore {
     }
 
     private func persistBuffers(path: String, usage: CostUsageFileUsage) {
+        let pricingPayload = usage.codexPendingPricing.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .pricingEvidence, lines: pricingPayload.map {
+            [CostUsageStoreBufferedLine(
+                path: path,
+                kind: .pricingEvidence,
+                lineIndex: 0,
+                ordinal: nil,
+                endOffset: nil,
+                payload: $0)]
+        } ?? [])
         let pairs: [(CostUsageStoreBufferedLineKind, [CostUsageScanner.CodexBufferedFastLine]?)] = [
             (.subagent, usage.codexBufferedSubagentLines),
             (.unresolvedFork, usage.codexBufferedUnresolvedForkLines),
@@ -1806,6 +1840,14 @@ extension CostUsageStore {
                     payload: payload)
             }
             _ = self.replaceBufferedLines(path: path, kind: kind, lines: lines)
+        }
+    }
+
+    private static func bufferedPricingEvidence(
+        _ values: [CostUsageStoreBufferedLine]) -> [String: CostUsageScanner.CodexPricingEvidence]?
+    {
+        values.first(where: { $0.kind == .pricingEvidence }).flatMap {
+            try? JSONDecoder().decode([String: CostUsageScanner.CodexPricingEvidence].self, from: $0.payload)
         }
     }
 

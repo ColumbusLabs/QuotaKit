@@ -1,6 +1,6 @@
 import Foundation
 
-struct CostUsageClaudeFileStamp: Equatable, Sendable {
+struct CostUsageClaudeFileStamp: Equatable, Sendable, Codable {
     let fileID: String
     let size: Int64
     let modifiedSeconds: Int64
@@ -29,7 +29,7 @@ struct CostUsageClaudeFileStamp: Equatable, Sendable {
     }
 }
 
-struct CostUsageClaudeReportMemoKey: Equatable, Sendable {
+struct CostUsageClaudeReportMemoKey: Equatable, Sendable, Codable {
     let provider: UsageProvider
     let providerFilter: String
     let sinceKey: String
@@ -65,10 +65,22 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     }
 
     static let shared = CostUsageClaudeReportMemo()
+    static let persistedVersion = 1
+    /// Bump when bundled pricing or daily report aggregation changes without artifact stamps.
+    static let reportSemanticsVersion = 1
 
     private struct StoredEntry {
         let entry: Entry
         let generation: UInt64
+    }
+
+    private struct PersistedEnvelope: Codable {
+        var version: Int
+        var reportSemanticsVersion: Int
+        var sourceInventory: [String: CostUsageClaudeFileStamp]
+        var reportKey: CostUsageClaudeReportMemoKey
+        var data: [CostUsageCodexPreviousReport.Entry]
+        var summary: CostUsageCodexPreviousReport.Summary?
     }
 
     private let lock = NSLock()
@@ -79,8 +91,18 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
     func entry(provider: UsageProvider, canonicalCachePath: String) -> Entry? {
         let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
         self.lock.lock()
+        if let memory = self.entries[key]?.entry {
+            self.lock.unlock()
+            return memory
+        }
+        self.lock.unlock()
+
+        guard let persisted = Self.loadPersisted(canonicalCachePath: canonicalCachePath) else { return nil }
+        self.lock.lock()
         defer { self.lock.unlock() }
-        return self.entries[key]?.entry
+        if let memory = self.entries[key]?.entry { return memory }
+        self.installUnlocked(key: key, entry: persisted)
+        return persisted
     }
 
     func store(
@@ -91,11 +113,17 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         report: CostUsageDailyReport)
     {
         let key = Self.key(provider: provider, canonicalCachePath: canonicalCachePath)
+        let entry = Entry(sourceInventory: sourceInventory, reportKey: reportKey, report: report)
         self.lock.lock()
-        defer { self.lock.unlock() }
+        self.installUnlocked(key: key, entry: entry)
+        self.lock.unlock()
+        Self.persist(entry, canonicalCachePath: canonicalCachePath)
+    }
+
+    private func installUnlocked(key: String, entry: Entry) {
         self.generation &+= 1
         self.entries[key] = StoredEntry(
-            entry: Entry(sourceInventory: sourceInventory, reportKey: reportKey, report: report),
+            entry: entry,
             generation: self.generation)
         if self.entries.count > self.capacity,
            let oldest = self.entries.min(by: { $0.value.generation < $1.value.generation })?.key
@@ -115,6 +143,48 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
 
     private static func key(provider: UsageProvider, canonicalCachePath: String) -> String {
         "\(provider.rawValue)|\(canonicalCachePath)"
+    }
+
+    static func reportMemoFileURL(cacheFileURL: URL) -> URL {
+        let stem = cacheFileURL.deletingPathExtension().lastPathComponent
+        return cacheFileURL.deletingLastPathComponent()
+            .appendingPathComponent("\(stem).report-memo.json", isDirectory: false)
+    }
+
+    private static func loadPersisted(canonicalCachePath: String) -> Entry? {
+        let url = Self.reportMemoFileURL(cacheFileURL: URL(fileURLWithPath: canonicalCachePath))
+        guard let data = try? Data(contentsOf: url),
+              let envelope = try? JSONDecoder().decode(PersistedEnvelope.self, from: data),
+              envelope.version == Self.persistedVersion,
+              envelope.reportSemanticsVersion == Self.reportSemanticsVersion
+        else { return nil }
+        return Entry(
+            sourceInventory: envelope.sourceInventory,
+            reportKey: envelope.reportKey,
+            report: CostUsageDailyReport(
+                data: envelope.data.map(\.dailyReportValue),
+                summary: envelope.summary?.dailyReportValue))
+    }
+
+    private static func persist(_ entry: Entry, canonicalCachePath: String) {
+        let url = Self.reportMemoFileURL(cacheFileURL: URL(fileURLWithPath: canonicalCachePath))
+        let envelope = PersistedEnvelope(
+            version: Self.persistedVersion,
+            reportSemanticsVersion: Self.reportSemanticsVersion,
+            sourceInventory: entry.sourceInventory,
+            reportKey: entry.reportKey,
+            data: entry.report.data.map(CostUsageCodexPreviousReport.Entry.init),
+            summary: entry.report.summary.map(CostUsageCodexPreviousReport.Summary.init))
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(envelope) else { return }
+        if (try? Data(contentsOf: url)) == data { return }
+        let directory = url.deletingLastPathComponent()
+        try? FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+        let temporaryURL = directory.appendingPathComponent(".claude-report-memo-\(UUID().uuidString).tmp")
+        defer { try? FileManager.default.removeItem(at: temporaryURL) }
+        guard (try? data.write(to: temporaryURL)) != nil else { return }
+        _ = rename(temporaryURL.path, url.path)
     }
 }
 
@@ -240,8 +310,19 @@ enum CostUsageClaudeCacheIO {
         #if DEBUG
         CostUsageScanner.recordClaudeScanWork(.cacheEncode)
         #endif
-        guard let data = try? JSONEncoder().encode(cache) else { return nil }
+        let encoder = JSONEncoder()
+        encoder.outputFormatting = [.sortedKeys]
+        guard let data = try? encoder.encode(cache) else { return nil }
         try checkCancellation?()
+        // Keep the artifact stamp stable when a rescan produces the same cache. Recheck the
+        // stamp after reading so a concurrent writer cannot make the comparison stale.
+        if let stamp = CostUsageClaudeFileStamp.read(at: url),
+           stamp.size == Int64(data.count),
+           (try? Data(contentsOf: url)) == data,
+           CostUsageClaudeFileStamp.read(at: url) == stamp
+        {
+            return stamp
+        }
         let directory = url.deletingLastPathComponent()
         try? FileManager.default.createDirectory(
             at: directory,

@@ -5,6 +5,30 @@ import Testing
 
 struct SpendDashboardModelTests {
     @Test
+    func `session identity hides names and project context with privacy enabled`() {
+        let row = SpendDashboardModel.SessionRow(
+            id: "codex:session-1234567890",
+            rank: 1,
+            sessionID: "session-1234567890",
+            sourceID: "codex",
+            provider: .codex,
+            title: "Private task",
+            projectName: "Secret project",
+            projectPath: "/secret/project",
+            lastActivity: Date(timeIntervalSince1970: 1_719_793_800),
+            totalTokens: 100,
+            totalCost: 1,
+            modelName: "gpt-4o")
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = TimeZone(secondsFromGMT: 0)!
+        #expect(row.displayIdentity(hidePersonalInfo: false).name == "Private task")
+        #expect(row.displayIdentity(hidePersonalInfo: true).name != "Private task")
+        #expect(row.displayIdentity(hidePersonalInfo: true).path == nil)
+        #expect(row.displaySubtitle(hidePersonalInfo: false, calendar: calendar).contains("Secret project"))
+        #expect(!row.displaySubtitle(hidePersonalInfo: true, calendar: calendar).contains("Secret project"))
+    }
+
+    @Test
     func `count labels avoid plural agreement and localize numbers`() {
         CodexBarLocalizationOverride.$appLanguage.withValue("en") {
             #expect(spendDashboardRefreshFailureText(1) == "Refresh failures: 1")

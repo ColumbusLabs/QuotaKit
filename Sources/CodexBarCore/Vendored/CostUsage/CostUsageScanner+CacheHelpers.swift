@@ -232,6 +232,7 @@ extension CostUsageScanner {
         codexPriorityTokens: [String: [String: Int]]? = nil,
         codexTurnIDs: [String]? = nil,
         codexRows: [CodexUsageRow]? = nil,
+        codexPendingPricing: [String: CodexPricingEvidence]? = nil,
         codexTokenSnapshots: [CostUsageCodexTokenSnapshot]? = nil,
         codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]? = nil,
         codexTokenTimestampsMonotonic: Bool? = nil,
@@ -275,6 +276,7 @@ extension CostUsageScanner {
             codexPriorityTokens: codexPriorityTokens,
             codexTurnIDs: codexTurnIDs,
             codexRows: codexRows,
+            codexPendingPricing: codexPendingPricing,
             codexTokenSnapshots: codexTokenSnapshots,
             codexTokenCheckpoints: codexTokenCheckpoints,
             codexTokenTimestampsMonotonic: codexTokenTimestampsMonotonic,
@@ -367,15 +369,24 @@ extension CostUsageScanner {
         return updated.refreshingCodexWorkspaceUsageFingerprint()
     }
 
+    struct CodexPricingEvidence: Codable, Equatable {
+        var pricingModel: String?
+        var pricingMode: String?
+    }
+
     static func codexRowsWithPricingMetadata(
         _ rows: [CodexUsageRow],
-        priorityTurns: [String: CodexPriorityTurnMetadata]) -> [CodexUsageRow]
+        priorityTurns: [String: CodexPriorityTurnMetadata],
+        preservingPricingFrom previousRow: (CodexUsageRow) -> CodexPricingEvidence? = { _ in nil }) -> [CodexUsageRow]
     {
         rows.map { row in
+            let previous = previousRow(row)
             let priorityMetadata = row.turnID.flatMap { priorityTurns[$0] }
             let isPriority = priorityMetadata != nil || row.pricingMode == "priority"
+                || (row.pricingMode == nil && previous?.pricingMode == "priority")
             let pricedModel = priorityMetadata.map { Self.codexPriorityPricingModel(for: row, priorityMetadata: $0) }
                 ?? row.pricingModel
+                ?? previous?.pricingModel
                 ?? row.model
             return CodexUsageRow(
                 day: row.day,

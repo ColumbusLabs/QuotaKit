@@ -202,7 +202,7 @@ payloads include the visible account label in `account`.
 `quotakit cost --format json` emits an array of payloads (one per provider).
 - `provider`, `source` (`local` for Claude/Codex log scans, `web` for Cursor dashboard data), `updatedAt`
 - `sessionTokens`, `sessionCostUSD`
-- `last30DaysTokens`, `last30DaysCostUSD`
+- `last30DaysTokens`, `last30DaysCostUSD`: with histories longer than 30 days, these cover the latest 30 local calendar dates ending at `updatedAt`; an empty window stays unknown. Shorter histories retain their available window totals.
 - `historyCoverageIsEstablished`: `false` while a bounded Codex scan still has catch-up work pending; `true` once the requested history is covered.
 - Cursor only: `meteredCostUSD` — what Cursor's plan actually deducts over the window, alongside the API-rate estimate in `last30DaysCostUSD`.
 - `daily[]`: `date`, `inputTokens`, `outputTokens`, `cacheReadTokens`, `cacheCreationTokens`, `totalTokens`, `totalCost`, `modelsUsed`, `modelBreakdowns[]` (`modelName`, `cost`)

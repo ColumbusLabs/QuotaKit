@@ -171,6 +171,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
         var pricedRequestCount: Int?
         var unmeteredRequestCount: Int?
         var estimatedRequestCount: Int?
+        var pricedRequestCount: Int?
 
         init(_ entry: CostUsageDailyReport.Entry) {
             self.date = entry.date
@@ -188,6 +189,7 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
             self.pricedRequestCount = entry.pricedRequestCount
             self.unmeteredRequestCount = entry.unmeteredRequestCount
             self.estimatedRequestCount = entry.estimatedRequestCount
+            self.pricedRequestCount = entry.pricedRequestCount
         }
 
         var dailyReportValue: CostUsageDailyReport.Entry {
@@ -290,10 +292,8 @@ struct CostUsageCodexPreviousReport: Codable, Equatable {
 }
 
 struct CostUsageFileUsage: Codable, Equatable {
-    /// Older or absent revisions require bounded reparsing before cached rows can be reused.
-    /// Revision 3 reparses all revision-2 files once to repair rowless duplicate entries.
-    /// Older entries cannot distinguish a truly empty fragment from suppressed usage.
-    static let currentCodexParserRevision = 3
+    /// Direct-fork baseline corrections require bounded reparsing of older native files.
+    static let currentCodexParserRevision = 5
 
     var mtimeUnixMs: Int64
     var size: Int64
@@ -324,6 +324,8 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
+    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]? = nil
     var codexTokenSnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]?
     var codexTokenTimestampsMonotonic: Bool?
