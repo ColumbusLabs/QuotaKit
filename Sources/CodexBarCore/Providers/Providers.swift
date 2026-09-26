@@ -93,6 +93,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case coderabbit
     case huggingface
     case replicate
+    case hyper
 }
 
 // swiftformat:enable sortDeclarations

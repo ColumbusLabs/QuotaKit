@@ -201,7 +201,7 @@ enum MenuBarLayoutEditorPersistence {
     }
 }
 
-private struct MenuBarLayoutPaletteGroup: Identifiable {
+struct MenuBarLayoutPaletteGroup: Identifiable {
     let id: String
     let title: String
     let tokens: [MenuBarLayoutToken]
@@ -573,16 +573,12 @@ struct MenuBarLayoutEditor: View {
         }
     }
 
-    private func palette(_ group: MenuBarLayoutPaletteGroup) -> some View {
+    func palette(_ group: MenuBarLayoutPaletteGroup) -> some View {
         VStack(alignment: .leading, spacing: 5) {
             Text(group.title)
                 .font(.caption.weight(.semibold))
                 .foregroundStyle(.secondary)
-            LazyVGrid(
-                columns: [GridItem(.adaptive(minimum: 88), spacing: 6)],
-                alignment: .leading,
-                spacing: 6)
-            {
+            MenuBarLayoutChipFlowLayout(spacing: 6) {
                 ForEach(group.tokens, id: \.self) { token in
                     MenuBarLayoutEditorChip(
                         title: token.editorLabel(
@@ -825,7 +821,7 @@ struct MenuBarLayoutChipLabel: View {
 
 /// Left-aligned wrapping row layout for palette chips.
 ///
-/// The conditionals palette holds user-named chips of widely varying width. An adaptive
+/// Palette chips may contain localized or user-defined labels of widely varying width. An adaptive
 /// `LazyVGrid` would size them into equal columns and spread the leftover pane width between
 /// them, and a plain `HStack` would push later chips outside the settings pane; this places each
 /// chip at its natural width and wraps to the next row.

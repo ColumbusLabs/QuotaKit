@@ -45,6 +45,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Hugging Face billable inference spend and optional ZeroGPU quota now sync from QuotaKit Mac to iPhone."),
                         String(
                             localized: "Replicate monthly billing spend now syncs from QuotaKit Mac to iPhone, with separate cards for saved accounts."),
+                        String(
+                            localized: "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits."),
                     ]),
             ]),
         ReleaseNotesVersion(

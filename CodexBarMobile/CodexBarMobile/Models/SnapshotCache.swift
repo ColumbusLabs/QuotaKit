@@ -64,6 +64,7 @@ struct SnapshotCache: Sendable {
             && provider.budget == nil
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.crossModelUsage == nil
+            && provider.hyperBalance == nil
             && !provider.isError
             && provider.statusMessage == nil
     }

@@ -32,7 +32,8 @@ struct SwiftDataBridgeTests {
         lastUpdated: Date,
         utilization: [SyncUtilizationSeries]? = nil,
         codexResetCredits: SyncCodexResetCredits? = nil,
-        costSummary: SyncCostSummary? = nil) -> ProviderUsageSnapshot
+        costSummary: SyncCostSummary? = nil,
+        hyperBalance: SyncHyperBalance? = nil) -> ProviderUsageSnapshot
     {
         ProviderUsageSnapshot(
             providerID: id,
@@ -47,7 +48,8 @@ struct SwiftDataBridgeTests {
             costSummary: costSummary,
             rateWindows: [],
             utilizationHistory: utilization,
-            codexResetCredits: codexResetCredits)
+            codexResetCredits: codexResetCredits,
+            hyperBalance: hyperBalance)
     }
 
     private func makeCostSummary(
@@ -228,6 +230,77 @@ struct SwiftDataBridgeTests {
         #expect(updated.codexResetCreditsData == nil)
         let rehydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
         #expect(rehydrated.providers.first?.codexResetCredits == nil)
+    }
+
+    @Test
+    func `Hyper balance blob round-trips through local persistence and clears when absent`() throws {
+        let container = self.makeContainer()
+        let context = ModelContext(container)
+        let balance = SyncHyperBalance(balance: 42.5, updatedAt: self.ts1)
+        let populated = self.makeSnapshot(
+            deviceID: "device-hyper",
+            providers: [self.makeProvider(
+                id: "hyper",
+                name: "Charm Hyper",
+                lastUpdated: self.ts1,
+                hyperBalance: balance)],
+            timestamp: self.ts1)
+
+        try SwiftDataBridge.upsert(deviceSnapshots: [populated], into: context)
+        let stored = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(stored.hyperBalanceData != nil)
+        let hydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+        #expect(hydrated.providers.first?.hyperBalance == balance)
+
+        let cleared = self.makeSnapshot(
+            deviceID: "device-hyper",
+            providers: [self.makeProvider(
+                id: "hyper",
+                name: "Charm Hyper",
+                lastUpdated: self.ts2)],
+            timestamp: self.ts2)
+        try SwiftDataBridge.upsert(deviceSnapshots: [cleared], into: context)
+        let updated = try #require(context.fetch(FetchDescriptor<ProviderSnapshotModel>()).first)
+        #expect(updated.hyperBalanceData == nil)
+        let rehydrated = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+        #expect(rehydrated.providers.first?.hyperBalance == nil)
+    }
+
+    @Test
+    func `Provider rows without Hyper data remain intact across store reopen`() throws {
+        let url = self.makeStoreURL()
+        defer { ModelContainerFactory.deleteStoreFiles(at: url) }
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            let existingProvider = self.makeProvider(
+                id: "claude",
+                name: "Claude",
+                lastUpdated: self.ts1,
+                costSummary: self.makeCostSummary(cost: 4.25, tokens: 1200, coverage: true, model: "Claude"))
+            try SwiftDataBridge.upsert(
+                deviceSnapshots: [self.makeSnapshot(
+                    deviceID: "legacy-device",
+                    providers: [existingProvider],
+                    timestamp: self.ts1)],
+                into: context)
+        }
+
+        let schema = Schema(CodexBarSwiftDataSchema.models)
+        #expect(schema.entitiesByName["ProviderSnapshotModel"]?.attributesByName["hyperBalanceData"]?
+            .isOptional == true)
+
+        do {
+            let container = ModelContainerFactory.makeContainer(at: url)
+            let context = ModelContext(container)
+            let snapshot = try #require(SwiftDataBridge.readAllDeviceSnapshots(from: context).first)
+            let provider = try #require(snapshot.providers.first)
+            #expect(provider.providerID == "claude")
+            #expect(provider.providerName == "Claude")
+            #expect(provider.costSummary?.daily.first?.costUSD == 4.25)
+            #expect(provider.hyperBalance == nil)
+        }
     }
 
     @Test

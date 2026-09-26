@@ -926,24 +926,18 @@ final class QuickJSProviderPluginEngine: ProviderPluginEngine, @unchecked Sendab
     }
 
     private func scriptErrorFromException() -> Error {
-        let deadlineExpired = self.fetchState.map { $0.deadline <= Date() } ?? false
-        let wasInterrupted = self.fetchLifecycle.currentWatchdog.map(cqjs_watchdog_is_interrupted) ?? false
-        if deadlineExpired || wasInterrupted {
-            let exception = JS_GetException(self.context)
-            cqjs_free_value(self.context, exception)
-            return ProviderPluginError.timedOut
-        }
-        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
-            let exception = JS_GetException(self.context)
-            cqjs_free_value(self.context, exception)
-            return ProviderPluginError.timedOut
-        }
         let exception = JS_GetException(self.context)
         defer { cqjs_free_value(self.context, exception) }
+        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            return ProviderPluginError.timedOut
+        }
         return ProviderPluginError.script((try? self.message(from: exception)) ?? "unknown QuickJS exception")
     }
 
     private func failure(from value: JSValue, redactionValues: QuickJSRedactionValues) -> Error {
+        if let watchdog = self.fetchLifecycle.currentWatchdog, cqjs_watchdog_is_interrupted(watchdog) {
+            return ProviderPluginError.timedOut
+        }
         let message = redactionValues.redact((try? self.message(from: value)) ?? "unknown plugin failure")
         let marker = "__CODEXBAR_FAILURE__:"
         if message.hasPrefix(marker),

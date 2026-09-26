@@ -768,18 +768,48 @@ struct ProviderPluginRuntimeTests {
     func `hung script times out and next fetch uses a fresh context`() async throws {
         let runtime = try ProviderPluginRuntime(
             source: Self.plugin(fetchBody: """
-            if (ctx.settings.getSecret("TEST_KEY") === "hang") while (true) {}
-            return { primary: { usedPercent: 7 } };
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              while (true) {}
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
             """),
-            timeout: 0.15)
+            timeout: 0.15,
+            engine: .quickJS)
         let start = Date()
 
-        await #expect(throws: ProviderPluginError.self) {
+        await #expect(throws: ProviderPluginError.timedOut) {
             _ = try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"])
         }
         // The 0.15s watchdog must fire promptly rather than wait out the hang; allow generous
         // headroom for loaded CI runners (observed 1.66s on ARM64 under contention).
         #expect(Date().timeIntervalSince(start) < 5)
+
+        let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
+        #expect(recovered.primary?.usedPercent == 7)
+    }
+
+    @Test(arguments: Self.responsePolicyEngines)
+    func `cancelled fetch retires its context before recovery`(engine: ProviderPluginEngineKind) async throws {
+        let probe = ProviderPluginCancellationProbe()
+        let runtime = try ProviderPluginRuntime(
+            source: Self.plugin(fetchBody: """
+            if (ctx.settings.getSecret("TEST_KEY") === "hang") {
+              globalThis.poisoned = true;
+              await ctx.http.getJSON("https://api.example.test/slow");
+            }
+            return { primary: { usedPercent: globalThis.poisoned ? 99 : 7 } };
+            """),
+            transport: ProviderHTTPTransportHandler { _ in
+                _ = await probe.markStarted()
+                try await Task.sleep(for: .seconds(30))
+                throw URLError(.cancelled)
+            },
+            engine: engine)
+        let fetch = Task { try await runtime.fetchUsage(secrets: ["TEST_KEY": "hang"]) }
+        #expect(await probe.waitUntilStarted())
+        fetch.cancel()
+        await #expect(throws: CancellationError.self) { _ = try await fetch.value }
 
         let recovered = try await runtime.fetchUsage(secrets: ["TEST_KEY": "ok"])
         #expect(recovered.primary?.usedPercent == 7)

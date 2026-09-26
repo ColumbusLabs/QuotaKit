@@ -34,6 +34,7 @@ enum ProviderBrandAsset {
         "grok",
         "groq",
         "huggingface",
+        "hyper",
         "jetbrains",
         "ibmbob",
         "kilo",

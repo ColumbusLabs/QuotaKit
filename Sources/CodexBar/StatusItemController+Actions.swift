@@ -643,7 +643,7 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
 
         self.scheduleQuitTermination { [weak self] in
             guard let self else { return }
-            self.prepareForAppShutdown()
+            // applicationWillTerminate removes items after AppKit begins termination.
             self.terminateApplicationForQuit()
         }
     }

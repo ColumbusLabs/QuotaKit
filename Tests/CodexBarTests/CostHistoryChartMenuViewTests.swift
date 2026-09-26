@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import SwiftUI
 import Testing
@@ -958,6 +959,44 @@ struct CostHistoryChartMenuViewTests {
         hosting.frame = CGRect(x: 0, y: 0, width: 320, height: 1)
         hosting.layoutSubtreeIfNeeded()
         return ceil(hosting.fittingSize.height)
+    }
+
+    @Test(arguments: [CGFloat(296), CGFloat(360)])
+    func `metric picker trailing edge aligns with chart content`(width: CGFloat) throws {
+        let daily = [
+            Self.dailyEntry(date: "2026-08-12", totalTokens: 150, costUSD: 1.25),
+            Self.dailyEntry(date: "2026-08-13", totalTokens: 300, costUSD: 2.5),
+        ]
+        let chart = CostHistoryChartMenuView(
+            provider: .claude,
+            daily: daily,
+            totalCostUSD: 3.75,
+            hidePersonalInfo: false,
+            width: width)
+        let hosting = NSHostingView(rootView: AnyView(chart
+                .environment(\.colorScheme, .light)
+                .background(Color.white)))
+        hosting.appearance = NSAppearance(named: .aqua)
+        hosting.frame = NSRect(x: 0, y: 0, width: width, height: 1)
+        hosting.layoutSubtreeIfNeeded()
+        hosting.frame = NSRect(origin: .zero, size: hosting.fittingSize)
+        hosting.layoutSubtreeIfNeeded()
+
+        let control = try #require(Self.descendant(of: hosting, as: NSSegmentedControl.self))
+        let controlFrame = control.convert(control.bounds, to: hosting)
+        #expect(abs(controlFrame.maxX - (width - 16)) <= 1)
+    }
+
+    private static func descendant<T: NSView>(of view: NSView, as _: T.Type) -> T? {
+        if let match = view as? T {
+            return match
+        }
+        for subview in view.subviews {
+            if let match = self.descendant(of: subview, as: T.self) {
+                return match
+            }
+        }
+        return nil
     }
 
     private static func entry(

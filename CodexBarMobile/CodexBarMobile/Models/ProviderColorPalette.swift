@@ -145,6 +145,7 @@ enum ProviderColorPalette {
             (["llmproxy"], RawColor(red: 36 / 255, green: 180 / 255, blue: 126 / 255)),
             (["litellm"], RawColor(red: 76 / 255, green: 137 / 255, blue: 192 / 255)),
             (["deepgram"], RawColor(red: 0.49, green: 0.23, blue: 0.93)),
+            (["hyper"], RawColor(red: 1, green: 96 / 255, blue: 1)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),
