@@ -1398,6 +1398,8 @@ extension UsageStore {
             key.provider != .claude ||
                 (key.accountDiscriminator != nil && key.accountDiscriminator != "claude-account:unknown")
         }
+        self.predictivePaceWarningNotifiedKeys = PredictivePaceWarningNotificationLogic
+            .retainingVerifiedKeysAfterClaudeCredentialSwap(self.predictivePaceWarningNotifiedKeys)
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
 

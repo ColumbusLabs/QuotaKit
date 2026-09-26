@@ -261,9 +261,9 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 
 OAuth and CLI warning episodes follow verified account identity when available. Samples without identity keep an
 independent unresolved episode, even when their reset time and remaining quota resemble the last known account.
-Credential changes retire unresolved episodes while preserving known account and OAuth-owner histories. A verified
-OAuth owner mapping can reconcile owner-scoped thresholds with the account; hooks and predictive warnings keep
-their own source keys.
+Credential changes retire unresolved quota and predictive episodes while preserving known account and OAuth-owner
+histories. A verified OAuth owner mapping can reconcile owner-scoped thresholds with the account; hooks and
+predictive warnings keep their own source keys.
 
 ## Key files
 - OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`

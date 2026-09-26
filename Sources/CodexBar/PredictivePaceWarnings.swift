@@ -26,6 +26,12 @@ struct PredictivePaceWarningEvent: Equatable {
 }
 
 enum PredictivePaceWarningNotificationLogic {
+    static func retainingVerifiedKeysAfterClaudeCredentialSwap(
+        _ keys: Set<PredictivePaceWarningStateKey>) -> Set<PredictivePaceWarningStateKey>
+    {
+        Set(keys.filter { $0.provider != .claude || $0.accountDiscriminator != "claude-account:unknown" })
+    }
+
     static func notificationIDPrefix(provider: UsageProvider, event: PredictivePaceWarningEvent) -> String {
         "predictive-pace-warning-\(provider.rawValue)-\(event.window.rawValue)"
     }
