@@ -45,6 +45,8 @@ enum ProviderBrandAsset {
         "atlascloud",
         "vercel",
         "llmman",
+        "nous",
+        "muse",
         "jetbrains",
         "ibmbob",
         "kilo",

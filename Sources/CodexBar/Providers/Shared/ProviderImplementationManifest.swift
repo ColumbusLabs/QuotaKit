@@ -91,5 +91,7 @@ enum ProviderImplementationManifest {
         { AtlasCloudProviderImplementation() },
         { VercelProviderImplementation() },
         { LLMManProviderImplementation() },
+        { NousProviderImplementation() },
+        { MuseProviderImplementation() },
     ]
 }

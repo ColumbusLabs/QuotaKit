@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 85 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 87 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -676,3 +676,14 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Details: `docs/replicate.md`.
 
 See also: `docs/provider.md` for architecture notes.
+
+## Nous Portal
+- Reuses a read-only Hermes Agent OAuth access token or `NOUS_PORTAL_ACCESS_TOKEN`; QuotaKit never rotates Hermes refresh tokens.
+- Shows monthly credits, top-up credits, plan identity, and reset time from the portal account endpoint.
+- OpenCodex ledger rows labeled `nous` appear in Usage & Spend when local log inclusion is enabled.
+- Details: `docs/nous.md`.
+
+## Muse Code
+- Reuses the Muse CLI OAuth login. Keychain reads use a no-prompt preflight and fail when access would require interaction.
+- Shows 5-hour and weekly subscription windows and local token history; dollar costs remain unavailable.
+- Details: `docs/muse.md`.

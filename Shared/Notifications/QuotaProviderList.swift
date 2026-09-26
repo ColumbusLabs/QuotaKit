@@ -154,6 +154,9 @@ public enum QuotaProviderList {
         Provider(id: "raycast", displayName: "Raycast"),
         Provider(id: "helmcode", displayName: "Helmcode"),
         // TypeSafe reports billing spend without a quota transition, so it has no push zone.
+        // Append new quota providers to preserve every existing CloudKit subscription ID.
+        Provider(id: "nous", displayName: "Nous Portal"),
+        Provider(id: "muse", displayName: "Muse Code"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

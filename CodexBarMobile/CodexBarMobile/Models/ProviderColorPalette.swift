@@ -156,6 +156,8 @@ enum ProviderColorPalette {
             (["atlascloud"], RawColor(red: 89 / 255, green: 117 / 255, blue: 245 / 255)),
             (["vercel"], RawColor(red: 1, green: 1, blue: 1)),
             (["llmman"], RawColor(red: 108 / 255, green: 197 / 255, blue: 176 / 255)),
+            (["nous"], RawColor(red: 0.35, green: 0.22, blue: 0.86)),
+            (["muse"], RawColor(red: 6 / 255, green: 104 / 255, blue: 225 / 255)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),

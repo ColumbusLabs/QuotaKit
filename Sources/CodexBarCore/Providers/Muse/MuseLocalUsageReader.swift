@@ -12,7 +12,7 @@ import Musl
 ///
 /// The subscription quota response contains no historical token counts or billing amounts.
 /// Muse Code records model turns
-/// to `~/.local/share/muse/sessions/<YYYY>/<MM>/<DD>/<session>/session.jsonl`, which gives CodexBar the
+/// to `~/.local/share/muse/sessions/<YYYY>/<MM>/<DD>/<session>/session.jsonl`, which gives QuotaKit the
 /// same local token history it already derives for Claude and Codex — with no network call, no
 /// credential, and no Keychain access.
 ///
@@ -62,13 +62,13 @@ enum MuseLocalUsageReader {
             #endif
             self.defaultCacheRoot = environment["XDG_CACHE_HOME"].flatMap { $0.isEmpty ? nil : $0 }
                 .map { URL(fileURLWithPath: $0, isDirectory: true) }
-                .map { $0.appendingPathComponent("CodexBar", isDirectory: true) }
-                ?? defaultCache.appendingPathComponent("CodexBar", isDirectory: true)
+                .map { $0.appendingPathComponent("QuotaKit", isDirectory: true) }
+                ?? defaultCache.appendingPathComponent("QuotaKit", isDirectory: true)
         }
 
         init(sessionsRoot: URL) {
             self.sessionsRoot = sessionsRoot
-            self.defaultCacheRoot = sessionsRoot.appendingPathComponent(".codexbar-cache", isDirectory: true)
+            self.defaultCacheRoot = sessionsRoot.appendingPathComponent(".quotakit-cache", isDirectory: true)
         }
     }
 

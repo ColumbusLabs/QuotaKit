@@ -2,7 +2,7 @@
 summary: "Nous Portal provider: Hermes Agent OAuth token reuse, account endpoint parsing, and credit display."
 read_when:
   - Debugging Nous Portal credit or subscription parsing
-  - Explaining why CodexBar asks to run `hermes` to refresh the token
+  - Explaining why QuotaKit asks to run `hermes` to refresh the token
   - Updating Nous Portal setup or environment variables
 ---
 
@@ -15,11 +15,11 @@ balance on top of that grant.
 ## Authentication
 
 Nous Portal only exposes its account and billing endpoints to the OAuth access token minted by the Hermes Agent
-device-code login. CodexBar does not run its own login and does not store any Nous secret:
+device-code login. QuotaKit does not run its own login and does not store any Nous secret:
 
 1. Sign in once with Hermes Agent (`hermes` and choose Nous Portal, or `hermes auth add nous`).
 2. Hermes writes the token to `~/.hermes/auth.json` (and a cross-profile copy to `~/.hermes/shared/nous_auth.json`).
-3. CodexBar reads the access token from those files on every refresh.
+3. QuotaKit reads the access token from those files on every refresh.
 
 Overrides:
 
@@ -42,11 +42,11 @@ A stored host outside `nousresearch.com` is ignored, logged as a warning, and re
 `rejectedStoredHost=<host>`; the request then goes to the default portal. Expired tokens, whether from the auth file or
 from `NOUS_PORTAL_ACCESS_TOKEN`, are rejected before any request is made.
 
-### Why CodexBar never refreshes the token
+### Why QuotaKit never refreshes the token
 
 Nous access tokens live for about an hour. The refresh token is single-use: the portal rotates it on every refresh and
 revokes the entire session when it sees an old one replayed. A second client refreshing behind Hermes's back would
-therefore log Hermes out. CodexBar only reads the current access token and, once it has expired, shows
+therefore log Hermes out. QuotaKit only reads the current access token and, once it has expired, shows
 "run `hermes` so Hermes Agent refreshes it". Any Hermes command (or a running Hermes gateway) renews the token.
 
 ## Data Source
@@ -68,16 +68,36 @@ Money fields are accepted as finite JSON numbers or decimal strings. Missing amo
 becoming zero; a monthly meter requires both a positive grant and a reported remaining balance. A Free tier with no
 monthly grant shows no meter and only the reported purchased balance. Malformed amounts fail the refresh.
 
+## Local usage and spend
+
+With **Include OpenCodex usage logs** enabled, Usage & Spend attributes OpenCodex-format ledger rows whose
+`provider` is `nous` to Nous Portal. The source stays labeled OpenCodex; these local token estimates are separate
+from the Portal's monthly and top-up credits. The toggle is off by default. QuotaKit reads
+`~/.opencodex/usage.jsonl` (or `$OPENCODEX_HOME/usage.jsonl`); it does not run an extractor or read Hermes's session
+database. Nous still has no native token-cost scanner, so its provider-level cost capability remains disabled.
+
+The [extractor supplied upstream for #4008](https://github.com/steipete/CodexBar/issues/4008#issuecomment-5843400899)
+writes `provider: "nous"`, epoch-second `timestamp` values, the exact inference `model` ID, and the standard
+`usage` token counters. It emits one aggregate per session/model at `first_seen`, not one row per API call;
+dashboard request counts therefore count ledger rows, and activity is dated to that first timestamp.
+`usageStatus: "estimated"` rows use QuotaKit's exact Nous/model catalog price or a custom pricing override.
+Missing prices stay unpriced with token activity preserved; another vendor's rates are never inferred from a
+model prefix. `unreported` rows retain tokens without a dollar estimate. See [model pricing](model-pricing.md).
+
+The extractor's non-standard `_meta.hermesEstimatedCostUSD`, `_meta.costSource`, and `_meta.apiCalls` are ignored;
+they are neither a pricing contract nor Portal-metered credits. Its `conversationID` spelling is also ignored
+(the standard field is `conversationId`), so session grouping falls back to the unique `requestId`.
+
 ## API keys
 
 Nous Portal API keys authenticate only the inference API (`/v1/chat/completions`, `/v1/completions`). The portal's
-account and billing endpoints accept the OAuth access token only, so CodexBar cannot show credits from an API key.
+account and billing endpoints accept the OAuth access token only, so QuotaKit cannot show credits from an API key.
 Use the Hermes Agent login.
 
 ## CLI
 
 ```bash
-codexbar usage --provider nous
+quotakit usage --provider nous
 ```
 
 Aliases: `nous-portal`, `hermes`. Source modes: `auto`, `api`.

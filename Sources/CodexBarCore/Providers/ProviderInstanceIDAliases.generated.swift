@@ -88,6 +88,8 @@ extension ProviderInstanceID {
     public static let atlascloud = UsageProvider.atlascloud.instanceID
     public static let vercel = UsageProvider.vercel.instanceID
     public static let llmman = UsageProvider.llmman.instanceID
+    public static let nous = UsageProvider.nous.instanceID
+    public static let muse = UsageProvider.muse.instanceID
 }
 
 // swiftformat:enable sortDeclarations

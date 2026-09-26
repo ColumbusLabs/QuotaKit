@@ -12,7 +12,7 @@ public enum MuseProviderDescriptor {
             MuseCredentials.hasLogin(environment: environment) ? ["oauth"] : []
         },
         missingCredentialMessage: { _ in
-            "Muse Code login not found. Run `muse login`, then refresh CodexBar."
+            "Muse Code login not found. Run `muse login`, then refresh QuotaKit."
         })
 
     static func makeDescriptor() -> ProviderDescriptor {

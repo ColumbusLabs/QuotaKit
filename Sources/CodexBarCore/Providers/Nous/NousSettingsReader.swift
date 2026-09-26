@@ -1,9 +1,9 @@
 import Foundation
 
-/// Resolves the Nous Portal access token CodexBar uses for read-only billing lookups.
+/// Resolves the Nous Portal access token QuotaKit uses for read-only billing lookups.
 ///
 /// Nous Portal issues short-lived OAuth access tokens through the Hermes Agent device-code login. Refresh tokens
-/// are single-use and the portal revokes the whole session when it detects reuse, so CodexBar never refreshes:
+/// are single-use and the portal revokes the whole session when it detects reuse, so QuotaKit never refreshes:
 /// it only reads the access token Hermes already minted (`~/.hermes/auth.json`) or an explicit environment
 /// override, and reports a clear "run `hermes`" message once that token expires.
 public enum NousSettingsReader: Sendable {

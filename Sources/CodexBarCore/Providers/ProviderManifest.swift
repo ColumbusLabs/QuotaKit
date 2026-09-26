@@ -90,5 +90,7 @@ public enum ProviderManifest {
         AtlasCloudProviderDescriptor.descriptor,
         VercelProviderDescriptor.descriptor,
         LLMManProviderDescriptor.descriptor,
+        NousProviderDescriptor.descriptor,
+        MuseProviderDescriptor.descriptor,
     ]
 }

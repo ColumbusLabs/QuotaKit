@@ -24,7 +24,7 @@ struct NousProviderImplementation: ProviderImplementation {
             ProviderSettingsActionsDescriptor(
                 id: "nous-hermes-login",
                 title: "Hermes Agent login",
-                subtitle: status + " CodexBar never refreshes the token; run `hermes` to renew it. "
+                subtitle: status + " QuotaKit never refreshes the token; run `hermes` to renew it. "
                     + "Set NOUS_PORTAL_ACCESS_TOKEN or HERMES_HOME to override.",
                 actions: [
                     ProviderSettingsActionDescriptor(

@@ -53,7 +53,7 @@ defineProvider({
     }
     const response = await ctx.http.post("https://api.meta.ai/muse-code/key", {
       body: {},
-      headers: { "x-api-version": "1.0.0", "User-Agent": "CodexBar" },
+      headers: { "x-api-version": "1.0.0", "User-Agent": "QuotaKit" },
       timeoutSeconds: 15,
     });
     if (response.status === 401 || response.status === 403) {
