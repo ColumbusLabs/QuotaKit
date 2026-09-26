@@ -182,6 +182,9 @@ enum DevinSessionImporter {
         organizationOverride: String?) -> (organization: String?, internalOrganizationID: String?)
     {
         let override = DevinUsageFetcher.normalizedOrganization(organizationOverride)
+        if let override, let internalOrgID = self.orgID(fromNormalizedOrganization: override) {
+            return (override, internalOrgID)
+        }
         let overrideSlug = override.flatMap(self.slug(fromNormalizedOrganization:))
         var firstInternalOrgID: String?
 
@@ -204,7 +207,7 @@ enum DevinSessionImporter {
         }
 
         if let override {
-            return (override, firstInternalOrgID ?? self.orgID(fromNormalizedOrganization: override))
+            return (override, nil)
         }
 
         return (firstInternalOrgID.map { "organizations/\($0)" }, firstInternalOrgID)
@@ -264,26 +267,44 @@ enum DevinSessionImporter {
         }
     }
 
-    private static func readLocalStorage(from levelDBURL: URL, logger: ((String) -> Void)?) -> [String: String] {
-        var storage: [String: String] = [:]
+    static func readLocalStorage(from levelDBURL: URL, logger: ((String) -> Void)? = nil) -> [String: String] {
+
         let entries = SweetCookieKit.ChromiumLocalStorageReader.readEntries(
             for: self.storageOrigin,
             in: levelDBURL,
             logger: logger)
-        for entry in entries {
-            storage[entry.key] = self.decodedStorageValue(entry.value)
-        }
-
         let textEntries = SweetCookieKit.ChromiumLocalStorageReader.readTextEntries(
             in: levelDBURL,
             logger: logger)
-        for entry in textEntries where storage[entry.key] == nil {
-            if self.isUsefulStorageKey(entry.key) {
-                storage[entry.key] = self.decodedStorageValue(entry.value)
-            }
+        return self.localStorageValues(from: entries, textEntries: textEntries)
+    }
+
+    static func localStorageValues(
+        from entries: [SweetCookieKit.ChromiumLocalStorageEntry],
+        textEntries: [SweetCookieKit.ChromiumLevelDBTextEntry]) -> [String: String]
+    {
+        var storage: [String: String] = [:]
+        for entry in entries {
+            storage[entry.key] = self.decodedStorageValue(entry.value)
+        }
+        for entry in textEntries {
+            guard let key = self.localStorageKey(fromRawKey: entry.key),
+                  self.isUsefulStorageKey(key), storage[key] == nil
+            else { continue }
+            storage[key] = self.decodedStorageValue(entry.value)
         }
 
         return storage
+    }
+
+    private static func localStorageKey(fromRawKey raw: String) -> String? {
+        guard let separator = raw.firstIndex(of: "\u{0000}") else { return nil }
+        var origin = String(raw[..<separator])
+        if origin.hasPrefix("_") { origin.removeFirst() }
+        origin = String(origin.split(separator: "^", maxSplits: 1).first ?? "")
+            .trimmingCharacters(in: CharacterSet(charactersIn: "/"))
+        guard origin == self.storageOrigin || origin == "app.devin.ai" else { return nil }
+        return String(raw[raw.index(after: separator)...]).trimmingCharacters(in: .controlCharacters)
     }
 
     private static func jsonObject(from raw: String) -> Any? {
@@ -360,7 +381,6 @@ enum DevinSessionImporter {
         override: String?) -> (organization: String?, internalOrganizationID: String?)?
     {
         let overrideSlug = override.flatMap(self.slug(fromNormalizedOrganization:))
-        let overrideOrgID = override.flatMap(self.orgID(fromNormalizedOrganization:))
         var fallbackSlug: String?
         var fallbackInternalOrgID: String?
 
@@ -374,9 +394,6 @@ enum DevinSessionImporter {
                 self.slugFromPostAuthKey(key) ??
                     self.firstString(in: object, matching: ["orgName", "org_name", "externalOrgId", "external_org_id"]))
 
-            if let overrideOrgID, internalOrgID == overrideOrgID {
-                return (override, internalOrgID)
-            }
             if let overrideSlug, slug == overrideSlug {
                 return (override, internalOrgID)
             }
@@ -389,9 +406,7 @@ enum DevinSessionImporter {
             }
         }
 
-        if let override, fallbackInternalOrgID != nil {
-            return (override, fallbackInternalOrgID)
-        }
+        guard override == nil else { return nil }
 
         if let fallbackSlug {
             return ("org/\(fallbackSlug)", fallbackInternalOrgID)
