@@ -11,11 +11,11 @@ struct SettingsStoreAdditionalTests {
         settings.qoderCookieSource = .manual
         let capture = "curl https://qoder.com.cn -H 'Cookie: session=china-fixture'"
         settings.qoderCookieHeader = capture
-        let china: QoderProviderSettings = settings.resolvedCookieSettings(provider: .qoder, tokenOverride: nil)
+        let china: QoderProviderSettings = settings.qoderSettingsSnapshot(tokenOverride: nil)
         #expect(settings.providerConfig(for: .qoder)?.cookieHeader == capture)
         #expect(china.manualCookieOrigin == "https://qoder.com.cn")
         settings.qoderCookieHeader = "session=legacy-fixture"
-        let legacy: QoderProviderSettings = settings.resolvedCookieSettings(provider: .qoder, tokenOverride: nil)
+        let legacy: QoderProviderSettings = settings.qoderSettingsSnapshot(tokenOverride: nil)
         #expect(legacy.manualCookieOrigin == "https://qoder.com")
     }
 
@@ -361,7 +361,7 @@ struct SettingsStoreAdditionalTests {
 extension SettingsStoreAdditionalTests {
     @Test
     func `plugin settings save returns the outcome and preserves other providers`() async throws {
-        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: #function)
         settings[providerConfig: .openai, field: .workspace] = "other-project"
         settings[providerConfig: .fireworks, field: .apiKey] = "fixture-key"
         let other = settings.providerConfig(for: .openai)
@@ -393,7 +393,7 @@ extension SettingsStoreAdditionalTests {
 
     @Test
     func `plugin settings save failure leaves app state unchanged`() async throws {
-        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: #function)
         settings[providerConfig: .fireworks, field: .apiKey] = "fixture-key"
         let before = try settings.configStore.encodedData(for: settings.config)
         let url = settings.configStore.fileURL
@@ -409,7 +409,7 @@ extension SettingsStoreAdditionalTests {
 
     @Test
     func `plugin settings save rechecks ownership after draining an older save`() async {
-        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: #function)
         settings[providerConfig: .fireworks, field: .apiKey] = "original-key"
         let before = settings.providerConfigRevision(for: .fireworks)
         settings.configPersistTask = Task { @MainActor in
@@ -427,7 +427,7 @@ extension SettingsStoreAdditionalTests {
 extension SettingsStoreAdditionalTests {
     @Test
     func `app fetch writer refuses a newer provider selection and another provider`() async throws {
-        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: #function)
         settings.fireworksAPIToken = "original-key"
         let store = UsageStore(
             fetcher: UsageFetcher(environment: [:]),
@@ -448,7 +448,7 @@ extension SettingsStoreAdditionalTests {
 extension SettingsStoreAdditionalTests {
     @Test
     func `plugin discovery drains a replacement save and preserves unrelated edits`() async throws {
-        let settings = testSettingsStore(suiteName: #function, userDefaults: InMemoryUserDefaults())
+        let settings = testSettingsStore(suiteName: #function)
         settings.fireworksAPIToken = "fixture-key"
         settings.configPersistTask = Task { @MainActor in
             settings.configPersistTask = Task { @MainActor in
