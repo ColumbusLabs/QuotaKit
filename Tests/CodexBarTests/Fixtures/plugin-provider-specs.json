@@ -1,0 +1,887 @@
+{
+  "help" : "CodexBar 0.0.0\n\nUsage:\n  codexbar [--format text|json|toon]\n          [--json]\n          [--json-only]\n          [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]\n          [--provider codex|openai|azure-openai|claude|clinepass|cursor|opencode|opencodego|alibaba-coding-plan|alibaba-token-plan|qwen-cloud|factory|fireworks|gemini|antigravity|copilot|devin|zai|minimax|manus|kimi|kilo|kiro|vertexai|augment|jetbrains|moonshot|amp|t3chat|ollama|synthetic|openrouter|elevenlabs|warp|windsurf|zed|perplexity|mimo|doubao|sakana|abacusai|mistral|deepseek|deepinfra|codebuff|venice|commandcode|qoder|stepfun|bedrock|grok|groqcloud|llmproxy|litellm|bifrost|aixy|deepgram|poe|chutes|neuralwatt|helmcode|clawrouter|longcat|sub2api|wayfinder|zenmux|aiand|zoommate|xai|notion|ibmbob|nous|muse|coderabbit|replicate|huggingface|raycast|pi|v0|typesafe|hyper|gitkraken|devpass|atlascloud|vercel|llmman|xkiro|both|all]\n          [--account <label>] [--account-index <index>] [--all-accounts]\n          [--no-credits] [--no-color] [--pretty] [--status] [--source <auto|web|cli|oauth|api>]\n          [--web-timeout <seconds>] [--web-debug-dump-html] [--antigravity-plan-debug] [--augment-debug]\n  codexbar cards [--provider codex|openai|azure-openai|claude|clinepass|cursor|opencode|opencodego|alibaba-coding-plan|alibaba-token-plan|qwen-cloud|factory|fireworks|gemini|antigravity|copilot|devin|zai|minimax|manus|kimi|kilo|kiro|vertexai|augment|jetbrains|moonshot|amp|t3chat|ollama|synthetic|openrouter|elevenlabs|warp|windsurf|zed|perplexity|mimo|doubao|sakana|abacusai|mistral|deepseek|deepinfra|codebuff|venice|commandcode|qoder|stepfun|bedrock|grok|groqcloud|llmproxy|litellm|bifrost|aixy|deepgram|poe|chutes|neuralwatt|helmcode|clawrouter|longcat|sub2api|wayfinder|zenmux|aiand|zoommate|xai|notion|ibmbob|nous|muse|coderabbit|replicate|huggingface|raycast|pi|v0|typesafe|hyper|gitkraken|devpass|atlascloud|vercel|llmman|xkiro|both|all] [--brief] [--no-color] [--status]\n  codexbar cost [--format text|json]\n               [--json]\n               [--json-only]\n               [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]\n               [--provider codex|openai|azure-openai|claude|clinepass|cursor|opencode|opencodego|alibaba-coding-plan|alibaba-token-plan|qwen-cloud|factory|fireworks|gemini|antigravity|copilot|devin|zai|minimax|manus|kimi|kilo|kiro|vertexai|augment|jetbrains|moonshot|amp|t3chat|ollama|synthetic|openrouter|elevenlabs|warp|windsurf|zed|perplexity|mimo|doubao|sakana|abacusai|mistral|deepseek|deepinfra|codebuff|venice|commandcode|qoder|stepfun|bedrock|grok|groqcloud|llmproxy|litellm|bifrost|aixy|deepgram|poe|chutes|neuralwatt|helmcode|clawrouter|longcat|sub2api|wayfinder|zenmux|aiand|zoommate|xai|notion|ibmbob|nous|muse|coderabbit|replicate|huggingface|raycast|pi|v0|typesafe|hyper|gitkraken|devpass|atlascloud|vercel|llmman|xkiro|both|all] [--no-color] [--pretty] [--refresh] [--breakdown]\n               [--provider-native-only]\n               [--period month-to-date|all] [--days <days>] [--group-by project|session]\n  codexbar sessions [--json|--json-v2] [--pretty]\n  codexbar sessions focus <id>\n  codexbar dashboard [--pretty] [--timeout <seconds>] [--output <path>]\n  codexbar serve [--host <host>] [--port <port>] [--refresh-interval <seconds>]\n               [--request-timeout <seconds>]\n               [--dashboard-token <token>] [--allow-plain-http]\n               [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]\n  codexbar config <validate|dump|providers> [--format text|json]\n                                [--json]\n                                [--json-only]\n                                [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>]\n                                [-v|--verbose]\n                                [--pretty]\n  codexbar config enable --provider <name>\n  codexbar config disable --provider <name>\n  codexbar config set-api-key --provider <name> (--api-key <key>|--stdin)\n  codexbar config set-api-key --provider zai --stdin --usage-scope team\n                           --organization-id <org> --workspace-id <project>\n  codexbar hooks <list|enable|disable> [--format text|json] [--pretty]\n  codexbar hooks test <event> --provider <name>\n  codexbar plugins <list|fetch <id>> [--json] [--pretty]\n  codexbar cache clear <--cookies|--cost|--all> [--provider <name>]\n  codexbar cookie refresh <--provider <name>|--all> [--allow-keychain-prompt]\n  codexbar diagnose --provider <name|all> --format json [--redact] [--output <path>] [--pretty]\n  codexbar guard --provider <name> [--min-remaining <percent>] [--window session|weekly] [--json]\n\nGlobal flags:\n  -h, --help      Show help\n  -V, --version   Show version\n  -v, --verbose   Enable verbose logging\n  --no-color      Disable ANSI colors in text output\n  --log-level <trace|verbose|debug|info|warning|error|critical>\n  --json-output   Emit machine-readable logs (JSONL) to stderr\n\nExamples:\n  codexbar\n  codexbar --format json --provider all --pretty\n  codexbar --format toon --provider claude\n  codexbar --provider all --json\n  codexbar --provider gemini\n  codexbar cards --provider all --status\n  codexbar cards --brief\n  codexbar cost --provider claude --format json --pretty\n  codexbar sessions --json\n  codexbar dashboard --pretty\n  codexbar serve --port 8080\n  codexbar config validate --format json --pretty\n  codexbar config enable --provider grok\n  codexbar config set-api-key --provider elevenlabs --stdin\n  codexbar hooks test quota_reached --provider codex\n  codexbar plugins list\n  codexbar cache clear --cookies\n  codexbar cookie refresh --provider opencodego --allow-keychain-prompt\n  codexbar diagnose --provider minimax --format json --redact --output diagnostic.json\n  codexbar diagnose --provider minimax --format json --pretty\n  codexbar diagnose --provider all --format json\n  codexbar guard --provider claude --min-remaining 20",
+  "implementationOrder" : [
+    "codex",
+    "openai",
+    "azureopenai",
+    "claude",
+    "clinepass",
+    "cursor",
+    "opencode",
+    "opencodego",
+    "alibaba",
+    "alibabatokenplan",
+    "qwencloud",
+    "factory",
+    "fireworks",
+    "gemini",
+    "antigravity",
+    "copilot",
+    "devin",
+    "zai",
+    "minimax",
+    "manus",
+    "kimi",
+    "kilo",
+    "kiro",
+    "vertexai",
+    "augment",
+    "jetbrains",
+    "moonshot",
+    "amp",
+    "t3chat",
+    "ollama",
+    "synthetic",
+    "openrouter",
+    "elevenlabs",
+    "warp",
+    "windsurf",
+    "zed",
+    "perplexity",
+    "mimo",
+    "doubao",
+    "sakana",
+    "abacus",
+    "mistral",
+    "deepseek",
+    "deepinfra",
+    "codebuff",
+    "venice",
+    "commandcode",
+    "qoder",
+    "stepfun",
+    "bedrock",
+    "grok",
+    "groq",
+    "llmproxy",
+    "litellm",
+    "bifrost",
+    "aixy",
+    "deepgram",
+    "poe",
+    "chutes",
+    "neuralwatt",
+    "helmcode",
+    "clawrouter",
+    "longcat",
+    "sub2api",
+    "wayfinder",
+    "zenmux",
+    "aiand",
+    "zoommate",
+    "xai",
+    "notion",
+    "ibmbob",
+    "nous",
+    "muse",
+    "coderabbit",
+    "replicate",
+    "huggingface",
+    "raycast",
+    "pi",
+    "v0",
+    "typesafe",
+    "hyper",
+    "gitkraken",
+    "devpass",
+    "atlascloud",
+    "vercel",
+    "llmman",
+    "xkiro"
+  ],
+  "order" : [
+    "codex",
+    "openai",
+    "azureopenai",
+    "claude",
+    "clinepass",
+    "cursor",
+    "opencode",
+    "opencodego",
+    "alibaba",
+    "alibabatokenplan",
+    "qwencloud",
+    "factory",
+    "fireworks",
+    "gemini",
+    "antigravity",
+    "copilot",
+    "devin",
+    "zai",
+    "minimax",
+    "manus",
+    "kimi",
+    "kilo",
+    "kiro",
+    "vertexai",
+    "augment",
+    "jetbrains",
+    "moonshot",
+    "amp",
+    "t3chat",
+    "ollama",
+    "synthetic",
+    "openrouter",
+    "elevenlabs",
+    "warp",
+    "windsurf",
+    "zed",
+    "perplexity",
+    "mimo",
+    "doubao",
+    "sakana",
+    "abacus",
+    "mistral",
+    "deepseek",
+    "deepinfra",
+    "codebuff",
+    "venice",
+    "commandcode",
+    "qoder",
+    "stepfun",
+    "bedrock",
+    "grok",
+    "groq",
+    "llmproxy",
+    "litellm",
+    "bifrost",
+    "aixy",
+    "deepgram",
+    "poe",
+    "chutes",
+    "neuralwatt",
+    "helmcode",
+    "clawrouter",
+    "longcat",
+    "sub2api",
+    "wayfinder",
+    "zenmux",
+    "aiand",
+    "zoommate",
+    "xai",
+    "notion",
+    "ibmbob",
+    "nous",
+    "muse",
+    "coderabbit",
+    "replicate",
+    "huggingface",
+    "raycast",
+    "pi",
+    "v0",
+    "typesafe",
+    "hyper",
+    "gitkraken",
+    "devpass",
+    "atlascloud",
+    "vercel",
+    "llmman",
+    "xkiro"
+  ],
+  "providers" : [
+    {
+      "availability" : [
+        true,
+        true,
+        true
+      ],
+      "cli" : [
+        "xkiro"
+      ],
+      "color" : [
+        0.32156862745098042,
+        0.78823529411764703,
+        0.60784313725490191
+      ],
+      "confetti" : [
+        [
+          0.32156862745098042,
+          0.78823529411764703,
+          0.60784313725490191
+        ],
+        [
+          0.71764705882352942,
+          0.94901960784313721,
+          0.84313725490196079
+        ]
+      ],
+      "dashboard" : "https:\/\/xkiro.com",
+      "debug" : "",
+      "detail" : "xkiro not detected",
+      "fields" : [
+        {
+          "actions" : [
+
+          ],
+          "id" : "xkiro-api-key",
+          "placeholder" : "Paste API key…",
+          "secure" : true,
+          "subtitle" : "Saved in CodexBar's local config file. Or set XKIRO_API_KEY. Reads free-token usage only.",
+          "title" : "xKiro API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-xkiro",
+      "id" : "xkiro",
+      "labels" : [
+        "Daily free tokens",
+        "Weekly",
+        ""
+      ],
+      "name" : "xKiro",
+      "noData" : "xKiro cost history is not available.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show xKiro usage"
+    },
+    {
+      "availability" : [
+        true,
+        true,
+        true
+      ],
+      "cli" : [
+        "atlascloud"
+      ],
+      "color" : [
+        0.34901960784313724,
+        0.45882352941176469,
+        0.96078431372549022
+      ],
+      "confetti" : [
+        [
+          0.34901960784313724,
+          0.45882352941176469,
+          0.96078431372549022
+        ],
+        [
+          0.65490196078431373,
+          0.72156862745098038,
+          1
+        ]
+      ],
+      "dashboard" : "https:\/\/www.atlascloud.ai\/console",
+      "debug" : "",
+      "detail" : "atlascloud not detected",
+      "fields" : [
+        {
+          "actions" : [
+
+          ],
+          "id" : "atlascloud-api-key",
+          "placeholder" : "Paste API key…",
+          "secure" : true,
+          "subtitle" : "Saved in CodexBar's local config file. Or set ATLASCLOUD_API_KEY.",
+          "title" : "Atlas Cloud API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon" : "ProviderIcon-atlascloud",
+      "id" : "atlascloud",
+      "labels" : [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name" : "Atlas Cloud",
+      "noData" : "Atlas Cloud cost history is not available.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show Atlas Cloud balance"
+    },
+    {
+      "availability" : [
+        true,
+        true,
+        true
+      ],
+      "cli" : [
+        "vercel"
+      ],
+      "color" : [
+        1,
+        1,
+        1
+      ],
+      "confetti" : [
+        [
+          1,
+          1,
+          1
+        ],
+        [
+          0.63921568627450975,
+          0.63921568627450975,
+          0.63921568627450975
+        ]
+      ],
+      "dashboard" : "https:\/\/vercel.com\/d?to=%2F%5Bteam%5D%2F%7E%2Fai-gateway",
+      "debug" : "",
+      "detail" : "vercel not detected",
+      "fields" : [
+        {
+          "actions" : [
+
+          ],
+          "id" : "vercel-api-key",
+          "placeholder" : "Paste API key…",
+          "secure" : true,
+          "subtitle" : "Saved in CodexBar's local config file. Or set AI_GATEWAY_API_KEY.",
+          "title" : "Vercel AI Gateway API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon" : "ProviderIcon-vercel",
+      "id" : "vercel",
+      "labels" : [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name" : "Vercel AI Gateway",
+      "noData" : "Vercel AI Gateway cost history is not available.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show Vercel AI Gateway balance"
+    },
+    {
+      "availability" : [
+        true,
+        true,
+        true
+      ],
+      "cli" : [
+        "devpass"
+      ],
+      "color" : [
+        0.14509803921568629,
+        0.38823529411764707,
+        0.92156862745098034
+      ],
+      "confetti" : [
+        [
+          0.14509803921568629,
+          0.38823529411764707,
+          0.92156862745098034
+        ],
+        [
+          0.57647058823529407,
+          0.77254901960784317,
+          0.99215686274509807
+        ]
+      ],
+      "dashboard" : "https:\/\/devpass.llmgateway.io\/dashboard",
+      "debug" : "",
+      "detail" : "devpass not detected",
+      "fields" : [
+        {
+          "actions" : [
+            {
+              "id" : "devpass-dashboard",
+              "title" : "Open DevPass"
+            }
+          ],
+          "id" : "devpass-api-key",
+          "placeholder" : "Regular LLM Gateway API key",
+          "secure" : true,
+          "subtitle" : "Saved in CodexBar's local config file. Or set DEVPASS_API_KEY.",
+          "title" : "DevPass API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-devpass",
+      "id" : "devpass",
+      "labels" : [
+        "Plan credits",
+        "Premium weekly",
+        ""
+      ],
+      "name" : "DevPass",
+      "noData" : "DevPass cost history is not available.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show DevPass usage"
+    },
+    {
+      "availability" : [
+        true,
+        true,
+        true
+      ],
+      "cli" : [
+        "gitkraken",
+        "gk"
+      ],
+      "color" : [
+        0.090196078431372548,
+        0.5725490196078431,
+        0.52941176470588236
+      ],
+      "confetti" : [
+        [
+          0.090196078431372548,
+          0.5725490196078431,
+          0.52941176470588236
+        ],
+        [
+          0.61568627450980395,
+          0.89803921568627454,
+          0.82352941176470584
+        ]
+      ],
+      "dashboard" : "https:\/\/gitkraken.dev\/account#ai-usage",
+      "debug" : "",
+      "detail" : "gitkraken not detected",
+      "fields" : [
+        {
+          "actions" : [
+            {
+              "id" : "gitkraken-open-account",
+              "title" : "Open GitKraken Account"
+            }
+          ],
+          "id" : "gitkraken-api-token",
+          "placeholder" : "Token value only (without Bearer)",
+          "secure" : true,
+          "subtitle" : "Saved in CodexBar's local config file. Or set GITKRAKEN_API_TOKEN.",
+          "title" : "GitKraken access token"
+        },
+        {
+          "actions" : [
+
+          ],
+          "id" : "gitkraken-organization",
+          "placeholder" : "Organization ID (optional)",
+          "secure" : false,
+          "subtitle" : "Optional gk-org-id header value. Or set GITKRAKEN_ORG_ID.",
+          "title" : "API organization ID"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-gitkraken",
+      "id" : "gitkraken",
+      "labels" : [
+        "Personal",
+        "Shared pool",
+        ""
+      ],
+      "name" : "GitKraken AI",
+      "noData" : "GitKraken cost history is not available.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show GitKraken AI usage"
+    },
+    {
+      "availability" : [
+        false,
+        false,
+        true
+      ],
+      "cli" : [
+        "poe"
+      ],
+      "color" : [
+        0.36470588235294116,
+        0.36078431372549019,
+        0.87058823529411766
+      ],
+      "confetti" : [
+        [
+          0.36470588235294116,
+          0.36078431372549019,
+          0.87058823529411766
+        ],
+        [
+          0.16470588235294117,
+          0.16470588235294117,
+          0.63529411764705879
+        ],
+        [
+          0.8784313725490196,
+          0.31764705882352939,
+          0.92941176470588238
+        ]
+      ],
+      "dashboard" : "https:\/\/poe.com\/api\/keys",
+      "debug" : "",
+      "detail" : "api",
+      "fields" : [
+        {
+          "actions" : [
+
+          ],
+          "id" : "poe-api-key",
+          "placeholder" : null,
+          "secure" : true,
+          "subtitle" : "Stored in ~\/.codexbar\/config.json. Get your key from poe.com\/api\/keys.",
+          "title" : "API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        false
+      ],
+      "icon" : "ProviderIcon-poe",
+      "id" : "poe",
+      "labels" : [
+        "Points",
+        "Points",
+        ""
+      ],
+      "name" : "Poe",
+      "noData" : "Poe usage history is unavailable.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show Poe usage"
+    },
+    {
+      "availability" : [
+        false,
+        false,
+        false
+      ],
+      "cli" : [
+        "deepinfra",
+        "deep-infra",
+        "di"
+      ],
+      "color" : [
+        0.16470588235294117,
+        0.19607843137254902,
+        0.45882352941176469
+      ],
+      "confetti" : [
+        [
+          0.16470588235294117,
+          0.19607843137254902,
+          0.45882352941176469
+        ],
+        [
+          0.45490196078431372,
+          0.49803921568627452,
+          0.87058823529411766
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard" : "https:\/\/deepinfra.com\/dash",
+      "debug" : "DeepInfra debug log not yet implemented",
+      "detail" : "api",
+      "fields" : [
+
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        true,
+        true
+      ],
+      "icon" : "ProviderIcon-deepinfra",
+      "id" : "deepinfra",
+      "labels" : [
+        "Balance",
+        "Balance",
+        ""
+      ],
+      "name" : "DeepInfra",
+      "noData" : "DeepInfra per-request cost history is not available in CodexBar.",
+      "status" : [
+        "",
+        "https:\/\/status.deepinfra.com"
+      ],
+      "toggle" : "Show DeepInfra usage"
+    },
+    {
+      "availability" : [
+        false,
+        false,
+        true
+      ],
+      "cli" : [
+        "zenmux",
+        "zen-mux"
+      ],
+      "color" : [
+        0.42352941176470588,
+        0.36078431372549019,
+        0.90588235294117647
+      ],
+      "confetti" : [
+        [
+          0.42352941176470588,
+          0.36078431372549019,
+          0.90588235294117647
+        ],
+        [
+          0.63529411764705879,
+          0.60784313725490191,
+          0.99607843137254903
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard" : "https:\/\/zenmux.ai\/platform\/management",
+      "debug" : "ZenMux debug log not yet implemented",
+      "detail" : "api",
+      "fields" : [
+        {
+          "actions" : [
+            {
+              "id" : "zenmux-open-management",
+              "title" : "Open ZenMux Management"
+            }
+          ],
+          "id" : "zenmux-management-api-key",
+          "placeholder" : "ZenMux management key…",
+          "secure" : true,
+          "subtitle" : "Stored in ~\/.codexbar\/config.json. Standard ZenMux inference API keys are not supported.",
+          "title" : "Management API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-zenmux",
+      "id" : "zenmux",
+      "labels" : [
+        "5-hour quota",
+        "Weekly quota",
+        ""
+      ],
+      "name" : "ZenMux",
+      "noData" : "ZenMux cost history is not exposed by the Management API.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show ZenMux usage"
+    },
+    {
+      "availability" : [
+        false,
+        false,
+        true
+      ],
+      "cli" : [
+        "clinepass"
+      ],
+      "color" : [
+        0.38,
+        0.64000000000000001,
+        0.97999999999999998
+      ],
+      "confetti" : [
+        [
+          0.38039215686274508,
+          0.63921568627450975,
+          0.98039215686274506
+        ],
+        [
+          0.066666666666666666,
+          0.066666666666666666,
+          0.066666666666666666
+        ],
+        [
+          1,
+          1,
+          1
+        ]
+      ],
+      "dashboard" : "https:\/\/app.cline.bot\/dashboard\/subscription?personal=true",
+      "debug" : "ClinePass debug log not yet implemented",
+      "detail" : "api",
+      "fields" : [
+        {
+          "actions" : [
+
+          ],
+          "id" : "clinepass-api-key",
+          "placeholder" : "ClinePass API key...",
+          "secure" : true,
+          "subtitle" : "Stored in ~\/.codexbar\/config.json. Paste a ClinePass API key.",
+          "title" : "API key"
+        }
+      ],
+      "flags" : [
+        true,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-clinepass",
+      "id" : "clinepass",
+      "labels" : [
+        "5-hour",
+        "Weekly",
+        "Monthly"
+      ],
+      "name" : "ClinePass",
+      "noData" : "ClinePass cost history is not available via the usage-limits API.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show ClinePass usage"
+    },
+    {
+      "availability" : [
+        false,
+        false,
+        true
+      ],
+      "cli" : [
+        "aiand",
+        "ai&",
+        "ai-and"
+      ],
+      "color" : [
+        0.88627450980392153,
+        0.36078431372549019,
+        0.16862745098039217
+      ],
+      "confetti" : [
+        [
+          0.88627450980392153,
+          0.36078431372549019,
+          0.16862745098039217
+        ],
+        [
+          0.94901960784313721,
+          0.63137254901960782,
+          0.49411764705882355
+        ],
+        [
+          0.20000000000000001,
+          0.13725490196078433,
+          0.10980392156862745
+        ]
+      ],
+      "dashboard" : "https:\/\/console.aiand.com",
+      "debug" : "ai& debug log not yet implemented",
+      "detail" : "api",
+      "fields" : [
+        {
+          "actions" : [
+            {
+              "id" : "aiand-open-console",
+              "title" : "Open ai& Console"
+            }
+          ],
+          "id" : "aiand-api-key",
+          "placeholder" : "sk-…",
+          "secure" : true,
+          "subtitle" : "Stored in CodexBar's config file. Create a key in the ai& console (shown once).",
+          "title" : "API key"
+        }
+      ],
+      "flags" : [
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false,
+        false
+      ],
+      "icon" : "ProviderIcon-aiand",
+      "id" : "aiand",
+      "labels" : [
+        "Spend",
+        "Spend",
+        ""
+      ],
+      "name" : "ai&",
+      "noData" : "ai& spend is summed from the request logs API.",
+      "status" : [
+        "",
+        ""
+      ],
+      "toggle" : "Show ai& usage"
+    }
+  ]
+}
