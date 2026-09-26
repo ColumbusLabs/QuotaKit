@@ -1,5 +1,4 @@
 import Foundation
-@testable import CodexBarCore
 
 public struct PerplexityCreditsResponse: Codable {
     public let balanceCents: Double

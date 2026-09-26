@@ -103,6 +103,7 @@ public struct ProviderSettingsSectionRegistration: Sendable {
         self.providerID = key.providerID
         self.sectionTypeID = ObjectIdentifier(Key.Section.self)
         self.defaultContribution = nil
+        self.cookieContribution = nil
         self.cookieSettingsReader = { snapshot in
             snapshot[key].flatMap(cookieSettings)
         }
@@ -171,6 +172,7 @@ public struct ProviderSettingsSectionRegistration: Sendable {
         self.providerID = providerID
         self.sectionTypeID = sectionTypeID
         self.defaultContribution = defaultContribution
+        self.cookieContribution = nil
         self.cookieSettingsReader = cookieSettingsReader
         self.credentialContributionReader = credentialContributionReader
     }
