@@ -1345,6 +1345,8 @@
 "Tracked tokens" = "Token yang dilacak";
 "Subscriptions" = "Langganan";
 "By subscription" = "Berdasarkan langganan";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Tidak ada riwayat tingkat model";
 "Daily estimated spend" = "Perkiraan pengeluaran harian";
 "Hourly estimated spend" = "Perkiraan pengeluaran per jam";

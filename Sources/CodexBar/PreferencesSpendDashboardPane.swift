@@ -702,7 +702,7 @@ struct SpendDashboardCurrencySection: View {
                                 value: UsageFormatter.currencyString(metered, currencyCode: self.group.currencyCode))
                         }
                         SpendSummaryValue(
-                            title: L("Subscriptions"),
+                            title: spendDashboardProviderCountTitle(self.group),
                             value: codexBarLocalizedInteger(self.group.providers.count))
                         Spacer()
                     }
@@ -776,7 +776,7 @@ private struct SpendProviderPanel: View {
     var body: some View {
         SpendDashboardPanel {
             VStack(alignment: .leading, spacing: 0) {
-                Text(L("By subscription")).font(.headline).padding(.bottom, 8)
+                Text(spendDashboardProviderPanelTitle(self.group)).font(.headline).padding(.bottom, 8)
                 ForEach(self.group.providers) { row in
                     if row.rank > 1 {
                         Divider()
@@ -1474,8 +1474,22 @@ func spendDashboardGroupTokenText(_ group: SpendDashboardModel.CurrencyGroup) ->
     return group.hasPartialTokens ? "~\(formatted)" : formatted
 }
 
-func spendDashboardPartialSubscriptionsText(_ group: SpendDashboardModel.CurrencyGroup) -> String {
-    L("%d of %d subscriptions have spend", group.pricedProviderCount, group.providers.count)
+private func spendDashboardIncludesLocalHistory(_ group: SpendDashboardModel.CurrencyGroup) -> Bool {
+    group.providers.contains { $0.sourceKind == .localHistory }
+}
+
+func spendDashboardProviderCountTitle(_ group: SpendDashboardModel.CurrencyGroup) -> String {
+    spendDashboardIncludesLocalHistory(group) ? L("Sources") : L("Subscriptions")
+}
+
+func spendDashboardProviderPanelTitle(_ group: SpendDashboardModel.CurrencyGroup) -> String {
+    spendDashboardIncludesLocalHistory(group) ? L("By source") : L("By subscription")
+}
+
+func spendDashboardPartialSourceCoverageText(_ group: SpendDashboardModel.CurrencyGroup) -> String {
+    let template = spendDashboardIncludesLocalHistory(group)
+        ? "%d of %d sources have spend" : "%d of %d subscriptions have spend"
+    return L(template, group.pricedProviderCount, group.providers.count)
 }
 
 func spendDashboardHistoryCaption(
@@ -1486,7 +1500,7 @@ func spendDashboardHistoryCaption(
     if group.hasPartialCost || group.hasPartialTokens {
         parts.append(L("Partial estimate"))
         if group.hasPartialCost {
-            parts.append(spendDashboardPartialSubscriptionsText(group))
+            parts.append(spendDashboardPartialSourceCoverageText(group))
         }
     } else {
         parts.append(L("Local estimated history"))

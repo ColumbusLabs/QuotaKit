@@ -1343,6 +1343,8 @@
 "Tracked tokens" = "İzlenen tokenlar";
 "Subscriptions" = "Abonelikler";
 "By subscription" = "Aboneliğe göre";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Model düzeyinde geçmiş yok";
 "Daily estimated spend" = "Günlük tahmini harcama";
 "Hourly estimated spend" = "Saatlik tahmini harcama";

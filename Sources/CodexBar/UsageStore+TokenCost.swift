@@ -5,12 +5,14 @@ struct CurrentProviderConfigTokenSnapshot: Sendable, Equatable {
     let snapshot: CostUsageTokenSnapshot
     let publicationRevision: UInt64
     let semanticFingerprint: String
+    let accounting: PiSnapshotAccounting?
 }
 
 struct CurrentProviderConfigTokenPublication: Sendable, Equatable {
     let snapshot: CostUsageTokenSnapshot?
     let publicationRevision: UInt64
     let semanticFingerprint: String?
+    let accounting: PiSnapshotAccounting?
 }
 
 struct TokenSnapshotPublication: Sendable, Equatable {
@@ -19,9 +21,18 @@ struct TokenSnapshotPublication: Sendable, Equatable {
     let providerConfigRevision: UInt64
     let scopeSignature: String
     let semanticFingerprint: String?
+    let accounting: PiSnapshotAccounting?
 }
 
 extension UsageStore {
+    enum TokenSnapshotError: LocalizedError {
+        case historyUnavailable
+
+        var errorDescription: String? {
+            "Local token history is unavailable or incomplete."
+        }
+    }
+
     enum CursorCostCookiePreparation {
         case proceed(String?)
         case reject
@@ -43,20 +54,103 @@ extension UsageStore {
         return .proceed(header)
     }
 
+    /// Provider-specific by design: Pi, Claude, and unscoped Codex share the Pi history scope lifecycle.
+    private func usesPiHistoryScope(_ provider: UsageProvider) -> Bool {
+        provider == .pi || (self.shouldIncludePiSessionsInTokenSnapshot(for: provider) &&
+            (provider == .claude ||
+                (provider == .codex && self.tokenCostScope(for: provider).codexHomePath == nil)))
+    }
+
+    func tokenAccountingScopeIsCurrent(_ accounting: PiSnapshotAccounting?, for provider: UsageProvider) -> Bool {
+        guard self.usesPiHistoryScope(provider), let scope = accounting?.scope else { return true }
+        guard let current = self.piHistoryScopeFingerprint else { return true }
+        return scope == current
+    }
+
+    func refreshPiHistoryScope(for provider: UsageProvider) async -> Bool {
+        guard self.usesPiHistoryScope(provider) else { return true }
+        // Synthetic snapshot/cache overrides own their source and must not resolve real processes.
+        if self._test_piHistoryScopeResolver == nil,
+           self._test_tokenUsageResultLoaderOverride != nil ||
+           self._test_tokenUsageSnapshotLoaderOverride != nil ||
+           self._test_tokenUsageRefreshOverride != nil ||
+           self._test_cachedCodexTokenSnapshotLoaderOverride != nil
+        {
+            return true
+        }
+        if let pending = self.piHistoryScopeRefreshTask { return await pending.value }
+        // One resolver publishes the shared scope; older concurrent completions cannot overwrite it.
+        let task = Task { @MainActor [weak self] in
+            guard let self else { return false }
+            defer { self.piHistoryScopeRefreshTask = nil }
+            let fingerprint: String
+            do {
+                if let resolver = self._test_piHistoryScopeResolver {
+                    fingerprint = try await resolver(self.environmentBase)
+                } else {
+                    fingerprint = try await CostUsageFetcher.piRootScope(environment: self.environmentBase)
+                }
+            } catch {
+                self.tokenErrors[provider.instanceID] = "Pi history configuration is unavailable."
+                return false
+            }
+            guard self.piHistoryScopeFingerprint != fingerprint else { return true }
+            self.piHistoryScopeFingerprint = fingerprint
+            self.piHistoryScopeGeneration &+= 1
+            // Provider-specific by design: invalidate only consumers that include Pi history.
+            for scopedProvider in [UsageProvider.pi, .claude, .codex] where self.usesPiHistoryScope(scopedProvider) {
+                self.clearTokenSnapshot(for: scopedProvider)
+                self.clearSpendDashboardTokenSnapshot(for: scopedProvider)
+                self.lastTokenFetchAt.removeValue(forKey: scopedProvider.instanceID)
+                self.lastTokenFetchScope.removeValue(forKey: scopedProvider.instanceID)
+            }
+            self.synchronizeSharedSpendDashboardAfterTokenPublication(for: .pi)
+            return true
+        }
+        self.piHistoryScopeRefreshTask = task
+        return await task.value
+    }
+
+    /// Reports used by the combined dashboard can describe Pi as a separate
+    /// source. The fetcher still supports inclusive standalone reads; this
+    /// helper keeps the existing ownership label for scope invalidation.
+    func shouldIncludePiSessionsInTokenSnapshot(for provider: UsageProvider) -> Bool {
+        guard provider == .claude || provider == .codex else { return true }
+        if provider == .codex, self.tokenCostScope(for: provider).codexHomePath != nil { return false }
+        let piIsCostSource = self.settings.isProviderEnabledCached(
+            provider: .pi,
+            metadataByProvider: self.providerMetadata) &&
+            self.settings.isCostUsageEffectivelyEnabled(for: .pi)
+        return !piIsCostSource
+    }
+
+    func piRowsScopeSignature(for provider: UsageProvider) -> String? {
+        guard provider == .claude ||
+            (provider == .codex && self.tokenCostScope(for: provider).codexHomePath == nil)
+        else { return nil }
+        return self.shouldIncludePiSessionsInTokenSnapshot(for: provider) ? "fallback" : "owned"
+    }
+
     func loadTokenUsageSnapshot(
         provider: UsageProvider,
         force: Bool,
         now: Date,
         codexHomePath: String?,
         historyDays: Int,
-        cursorCookieHeaderOverride: String? = nil) async throws -> CostUsageTokenSnapshot
+        cursorCookieHeaderOverride: String? = nil,
+        includePiSessions: Bool = true) async throws -> CostUsageTokenResult
     {
+        if let override = self._test_tokenUsageResultLoaderOverride {
+            return try await override(provider, force, now, codexHomePath, historyDays, includePiSessions)
+        }
         if let override = self._test_tokenUsageSnapshotLoaderOverride {
-            return try await override(provider, force, now, codexHomePath, historyDays)
+            let snapshot = try await override(provider, force, now, codexHomePath, historyDays)
+            return CostUsageTokenResult(snapshot: snapshot)
         }
 
         let fetcher = self.costUsageFetcher
         let timeoutSeconds = self.tokenFetchTimeout
+        let effectiveIncludePiSessions = includePiSessions
         // Provider-specific by design: the Codex ledger owns pricing refresh while Bedrock resolves AWS environment.
         let allowPricingRefresh = provider != .codex || !self.settings.codexLocalSessionCostLedgerEnabled
         let environment = provider == .bedrock
@@ -66,9 +160,19 @@ extension UsageStore {
                 settings: self.settings,
                 tokenOverride: nil)
             : self.environmentBase
-        return try await withThrowingTaskGroup(of: CostUsageTokenSnapshot.self) { group in
+        let scopedCodexHomePath = codexHomePath?.trimmingCharacters(in: .whitespacesAndNewlines)
+        // Provider-specific by design: only Pi-owned, Claude-inclusive, or unscoped Codex scans consume Pi roots.
+        let shouldDiscoverPiSessionProcessContexts = provider == .pi ||
+            (effectiveIncludePiSessions &&
+                (provider == .claude || (provider == .codex && scopedCodexHomePath?.isEmpty != false)))
+        let piSessionProcessContexts: [PiSessionProcessContext] = if shouldDiscoverPiSessionProcessContexts {
+            await LocalAgentSessionScanner().piSessionProcessContexts(environment: environment)
+        } else {
+            []
+        }
+        return try await withThrowingTaskGroup(of: CostUsageTokenResult.self) { group in
             group.addTask(priority: .utility) {
-                try await fetcher.loadTokenSnapshot(
+                try await fetcher.loadTokenResult(
                     provider: provider,
                     environment: environment,
                     now: now,
@@ -78,6 +182,8 @@ extension UsageStore {
                     historyDays: historyDays,
                     cursorCookieHeaderOverride: cursorCookieHeaderOverride,
                     allowPricingRefresh: allowPricingRefresh,
+                    includePiSessions: effectiveIncludePiSessions,
+                    piSessionProcessContexts: piSessionProcessContexts,
                     bypassScannerDebounce: true,
                     calendar: self.settings.costUsageBucketCalendar)
             }
@@ -105,7 +211,8 @@ extension UsageStore {
         return CurrentProviderConfigTokenSnapshot(
             snapshot: snapshot,
             publicationRevision: publication.publicationRevision,
-            semanticFingerprint: publication.semanticFingerprint ?? "")
+            semanticFingerprint: publication.semanticFingerprint ?? "",
+            accounting: publication.accounting)
     }
 
     func tokenSnapshotCanAttachToProviderContext(
@@ -141,14 +248,19 @@ extension UsageStore {
         return CurrentProviderConfigTokenPublication(
             snapshot: publication.snapshot,
             publicationRevision: publication.publicationRevision,
-            semanticFingerprint: publication.semanticFingerprint)
+            semanticFingerprint: publication.semanticFingerprint,
+            accounting: publication.accounting)
     }
 
     func tokenSnapshotPublicationRevision(for provider: UsageProvider) -> UInt64 {
         self.tokenSnapshotPublicationRevisions[provider.instanceID] ?? 0
     }
 
-    func publishTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
+    func publishTokenSnapshot(
+        _ snapshot: CostUsageTokenSnapshot,
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
+    {
         // A bounded Codex refresh can succeed with partial rows while catch-up remains pending.
         // Account and history-window changes fail the current-publication lookup below.
         // Provider-specific by design: only Codex retains established history during bounded catch-up.
@@ -160,33 +272,46 @@ extension UsageStore {
             return
         }
         self.tokenSnapshots[provider.instanceID] = snapshot
-        self.publishTokenSnapshotState(snapshot, for: provider)
+        self.publishTokenSnapshotState(snapshot, for: provider, accounting: accounting)
     }
 
-    func publishConfirmedEmptyTokenSnapshot(for provider: UsageProvider) {
+    func publishConfirmedEmptyTokenSnapshot(
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
+    {
         self.tokenSnapshots.removeValue(forKey: provider.instanceID)
-        self.publishTokenSnapshotState(nil, for: provider)
+        self.publishTokenSnapshotState(nil, for: provider, accounting: accounting)
     }
 
-    private func publishTokenSnapshotState(_ snapshot: CostUsageTokenSnapshot?, for provider: UsageProvider) {
+    private func publishTokenSnapshotState(
+        _ snapshot: CostUsageTokenSnapshot?,
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting?)
+    {
         self.tokenSnapshotPublicationRevisions[provider.instanceID, default: 0] &+= 1
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint))
+            semanticFingerprint: snapshot.map(self.spendDashboardSnapshotSemanticFingerprint),
+            accounting: accounting)
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
     }
 
-    func installCachedTokenSnapshot(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) {
+    func installCachedTokenSnapshot(
+        _ snapshot: CostUsageTokenSnapshot,
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
+    {
         self.tokenSnapshots[provider.instanceID] = snapshot
         self.tokenSnapshotPublications[provider.instanceID] = TokenSnapshotPublication(
             snapshot: snapshot,
             publicationRevision: self.tokenSnapshotPublicationRevision(for: provider),
             providerConfigRevision: self.settings.providerConfigRevision(for: provider),
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
-            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(snapshot))
+            semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(snapshot),
+            accounting: accounting)
     }
 
     func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
@@ -261,40 +386,52 @@ extension UsageStore {
             return nil
         }
 
-        let scope = self.tokenCostScope(for: .codex)
-        let historyDays = self.settings.costUsageHistoryDays
-        let publicationRevision = self.providerPublicationRevision(for: .codex)
-        let providerConfigRevision = self.settings.providerConfigRevision(for: .codex)
-        let costUsageSettingsRevision = self.settings.costUsageSettingsRevision
-        let tokenSnapshotScopeSignature = self.tokenSnapshotScopeSignature(for: .codex)
-        let tokenSnapshotPublicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
         return Task { @MainActor [weak self] in
             guard let self else { return }
+            guard await self.refreshPiHistoryScope(for: .codex) else { return }
+            let scope = self.tokenCostScope(for: .codex)
+            let historyDays = self.settings.costUsageHistoryDays
+            let publicationRevision = self.providerPublicationRevision(for: .codex)
+            let providerConfigRevision = self.settings.providerConfigRevision(for: .codex)
+            let costUsageSettingsRevision = self.settings.costUsageSettingsRevision
+            let tokenSnapshotScopeSignature = self.tokenSnapshotScopeSignature(for: .codex)
+            let tokenSnapshotPublicationRevision = self.tokenSnapshotPublicationRevision(for: .codex)
+            let includePiSessions = self.shouldIncludePiSessionsInTokenSnapshot(for: .codex)
             guard self.tokenSnapshotPublicationForCurrentProviderConfig(for: .codex) == nil else { return }
             let result: (
                 snapshot: CostUsageTokenSnapshot,
                 lastRefreshAt: Date?,
-                staleSnapshotUpdatedAt: Date?)? = if let override = self._test_cachedCodexTokenSnapshotLoaderOverride
+                staleSnapshotUpdatedAt: Date?,
+                accounting: PiSnapshotAccounting?)? = if let override =
+                self._test_cachedCodexTokenSnapshotLoaderOverride
             {
-                await override(now, scope.codexHomePath, historyDays)
+                await override(now, scope.codexHomePath, historyDays).map {
+                    ($0.snapshot, $0.lastRefreshAt, $0.staleSnapshotUpdatedAt, nil)
+                }
             } else {
                 await self.costUsageFetcher.loadCachedCodexTokenSnapshotResult(
                     now: now,
                     codexHomePath: scope.codexHomePath,
                     historyDays: historyDays,
-                    calendar: self.settings.costUsageBucketCalendar)
+                    includePiSessions: includePiSessions,
+                    calendar: self.settings.costUsageBucketCalendar,
+                    environment: self.environmentBase)
                     .map {
                         (
                             snapshot: $0.snapshot,
                             lastRefreshAt: $0.lastRefreshAt,
-                            staleSnapshotUpdatedAt: $0.staleSnapshotUpdatedAt)
+                            staleSnapshotUpdatedAt: $0.staleSnapshotUpdatedAt,
+                            accounting: $0.accounting)
                     }
             }
             guard let result
             else {
                 return
             }
-            guard self.providerPublicationRevisionIsCurrent(publicationRevision, for: .codex),
+            // Provider-specific by design: cache hydration publishes only after all fixed Codex scope checks pass.
+            guard await self.refreshPiHistoryScope(for: .codex),
+                  self.providerPublicationRevisionIsCurrent(publicationRevision, for: .codex),
+                  self.tokenAccountingScopeIsCurrent(result.accounting, for: .codex),
                   self.settings.providerConfigRevision(for: .codex) == providerConfigRevision,
                   self.settings.costUsageSettingsRevision == costUsageSettingsRevision,
                   self.settings.isCostUsageEffectivelyEnabled(for: .codex),
@@ -307,7 +444,7 @@ extension UsageStore {
             else {
                 return
             }
-            self.installCachedTokenSnapshot(result.snapshot, for: .codex)
+            self.installCachedTokenSnapshot(result.snapshot, for: .codex, accounting: result.accounting)
             self.tokenErrors[.codex] = nil
             if result.staleSnapshotUpdatedAt != nil {
                 self.startCodexCostCatchUpIfNeeded()
@@ -393,6 +530,12 @@ extension UsageStore {
     {
         let scope = self.tokenCostScope(for: provider)
         var base = "\(scope.signature)|historyDays=\(historyDays)"
+        if self.usesPiHistoryScope(provider) {
+            base += "|piHistoryGeneration=\(self.piHistoryScopeGeneration)"
+        }
+        if let piRowsScope = self.piRowsScopeSignature(for: provider) {
+            base += "|piRows=\(piRowsScope)"
+        }
         if includeSettingsRevision {
             base += "|settingsRevision=\(self.settings.costUsageSettingsRevision)"
         }
@@ -435,10 +578,15 @@ extension UsageStore {
         now: Date,
         costScopeSignature: String) -> Bool
     {
-        guard self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider) != nil,
+        guard let publication = self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider),
               let last = self.lastTokenFetchAt[provider.instanceID],
               self.lastTokenFetchScope[provider.instanceID] == costScopeSignature
         else {
+            return false
+        }
+        // An incomplete Pi scan may contain retained or partial rows. Keep them visible, but
+        // retry on the next refresh tick so recovered roots are not held behind the normal TTL.
+        if self.usesPiHistoryScope(provider), publication.snapshot?.historyCoverageIsEstablished != true {
             return false
         }
         guard let tokenFetchTTL = self.tokenFetchTTL else { return false }

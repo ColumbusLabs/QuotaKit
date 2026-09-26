@@ -316,6 +316,14 @@ enum SpendDashboardSource {
                 force: mode.forcesLoader)
         }
 
+        // A native projection is disjoint from the inclusive Claude/Codex publication while
+        // Pi owns the same rows, even when the Pi input is hidden from the chart.
+        let piBaseline = providerBaselines.first { $0.provider == .pi }
+        let piCurrent = self.capturedTokenPublication(store: store, provider: .pi)
+        let piOwnsSource = providers.contains(.pi)
+            && piBaseline != nil
+            && piCurrent.publication?.snapshot != nil
+            && !(piBaseline?.shouldRefresh == true && piBaseline?.publicationRevision == piCurrent.revision)
         var inputs: [SpendDashboardModel.ProviderInput] = []
         var unavailableSourceIDs: Set<String> = []
         var confirmedEmptySourceIDs: Set<String> = []
@@ -355,7 +363,8 @@ enum SpendDashboardSource {
             guard let snapshot = self.dashboardTokenSnapshot(
                 store: store,
                 provider: provider,
-                publication: currentPublication)
+                publication: currentPublication,
+                piOwnsSource: piOwnsSource)
             else {
                 confirmedEmptySourceIDs.insert(provider.rawValue)
                 continue
@@ -363,7 +372,10 @@ enum SpendDashboardSource {
             inputs.append(SpendDashboardModel.ProviderInput(
                 provider: provider,
                 displayName: store.metadata(for: provider).displayName,
-                snapshot: snapshot))
+                snapshot: snapshot,
+                // Provider-specific by design: Pi reports local history rather than a subscription feed.
+                sourceKind: provider == .pi ? .localHistory : .native,
+                accounting: currentPublication.accounting))
         }
         return SpendDashboardLoadRequest(
             configuration: configuration,
@@ -803,7 +815,8 @@ enum SpendDashboardSource {
     private static func dashboardTokenSnapshot(
         store: UsageStore,
         provider: UsageProvider,
-        publication: CurrentProviderConfigTokenPublication) -> CostUsageTokenSnapshot?
+        publication: CurrentProviderConfigTokenPublication,
+        piOwnsSource: Bool) -> CostUsageTokenSnapshot?
     {
         // Provider-specific by design: Grok's catalog input is the local session scan, even when
         // the remote billing snapshot is missing.
@@ -821,6 +834,17 @@ enum SpendDashboardSource {
                historyDays: scanDays)
         {
             return derived
+        }
+        // An inclusive publication can predate Pi becoming a separate source.
+        // Project its retained native portion while the replacement refresh is pending,
+        // so the combined rows stay disjoint throughout that transition.
+        // Provider-specific by design: Claude and Codex publications expose a native projection when Pi is
+        // accounted for separately in the combined dashboard.
+        if piOwnsSource,
+           provider == .claude || provider == .codex,
+           case let .includesPi(_, native) = publication.accounting
+        {
+            return native
         }
         return publication.snapshot
     }
@@ -1628,11 +1652,22 @@ final class SpendDashboardController {
             } else {
                 .unavailable
             }
+            // Provider-specific by design: Pi remains local history while its snapshot is loading,
+            // unavailable, or confirmed empty, when no ProviderInput is available yet.
+            let role: SpendSourcePublication.Role = if provider == .pi {
+                .localHistory
+            } else {
+                switch input?.sourceKind {
+                case .openCodex: .enrichment
+                case .localHistory: .localHistory
+                case .native, nil: .subscription
+                }
+            }
             return SpendSourcePublication(
                 id: sourceID,
                 provider: provider,
                 displayName: input?.displayName ?? self.displayName(for: sourceID, provider: provider),
-                role: input?.sourceKind == .openCodex ? .enrichment : .subscription,
+                role: role,
                 state: state)
         }
         if self.configuration?.openCodexUsageLogsEnabled == true,
@@ -1689,6 +1724,7 @@ final class SpendDashboardController {
     {
         var ids: [String] = []
         for providerID in self.configuration?.providerIDs ?? [] {
+            // Provider-specific by design: source ordering expands the fixed Codex account namespace.
             if providerID == UsageProvider.codex.rawValue {
                 ids.append(contentsOf: (self.configuration?.codexAccountIdentities ?? []).compactMap { identity in
                     guard let separator = identity.lastIndex(of: "|") else { return nil }
@@ -1746,7 +1782,8 @@ final class SpendDashboardController {
             modelProviderName: input.modelProviderName,
             snapshot: input.snapshot,
             tokenActivityCache: input.tokenActivityCache,
-            sourceKind: input.sourceKind)
+            sourceKind: input.sourceKind,
+            accounting: input.accounting)
     }
 
     /// True source ownership/scope identity (#159). Only data-identity and

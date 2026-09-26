@@ -1341,6 +1341,8 @@
 "Tracked tokens" = "Bijgehouden tokens";
 "Subscriptions" = "Abonnementen";
 "By subscription" = "Per abonnement";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Geen geschiedenis op modelniveau";
 "Daily estimated spend" = "Geschatte dagelijkse uitgaven";
 "Hourly estimated spend" = "Geschatte uitgaven per uur";

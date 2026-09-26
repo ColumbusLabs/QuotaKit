@@ -497,9 +497,12 @@ extension UsageStore {
             nil
         }
 
+        // Provider-specific by design: Pi's local strategy has no quota measurement; age belongs to its history.
+        let historyUpdatedAt = provider == .pi ? tokenSnapshot?.updatedAt : nil
         return WidgetSnapshot.ProviderEntry(
             provider: provider,
-            updatedAt: snapshot?.updatedAt ?? preservedClaudeUsage?.updatedAt ?? tokenSnapshot?.updatedAt ?? now,
+            updatedAt: historyUpdatedAt ?? snapshot?.updatedAt ?? preservedClaudeUsage?.updatedAt
+                ?? tokenSnapshot?.updatedAt ?? now,
             primary: snapshot?.primary ?? preservedClaudeUsage?.primary,
             secondary: snapshot?.secondary ?? preservedClaudeUsage?.secondary,
             tertiary: snapshot?.tertiary ?? preservedClaudeUsage?.tertiary,

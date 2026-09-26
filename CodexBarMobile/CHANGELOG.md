@@ -9,6 +9,7 @@ current Columbus Labs product surface and recent release history.
 
 ### Added
 
+- Pi and OMP local token history now appears as a separate synced spend source when enabled on Mac, without duplicating Codex or Claude history.
 - Charm Hyper balances now sync from QuotaKit Mac as Hypercredits and appear in a dedicated iPhone card.
 - Replicate monthly billing spend now syncs from QuotaKit Mac as a spend-only card; distinct saved accounts stay separate.
 - v0 is now in the iPhone quota provider catalog with its existing billing and

@@ -1343,6 +1343,8 @@
 "Tracked tokens" = "Отслеживаемые токены";
 "Subscriptions" = "Подписки";
 "By subscription" = "По подпискам";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Нет истории по моделям";
 "Daily estimated spend" = "Предполагаемые ежедневные расходы";
 "Hourly estimated spend" = "Предполагаемые почасовые расходы";

@@ -1340,6 +1340,8 @@
 "Tracked tokens" = "Spårade token";
 "Subscriptions" = "Abonnemang";
 "By subscription" = "Per abonnemang";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Ingen historik på modellnivå";
 "Daily estimated spend" = "Uppskattade dagliga utgifter";
 "Hourly estimated spend" = "Uppskattade utgifter per timme";

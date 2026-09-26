@@ -81,5 +81,6 @@ enum ProviderImplementationManifest {
         { HuggingFaceProviderImplementation() },
         { ReplicateProviderImplementation() },
         { HyperProviderImplementation() },
+        { PiProviderImplementation() },
     ]
 }

@@ -203,11 +203,11 @@ struct ProviderArchitectureGatekeeperTests {
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
         #expect(Set(descriptors.filter(\.tokenCost.supportsTokenSnapshot).map(\.id)) == [
-            .codex, .claude, .cursor, .vertexai, .bedrock, .antigravity,
+            .codex, .claude, .cursor, .vertexai, .bedrock, .antigravity, .pi,
         ])
         #else
         #expect(Set(descriptors.filter(\.tokenCost.supportsTokenSnapshot).map(\.id)) == [
-            .codex, .claude, .vertexai, .bedrock, .antigravity,
+            .codex, .claude, .vertexai, .bedrock, .antigravity, .pi,
         ])
         #endif
         #expect(Set(descriptors.filter { $0.cli.binaryLocator != nil }.map(\.id)) == [
@@ -776,6 +776,36 @@ struct ProviderArchitectureGatekeeperTests {
     /// documents why that token is an external contract or ownership data rather than shared provider-selection
     /// policy.
     private static let suppressedProviderReferences: [SuppressedProviderReference] = [
+        SuppressedProviderReference(
+            path: "Sources/CodexBar/IconRenderer.swift",
+            line: 626,
+            anchor: "let eyeTiltAngle: CGFloat = .pi / 3 // 60 degrees tilt",
+            expectedProviderIDs: ["pi"],
+            reason: "This is the mathematical constant π used by the renderer, not a provider selection."),
+        SuppressedProviderReference(
+            path: "Sources/CodexBar/StatusItemController+Animation.swift",
+            line: 321,
+            anchor: "style == .combined ? 0 : self.tiltAmount(for: primaryProvider) * .pi / 28",
+            expectedProviderIDs: ["pi"],
+            reason: "This is the mathematical constant π used for an animation angle, not a provider selection."),
+        SuppressedProviderReference(
+            path: "Sources/CodexBarCore/PiFamilySessionScanner.swift",
+            line: 480,
+            anchor: "case .pi:",
+            expectedProviderIDs: ["pi"],
+            reason: "This branch dispatches the Pi-family root resolver for the fixed Pi dialect."),
+        SuppressedProviderReference(
+            path: "Sources/CodexBarCore/PiFamilySessionScanner.swift",
+            line: 519,
+            anchor: "case .pi:",
+            expectedProviderIDs: ["pi"],
+            reason: "This branch dispatches the Pi-family root resolver for the fixed Pi dialect."),
+        SuppressedProviderReference(
+            path: "Sources/CodexBarCore/PiFamilySessionScanner.swift",
+            line: 646,
+            anchor: "case .pi:",
+            expectedProviderIDs: ["pi"],
+            reason: "This branch checks command selectors for the fixed Pi dialect."),
         SuppressedProviderReference(
             path: "Sources/CodexBar/CodexAccountUsageSnapshotStore.swift",
             line: 220,
@@ -1985,9 +2015,9 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBar/MenuDescriptor.swift",
             line: 197,
             anchor: "case .codex: \"⌘\"",
-            expectedProviderIDs: ["claude", "codex"],
-            expectedReferenceCount: 2,
-            expectedReferenceFingerprint: ["codex@0", "claude@1"],
+            expectedProviderIDs: ["claude", "codex", "pi"],
+            expectedReferenceCount: 3,
+            expectedReferenceFingerprint: ["codex@0", "claude@1", "pi@2"],
             reason: "This exact shared renderer maps provider-owned presentation data into the generic UI model."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/MenuDescriptor.swift",
@@ -3130,9 +3160,11 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBarCore/AgentSession.swift",
             line: 244,
             anchor: "if basename == AgentSession.Provider.codex.rawValue {",
-            expectedProviderIDs: ["claude", "codex"],
-            expectedReferenceCount: 5,
-            expectedReferenceFingerprint: ["codex@0", "claude@7", "claude@10", "claude@18", "claude@30"],
+            expectedProviderIDs: ["claude", "codex", "pi"],
+            expectedReferenceCount: 7,
+            expectedReferenceFingerprint: [
+                "codex@0", "claude@7", "claude@10", "claude@18", "pi@26", "claude@30", "pi@33",
+            ],
             reason: "This exact host integration maps a provider-owned process, path, or window contract."),
         AllowedProviderConstruct(
             path: "Sources/CodexBarCore/AgentSession.swift",

@@ -78,6 +78,7 @@ extension ProviderInstanceID {
     public static let huggingface = UsageProvider.huggingface.instanceID
     public static let replicate = UsageProvider.replicate.instanceID
     public static let hyper = UsageProvider.hyper.instanceID
+    public static let pi = UsageProvider.pi.instanceID
 }
 
 // swiftformat:enable sortDeclarations

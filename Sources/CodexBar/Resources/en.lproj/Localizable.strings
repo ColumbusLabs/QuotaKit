@@ -1321,6 +1321,8 @@
 "Tracked tokens" = "Tracked tokens";
 "Subscriptions" = "Subscriptions";
 "By subscription" = "By subscription";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "No model-level history";
 "Daily estimated spend" = "Daily estimated spend";
 "Hourly estimated spend" = "Hourly estimated spend";

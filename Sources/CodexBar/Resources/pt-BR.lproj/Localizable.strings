@@ -1342,6 +1342,8 @@
 "Tracked tokens" = "Tokens acompanhados";
 "Subscriptions" = "Assinaturas";
 "By subscription" = "Por assinatura";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Sem histórico por modelo";
 "Daily estimated spend" = "Gasto diário estimado";
 "Hourly estimated spend" = "Gasto horário estimado";

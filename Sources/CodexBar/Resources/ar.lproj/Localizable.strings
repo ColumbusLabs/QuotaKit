@@ -1345,6 +1345,8 @@
 "Tracked tokens" = "الرموز المتتبعة";
 "Subscriptions" = "الاشتراكات";
 "By subscription" = "حسب الاشتراك";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "لا يوجد سجل على مستوى النموذج";
 "Daily estimated spend" = "الإنفاق اليومي التقديري";
 "Hourly estimated spend" = "الإنفاق الساعي التقديري";

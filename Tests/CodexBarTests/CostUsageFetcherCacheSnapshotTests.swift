@@ -1981,7 +1981,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: hydratedAt,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.snapshot.sessionTokens == 207)
         #expect(cached?.snapshot.updatedAt == oldestScanTime)
@@ -2019,7 +2020,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: day.addingTimeInterval(50 * 60),
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.snapshot.sessionTokens == 165)
         #expect(cached?.snapshot.updatedAt == piScanTime)
@@ -2027,7 +2029,7 @@ struct CostUsageFetcherCacheSnapshotTests {
     }
 
     @Test
-    func `cached codex token snapshot keeps native scan time when pi cache lacks one`() async throws {
+    func `cached codex token snapshot excludes unmeasured Pi cache and retains native scan time`() async throws {
         let env = try CostUsageTestEnvironment()
         defer { env.cleanup() }
 
@@ -2065,14 +2067,18 @@ struct CostUsageFetcherCacheSnapshotTests {
             timeIntervalSince1970: TimeInterval(nativeCache.lastScanUnixMs) / 1000)
 
         let hydratedAt = day.addingTimeInterval(50 * 60)
-        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
+        let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshotResult(
             now: hydratedAt,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
-        #expect(cached?.sessionTokens == 207)
-        #expect(cached?.updatedAt == nativeScanTime)
-        #expect(cached?.updatedAt != hydratedAt)
+        #expect(cached?.snapshot.sessionTokens == 42)
+        #expect(cached?.snapshot.historyCoverageIsEstablished == false)
+        #expect(cached?.accounting == .nativeOnly)
+        #expect(cached?.lastRefreshAt == nil)
+        #expect(cached?.snapshot.updatedAt == nativeScanTime)
+        #expect(cached?.snapshot.updatedAt != hydratedAt)
     }
 
     @Test
@@ -2224,7 +2230,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 207)
         #expect(cached?.last30DaysTokens == 207)
@@ -2297,7 +2304,8 @@ struct CostUsageFetcherCacheSnapshotTests {
         let cached = await CostUsageFetcher.loadCachedCodexTokenSnapshot(
             now: day,
             historyDays: 1,
-            scannerOptions: options)
+            scannerOptions: options,
+            piScannerOptions: piOptions)
 
         #expect(cached?.sessionTokens == 165)
         #expect(cached?.last30DaysTokens == 165)

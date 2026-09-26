@@ -9,6 +9,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Added
 
+- Pi and OMP local token history as a separate usage and spend source, with scoped cache validation and duplicate-free combined totals.
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 

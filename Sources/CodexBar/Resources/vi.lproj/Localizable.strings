@@ -1342,6 +1342,8 @@
 "Tracked tokens" = "Token được theo dõi";
 "Subscriptions" = "Gói đăng ký";
 "By subscription" = "Theo gói đăng ký";
+"By source" = "By source";
+"%d of %d sources have spend" = "%d of %d sources have spend";
 "No model-level history" = "Không có lịch sử theo mô hình";
 "Daily estimated spend" = "Chi tiêu ước tính hằng ngày";
 "Hourly estimated spend" = "Chi tiêu ước tính theo giờ";
