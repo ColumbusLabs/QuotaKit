@@ -637,13 +637,20 @@ extension StatusItemController {
                 model: row.model,
                 width: menuWidth)
             let item = self.makeMenuCardItem(
-                OverviewMenuCardRowView(model: row.model, storageText: storageText, width: menuWidth),
+                OverviewMenuCardRowView(
+                    model: row.model,
+                    storageText: storageText,
+                    width: menuWidth,
+                    layout: self.settings.mergedOverviewLayout),
                 id: identifier,
                 width: menuWidth,
                 heightCacheScope: row.provider.rawValue,
                 heightCacheFingerprint: row.model.heightFingerprint(
                     section: "overview",
-                    additional: [UsageMenuCardView.Model.heightFingerprintField("storage", storageText)]),
+                    additional: [
+                        UsageMenuCardView.Model.heightFingerprintField("storage", storageText),
+                        "layout=\(self.settings.mergedOverviewLayout.rawValue)",
+                    ]),
                 submenu: submenu,
                 containsInteractiveControls: row.model.subtitleStyle == .error || row.model.usesLiveSubtitle,
                 usesGPUSelection: true,

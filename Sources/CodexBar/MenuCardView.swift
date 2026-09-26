@@ -524,86 +524,6 @@ private struct TokenUsageSectionContent: View {
     }
 }
 
-private struct MetricRow: View {
-    let metric: UsageMenuCardView.Model.Metric
-    let layoutMetric: UsageMenuCardView.Model.Metric
-    let title: String
-    let progressColor: Color
-    @Environment(\.menuItemHighlighted) private var isHighlighted
-
-    var body: some View {
-        let presentation = self.metric.linePresentation(title: self.title)
-        let layoutPresentation = self.layoutMetric.linePresentation(title: self.title)
-        VStack(alignment: .leading, spacing: 6) {
-            if let statusText = self.metric.statusText {
-                Text(self.title)
-                    .font(.body)
-                    .fontWeight(.medium)
-                Text(statusText)
-                    .font(.footnote)
-                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    .lineLimit(1)
-            } else {
-                MetricRowHeader(
-                    title: presentation.titleText,
-                    layoutTitle: layoutPresentation.titleText,
-                    resetText: presentation.resetText,
-                    layoutResetText: layoutPresentation.resetText,
-                    isHighlighted: self.isHighlighted)
-                UsageProgressBar(
-                    percent: self.metric.percent,
-                    tint: self.progressColor,
-                    accessibilityLabel: self.metric.percentStyle.accessibilityLabel,
-                    pacePercent: self.metric.pacePercent,
-                    paceOnTop: self.metric.paceOnTop,
-                    warningMarkerPercents: self.metric.warningMarkerPercents,
-                    workdayMarkerPercents: self.metric.workdayMarkerPercents,
-                    workdayTickAppearance: self.metric.workdayTickAppearance)
-                if let layoutMetaText = layoutPresentation.metaText {
-                    self.layoutPreservingText(
-                        presentation.metaText,
-                        layoutText: layoutMetaText,
-                        lineLimit: 2)
-                }
-                if let layoutDetailText = self.layoutMetric.detailText {
-                    self.layoutPreservingText(
-                        self.metric.detailText,
-                        layoutText: layoutDetailText,
-                        lineLimit: 1)
-                }
-            }
-        }
-        .frame(maxWidth: .infinity, alignment: .leading)
-        .padding(self.metric.cardStyle ? 10 : 0)
-        .background(self.metric.cardStyle ? Color.secondary.opacity(self.isHighlighted ? 0.2 : 0.08) : Color.clear)
-        .clipShape(RoundedRectangle(cornerRadius: self.metric.cardStyle ? 10 : 0))
-    }
-
-    private func layoutPreservingText(
-        _ text: String?,
-        layoutText: String,
-        lineLimit: Int) -> some View
-    {
-        Text(layoutText)
-            .font(.footnote)
-            .lineLimit(lineLimit)
-            .fixedSize(horizontal: false, vertical: true)
-            .hidden()
-            // Freeze the measured height, but let updates use the entire metric row width.
-            .frame(maxWidth: .infinity, alignment: .leading)
-            .overlay(alignment: .topLeading) {
-                if let text, !text.isEmpty {
-                    Text(text)
-                        .font(.footnote)
-                        .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                        .lineLimit(lineLimit)
-                        .truncationMode(.tail)
-                }
-            }
-            .clipped()
-    }
-}
-
 private struct UsageNotesContent: View {
     let notes: [String]
     @Environment(\.menuItemHighlighted) private var isHighlighted
@@ -656,6 +576,7 @@ private struct UsageMenuCardUsageContentView: View {
     let layoutModel: UsageMenuCardView.Model
     let showBottomDivider: Bool
     var showsSectionDividers = true
+    var compactMetrics = false
     @Environment(\.menuItemHighlighted) private var isHighlighted
 
     /// Doubao ships Coding Plan and Agent Plan subscriptions, each with personal
@@ -685,7 +606,8 @@ private struct UsageMenuCardUsageContentView: View {
                 metric: metric,
                 layoutMetric: self.layoutModel.metrics.first { $0.id == metric.id } ?? metric,
                 title: UsageMenuCardView.popupMetricTitle(provider: self.model.provider, metric: metric),
-                progressColor: self.model.progressColor)
+                progressColor: self.model.progressColor,
+                compact: self.compactMetrics)
         }
     }
 
@@ -710,28 +632,35 @@ private struct UsageMenuCardUsageContentView: View {
                 }
                 CodexResetCreditsContent(presentation: resetCredits)
             }
-            if let dashboard = self.model.inlineUsageDashboard {
-                InlineUsageDashboardContent(model: dashboard)
-                if !self.model.subscriptionNotes.isEmpty {
-                    UsageNotesContent(notes: self.model.subscriptionNotes)
-                }
-            } else if !self.model.usageNotes.isEmpty {
-                UsageNotesContent(notes: self.model.usageNotes)
-            } else if let placeholder = self.model.placeholder, self.model.metrics.isEmpty,
-                      self.model.codexResetCredits == nil
-            {
-                Text(placeholder)
-                    .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
-                    .font(.subheadline)
-            }
-            if !self.model.providerDetails.isEmpty {
-                ProviderDetailSectionsContent(
-                    sections: self.model.providerDetails,
-                    chartColor: self.model.progressColor)
+            if self.model.showsOverviewSupplementalContent(compact: self.compactMetrics) {
+                self.supplementalContent
             }
             if self.showBottomDivider {
                 Divider()
             }
+        }
+    }
+
+    @ViewBuilder
+    private var supplementalContent: some View {
+        if let dashboard = self.model.inlineUsageDashboard {
+            InlineUsageDashboardContent(model: dashboard)
+            if !self.model.subscriptionNotes.isEmpty {
+                UsageNotesContent(notes: self.model.subscriptionNotes)
+            }
+        } else if !self.model.usageNotes.isEmpty {
+            UsageNotesContent(notes: self.model.usageNotes)
+        } else if let placeholder = self.model.placeholder, self.model.metrics.isEmpty,
+                  self.model.codexResetCredits == nil
+        {
+            Text(placeholder)
+                .foregroundStyle(MenuHighlightStyle.secondary(self.isHighlighted))
+                .font(.subheadline)
+        }
+        if !self.model.providerDetails.isEmpty {
+            ProviderDetailSectionsContent(
+                sections: self.model.providerDetails,
+                chartColor: self.model.progressColor)
         }
     }
 }
@@ -743,6 +672,7 @@ struct UsageMenuCardUsageSectionView: View {
     let bottomPadding: CGFloat
     let width: CGFloat
     var showsSectionDividers = true
+    var compactMetrics = false
     @Environment(\.menuCardRefreshMonitor) private var refreshMonitor
 
     var body: some View {
@@ -751,7 +681,8 @@ struct UsageMenuCardUsageSectionView: View {
             model: liveModel,
             layoutModel: self.layoutModel,
             showBottomDivider: self.showBottomDivider,
-            showsSectionDividers: self.showsSectionDividers)
+            showsSectionDividers: self.showsSectionDividers,
+            compactMetrics: self.compactMetrics)
             .padding(.horizontal, UsageMenuCardLayout.horizontalPadding)
             .padding(.top, UsageMenuCardLayout.usageSectionTopPadding)
             .padding(.bottom, self.bottomPadding)

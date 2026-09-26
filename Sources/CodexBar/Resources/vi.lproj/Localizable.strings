@@ -1601,3 +1601,7 @@
 "Restore Defaults" = "Khôi phục mặc định";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Chọn các hàng sử dụng xuất hiện trong menu của nhà cung cấp này, bản xem trước Cài đặt và Tổng quan.";
 "%@ (unavailable)" = "%@ (không khả dụng)";
+"overview_layout_title" = "Bố cục Tổng quan";
+"overview_layout_subtitle" = "Chọn lượng thông tin hiển thị trong Tổng quan.";
+"overview_layout_detailed" = "Chi tiết";
+"overview_layout_compact" = "Gọn";

@@ -836,6 +836,14 @@ extension SettingsStore {
         set { self.setDefault(\.mergeIcons, newValue, key: "mergeIcons") }
     }
 
+    var mergedOverviewLayout: MergedOverviewLayout {
+        get { MergedOverviewLayout(rawValue: self.defaultsState.mergedOverviewLayoutRaw) ?? .detailed }
+        set {
+            self.defaultsState.mergedOverviewLayoutRaw = newValue.rawValue
+            self.userDefaults.set(newValue.rawValue, forKey: "mergedOverviewLayout")
+        }
+    }
+
     var switcherShowsIcons: Bool {
         get { self.defaultsState.switcherShowsIcons }
         set { self.setDefault(\.switcherShowsIcons, newValue, key: "switcherShowsIcons") }

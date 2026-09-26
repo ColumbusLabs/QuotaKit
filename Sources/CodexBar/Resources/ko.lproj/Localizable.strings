@@ -1569,3 +1569,7 @@
 "Restore Defaults" = "기본값 복원";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "이 제공업체의 메뉴, 설정 미리보기 및 개요에 표시할 사용량 행을 선택합니다.";
 "%@ (unavailable)" = "%@(사용할 수 없음)";
+"overview_layout_title" = "개요 레이아웃";
+"overview_layout_subtitle" = "개요에 표시할 정보의 양을 선택합니다.";
+"overview_layout_detailed" = "자세히";
+"overview_layout_compact" = "간결";

@@ -1600,3 +1600,7 @@
 "Restore Defaults" = "Відновити типові значення";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Виберіть, які рядки використання відображатимуться в меню цього постачальника, попередньому перегляді налаштувань і огляді.";
 "%@ (unavailable)" = "%@ (недоступний)";
+"overview_layout_title" = "Компонування огляду";
+"overview_layout_subtitle" = "Виберіть, скільки інформації показувати в огляді.";
+"overview_layout_detailed" = "Докладно";
+"overview_layout_compact" = "Компактний";

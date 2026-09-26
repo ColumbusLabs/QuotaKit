@@ -1603,3 +1603,7 @@
 "Restore Defaults" = "Przywróć domyślne";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wybierz wiersze użycia wyświetlane w menu tego dostawcy, podglądzie ustawień i przeglądzie.";
 "%@ (unavailable)" = "%@ (niedostępne)";
+"overview_layout_title" = "Układ Przeglądu";
+"overview_layout_subtitle" = "Wybierz, ile informacji ma wyświetlać Przegląd.";
+"overview_layout_detailed" = "Szczegółowy";
+"overview_layout_compact" = "Kompaktowy";
