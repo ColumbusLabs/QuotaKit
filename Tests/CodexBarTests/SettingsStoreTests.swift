@@ -1206,6 +1206,19 @@ struct SettingsStoreTests {
         #expect(store.openAIWebBatterySaverEnabled == false)
         #expect(defaults.bool(forKey: "openAIWebBatterySaverEnabled") == false)
         #expect(store.codexCookieSource == .off)
+        #expect(try configStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
+    }
+
+    @Test
+    func `inferred browser denial persists before a generated config can imply consent`() {
+        let defaults = InMemoryUserDefaults()
+        #expect(!SettingsStore.initializeOpenAIWebAccessPreference(
+            userDefaults: defaults, config: CodexBarConfig(providers: []), hadExistingConfig: false))
+        #expect(defaults.object(forKey: "openAIWebAccessEnabled") as? Bool == false)
+        #expect(!SettingsStore.initializeOpenAIWebAccessPreference(
+            userDefaults: defaults,
+            config: CodexBarConfig(providers: [ProviderConfig(id: .codex)]),
+            hadExistingConfig: true))
     }
 
     @Test

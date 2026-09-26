@@ -356,7 +356,6 @@ final class SettingsStore {
         {
             userDefaults.set(legacyOpenAIWebAccess, forKey: "openAIWebAccessEnabled")
         }
-        let hasStoredOpenAIWebAccessPreference = userDefaults.object(forKey: "openAIWebAccessEnabled") != nil
         let legacyStores = CodexBarConfigMigrator.LegacyStores(
             zaiTokenStore: zaiTokenStore,
             syntheticTokenStore: syntheticTokenStore,
@@ -376,6 +375,8 @@ final class SettingsStore {
             configStore: configStore,
             userDefaults: userDefaults,
             stores: legacyStores)
+        _ = Self.initializeOpenAIWebAccessPreference(
+            userDefaults: userDefaults, config: config, hadExistingConfig: hadExistingConfig)
         self.userDefaults = userDefaults
         self.configStore = configStore
         self.antigravityOAuthCredentialsStore = antigravityOAuthCredentialsStore
@@ -405,17 +406,9 @@ final class SettingsStore {
                 self.defaultsState.claudeWebExtrasEnabledRaw = false
             }
         }
-        let resolvedOpenAIWebAccessEnabled = if hasStoredOpenAIWebAccessPreference {
-            self.defaultsState.openAIWebAccessEnabled
-        } else {
-            Self.inferredInitialOpenAIWebAccessEnabled(
-                config: config,
-                hadExistingConfig: hadExistingConfig)
-        }
-        if Self.isRunningTests {
-            self.openAIWebAccessEnabled = resolvedOpenAIWebAccessEnabled
-        } else {
-            self.defaultsState.openAIWebAccessEnabled = resolvedOpenAIWebAccessEnabled
+        // Provider-specific by design: the legacy OpenAI web denial also governs Codex's CLI cookie source.
+        if !self.openAIWebAccessEnabled, self.providerConfig(for: .codex)?.cookieSource == nil {
+            self.codexCookieSource = .off
         }
         KeychainAccessGate.isDisabled = self.debugDisableKeychainAccess
         self.startConfigFileWatcher()
@@ -471,6 +464,18 @@ extension SettingsStore {
                     "migratedDefaults": "\(result.copiedDefaults)",
                 ])
         }
+    }
+
+    static func initializeOpenAIWebAccessPreference(
+        userDefaults: UserDefaults,
+        config: CodexBarConfig,
+        hadExistingConfig: Bool) -> Bool
+    {
+        if let stored = userDefaults.object(forKey: "openAIWebAccessEnabled") { return stored as? Bool ?? false }
+        let enabled = self.inferredInitialOpenAIWebAccessEnabled(config: config, hadExistingConfig: hadExistingConfig)
+        // Freeze the startup decision before a later launch can infer consent from a generated config.
+        userDefaults.set(enabled, forKey: "openAIWebAccessEnabled")
+        return enabled
     }
 
     private static func inferredInitialOpenAIWebAccessEnabled(
@@ -1144,11 +1149,19 @@ extension SettingsStore {
     }
 
     func providerEnablementRevision(for provider: UsageProvider) -> UInt64 {
-        self.providerEnablementRevisions[provider.instanceID, default: 0]
+        self.providerEnablementRevision(forInstanceID: provider.instanceID)
     }
 
     func providerConfigRevision(for provider: UsageProvider) -> UInt64 {
-        self.providerConfigRevisions[provider.instanceID, default: 0]
+        self.providerConfigRevision(forInstanceID: provider.instanceID)
+    }
+
+    func providerEnablementRevision(forInstanceID instanceID: ProviderInstanceID) -> UInt64 {
+        self.providerEnablementRevisions[instanceID, default: 0]
+    }
+
+    func providerConfigRevision(forInstanceID instanceID: ProviderInstanceID) -> UInt64 {
+        self.providerConfigRevisions[instanceID, default: 0]
     }
 
     func orderedProviders() -> [ProviderInstanceID] {

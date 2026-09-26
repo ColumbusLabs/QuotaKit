@@ -251,6 +251,9 @@ Transpile failures appear as that plugin's Settings error.
 4. For loopback, IP-literal, or `.local` origins, type every normalized origin exactly before approval.
 5. Enter manifest settings and enable the plugin. Its refresh result appears in its generic menu card.
 
+QuotaKit serializes replacement refreshes for each plugin. Results from an older request are discarded when the
+plugin is disabled, reconfigured, removed, or reloaded; a later refresh reads the current settings when it begins.
+
 Approval records live outside plugin files under `~/Library/Application Support/QuotaKit/plugin-approvals.json`. A
 change to instance ID, normalized origins, auth mode/header, secure setting names, capabilities, or cookie domains
 invalidates approval before the next request. There is no bulk approval or import path.

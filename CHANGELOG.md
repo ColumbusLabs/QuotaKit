@@ -18,6 +18,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Provider plugins: discard results from disabled, reconfigured, removed, or reloaded plugins and keep refresh activity tied to the current request.
+- Security: preserve browser-cookie denial across restarts and CLI configuration, and stage credential writes privately before atomic replacement (reported in #3986). Thanks @bo-vavrik!
 - Cursor costs: pause automatic menu and spend-dashboard retries for six hours after HTTP 403 while allowing explicit refresh and account-change recovery (#3910, #3918).
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 

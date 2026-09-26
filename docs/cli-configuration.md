@@ -12,7 +12,7 @@ read_when:
 New installs use `~/.quotakit/config.json`; absolute `XDG_CONFIG_HOME` paths resolve to
 `$XDG_CONFIG_HOME/quotakit/config.json`; `QUOTAKIT_CONFIG` overrides the path, and `CODEXBAR_CONFIG` remains supported
 for migrated installs.
-The CLI writes the file with `0600` permissions.
+The CLI stages writes in a private `0700` directory on the destination volume, creates the file with `0600` permissions before writing any bytes, then syncs and atomically replaces the config.
 
 ## Providers
 
