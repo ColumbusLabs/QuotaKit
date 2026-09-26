@@ -148,14 +148,15 @@ type ChutesParsed = {
 
 function chutesQuota(payload: ChutesObject, label?: string, minutes?: number): ChutesWindow | undefined {
   const read = (keys: string[]) => chutesNumber(chutesValue(payload, keys));
+  const finite = (value: number | undefined) => (value !== undefined && Number.isFinite(value) ? value : undefined);
   const limit = read(chutesKeys.limitKeys),
     used = read(chutesKeys.usedKeys),
     remaining = read(chutesKeys.remainingKeys);
   const normalize = (value: number) => Math.max(0, Math.min(100, Math.abs(value) < 1 ? value * 100 : value));
   const percentUsed = read(chutesKeys.percentUsedKeys),
     percentRemaining = read(chutesKeys.percentRemainingKeys);
-  const total = limit ?? (used !== undefined && remaining !== undefined ? used + remaining : undefined);
-  const consumed = used ?? (total !== undefined && remaining !== undefined ? total - remaining : undefined);
+  const total = finite(limit ?? (used !== undefined && remaining !== undefined ? used + remaining : undefined));
+  const consumed = finite(used ?? (total !== undefined && remaining !== undefined ? total - remaining : undefined));
   const percent =
     percentUsed !== undefined
       ? normalize(percentUsed)
@@ -164,10 +165,11 @@ function chutesQuota(payload: ChutesObject, label?: string, minutes?: number): C
         : total !== undefined && total > 0 && consumed !== undefined
           ? (consumed / total) * 100
           : undefined;
-  if (percent === undefined) return;
+  if (percent === undefined || !Number.isFinite(percent)) return;
   const unit = chutesString(chutesValue(payload, chutesKeys.unitKeys)) ?? "credits";
-  const describedUsed =
-    used ?? (limit !== undefined && remaining !== undefined ? Math.max(0, limit - remaining) : undefined);
+  const describedUsed = finite(
+    used ?? (limit !== undefined && remaining !== undefined ? Math.max(0, limit - remaining) : undefined),
+  );
   const amount = (value: number) => {
     const rounded = Math.sign(value) * Math.round(Math.abs(value));
     if (Math.abs(value - rounded) < 0.0001 && Math.abs(rounded) < 9223372036854775808)

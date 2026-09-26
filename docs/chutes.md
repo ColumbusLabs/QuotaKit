@@ -48,6 +48,7 @@ The provider prefers the rolling four-hour window as the primary meter and month
 
 Large quota amounts retain their percentage and description. Durations that cannot fit in whole minutes are omitted;
 recognized rolling and monthly windows keep their normal default duration.
+If calculating a count overflows, an explicitly reported percentage remains available without a count description.
 
 The bundled TypeScript plugin is authoritative on QuickJS and JavaScriptCore. Successful subscription payloads with
 no recognized usage fields remain valid no-data snapshots: the plugin declares `empty: true` and preserves any

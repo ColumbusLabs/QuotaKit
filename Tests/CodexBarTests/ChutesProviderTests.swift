@@ -317,6 +317,31 @@ struct ChutesProviderTests {
         #expect(usage.primary?.resetDescription == "100000000000000000000/200000000000000000000 credits")
     }
 
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `huge quota amounts retain whole count descriptions`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"rolling_window":{"used":1e21,"limit":2e21,"unit":"credits"}}
+        """#.utf8)
+
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+
+        #expect(usage.primary?.usedPercent == 50)
+        #expect(usage.primary?.resetDescription == "1000000000000000000000/2000000000000000000000 credits")
+    }
+
+    @Test(arguments: BundledPluginTestSupport.engines)
+    func `overflowed derived count leaves explicit percentage usable`(engine: ProviderPluginEngineKind) async throws {
+        let data = Data(#"""
+        {"rolling_window":{"limit":1e308,"remaining":-1e308,"used_percent":25}}
+        """#.utf8)
+
+        let usage = try await Self.parse(engine: engine, data: data, now: Date(timeIntervalSince1970: 123))
+
+        #expect(usage.primary?.usedPercent == 25)
+        #expect(usage.primary?.windowMinutes == 240)
+        #expect(usage.primary?.resetDescription == nil)
+    }
+
     @Test(arguments: BundledPluginTestSupport.engines, [
         ("window_minutes", "9223372036854775808"),
         ("window_hours", "1e308"),

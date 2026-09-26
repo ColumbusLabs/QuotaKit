@@ -175,17 +175,18 @@ function chutesMinutes(payload) {
 
 function chutesQuota(payload, label, minutes) {
   const read = (keys) => chutesNumber(chutesValue(payload, keys));
+  const finite = (value) => (value !== undefined && Number.isFinite(value) ? value : undefined);
   const limit = read(chutesKeys.limitKeys),
     used = read(chutesKeys.usedKeys),
     remaining = read(chutesKeys.remainingKeys);
   const normalize = (value) => Math.max(0, Math.min(100, Math.abs(value) < 1 ? value * 100 : value));
   const percentUsed = read(chutesKeys.percentUsedKeys),
     percentRemaining = read(chutesKeys.percentRemainingKeys);
-  const total = _nullishCoalesce(limit, () =>
-    used !== undefined && remaining !== undefined ? used + remaining : undefined,
+  const total = finite(
+    _nullishCoalesce(limit, () => (used !== undefined && remaining !== undefined ? used + remaining : undefined)),
   );
-  const consumed = _nullishCoalesce(used, () =>
-    total !== undefined && remaining !== undefined ? total - remaining : undefined,
+  const consumed = finite(
+    _nullishCoalesce(used, () => (total !== undefined && remaining !== undefined ? total - remaining : undefined)),
   );
   const percent =
     percentUsed !== undefined
@@ -195,10 +196,12 @@ function chutesQuota(payload, label, minutes) {
         : total !== undefined && total > 0 && consumed !== undefined
           ? (consumed / total) * 100
           : undefined;
-  if (percent === undefined) return;
+  if (percent === undefined || !Number.isFinite(percent)) return;
   const unit = _nullishCoalesce(chutesString(chutesValue(payload, chutesKeys.unitKeys)), () => "credits");
-  const describedUsed = _nullishCoalesce(used, () =>
-    limit !== undefined && remaining !== undefined ? Math.max(0, limit - remaining) : undefined,
+  const describedUsed = finite(
+    _nullishCoalesce(used, () =>
+      limit !== undefined && remaining !== undefined ? Math.max(0, limit - remaining) : undefined,
+    ),
   );
   const amount = (value) => {
     const rounded = Math.sign(value) * Math.round(Math.abs(value));

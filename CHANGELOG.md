@@ -128,6 +128,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Fixed
 
 - Menu bar: prevent blank status-item slots after normal quit while preserving saved icon positions. Thanks to the upstream reporter and verifier, @mymatejackson and @giuseppebisemi.
+- Providers: prevent crashes on oversized Kimi, Chutes, MiniMax, and Perplexity usage values or durations while preserving usable quota data.
 - Codex: keep pending weekly-reset confirmation through credits refreshes so fresh quota readings replace stale usage.
 - OpenCodex: price usage against its recorded provider and leave unknown provider/model pairs unpriced.
 - Usage formatting: normalize singular reset labels and round compact token counts safely at unit boundaries.

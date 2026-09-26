@@ -57,6 +57,8 @@ profiles after rejected credentials. Manual mode stays exclusive and never falls
 
 Purchased credits do not reset, so the menu displays that balance without a reset prefix.
 
+Large finite credit counts retain their whole-number descriptions; nonfinite aggregate counts omit the description.
+
 ## CLI Usage
 
 ```bash
