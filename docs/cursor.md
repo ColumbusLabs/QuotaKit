@@ -108,6 +108,7 @@ Two totals are reported from the same events:
 - Metered-only request events remain visible even when Cursor does not include token details; cookie/config resolution failures stop the fetch instead of falling back to another session.
 
 Caching: the app holds the snapshot for an in-memory hourly TTL, keyed by the history window plus the cookie source and resolved account (manual-cookie hash or auto-mode account fingerprint), so switching accounts or pasting a new cookie invalidates it immediately.
+When Cursor rejects a cost request with HTTP 403, automatic cost refresh pauses for at least six hours for that account and configuration. Manual refresh, account or cookie changes, and clearing the cost cache retry immediately. Cursor quota refreshes continue normally.
 
 ## Snapshot mapping
 - Primary/secondary: QuotaKit's explicit Cursor layout stores request, Auto, API, or plan-fallback lanes according to the `cursorRateWindowLayout` discriminator.

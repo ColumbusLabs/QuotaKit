@@ -133,6 +133,36 @@ struct UsageStoreCoverageTests {
     }
 
     @Test
+    func `forbidden Cursor costs cool down without a snapshot and recover on scope changes`() async throws {
+        let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-cursor-forbidden-cost")
+        settings.refreshFrequency = .oneMinute
+        settings.costUsageEnabled = true
+        settings.cursorCookieSource = .manual
+        settings.cursorCookieHeader = "fixture=cursor-a"
+        let metadata = try #require(ProviderRegistry.shared.metadata[.cursor])
+        settings.setProviderEnabled(provider: .cursor, metadata: metadata, enabled: true)
+        let store = Self.makeUsageStore(settings: settings)
+        var attempts = 0
+        store._test_tokenUsageSnapshotLoaderOverride = { _, _, _, _, _ in
+            attempts += 1
+            throw CursorStatusProbeError.costRequestForbidden
+        }
+
+        await store.refreshTokenUsage(.cursor, force: false)
+        let cooldown = try #require(store.tokenFetchFailureCooldowns[.cursor])
+        #expect(cooldown.retryAfter.timeIntervalSince(cooldown.attemptedAt) >= 6 * 60 * 60)
+        #expect(store.tokenSnapshot(for: .cursor) == nil)
+        await store.refreshTokenUsage(.cursor, force: false)
+        #expect(attempts == 1)
+
+        await store.refreshTokenUsage(.cursor, force: true)
+        #expect(attempts == 2)
+        settings.cursorCookieHeader = "fixture=cursor-b"
+        await store.refreshTokenUsage(.cursor, force: false)
+        #expect(attempts == 3)
+    }
+
+    @Test
     func `cursor auto credential resolution cannot relax a changed history window`() throws {
         let settings = Self.makeSettingsStore(suite: "UsageStoreCoverageTests-cursor-history-race")
         settings.costUsageEnabled = true

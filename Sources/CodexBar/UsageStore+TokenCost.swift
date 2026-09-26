@@ -35,6 +35,7 @@ extension UsageStore {
         guard let header = CookieHeaderNormalizer.normalize(self.settings.cursorCookieHeader) else {
             self.lastTokenFetchAt.removeValue(forKey: provider.instanceID)
             self.lastTokenFetchScope.removeValue(forKey: provider.instanceID)
+            self.tokenFetchFailureCooldowns.removeValue(forKey: provider.instanceID)
             self.clearTokenSnapshot(for: provider)
             self.tokenErrors[provider.instanceID] = "Cursor cost requires a non-empty Manual cookie header."
             self.tokenFailureGates[provider.instanceID]?.reset()
@@ -445,6 +446,29 @@ extension UsageStore {
         return now.timeIntervalSince(last) < tokenFetchTTL
     }
 
+    struct TokenFetchFailureCooldown {
+        let attemptedAt: Date
+        let retryAfter: Date
+        let publicationRevision: ProviderPublicationRevision
+        let providerConfigRevision: UInt64
+        let historyDays: Int
+        let costScopeSignature: String
+    }
+
+    func tokenRefreshFailureIsCoolingDown(provider: UsageProvider, now: Date) -> Bool {
+        guard let failure = self.tokenFetchFailureCooldowns[provider.instanceID],
+              self.tokenFetchTTL != nil,
+              now >= failure.attemptedAt,
+              now < failure.retryAfter
+        else { return false }
+        return self.tokenRefreshPublicationIsCurrent(
+            provider: provider,
+            publicationRevision: failure.publicationRevision,
+            providerConfigRevision: failure.providerConfigRevision,
+            historyDays: failure.historyDays,
+            costScopeSignature: failure.costScopeSignature)
+    }
+
     func tokenRefreshPublicationIsCurrent(
         provider: UsageProvider,
         publicationRevision: ProviderPublicationRevision,
@@ -574,6 +598,7 @@ extension UsageStore {
         self.tokenErrors.removeAll()
         self.lastTokenFetchAt.removeAll()
         self.lastTokenFetchScope.removeAll()
+        self.tokenFetchFailureCooldowns.removeAll()
         self.tokenFailureGates[.codex]?.reset()
         self.tokenFailureGates[.claude]?.reset()
         return nil
@@ -583,12 +608,12 @@ extension UsageStore {
         ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.noDataMessage()
     }
 
-    /// Fast failures may retry on the next scheduled pass instead of waiting out the fetch
-    /// TTL; timed-out scans keep the TTL so a slow corpus cannot thrash back-to-back rescans.
-    nonisolated static func tokenFetchFailureAllowsEarlyRetry(_ error: Error) -> Bool {
-        if case CostUsageError.timedOut = error {
-            return false
+    /// Timeouts keep the normal cadence; forbidden Cursor costs wait at least six hours.
+    nonisolated static func tokenFetchFailureRetryDelay(_ error: Error, ttl: TimeInterval?) -> TimeInterval? {
+        switch error {
+        case CostUsageError.timedOut: ttl
+        case CursorStatusProbeError.costRequestForbidden: ttl.map { max($0, 6 * 60 * 60) }
+        default: nil
         }
-        return true
     }
 }

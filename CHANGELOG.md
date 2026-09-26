@@ -18,6 +18,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 ### Fixed
 
+- Cursor costs: pause automatic retries for six hours after HTTP 403 while allowing manual and account-change recovery (#3910, #3918).
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows and preserve rolling windows alongside monthly usage (#3903).
 
 ### Improved
