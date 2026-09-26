@@ -141,11 +141,7 @@ public struct CodexBarConfigStore: @unchecked Sendable {
             return
         }
 
-        let directory = self.fileURL.deletingLastPathComponent()
-        if !self.fileManager.fileExists(atPath: directory.path) {
-            try self.fileManager.createDirectory(at: directory, withIntermediateDirectories: true)
-        }
-        try self.fileManager.copyItem(at: legacyURL, to: self.fileURL)
-        try self.applySecurePermissionsIfNeeded()
+        let data = try Data(contentsOf: legacyURL)
+        try CredentialFileWriter.writePrivate(data, to: self.fileURL)
     }
 }
