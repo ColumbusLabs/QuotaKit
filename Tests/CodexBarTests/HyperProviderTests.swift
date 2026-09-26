@@ -223,6 +223,40 @@ struct HyperProviderTests {
             nil)
     }
 
+    @Test
+    @MainActor
+    func `balance only snapshot reaches per provider CloudKit sync`() async throws {
+        let suite = "HyperProviderTests-sync-balance"
+        let defaults = try #require(UserDefaults(suiteName: suite))
+        defaults.removePersistentDomain(forName: suite)
+        let settings = SettingsStore(
+            userDefaults: defaults,
+            configStore: testConfigStore(suiteName: suite),
+            zaiTokenStore: NoopZaiTokenStore(),
+            syntheticTokenStore: NoopSyntheticTokenStore())
+        settings.iCloudSyncEnabled = true
+        try settings.setProviderEnabled(
+            provider: .hyper,
+            metadata: #require(ProviderDefaults.metadata[.hyper]),
+            enabled: true)
+        let store = UsageStore(
+            fetcher: UsageFetcher(environment: [:]),
+            browserDetection: BrowserDetection(cacheTTL: 0),
+            settings: settings)
+        store._setSnapshotForTesting(
+            UsageSnapshot(primary: nil, secondary: nil, hyperBalance: 42.5, updatedAt: Self.now),
+            provider: .hyper)
+
+        let mock = MockSyncPusher()
+        let coordinator = SyncCoordinator(store: store, settings: settings, syncManager: mock)
+        await coordinator.pushCurrentSnapshot()
+
+        let hyper = try #require(mock.lastPerProviderEnvelopes.first {
+            $0.provider.providerID == UsageProvider.hyper.rawValue
+        })
+        #expect(hyper.provider.hyperBalance?.balance == 42.5)
+    }
+
     private struct FetchFixture {
         let snapshot: UsageSnapshot
         let requests: HyperRequestRecorder
@@ -271,7 +305,9 @@ struct HyperProviderTests {
             secrets: ["HYPER_API_KEY": "fixture-key"],
             now: Self.now,
             cookieInvalidator: { domain in
-                if domain == "hyper.charm.land" { cookieInvalidatorCalls.increment() }
+                if domain == "hyper.charm.land" {
+                    cookieInvalidatorCalls.increment()
+                }
             },
             cookieResolver: { provider, domain in
                 cookieResolverCalls.increment()
