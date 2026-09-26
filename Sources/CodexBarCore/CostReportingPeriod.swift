@@ -91,7 +91,7 @@ extension CostUsageTokenSnapshot {
         if case .rolling = period { return self }
         var result = self
         result.reportingPeriod = period
-        result.historyLabel = period.label
+        result.historyLabel = period == .monthToDate ? period.label : nil
         return result
     }
 

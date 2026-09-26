@@ -1494,7 +1494,8 @@ extension StatusItemController {
         let title: String = switch self.store.settings.costReportingPeriod {
         case .rolling(1): L("Usage history (today)")
         case let .rolling(days): String(format: L("Usage history (%d days)"), days)
-        case let period: "\(L("cost_history_window_title")) (\(L(period.label)))"
+        case .monthToDate: "\(L("cost_history_window_title")) (\(L("Month to date")))"
+        case .allTime: String(format: L("Usage history (%d days)"), 365)
         }
         let item = NSMenuItem(title: title, action: nil, keyEquivalent: "")
         item.isEnabled = true

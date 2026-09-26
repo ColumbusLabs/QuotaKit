@@ -153,13 +153,14 @@ extension UsageMenuCardView.Model {
         }
 
         let historyDays = max(1, min(365, snapshot.historyDays))
-        let defaultHistoryTitle = snapshot.historyLabel
+        let explicitLabel = snapshot.historyLabel.map { L($0) }
+        let defaultHistoryTitle = explicitLabel
             ?? (historyDays == 1
                 ? L("Today")
                 : historyDays == 30
                 ? L("30d cost")
                 : "\(String(format: L("Last %d days"), historyDays)) \(L("Cost"))")
-        let codexHistoryPeriod = snapshot.historyLabel
+        let codexHistoryPeriod = explicitLabel
             ?? (historyDays == 1
                 ? L("Today")
                 : historyDays == 30
@@ -167,19 +168,19 @@ extension UsageMenuCardView.Model {
                 : String(format: L("Last %d days"), historyDays))
         let tokenCost = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost
         let historyTitle = tokenCost.historyTitleStyle == .compact ? codexHistoryPeriod : defaultHistoryTitle
-        let tokenHistoryTitle = snapshot.historyLabel.map { "\($0) \(L("tokens"))" }
+        let tokenHistoryTitle = explicitLabel.map { "\($0) \(L("tokens"))" }
             ?? (historyDays == 1
                 ? L("Today tokens")
                 : historyDays == 30
                 ? L("30d tokens")
                 : String(format: L("%@ tokens"), String(format: L("Last %d days"), historyDays)))
-        let requestHistoryTitle = snapshot.historyLabel.map { "\($0) \(L("requests"))" }
+        let requestHistoryTitle = explicitLabel.map { "\($0) \(L("requests"))" }
             ?? (historyDays == 1
                 ? L("Today requests")
                 : historyDays == 30
                 ? L("30d requests")
                 : String(format: L("%@ requests"), String(format: L("Last %d days"), historyDays)))
-        let accessibilityCostLabel: String = if let historyLabel = snapshot.historyLabel {
+        let accessibilityCostLabel: String = if let historyLabel = explicitLabel {
             L("%@ cost", historyLabel)
         } else if historyDays == 30 {
             L("30d cost")

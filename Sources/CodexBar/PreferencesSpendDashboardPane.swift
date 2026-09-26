@@ -648,9 +648,13 @@ struct SpendDashboardPane: View {
     private var periodBinding: Binding<CostReportingPeriod> {
         Binding(
             get: { self.controller.selectedPeriod },
-            // #160: `selectDays` updates active demand when the dashboard is
-            // visible and only the persisted preference when it is closed.
-            set: { self.controller.selectPeriod($0) })
+            set: { period in
+                self.controller.selectPeriod(period)
+                if self.isVisible {
+                    self.controller.update(configuration: self.configuration)
+                    self.synchronizeCodexCostCatchUp()
+                }
+            })
     }
 }
 

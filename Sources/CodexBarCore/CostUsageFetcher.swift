@@ -1690,7 +1690,7 @@ public struct CostUsageFetcher: Sendable {
             ? CostUsageTokenSnapshot.entry(in: daily.data, forLocalDayContaining: now, calendar: calendar)
             : CostUsageTokenSnapshot.latestEntry(in: daily.data)
         let hasHistoricalRows = !daily.data.isEmpty
-        let establishedEmptyHistory = historyCoverageIsEstablished && daily.data.isEmpty
+        let establishedEmptyHistory = historyCoverageIsEstablished && !historyScanIsPartial && daily.data.isEmpty
         let sessionTokens: Int? = if let sessionEntry {
             sessionEntry.totalTokens
         } else if hasHistoricalRows {
@@ -1742,7 +1742,8 @@ public struct CostUsageFetcher: Sendable {
             sessionRequests: sessionEntry?.requestCount,
             last30DaysTokens: last30DaysTokens,
             last30DaysCostUSD: last30DaysCostUSD,
-            last30DaysRequests: daily.data.allSatisfy { $0.requestCount != nil }
+            last30DaysRequests: (establishedEmptyHistory || !daily.data.isEmpty)
+                && daily.data.allSatisfy { $0.requestCount != nil }
                 ? CheckedSum.integers(daily.data.compactMap(\.requestCount)) : nil,
             currencyCode: currencyCode,
             historyDays: historyDays,
