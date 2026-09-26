@@ -8,7 +8,10 @@ struct HelmcodeProviderImplementation: ProviderImplementation {
     @MainActor
     func settingsSnapshot(context: ProviderSettingsSnapshotContext) -> ProviderSettingsSnapshotContribution? {
         let cookies: CookieProviderSettings = context.settings.resolvedCookieSettings(
-            provider: self.id, tokenOverride: context.tokenOverride)
+            provider: self.id,
+            configuredSource: context.settings.helmcodeCookieSource,
+            configuredHeader: context.settings.helmcodeCookieHeader,
+            tokenOverride: context.tokenOverride)
         return .init(HelmcodeProviderSettings(
             cookieSource: cookies.cookieSource,
             manualCookieHeader: cookies.manualCookieHeader,
