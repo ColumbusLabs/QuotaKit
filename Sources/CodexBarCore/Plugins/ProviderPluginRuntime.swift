@@ -724,7 +724,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             settings: settings,
             secrets: secrets,
             redactionValues: redactionValues,
-            beforeAttempt: contextOptions.beforeHTTPAttempt)
+            contextOptions: contextOptions)
         host.setObject(http, forKeyedSubscript: "http" as NSString)
 
         let cookieAvailability: @convention(block) (String) -> String = { [weak self] rawDomain in
@@ -815,7 +815,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         settings: [String: String],
         secrets: [String: String],
         redactionValues: ProviderPluginRedactionValues,
-        beforeAttempt: (@Sendable () async throws -> Void)?) -> HTTPBlock
+        contextOptions: ProviderPluginContextOptions) -> HTTPBlock
     {
         { [weak self] rawURL, options, method, wantsJSON, resolve, reject in
             self?.startHTTPRequest(
@@ -825,7 +825,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
                 settings: settings,
                 secrets: secrets,
                 redactionValues: redactionValues,
-                beforeAttempt: beforeAttempt,
+                contextOptions: contextOptions,
                 callbacks: ProviderPluginHTTPRequestCallbacks(
                     wantsJSON: wantsJSON,
                     resolve: ProviderPluginJSValueBox(resolve),
@@ -842,7 +842,7 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         settings: [String: String],
         secrets: [String: String],
         redactionValues: ProviderPluginRedactionValues,
-        beforeAttempt: (@Sendable () async throws -> Void)?,
+        contextOptions: ProviderPluginContextOptions,
         callbacks: ProviderPluginHTTPRequestCallbacks)
     {
         let request: ProviderPluginHTTPResponse.Request
@@ -864,8 +864,6 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
         }
 
         let worker = self
-        let transport = self.transport
-        let responseSizeLimit = self.responseSizeLimit
         let requestID = UUID()
         self.requestLock.lock()
         guard !self.interrupted else {
@@ -879,12 +877,12 @@ final class JavaScriptCoreProviderPluginEngine: ProviderPluginEngine, @unchecked
             do {
                 let payload = try await ProviderPluginHTTPResponse.fetch(
                     request,
-                    transport: transport,
+                    transport: worker.transport,
                     wantsJSON: callbacks.wantsJSON,
-                    responseSizeLimit: responseSizeLimit,
+                    responseSizeLimit: worker.responseSizeLimit,
                     enforcesUserResponsePolicy: worker.enforcesUserResponsePolicy,
                     rejectsNonSuccessResponses: worker.rejectsNonSuccessResponses,
-                    beforeAttempt: beforeAttempt)
+                    contextOptions: contextOptions)
                 worker.queue.async {
                     let value = JSValue(object: payload.value, in: worker.context) ?? JSValue(nullIn: worker.context)
                     _ = callbacks.resolve.value.call(withArguments: [value as Any])
