@@ -647,6 +647,7 @@ extension SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncHyperBalance?
     {
+        // Provider-specific by design: only Hyper's native balance belongs in its mobile sync field.
         guard provider == .hyper,
               let snapshot,
               let balance = snapshot.hyperBalance,
