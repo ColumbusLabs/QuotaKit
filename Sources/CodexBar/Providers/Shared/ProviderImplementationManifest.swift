@@ -86,5 +86,7 @@ enum ProviderImplementationManifest {
         { AixyProviderImplementation() },
         { XKiroProviderImplementation() },
         { RaycastProviderImplementation() },
+        { HelmcodeProviderImplementation() },
+        { TypeSafeProviderImplementation() },
     ]
 }

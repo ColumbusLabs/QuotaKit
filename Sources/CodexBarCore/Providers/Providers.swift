@@ -99,6 +99,8 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case aixy
     case xkiro
     case raycast
+    case helmcode
+    case typesafe
 }
 
 // swiftformat:enable sortDeclarations

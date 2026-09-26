@@ -85,5 +85,7 @@ public enum ProviderManifest {
         AixyProviderDescriptor.descriptor,
         XKiroProviderDescriptor.descriptor,
         RaycastProviderDescriptor.descriptor,
+        HelmcodeProviderDescriptor.descriptor,
+        TypeSafeProviderDescriptor.descriptor,
     ]
 }

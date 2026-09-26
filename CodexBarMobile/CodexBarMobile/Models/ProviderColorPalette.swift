@@ -151,6 +151,8 @@ enum ProviderColorPalette {
             (["aixy"], RawColor(red: 18 / 255, green: 54 / 255, blue: 80 / 255)),
             (["xkiro"], RawColor(red: 82 / 255, green: 201 / 255, blue: 155 / 255)),
             (["raycast"], RawColor(red: 1, green: 99 / 255, blue: 99 / 255)),
+            (["helmcode"], RawColor(red: 73 / 255, green: 52 / 255, blue: 225 / 255)),
+            (["typesafe"], RawColor(red: 17 / 255, green: 17 / 255, blue: 17 / 255)),
             (["aiand", "ai&"], RawColor(red: 226 / 255, green: 92 / 255, blue: 43 / 255)),
             (["zoommate"], RawColor(red: 64 / 255, green: 176 / 255, blue: 255 / 255)),
             (["xai"], RawColor(red: 142 / 255, green: 142 / 255, blue: 160 / 255)),

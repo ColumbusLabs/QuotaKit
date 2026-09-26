@@ -240,6 +240,7 @@ struct SettingsStoreAdditionalTests {
             .aixy: [.automatic],
             .xkiro: [.automatic, .primary],
             .raycast: [.automatic, .primary],
+            .typesafe: [.automatic],
         ]
 
         for provider in UsageProvider.allCases {

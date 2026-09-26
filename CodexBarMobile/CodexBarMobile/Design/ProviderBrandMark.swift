@@ -40,6 +40,8 @@ enum ProviderBrandAsset {
         "aixy",
         "raycast",
         "xkiro",
+        "helmcode",
+        "typesafe",
         "jetbrains",
         "ibmbob",
         "kilo",

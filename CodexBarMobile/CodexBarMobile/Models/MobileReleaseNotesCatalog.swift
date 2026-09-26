@@ -51,6 +51,8 @@ enum MobileReleaseNotesCatalog {
                             localized: "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits."),
                         String(
                             localized: "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts."),
+                        String(
+                            localized: "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."),
                     ]),
             ]),
         ReleaseNotesVersion(

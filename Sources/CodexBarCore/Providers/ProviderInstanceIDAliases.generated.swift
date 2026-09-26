@@ -83,6 +83,8 @@ extension ProviderInstanceID {
     public static let aixy = UsageProvider.aixy.instanceID
     public static let xkiro = UsageProvider.xkiro.instanceID
     public static let raycast = UsageProvider.raycast.instanceID
+    public static let helmcode = UsageProvider.helmcode.instanceID
+    public static let typesafe = UsageProvider.typesafe.instanceID
 }
 
 // swiftformat:enable sortDeclarations

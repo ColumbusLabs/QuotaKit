@@ -15931,6 +15931,34 @@
         }
       }
     },
+    "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode のモデルクォータと TypeSafe の請求残高が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode 模型配额和 TypeSafe 账单余额现可从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode 模型配額和 TypeSafe 帳單餘額現可從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts.": {
       "localizations": {
         "en": {

@@ -55,6 +55,8 @@ complete when the available scan window covers fewer days.
 | Claude | Admin API key (`api`) when configured; otherwise App Auto: OAuth API (`oauth`) → CLI PTY (`claude`) → Web API (`web`). CLI Auto: Web API (`web`) → CLI PTY (`claude`). |
 | Gemini | OAuth-backed API via Gemini CLI credentials (`api`). |
 | GitKraken AI | Account API token with optional organization ID → personal weekly credits and shared-pool usage (`api`). |
+| Helmcode | Chrome or manual tenant cookies → Cloud/NaN model quotas and eligible premium tiers (`web`). |
+| TypeSafe | Chrome or manual console session → billing spend and credit balance (`web`). |
 | Antigravity | Local LSP/HTTP probe (`local`). |
 | Cursor | Web API via cookies → legacy stored session → Cursor.app local auth (`web`). |
 | OpenCode | Web dashboard via cookies (`web`). |
