@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "コスト";
+"Token history" = "トークン履歴";
+"Local token history · dollar costs unavailable" = "ローカルトークン履歴 · ドル建てコストは不明";
+"Partial local history · recorded token subtotal" = "一部のローカル履歴 · 記録されたトークンの小計";
+"Local token history is unavailable or incomplete." = "ローカルトークン履歴を取得できないか、履歴が不完全です。";
 "Could not add Codex account" = "Codex アカウントを追加できませんでした";
 "Could not open Terminal for Gemini" = "Gemini 用のターミナルを開けませんでした";
 "Could not start claude /login" = "claude /login を開始できませんでした";

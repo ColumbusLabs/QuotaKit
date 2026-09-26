@@ -152,6 +152,10 @@
 "Cookie: …" = "Cookie：…";
 "CopilotDeviceFlow" = "Copilot 裝置流程";
 "Cost" = "費用";
+"Token history" = "Token 歷史";
+"Local token history · dollar costs unavailable" = "本機 Token 歷史 · 無美元費用資料";
+"Partial local history · recorded token subtotal" = "部分本機歷史 · 已記錄 Token 小計";
+"Local token history is unavailable or incomplete." = "本機 Token 歷史無法使用或不完整。";
 "Could not add Codex account" = "無法新增 Codex 帳號";
 "Could not open Terminal for Gemini" = "無法為 Gemini 開啟終端";
 "Could not start claude /login" = "無法啟動 claude /login";

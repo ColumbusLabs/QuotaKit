@@ -133,6 +133,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Biaya";
+"Token history" = "Riwayat token";
+"Local token history · dollar costs unavailable" = "Riwayat token lokal · biaya dolar tidak tersedia";
+"Partial local history · recorded token subtotal" = "Riwayat lokal sebagian · subtotal token tercatat";
+"Local token history is unavailable or incomplete." = "Riwayat token lokal tidak tersedia atau tidak lengkap.";
 "Could not add Codex account" = "Tidak dapat menambahkan akun Codex";
 "Could not open Terminal for Gemini" = "Tidak dapat membuka Terminal untuk Gemini";
 "Could not start claude /login" = "Tidak dapat memulai claude /login";

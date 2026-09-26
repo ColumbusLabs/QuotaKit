@@ -504,10 +504,18 @@ public struct CostUsageFetcher: Sendable {
         }
 
         // Provider-specific by design: local readers backfill providers without remote history.
-        let fallbackCalendar = Self.resolvedScannerOptions(
+        let fallbackOptions = Self.resolvedScannerOptions(
             overrideScannerOptions,
             provider: provider,
-            codexHomePath: codexHomePath).calendar
+            codexHomePath: codexHomePath)
+        let fallbackCalendar = fallbackOptions.calendar
+        if provider == .muse {
+            return try await Self.loadMuseLocalSnapshot(
+                environment: environment,
+                now: now,
+                historyDays: clampedHistoryDays,
+                options: fallbackOptions)
+        }
         if provider == .cursor, let local = await self.loadCursorLocalSnapshot(
             now: now,
             historyDays: clampedHistoryDays,
@@ -632,6 +640,19 @@ public struct CostUsageFetcher: Sendable {
         let shouldMergePiUsage: Bool
         let scanOptions: CostUsageScanner.Options
         let piOptions: PiSessionCostScanner.Options
+    }
+
+    private static func unavailableLocalSnapshot(
+        now: Date,
+        historyDays: Int,
+        calendar: Calendar) -> CostUsageTokenSnapshot
+    {
+        self.tokenSnapshot(
+            from: CostUsageDailyReport(data: [], summary: nil),
+            now: now,
+            historyDays: historyDays,
+            calendar: calendar,
+            historyCoverageIsEstablished: false)
     }
 
     private static func loadLocalTokenScanResult(
@@ -1635,6 +1656,7 @@ public struct CostUsageFetcher: Sendable {
         historyCoverageIsEstablished: Bool = true,
         historySinceDayKey: String? = nil,
         historyUntilDayKey: String? = nil,
+        monetaryValuesAreAvailable: Bool = true,
         meteredCostUSD: Double? = nil,
         costProvenance: CostProvenance = .unknown,
         credentialScopeFingerprint: String? = nil,
@@ -1651,16 +1673,18 @@ public struct CostUsageFetcher: Sendable {
         let establishedEmptyHistory = historyCoverageIsEstablished && daily.data.isEmpty
         let sessionTokens: Int? = if let sessionEntry {
             sessionEntry.totalTokens
-        } else if hasHistoricalRows {
+        } else if hasHistoricalRows, historyCoverageIsEstablished {
             0
         } else if establishedEmptyHistory {
             0
         } else {
             nil
         }
-        let sessionCostUSD: Double? = if let sessionEntry {
+        let sessionCostUSD: Double? = if !monetaryValuesAreAvailable {
+            nil
+        } else if let sessionEntry {
             sessionEntry.costUSD
-        } else if hasHistoricalRows {
+        } else if hasHistoricalRows, historyCoverageIsEstablished {
             0
         } else if establishedEmptyHistory {
             0
@@ -1679,7 +1703,9 @@ public struct CostUsageFetcher: Sendable {
         // subtotal useful when every materialized day is priced, while the coverage flag above
         // tells consumers that the subtotal is not an established window total. Never let a
         // known subset beside an unpriced day masquerade as a complete cost.
-        let last30DaysCostUSD: Double? = if allEntriesCarryCost {
+        let last30DaysCostUSD: Double? = if !monetaryValuesAreAvailable {
+            nil
+        } else if allEntriesCarryCost {
             totalFromSummary ?? totalFromEntries
         } else if establishedEmptyHistory {
             0
@@ -1704,7 +1730,7 @@ public struct CostUsageFetcher: Sendable {
             historySinceDayKey: historySinceDayKey,
             historyUntilDayKey: historyUntilDayKey,
             historyLabel: historyLabel,
-            meteredCostUSD: meteredCostUSD,
+            meteredCostUSD: monetaryValuesAreAvailable ? meteredCostUSD : nil,
             costProvenance: costProvenance,
             credentialScopeFingerprint: credentialScopeFingerprint,
             ownership: ownership,

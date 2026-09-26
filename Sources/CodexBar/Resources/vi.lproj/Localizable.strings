@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Chi phí";
+"Token history" = "Lịch sử token";
+"Local token history · dollar costs unavailable" = "Lịch sử token cục bộ · chưa có chi phí bằng đô la";
+"Partial local history · recorded token subtotal" = "Lịch sử cục bộ một phần · tổng phụ token đã ghi nhận";
+"Local token history is unavailable or incomplete." = "Lịch sử token cục bộ không có hoặc chưa đầy đủ.";
 "Could not add Codex account" = "Không thể thêm tài khoản Codex";
 "Could not open Terminal for Gemini" = "Không thể mở Terminal cho Gemini";
 "Could not start claude /login" = "Không thể bắt đầu claude /đăng nhập";

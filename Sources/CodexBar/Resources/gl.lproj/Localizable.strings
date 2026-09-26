@@ -131,6 +131,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Custo";
+"Token history" = "Historial de tokens";
+"Local token history · dollar costs unavailable" = "Historial local de tokens · custos en dólares non dispoñibles";
+"Partial local history · recorded token subtotal" = "Historial local parcial · subtotal de tokens rexistrados";
+"Local token history is unavailable or incomplete." = "O historial local de tokens non está dispoñible ou está incompleto.";
 "Could not add Codex account" = "Non se puido engadir a conta de Codex";
 "Could not open Terminal for Gemini" = "Non se puido abrir o Terminal para Gemini";
 "Could not start claude /login" = "Non se puido iniciar claude /login";

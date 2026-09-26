@@ -133,6 +133,10 @@
 "Cookie: …" = "کوکی: ...";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "هزینه";
+"Token history" = "تاریخچهٔ توکن‌ها";
+"Local token history · dollar costs unavailable" = "تاریخچهٔ محلی توکن‌ها · هزینه‌های دلاری در دسترس نیست";
+"Partial local history · recorded token subtotal" = "تاریخچهٔ محلی ناقص · جمع جزئی توکن‌های ثبت‌شده";
+"Local token history is unavailable or incomplete." = "تاریخچهٔ محلی توکن‌ها در دسترس نیست یا ناقص است.";
 "Could not add Codex account" = "نتوانستم حساب Codex اضافه کنم";
 "Could not open Terminal for Gemini" = "نتوانستم ترمینال را برای Gemini باز کنم";
 "Could not start claude /login" = "نتوانستم کلود را شروع /login";

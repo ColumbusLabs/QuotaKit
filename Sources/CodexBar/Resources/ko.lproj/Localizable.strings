@@ -149,6 +149,10 @@
 "Cookie: …" = "쿠키: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "비용";
+"Token history" = "토큰 기록";
+"Local token history · dollar costs unavailable" = "로컬 토큰 기록 · 달러 비용 정보 없음";
+"Partial local history · recorded token subtotal" = "불완전한 로컬 기록 · 기록된 토큰 소계";
+"Local token history is unavailable or incomplete." = "로컬 토큰 기록을 사용할 수 없거나 기록이 불완전합니다.";
 "Could not add Codex account" = "Codex 계정을 추가할 수 없음";
 "Could not open Terminal for Gemini" = "Gemini용 터미널을 열 수 없음";
 "Could not start claude /login" = "claude /login을 시작할 수 없음";

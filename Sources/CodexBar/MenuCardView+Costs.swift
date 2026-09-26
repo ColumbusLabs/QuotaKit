@@ -193,6 +193,7 @@ extension UsageMenuCardView.Model {
         }
         guard enabled else { return nil }
         guard let snapshot else { return nil }
+        let tokensOnly = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.presentation == .tokensOnly
 
         let sessionCost = snapshot.sessionCostUSD.map {
             UsageFormatter.convertedCostString(
@@ -207,6 +208,7 @@ extension UsageMenuCardView.Model {
             L("Today")
         }
         let sessionLine: String = {
+            if tokensOnly { return Self.tokenWindowLine(label: sessionLabel, tokens: snapshot.sessionTokens) }
             if let sessionTokens {
                 return String(format: L("%@: %@ · %@ tokens"), sessionLabel, sessionCost, sessionTokens)
             }
@@ -233,6 +235,7 @@ extension UsageMenuCardView.Model {
             Self.costHistoryWindowLabel(days: snapshot.historyDays)
         }
         let monthLine: String = {
+            if tokensOnly { return Self.tokenWindowLine(label: windowLabel, tokens: monthTokensValue) }
             if let monthTokens {
                 return String(format: L("%@: %@ · %@ tokens"), windowLabel, monthCost, monthTokens)
             }
@@ -240,7 +243,7 @@ extension UsageMenuCardView.Model {
         }()
         // Plan-metered spend over the same window (what the provider actually deducts);
         // only providers that report it (currently Cursor) populate `meteredCostUSD`.
-        let meteredLine: String? = snapshot.meteredCostUSD.map {
+        let meteredLine: String? = (tokensOnly ? nil : snapshot.meteredCostUSD).map {
             let amount = UsageFormatter.convertedCostString(
                 $0,
                 preferredCurrency: preferredCurrencyCode,
@@ -293,8 +296,21 @@ extension UsageMenuCardView.Model {
         return lines.isEmpty ? nil : lines.joined(separator: "\n")
     }
 
-    static func tokenUsageHeader(provider _: UsageProvider) -> String {
-        L("Cost")
+    static func tokenUsageHeader(provider: UsageProvider) -> String {
+        ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.presentation == .tokensOnly
+            ? L("Token history") : L("Cost")
+    }
+
+    static func tokenWindowLine(label: String, tokens: Int?) -> String {
+        let value = tokens.map { L("%@ tokens", UsageFormatter.tokenCountString($0)) } ?? "—"
+        return L("%@: %@", label, value)
+    }
+
+    static func tokenHistoryCoverageHint(_ snapshot: CostUsageTokenSnapshot) -> String? {
+        guard !snapshot.historyCoverageIsEstablished else { return nil }
+        return snapshot.last30DaysTokens != nil || snapshot.sessionTokens != nil
+            ? L("Partial local history · recorded token subtotal")
+            : L("Local token history is unavailable or incomplete.")
     }
 
     static func tokenUsageHintLines(provider: UsageProvider) -> [String] {

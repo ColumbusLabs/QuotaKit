@@ -99,6 +99,8 @@ so portable third-party plugins must use the host helpers below instead of ECMA-
 - Without `http-status`, the host rejects non-2xx responses before returning them. Declaring this capability allows the
   plugin to inspect their status and body; it does not add retries or alter origin/authentication checks.
 - `await ctx.http.postJSON(url, {body, headers?})` performs JSON POST. `body` must be JSON-serializable.
+- `await ctx.http.post(url, {body, headers?})` sends the same JSON POST and returns `{status, headers, bodyText}` so a
+  plugin can classify non-JSON error pages before parsing a successful response.
 - `opts.headers` accepts string values. Plugins cannot replace their declared auth header. `opts.timeoutSeconds` sets a
   hard request deadline from 1 through 30 seconds; the default is 15 seconds.
 - `ctx.settings.get(key)` reads a declared `plain` setting.

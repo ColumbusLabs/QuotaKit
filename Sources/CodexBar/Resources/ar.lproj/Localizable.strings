@@ -133,6 +133,10 @@
 "Cookie: …" = "كوكي: ...";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "التكلفة";
+"Token history" = "سجل الرموز";
+"Local token history · dollar costs unavailable" = "سجل الرموز المحلي · التكاليف بالدولار غير متاحة";
+"Partial local history · recorded token subtotal" = "سجل محلي جزئي · المجموع الفرعي للرموز المسجّلة";
+"Local token history is unavailable or incomplete." = "سجل الرموز المحلي غير متاح أو غير مكتمل.";
 "Could not add Codex account" = "لم أتمكن من إضافة Codex الحساب";
 "Could not open Terminal for Gemini" = "لم أتمكن من فتح الطرفية من Gemini";
 "Could not start claude /login" = "لم تستطع بدء كلود /login";

@@ -135,6 +135,13 @@ extension UsageMenuCardView.Model {
         comparisonPeriodsEnabled: Bool,
         preferredCurrencyCode: String) -> InlineUsageDashboardModel
     {
+        if ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.presentation == .tokensOnly {
+            return self.tokenHistoryInlineDashboard(
+                provider: provider,
+                snapshot: snapshot,
+                comparisonPeriodsEnabled: comparisonPeriodsEnabled,
+                calendar: calendar)
+        }
         let displayCurrencyCode = UsageFormatter.convertedCost(
             0,
             preferredCurrency: preferredCurrencyCode,
@@ -274,6 +281,51 @@ extension UsageMenuCardView.Model {
             detailLines: details)
         model.currencyCode = displayCurrencyCode
         return model
+    }
+
+    private static func tokenHistoryInlineDashboard(
+        provider: UsageProvider,
+        snapshot: CostUsageTokenSnapshot,
+        comparisonPeriodsEnabled: Bool,
+        calendar: Calendar) -> InlineUsageDashboardModel
+    {
+        let config = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost
+        let historyDays = max(1, min(365, snapshot.historyDays))
+        let historyLabel = snapshot.historyLabel ?? Self.costHistoryWindowLabel(days: historyDays)
+        var kpis = [InlineUsageDashboardModel.KPI(
+            title: L("Today"),
+            value: L("%@ tokens", snapshot.sessionTokens.map(UsageFormatter.tokenCountString) ?? "—"),
+            emphasis: true)]
+        if historyDays > 1 {
+            kpis.append(.init(
+                title: historyLabel,
+                value: L("%@ tokens", snapshot.last30DaysTokens.map(UsageFormatter.tokenCountString) ?? "—"),
+                emphasis: false))
+        }
+        var details = Self.tokenUsageHintLines(provider: provider)
+        if details.isEmpty { details.append(L("Local token history · dollar costs unavailable")) }
+        if let coverage = Self.tokenHistoryCoverageHint(snapshot) { details.append(coverage) }
+        if comparisonPeriodsEnabled {
+            details.append(contentsOf: snapshot.comparisonSummaries(calendar: calendar).map {
+                Self.tokenWindowLine(label: Self.costHistoryWindowLabel(days: $0.days), tokens: $0.totalTokens)
+            })
+        }
+        let points = Self.inlineCostHistoryPoints(
+            days: Self.inlineCostHistoryDays(
+                snapshot: snapshot,
+                historyDays: historyDays,
+                preservesCalendarDays: config.preservesCalendarDaysInCharts,
+                calendar: calendar),
+            displayCurrencyCode: "USD",
+            convertedValue: { $0 },
+            tokensOnly: true)
+        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        return InlineUsageDashboardModel(
+            accessibilityLabel: L("%@: %@", name, L("Token history")),
+            valueStyle: .tokens,
+            kpis: kpis,
+            points: points,
+            detailLines: details)
     }
 
     private static func costHistoryTrailingKPIs(

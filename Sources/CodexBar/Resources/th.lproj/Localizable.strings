@@ -133,6 +133,10 @@
 "Cookie: …" = "คุกกี้: ...";
 "CopilotDeviceFlow" = "โคไพลอตอุปกรณ์โฟลว์";
 "Cost" = "ราคา";
+"Token history" = "ประวัติโทเคน";
+"Local token history · dollar costs unavailable" = "ประวัติโทเคนในเครื่อง · ไม่มีข้อมูลค่าใช้จ่ายเป็นดอลลาร์";
+"Partial local history · recorded token subtotal" = "ประวัติในเครื่องบางส่วน · ยอดรวมย่อยของโทเคนที่บันทึก";
+"Local token history is unavailable or incomplete." = "ประวัติโทเคนในเครื่องไม่พร้อมใช้งานหรือไม่ครบถ้วน";
 "Could not add Codex account" = "ไม่สามารถเพิ่มบัญชี Codex ได้";
 "Could not open Terminal for Gemini" = "ไม่สามารถเปิดเทอร์มินัลสําหรับ Gemini";
 "Could not start claude /login" = "ไม่สามารถเริ่ม claude /login";

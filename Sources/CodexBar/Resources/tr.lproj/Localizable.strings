@@ -133,6 +133,10 @@
 "Cookie: …" = "Çerez: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Maliyet";
+"Token history" = "Token geçmişi";
+"Local token history · dollar costs unavailable" = "Yerel token geçmişi · dolar maliyetleri mevcut değil";
+"Partial local history · recorded token subtotal" = "Kısmi yerel geçmiş · kaydedilen token ara toplamı";
+"Local token history is unavailable or incomplete." = "Yerel token geçmişi mevcut değil veya eksik.";
 "Could not add Codex account" = "Codex hesabı eklenemedi";
 "Could not open Terminal for Gemini" = "Gemini için Terminal açılamadı";
 "Could not start claude /login" = "claude /login başlatılamadı";
