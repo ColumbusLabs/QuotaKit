@@ -132,13 +132,15 @@ extension UsageStore {
                     costScopeSignature: costScopeSignature)
                 return
             }
+            let hasUsage = !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil
+            guard hasUsage || snapshot.historyCoverageIsEstablished else {
+                throw TokenSnapshotError.historyUnavailable
+            }
             self.lastSpendDashboardTokenFetchScope[provider.instanceID] = completedCostScopeSignature
 
-            guard !snapshot.daily.isEmpty || snapshot.meteredCostUSD != nil else {
-                if snapshot.historyCoverageIsEstablished {
-                    self.publishSpendDashboardConfirmedEmptyTokenSnapshot(
-                        for: provider, accounting: result.accounting)
-                }
+            guard hasUsage else {
+                self.publishSpendDashboardConfirmedEmptyTokenSnapshot(
+                    for: provider, accounting: result.accounting)
                 return
             }
             self.publishSpendDashboardTokenSnapshot(snapshot, for: provider, accounting: result.accounting)

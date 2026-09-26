@@ -95,6 +95,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - OpenCode Go: include recorded local token counts in daily and per-model history without inventing costs or treating missing counts as zero (upstream #4000).
 
+- Antigravity: retain quota history when the provider omits reset cadence, including replenishment within an hour.
+- Antigravity: skip foreign SQLite databases without inventing empty history.
+- Antigravity: preserve history around UUID-less bookkeeping steps without assigning uncertain dates.
+- Antigravity: match local token-history timestamps by turn ID and preserve valid history around reordered steps.
 - Menu bar: keep layout palette labels at their natural widths and wrap them instead of truncating them into equal-width
   columns.
 - Usage & Spend: keep stacked daily and hourly chart segments flush across providers, rounding only the top edge of each bar.

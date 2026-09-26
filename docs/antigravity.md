@@ -255,6 +255,121 @@ shared OAuth file can still be used as a fallback credential source.
   `idle` instead. The `quotakit serve` web UI skips those rows, so the web card matches the menu without repeating
   the family rule in JavaScript. See `docs/dashboard-api.md`.
 
+## Quota observation history
+
+Pool balances without a recognized session/weekly quota summary retain separate, account-scoped Gemini and
+Claude/GPT observations. Each hour keeps the latest balance and its actual capture time, including replenishment
+without changed or available reset metadata. Unknown/omitted summary cadences use the same observation path.
+History adoption and persistence preserve these observations without inventing a duration or blank reset periods.
+Unavailable responses show the most recently captured history format; structured windows win timestamp ties.
+
+Structured session/weekly summaries keep their existing peak history and session-equivalent forecast behavior.
+When a response includes a usable known session or weekly summary cadence, the chart continues to use structured history.
+A pool reset timestamp alone does not establish a five-hour cycle: session pace forecasts require an explicit
+five-hour duration.
+
+## Local token history
+
+Local history reads only the existing recognized roots: `~/.gemini/antigravity-cli/conversations/*.db`,
+`~/.gemini/antigravity/*.db`, and `~/.gemini/antigravity/conversations/*.db`. `GEMINI_CLI_HOME` replaces
+`~/.gemini`. When SQLite discovery completes without any databases, the reader can use
+`~/.config/tokscale/antigravity-cache/sessions/*.jsonl`; `TOKSCALE_CONFIG_DIR` replaces `~/.config/tokscale`.
+Both overrides and `HOME` come from the same refresh environment. Declared roots and session files may be symlinks;
+discovery still visits only the immediate entries of the recognized directories. This is machine-local token history,
+not account attribution or dollar pricing. No language server, provider CLI, browser, credentials, or network is used.
+
+SQLite is authoritative when present. An unreadable root, malformed database, unsupported event layout, or exhausted
+budget never authorizes replacement by a smaller/stale JSONL cache. A database that describes its own tables and no
+`gen_metadata` table is not Antigravity history: the reader skips it, counts it, and leaves coverage intact.
+Antigravity 1.2.3 writes exactly such a file, `~/.gemini/antigravity/conversation_summaries.db`, into a declared root.
+Unrelated databases alone leave history unavailable; a recognized empty history database still establishes complete
+empty history alongside them. Undecodable schema names or types remain incomplete rather than proving a file foreign.
+A `gen_metadata` table with unknown columns is schema drift rather than a foreign file, and still leaves the report
+incomplete. Some SQLite builds, including the macOS system library, decline a read-only open of a WAL database whose
+`-wal` and `-shm` sidecars are absent, which is what a cleanly closed conversation leaves behind. When that happens
+and no `-wal` sidecar exists, the reader retries that one database with an `immutable=1` open of the main file; it
+never creates sidecars. The retry counts only when the file and its sidecar state are unchanged afterwards. A database
+with a `-wal` sidecar present stays unavailable, because a WAL connection may still hold it. Complete empty databases
+and complete histories outside the selected window establish empty history; absent sources and partial scans do not.
+Partial reports remain diagnostic only: the fetcher withholds their rows. Regular refresh applies its existing
+failure/retention policy, and neither regular refresh nor the dashboard publishes unavailable results as confirmed
+zero. Failed dashboard attempts do not acknowledge successful incorporation of a refresh trigger. Overflowed aggregate
+totals remain unknown rather than becoming saturated or wrapping.
+Hard database-count, row-count, cumulative-byte, or duration budget exhaustion does not publish a newly truncated report; it remains unavailable and preserves prior complete history.
+Schema-budget exhaustion preserves validated rows from earlier databases as diagnostic partial history; publication still follows the existing incomplete-history policy. The schema cap remains 64 KiB.
+
+The schema evidence is [Tokscale's pinned SQLite parser](https://github.com/junhoyeo/tokscale/blob/62ca1eb1677556972ba963fdfa3a41ab23c1eb4b/crates/tokscale-core/src/sessions/antigravity_cli.rs),
+whose header records six databases and 140 turns. SQLite usage fields 1 + 2 are input, 5 is cache read,
+9 is text output, and 10 is thinking output: text and thinking are separate counts. Historical model IDs are retained;
+missing models stay unknown unless an unambiguous raw label maps to a model within the same session.
+Conflicting mappings remain unresolved. Every repeated known protobuf envelope is validated and merged.
+The supported database layout is an ordinary `gen_metadata` table with stored `idx` and `data` columns.
+Extra ordinary columns and `WITHOUT ROWID` tables are supported; views, virtual tables, and generated/hidden columns
+are rejected before querying payloads. Schema inspection and the payload scan share one read transaction.
+Inspection uses `sqlite_master` and `table_xinfo`; SQLite builds without that pragma cannot establish coverage.
+
+Supported SQLite event time is `chatModel.#9.#4` containing protobuf seconds/nanos. When it is absent, the reader can
+recover the standard seconds/nanos timestamp from `steps.metadata.#1`, joining the generation's root step UUID (`#4`)
+to `steps.metadata.#12`. A unique generation usage `bot_id` (`chatModel.#4.#7`) first selects the matching
+`steps.metadata.#9.#7` within that UUID, so auxiliary or reordered steps do not shift a turn's date. A row with no
+`steps.metadata.#12` (field 12 absent, or blank per the reader's whitespace-only-is-absent rule) supplies no UUID position:
+it is skipped rather than invalidating the scan, since it belongs to no UUID's occurrence list and cannot supply or
+shift positional evidence. While any such row is present, a single step timestamp no longer stands in for every reused
+generation occurrence of its UUID; a UUID used by only one generation is unaffected. A bot ID on an unidentified row still makes that bot ambiguous for exact and positional recovery, even if another row supplies the same timestamp. Conflicting, cross-UUID, or
+timestamp-less duplicate step IDs cannot supply exact or positional evidence. Embedded timestamps in a UUID needing
+recovery must agree with available generation-unique exact matches; unrelated UUIDs retain their embedded timestamps.
+Missing or malformed auxiliary IDs retain the guarded legacy positional fallback, as do repeated generation IDs:
+ordered step timestamps must agree with embedded generation timestamps, and ambiguous positions are never removed or
+compressed. Malformed auxiliary IDs do not discard otherwise valid embedded usage or relax token-counter and protobuf
+framing validation. Session creation, file modification, and refresh time are never substitutes.
+The opaque agy 1.1.18 timestamp layout remains unsupported: the pinned parser
+explicitly labels its newer interpretation an inference. See [the session-start misattribution report](https://github.com/junhoyeo/tokscale/issues/1184).
+
+SQLite session identity is the original database filename stem, with `gen_metadata.idx` identifying rows. Copies
+retaining that session name deduplicate across recognized roots; ID-less rows at different indices remain distinct.
+Response IDs deduplicate only within a session, after successful validation and aggregation. Conflicting copies mark
+coverage partial. Arbitrarily renamed copies cannot be identified by this schema and are not supported as copies;
+the reader never guesses identity from equal token payloads.
+
+The [separate JSONL producer](https://github.com/junhoyeo/tokscale/blob/62ca1eb1677556972ba963fdfa3a41ab23c1eb4b/crates/tokscale-cli/src/antigravity.rs)
+records `sessionId`, retry `outputTokens` as `output`, and `thinkingOutputTokens` as `reasoning`. These recorded buckets
+do not establish whether output already includes thinking. JSONL with nonzero reasoning therefore remains unsupported
+until that relationship is independently established; neither adding nor subtracting it is assumed. JSONL requires a session identity and a finite,
+exact integer usage timestamp. Numeric lexemes are checked before Foundation decoding can round them: counters must
+be exact nonnegative integers through `Int.max`, and timestamps must be positive integers through 253402300799999 ms.
+Whole decimal/exponent equivalents and signed zero are accepted without floating-point conversion; fractional,
+underflowing, overflowing, boolean, or quoted-number values are not. Top-level keys must be unique, including escaped
+equivalents. Session metadata can supply a model, never a missing usage timestamp. The producer
+prefers usage time but can fall back to session start, so its reported dates may be imprecise. The reader honors
+explicit usage timestamps, including equality with session start: equality does not distinguish a legitimate first
+generation from the producer's fallback. Identical session/line
+copies deduplicate, while contradictory copies remain partial.
+
+One cancellable job on `CostUsageScanExecutor` owns discovery, SQL, decoding, and fallback. Limits are 500 files,
+10,000 directory entries, 10,000 rows per file, 50,000 rows overall, 16 MiB per record, 64 MiB per file,
+128 MiB of attempted payload bytes overall, and a five-second cooperative scan deadline. Rejected rows consume the budget;
+exactly 500 complete databases are accepted. Discovery is incremental and JSONL is read in bounded chunks.
+Schema inspection accepts at most 128 catalogue entries and 64 columns per database (one additional row detects
+truncation), with a cumulative 64 KiB allowance for inspected schema text and the same cooperative deadline/cancellation.
+SQLite values are capped at 64 KiB during
+inspection (or the smaller payload limit plus record overhead). SQLite then uses one streaming payload SELECT over the
+validated ordinary table. A length-based conditional projection checks the remaining
+byte budget before SQLite selects each BLOB, and a SQLite length limit also bounds intermediate values. Rejected
+payload lengths still count as attempted work. Before copying, the selected BLOB's own byte count must match the declared
+length. There is no view or sorting step that can buffer payloads ahead of accounting;
+the reader buffers only validated typed events.
+
+Database access uses ordinary `SQLITE_OPEN_READONLY` and never an unsafe file copy. This does not mutate
+database records, but SQLite's normal WAL access may create sidecars and coordinate through SHM read marks.
+It is not a guarantee of literal SHM-byte preservation. The one exception is the `immutable=1` retry described
+above for a sidecar-less WAL database that the platform SQLite declines. That connection neither locks nor detects
+changes, so the reader records the file's size, modification time, file system number, and header before the
+retry and accepts the result only when they and the sidecar state are unchanged afterwards. A writer that appears
+and checkpoints during the retry leaves the database incomplete. Temporary fixture tests compare DB/WAL contents
+without writer activity, coordinate subsequent writer activity against one read snapshot, cover a writer that
+checkpoints during the immutable retry, and verify reader cleanup after cancellation. The fixtures are synthetic
+and source-linked, not private captures or proof of live installation/UI behavior.
+
 ## Constraints
 - Internal protocol; fields may change.
 - Requires `lsof` for local/CLI port detection.

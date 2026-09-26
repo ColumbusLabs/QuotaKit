@@ -257,11 +257,7 @@ extension UsageStore {
         self.tokenSnapshotPublicationRevisions[provider.instanceID] ?? 0
     }
 
-    func publishTokenSnapshot(
-        _ snapshot: CostUsageTokenSnapshot,
-        for provider: UsageProvider,
-        accounting: PiSnapshotAccounting? = nil)
-    {
+    func retainsEstablishedTokenHistory(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) -> Bool {
         // A bounded Codex refresh can succeed with partial rows while catch-up remains pending.
         // Account and history-window changes fail the current-publication lookup below.
         // Provider-specific by design: only Codex retains established history during bounded catch-up.
@@ -270,8 +266,17 @@ extension UsageStore {
            self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)?
                .snapshot?.historyCoverageIsEstablished == true
         {
-            return
+            return true
         }
+        return false
+    }
+
+    func publishTokenSnapshot(
+        _ snapshot: CostUsageTokenSnapshot,
+        for provider: UsageProvider,
+        accounting: PiSnapshotAccounting? = nil)
+    {
+        if self.retainsEstablishedTokenHistory(snapshot, for: provider) { return }
         let displayed = snapshot.reporting(self.settings.costReportingPeriod)
         self.tokenSnapshots[provider.instanceID] = displayed
         self.publishTokenSnapshotState(displayed, for: provider, accounting: accounting)
@@ -776,5 +781,17 @@ extension UsageStore {
         case CursorStatusProbeError.costRequestForbidden: max(ttl ?? 0, 6 * 60 * 60)
         default: nil
         }
+    }
+
+    func regularTokenSnapshotIsConfirmedEmpty(
+        _ snapshot: CostUsageTokenSnapshot,
+        for provider: UsageProvider) throws -> Bool
+    {
+        guard snapshot.daily.isEmpty, snapshot.meteredCostUSD == nil else { return false }
+        if snapshot.historyCoverageIsEstablished { return true }
+        guard self.retainsEstablishedTokenHistory(snapshot, for: provider) else {
+            throw TokenSnapshotError.historyUnavailable
+        }
+        return false
     }
 }
