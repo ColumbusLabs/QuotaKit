@@ -58,6 +58,7 @@ export KIMI_CODE_API_KEY="kimi-code-api-key-here"
 QuotaKit calls the selected region's `/coding/v1/usages` API with the key. Set
 `KIMI_CODE_BASE_URL` only when testing a compatible HTTPS proxy or alternate host with an explicit API key.
 QuotaKit never forwards a Kimi Code CLI credential to an endpoint override or to the International host.
+Numeric legacy fields outside the integer range decode safely; unusable request counts do not create quota windows.
 
 ### Method 2: Kimi Code CLI
 

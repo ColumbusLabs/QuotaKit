@@ -54,6 +54,8 @@ variables. Browser-imported cookies are cached and invalid cached cookies are cl
 
 Purchased credits do not reset, so the menu displays that balance without a reset prefix.
 
+Large finite credit counts retain their whole-number descriptions; nonfinite aggregate counts omit the description.
+
 ## CLI Usage
 
 ```bash

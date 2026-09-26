@@ -792,6 +792,26 @@ struct KimiUsageResponseParsingTests {
         #expect(snapshot.toUsageSnapshot().secondary?.resetDescription == "Rate: 1/100 per 5 hours")
     }
 
+    @Test(arguments: [
+        ("9223372036854775807", "9223372036854775807"),
+        ("9223372036854775808", "9.223372036854776e+18"),
+        ("-9223372036854775808", "-9223372036854775808"),
+        ("1e20", "1e+20"),
+        ("40.5", "40.5"),
+    ])
+    func `decodes numeric usage at integer boundaries`(number: String, expected: String) throws {
+        let json = """
+        {"limit": \(number), "used": \(number), "remaining": \(number), "reset_at": \(number)}
+        """
+
+        let detail = try JSONDecoder().decode(KimiUsageDetail.self, from: Data(json.utf8))
+
+        #expect(detail.limit == expected)
+        #expect(detail.used == expected)
+        #expect(detail.remaining == expected)
+        #expect(detail.resetTime == expected)
+    }
+
     @Test
     func `derives rate window duration from API units`() throws {
         let json = """
