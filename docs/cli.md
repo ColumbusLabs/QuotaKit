@@ -219,6 +219,7 @@ quotakit cost --days 90           # choose a 1...365 day cost window
 quotakit cost --provider codex --group-by project
 quotakit cost --provider claude --format json --pretty
 quotakit cost --provider cursor   # Cursor dashboard cost (API-rate + Cursor-metered)
+quotakit cost --provider muse     # local Muse token history; dollar costs unavailable
 quotakit serve --port 8080        # localhost HTTP JSON server
 quotakit serve --request-timeout 0 # disable serve request deadlines
 QUOTAKIT_DASHBOARD_TOKEN=YOUR_TOKEN quotakit serve # token-gated dashboard snapshot

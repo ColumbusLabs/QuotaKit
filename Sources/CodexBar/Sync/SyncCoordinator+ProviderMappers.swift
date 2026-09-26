@@ -601,7 +601,10 @@ extension SyncCoordinator {
         provider: UsageProvider,
         snapshot: UsageSnapshot?) -> SyncAlibabaTokenPlan?
     {
-        guard provider == .alibabatokenplan, let a = snapshot?.alibabaTokenPlanUsage else { return nil }
+        guard provider == .alibabatokenplan,
+              let a = snapshot?.alibabaTokenPlanUsage,
+              a.usedQuota != nil || a.totalQuota != nil || a.remainingQuota != nil
+        else { return nil }
         return SyncAlibabaTokenPlan(
             planName: a.planName,
             usedCredits: a.usedQuota,

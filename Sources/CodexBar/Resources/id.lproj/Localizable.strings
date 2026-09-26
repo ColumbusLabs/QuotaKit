@@ -133,6 +133,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Biaya";
+"Token history" = "Riwayat token";
+"Local token history · dollar costs unavailable" = "Riwayat token lokal · biaya dolar tidak tersedia";
+"Partial local history · recorded token subtotal" = "Riwayat lokal sebagian · subtotal token tercatat";
+"Local token history is unavailable or incomplete." = "Riwayat token lokal tidak tersedia atau tidak lengkap.";
 "Could not add Codex account" = "Tidak dapat menambahkan akun Codex";
 "Could not open Terminal for Gemini" = "Tidak dapat membuka Terminal untuk Gemini";
 "Could not start claude /login" = "Tidak dapat memulai claude /login";
@@ -1178,6 +1182,9 @@
 "Open MiMo Balance" = "Buka Saldo MiMo";
 "Open Moonshot Console" = "Buka Konsol Moonshot";
 "Open Ollama API Keys" = "Buka Kunci API Ollama";
+"Open llmman" = "Buka llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Disimpan di ~/.quotakit/config.json. Hanya diperlukan jika llmman serve mewajibkan kunci API.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Alamat llmman serve. Default: http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Buka Platform StepFun";
 "Open T3 Chat Settings" = "Buka Pengaturan T3 Chat";
 "Open Volcengine Ark Console" = "Buka Konsol Volcengine Ark";

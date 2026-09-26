@@ -120,6 +120,8 @@ Provider setup notes and Mac provider internals live in [docs/providers.md](docs
 - [ClawRouter](docs/clawrouter.md) — API key for monthly budget, spend, requests, tokens, and routed-provider usage.
 - [Wayfinder](docs/wayfinder.md) — Local router gateway polling for health, per-route breakdown, savings, and decision latency.
 - [LiteLLM](docs/litellm.md) — Virtual key + proxy URL for personal and team budget/spend tracking.
+- [DevPass](docs/devpass.md) — API key for plan credits, premium weekly usage, and key spend.
+- [Bifrost](docs/bifrost.md) — Virtual key + self-hosted gateway URL for budgets, rate limits, and model spend.
 - [Deepgram](docs/deepgram.md) — API key usage summaries across speech, agent, token, and TTS metrics.
 - [DeepInfra](docs/deepinfra.md) — API key for prepaid balance, amount owed, and billing-cycle spend.
 - [ai&](docs/aiand.md) — API key for 30-day organization spend from request logs.

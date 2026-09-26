@@ -472,7 +472,7 @@ struct ProviderMetricsInlineView: View {
 
             if let tokenUsage = self.model.tokenUsage {
                 ProviderMetricInlineTextRow(
-                    title: L("Cost"),
+                    title: UsageMenuCardView.Model.tokenUsageHeader(provider: self.model.provider),
                     value: tokenUsage.sessionLine)
                 ProviderMetricInlineTextRow(title: "", value: tokenUsage.monthLine)
                 if ProviderDescriptorRegistry.descriptor(for: self.model.provider).tokenCost.showsHintInProviderDetails,

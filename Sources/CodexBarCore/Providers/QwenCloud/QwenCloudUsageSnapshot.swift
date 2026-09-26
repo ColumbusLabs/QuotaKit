@@ -1,6 +1,6 @@
 import Foundation
 
-public struct QwenCloudUsageSnapshot: Sendable {
+public struct QwenCloudUsageSnapshot: Sendable, OneConsoleTokenPlanSnapshot {
     public let planName: String?
     public let usedQuota: Double?
     public let totalQuota: Double?
@@ -12,6 +12,7 @@ public struct QwenCloudUsageSnapshot: Sendable {
     public let weeklyUsedPercent: Double?
     public let weeklyTotalQuota: Double?
     public let weeklyResetsAt: Date?
+    public let monthlyWindow: RateWindow?
     public let updatedAt: Date
 
     public init(
@@ -26,6 +27,7 @@ public struct QwenCloudUsageSnapshot: Sendable {
         weeklyUsedPercent: Double? = nil,
         weeklyTotalQuota: Double? = nil,
         weeklyResetsAt: Date? = nil,
+        monthlyWindow: RateWindow? = nil,
         updatedAt: Date)
     {
         self.planName = planName
@@ -39,6 +41,7 @@ public struct QwenCloudUsageSnapshot: Sendable {
         self.weeklyUsedPercent = weeklyUsedPercent
         self.weeklyTotalQuota = weeklyTotalQuota
         self.weeklyResetsAt = weeklyResetsAt
+        self.monthlyWindow = monthlyWindow
         self.updatedAt = updatedAt
     }
 }
@@ -51,6 +54,7 @@ extension QwenCloudUsageSnapshot {
             totalQuota: alibabaSnapshot.totalQuota,
             remainingQuota: alibabaSnapshot.remainingQuota,
             resetsAt: alibabaSnapshot.resetsAt,
+            monthlyWindow: alibabaSnapshot.monthlyWindow,
             updatedAt: alibabaSnapshot.updatedAt)
     }
 
@@ -92,10 +96,14 @@ extension QwenCloudUsageSnapshot {
             accountOrganization: nil,
             loginMethod: loginMethod)
 
+        let monthlyIsPrimary = primary == nil && secondary == nil
         return UsageSnapshot(
-            primary: primary,
+            primary: primary ?? (monthlyIsPrimary ? self.monthlyWindow : nil),
             secondary: secondary,
             tertiary: nil,
+            extraRateWindows: monthlyIsPrimary ? nil : self.monthlyWindow.map {
+                [NamedRateWindow(id: "monthly", title: "Monthly", window: $0)]
+            },
             providerCost: nil,
             updatedAt: self.updatedAt,
             identity: identity)

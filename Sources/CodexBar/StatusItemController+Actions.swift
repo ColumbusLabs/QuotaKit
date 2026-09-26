@@ -393,6 +393,10 @@ extension StatusItemController: StatusItemMenuPersistentActionDelegate {
                 sourceLabel: self.store.sourceLabel(for: .qoder))
         }
 
+        if provider == .helmcode {
+            return HelmcodeProviderDescriptor.dashboardURL(snapshot: self.store.snapshot(for: provider.instanceID))
+        }
+
         let meta = self.store.metadata(for: provider)
         let urlString: String? = if provider == .claude, self.store.isClaudeSubscription() {
             meta.subscriptionDashboardURL ?? meta.dashboardURL

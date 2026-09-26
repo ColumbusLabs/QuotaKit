@@ -725,7 +725,11 @@ struct MenuDescriptor {
         } else if provider == .amp {
             AmpProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
         } else if provider == .alibabatokenplan {
-            AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot.primary) ?? metadata.sessionLabel
+            AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: snapshot) ?? metadata.sessionLabel
+        } else if provider == .qwencloud,
+                  snapshot.primary?.windowMinutes == 30 * 24 * 60
+        {
+            "Monthly"
         } else {
             metadata.sessionLabel
         }

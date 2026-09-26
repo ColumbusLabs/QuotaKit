@@ -147,6 +147,10 @@ public struct CodexBarConfig: Codable, Sendable {
         }
     }
 
+    public mutating func removeProviderConfig(for id: ProviderInstanceID) {
+        self.providers.removeAll { $0.id == id }
+    }
+
     private static func defaultProviderConfig(
         _ provider: UsageProvider,
         metadata: [UsageProvider: ProviderMetadata],

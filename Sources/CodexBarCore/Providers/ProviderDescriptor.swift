@@ -22,6 +22,11 @@ public enum ProviderTokenCostHintPlacement: Sendable, Equatable {
     case hidden
 }
 
+public enum ProviderTokenHistoryPresentation: Sendable, Equatable {
+    case costAndTokens
+    case tokensOnly
+}
+
 public struct ProviderTokenCostConfig: Sendable {
     public let supportsTokenCost: Bool
     public let noDataMessage: @Sendable () -> String
@@ -36,6 +41,9 @@ public struct ProviderTokenCostConfig: Sendable {
     public let showsRequestHistory: Bool
     public let hintPlacement: ProviderTokenCostHintPlacement
     public let chartEstimateDisclaimer: ProviderTokenCostHint?
+    /// Keep calendar slots for missing dates; coverage determines whether their costs are known.
+    public let preservesCalendarDaysInCharts: Bool
+    public let presentation: ProviderTokenHistoryPresentation
 
     public init(
         supportsTokenCost: Bool,
@@ -50,7 +58,9 @@ public struct ProviderTokenCostConfig: Sendable {
         primaryValue: ProviderTokenCostPrimaryValue = .session,
         showsRequestHistory: Bool = true,
         hintPlacement: ProviderTokenCostHintPlacement = .afterRequestHistory,
-        chartEstimateDisclaimer: ProviderTokenCostHint? = nil)
+        chartEstimateDisclaimer: ProviderTokenCostHint? = nil,
+        preservesCalendarDaysInCharts: Bool = false,
+        presentation: ProviderTokenHistoryPresentation = .costAndTokens)
     {
         self.supportsTokenCost = supportsTokenCost
         self.noDataMessage = noDataMessage
@@ -65,6 +75,8 @@ public struct ProviderTokenCostConfig: Sendable {
         self.showsRequestHistory = showsRequestHistory
         self.hintPlacement = hintPlacement
         self.chartEstimateDisclaimer = chartEstimateDisclaimer
+        self.preservesCalendarDaysInCharts = preservesCalendarDaysInCharts
+        self.presentation = presentation
     }
 }
 
@@ -308,6 +320,7 @@ public struct ProviderDescriptor: Sendable {
     public let presentation: ProviderUsagePresentation
     public let settingsSection: ProviderSettingsSectionRegistration
     public let credentials: ProviderCredentialAdapter?
+    public let pluginResultPolicy: ProviderPluginResultPolicy
     public let config: ProviderConfigCapabilities
     public let menuBarMetrics: ProviderMenuBarMetricCapabilities
     public let fetchPlan: ProviderFetchPlan
@@ -319,6 +332,7 @@ public struct ProviderDescriptor: Sendable {
         menuBarMetrics: ProviderMenuBarMetricCapabilities? = nil,
         settingsSection: ProviderSettingsSectionRegistration? = nil,
         credentials: ProviderCredentialAdapter? = nil,
+        pluginResultPolicy: ProviderPluginResultPolicy = ProviderPluginResultPolicy(),
         config: ProviderConfigCapabilities = ProviderConfigCapabilities(),
         metadata: ProviderMetadata,
         branding: ProviderBranding,
@@ -339,6 +353,7 @@ public struct ProviderDescriptor: Sendable {
         self.history = history
         self.presentation = presentation
         self.credentials = credentials
+        self.pluginResultPolicy = pluginResultPolicy
         self.config = config
         self.menuBarMetrics = menuBarMetrics ?? (metadata.balanceOnly ? .automaticOnly : .standard)
         self.fetchPlan = fetchPlan

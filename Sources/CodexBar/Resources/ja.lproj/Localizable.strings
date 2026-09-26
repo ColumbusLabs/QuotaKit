@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "コスト";
+"Token history" = "トークン履歴";
+"Local token history · dollar costs unavailable" = "ローカルトークン履歴 · ドル建てコストは不明";
+"Partial local history · recorded token subtotal" = "一部のローカル履歴 · 記録されたトークンの小計";
+"Local token history is unavailable or incomplete." = "ローカルトークン履歴を取得できないか、履歴が不完全です。";
 "Could not add Codex account" = "Codex アカウントを追加できませんでした";
 "Could not open Terminal for Gemini" = "Gemini 用のターミナルを開けませんでした";
 "Could not start claude /login" = "claude /login を開始できませんでした";
@@ -1156,6 +1160,9 @@
 "Open MiMo Balance" = "MiMo 残高を開く";
 "Open Moonshot Console" = "Moonshot コンソールを開く";
 "Open Ollama API Keys" = "Ollama API キーを開く";
+"Open llmman" = "llmman を開く";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "~/.quotakit/config.json に保存されます。llmman serve が API キーを要求する場合のみ必要です。";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "llmman serve のアドレス。既定値は http://127.0.0.1:17434 です。";
 "Open StepFun Platform" = "StepFun プラットフォームを開く";
 "Open T3 Chat Settings" = "T3 Chat 設定を開く";
 "Open Volcengine Ark Console" = "Volcengine Ark コンソールを開く";

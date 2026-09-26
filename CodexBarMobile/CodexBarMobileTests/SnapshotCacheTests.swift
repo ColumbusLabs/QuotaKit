@@ -932,6 +932,35 @@ struct SnapshotCacheTests {
         #expect(retained.codexResetCredits?.availableCount == 1)
     }
 
+    @Test
+    func `Detail-only Atlas Cloud snapshot is retained by ghost filtering`() throws {
+        var cache = SnapshotCache()
+        let details = [SyncProviderDetailSection(
+            title: "Account balance",
+            rows: [.init(label: "Available balance", value: "$95.50")])]
+        let provider = ProviderUsageSnapshot(
+            providerID: "atlascloud",
+            providerName: "Atlas Cloud",
+            primary: nil,
+            secondary: nil,
+            accountEmail: nil,
+            loginMethod: "API",
+            statusMessage: nil,
+            isError: false,
+            lastUpdated: t1,
+            providerDetails: details)
+        let snapshot = SyncedUsageSnapshot(
+            providers: [provider],
+            syncTimestamp: t1,
+            deviceName: "Mac A",
+            deviceID: "mac-A")
+
+        cache.replaceFromFullFetch(perProviderSnapshots: [snapshot], legacySnapshots: [])
+
+        let retained = try #require(cache.perProviderByDevice["mac-A"]?["atlascloud|_"])
+        #expect(retained.providerDetails == details)
+    }
+
     // MARK: - Codex review P1 — preserve on transient fetch error
 
     @Test

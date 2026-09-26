@@ -23,6 +23,10 @@ import Testing
 @MainActor
 // swiftlint:disable:next type_body_length
 struct ProviderArchitectureGatekeeperTests {
+    private static let postBaselineProviders: Set<UsageProvider> = [
+        .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
+        .atlascloud, .vercel, .llmman, .nous, .muse,
+    ]
     @Test
     func `every provider has descriptor and implementation manifest entries`() {
         let expected = Set(UsageProvider.allCases)
@@ -147,7 +151,10 @@ struct ProviderArchitectureGatekeeperTests {
     func `descriptor widget colors preserve the pre-derivation literals`() {
         var widgetFingerprint: UInt64 = 1_469_598_103_934_665_603
         var burnDownFingerprint = widgetFingerprint
-        for descriptor in ProviderDescriptorRegistry.all {
+        let legacyDescriptors = ProviderDescriptorRegistry.all.filter {
+            !Self.postBaselineProviders.contains($0.id)
+        }
+        for descriptor in legacyDescriptors {
             Self.hash(descriptor.id.rawValue.utf8, into: &widgetFingerprint)
             Self.hash(descriptor.branding.widgetColor, into: &widgetFingerprint)
             Self.hash(descriptor.id.rawValue.utf8, into: &burnDownFingerprint)
@@ -160,7 +167,9 @@ struct ProviderArchitectureGatekeeperTests {
 
     @Test
     func `descriptor unavailable debug messages preserve the legacy table`() throws {
-        let descriptors = ProviderDescriptorRegistry.all.filter { $0.metadata.debugLogUnavailableMessage != nil }
+        let descriptors = ProviderDescriptorRegistry.all.filter {
+            $0.metadata.debugLogUnavailableMessage != nil && !Self.postBaselineProviders.contains($0.id)
+        }
         var fingerprint: UInt64 = 1_469_598_103_934_665_603
         for descriptor in descriptors {
             Self.hash(descriptor.id.rawValue.utf8, into: &fingerprint)
@@ -194,20 +203,20 @@ struct ProviderArchitectureGatekeeperTests {
     func `small provider capabilities preserve legacy registries`() {
         let descriptors = ProviderDescriptorRegistry.all
         #expect(Set(descriptors.filter(\.metadata.balanceOnly).map(\.id)) == [
-            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper,
+            .deepseek, .deepinfra, .mistral, .moonshot, .poe, .hyper, .atlascloud, .vercel,
         ])
         #expect(Set(descriptors.filter(\.metadata.usesDetailBackedWindow).map(\.id)) == [
             .warp, .kilo, .mistral, .deepseek, .deepinfra, .qoder, .crof, .chutes, .litellm, .longcat,
-            .v0,
+            .v0, .bifrost, .aixy, .raycast, .llmman,
         ])
         #if os(macOS)
         // Antigravity joined via the tokscale-compatible local usage reader.
         #expect(Set(descriptors.filter(\.tokenCost.supportsTokenSnapshot).map(\.id)) == [
-            .codex, .claude, .cursor, .vertexai, .bedrock, .antigravity,
+            .codex, .claude, .cursor, .vertexai, .bedrock, .antigravity, .muse,
         ])
         #else
         #expect(Set(descriptors.filter(\.tokenCost.supportsTokenSnapshot).map(\.id)) == [
-            .codex, .claude, .vertexai, .bedrock, .antigravity,
+            .codex, .claude, .vertexai, .bedrock, .antigravity, .muse,
         ])
         #endif
         #expect(Set(descriptors.filter { $0.cli.binaryLocator != nil }.map(\.id)) == [
@@ -2303,13 +2312,13 @@ struct ProviderArchitectureGatekeeperTests {
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
             line: 390,
             anchor: "if provider == .qoder {",
-            expectedProviderIDs: ["claude", "qoder"],
-            expectedReferenceCount: 3,
-            expectedReferenceFingerprint: ["qoder@0", "qoder@3", "claude@7"],
+            expectedProviderIDs: ["claude", "helmcode", "qoder"],
+            expectedReferenceCount: 4,
+            expectedReferenceFingerprint: ["qoder@0", "qoder@3", "helmcode@6", "claude@11"],
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 460,
+            line: 464,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 4,
@@ -2317,7 +2326,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 481,
+            line: 485,
             anchor: "?? (self.store.isEnabled(.codex) ? .codex : self.store.enabledFirstPartyProviders().first)",
             expectedProviderIDs: ["claude", "codex"],
             expectedReferenceCount: 4,
@@ -2325,7 +2334,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 554,
+            line: 558,
             anchor: "?? .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2333,7 +2342,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 613,
+            line: 617,
             anchor: "self.lazyStatusItem(for: provider ?? .codex)",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,
@@ -2341,7 +2350,7 @@ struct ProviderArchitectureGatekeeperTests {
             reason: "This exact app-runtime bridge coordinates provider-owned state through the shared controller."),
         AllowedProviderConstruct(
             path: "Sources/CodexBar/StatusItemController+Actions.swift",
-            line: 710,
+            line: 714,
             anchor: "return .codex",
             expectedProviderIDs: ["codex"],
             expectedReferenceCount: 1,

@@ -1,5 +1,4 @@
 import Foundation
-import SweetCookieKit
 
 public enum ReplicateProviderDescriptor {
     public static let descriptor: ProviderDescriptor = Self.makeDescriptor()
@@ -10,15 +9,6 @@ public enum ReplicateProviderDescriptor {
         injection: .cookieHeader,
         requiresManualCookieSource: true,
         cookieName: nil))
-
-    /// Chrome is the documented default; avoid unrelated browser keychains and Full Disk Access prompts.
-    private static var browserCookieOrder: BrowserCookieImportOrder? {
-        #if os(macOS)
-        [.chrome]
-        #else
-        nil
-        #endif
-    }
 
     static func makeDescriptor() -> ProviderDescriptor {
         ProviderDescriptor(
@@ -41,7 +31,8 @@ public enum ReplicateProviderDescriptor {
                 widgetSelectable: false,
                 isPrimaryProvider: false,
                 usesAccountFallback: false,
-                browserCookieOrder: self.browserCookieOrder,
+                browserCookieOrder: BrowserCookieImportSupport.chromeOnly(
+                    reason: "Other browsers use Manual to avoid extra permission prompts"),
                 dashboardURL: "https://replicate.com/account/billing",
                 statusPageURL: nil),
             branding: ProviderBranding(

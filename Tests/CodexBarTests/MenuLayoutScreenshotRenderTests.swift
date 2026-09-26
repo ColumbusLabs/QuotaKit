@@ -306,6 +306,26 @@ final class MenuLayoutScreenshotRenderTests: XCTestCase {
 
     // MARK: - Rendering
 
+    static func pngDataWithWindow(hosting: NSView) -> Data? {
+        let size = hosting.fittingSize
+        guard size.width > 0, size.height > 0 else { return nil }
+        hosting.frame = CGRect(origin: .zero, size: size)
+        let window = NSWindow(contentRect: hosting.frame, styleMask: [.borderless], backing: .buffered, defer: false)
+        window.isReleasedWhenClosed = false
+        window.appearance = hosting.appearance
+        window.contentView = hosting
+        defer {
+            window.contentView = nil
+            window.close()
+        }
+        window.layoutIfNeeded()
+        hosting.layoutSubtreeIfNeeded()
+        RunLoop.current.run(until: Date().addingTimeInterval(0.1))
+        guard let representation = hosting.bitmapImageRepForCachingDisplay(in: hosting.bounds) else { return nil }
+        hosting.cacheDisplay(in: hosting.bounds, to: representation)
+        return representation.representation(using: .png, properties: [:])
+    }
+
     private static func pngData(for view: AnyView) -> Data? {
         let hosting = NSHostingView(rootView: view)
         hosting.appearance = NSAppearance(named: .darkAqua)

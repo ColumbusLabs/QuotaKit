@@ -1,6 +1,35 @@
 {
   "sourceLanguage": "en",
   "strings": {
+    "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone.": {
+      "extractionState": "manual",
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan and Qwen Cloud monthly quotas now show a Monthly label on iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan と Qwen Cloud の月間クォータが、iPhone で「月間」と表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan 和 Qwen Cloud 的月度额度现在会在 iPhone 上标为“每月”。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Alibaba Token Plan 和 Qwen Cloud 的每月額度現在會在 iPhone 上標示為「每月」。"
+          }
+        }
+      }
+    },
     "$%.2f / 30d": {
       "extractionState": "manual",
       "localizations": {
@@ -15931,6 +15960,90 @@
         }
       }
     },
+    "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode model quotas and TypeSafe billing balances now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode のモデルクォータと TypeSafe の請求残高が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode 模型配额和 TypeSafe 账单余额现可从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Helmcode 模型配額和 TypeSafe 帳單餘額現可從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
+    "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy の予算、xKiro の1日の無料トークン使用量、Raycast の AI クレジットが QuotaKit Mac から同期され、iPhone の専用カードとクォータ通知に表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy 预算、xKiro 每日免费令牌用量和 Raycast AI 点数现可从 QuotaKit Mac 同步，并在 iPhone 品牌卡片和配额提醒中显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy 預算、xKiro 每日免費權杖用量與 Raycast AI 點數現可從 QuotaKit Mac 同步，並顯示於 iPhone 品牌卡片及配額提醒。"
+          }
+        }
+      }
+    },
+    "Bifrost and DevPass quota windows now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost and DevPass quota windows now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost と DevPass のクォータ期間が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost 和 DevPass 配额窗口现在会从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost 和 DevPass 配額週期現在會從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits.": {
       "localizations": {
         "en": {
@@ -20209,6 +20322,34 @@
           "stringUnit": {
             "state": "translated",
             "value": "已為全部支援的供應商恢復配額提醒訂閱。"
+          }
+        }
+      }
+    },
+    "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud and Vercel AI Gateway balances, plus llmman model memory, now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud と Vercel AI Gateway の残高、および llmman のモデルメモリが QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud 和 Vercel AI Gateway 余额以及 llmman 模型内存现在会从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Atlas Cloud 和 Vercel AI Gateway 餘額以及 llmman 模型記憶體現在會從 QuotaKit Mac 同步到 iPhone。"
           }
         }
       }

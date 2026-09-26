@@ -441,6 +441,7 @@ final class UsageStore {
     @ObservationIgnored var lastPermissionPromptNotificationAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastTokenFetchScope: [ProviderInstanceID: String] = [:]
+    @ObservationIgnored var tokenFetchFailureCooldowns: [ProviderInstanceID: TokenFetchFailureCooldown] = [:]
     @ObservationIgnored var lastSpendDashboardTokenFetchAt: [ProviderInstanceID: Date] = [:]
     @ObservationIgnored var lastSpendDashboardTokenFetchScope: [ProviderInstanceID: String] = [:]
     @ObservationIgnored var spendDashboardTokenRefreshInFlight: Set<ProviderInstanceID> = []
@@ -1496,6 +1497,10 @@ extension UsageStore {
         let costScopeSignature = self.tokenSnapshotScopeSignature(for: provider)
         let publicationRevision = self.providerPublicationRevision(for: provider)
         let providerConfigRevision = self.settings.providerConfigRevision(for: provider)
+        let explicitlyRequested = force && ProviderInteractionContext.current == .userInitiated
+        if !explicitlyRequested, self.tokenRefreshFailureIsCoolingDown(provider: provider, now: now) {
+            return
+        }
         if !force, self.tokenRefreshCanReuseCurrentSnapshot(
             provider: provider,
             now: now,
@@ -1503,6 +1508,7 @@ extension UsageStore {
         {
             return
         }
+        self.tokenFetchFailureCooldowns.removeValue(forKey: provider.instanceID)
         self.lastTokenFetchAt[provider.instanceID] = now
         self.lastTokenFetchScope[provider.instanceID] = costScopeSignature
         self.tokenRefreshInFlight.insert(provider.instanceID)
@@ -1585,24 +1591,28 @@ extension UsageStore {
                 self.requestTokenRefreshAfterStaleCompletion(for: provider)
                 return
             }
-            if error is CancellationError {
+            let cancelled = Task.isCancelled || error is CancellationError
+            let retryDelay = Self.tokenFetchFailureRetryDelay(error, ttl: self.tokenFetchTTL)
+            if cancelled || retryDelay == nil {
                 self.clearTokenFetchMetadataIfMatching(
                     provider: provider,
                     attemptedAt: now,
                     costScopeSignature: costScopeSignature)
-                return
+            } else if let retryDelay {
+                self.tokenFetchFailureCooldowns[provider.instanceID] = TokenFetchFailureCooldown(
+                    attemptedAt: now,
+                    retryAfter: now.addingTimeInterval(retryDelay),
+                    publicationRevision: publicationRevision,
+                    providerConfigRevision: providerConfigRevision,
+                    historyDays: historyDays,
+                    costScopeSignature: self.tokenSnapshotScopeSignature(for: provider))
             }
+            if cancelled { return }
             let duration = Date().timeIntervalSince(startedAt)
             let msg = error.localizedDescription
             let durationText = String(format: "%.2f", duration)
             let message = "cost usage failed provider=\(provider.rawValue) duration=\(durationText)s error=\(msg)"
             self.tokenCostLogger.error(message)
-            if Self.tokenFetchFailureAllowsEarlyRetry(error) {
-                self.clearTokenFetchMetadataIfMatching(
-                    provider: provider,
-                    attemptedAt: now,
-                    costScopeSignature: costScopeSignature)
-            }
             let hadPriorData = self.tokenSnapshots[provider.instanceID] != nil
             let shouldSurface = self.tokenFailureGates[provider.instanceID]?
                 .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
@@ -1633,6 +1643,7 @@ extension UsageStore {
         self.tokenFailureGates[provider.instanceID]?.reset()
         self.lastTokenFetchAt.removeValue(forKey: provider.instanceID)
         self.lastTokenFetchScope.removeValue(forKey: provider.instanceID)
+        self.tokenFetchFailureCooldowns.removeValue(forKey: provider.instanceID)
         self.lastSpendDashboardTokenFetchAt.removeValue(forKey: provider.instanceID)
         self.lastSpendDashboardTokenFetchScope.removeValue(forKey: provider.instanceID)
     }

@@ -39,6 +39,7 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .chutes, environmentKey: "CHUTES_API_KEY"),
             .init(provider: .poe, environmentKey: "POE_API_KEY"),
             .init(provider: .litellm, environmentKey: "LITELLM_API_KEY"),
+            .init(provider: .bifrost, environmentKey: "BIFROST_API_KEY"),
             .init(provider: .clawrouter, environmentKey: "CLAWROUTER_API_KEY"),
             .init(provider: .factory, environmentKey: "FACTORY_API_KEY"),
             .init(provider: .sub2api, environmentKey: "SUB2API_API_KEY"),
@@ -53,6 +54,9 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .crof, environmentKey: "CROF_API_KEY"),
             .init(provider: .doubao, environmentKey: "ARK_API_KEY"),
             .init(provider: .hyper, environmentKey: "HYPER_API_KEY"),
+            .init(provider: .atlascloud, environmentKey: "ATLASCLOUD_API_KEY"),
+            .init(provider: .vercel, environmentKey: "AI_GATEWAY_API_KEY"),
+            .init(provider: .llmman, environmentKey: "LLMMAN_API_KEY"),
         ]
 
         for fixture in fixtures {
@@ -147,6 +151,7 @@ struct ProviderCredentialCharacterizationTests {
         let endpointFixtures: [(UsageProvider, String, String)] = [
             (.llmproxy, "LLM_PROXY_API_KEY", "LLM_PROXY_BASE_URL"),
             (.litellm, "LITELLM_API_KEY", "LITELLM_BASE_URL"),
+            (.bifrost, "BIFROST_API_KEY", "BIFROST_BASE_URL"),
             (.clawrouter, "CLAWROUTER_API_KEY", "CLAWROUTER_BASE_URL"),
             (.sub2api, "SUB2API_API_KEY", "SUB2API_BASE_URL"),
         ]
@@ -210,6 +215,8 @@ struct ProviderCredentialCharacterizationTests {
             (.groq, "GROQ_API_KEY"),
             (.llmproxy, "LLM_PROXY_API_KEY"),
             (.litellm, "LITELLM_API_KEY"),
+            (.bifrost, "BIFROST_API_KEY"),
+            (.aixy, "AIXY_API_KEY"),
             (.sub2api, "SUB2API_API_KEY"),
             (.ibmbob, "BOBSHELL_API_KEY"),
             (.doubao, "ARK_API_KEY"),
@@ -220,7 +227,7 @@ struct ProviderCredentialCharacterizationTests {
         let cookieProviders: [UsageProvider] = [
             .kimi,
             .claude, .cursor, .opencode, .opencodego, .factory, .minimax, .manus,
-            .augment, .ollama, .abacus, .mistral, .qoder, .stepfun, .replicate,
+            .augment, .ollama, .abacus, .mistral, .qoder, .stepfun, .replicate, .typesafe,
         ]
 
         for (provider, key) in environmentProviders {
@@ -259,6 +266,7 @@ struct ProviderCredentialCharacterizationTests {
             .qoder: "account-token",
             .stepfun: "account-token",
             .replicate: "account-token",
+            .typesafe: "account-token",
         ]
         for provider in cookieProviders {
             #expect(TokenAccountSupportCatalog.normalizedCookieHeader(
@@ -308,6 +316,8 @@ struct ProviderCredentialCharacterizationTests {
             (.venice, "VENICE_API_KEY"), (.elevenlabs, "ELEVENLABS_API_KEY"),
             (.neuralwatt, "NEURALWATT_API_KEY"), (.groq, "GROQ_API_KEY"),
             (.llmproxy, "LLM_PROXY_API_KEY"), (.litellm, "LITELLM_API_KEY"),
+            (.bifrost, "BIFROST_API_KEY"),
+            (.aixy, "AIXY_API_KEY"),
             (.sub2api, "SUB2API_API_KEY"), (.antigravity, "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON"),
             (.ibmbob, "BOBSHELL_API_KEY"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
@@ -373,6 +383,10 @@ struct ProviderCredentialCharacterizationTests {
                 provider: .bedrock,
                 environment: ["AWS_ACCESS_KEY_ID": "id", "AWS_SECRET_ACCESS_KEY": "secret"],
                 mode: "api"),
+            .init(
+                provider: .bifrost,
+                environment: ["BIFROST_API_KEY": "token", "BIFROST_BASE_URL": "https://bifrost.example.com"],
+                mode: "api"),
             .init(provider: .claude, environment: ["ANTHROPIC_ADMIN_KEY": "token"], mode: "api"),
             .init(provider: .clinepass, environment: ["CLINE_API_KEY": "token"], mode: "api"),
             .init(provider: .codebuff, environment: ["CODEBUFF_API_KEY": "token"], mode: "api"),
@@ -395,6 +409,7 @@ struct ProviderCredentialCharacterizationTests {
             .init(provider: .sub2api, environment: ["SUB2API_API_KEY": "token"], mode: "api"),
             .init(provider: .moonshot, environment: ["MOONSHOT_API_KEY": "token"], mode: "api"),
             .init(provider: .ollama, environment: ["OLLAMA_API_KEY": "token"], mode: "api"),
+            .init(provider: .llmman, environment: ["LLMMAN_API_KEY": "token"], mode: "api"),
             .init(provider: .openai, environment: ["OPENAI_ADMIN_KEY": "token"], mode: "api"),
             .init(provider: .openrouter, environment: ["OPENROUTER_API_KEY": "token"], mode: "api"),
             .init(provider: .stepfun, environment: ["STEPFUN_TOKEN": "token"], mode: "api"),

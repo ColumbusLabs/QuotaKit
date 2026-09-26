@@ -20,6 +20,7 @@ extension ProviderInstanceID {
     public static let antigravity = UsageProvider.antigravity.instanceID
     public static let copilot = UsageProvider.copilot.instanceID
     public static let devin = UsageProvider.devin.instanceID
+    public static let devpass = UsageProvider.devpass.instanceID
     public static let zai = UsageProvider.zai.instanceID
     public static let minimax = UsageProvider.minimax.instanceID
     public static let manus = UsageProvider.manus.instanceID
@@ -58,6 +59,7 @@ extension ProviderInstanceID {
     public static let groq = UsageProvider.groq.instanceID
     public static let llmproxy = UsageProvider.llmproxy.instanceID
     public static let litellm = UsageProvider.litellm.instanceID
+    public static let bifrost = UsageProvider.bifrost.instanceID
     public static let deepgram = UsageProvider.deepgram.instanceID
     public static let poe = UsageProvider.poe.instanceID
     public static let chutes = UsageProvider.chutes.instanceID
@@ -78,6 +80,16 @@ extension ProviderInstanceID {
     public static let huggingface = UsageProvider.huggingface.instanceID
     public static let replicate = UsageProvider.replicate.instanceID
     public static let hyper = UsageProvider.hyper.instanceID
+    public static let aixy = UsageProvider.aixy.instanceID
+    public static let xkiro = UsageProvider.xkiro.instanceID
+    public static let raycast = UsageProvider.raycast.instanceID
+    public static let helmcode = UsageProvider.helmcode.instanceID
+    public static let typesafe = UsageProvider.typesafe.instanceID
+    public static let atlascloud = UsageProvider.atlascloud.instanceID
+    public static let vercel = UsageProvider.vercel.instanceID
+    public static let llmman = UsageProvider.llmman.instanceID
+    public static let nous = UsageProvider.nous.instanceID
+    public static let muse = UsageProvider.muse.instanceID
 }
 
 // swiftformat:enable sortDeclarations

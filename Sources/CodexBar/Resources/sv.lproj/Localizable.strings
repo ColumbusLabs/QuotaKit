@@ -149,6 +149,10 @@
 "Cookie: …" = "Cookie: …";
 "CopilotDeviceFlow" = "CopilotDeviceFlow";
 "Cost" = "Kostnad";
+"Token history" = "Tokenhistorik";
+"Local token history · dollar costs unavailable" = "Lokal tokenhistorik · kostnader i dollar saknas";
+"Partial local history · recorded token subtotal" = "Delvis lokal historik · delsumma för registrerade token";
+"Local token history is unavailable or incomplete." = "Lokal tokenhistorik saknas eller är ofullständig.";
 "Could not add Codex account" = "Kunde inte lägga till Codex-konto";
 "Could not open Terminal for Gemini" = "Kunde inte öppna Terminal för Gemini";
 "Could not start claude /login" = "Kunde inte starta claude /login";
@@ -1031,6 +1035,9 @@
 "Requests" = "Förfrågningar";
 "Antigravity login timed out" = "Antigravity-inloggning tog för lång tid";
 "%@ requests" = "%@ förfrågningar";
+"Open llmman" = "Öppna llmman";
+"Stored in ~/.quotakit/config.json. Only needed when llmman serve requires API keys." = "Lagras i ~/.quotakit/config.json. Behövs bara när llmman serve kräver API-nycklar.";
+"Address of llmman serve. Defaults to http://127.0.0.1:17434." = "Adress till llmman serve. Standard är http://127.0.0.1:17434.";
 "Open StepFun Platform" = "Öppna StepFun-plattformen";
 "CodexBar will ask macOS Keychain for your OpenCode cookie header so it can fetch usage. Click OK to continue." = "QuotaKit kommer att be macOS Nyckelring om din OpenCode-cookie-header så att användning kan hämtas. Klicka på OK för att fortsätta.";
 "Endpoint" = "Slutpunkt";

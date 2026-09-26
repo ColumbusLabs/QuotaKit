@@ -36,6 +36,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case antigravity
     case copilot
     case devin
+    case devpass
     case zai
     case minimax
     case manus
@@ -74,6 +75,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case groq
     case llmproxy
     case litellm
+    case bifrost
     case deepgram
     case poe
     case chutes
@@ -94,6 +96,16 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case huggingface
     case replicate
     case hyper
+    case aixy
+    case xkiro
+    case raycast
+    case helmcode
+    case typesafe
+    case atlascloud
+    case vercel
+    case llmman
+    case nous
+    case muse
 }
 
 // swiftformat:enable sortDeclarations

@@ -167,6 +167,13 @@
           inset 0 1px 0 rgba(255, 255, 255, 0.22),
           inset 0 -1px 0 rgba(0, 0, 0, 0.18);
       }
+      .chip-logo {
+        width: 22px;
+        height: 22px;
+        background: var(--ink);
+        -webkit-mask: var(--icon) center / contain no-repeat;
+        mask: var(--icon) center / contain no-repeat;
+      }
       .name {
         font-size: 13px;
         font-weight: 500;
@@ -199,7 +206,7 @@
 
       <div>
         <h1>Every AI coding limit, <span class="grad">in your menu&nbsp;bar.</span></h1>
-        <p class="sub"><strong>67 providers</strong><span class="dot">·</span>usage windows, credits, resets<span class="dot">·</span>one status item each, or merged.</p>
+        <p class="sub"><strong>87 providers</strong><span class="dot">·</span>usage windows, credits, resets<span class="dot">·</span>one status item each, or merged.</p>
       </div>
 
       <ul class="grid">
@@ -233,9 +240,9 @@
         <li><div class="tile" style="--brand:#20B2AA"><div class="chip">P</div><div class="name">Perplexity</div></div></li>
         <li><div class="tile" style="--brand:#38BDF8"><div class="chip">A</div><div class="name">Abacus AI</div></div></li>
         <li><div class="tile" style="--brand:#FF500F"><div class="chip">M</div><div class="name">Mistral</div></div></li>
-        <li><div class="tile" style="--brand:#527DF0"><div class="chip">D</div><div class="name">DeepSeek</div></div></li>
-        <li><div class="tile" style="--brand:#44C800;--ink:#0a0a0c"><div class="chip">C</div><div class="name">Codebuff</div></div></li>
-        <li><div class="tile" style="--brand:#4C89C0"><div class="chip">LL</div><div class="name">LiteLLM</div></div></li>
+        <li><div class="tile" style="--brand:#4934E1"><div class="chip" style="--icon:url('./logos/helmcode.svg')"><span class="chip-logo"></span></div><div class="name">Helmcode</div></div></li>
+        <li><div class="tile" style="--brand:#111111"><div class="chip" style="--icon:url('./logos/v0.svg')"><span class="chip-logo"></span></div><div class="name">v0</div></div></li>
+        <li><div class="tile" style="--brand:#111111"><div class="chip" style="--icon:url('./logos/typesafe.svg')"><span class="chip-logo"></span></div><div class="name">TypeSafe</div></div></li>
       </ul>
     </div>
   </body>

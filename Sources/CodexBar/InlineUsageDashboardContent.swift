@@ -135,6 +135,12 @@ extension UsageMenuCardView.Model {
         comparisonPeriodsEnabled: Bool,
         preferredCurrencyCode: String) -> InlineUsageDashboardModel
     {
+        if ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.presentation == .tokensOnly {
+            return self.tokenHistoryInlineDashboard(
+                provider: provider,
+                snapshot: snapshot,
+                comparisonPeriodsEnabled: comparisonPeriodsEnabled)
+        }
         let displayCurrencyCode = UsageFormatter.convertedCost(
             0,
             preferredCurrency: preferredCurrencyCode,
@@ -274,6 +280,48 @@ extension UsageMenuCardView.Model {
             detailLines: details)
         model.currencyCode = displayCurrencyCode
         return model
+    }
+
+    private static func tokenHistoryInlineDashboard(
+        provider: UsageProvider,
+        snapshot: CostUsageTokenSnapshot,
+        comparisonPeriodsEnabled: Bool) -> InlineUsageDashboardModel
+    {
+        let historyDays = max(1, min(365, snapshot.historyDays))
+        let historyLabel = snapshot.historyLabel ?? Self.costHistoryWindowLabel(days: historyDays)
+        var kpis = [InlineUsageDashboardModel.KPI(
+            title: L("Today"),
+            value: L("%@ tokens", snapshot.sessionTokens.map(UsageFormatter.tokenCountString) ?? "—"),
+            emphasis: true)]
+        if historyDays > 1 {
+            kpis.append(.init(
+                title: historyLabel,
+                value: L("%@ tokens", snapshot.last30DaysTokens.map(UsageFormatter.tokenCountString) ?? "—"),
+                emphasis: false))
+        }
+        var details = Self.tokenUsageHintLines(provider: provider)
+        if details.isEmpty { details.append(L("Local token history · dollar costs unavailable")) }
+        if let coverage = Self.tokenHistoryCoverageHint(snapshot) { details.append(coverage) }
+        if comparisonPeriodsEnabled {
+            details.append(contentsOf: snapshot.comparisonSummaries().map {
+                Self.tokenWindowLine(label: Self.costHistoryWindowLabel(days: $0.days), tokens: $0.totalTokens)
+            })
+        }
+        let points = snapshot.daily.suffix(historyDays).compactMap { entry -> InlineUsageDashboardModel.Point? in
+            guard let tokens = entry.totalTokens, tokens >= 0 else { return nil }
+            return InlineUsageDashboardModel.Point(
+                id: entry.date,
+                label: Self.shortDayLabel(entry.date),
+                value: Double(tokens),
+                accessibilityValue: "\(entry.date): \(L("%@ tokens", UsageFormatter.tokenCountString(tokens)))")
+        }
+        let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
+        return InlineUsageDashboardModel(
+            accessibilityLabel: L("%@: %@", name, L("Token history")),
+            valueStyle: .tokens,
+            kpis: kpis,
+            points: points,
+            detailLines: details)
     }
 
     private static func costHistoryTrailingKPIs(

@@ -533,6 +533,7 @@ extension CodexBarCLI {
             selectedTokenAccountID: account?.id,
             tokenAccountTokenUpdater: tokenContext.tokenUpdater(for: account),
             providerManualTokenUpdater: tokenContext.manualTokenUpdater(),
+            settingsWriter: Self.pluginSettingsWriter(provider: provider, config: tokenContext.config),
             persistsCLISessions: Self.persistsCLISessions(provider: provider, command: command),
             persistentCLISessionIdleWindow: command.persistentCLISessionIdleWindow,
             resolvedCLIVersion: resolvedCLIVersion)
@@ -833,6 +834,23 @@ extension CodexBarCLI {
             descriptor.fetchPlan.sourceModes.contains(.web)
         case .cli, .oauth, .api:
             false
+        }
+    }
+}
+
+extension CodexBarCLI {
+    fileprivate static func pluginSettingsWriter(
+        provider: UsageProvider,
+        config: CodexBarConfig) -> ProviderFetchContext.SettingsWriter
+    {
+        let expected = config.providerConfig(for: provider.instanceID)
+        return { target, values in
+            guard target == provider else { return .stale }
+            return await ProviderPluginConfigWriter.shared.save(
+                provider: target,
+                values: values,
+                expected: expected,
+                store: CodexBarConfigStore())
         }
     }
 }

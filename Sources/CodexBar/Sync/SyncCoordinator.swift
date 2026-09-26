@@ -820,7 +820,33 @@ final class SyncCoordinator {
             alibabaTokenPlan: Self.mapAlibabaTokenPlan(provider: provider, snapshot: snapshot),
             deepSeekUsage: Self.mapDeepSeekUsage(provider: provider, snapshot: snapshot),
             crossModelUsage: nil,
-            hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot))
+            hyperBalance: Self.mapHyperBalance(provider: provider, snapshot: snapshot),
+            providerDetails: Self.mapProviderDetails(provider: provider, snapshot: snapshot))
+    }
+
+    private static func mapProviderDetails(
+        provider: UsageProvider,
+        snapshot: UsageSnapshot?) -> [SyncProviderDetailSection]?
+    {
+        // These providers expose useful rows that have no dedicated iPhone payload. In particular,
+        // DevPass and Poe can have details without a rate window or cost summary.
+        let supported: Set<UsageProvider> = [
+            .atlascloud, .vercel, .llmman, .devpass, .raycast, .typesafe, .xkiro, .poe, .sakana,
+        ]
+        guard supported.contains(provider),
+              let details = snapshot?.details,
+              !details.isEmpty
+        else { return nil }
+        return details.map { section in
+            SyncProviderDetailSection(
+                title: section.title,
+                rows: section.rows.map { row in
+                    SyncProviderDetailSection.Row(
+                        label: row.label,
+                        value: row.value,
+                        secondaryValue: row.secondaryValue)
+                })
+        }
     }
 
     static func syncedStatusMessage(
@@ -985,7 +1011,8 @@ final class SyncCoordinator {
 
         if provider == .alibabatokenplan {
             return (
-                AlibabaTokenPlanProviderDescriptor.primaryLabel(window: snapshot?.primary) ?? metadata?.sessionLabel,
+                snapshot.flatMap { AlibabaTokenPlanProviderDescriptor.primaryLabel(snapshot: $0) } ??
+                    metadata?.sessionLabel,
                 AlibabaTokenPlanProviderDescriptor.secondaryLabel(window: snapshot?.secondary) ??
                     metadata?.weeklyLabel,
                 metadata?.opusLabel ?? "Sonnet")
@@ -994,7 +1021,7 @@ final class SyncCoordinator {
         if provider == .qwencloud,
            snapshot?.primary?.windowMinutes == 30 * 24 * 60
         {
-            return ("30-day", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
+            return ("Monthly", metadata?.weeklyLabel, metadata?.opusLabel ?? "Sonnet")
         }
 
         if provider == .cursor {
@@ -1559,6 +1586,7 @@ final class SyncCoordinator {
             && provider.costSummary == nil
             && provider.budget == nil
             && provider.hyperBalance == nil
+            && provider.providerDetails?.isEmpty != false
             && !(provider.codexResetCredits?.hasAvailableInventory ?? false)
             && provider.codexCreditLimit == nil
             && provider.crossModelUsage == nil
@@ -1881,7 +1909,9 @@ final class SyncCoordinator {
              // pricing tables.
              .devin, .zed, .sakana, .poe, .chutes, .qoder, .clawrouter, .wayfinder, .sub2api,
              .zenmux, .clinepass, .longcat, .neuralwatt, .deepinfra, .aiand, .qwencloud, .zoommate, .xai, .notion,
-             .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper:
+             .fireworks, .ibmbob, .gitkraken, .coderabbit, .huggingface, .replicate, .hyper,
+             .bifrost, .devpass, .aixy, .xkiro, .raycast, .helmcode, .typesafe,
+             .atlascloud, .vercel, .llmman, .nous, .muse:
             // These providers never reach the local pricing table — their
             // costs come pre-computed from upstream APIs (or don't exist).
             // No fallback applies, so they are never "estimated".

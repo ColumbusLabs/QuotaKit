@@ -15,7 +15,7 @@ import Testing
 @Suite("QuotaProviderList contract")
 struct QuotaProviderListTests {
     @Test
-    func `Provider list has expected count (64 after GitKraken AI, v0, and Hugging Face)`() {
+    func `Provider list has expected count (72 after Nous and Muse)`() {
         // 25 base → 27 in iOS 1.5.0 (Abacus + Mistral) → 38 in iOS 1.6.0
         // (11 new from Mac v0.24+v0.25) → 40 in iOS 1.7.0 (Moonshot +
         // AWS Bedrock from upstream v0.26.0) → 45 in iOS 1.8.0 (Grok,
@@ -32,7 +32,7 @@ struct QuotaProviderListTests {
         // Must stay synced with the iOS-side test in
         // CodexBarMobileTests/QuotaProviderListTests.swift. ai& is spend-only,
         // so it intentionally has no quota-transition subscriptions.
-        #expect(QuotaProviderList.providers.count == 64)
+        #expect(QuotaProviderList.providers.count == 72)
     }
 
     @Test
@@ -114,7 +114,7 @@ struct QuotaProviderListTests {
     }
 
     @Test
-    func `iOS subscription count is 64 × 3 = 192 (depleted + restored + warning)`() {
+    func `iOS subscription count is 72 × 3 = 216 (depleted + restored + warning)`() {
         // 54 → 76 in iOS 1.5.x → 114 in iOS 1.6.0 (38 × 3 after adding
         // the "warning" state for pre-depletion threshold pushes) →
         // 120 in iOS 1.7.0 (40 × 3 after the v0.26 catch-up) →
@@ -132,7 +132,7 @@ struct QuotaProviderListTests {
         // `QuotaTransitionSubscriptions.makeConfigs()`.
         let states = ["depleted", "restored", "warning"]
         let subscriptionCount = QuotaProviderList.providers.count * states.count
-        #expect(subscriptionCount == 192)
+        #expect(subscriptionCount == 216)
     }
 
     @Test
