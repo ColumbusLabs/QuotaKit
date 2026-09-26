@@ -1304,47 +1304,40 @@ extension UsageStore {
                 cacheKey: self.tokenAccountSnapshotCacheKey(provider: provider, account: account))
             return ResolvedAccountOutcome(snapshot: snapshot, usage: labeled, freshUsage: labeled)
         case let .failure(error):
-            // Preserve the last-good snapshot when the refresh was cancelled (e.g. the
-            // user switched menu tabs mid-flight). Without this the per-account list
-            // would briefly render error chips for accounts that already had data.
+            let prior = self.matchingTokenAccountSnapshot(priorSnapshot, provider: provider, account: account)
             if Self.errorIsCancellation(error) {
-                if let priorSnapshot, priorSnapshot.snapshot != nil {
-                    return ResolvedAccountOutcome(
-                        snapshot: priorSnapshot,
-                        usage: priorSnapshot.snapshot,
-                        freshUsage: nil)
-                }
-                // No usable prior data: skip this row entirely. The caller will
-                // either preserve the existing per-account state or fall back to
-                // the single live card. Rendering a "cancelled" placeholder here
-                // produces visually duplicate cards with no useful data.
-                return ResolvedAccountOutcome(snapshot: nil, usage: nil, freshUsage: nil)
+                return ResolvedAccountOutcome(snapshot: prior, usage: prior?.snapshot, freshUsage: nil)
             }
-            // Provider-specific by design: Claude OAuth rate limits preserve a matching prior OAuth account snapshot.
-            if provider == .claude,
-               ClaudeUsageError.isClaudeOAuthUsageRateLimit(error),
-               let priorSnapshot,
-               priorSnapshot.sourceLabel == "oauth",
-               priorSnapshot.cacheKey
-               == self.tokenAccountSnapshotCacheKey(provider: provider, account: account),
-               let priorUsage = priorSnapshot.snapshot
-            {
-                let snapshot = TokenAccountUsageSnapshot(
-                    account: account,
-                    snapshot: priorUsage,
-                    error: nil,
-                    sourceLabel: "oauth",
-                    cacheKey: priorSnapshot.cacheKey)
-                return ResolvedAccountOutcome(snapshot: snapshot, usage: priorUsage, freshUsage: nil)
-            }
+            let oauthLimited = Self.preservesClaudeOAuthSnapshot(error, provider: provider, snapshot: prior)
+            let retained = oauthLimited || Self.isPreservableNetworkTransportError(error) ? prior : nil
             let snapshot = TokenAccountUsageSnapshot(
                 account: account,
-                snapshot: nil,
-                error: self.tokenAccountSnapshotErrorMessage(error),
-                sourceLabel: nil,
+                snapshot: retained?.snapshot,
+                error: oauthLimited ? nil : self.tokenAccountSnapshotErrorMessage(error),
+                sourceLabel: retained?.sourceLabel,
                 cacheKey: self.tokenAccountSnapshotCacheKey(provider: provider, account: account))
-            return ResolvedAccountOutcome(snapshot: snapshot, usage: nil, freshUsage: nil)
+            return ResolvedAccountOutcome(snapshot: snapshot, usage: retained?.snapshot, freshUsage: nil)
         }
+    }
+
+    private func matchingTokenAccountSnapshot(
+        _ snapshot: TokenAccountUsageSnapshot?,
+        provider: UsageProvider,
+        account: ProviderTokenAccount) -> TokenAccountUsageSnapshot?
+    {
+        guard let snapshot, snapshot.account.id == account.id, snapshot.snapshot != nil,
+              let current = self.uniqueTokenAccount(provider: provider, accountID: account.id),
+              snapshot.cacheKey == self.tokenAccountSnapshotCacheKey(provider: provider, account: current)
+        else { return nil }
+        return snapshot
+    }
+
+    private static func preservesClaudeOAuthSnapshot(
+        _ error: Error,
+        provider: UsageProvider,
+        snapshot: TokenAccountUsageSnapshot?) -> Bool
+    {
+        provider == .claude && snapshot?.sourceLabel == "oauth" && ClaudeUsageError.isClaudeOAuthUsageRateLimit(error)
     }
 
     private func resolveCodexAccountOutcome(
@@ -1394,7 +1387,8 @@ extension UsageStore {
                 return ResolvedCodexAccountOutcome(snapshot: nil, usage: nil, sourceLabel: nil)
             }
             let errorMessage = self.tokenAccountSnapshotErrorMessage(error)
-            if Self.shouldPreserveCodexAccountSnapshotOnFailure(errorMessage),
+            if (Self.isPreservableNetworkTransportError(error)
+                || Self.shouldPreserveCodexAccountSnapshotOnFailure(errorMessage)),
                let priorSnapshot,
                let priorUsage = priorSnapshot.snapshot
             {
@@ -1483,7 +1477,7 @@ extension UsageStore {
             guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
             self.recordCodexHistoricalSampleIfNeeded(snapshot: snapshot)
         case let .failure(error):
-            guard let message = self.tokenAccountErrorMessage(error) else {
+            guard self.tokenAccountErrorMessage(error) != nil else {
                 self.errors[.codex] = nil
                 return
             }
@@ -1491,17 +1485,24 @@ extension UsageStore {
             self.lastCodexUsagePublicationGuard = publicationGuard
             self.lastCodexAccountScopedRefreshGuard = publicationGuard
             self.lastFetchAttempts[.codex] = outcome.attempts
-            let hadPriorData = self.snapshots[.codex] != nil
+            // The per-account resolver supplies a snapshot only for a validated, preservable failure.
+            let retained = snapshot
+            if let retained {
+                self.snapshots[.codex] = retained
+                self.lastKnownResetSnapshots[.codex] = retained
+                self.installProviderDerivedTokenSnapshot(from: retained, for: .codex)
+                if let sourceLabel { self.lastSourceLabels[.codex] = sourceLabel }
+            }
+            let hadPriorData = self.snapshots[.codex] != nil || retained != nil
             let shouldSurface =
                 self.failureGates[.codex]?
                     .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
             if shouldSurface {
-                let priorWidgetUsage = self.snapshots[.codex] ?? self.lastKnownResetSnapshots[.codex]
-                if !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorWidgetUsage != nil) {
+                if retained == nil {
                     self.invalidateGenericWidgetUsage(for: .codex)
                 }
-                self.errors[.codex] = message
-                self.snapshots.removeValue(forKey: .codex)
+                self.errors[.codex] = self.tokenAccountErrorMessage(error)
+                if retained == nil { self.snapshots.removeValue(forKey: .codex) }
             } else {
                 self.errors[.codex] = nil
             }
@@ -1521,6 +1522,9 @@ extension UsageStore {
             self.lastFetchAttempts[provider.instanceID] = outcome.attempts
         }
         guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+        if case .failure = outcome.result, let account,
+           self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id
+        { return }
         switch outcome.result {
         case let .success(result):
             let scoped = result.usage.scoped(to: provider)
@@ -1579,25 +1583,22 @@ extension UsageStore {
                 account: account)
         case let .failure(error):
             await MainActor.run {
-                if provider == .claude,
-                   ClaudeUsageError.isClaudeOAuthUsageRateLimit(error),
-                   let account,
-                   let currentAccount = self.uniqueTokenAccount(provider: provider, accountID: account.id),
-                   let fallbackAccountSnapshot,
-                   fallbackAccountSnapshot.account.id == currentAccount.id,
-                   fallbackAccountSnapshot.sourceLabel == "oauth",
-                   fallbackAccountSnapshot.cacheKey
-                   == self.tokenAccountSnapshotCacheKey(
-                       provider: provider,
-                       account: currentAccount),
-                   let fallback = fallbackAccountSnapshot.snapshot
+                guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+                if let account,
+                   self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id
+                { return }
+                let prior = account.flatMap {
+                    self.matchingTokenAccountSnapshot(fallbackAccountSnapshot, provider: provider, account: $0)
+                }
+                if Self.preservesClaudeOAuthSnapshot(error, provider: provider, snapshot: prior),
+                   let prior, let fallback = prior.snapshot
                 {
                     self.snapshots[provider.instanceID] = fallback
                     self.lastKnownResetSnapshots[provider.instanceID] = fallback
                     self.lastSourceLabels[provider.instanceID] = "oauth"
                     self.cacheTokenAccountSnapshot(
                         provider: provider,
-                        account: currentAccount,
+                        account: prior.account,
                         snapshot: fallback,
                         sourceLabel: "oauth")
                     self.errors[provider.instanceID] = nil
@@ -1612,18 +1613,28 @@ extension UsageStore {
                     self.errors[provider.instanceID] = nil
                     return
                 }
+                let retained = Self.isPreservableNetworkTransportError(error) ? prior?.snapshot : nil
+                if let retained {
+                    self.snapshots[provider.instanceID] = retained
+                    self.lastKnownResetSnapshots[provider.instanceID] = retained
+                    self.installProviderDerivedTokenSnapshot(from: retained, for: provider)
+                    if let sourceLabel = prior?.sourceLabel {
+                        self.lastSourceLabels[provider.instanceID] = sourceLabel
+                    }
+                }
                 let hadPriorData = self.snapshots[provider.instanceID] != nil || fallbackSnapshot != nil
                 let shouldSurface =
                     self.failureGates[provider.instanceID]?
                         .shouldSurfaceError(onFailureWithPriorData: hadPriorData) ?? true
                 if shouldSurface {
-                    let priorWidgetUsage = self.snapshots[provider.instanceID] ?? fallbackSnapshot
-                    if !Self.shouldPreservePriorSnapshot(after: error, hadPriorData: priorWidgetUsage != nil) {
+                    if retained == nil {
                         self.invalidateGenericWidgetUsage(for: provider)
                     }
                     self.errors[provider.instanceID] = message
-                    self.snapshots.removeValue(forKey: provider.instanceID)
-                    self.clearProviderDerivedTokenSnapshot(for: provider)
+                    if retained == nil {
+                        self.snapshots.removeValue(forKey: provider.instanceID)
+                        self.clearProviderDerivedTokenSnapshot(for: provider)
+                    }
                 } else {
                     self.errors[provider.instanceID] = nil
                 }

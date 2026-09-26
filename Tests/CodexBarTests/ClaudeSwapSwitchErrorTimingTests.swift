@@ -72,6 +72,53 @@ struct ClaudeSwapSwitchErrorTimingTests {
     }
 
     @Test
+    func `stalled ambient refresh does not hold the account switch open`() async throws {
+        let fixture = try Fixture()
+        defer { fixture.cleanup() }
+        let executable = fixture.root.appendingPathComponent("cswap")
+        let script = """
+        #!/bin/sh
+        echo '{"schemaVersion":1,"error":{"type":"Unavailable","message":"synthetic failure"}}'
+        exit 1
+        """
+        try script.write(to: executable, atomically: true, encoding: .utf8)
+        try FileManager.default.setAttributes([.posixPermissions: 0o700], ofItemAtPath: executable.path)
+        let metadata = try #require(ProviderRegistry.shared.metadata[.claude])
+        fixture.settings.setProviderEnabled(provider: .claude, metadata: metadata, enabled: true)
+        fixture.settings.claudeSwapExecutablePath = executable.path
+        fixture.settings.claudeSwapEnabled = true
+        let accountID = ProviderAccountIdentity(source: ClaudeSwapAccountProjection.sourceName, opaqueID: "2")
+        fixture.store.claudeSwapAccountSnapshots = [.init(
+            id: accountID,
+            provider: .claude,
+            displayLabel: "Synthetic account",
+            isActive: false,
+            canActivate: true,
+            snapshot: nil,
+            error: nil,
+            sourceLabel: ClaudeSwapAccountProjection.sourceLabel)]
+        let gate = RefreshGate()
+        fixture.store._test_providerRefreshOverride = { _ in await gate.wait() }
+        defer {
+            gate.release()
+            fixture.store._test_providerRefreshOverride = nil
+        }
+        ProviderInteractionContext.$current.withValue(.userInitiated) {
+            fixture.store.switchClaudeSwapAccount(accountID)
+        }
+        let task = try #require(fixture.store.claudeSwapTransientState.task)
+        let deadline = Date().addingTimeInterval(8)
+        while fixture.store.claudeSwapTransientState.task != nil, Date() < deadline {
+            try await Task.sleep(for: .milliseconds(20))
+        }
+        #expect(gate.entered)
+        #expect(fixture.store.claudeSwapTransientState.task == nil)
+        #expect(fixture.store.claudeSwapTransientState.switchingAccountID == nil)
+        gate.release()
+        await task.value
+    }
+
+    @Test
     func `cancelled independent adapter reads cannot publish`() async throws {
         let fixture = try Fixture()
         defer { fixture.cleanup() }
