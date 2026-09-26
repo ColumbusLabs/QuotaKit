@@ -215,6 +215,7 @@ struct ProviderCredentialCharacterizationTests {
             (.doubao, "ARK_API_KEY"),
             (.grok, "GROK_OAUTH_TOKEN"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
+            (.hyper, "HYPER_API_KEY"),
         ]
         let cookieProviders: [UsageProvider] = [
             .kimi,
@@ -310,6 +311,7 @@ struct ProviderCredentialCharacterizationTests {
             (.sub2api, "SUB2API_API_KEY"), (.antigravity, "ANTIGRAVITY_OAUTH_CREDENTIALS_JSON"),
             (.ibmbob, "BOBSHELL_API_KEY"),
             (.huggingface, "QUOTAKIT_HUGGINGFACE_API_KEY"),
+            (.hyper, "HYPER_API_KEY"),
             (.doubao, "ARK_API_KEY"),
         ]
         let account = ProviderTokenAccount(

@@ -104,6 +104,7 @@ enum ProviderPluginSnapshotMapper {
         _ root: any ProviderPluginValue,
         provider: ProviderInstanceID) throws -> Double?
     {
+        // Provider-specific by design: the Hypercredits field is valid only in Hyper plugin snapshots.
         guard provider == UsageProvider.hyper.instanceID else { return nil }
         let balance = try self.requiredFiniteNumber(root, property: "hyperBalance", path: "snapshot")
         guard balance >= 0 else {
