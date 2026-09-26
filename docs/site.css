@@ -717,6 +717,20 @@ code {
   filter: none;
 }
 
+.provider .chip-logo.monochrome {
+  filter: brightness(0);
+}
+
+:root[data-theme="dark"] .provider .chip-logo.monochrome {
+  filter: brightness(0) invert(1);
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme]) .provider .chip-logo.monochrome {
+    filter: brightness(0) invert(1);
+  }
+}
+
 .provider .meta {
   display: flex;
   flex-direction: column;
