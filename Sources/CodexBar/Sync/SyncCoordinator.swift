@@ -883,7 +883,11 @@ final class SyncCoordinator {
         {
             return nil
         }
-        if provider == .opencode, let providerCost, providerCost.limit <= 0 {
+        if provider == .opencode || provider == .codex,
+           let providerCost,
+           providerCost.limit <= 0
+        {
+            // A standalone Codex workspace credit pool is a balance, not a $0 budget.
             return nil
         }
         return providerCost.map { pc in

@@ -78,7 +78,11 @@ extension CodexAccountScopedRefreshTests {
         return "\(base64URL(header)).\(base64URL(payload))."
     }
 
-    func makeUsageStore(settings: SettingsStore, environmentBase: [String: String] = [:]) -> UsageStore {
+    func makeUsageStore(
+        settings: SettingsStore,
+        environmentBase: [String: String] = [:],
+        codexAccountUsageSnapshotStore: (any CodexAccountUsageSnapshotStoring)? = nil) -> UsageStore
+    {
         let root = FileManager.default.temporaryDirectory
             .appendingPathComponent("codexbar-tests", isDirectory: true)
             .appendingPathComponent(UUID().uuidString, isDirectory: true)
@@ -96,6 +100,7 @@ extension CodexAccountScopedRefreshTests {
             fetcher: UsageFetcher(environment: environment),
             browserDetection: BrowserDetection(homeDirectory: environment["HOME"] ?? root.path, cacheTTL: 0),
             settings: settings,
+            codexAccountUsageSnapshotStore: codexAccountUsageSnapshotStore,
             startupBehavior: .testing,
             environmentBase: environment)
     }
@@ -353,6 +358,7 @@ struct TestCodexFetchStrategy: ProviderFetchStrategy {
     var kind: ProviderFetchKind = .cli
     var sourceLabel = "test-codex"
     var codexPATCredentialOwner: CodexPATCredentialOwner?
+    var codexMonthlyLimitEnrichmentFailed = false
 
     func isAvailable(_: ProviderFetchContext) async -> Bool {
         true
@@ -371,7 +377,8 @@ struct TestCodexFetchStrategy: ProviderFetchStrategy {
             sourceLabel: result.sourceLabel,
             strategyID: result.strategyID,
             strategyKind: result.strategyKind,
-            codexPATCredentialOwner: self.codexPATCredentialOwner)
+            codexPATCredentialOwner: self.codexPATCredentialOwner,
+            codexMonthlyLimitEnrichmentFailed: self.codexMonthlyLimitEnrichmentFailed)
     }
 
     func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {

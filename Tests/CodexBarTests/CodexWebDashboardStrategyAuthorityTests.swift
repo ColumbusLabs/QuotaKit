@@ -32,6 +32,43 @@ struct CodexWebDashboardStrategyAuthorityTests {
     }
 
     @Test
+    func `web dashboard attach maps monthly credits to extra usage`() throws {
+        OpenAIDashboardCacheStore.clear()
+        defer { OpenAIDashboardCacheStore.clear() }
+
+        let authHome = try self.makeAuthHome(
+            email: "owner@example.com",
+            accountId: "acct-owner")
+        defer { try? FileManager.default.removeItem(at: authHome) }
+
+        let context = self.makeContext(
+            authHome: authHome,
+            knownOwners: [
+                CodexDashboardKnownOwnerCandidate(
+                    identity: .providerAccount(id: "acct-owner"),
+                    normalizedEmail: "owner@example.com"),
+            ])
+        let updatedAt = Date(timeIntervalSince1970: 2000)
+        let resetsAt = Date(timeIntervalSince1970: 4000)
+        let result = try CodexWebDashboardStrategy.makeAuthorizedDashboardResultForTesting(
+            dashboard: self.makeDashboard(
+                email: "owner@example.com",
+                codexCreditLimit: CodexCreditLimitSnapshot(
+                    used: 125,
+                    limit: 500,
+                    remainingPercent: 75,
+                    resetsAt: resetsAt,
+                    updatedAt: updatedAt)),
+            context: context,
+            routingTargetEmail: "route@example.com")
+
+        #expect(result.usage.providerCost?.used == 125)
+        #expect(result.usage.providerCost?.limit == 500)
+        #expect(result.usage.providerCost?.resetsAt == resetsAt)
+        #expect(result.usage.providerCost?.currencyCode == CodexExtraUsageCost.currencyCode)
+    }
+
+    @Test
     func `web dashboard attach preserves credits when usage limits are absent`() throws {
         OpenAIDashboardCacheStore.clear()
         defer { OpenAIDashboardCacheStore.clear() }
@@ -336,7 +373,10 @@ struct CodexWebDashboardStrategyAuthorityTests {
             browserDetection: browserDetection)
     }
 
-    private func makeDashboard(email: String) -> OpenAIDashboardSnapshot {
+    private func makeDashboard(
+        email: String,
+        codexCreditLimit: CodexCreditLimitSnapshot? = nil) -> OpenAIDashboardSnapshot
+    {
         OpenAIDashboardSnapshot(
             signedInEmail: email,
             codeReviewRemainingPercent: 75,
@@ -361,6 +401,7 @@ struct CodexWebDashboardStrategyAuthorityTests {
                 resetDescription: nil),
             secondaryLimit: nil,
             creditsRemaining: 42,
+            codexCreditLimit: codexCreditLimit,
             accountPlan: "pro",
             updatedAt: Date(timeIntervalSince1970: 2000))
     }

@@ -44,13 +44,17 @@ enum CodexMonthlyCreditPreservation {
                 remaining: 0,
                 events: [],
                 updatedAt: priorLimit.updatedAt,
-                codexCreditLimit: priorLimit)
+                codexCreditLimit: priorLimit,
+                balanceReadSucceeded: false)
         }
         return CreditsSnapshot(
             remaining: incoming.remaining,
             events: incoming.events,
             updatedAt: incoming.updatedAt,
-            codexCreditLimit: priorLimit)
+            codexCreditLimit: priorLimit,
+            balanceReadSucceeded: incoming.balanceReadSucceeded,
+            creditsAvailable: incoming.creditsAvailable,
+            balanceIsWorkspace: incoming.balanceIsWorkspace)
     }
 
     enum StandaloneRefreshOutcome: Equatable {
