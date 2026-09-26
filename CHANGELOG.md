@@ -5,6 +5,12 @@ Notable QuotaKit Mac and cross-platform release changes are documented here.
 Older upstream history is intentionally preserved in Git, but this file now focuses
 on Columbus Labs QuotaKit releases and product-facing changes.
 
+## Unreleased
+
+### Added
+
+- Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
+
 ## 0.32.4.30 — 2026-09-26
 
 ### Added
