@@ -66,6 +66,11 @@ public enum ClaudeSwapRetainedUsageStore {
         return self.fingerprint(email: email, slot: account.id.opaqueID)
     }
 
+    /// Stable, non-reversible owner key for consumers that retain an account's quota.
+    public static func ownershipFingerprint(for account: ProviderAccountUsageSnapshot) -> String? {
+        self.fingerprint(from: account)
+    }
+
     static func fingerprintAccountID(_ fingerprint: String) -> String {
         self.fingerprintPrefix + fingerprint
     }

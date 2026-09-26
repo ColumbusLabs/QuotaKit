@@ -165,12 +165,13 @@ extension UsageStore {
                     self.codexCostCatchUpTask = nil
                     self.codexCostCatchUpToken = nil
                     self.codexCostCatchUpScopeSignature = nil
-                    if self.codexCostCatchUpRestartRequested {
+                    let restartRequested = self.codexCostCatchUpRestartRequested
+                    self.codexCostCatchUpRestartRequested = false
+                    if restartRequested, self.codexCostCatchUpActivity?.phase != .paused {
                         let restartHistoryDays = max(
                             self.settings.costUsageHistoryDays,
                             self.codexCostCatchUpHistoryDays)
                         let restartMode = self.codexCostCatchUpMode
-                        self.codexCostCatchUpRestartRequested = false
                         self.startCodexCostCatchUpIfNeeded(
                             mode: restartMode,
                             requestedHistoryDays: restartHistoryDays,
@@ -325,16 +326,14 @@ extension UsageStore {
                     self.codexCostCatchUpPassIsRunning = true
                     let nextStatus: CostUsageFetcher.CodexScanCatchUpStatus
                     do {
+                        defer {
+                            self.codexCostCatchUpPassIsRunning = false
+                            self.scheduleMemoryPressureRelief()
+                        }
                         nextStatus = try await self.advanceCodexCostCatchUp(
                             now: Date(),
                             codexHomePath: context.codexHomePath,
                             historyDays: context.historyDays)
-                        self.codexCostCatchUpPassIsRunning = false
-                        self.scheduleMemoryPressureRelief()
-                    } catch {
-                        self.codexCostCatchUpPassIsRunning = false
-                        self.scheduleMemoryPressureRelief()
-                        throw error
                     }
                     let passDuration = ContinuousClock.now - passStartedAt
                     let durationComponents = passDuration.components
