@@ -67,7 +67,7 @@ public enum HyperProviderDescriptor {
             branding: ProviderBranding(
                 iconStyle: .init(provider: .hyper),
                 iconResourceName: "ProviderIcon-hyper",
-                color: ProviderColor(hex: 0xFF60FF),
+                color: ProviderColor(red: 1, green: 96 / 255, blue: 1),
                 confettiPalette: [ProviderColor(hex: 0xFF60FF), ProviderColor(hex: 0xFFFFFF)]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: false,
