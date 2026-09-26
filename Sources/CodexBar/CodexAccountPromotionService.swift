@@ -1,5 +1,4 @@
 import CodexBarCore
-import Darwin
 import Foundation
 
 @MainActor
@@ -53,38 +52,7 @@ struct DefaultCodexLiveAuthSwapper: CodexLiveAuthSwapping {
         try FileManager.default.createDirectory(at: liveHomeURL, withIntermediateDirectories: true)
 
         let liveAuthURL = CodexAccountPromotionService.authFileURL(for: liveHomeURL)
-        let stagedAuthURL = liveHomeURL.appendingPathComponent(
-            "auth.json.codexbar-staged-\(UUID().uuidString)",
-            isDirectory: false)
-
-        do {
-            try data.write(to: stagedAuthURL)
-            try FileManager.default.setAttributes(
-                [.posixPermissions: NSNumber(value: Int16(0o600))],
-                ofItemAtPath: stagedAuthURL.path)
-            try self.renameItem(at: stagedAuthURL, to: liveAuthURL)
-        } catch {
-            try? FileManager.default.removeItem(at: stagedAuthURL)
-            throw error
-        }
-    }
-
-    private func renameItem(at sourceURL: URL, to destinationURL: URL) throws {
-        let sourcePath = sourceURL.path
-        let destinationPath = destinationURL.path
-
-        let result = sourcePath.withCString { sourceFS in
-            destinationPath.withCString { destinationFS in
-                rename(sourceFS, destinationFS)
-            }
-        }
-
-        guard result == 0 else {
-            throw NSError(
-                domain: NSPOSIXErrorDomain,
-                code: Int(errno),
-                userInfo: [NSFilePathErrorKey: destinationPath])
-        }
+        try CredentialFileWriter.writePrivate(data, to: liveAuthURL)
     }
 }
 

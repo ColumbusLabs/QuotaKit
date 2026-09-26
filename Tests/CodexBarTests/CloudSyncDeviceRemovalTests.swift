@@ -177,8 +177,7 @@ struct CloudSyncDeviceRemovalTests {
     }
 
     private static func makeSettings(directory: URL) -> SettingsStore {
-        let defaults = InMemoryUserDefaults()
-        defaults.set("current", forKey: "macFleetSyncDeviceID")
+        let defaults = InMemoryUserDefaults(values: ["macFleetSyncDeviceID": "current"])
         return testSettingsStore(suiteName: directory.lastPathComponent, userDefaults: defaults)
     }
 
