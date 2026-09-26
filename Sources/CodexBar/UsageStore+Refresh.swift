@@ -1379,7 +1379,8 @@ extension UsageStore {
     }
 
     private func clearClaudeCredentialDerivedStateForCredentialSwap() {
-        // Retire Claude projections while preserving scoped warning episodes, including unresolved accounts.
+        // A credential swap can change the account behind an unresolved observation. Preserve verified
+        // account and OAuth-owner episodes, but retire warnings whose owner was never established.
         self.widgetUsagePreservationBlockedProviders.insert(.claude)
         self.snapshots.removeValue(forKey: .claude)
         self.lastKnownResetSnapshots.removeValue(forKey: .claude)
@@ -1393,6 +1394,10 @@ extension UsageStore {
         self.failureGates[.claude]?.reset()
         self.tokenFailureGates[.claude]?.reset()
         self.clearSessionQuotaTransitionState(provider: .claude)
+        self.quotaWarningState = self.quotaWarningState.filter { key, _ in
+            key.provider != .claude ||
+                (key.accountDiscriminator != nil && key.accountDiscriminator != "claude-account:unknown")
+        }
         self.lastTokenFetchAt.removeValue(forKey: .claude)
     }
 

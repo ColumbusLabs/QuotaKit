@@ -78,7 +78,5 @@ extension UsageStore {
         var observedAt: Date = .distantPast
         var firedThresholds: Set<Int> = []
         var source: SessionQuotaWindowSource?
-        var resetsAt: Date?
-        var sharedWithUnresolvedAccount = false
     }
 }

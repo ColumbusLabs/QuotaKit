@@ -195,7 +195,7 @@ extension UsageStore {
         transition: QuotaWarningTransition,
         account: QuotaWarningAccountContext)
     {
-        var key = QuotaWarningStateKey(
+        let key = QuotaWarningStateKey(
             provider: provider,
             window: transition.window,
             accountDiscriminator: account.discriminator,
@@ -228,23 +228,6 @@ extension UsageStore {
             provider: provider,
             window: transition.window)
         let currentRemaining = rateWindow.remainingPercent
-        if provider == .claude, key.accountDiscriminator == "claude-account:unknown",
-           self.quotaWarningState[key] == nil, let knownAccount = self.lastClaudeQuotaWarningAccount
-        {
-            let knownKey = QuotaWarningStateKey(
-                provider: provider, window: transition.window,
-                accountDiscriminator: knownAccount, windowID: transition.windowID)
-            if let prior = self.quotaWarningState[knownKey], prior.observedAt <= account.observedAt {
-                if let resetsAt = rateWindow.resetsAt, resetsAt == prior.resetsAt,
-                   let remaining = prior.lastRemaining, currentRemaining <= remaining
-                {
-                    key = knownKey
-                } else if prior.sharedWithUnresolvedAccount {
-                    // Keep thresholds already reconciled during an earlier identity gap.
-                    self.quotaWarningState[key] = prior
-                }
-            }
-        }
         let previousState = self.quotaWarningState[key]
         if let previousState, previousState.source != transition.source {
             self.quotaWarningState[key] = QuotaWarningState(
@@ -281,7 +264,6 @@ extension UsageStore {
         }
 
         state.observedAt = account.observedAt
-        state.resetsAt = rateWindow.resetsAt
         state.lastRemaining = currentRemaining
         self.quotaWarningState[key] = state
     }

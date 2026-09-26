@@ -248,10 +248,8 @@ extension UsageStore {
                 account = boundAccount
             }
         }
-        if let account {
-            self.reconcileClaudeQuotaWarningOwner(unknownAccount, account: account)
-            self.lastClaudeQuotaWarningAccount = account
-        }
+        // An unresolved CLI sample does not prove which account produced it, even when a later
+        // sample has the same reset time. Only the verified OAuth owner mapping above can merge histories.
         return (account ?? source, source)
     }
 
@@ -262,9 +260,6 @@ extension UsageStore {
                 accountDiscriminator: account, windowID: key.windowID)
             if prior.observedAt >= (self.quotaWarningState[accountKey]?.observedAt ?? .distantPast) {
                 self.quotaWarningState[accountKey] = prior
-            }
-            if owner == "claude-account:unknown" {
-                self.quotaWarningState[accountKey]?.sharedWithUnresolvedAccount = true
             }
             self.quotaWarningState.removeValue(forKey: key)
         }

@@ -259,10 +259,11 @@ Compact multi-account layout proof (synthetic accounts and usage data):
 
 ## Quota warnings
 
-OAuth and CLI warning episodes follow verified account identity when available. A temporary missing identity can
-reuse the last known account only when the reset time and remaining quota continue the same window. Otherwise it
-uses an unresolved account episode. Credential refreshes preserve both episodes, and later verified identity
-reconciles the unresolved thresholds. Hooks and predictive warnings keep their own account source keys.
+OAuth and CLI warning episodes follow verified account identity when available. Samples without identity keep an
+independent unresolved episode, even when their reset time and remaining quota resemble the last known account.
+Credential changes retire unresolved episodes while preserving known account and OAuth-owner histories. A verified
+OAuth owner mapping can reconcile owner-scoped thresholds with the account; hooks and predictive warnings keep
+their own source keys.
 
 ## Key files
 - OAuth: `Sources/CodexBarCore/Providers/Claude/ClaudeOAuth/*`

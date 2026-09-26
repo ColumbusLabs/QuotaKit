@@ -29,20 +29,20 @@ struct ClaudeCredentialQuotaWarningTests {
     }
 
     @Test
-    func `credential rewrites preserve unresolved account threshold episodes`() async throws {
+    func `credential rewrites retire unresolved account threshold episodes`() async throws {
         try await self.checkRefreshes(
             activeAccount: nil,
             historyOwner: nil,
-            expectedThresholds: [50, 50, 20])
+            expectedThresholds: [50, 50, 50, 50, 20])
     }
 
     @Test(arguments: [true, false], ["session", "weekly", "scoped"])
-    func `repeated CLI identity gaps preserve threshold history`(hasReset: Bool, lane: String) throws {
+    func `repeated CLI identity gaps keep independent warning histories`(hasReset: Bool, lane: String) throws {
         try self.checkIdentitySamples(
             [49.0, 48, 47, 46, 45, 44].enumerated().map { index, remaining in
                 (index.isMultiple(of: 2) ? "account-a" : nil, remaining, hasReset ? 3600 : nil)
             },
-            expectedThresholds: hasReset ? [50] : [50, 50],
+            expectedThresholds: [50, 50],
             lane: lane)
     }
 
@@ -61,7 +61,7 @@ struct ClaudeCredentialQuotaWarningTests {
             remaining.enumerated().map { index, value in
                 (index.isMultiple(of: 2) ? "account-a" : nil, value, hasReset ? 3600 : nil)
             },
-            expectedThresholds: hasReset ? [50, 20] : [50, 50, 20])
+            expectedThresholds: [50, 50, 20, 20])
     }
 
     @Test(arguments: ["reset", "increase", "missing"])
@@ -80,7 +80,7 @@ struct ClaudeCredentialQuotaWarningTests {
     }
 
     @Test
-    func `identity gaps follow the most recently known account without merging known accounts`() throws {
+    func `identity gaps do not merge known or unresolved accounts`() throws {
         try self.checkIdentitySamples(
             [
                 ("account-a", 49, 3600),
@@ -91,11 +91,25 @@ struct ClaudeCredentialQuotaWarningTests {
                 ("account-b", 44, 3600),
                 (nil, 43, 3600),
             ],
+            expectedThresholds: [50, 50, 50])
+    }
+
+    @Test
+    func `unresolved account A does not suppress a later known account B`() throws {
+        try self.checkIdentitySamples(
+            [(nil, 49, 3600), ("account-b", 48, 7200), (nil, 47, 3600)],
+            expectedThresholds: [50, 50])
+    }
+
+    @Test
+    func `known account A does not suppress an unresolved account B with the same reset`() throws {
+        try self.checkIdentitySamples(
+            [("account-a", 49, 3600), (nil, 48, 3600), ("account-a", 47, 3600)],
             expectedThresholds: [50, 50])
     }
 
     @Test(arguments: [true, false])
-    func `initial unresolved history survives repeated resolution and quota recovery`(hasReset: Bool) throws {
+    func `unresolved and known histories survive repeated quota recovery`(hasReset: Bool) throws {
         let reset: TimeInterval? = hasReset ? 3600 : nil
         try self.checkIdentitySamples(
             [
@@ -109,7 +123,7 @@ struct ClaudeCredentialQuotaWarningTests {
                 ("account-a", 48, reset),
                 (nil, 47, reset),
             ],
-            expectedThresholds: [50, 20, 50])
+            expectedThresholds: [50, 50, 20, 20, 50])
     }
 
     private func checkIdentitySamples(
