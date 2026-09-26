@@ -83,19 +83,28 @@ Events:
   rules without a threshold use the provider's configured warning thresholds.
 - `quota_reached`: the primary session quota crosses into depletion.
 - `quota_reset`: a confirmed session or weekly reset occurs.
+- `usage_updated`: the macOS app published a successful, current provider refresh, or `hooks watch` completed a
+  successful poll. It can fire when values are unchanged. `usagePercent`, `windowMinutes`, and `resetAt`
+  describe the positional primary window; `secondaryUsagePercent`, `secondaryWindowMinutes`, and
+  `secondaryResetAt` describe the positional secondary window. Synthetic placeholder windows are omitted.
 - `provider_unavailable`: a provider status changes to a minor, major, or critical outage.
 - `provider_recovered`: that tracked outage returns to normal.
 - `refresh_failed`: a provider refresh fails; `QUOTAKIT_STATUS` is a coarse category such as `timeout`, `offline`,
   `network_error`, `auth_required`, `cancelled`, or `error`.
 
-`provider_unavailable` and `refresh_failed` are coalesced per provider/account/window for ten minutes so background
-refresh failures cannot create command storms. Quota and recovery events use their transition detectors instead. Hook
-failures are contained and never block provider refresh.
+`usage_updated`, `provider_unavailable`, and `refresh_failed` allow the first matching attempt immediately,
+then drop further attempts for the same provider/account/window for 600 seconds. Failed command attempts consume
+that interval; unmatched rules do not. There is no queued latest value or trailing delivery. Restarting resets
+the in-memory limiter. Quota and recovery events use their transition detectors instead. Hook failures are
+contained and never block app provider refresh. `hooks watch` reports only events whose command execution was
+attempted, including failed commands, rather than suppressed candidates.
 
 Payload environment variables are `QUOTAKIT_EVENT`, `QUOTAKIT_PROVIDER`, `QUOTAKIT_TIMESTAMP`, and, when available,
-`QUOTAKIT_ACCOUNT`, `QUOTAKIT_WINDOW`, `QUOTAKIT_USAGE_PERCENT`, `QUOTAKIT_USED`, `QUOTAKIT_LIMIT`,
-`QUOTAKIT_RESET_AT`, and `QUOTAKIT_STATUS`. Matching `CODEXBAR_*` aliases remain available for upstream-compatible
-scripts. Enabling Hide personal info omits both account variables and the matching JSON field.
+`QUOTAKIT_ACCOUNT`, `QUOTAKIT_WINDOW`, `QUOTAKIT_USAGE_PERCENT`, `QUOTAKIT_WINDOW_MINUTES`, `QUOTAKIT_USED`,
+`QUOTAKIT_LIMIT`, `QUOTAKIT_RESET_AT`, `QUOTAKIT_SECONDARY_USAGE_PERCENT`,
+`QUOTAKIT_SECONDARY_WINDOW_MINUTES`, `QUOTAKIT_SECONDARY_RESET_AT`, and `QUOTAKIT_STATUS`. Matching `CODEXBAR_*`
+aliases remain available for upstream-compatible scripts. Enabling Hide personal info omits both account variables
+and the matching JSON field.
 
 The stdin JSON uses the same camel-case field names without the `QUOTAKIT_` prefix. Dates are UTC ISO 8601 strings,
 usage percentages are `0...1` fractions, unavailable optional fields are omitted rather than encoded as `null`, and

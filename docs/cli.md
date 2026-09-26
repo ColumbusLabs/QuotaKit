@@ -167,15 +167,20 @@ See `docs/configuration.md` for the schema.
   commands run directly without a shell and receive `QUOTAKIT_*` variables (plus legacy `CODEXBAR_*` aliases) and JSON on stdin. `--format json` and
   `--json-only` return structured per-rule results. See
   `docs/configuration.md#external-event-hooks` for the event, payload, timeout, and security contract.
+- The macOS app and `hooks watch` emit `usage_updated` after a successful current refresh, throttled to at most
+  one attempt per 600 seconds for each provider/account. Its primary and secondary positional quota windows include
+  their cadence in minutes. Synthetic placeholder windows are omitted.
 - `quotakit hooks watch` polls enabled providers and fires matching hooks on real quota and status transitions.
   Without it, hook rules only ever fire from the macOS app, so a headless install can configure hooks that never run.
   - `--interval <seconds>`: poll period. Default `300`, minimum `60`; a smaller value is rejected rather than
     clamped, because each tick fetches every selected provider.
   - `--provider <id>`: restrict to one provider; repeatable. Defaults to every enabled provider.
-  - `--format json`/`--json`/`--pretty`: emit each fired event as JSON.
+  - `--format json`/`--json`/`--pretty`: emit each attempted event as JSON, excluding throttled candidates.
   - Events are edge-triggered against the previous poll, so a condition that merely persists (a saturated window,
     an ongoing outage) does not re-fire every tick. State is in-memory only: a restart re-establishes baselines and
-    the first poll of any lane fires nothing.
+    the first poll establishes each lane's transition baseline. A successful first poll can immediately attempt
+    `usage_updated`. Repeated attempts within 600 seconds are dropped, including after command failure; no latest-value
+    queue or trailing delivery is scheduled. Private account throttle keys are never included in event payloads.
   - Run `watch` as one continuous process. Repeated one-shot invocations cannot preserve transition baselines or event
     rate limits between polls.
   - Runs read-only, like `quotakit guard`: it never prompts for credentials. A failed refresh reports

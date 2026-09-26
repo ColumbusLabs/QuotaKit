@@ -1487,6 +1487,10 @@ extension UsageStore {
                 codexLimitResetOwnerKey: limitResetOwnerKey,
                 codexSuppressesWeeklyResetCelebration: suppressesWeeklyResetCelebration)
             guard self.isCurrentProviderRefreshGeneration(.codex, generation: generation) else { return }
+            self.emitUsageUpdatedHook(
+                provider: .codex,
+                snapshot: snapshot,
+                rateKey: codexOwnerKey?.rawValue)
             self.recordCodexHistoricalSampleIfNeeded(snapshot: snapshot)
         case let .failure(error):
             guard self.tokenAccountErrorMessage(error) != nil else {
@@ -1597,6 +1601,14 @@ extension UsageStore {
                 provider: provider,
                 snapshot: backfilled,
                 account: account)
+            guard self.isCurrentProviderRefreshGeneration(provider, generation: generation) else { return }
+            if let account,
+               self.settings.effectiveSelectedTokenAccount(for: provider)?.id != account.id
+            { return }
+            self.emitUsageUpdatedHook(
+                provider: provider,
+                snapshot: backfilled,
+                rateKey: Self.warningTokenAccountDiscriminator(account))
             self.scheduleSupplementalUsageUpdate(
                 provider: provider,
                 result: result,
