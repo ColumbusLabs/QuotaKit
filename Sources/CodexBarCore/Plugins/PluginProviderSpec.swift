@@ -56,18 +56,29 @@ public struct PluginProviderSpec: Sendable {
                 missingCredentialMessage: self.missingCredentialMessage),
             config: self.config,
             metadata: ProviderMetadata(
-                id: self.id, displayName: self.displayName,
-                sessionLabel: self.sessionLabel, weeklyLabel: self.weeklyLabel,
-                opusLabel: self.opusLabel, supportsOpus: self.opusLabel != nil,
-                supportsCredits: false, creditsHint: "",
+                id: self.id,
+                displayName: self.displayName,
+                sessionLabel: self.sessionLabel,
+                weeklyLabel: self.weeklyLabel,
+                opusLabel: self.opusLabel,
+                supportsOpus: self.opusLabel != nil,
+                supportsCredits: false,
+                creditsHint: "",
                 toggleTitle: self.toggleTitle ?? "Show \(self.displayName) usage",
-                cliName: self.id.rawValue, defaultEnabled: false, widgetSelectable: false,
+                cliName: self.id.rawValue,
+                defaultEnabled: false,
+                widgetSelectable: false,
                 debugLogUnavailableMessage: self.debugLogUnavailableMessage,
-                balanceOnly: self.balanceOnly, usesDetailBackedWindow: self.usesDetailBackedWindow,
-                dashboardURL: self.dashboardURL, statusPageURL: nil, statusLinkURL: self.statusLinkURL),
+                balanceOnly: self.balanceOnly,
+                usesDetailBackedWindow: self.usesDetailBackedWindow,
+                dashboardURL: self.dashboardURL,
+                statusPageURL: nil,
+                statusLinkURL: self.statusLinkURL),
             branding: ProviderBranding(
-                iconStyle: .init(provider: self.id), iconResourceName: "ProviderIcon-\(self.id.rawValue)",
-                color: self.color, confettiPalette: self.confetti.map { ProviderColor(hex: $0) }),
+                iconStyle: .init(provider: self.id),
+                iconResourceName: "ProviderIcon-\(self.id.rawValue)",
+                color: self.color,
+                confettiPalette: self.confetti.map { ProviderColor(hex: $0) }),
             tokenCost: ProviderTokenCostConfig(supportsTokenCost: false, noDataMessage: { self.noDataMessage }),
             presentation: self.presentation,
             fetchPlan: ProviderFetchPlan(
@@ -83,8 +94,15 @@ public struct PluginProviderSpec: Sendable {
 
     func makeStrategy(transport: any ProviderHTTPTransport = ProviderHTTPClient.shared) -> ScriptFetchStrategy {
         ScriptFetchStrategy(
-            id: "\(self.id.rawValue).js", provider: self.id, bundledPlugin: self.id.rawValue,
-            secretKey: self.environmentKey, sourceLabel: "api", transport: transport, timeout: self.timeout,
-            validateContext: self.validateContext, resolveValues: self.scriptValues, isEnabled: { _ in true })
+            id: "\(self.id.rawValue).js",
+            provider: self.id,
+            bundledPlugin: self.id.rawValue,
+            secretKey: self.environmentKey,
+            sourceLabel: "api",
+            transport: transport,
+            timeout: self.timeout,
+            validateContext: self.validateContext,
+            resolveValues: self.scriptValues,
+            isEnabled: { _ in true })
     }
 }

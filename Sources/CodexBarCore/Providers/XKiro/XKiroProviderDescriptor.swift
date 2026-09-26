@@ -3,10 +3,13 @@ import Foundation
 public enum XKiroProviderDescriptor {
     public static let descriptor = Self.spec.makeDescriptor()
     public static let spec = PluginProviderSpec(
-        id: .xkiro, displayName: "xKiro",
-        sessionLabel: "Daily free tokens", weeklyLabel: "Weekly",
+        id: .xkiro,
+        displayName: "xKiro",
+        sessionLabel: "Daily free tokens",
+        weeklyLabel: "Weekly",
         dashboardURL: "https://xkiro.com",
-        color: .init(hex: 0x52C99B), confetti: [0x52C99B, 0xB7F2D7],
+        color: .init(hex: 0x52C99B),
+        confetti: [0x52C99B, 0xB7F2D7],
         noDataMessage: "xKiro cost history is not available.",
         environmentKey: "XKIRO_API_KEY",
         missingCredentialMessage: { _ in "Set an xKiro API key in Settings or XKIRO_API_KEY." },

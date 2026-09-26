@@ -72,7 +72,7 @@ enum ProviderImplementationManifest {
         { Sub2APIProviderImplementation() },
         { WayfinderProviderImplementation() },
         { PluginAPIKeyProviderImplementation(spec: ZenMuxProviderDescriptor.spec) },
-        { AiAndProviderImplementation() },
+        { PluginAPIKeyProviderImplementation(spec: AiAndProviderDescriptor.spec) },
         { ZoomMateProviderImplementation() },
         { XAIProviderImplementation() },
         { NotionProviderImplementation() },
