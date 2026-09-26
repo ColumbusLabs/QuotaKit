@@ -91,7 +91,7 @@ public enum MuseCredentials {
             service: self.keychainService,
             account: self.keychainAccount)
         {
-        case .allowed, .interactionRequired, .temporarilyUnavailable: true
+        case .allowed, .interactionRequired: true
         case .notFound, .failure: false
         }
         #else
@@ -113,7 +113,7 @@ public enum MuseCredentials {
             return nil
         case .allowed:
             break
-        case .interactionRequired, .temporarilyUnavailable, .failure:
+        case .interactionRequired, .failure:
             throw MuseUsageError.keychainUnavailable
         }
 

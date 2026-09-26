@@ -3,6 +3,7 @@ import Foundation
 public enum MuseUsageError: LocalizedError, Sendable, Equatable {
     case missingCredentials
     case invalidCredentials
+    case keychainAccessDisabled
     case keychainUnavailable
     case parseFailed(String)
 
@@ -12,6 +13,8 @@ public enum MuseUsageError: LocalizedError, Sendable, Equatable {
             "Muse Code login not found. Run `muse login`, then refresh QuotaKit."
         case .invalidCredentials:
             "Muse Code login was rejected. Run `muse login` again."
+        case .keychainAccessDisabled:
+            "Muse Code login is stored in Keychain. Enable Keychain access in QuotaKit Settings, then refresh."
         case .keychainUnavailable:
             "Muse Code credentials are in Keychain but could not be read without a prompt."
         case let .parseFailed(message):

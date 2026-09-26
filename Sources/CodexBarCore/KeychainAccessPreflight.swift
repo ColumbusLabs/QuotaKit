@@ -84,7 +84,7 @@ public enum KeychainPromptHandler {
 }
 
 public enum KeychainAccessPreflight {
-    public enum Outcome: Sendable {
+    public enum Outcome: Sendable, Equatable {
         case allowed
         case interactionRequired
         case notFound
