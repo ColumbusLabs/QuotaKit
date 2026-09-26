@@ -16,15 +16,34 @@ struct CodexConfigCookieDenialTests {
             codex.cookieSource = source
             config.setProviderConfig(codex)
 
-            let deniedStore = CodexBarConfigStore(fileURL: url, openAIWebAccessEnabledOverride: false)
+            let deniedStore = CodexBarConfigStore(
+                fileURL: url,
+                openAIWebAccessEnabledOverride: false,
+                environment: [:])
             try deniedStore.save(config)
             #expect(try deniedStore.load()?.providerConfig(for: .codex)?.cookieSource == .off)
 
             let onDisk = try JSONDecoder().decode(CodexBarConfig.self, from: Data(contentsOf: url))
             #expect(onDisk.providerConfig(for: .codex)?.cookieSource == source)
 
-            let allowedStore = CodexBarConfigStore(fileURL: url, openAIWebAccessEnabledOverride: true)
+            let allowedStore = CodexBarConfigStore(
+                fileURL: url,
+                openAIWebAccessEnabledOverride: true,
+                environment: [:])
             #expect(try allowedStore.load()?.providerConfig(for: .codex)?.cookieSource == source)
+
+            let explicitStore = CodexBarConfigStore(
+                fileURL: url,
+                openAIWebAccessEnabledOverride: false,
+                environment: [CodexBarConfigStore.pathEnvironmentKey: url.path])
+            #expect(try explicitStore.load()?.providerConfig(for: .codex)?.cookieSource == source)
         }
+
+        let absentStore = CodexBarConfigStore(
+            fileURL: directory.appendingPathComponent("missing.json"),
+            openAIWebAccessEnabledOverride: false,
+            environment: [:])
+        #expect(try absentStore.load()?.version == nil)
+        #expect(absentStore.effectiveDefaultConfig().providerConfig(for: .codex)?.cookieSource == .off)
     }
 }

@@ -394,7 +394,7 @@ extension CodexBarCLI {
             if let existing = try store.load() {
                 return existing
             }
-            return CodexBarConfig.makeDefault()
+            return store.effectiveDefaultConfig()
         } catch {
             if output.usesJSONOutput {
                 let payload = ProviderPayload(

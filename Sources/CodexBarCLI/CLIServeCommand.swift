@@ -1078,7 +1078,7 @@ extension CodexBarCLI {
     static func loadServeConfigSnapshot(
         configStore: CodexBarConfigStore = CodexBarConfigStore()) throws -> CLIServeConfigSnapshot
     {
-        let config = try configStore.load() ?? CodexBarConfig.makeDefault()
+        let config = try configStore.load() ?? configStore.effectiveDefaultConfig()
         return try CLIServeConfigSnapshot(
             config: config,
             cacheToken: Self.serveConfigCacheToken(for: config))

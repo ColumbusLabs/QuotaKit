@@ -25,15 +25,18 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     public let fileURL: URL
     private let fileManager: FileManager
     private let openAIWebAccessEnabledOverride: Bool?
+    private let environment: [String: String]
 
     public init(
         fileURL: URL = Self.defaultURL(),
         fileManager: FileManager = .default,
-        openAIWebAccessEnabledOverride: Bool? = nil)
+        openAIWebAccessEnabledOverride: Bool? = nil,
+        environment: [String: String] = ProcessInfo.processInfo.environment)
     {
         self.fileURL = fileURL
         self.fileManager = fileManager
         self.openAIWebAccessEnabledOverride = openAIWebAccessEnabledOverride
+        self.environment = environment
     }
 
     public func load() throws -> CodexBarConfig? {
@@ -54,6 +57,12 @@ public struct CodexBarConfigStore: @unchecked Sendable {
     private func applyingCodexCookieDenial(to config: CodexBarConfig) -> CodexBarConfig {
         // The CLI reads config independently of the Mac app. Honor a stored web-access denial
         // even while an app config save is pending or when the config file cannot be rewritten.
+        // An explicitly selected config path has separate CLI ownership.
+        let hasExplicitConfigPath = [Self.pathEnvironmentKey, Self.legacyPathEnvironmentKey,
+                                     Self.xdgConfigHomeEnvironmentKey].contains {
+            !(self.environment[$0]?.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty ?? true)
+        }
+        guard !hasExplicitConfigPath else { return config }
         let accessEnabled: Bool?
         if let override = self.openAIWebAccessEnabledOverride {
             accessEnabled = override
@@ -72,20 +81,22 @@ public struct CodexBarConfigStore: @unchecked Sendable {
 
     private static func macAppOpenAIWebAccessEnabled() -> Bool? {
         #if os(macOS)
-        for domain in ["com.columbuslabs.quotakit.mac", "com.columbuslabs.quotakit.mac.debug"] {
-            guard let defaults = UserDefaults(suiteName: domain) else { continue }
-            if let value = defaults.object(forKey: "openAIWebAccessEnabled") as? Bool { return value }
-            if let legacy = defaults.object(forKey: "openAIWebAccess") as? Bool { return legacy }
-        }
+        let defaults = ClaudeOAuthKeychainPromptPreference.applicationUserDefaults
+        if let value = defaults.object(forKey: "openAIWebAccessEnabled") as? Bool { return value }
+        if let legacy = defaults.object(forKey: "openAIWebAccess") as? Bool { return legacy }
         #endif
         return nil
+    }
+
+    public func effectiveDefaultConfig() -> CodexBarConfig {
+        self.applyingCodexCookieDenial(to: .makeDefault())
     }
 
     public func loadOrCreateDefault() throws -> CodexBarConfig {
         if let existing = try self.load() {
             return existing
         }
-        let config = CodexBarConfig.makeDefault()
+        let config = self.effectiveDefaultConfig()
         try self.save(config)
         return config
     }
