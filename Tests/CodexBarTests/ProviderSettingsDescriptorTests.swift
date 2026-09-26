@@ -809,7 +809,8 @@ struct ProviderSettingsDescriptorTests {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy-xkiro")
         let aixy = AixyProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .aixy))
         #expect(aixy.map(\.id) == ["aixy-api-key", "aixy-base-url"])
-        let xkiro = XKiroProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .xkiro))
+        let xkiro = try #require(ProviderCatalog.implementation(for: .xkiro))
+            .settingsFields(context: fixture.settingsContext(provider: .xkiro))
         #expect(xkiro.map(\.id) == ["xkiro-api-key"])
     }
 
