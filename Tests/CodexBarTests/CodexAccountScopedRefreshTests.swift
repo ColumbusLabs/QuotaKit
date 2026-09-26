@@ -160,6 +160,9 @@ struct CodexAccountScopedRefreshTests {
             errorMessage: "Network error: offline")
         { store, snapshotStore, priorSnapshots in
             await store.refreshCodexVisibleAccountsForMenu()
+            await store.refreshCodexVisibleAccountsForMenu()
+            #expect(store.snapshots[.codex]?.primary?.usedPercent == 17)
+            #expect(store.snapshots[.codex]?.updatedAt == priorSnapshots.first?.snapshot?.updatedAt)
 
             #expect(store.codexAccountSnapshots.count == priorSnapshots.count)
             #expect(store.codexAccountSnapshots.allSatisfy { $0.snapshot?.primary?.usedPercent == 17 })
