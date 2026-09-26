@@ -48,6 +48,58 @@ struct CostUsageStoreTests {
     }
 
     @Test
+    func `full save refreshes unchanged file aggregates after pricing changes`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let path = "/sessions/pricing.jsonl"
+        var usage = CostUsageFileUsage(
+            mtimeUnixMs: 1000,
+            size: 100,
+            days: ["2026-08-01": ["gpt-5.6-sol": [10, 2, 3]]])
+        usage.parsedBytes = 100
+        usage.codexScanComplete = true
+        usage.codexRows = [CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "gpt-5.6-sol",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3,
+            knownCostNanos: 1200,
+            pricingMode: "standard")]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+        cache.days = usage.days
+        cache.codexPricingKey = "pricing-v1"
+        let scanWindow = (sinceKey: "2026-08-01", untilKey: "2026-08-01")
+        _ = store.syncSaveCodexCache(cache, calendar: calendar, requestedScanWindow: scanWindow)
+
+        let original = try #require(await store.fetchFileDayAggregates(path: path).first)
+        var stale = original
+        stale.standardResolvedCostNanos = 999
+        #expect(await store.replaceFileDayAggregates(path: path, aggregates: [stale]))
+
+        var repriced = store.syncLoadCodexCache(calendar: calendar)
+        let unchangedUsage = repriced.files[path]
+        repriced.codexPricingKey = "pricing-v2"
+        let result = store.syncSaveCodexCache(
+            repriced,
+            calendar: calendar,
+            requestedScanWindow: scanWindow,
+            skipIdenticalContent: true)
+
+        #expect(!result.catchUpRequired)
+        #expect(store.syncLoadCodexCache(calendar: calendar).files[path] == unchangedUsage)
+        #expect(await store.fetchFileDayAggregates(path: path) == [original])
+    }
+
+    @Test
     func `pending Codex pricing survives a staged replacement reload`() throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

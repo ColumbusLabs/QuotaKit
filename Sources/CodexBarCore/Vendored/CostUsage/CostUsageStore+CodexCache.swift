@@ -175,6 +175,7 @@ extension CostUsageStore {
             let snapshotCountsByPath = lockedPrevious.tokenSnapshots
                 .reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
             let rowCountsByPath = lockedPrevious.usageRows.reduce(into: [String: Int]()) { $0[$1.path, default: 0] += 1 }
+            let aggregatesByPath = Dictionary(grouping: lockedPrevious.fileDayAggregates, by: \.path)
             var persistedFiles = 0
             for (path, usage) in cache.files.sorted(by: { $0.key < $1.key }) {
                 self.persistFile(
@@ -185,7 +186,8 @@ extension CostUsageStore {
                         snapshotCount: snapshotCountsByPath[path] ?? 0,
                         rowCount: rowCountsByPath[path] ?? 0,
                         canReuseRows: canReuseStoredRows,
-                        usage: restoredFiles[path]),
+                        usage: restoredFiles[path],
+                        aggregates: aggregatesByPath[path]?.map(\.aggregate) ?? []),
                     calendar: calendar,
                     aggregatePricing: aggregatePricing)
                 persistedFiles += 1
@@ -582,6 +584,7 @@ extension CostUsageStore {
         var rowCount: Int
         var canReuseRows: Bool
         var usage: CostUsageFileUsage? = nil
+        var aggregates: [CostUsageStoreDayAggregate]? = nil
     }
 
     private struct CurrentCodexRootDevice {
@@ -1140,7 +1143,10 @@ extension CostUsageStore {
            baseline.file != nil,
            baseline.usage == usage,
            rowCount == baseline.rowCount,
-           snapshotCount == baseline.snapshotCount
+           snapshotCount == baseline.snapshotCount,
+           let persistedAggregates = baseline.aggregates,
+           persistedAggregates.sorted(by: { ($0.day, $0.model) < ($1.day, $1.model) })
+               == Self.fileAggregates(usage, pricing: aggregatePricing)
         {
             return
         }
