@@ -16,6 +16,10 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
 - Charm Hyper: track current Hypercredits with optional Chrome/manual session access, API-key fallback, and iPhone sync.
 
+### Fixed
+
+- Alibaba Token Plan / Qwen Cloud: parse monthly quota windows and preserve rolling windows alongside monthly usage (#3903).
+
 ### Improved
 
 - Manus and T3 Chat: retrieve browser usage through bundled plugins.
