@@ -63,6 +63,39 @@ struct CostUsageStoreTests {
     }
 
     @Test
+    func `identical save does not retain a snapshot pruned by SQLite`() async throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        var calendar = Calendar(identifier: .gregorian)
+        calendar.timeZone = try #require(TimeZone(secondsFromGMT: 0))
+        let writer = CostUsageStore(cacheRoot: fixture.root)
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-03"
+        _ = writer.syncSaveCodexCache(
+            cache, calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"))
+        let stale = Self.file(path: "/rollouts/pruned-after-identical-save.jsonl", day: "2026-07-01")
+        #expect(await writer.upsertFile(stale))
+
+        let loaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(loaded.cache.files[stale.path] != nil)
+        let saved = CostUsageStoreAccess.save(
+            store: loaded.store,
+            cache: loaded.cache,
+            calendar: calendar,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-03"),
+            skipIdenticalContent: true,
+            expectedScanStamp: loaded.scanStamp,
+            requireScanStamp: true)
+        #expect(!saved.catchUpRequired)
+        #expect(saved.deletedRows == 0)
+        let reloaded = CostUsageStoreAccess.load(cacheRoot: fixture.root, calendar: calendar)
+        #expect(reloaded.store === loaded.store)
+        #expect(reloaded.cache.files[stale.path] == nil)
+    }
+
+    @Test
     func `external Codex save invalidates scan and rejects stale receipt`() throws {
         let fixture = try StoreFixture()
         defer { fixture.remove() }

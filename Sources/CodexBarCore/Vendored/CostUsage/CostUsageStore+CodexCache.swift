@@ -117,6 +117,7 @@ extension CostUsageStore {
                 fileBytes: 0,
                 catchUpRequired: true)
         }
+        let requestedCache = cache
         var cache = cache
         Self.reconcileCompletedCodexCatchUp(cache: &cache)
         let previous = self.readSnapshot()
@@ -165,7 +166,7 @@ extension CostUsageStore {
 
             // Retention mutates the store, so run it only after the locked revalidation.
             // This prevents a stale scanner from pruning content committed by another process.
-            _ = self.retainDayWindow(
+            let retention = self.retainDayWindow(
                 sinceDay: budgetProtectionWindow.sinceKey,
                 untilDay: budgetProtectionWindow.untilKey,
                 calendar: calendar,
@@ -201,7 +202,14 @@ extension CostUsageStore {
                 retry.catchUpRequired = true
                 return retry
             }
-            self.lastCodexSaveReusedContent = result.deletedRows == 0
+            // The scanner may retain its input only when both reconciliation and
+            // retention left it identical to the committed SQLite snapshot.
+            self.lastCodexSaveReusedContent = requestedCache == cache
+                && retention.deletedFiles == 0
+                && retention.deletedTokenSnapshots == 0
+                && retention.deletedFileDayAggregates == 0
+                && retention.deletedDayAggregates == 0
+                && result.deletedRows == 0
             self.lastCodexSaveStamp = self.currentCodexScanStamp()
             return result
         }
