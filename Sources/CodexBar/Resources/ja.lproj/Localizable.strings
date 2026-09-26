@@ -1600,3 +1600,33 @@
 "Restore Defaults" = "デフォルトに戻す";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "このプロバイダーのメニュー、設定プレビュー、概要に表示する使用量の行を選択します。";
 "%@ (unavailable)" = "%@（利用不可）";
+"Spending cap, not balance" = "利用上限額（残高ではありません）";
+
+"Color Pace Indicator" = "使用ペースを色分け";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "想定より使用が遅い場合は緑（余裕あり）、速い場合は赤（上限に早く達するおそれ）で表示します。";
+"%@ weekly" = "%@（週間）";
+
+"agent_sessions_hide_unreachable_title" = "接続できないホストを非表示";
+"agent_sessions_hide_unreachable_subtitle" = "セッションの取得に失敗したホストを非表示にします。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "使用状況の概要を共有…";
+"Usage snapshot unavailable" = "使用状況の概要を利用できません";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar で共有用の使用状況の概要を準備できませんでした。「使用状況と支出」を更新して、もう一度お試しください。";
+"Incomplete" = "不完全";
+"Est. subtotal (%@): %@" = "推定小計 (%@): %@";
+"Excluded requests with missing final usage: %d" = "最終的な使用量が未記録のため除外されたリクエスト: %d";
+
+"overview_layout_title" = "概要のレイアウト";
+"overview_layout_subtitle" = "概要に表示する情報量を選択します。";
+"overview_layout_detailed" = "詳細";
+"overview_layout_compact" = "コンパクト";
+
+"section_widgets" = "ウィジェット";
+"account_widgets_title" = "ウィジェット用にアカウントを更新する";
+"account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "ローカル使用量 × 公開API価格 · Antigravity の請求やクレジットではありません";
+"antigravity_quota_window_note" = "ウィンドウの費用は全モデルを含みます · 表示中のウィンドウは最も制限の厳しいファミリーです";
+"antigravity_no_priced_token_history" = "価格付きの Antigravity トークン履歴がありません。";

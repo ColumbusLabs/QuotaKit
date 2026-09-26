@@ -1603,3 +1603,33 @@
 "Restore Defaults" = "Ripristina impostazioni predefinite";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Scegli quali righe di utilizzo mostrare nel menu di questo provider, nell’anteprima delle Impostazioni e nella Panoramica.";
 "%@ (unavailable)" = "%@ (non disponibile)";
+"Spending cap, not balance" = "Limite di spesa, non saldo";
+
+"Color Pace Indicator" = "Colora il ritmo";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verde quando il consumo è inferiore al ritmo previsto (riserva); rosso quando è superiore (rischio di esaurimento anticipato).";
+"%@ weekly" = "%@ settimanale";
+
+"agent_sessions_hide_unreachable_title" = "Nascondi gli host irraggiungibili";
+"agent_sessions_hide_unreachable_subtitle" = "Nascondi gli host quando il recupero delle loro sessioni non riesce.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Condividi riepilogo utilizzo…";
+"Usage snapshot unavailable" = "Riepilogo utilizzo non disponibile";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar non ha potuto preparare un riepilogo dell’utilizzo da condividere. Aggiorna Utilizzo e spesa e riprova.";
+"Incomplete" = "Incompleto";
+"Est. subtotal (%@): %@" = "Subtotale stimato (%@): %@";
+"Excluded requests with missing final usage: %d" = "Richieste escluse senza dati di utilizzo finali: %d";
+
+"overview_layout_title" = "Layout Panoramica";
+"overview_layout_subtitle" = "Scegli quante informazioni mostrare in Panoramica.";
+"overview_layout_detailed" = "Dettagliato";
+"overview_layout_compact" = "Compatto";
+
+"section_widgets" = "Widget";
+"account_widgets_title" = "Mantieni aggiornati gli account per i widget";
+"account_widgets_description" = "Scegli un account in ogni widget Account Usage. Aggiorna fino a sei account per fornitore.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Uso locale × prezzi API pubblici · non sono addebiti o crediti Antigravity";
+"antigravity_quota_window_note" = "Il costo della finestra copre tutti i modelli · la finestra mostrata è la famiglia più vincolata";
+"antigravity_no_priced_token_history" = "Nessuna cronologia di token Antigravity con prezzo disponibile.";

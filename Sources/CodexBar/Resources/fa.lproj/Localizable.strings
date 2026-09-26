@@ -1604,3 +1604,33 @@
 "Restore Defaults" = "بازیابی پیش‌فرض‌ها";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "انتخاب کنید کدام ردیف‌های استفاده در منوی این ارائه‌دهنده، پیش‌نمایش تنظیمات و نمای کلی نمایش داده شوند.";
 "%@ (unavailable)" = "%@ (در دسترس نیست)";
+"Spending cap, not balance" = "سقف هزینه، نه موجودی";
+
+"Color Pace Indicator" = "رنگ‌بندی آهنگ مصرف";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "سبز وقتی مصرف از آهنگ مورد انتظار عقب‌تر است (ذخیره)؛ قرمز وقتی جلوتر است (خطر تمام شدن زودهنگام سهمیه).";
+"%@ weekly" = "%@ هفتگی";
+
+"agent_sessions_hide_unreachable_title" = "پنهان کردن میزبان‌های در دسترس نبودنی";
+"agent_sessions_hide_unreachable_subtitle" = "میزبان‌ها را در صورت ناموفق بودن دریافت نشست‌هایشان پنهان کنید.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "اشتراک‌گذاری نمای کلی استفاده…";
+"Usage snapshot unavailable" = "نمای کلی استفاده در دسترس نیست";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar نتوانست نمای کلی استفاده قابل اشتراک‌گذاری را آماده کند. استفاده و هزینه را تازه‌سازی کنید و دوباره امتحان کنید.";
+"Incomplete" = "ناقص";
+"Est. subtotal (%@): %@" = "جمع جزئی تخمینی (%@): %@";
+"Excluded requests with missing final usage: %d" = "درخواست‌های حذف‌شده به دلیل نبود داده‌های مصرف نهایی: %d";
+
+"overview_layout_title" = "چیدمان نمای کلی";
+"overview_layout_subtitle" = "میزان اطلاعات نمایش‌داده‌شده در نمای کلی را انتخاب کنید.";
+"overview_layout_detailed" = "با جزئیات";
+"overview_layout_compact" = "فشرده";
+
+"section_widgets" = "ویجت‌ها";
+"account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
+"account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "مصرف محلی × قیمت‌های عمومی API · هزینه یا اعتبار Antigravity نیست";
+"antigravity_quota_window_note" = "هزینهٔ بازه همهٔ مدل‌ها را دربر می‌گیرد · بازهٔ نمایش‌داده‌شده محدودترین خانواده است";
+"antigravity_no_priced_token_history" = "تاریخچهٔ قیمت‌گذاری‌شدهٔ توکن Antigravity موجود نیست.";

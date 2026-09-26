@@ -1603,3 +1603,33 @@
 "Restore Defaults" = "Przywróć domyślne";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wybierz wiersze użycia wyświetlane w menu tego dostawcy, podglądzie ustawień i przeglądzie.";
 "%@ (unavailable)" = "%@ (niedostępne)";
+"Spending cap, not balance" = "Limit wydatków, nie saldo";
+
+"Color Pace Indicator" = "Koloruj tempo zużycia";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Zielony, gdy zużycie jest wolniejsze od oczekiwanego (rezerwa); czerwony, gdy jest szybsze (ryzyko wcześniejszego wyczerpania limitu).";
+"%@ weekly" = "%@ tygodniowo";
+
+"agent_sessions_hide_unreachable_title" = "Ukryj nieosiągalne hosty";
+"agent_sessions_hide_unreachable_subtitle" = "Ukryj hosty, gdy pobieranie ich sesji się nie powiedzie.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Udostępnij podsumowanie użycia…";
+"Usage snapshot unavailable" = "Podsumowanie użycia niedostępne";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar nie może przygotować podsumowania użycia do udostępnienia. Odśwież Zużycie i wydatki, a następnie spróbuj ponownie.";
+"Incomplete" = "Niekompletne";
+"Est. subtotal (%@): %@" = "Szacowana suma częściowa (%@): %@";
+"Excluded requests with missing final usage: %d" = "Wykluczone żądania bez końcowych danych o użyciu: %d";
+
+"overview_layout_title" = "Układ Przeglądu";
+"overview_layout_subtitle" = "Wybierz, ile informacji ma wyświetlać Przegląd.";
+"overview_layout_detailed" = "Szczegółowy";
+"overview_layout_compact" = "Kompaktowy";
+
+"section_widgets" = "Widżety";
+"account_widgets_title" = "Aktualizuj konta dla widżetów";
+"account_widgets_description" = "Wybierz konto w każdym widżecie Account Usage. Odświeża do sześciu kont na dostawcę.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Lokalne użycie × publiczne ceny API · to nie opłaty ani kredyty Antigravity";
+"antigravity_quota_window_note" = "Koszt okna obejmuje wszystkie modele · pokazane okno to najbardziej ograniczona rodzina";
+"antigravity_no_priced_token_history" = "Brak wycenionej historii tokenów Antigravity.";

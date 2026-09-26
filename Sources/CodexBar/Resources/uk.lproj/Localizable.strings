@@ -1600,3 +1600,33 @@
 "Restore Defaults" = "Відновити типові значення";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Виберіть, які рядки використання відображатимуться в меню цього постачальника, попередньому перегляді налаштувань і огляді.";
 "%@ (unavailable)" = "%@ (недоступний)";
+"Spending cap, not balance" = "Ліміт витрат, не баланс";
+
+"Color Pace Indicator" = "Кольорова індикація темпу";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелений — витрати нижчі за очікуваний темп (є запас); червоний — вищі (ризик дострокового вичерпання квоти).";
+"%@ weekly" = "%@ за тиждень";
+
+"agent_sessions_hide_unreachable_title" = "Приховувати недоступні вузли";
+"agent_sessions_hide_unreachable_subtitle" = "Приховувати вузли, якщо не вдалося отримати їхні сеанси.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поділитися оглядом використання…";
+"Usage snapshot unavailable" = "Огляд використання недоступний";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar не вдалося підготувати огляд використання для поширення. Оновіть розділ «Використання й витрати» та повторіть спробу.";
+"Incomplete" = "Неповні дані";
+"Est. subtotal (%@): %@" = "Орієнтовний підсумок (%@): %@";
+"Excluded requests with missing final usage: %d" = "Виключені запити без остаточних даних про використання: %d";
+
+"overview_layout_title" = "Компонування огляду";
+"overview_layout_subtitle" = "Виберіть, скільки інформації показувати в огляді.";
+"overview_layout_detailed" = "Докладно";
+"overview_layout_compact" = "Компактний";
+
+"section_widgets" = "Віджети";
+"account_widgets_title" = "Оновлювати дані облікових записів для віджетів";
+"account_widgets_description" = "Виберіть обліковий запис у кожному віджеті Account Usage. Оновлює до шести облікових записів для кожного постачальника.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Локальне використання × публічні ціни API · це не рахунки та не кредити Antigravity";
+"antigravity_quota_window_note" = "Вартість вікна охоплює всі моделі · показано вікно найбільш обмеженої родини";
+"antigravity_no_priced_token_history" = "Немає оціненої історії токенів Antigravity.";

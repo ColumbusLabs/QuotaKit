@@ -1599,3 +1599,33 @@
 "Restore Defaults" = "Återställ standardvärden";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Välj vilka användningsrader som visas i den här leverantörens meny, förhandsvisningen i Inställningar och Översikt.";
 "%@ (unavailable)" = "%@ (inte tillgänglig)";
+"Spending cap, not balance" = "Utgiftstak, inte saldo";
+
+"Color Pace Indicator" = "Färglägg förbrukningstakten";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grönt när förbrukningen ligger under förväntad takt (reserv); rött när den ligger över (risk att kvoten tar slut i förtid).";
+"%@ weekly" = "%@ per vecka";
+
+"agent_sessions_hide_unreachable_title" = "Dölj värdar som inte kan nås";
+"agent_sessions_hide_unreachable_subtitle" = "Dölj värdar när deras sessioner inte kan hämtas.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Dela användningsöversikt…";
+"Usage snapshot unavailable" = "Användningsöversikt är inte tillgänglig";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar kunde inte förbereda en delbar användningsöversikt. Uppdatera Användning och utgifter och försök igen.";
+"Incomplete" = "Ofullständigt";
+"Est. subtotal (%@): %@" = "Uppskattad delsumma (%@): %@";
+"Excluded requests with missing final usage: %d" = "Uteslutna förfrågningar utan slutliga användningsdata: %d";
+
+"overview_layout_title" = "Översiktslayout";
+"overview_layout_subtitle" = "Välj hur mycket information som visas i översikten.";
+"overview_layout_detailed" = "Detaljerad";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Widgetar";
+"account_widgets_title" = "Håll konton uppdaterade för widgetar";
+"account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Lokal användning × publika API-priser · inte Antigravity-avgifter eller krediter";
+"antigravity_quota_window_note" = "Fönsterkostnaden omfattar alla modeller · fönstret som visas är den mest begränsade familjen";
+"antigravity_no_priced_token_history" = "Ingen prissatt Antigravity-tokenhistorik tillgänglig.";

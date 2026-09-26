@@ -1612,3 +1612,33 @@
 "Restore Defaults" = "恢复默认设置";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "选择要在此提供商的菜单、设置预览和概览中显示的用量行。";
 "%@ (unavailable)" = "%@（不可用）";
+"Spending cap, not balance" = "支出上限，并非余额";
+
+"Color Pace Indicator" = "用颜色显示使用节奏";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "使用量低于预期进度时显示绿色（有余量）；高于预期时显示红色（可能提前耗尽配额）。";
+"%@ weekly" = "%@ 每周";
+
+"agent_sessions_hide_unreachable_title" = "隐藏无法连接的主机";
+"agent_sessions_hide_unreachable_subtitle" = "获取会话失败时隐藏该主机。";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "分享用量概览…";
+"Usage snapshot unavailable" = "用量概览不可用";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar 无法准备可分享的用量概览。请刷新“用量和支出”后重试。";
+"Incomplete" = "不完整";
+"Est. subtotal (%@): %@" = "估算小计（%@）：%@";
+"Excluded requests with missing final usage: %d" = "因缺少最终用量而排除的请求：%d";
+
+"overview_layout_title" = "概览布局";
+"overview_layout_subtitle" = "选择“概览”显示的信息量。";
+"overview_layout_detailed" = "详细";
+"overview_layout_compact" = "紧凑";
+
+"section_widgets" = "小组件";
+"account_widgets_title" = "为小组件保持账户更新";
+"account_widgets_description" = "在每个 Account Usage 小组件中选择一个账户。每个服务商最多刷新六个账户。";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "本地用量 × 公开 API 价格 · 并非 Antigravity 账单或额度";
+"antigravity_quota_window_note" = "窗口费用涵盖所有模型 · 所示窗口为最受限的模型系列";
+"antigravity_no_priced_token_history" = "没有可计价的 Antigravity 令牌历史记录。";

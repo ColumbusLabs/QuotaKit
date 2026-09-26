@@ -1,18 +1,5 @@
 import Foundation
 
-package enum CostUsageIncompleteRequests {
-    /// Clamp malformed counts and saturate totals so an overflow cannot erase the partial marker.
-    package static func sum(_ counts: some Sequence<Int>) -> Int {
-        var total = 0
-        for count in counts {
-            let next = total.addingReportingOverflow(max(0, count))
-            if next.overflow { return Int.max }
-            total = next.partialValue
-        }
-        return total
-    }
-}
-
 package struct CostUsageTokenActivityCache: Sendable, Equatable {
     package let daily: [CostUsageDailyReport.Entry]
     package let coverageSinceKey: String
@@ -276,6 +263,7 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
     /// Exact event-time slices for quota-window projection. Empty for legacy/coarse providers.
     public let quotaSlices: [CostUsageTimedEntry]
     public let updatedAt: Date
+    let quotaProjectionMemo = CostUsageQuotaProjectionMemo()
 
     public var historyIsFullyScanned: Bool {
         self.historyCoverageIsEstablished && !self.historyScanIsPartial
@@ -331,6 +319,13 @@ public struct CostUsageTokenSnapshot: Sendable, Equatable {
         self.hourly = hourly
         self.quotaSlices = quotaSlices
         self.updatedAt = updatedAt
+    }
+
+    /// Coverage is established *and* the read of that coverage ran to completion. Surfaces that
+    /// fabricate certainty — zero-filling absent days, dropping a partial-history hint, marking a
+    /// window complete — must gate on this rather than on `historyCoverageIsEstablished` alone.
+    public var historyIsFullyScanned: Bool {
+        self.historyCoverageIsEstablished && !self.historyScanIsPartial
     }
 
     public func currentDayEntry(calendar: Calendar = .current) -> CostUsageDailyReport.Entry? {
@@ -1649,6 +1644,8 @@ enum CostUsageLocalDay {
         }
         guard let parsed = CostUsageDateParser.parse(trimmed) else { return nil }
         return Self.key(from: parsed, calendar: calendar)
+    }
+
     static func date(fromKey key: String, calendar: Calendar = .current) -> Date? {
         let parts = key.split(separator: "-")
         guard parts.count == 3,
@@ -1660,5 +1657,51 @@ enum CostUsageLocalDay {
             year: year,
             month: month,
             day: day))
+    }
+}
+
+/// Reuses the calendar's `[start, next)` day interval while timestamps stay inside it.
+/// Day keys still come from `CostUsageLocalDay` so DST and non-Gregorian calendars stay aligned: the key derives
+/// y-m-d from the same Gregorian-in-timezone calendar whose `.day` interval is cached here, so the memo can never
+/// disagree with computing the key per entry (DST days are simply 23 h / 25 h intervals).
+struct CostUsageLocalDayKeyMemo {
+    var start = Date.distantPast
+    var end = Date.distantPast
+    var key = ""
+
+    mutating func key(for timestamp: Date, calendar: Calendar) -> String {
+        if timestamp >= self.start, timestamp < self.end {
+            return self.key
+        }
+        let dayCalendar = CostUsageLocalDay.gregorianCalendar(matching: calendar)
+        guard let interval = dayCalendar.dateInterval(of: .day, for: timestamp) else {
+            self.start = Date.distantPast
+            self.end = Date.distantPast
+            return CostUsageLocalDay.key(from: timestamp, calendar: calendar)
+        }
+        self.start = interval.start
+        self.end = interval.end
+        self.key = CostUsageLocalDay.key(from: timestamp, calendar: calendar)
+        return self.key
+    }
+}
+
+/// Reuses the calendar's hour interval while timestamps stay inside `[start, end)`.
+struct CostUsageHourStartMemo {
+    var start = Date.distantPast
+    var end = Date.distantPast
+
+    mutating func start(for timestamp: Date, calendar: Calendar) -> Date {
+        if timestamp >= self.start, timestamp < self.end {
+            return self.start
+        }
+        guard let interval = calendar.dateInterval(of: .hour, for: timestamp) else {
+            self.start = Date.distantPast
+            self.end = Date.distantPast
+            return timestamp
+        }
+        self.start = interval.start
+        self.end = interval.end
+        return self.start
     }
 }

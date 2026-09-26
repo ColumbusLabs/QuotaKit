@@ -50,9 +50,21 @@ public enum AntigravityProviderDescriptor {
                 ]),
             tokenCost: ProviderTokenCostConfig(
                 supportsTokenCost: true,
-                noDataMessage: { "No Antigravity local token history was found." },
-                supportsTokenSnapshot: true),
-            pace: ProviderPaceCapability(sessionPaceWindowRule: .windowDuration(minutes: 300)),
+                noDataMessage: { Self.noDataMessageKey },
+                menuHintLines: [.localized(self.estimateHintKey)],
+                supportsTokenSnapshot: true,
+                settingsStatusOrder: 3,
+                showsHintInProviderDetails: true,
+                estimateDisclaimer: "Local usage × public API prices · not Antigravity charges or credits",
+                historyTitleStyle: .compact,
+                hintPlacement: .beforeRequestHistory,
+                chartEstimateDisclaimer: .localized(self.estimateHintKey),
+                preservesCalendarDaysInCharts: true,
+                presentation: .costAndTokens),
+            pace: ProviderPaceCapability(
+                sessionPaceWindowRule: .custom { window, _ in
+                    window.windowMinutes == nil || window.windowMinutes == 300
+                }),
             history: .alwaysTracked,
             presentation: ProviderUsagePresentation(
                 iconWindowResolver: self.iconWindows,
@@ -70,7 +82,17 @@ public enum AntigravityProviderDescriptor {
                         return nil
                     }
                     return family == .small ? 2 : 3
-                }),
+                },
+                menuCard: ProviderMenuCardPresentation(
+                    supportsInlineTokenCostDashboard: true,
+                    showsQuotaWeekCost: true,
+                    // Antigravity has no single account-wide weekly quota: it reports a weekly bucket
+                    // per model family, and `semanticWindows` surfaces whichever family is most
+                    // constrained, while the cost bucketed into it spans every model.
+                    quotaWindowNote: self.quotaWindowNoteKey,
+                    // Because that surfaced reset belongs to whichever family currently leads, stored
+                    // observations name unrelated families' resets and must not become boundaries.
+                    ignoresObservedQuotaResetBoundaries: true)),
             fetchPlan: ProviderFetchPlan(
                 sourceModes: [.auto, .cli, .oauth],
                 pipeline: ProviderFetchPipeline(
@@ -80,6 +102,10 @@ public enum AntigravityProviderDescriptor {
                 name: "antigravity",
                 versionDetector: nil))
     }
+
+    static let estimateHintKey = "antigravity_cost_estimate_hint"
+    static let quotaWindowNoteKey = "antigravity_quota_window_note"
+    static let noDataMessageKey = "antigravity_no_priced_token_history"
 
     private static let quotaSummaryPrefix = "antigravity-quota-summary-"
     private static let compactFallbackPrefix = "antigravity-compact-fallback-"

@@ -1603,3 +1603,32 @@
 "Restore Defaults" = "Restore Defaults";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Choose which usage rows appear in this provider's menu, Settings preview, and Overview.";
 "%@ (unavailable)" = "%@ (unavailable)";
+"Spending cap, not balance" = "Spending cap, not balance";
+
+"Color Pace Indicator" = "Color Pace Indicator";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Green pace indicator when behind pace, red when ahead of pace (risk of running out early)";
+"%@ weekly" = "%@ weekly";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Share Usage Snapshot…";
+"Usage snapshot unavailable" = "Usage snapshot unavailable";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again.";
+"Incomplete" = "Incomplete";
+
+"Est. subtotal (%@): %@" = "Est. subtotal (%@): %@";
+
+"Excluded requests with missing final usage: %d" = "Excluded requests with missing final usage: %d";
+
+"overview_layout_title" = "Overview layout";
+"overview_layout_subtitle" = "Choose how much information Overview shows.";
+"overview_layout_detailed" = "Detailed";
+"overview_layout_compact" = "Compact";
+
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Keep accounts updated for widgets";
+"account_widgets_description" = "Choose an account in each Account Usage widget. Refreshes up to six accounts per provider.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Local usage × public API prices · not Antigravity charges or credits";
+"antigravity_quota_window_note" = "Window cost covers all models · window shown is the most constrained family";
+"antigravity_no_priced_token_history" = "No priced Antigravity token history is available.";

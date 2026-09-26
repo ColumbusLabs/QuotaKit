@@ -94,6 +94,7 @@ extension AntigravityLocalReader {
         // its sidecar state are unchanged afterwards. Anything else stays incomplete, as before.
         guard self.idleDatabaseState(url) == before else {
             source.isComplete = false
+            source.evidenceIsUnstable = true
             return source
         }
         return source
@@ -431,7 +432,7 @@ extension AntigravityLocalReader {
             let attemptedBytes = max(count, payload.byteCount)
             try progress.budget.chargeBytes(attemptedBytes)
             guard attemptedBytes <= progress.budget.limits.databaseBytes - progress.databaseBytes
-            else { break }
+            else { throw ScanFailure.exhausted }
             progress.databaseBytes += attemptedBytes
             guard count > 0, count <= progress.budget.limits.blobBytes,
                   sqlite3_column_type(statement, 0) == SQLITE_INTEGER,

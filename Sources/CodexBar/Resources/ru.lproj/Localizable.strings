@@ -1601,3 +1601,33 @@
 "Restore Defaults" = "Восстановить настройки по умолчанию";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Выберите, какие строки использования отображаются в меню этого провайдера, в предпросмотре настроек и в обзоре.";
 "%@ (unavailable)" = "%@ (недоступно)";
+"Spending cap, not balance" = "Лимит расходов, не баланс";
+
+"Color Pace Indicator" = "Цветовая индикация темпа";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Зелёный — расход ниже ожидаемого темпа (есть запас); красный — выше (риск досрочного исчерпания квоты).";
+"%@ weekly" = "%@ за неделю";
+
+"agent_sessions_hide_unreachable_title" = "Скрывать недоступные узлы";
+"agent_sessions_hide_unreachable_subtitle" = "Скрывать узлы, если не удалось получить их сеансы.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Поделиться сводкой использования…";
+"Usage snapshot unavailable" = "Сводка использования недоступна";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar не удалось подготовить сводку использования для отправки. Обновите раздел «Использование и расходы» и повторите попытку.";
+"Incomplete" = "Неполные данные";
+"Est. subtotal (%@): %@" = "Оценка подытога (%@): %@";
+"Excluded requests with missing final usage: %d" = "Исключённые запросы без итоговых данных об использовании: %d";
+
+"overview_layout_title" = "Макет обзора";
+"overview_layout_subtitle" = "Выберите, сколько информации показывать в обзоре.";
+"overview_layout_detailed" = "Подробный";
+"overview_layout_compact" = "Компактный";
+
+"section_widgets" = "Виджеты";
+"account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
+"account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Локальное использование × публичные цены API · это не счета и не кредиты Antigravity";
+"antigravity_quota_window_note" = "Стоимость окна включает все модели · показано окно самого ограниченного семейства";
+"antigravity_no_priced_token_history" = "Нет оценённой истории токенов Antigravity.";

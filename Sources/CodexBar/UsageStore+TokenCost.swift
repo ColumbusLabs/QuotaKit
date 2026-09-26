@@ -258,13 +258,11 @@ extension UsageStore {
     }
 
     func retainsEstablishedTokenHistory(_ snapshot: CostUsageTokenSnapshot, for provider: UsageProvider) -> Bool {
-        // A bounded Codex refresh can succeed with partial rows while catch-up remains pending.
-        // Account and history-window changes fail the current-publication lookup below.
-        // Provider-specific by design: only Codex retains established history during bounded catch-up.
-        if provider == .codex,
-           !snapshot.historyCoverageIsEstablished,
-           self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)?
-               .snapshot?.historyCoverageIsEstablished == true
+        // Provider-specific by design: bounded Codex and partial Antigravity scans retain complete same-scope history.
+        if (provider == .codex && !snapshot.historyCoverageIsEstablished)
+            || (provider == .antigravity && snapshot.historyScanIsPartial),
+            self.tokenSnapshotPublicationForCurrentProviderConfig(for: provider)?
+                .snapshot?.historyCoverageIsEstablished == true
         {
             return true
         }
@@ -304,7 +302,18 @@ extension UsageStore {
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
             semanticFingerprint: displayed.map(self.spendDashboardSnapshotSemanticFingerprint),
             accounting: accounting)
+        self.warmQuotaProjection(for: snapshot)
         self.synchronizeSharedSpendDashboardAfterTokenPublication(for: provider)
+    }
+
+    /// The menu card projects quota weeks synchronously while it builds, so the per-slice pass runs
+    /// off the main actor when possible; a card arriving first can still build it synchronously.
+    private func warmQuotaProjection(for snapshot: CostUsageTokenSnapshot?) {
+        guard let snapshot, !snapshot.quotaSlices.isEmpty || !snapshot.hourly.isEmpty else { return }
+        let calendar = self.settings.costUsageBucketCalendar
+        Task.detached(priority: .utility) {
+            snapshot.warmQuotaProjection(calendar: calendar)
+        }
     }
 
     func installCachedTokenSnapshot(
@@ -321,6 +330,7 @@ extension UsageStore {
             scopeSignature: self.tokenSnapshotScopeSignature(for: provider),
             semanticFingerprint: self.spendDashboardSnapshotSemanticFingerprint(displayed),
             accounting: accounting)
+        self.warmQuotaProjection(for: snapshot)
     }
 
     func spendDashboardSnapshotSemanticFingerprint(_ snapshot: CostUsageTokenSnapshot) -> String {
@@ -770,8 +780,10 @@ extension UsageStore {
         return nil
     }
 
+    /// Descriptors live in CodexBarCore and cannot localize, so the message is resolved here.
+    /// `L` returns its argument unchanged for providers whose message is a plain English literal.
     nonisolated static func tokenCostNoDataMessage(for provider: UsageProvider) -> String {
-        ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.noDataMessage()
+        L(ProviderDescriptorRegistry.descriptor(for: provider).tokenCost.noDataMessage())
     }
 
     /// Timeouts keep the normal cadence; forbidden Cursor costs wait at least six hours.

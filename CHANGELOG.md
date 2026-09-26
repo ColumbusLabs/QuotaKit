@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Antigravity local history estimates known models at public API prices and labels incomplete or unpriced totals.
 - Agent sessions: opt-in Stay Awake holds the Mac awake while a local agent process is live, then releases it automatically.
 - Notifications: opt-in, account-scoped credential expiry alerts use shared delivery, including Augment keepalive.
 - Venice: show subscription credits through an explicit browser Web source, accepting Venice auth and Clerk session cookies.
@@ -43,6 +44,8 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Alibaba Token Plan / Qwen Cloud: parse monthly quota windows, preserve rolling windows, and label monthly usage consistently across Mac, widgets, and iPhone (#3903).
 
 ### Improved
+- Quota-week menu cards reuse per-snapshot day projections and warm them off the main thread.
+- Codex cost scans reuse unchanged stamp-validated snapshots from the existing bounded store.
 
 - Manus and T3 Chat: retrieve browser usage through bundled plugins.
 

@@ -1603,3 +1603,33 @@
 "Restore Defaults" = "Restaura els valors predeterminats";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Trieu quines files d'ús es mostren al menú d'aquest proveïdor, a la previsualització de Configuració i a la vista general.";
 "%@ (unavailable)" = "%@ (no disponible)";
+"Spending cap, not balance" = "Límit de despesa, no saldo";
+
+"Color Pace Indicator" = "Acoloreix el ritme";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Verd quan l’ús va per sota del ritme previst (reserva); vermell quan va per sobre (risc d’esgotar la quota abans d’hora).";
+"%@ weekly" = "%@ setmanal";
+
+"agent_sessions_hide_unreachable_title" = "Amaga els amfitrions inaccessibles";
+"agent_sessions_hide_unreachable_subtitle" = "Amaga els amfitrions quan falla la consulta de les seves sessions.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Comparteix la instantània d'ús…";
+"Usage snapshot unavailable" = "Instantània d'ús no disponible";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar no ha pogut preparar una instantània d'ús per compartir. Actualitza Ús i despesa i torna-ho a provar.";
+"Incomplete" = "Incomplet";
+"Est. subtotal (%@): %@" = "Subtotal estimat (%@): %@";
+"Excluded requests with missing final usage: %d" = "Sol·licituds excloses sense dades d’ús finals: %d";
+
+"overview_layout_title" = "Disseny del Resum";
+"overview_layout_subtitle" = "Trieu quanta informació mostra el Resum.";
+"overview_layout_detailed" = "Detallat";
+"overview_layout_compact" = "Compacte";
+
+"section_widgets" = "Ginys";
+"account_widgets_title" = "Mantén els comptes actualitzats per als ginys";
+"account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Ús local × preus públics de l'API · no són càrrecs ni crèdits d'Antigravity";
+"antigravity_quota_window_note" = "El cost de la finestra inclou tots els models · la finestra mostrada és la família més limitada";
+"antigravity_no_priced_token_history" = "No hi ha historial de tokens d'Antigravity amb preu disponible.";

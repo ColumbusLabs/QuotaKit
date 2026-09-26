@@ -1601,3 +1601,33 @@
 "Restore Defaults" = "Khôi phục mặc định";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Chọn các hàng sử dụng xuất hiện trong menu của nhà cung cấp này, bản xem trước Cài đặt và Tổng quan.";
 "%@ (unavailable)" = "%@ (không khả dụng)";
+"Spending cap, not balance" = "Hạn mức chi tiêu, không phải số dư";
+
+"Color Pace Indicator" = "Tô màu nhịp sử dụng";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Xanh khi mức sử dụng chậm hơn nhịp dự kiến (còn dư); đỏ khi nhanh hơn (nguy cơ hết hạn mức sớm).";
+"%@ weekly" = "%@ hàng tuần";
+
+"agent_sessions_hide_unreachable_title" = "Ẩn máy chủ không thể truy cập";
+"agent_sessions_hide_unreachable_subtitle" = "Ẩn máy chủ khi không lấy được các phiên của máy chủ đó.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
+"Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";
+"Incomplete" = "Chưa đầy đủ";
+"Est. subtotal (%@): %@" = "Tổng phụ ước tính (%@): %@";
+"Excluded requests with missing final usage: %d" = "Yêu cầu bị loại trừ do thiếu dữ liệu sử dụng cuối cùng: %d";
+
+"overview_layout_title" = "Bố cục Tổng quan";
+"overview_layout_subtitle" = "Chọn lượng thông tin hiển thị trong Tổng quan.";
+"overview_layout_detailed" = "Chi tiết";
+"overview_layout_compact" = "Gọn";
+
+"section_widgets" = "Tiện ích";
+"account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
+"account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Mức dùng cục bộ × giá API công khai · không phải phí hay tín dụng Antigravity";
+"antigravity_quota_window_note" = "Chi phí cửa sổ bao gồm mọi mô hình · cửa sổ hiển thị là nhóm bị giới hạn nhất";
+"antigravity_no_priced_token_history" = "Không có lịch sử token Antigravity được định giá.";

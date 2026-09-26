@@ -1600,3 +1600,33 @@
 "Restore Defaults" = "Standardeinstellungen wiederherstellen";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Wähle aus, welche Nutzungszeilen im Menü dieses Anbieters, in der Einstellungsvorschau und in der Übersicht angezeigt werden.";
 "%@ (unavailable)" = "%@ (nicht verfügbar)";
+"Spending cap, not balance" = "Ausgabenlimit, kein Guthaben";
+
+"Color Pace Indicator" = "Nutzungstempo einfärben";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Grün bei langsamerem Verbrauch als erwartet (Reserve); Rot bei schnellerem Verbrauch (Risiko einer vorzeitigen Ausschöpfung).";
+"%@ weekly" = "%@ wöchentlich";
+
+"agent_sessions_hide_unreachable_title" = "Nicht erreichbare Hosts ausblenden";
+"agent_sessions_hide_unreachable_subtitle" = "Hosts ausblenden, wenn ihre Sitzungen nicht abgerufen werden können.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Nutzungsübersicht teilen…";
+"Usage snapshot unavailable" = "Nutzungsübersicht nicht verfügbar";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar konnte keine teilbare Nutzungsübersicht erstellen. Aktualisieren Sie „Nutzung & Ausgaben“ und versuchen Sie es erneut.";
+"Incomplete" = "Unvollständig";
+"Est. subtotal (%@): %@" = "Geschätzte Zwischensumme (%@): %@";
+"Excluded requests with missing final usage: %d" = "Ausgeschlossene Anfragen ohne abschließende Nutzungsdaten: %d";
+
+"overview_layout_title" = "Übersichtslayout";
+"overview_layout_subtitle" = "Wählen Sie aus, wie viele Informationen die Übersicht anzeigt.";
+"overview_layout_detailed" = "Detailliert";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Konten für Widgets aktuell halten";
+"account_widgets_description" = "Wähle in jedem Account Usage-Widget ein Konto aus. Aktualisiert bis zu sechs Konten pro Anbieter.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Lokale Nutzung × öffentliche API-Preise · keine Antigravity-Abrechnung oder Credits";
+"antigravity_quota_window_note" = "Fensterkosten umfassen alle Modelle · gezeigtes Fenster ist die am stärksten begrenzte Familie";
+"antigravity_no_priced_token_history" = "Keine bepreiste Antigravity-Token-Historie verfügbar.";

@@ -1602,3 +1602,33 @@
 "Restore Defaults" = "Varsayılanları Geri Yükle";
 "Choose which usage rows appear in this provider's menu, Settings preview, and Overview." = "Bu sağlayıcının menüsünde, Ayarlar önizlemesinde ve Genel Bakış'ta hangi kullanım satırlarının görüneceğini seçin.";
 "%@ (unavailable)" = "%@ (kullanılamıyor)";
+"Spending cap, not balance" = "Harcama sınırı, bakiye değil";
+
+"Color Pace Indicator" = "Kullanım hızını renklendir";
+"Green pace indicator when behind pace, red when ahead of pace (risk of running out early)" = "Kullanım beklenen hızın gerisindeyse yeşil (rezerv); ilerisindeyse kırmızı (kotanın erken tükenme riski).";
+"%@ weekly" = "%@ haftalık";
+
+"agent_sessions_hide_unreachable_title" = "Erişilemeyen ana bilgisayarları gizle";
+"agent_sessions_hide_unreachable_subtitle" = "Oturumları alınamadığında ana bilgisayarları gizle.";
+
+/* Overview share flow */
+"Share Usage Snapshot…" = "Kullanım özetini paylaş…";
+"Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
+"CodexBar couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "CodexBar paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";
+"Incomplete" = "Eksik";
+"Est. subtotal (%@): %@" = "Tahmini ara toplam (%@): %@";
+"Excluded requests with missing final usage: %d" = "Nihai kullanım verileri eksik olduğu için hariç tutulan istekler: %d";
+
+"overview_layout_title" = "Genel Bakış düzeni";
+"overview_layout_subtitle" = "Genel Bakış’ın ne kadar bilgi göstereceğini seçin.";
+"overview_layout_detailed" = "Ayrıntılı";
+"overview_layout_compact" = "Kompakt";
+
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";
+
+/* Antigravity local cost estimates */
+"antigravity_cost_estimate_hint" = "Yerel kullanım × herkese açık API fiyatları · Antigravity ücretleri veya kredileri değildir";
+"antigravity_quota_window_note" = "Pencere maliyeti tüm modelleri kapsar · gösterilen pencere en kısıtlı ailedir";
+"antigravity_no_priced_token_history" = "Fiyatlandırılmış Antigravity token geçmişi yok.";
