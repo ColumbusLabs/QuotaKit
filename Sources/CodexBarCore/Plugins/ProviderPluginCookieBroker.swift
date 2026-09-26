@@ -110,14 +110,15 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         let importOrder = provider.map {
             ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder
         } ?? [.chrome]
-        let query = Self.cookieQuery(domain: domain)
+        let query = Self.cookieQuery(domain: domain, provider: provider)
         let client = BrowserCookieClient()
         for browser in importOrder.cookieImportCandidates(using: browserDetection) {
             do {
                 let sources = try client.codexBarRecords(matching: query, in: browser)
                 for source in sources where !source.records.isEmpty {
                     let cookies = Self.cookiesForRequest(
-                        BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin), domain: domain)
+                        BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin),
+                        domain: domain, provider: provider)
                     let rawHeader = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
                     if let header = CookieHeaderNormalizer.normalize(rawHeader) {
                         return (header, source.label)
@@ -137,19 +138,22 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
     }
 
     #if os(macOS)
-    static func cookieQuery(domain: String) -> BrowserCookieQuery {
-        let alternate = domain.hasPrefix("www.") ? String(domain.dropFirst(4)) : "www.\(domain)"
-        return BrowserCookieQuery(domains: [domain, alternate], domainMatch: .exact)
+    static func cookieQuery(domain: String, provider: UsageProvider? = nil) -> BrowserCookieQuery {
+        BrowserCookieQuery(domains: Self.cookieHosts(domain: domain, provider: provider), domainMatch: .exact)
     }
 
-    static func cookiesForRequest(_ cookies: [HTTPCookie], domain: String) -> [HTTPCookie] {
+    static func cookiesForRequest(
+        _ cookies: [HTTPCookie], domain: String, provider: UsageProvider? = nil) -> [HTTPCookie]
+    {
         var chosen: [String: HTTPCookie] = [:]
         var order: [String] = []
-        for cookie in cookies where Self.matches(cookieDomain: cookie.domain, domain: domain) {
+        let preferredHost = provider == .helmcode && ["helmcode.com", "nan.builders"].contains(domain)
+            ? "cloud.\(domain)" : domain
+        for cookie in cookies where Self.matches(cookieDomain: cookie.domain, domain: domain, provider: provider) {
             if let existing = chosen[cookie.name] {
                 // A host-specific session must not be shadowed by its parent-domain cookie.
-                if Self.normalizedDomain(cookie.domain) == domain,
-                   Self.normalizedDomain(existing.domain) != domain
+                if Self.normalizedDomain(cookie.domain) == preferredHost,
+                   Self.normalizedDomain(existing.domain) != preferredHost
                 {
                     chosen[cookie.name] = cookie
                 }
@@ -166,9 +170,18 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
     }
 
-    static func matches(cookieDomain: String, domain: String) -> Bool {
+    private static func cookieHosts(domain: String, provider: UsageProvider?) -> [String] {
+        let alternate = domain.hasPrefix("www.") ? String(domain.dropFirst(4)) : "www.\(domain)"
+        var hosts = [domain, alternate]
+        if provider == .helmcode, ["helmcode.com", "nan.builders"].contains(domain) {
+            hosts.append("cloud.\(domain)")
+        }
+        return hosts
+    }
+
+    static func matches(cookieDomain: String, domain: String, provider: UsageProvider? = nil) -> Bool {
         let cookieDomain = Self.normalizedDomain(cookieDomain)
-        return cookieDomain == domain || cookieDomain == "www.\(domain)" || domain == "www.\(cookieDomain)"
+        return Self.cookieHosts(domain: domain, provider: provider).contains(cookieDomain)
     }
 }
 

@@ -106,9 +106,29 @@ struct ProviderPluginCookieBrokerTests {
         let parent = ProviderPluginCookieBroker.cookiesForRequest(cookies, domain: "example.test")
         #expect(parent.map(\.value) == ["parent"])
     }
-    #endif
 
+    @Test
+    func `Helmcode imports cloud dashboard cookies without sibling hosts`() throws {
+        let query = ProviderPluginCookieBroker.cookieQuery(domain: "helmcode.com", provider: .helmcode)
+        #expect(query.domainMatch == .exact)
+        #expect(query.domains == ["helmcode.com", "www.helmcode.com", "cloud.helmcode.com"])
+        let cookies = try [
+            (".helmcode.com", "parent"),
+            ("cloud.helmcode.com", "dashboard"),
+            ("other.helmcode.com", "sibling"),
+        ].map { domain, value in
+            try #require(HTTPCookie(properties: [
+                .domain: domain, .path: "/", .name: "session", .value: value, .secure: true,
+            ]))
+        }
+        let selected = ProviderPluginCookieBroker.cookiesForRequest(
+            cookies, domain: "helmcode.com", provider: .helmcode)
+        #expect(selected.map(\.value) == ["dashboard"])
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "nan.builders", provider: .helmcode).domains == [
+            "nan.builders", "www.nan.builders", "cloud.nan.builders",
+        ])
     }
+    #endif
 
     private func withIsolatedCookieCache<T>(_ operation: () throws -> T) throws -> T {
         let service = "com.columbuslabs.quotakit.tests.plugin-cookie-\(UUID().uuidString)"
