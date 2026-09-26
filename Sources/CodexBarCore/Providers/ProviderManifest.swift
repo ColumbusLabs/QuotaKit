@@ -82,5 +82,8 @@ public enum ProviderManifest {
         HuggingFaceProviderDescriptor.descriptor,
         ReplicateProviderDescriptor.descriptor,
         HyperProviderDescriptor.descriptor,
+        AixyProviderDescriptor.descriptor,
+        XKiroProviderDescriptor.descriptor,
+        RaycastProviderDescriptor.descriptor,
     ]
 }

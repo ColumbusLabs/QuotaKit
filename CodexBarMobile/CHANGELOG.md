@@ -10,7 +10,7 @@ current Columbus Labs product surface and recent release history.
 ### Added
 
 - Bifrost and DevPass quota windows now sync from QuotaKit Mac with provider branding and quota alerts.
-
+- Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now show branded iPhone cards and quota alerts when synced from QuotaKit Mac.
 - Charm Hyper balances now sync from QuotaKit Mac as Hypercredits and appear in a dedicated iPhone card.
 - Replicate monthly billing spend now syncs from QuotaKit Mac as a spend-only card; distinct saved accounts stay separate.
 - v0 is now in the iPhone quota provider catalog with its existing billing and

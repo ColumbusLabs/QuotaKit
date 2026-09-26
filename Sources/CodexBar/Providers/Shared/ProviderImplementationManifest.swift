@@ -83,5 +83,8 @@ enum ProviderImplementationManifest {
         { HuggingFaceProviderImplementation() },
         { ReplicateProviderImplementation() },
         { HyperProviderImplementation() },
+        { AixyProviderImplementation() },
+        { XKiroProviderImplementation() },
+        { RaycastProviderImplementation() },
     ]
 }

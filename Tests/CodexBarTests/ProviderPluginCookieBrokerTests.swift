@@ -82,6 +82,34 @@ struct ProviderPluginCookieBrokerTests {
         }
     }
 
+    #if os(macOS)
+    @Test(arguments: [false, true])
+    func `exact host cookie wins over parent without accepting sibling or lookalike hosts`(reversed: Bool) throws {
+        let rows = [
+            (".example.test", "parent"),
+            ("www.example.test", "host"),
+            ("backend.example.test", "sibling"),
+            ("www.example.test.evil.test", "lookalike"),
+        ]
+        let cookies = try rows.map { domain, value in
+            try #require(HTTPCookie(properties: [
+                .domain: domain, .path: "/", .name: "session", .value: value, .secure: true,
+            ]))
+        }
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "www.example.test").domainMatch == .exact)
+        #expect(ProviderPluginCookieBroker.cookieQuery(domain: "www.example.test").domains == [
+            "www.example.test", "example.test",
+        ])
+        let selected = ProviderPluginCookieBroker.cookiesForRequest(
+            reversed ? Array(cookies.reversed()) : cookies, domain: "www.example.test")
+        #expect(selected.map(\.value) == ["host"])
+        let parent = ProviderPluginCookieBroker.cookiesForRequest(cookies, domain: "example.test")
+        #expect(parent.map(\.value) == ["parent"])
+    }
+    #endif
+
+    }
+
     private func withIsolatedCookieCache<T>(_ operation: () throws -> T) throws -> T {
         let service = "com.columbuslabs.quotakit.tests.plugin-cookie-\(UUID().uuidString)"
         let legacyBase = FileManager.default.temporaryDirectory

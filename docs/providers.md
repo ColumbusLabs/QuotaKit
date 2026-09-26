@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 77 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 80 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -116,6 +116,9 @@ complete when the available scan window covers fewer days.
 | Hugging Face | Access token from QuotaKit settings, Hugging Face environment variables, or the `hf` CLI token file → billing API with optional ZeroGPU quota (`api`). |
 | Replicate | Cached or manually supplied `replicate.com` session cookie → billing page and user/organization invoice APIs (`web`). |
 | Charm Hyper | Chrome or manually saved `hyper.charm.land` session cookie, then API key fallback; explicit API mode skips cookies (`web`, `api`). |
+| Aixy | Project API key → key-scoped usage and applicable budgets (`api`). |
+| xKiro | API key → daily free-token allowance (`api`). |
+| Raycast | Chrome or manually supplied website session → monthly AI credits (`web`). |
 
 ## Codex
 - App Auto: OAuth API first; falls back to CLI only when OAuth credentials are missing or auth/refresh is invalid.

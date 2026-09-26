@@ -754,6 +754,27 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `aixy and xkiro expose their API key settings`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-aixy-xkiro")
+        let aixy = AixyProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .aixy))
+        #expect(aixy.map(\.id) == ["aixy-api-key", "aixy-base-url"])
+        let xkiro = XKiroProviderImplementation().settingsFields(context: fixture.settingsContext(provider: .xkiro))
+        #expect(xkiro.map(\.id) == ["xkiro-api-key"])
+    }
+
+    @Test
+    func `raycast manual cookies use one secure header field`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-raycast")
+        let context = fixture.settingsContext(provider: .raycast)
+        let implementation = RaycastProviderImplementation()
+        #expect(implementation.settingsPickers(context: context).map(\.id) == ["raycast-cookie-source"])
+        fixture.settings.raycastCookieSource = .manual
+        let fields = implementation.settingsFields(context: context)
+        #expect(fields.map(\.id) == ["raycast-cookie-header"])
+        #expect(fields.first?.isVisible?() == true)
+    }
+
+    @Test
     func `deepgram exposes api key and project id fields`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-deepgram")
         let context = fixture.settingsContext(provider: .deepgram)

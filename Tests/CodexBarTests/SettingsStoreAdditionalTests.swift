@@ -237,6 +237,9 @@ struct SettingsStoreAdditionalTests {
             .poe: [.automatic],
             .huggingface: [.automatic, .secondary],
             .replicate: [.automatic],
+            .aixy: [.automatic],
+            .xkiro: [.automatic, .primary],
+            .raycast: [.automatic, .primary],
         ]
 
         for provider in UsageProvider.allCases {

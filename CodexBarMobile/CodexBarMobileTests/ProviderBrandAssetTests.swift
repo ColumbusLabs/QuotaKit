@@ -29,6 +29,9 @@ struct ProviderBrandAssetTests {
         #expect(ProviderBrandAsset.assetName(for: "bifrost") == "ProviderIcon-bifrost")
         #expect(ProviderBrandAsset.assetName(for: "devpass") == "ProviderIcon-devpass")
         #expect(ProviderBrandAsset.assetName(for: "hyper") == "ProviderIcon-hyper")
+        #expect(ProviderBrandAsset.assetName(for: "aixy") == "ProviderIcon-aixy")
+        #expect(ProviderBrandAsset.assetName(for: "xkiro") == "ProviderIcon-xkiro")
+        #expect(ProviderBrandAsset.assetName(for: "raycast") == "ProviderIcon-raycast")
     }
 
     @Test

@@ -15931,6 +15931,34 @@
         }
       }
     },
+    "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy budgets, xKiro daily free-token usage, and Raycast AI credits now sync from QuotaKit Mac with branded iPhone cards and quota alerts."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy の予算、xKiro の1日の無料トークン使用量、Raycast の AI クレジットが QuotaKit Mac から同期され、iPhone の専用カードとクォータ通知に表示されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy 预算、xKiro 每日免费令牌用量和 Raycast AI 点数现可从 QuotaKit Mac 同步，并在 iPhone 品牌卡片和配额提醒中显示。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Aixy 預算、xKiro 每日免費權杖用量與 Raycast AI 點數現可從 QuotaKit Mac 同步，並顯示於 iPhone 品牌卡片及配額提醒。"
+          }
+        }
+      }
+    },
     "Bifrost and DevPass quota windows now sync from QuotaKit Mac to iPhone.": {
       "localizations": {
         "en": {

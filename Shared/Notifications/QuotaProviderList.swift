@@ -1,6 +1,6 @@
 import Foundation
 
-/// The providers CodexBar can emit quota transition notifications for. The ID
+/// The providers QuotaKit can emit quota transition notifications for. The ID
 /// strings must match `UsageProvider` raw values in
 /// `Sources/CodexBarCore/Providers/Providers.swift` — when a new provider is
 /// added upstream, this list and the iOS app must ship an update together to
@@ -146,9 +146,12 @@ public enum QuotaProviderList {
         // transitions represented by this append-only CloudKit subscription catalog.
         // Appended to preserve every existing CloudKit subscription identifier.
         Provider(id: "huggingface", displayName: "Hugging Face"),
-        // New quota providers append after all existing IDs to preserve CloudKit subscriptions.
+        // Append-only: preserve existing CloudKit subscription identifiers.
         Provider(id: "bifrost", displayName: "Bifrost"),
         Provider(id: "devpass", displayName: "DevPass"),
+        Provider(id: "aixy", displayName: "Aixy"),
+        Provider(id: "xkiro", displayName: "xKiro"),
+        Provider(id: "raycast", displayName: "Raycast"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

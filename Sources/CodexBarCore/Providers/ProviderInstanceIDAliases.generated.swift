@@ -80,6 +80,9 @@ extension ProviderInstanceID {
     public static let huggingface = UsageProvider.huggingface.instanceID
     public static let replicate = UsageProvider.replicate.instanceID
     public static let hyper = UsageProvider.hyper.instanceID
+    public static let aixy = UsageProvider.aixy.instanceID
+    public static let xkiro = UsageProvider.xkiro.instanceID
+    public static let raycast = UsageProvider.raycast.instanceID
 }
 
 // swiftformat:enable sortDeclarations

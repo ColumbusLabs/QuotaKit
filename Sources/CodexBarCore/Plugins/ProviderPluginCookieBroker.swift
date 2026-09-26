@@ -110,13 +110,14 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         let importOrder = provider.map {
             ProviderDefaults.metadata[$0]?.browserCookieOrder ?? Browser.defaultImportOrder
         } ?? [.chrome]
-        let query = BrowserCookieQuery(domains: [domain])
+        let query = Self.cookieQuery(domain: domain)
         let client = BrowserCookieClient()
         for browser in importOrder.cookieImportCandidates(using: browserDetection) {
             do {
                 let sources = try client.codexBarRecords(matching: query, in: browser)
                 for source in sources where !source.records.isEmpty {
-                    let cookies = BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin)
+                    let cookies = Self.cookiesForRequest(
+                        BrowserCookieClient.makeHTTPCookies(source.records, origin: query.origin), domain: domain)
                     let rawHeader = cookies.map { "\($0.name)=\($0.value)" }.joined(separator: "; ")
                     if let header = CookieHeaderNormalizer.normalize(rawHeader) {
                         return (header, source.label)
@@ -133,6 +134,41 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
         _ = browserDetection
         throw ProviderPluginError.secretAccess("browser cookie import is unavailable on this platform")
         #endif
+    }
+
+    #if os(macOS)
+    static func cookieQuery(domain: String) -> BrowserCookieQuery {
+        let alternate = domain.hasPrefix("www.") ? String(domain.dropFirst(4)) : "www.\(domain)"
+        return BrowserCookieQuery(domains: [domain, alternate], domainMatch: .exact)
+    }
+
+    static func cookiesForRequest(_ cookies: [HTTPCookie], domain: String) -> [HTTPCookie] {
+        var chosen: [String: HTTPCookie] = [:]
+        var order: [String] = []
+        for cookie in cookies where Self.matches(cookieDomain: cookie.domain, domain: domain) {
+            if let existing = chosen[cookie.name] {
+                // A host-specific session must not be shadowed by its parent-domain cookie.
+                if Self.normalizedDomain(cookie.domain) == domain,
+                   Self.normalizedDomain(existing.domain) != domain
+                {
+                    chosen[cookie.name] = cookie
+                }
+            } else {
+                chosen[cookie.name] = cookie
+                order.append(cookie.name)
+            }
+        }
+        return order.compactMap { chosen[$0] }
+    }
+    #endif
+
+    private static func normalizedDomain(_ domain: String) -> String {
+        domain.lowercased().trimmingCharacters(in: CharacterSet(charactersIn: "."))
+    }
+
+    static func matches(cookieDomain: String, domain: String) -> Bool {
+        let cookieDomain = Self.normalizedDomain(cookieDomain)
+        return cookieDomain == domain || cookieDomain == "www.\(domain)" || domain == "www.\(cookieDomain)"
     }
 }
 
