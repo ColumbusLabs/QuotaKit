@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Venice: show subscription credits, monthly spending, bank cap, and refill dates through an explicit browser Web source.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
 
