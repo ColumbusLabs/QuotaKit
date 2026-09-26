@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- Hooks: opt-in `usage_updated` events after successful Mac or CLI watcher refreshes, with account-scoped throttling and quota-window metadata.
 - Venice: show subscription credits through an explicit browser Web source, accepting Venice auth and Clerk session cookies.
 - DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
