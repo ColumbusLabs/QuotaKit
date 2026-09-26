@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Foundation
 
@@ -26,7 +27,8 @@ struct LLMManProviderImplementation: ProviderImplementation {
                 placeholder: "LLMMAN_API_KEY",
                 binding: context.providerConfigBinding(.apiKey),
                 actions: [],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
             ProviderSettingsFieldDescriptor(
                 id: "llmman-base-url",
                 title: "Base URL",
@@ -35,15 +37,22 @@ struct LLMManProviderImplementation: ProviderImplementation {
                 placeholder: LLMManSettingsReader.defaultBaseURL.absoluteString,
                 binding: context.providerConfigBinding(.endpoint),
                 actions: [
-                    ProviderSettingsActionDescriptor.openURL(
+                    ProviderSettingsActionDescriptor(
                         id: "llmman-open-web-ui",
                         title: "Open llmman",
-                        url: LLMManSettingsReader.baseURL(environment: [
-                            LLMManSettingsReader.hostEnvironmentKey:
-                                context.settings[providerConfig: .llmman, field: .endpoint],
-                        ])),
+                        style: .link,
+                        isVisible: nil,
+                        perform: {
+                            if let url = LLMManSettingsReader.baseURL(environment: [
+                                LLMManSettingsReader.hostEnvironmentKey:
+                                    context.settings[providerConfig: .llmman, field: .endpoint],
+                            ]) {
+                                NSWorkspace.shared.open(url)
+                            }
+                        }),
                 ],
-                isVisible: nil),
+                isVisible: nil,
+                onActivate: nil),
         ]
     }
 }
