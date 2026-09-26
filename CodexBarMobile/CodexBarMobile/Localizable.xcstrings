@@ -15931,6 +15931,34 @@
         }
       }
     },
+    "Bifrost and DevPass quota windows now sync from QuotaKit Mac to iPhone.": {
+      "localizations": {
+        "en": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost and DevPass quota windows now sync from QuotaKit Mac to iPhone."
+          }
+        },
+        "ja": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost と DevPass のクォータ期間が QuotaKit Mac から iPhone に同期されるようになりました。"
+          }
+        },
+        "zh-Hans": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost 和 DevPass 配额窗口现在会从 QuotaKit Mac 同步到 iPhone。"
+          }
+        },
+        "zh-Hant": {
+          "stringUnit": {
+            "state": "translated",
+            "value": "Bifrost 和 DevPass 配額週期現在會從 QuotaKit Mac 同步到 iPhone。"
+          }
+        }
+      }
+    },
     "Charm Hyper balances now sync from QuotaKit Mac to iPhone and appear as Hypercredits.": {
       "localizations": {
         "en": {

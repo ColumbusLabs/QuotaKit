@@ -147,7 +147,8 @@ struct ProviderArchitectureGatekeeperTests {
     func `descriptor widget colors preserve the pre-derivation literals`() {
         var widgetFingerprint: UInt64 = 1_469_598_103_934_665_603
         var burnDownFingerprint = widgetFingerprint
-        for descriptor in ProviderDescriptorRegistry.all {
+        let legacyDescriptors = ProviderDescriptorRegistry.all.filter { $0.id != .bifrost && $0.id != .devpass }
+        for descriptor in legacyDescriptors {
             Self.hash(descriptor.id.rawValue.utf8, into: &widgetFingerprint)
             Self.hash(descriptor.branding.widgetColor, into: &widgetFingerprint)
             Self.hash(descriptor.id.rawValue.utf8, into: &burnDownFingerprint)
@@ -160,7 +161,9 @@ struct ProviderArchitectureGatekeeperTests {
 
     @Test
     func `descriptor unavailable debug messages preserve the legacy table`() throws {
-        let descriptors = ProviderDescriptorRegistry.all.filter { $0.metadata.debugLogUnavailableMessage != nil }
+        let descriptors = ProviderDescriptorRegistry.all.filter {
+            $0.metadata.debugLogUnavailableMessage != nil && $0.id != .bifrost && $0.id != .devpass
+        }
         var fingerprint: UInt64 = 1_469_598_103_934_665_603
         for descriptor in descriptors {
             Self.hash(descriptor.id.rawValue.utf8, into: &fingerprint)

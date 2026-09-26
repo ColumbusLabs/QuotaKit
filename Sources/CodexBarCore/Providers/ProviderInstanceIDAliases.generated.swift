@@ -20,6 +20,7 @@ extension ProviderInstanceID {
     public static let antigravity = UsageProvider.antigravity.instanceID
     public static let copilot = UsageProvider.copilot.instanceID
     public static let devin = UsageProvider.devin.instanceID
+    public static let devpass = UsageProvider.devpass.instanceID
     public static let zai = UsageProvider.zai.instanceID
     public static let minimax = UsageProvider.minimax.instanceID
     public static let manus = UsageProvider.manus.instanceID

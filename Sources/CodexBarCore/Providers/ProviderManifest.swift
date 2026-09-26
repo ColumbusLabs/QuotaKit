@@ -22,6 +22,7 @@ public enum ProviderManifest {
         AntigravityProviderDescriptor.descriptor,
         CopilotProviderDescriptor.descriptor,
         DevinProviderDescriptor.descriptor,
+        DevPassProviderDescriptor.descriptor,
         ZaiProviderDescriptor.descriptor,
         MiniMaxProviderDescriptor.descriptor,
         ManusProviderDescriptor.descriptor,

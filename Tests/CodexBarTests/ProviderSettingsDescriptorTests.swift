@@ -23,6 +23,17 @@ struct ProviderSettingsDescriptorTests {
     }
 
     @Test
+    func `DevPass stores a regular API key in provider config`() throws {
+        let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-devpass")
+        let fields = DevPassProviderImplementation()
+            .settingsFields(context: fixture.settingsContext(provider: .devpass))
+        #expect(fields.map(\.id) == ["devpass-api-key"])
+        #expect(fields.map(\.kind) == [.secure])
+        fields[0].binding.wrappedValue = "fixture-key"
+        #expect(fixture.settings.providerConfig(for: .devpass)?.apiKey == "fixture-key")
+    }
+
+    @Test
     func `bifrost exposes only a virtual key and a configured gateway URL`() throws {
         let fixture = try self.makeSettingsFixture(suite: "ProviderSettingsDescriptorTests-bifrost")
         let fields = BifrostProviderImplementation()

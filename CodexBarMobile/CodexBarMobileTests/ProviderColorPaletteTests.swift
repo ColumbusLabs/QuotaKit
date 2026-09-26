@@ -25,6 +25,8 @@ struct ProviderColorPaletteTests {
             ("factory", 255 / 255, 107 / 255, 53 / 255),
             ("gemini", 171 / 255, 135 / 255, 234 / 255),
             ("gitkraken", 23 / 255, 146 / 255, 135 / 255),
+            ("bifrost", 51 / 255, 192 / 255, 158 / 255),
+            ("devpass", 37 / 255, 99 / 255, 235 / 255),
             ("antigravity", 96 / 255, 186 / 255, 126 / 255),
             ("copilot", 168 / 255, 85 / 255, 247 / 255),
             ("zai", 232 / 255, 90 / 255, 106 / 255),
@@ -160,7 +162,7 @@ private let knownDistinctProviders = [
     "doubao", "sakana", "abacus", "mistral", "deepseek", "codebuff", "crof", "venice",
     "commandcode", "qoder", "stepfun", "bedrock", "grok", "groq", "llmproxy", "litellm", "deepgram",
     "crossmodel", "clinepass", "longcat", "deepinfra", "aiand",
-    "zenmux", "zoommate", "xai", "replicate", "hyper",
+    "zenmux", "zoommate", "xai", "replicate", "hyper", "bifrost", "devpass",
 ]
 
 private func expectDistinctColors(

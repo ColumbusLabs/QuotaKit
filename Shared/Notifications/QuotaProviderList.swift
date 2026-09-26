@@ -146,6 +146,9 @@ public enum QuotaProviderList {
         // transitions represented by this append-only CloudKit subscription catalog.
         // Appended to preserve every existing CloudKit subscription identifier.
         Provider(id: "huggingface", displayName: "Hugging Face"),
+        // New quota providers append after all existing IDs to preserve CloudKit subscriptions.
+        Provider(id: "bifrost", displayName: "Bifrost"),
+        Provider(id: "devpass", displayName: "DevPass"),
     ]
 
     /// Returns the CloudKit zone name for a given `(providerID, state)`. The

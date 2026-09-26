@@ -8,6 +8,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ## Unreleased
 
 ### Added
+- DevPass: track plan credits, premium weekly usage, and key spend with an API key.
 - Bifrost: track self-hosted gateway budgets, rate limits, and model spend using a virtual key.
 
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.

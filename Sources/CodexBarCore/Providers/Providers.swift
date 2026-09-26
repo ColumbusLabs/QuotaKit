@@ -36,6 +36,7 @@ public enum UsageProvider: String, CaseIterable, Sendable, Codable {
     case antigravity
     case copilot
     case devin
+    case devpass
     case zai
     case minimax
     case manus

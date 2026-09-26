@@ -8,7 +8,7 @@ read_when:
 
 # Providers
 
-QuotaKit currently registers 74 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
+QuotaKit currently registers 77 provider IDs. Some companies expose multiple surfaces, such as Codex vs OpenAI API or
 OpenCode vs OpenCode Go, because the auth source and quota shape differ.
 
 ## Fetch strategies (current)
@@ -104,6 +104,7 @@ complete when the available scan window covers fewer days.
 | ClawRouter | API key + optional base URL → `/v1/usage` monthly budget, spend, and routed-provider usage (`api`). |
 | Wayfinder | Local gateway URL → `/healthz`, `/v1/savings`, `/router/models`, `/metrics` for health, routing split, savings, and decision latency (`api`). |
 | LiteLLM | API key + base URL → `/key/info`, then `/user/info` or `/team/info` budget usage (`api`). |
+| DevPass | Regular LLM Gateway API key → plan credits, premium weekly usage, and all-time key spend (`api`). |
 | Bifrost | Virtual key + base URL → `/api/governance/virtual-keys/quota` budget and rate-limit usage (`api`). |
 | Deepgram | API key → project discovery and usage breakdown API (`api`). |
 | Chutes | API key from config/env → subscription usage and quota API (`api`). |
@@ -598,6 +599,11 @@ provider-specific cookie validation, endpoints, login detection, and error trans
 - Spend remains visible in the API-spend row when LiteLLM has no budget limit configured.
 - Accepts base URLs with or without a `/v1` suffix; management requests are sent to the proxy root.
 - Details: `docs/litellm.md`.
+
+## DevPass
+- Regular API key from config or `DEVPASS_API_KEY`. Reads the gateway key endpoint without browser cookies or inference calls.
+- Shows plan credits and premium weekly usage, with all-time key spend in details; pay-as-you-go keys show spend only.
+- Details: `docs/devpass.md`.
 
 ## Bifrost
 - Virtual key from config or `BIFROST_API_KEY`; base URL from config `enterpriseHost` or `BIFROST_BASE_URL` (required).
