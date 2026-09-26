@@ -1,3 +1,4 @@
+import AppKit
 import CodexBarCore
 import Foundation
 
@@ -18,10 +19,16 @@ struct DevPassProviderImplementation: ProviderImplementation {
             kind: .secure,
             placeholder: "Regular LLM Gateway API key",
             binding: context.providerConfigBinding(.apiKey),
-            actions: [.openURL(
+            actions: [ProviderSettingsActionDescriptor(
                 id: "devpass-dashboard",
                 title: "Open DevPass",
-                url: URL(string: "https://devpass.llmgateway.io/dashboard"))],
+                style: .link,
+                isVisible: nil,
+                perform: {
+                    if let url = URL(string: "https://devpass.llmgateway.io/dashboard") {
+                        NSWorkspace.shared.open(url)
+                    }
+                })],
             isVisible: nil,
             onActivate: nil)]
     }
