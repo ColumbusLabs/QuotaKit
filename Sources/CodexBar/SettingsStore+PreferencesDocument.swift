@@ -7,6 +7,8 @@ extension SettingsStore {
         try document.include(self.syncedPreferences)
         try document.set("mergeIcons", self.mergeIcons)
         try document.set("mergeIconsStacked", self.mergeIconsStacked)
+        try document.set("mergeIconStackedTopProvider", self.mergeIconStackedTopProviderRaw)
+        try document.set("mergeIconStackedBottomProvider", self.mergeIconStackedBottomProviderRaw)
         try document.set("switcherShowsIcons", self.switcherShowsIcons)
         try document.set("mergedOverviewLayout", self.mergedOverviewLayout.rawValue)
         if self.userDefaults.object(forKey: "mergedOverviewSelectedProviders") != nil {
@@ -30,6 +32,12 @@ extension SettingsStore {
         if self.adaptiveActivityScanConsent != consent { self.adaptiveActivityScanConsent = consent }
         if let value: Bool = try document.value("mergeIcons") { self.mergeIcons = value }
         if let value: Bool = try document.value("mergeIconsStacked") { self.mergeIconsStacked = value }
+        if document.contains("mergeIconStackedTopProvider") {
+            self.mergeIconStackedTopProviderRaw = try document.value("mergeIconStackedTopProvider", as: String?.self) ?? nil
+        }
+        if document.contains("mergeIconStackedBottomProvider") {
+            self.mergeIconStackedBottomProviderRaw = try document.value("mergeIconStackedBottomProvider", as: String?.self) ?? nil
+        }
         if let value: Bool = try document.value("switcherShowsIcons") { self.switcherShowsIcons = value }
         if let value: String = try document.value("mergedOverviewLayout"),
            let layout = MergedOverviewLayout(rawValue: value)

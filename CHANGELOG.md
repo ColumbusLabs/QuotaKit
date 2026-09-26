@@ -12,6 +12,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 - Terminal actions: select stable Warp with private temporary tab configs, app-targeted launch, and Terminal fallback.
 - CLI: compare local Codex cost estimates with a trusted SSH host through separate bounded summaries.
 - Overview: share a local usage snapshot using the same visible spend sources, calendar, and currency as the summary.
+- Menu bar: choose a stacked merged icon with two provider rows, automatic or explicit provider choices, and preserved layout settings.
 - Agent sessions: opt-in Stay Awake holds the Mac awake while a local agent process is live, then releases it automatically.
 - Notifications: opt-in, account-scoped credential expiry alerts use shared delivery, including Augment keepalive.
 - Provider plugins: show opted-in plugins as switcher tabs with scoped refresh, while retaining standalone plugin cards.

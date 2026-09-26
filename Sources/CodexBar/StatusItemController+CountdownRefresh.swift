@@ -19,7 +19,7 @@ extension StatusItemController {
         var absoluteResetDates: [Date] = []
         for provider in providers {
             let resetDates = self.menuBarDisplayedResetDates(for: provider, now: now)
-            let resolution = self.settings.menuBarLayoutResolution(for: provider)
+            let resolution = self.renderedMenuBarLayoutResolution(for: provider)
             if !resolution.usesLegacyRendering,
                self.settings.menuBarIconStyle == .iconAndPercent
             {
@@ -156,6 +156,9 @@ extension StatusItemController {
     }
 
     private func menuBarRefreshProviders() -> [UsageProvider] {
+        if let stackedProviders = self.stackedMergeIconProvidersIfActive() {
+            return [stackedProviders.top, stackedProviders.bottom]
+        }
         if self.shouldMergeIcons {
             return [self.primaryProviderForUnifiedIcon()]
         }
@@ -166,7 +169,9 @@ extension StatusItemController {
         if providers.contains(.codex) {
             return true
         }
-        guard self.shouldMergeIcons, self.settings.menuBarShowsHighestUsage else {
+        guard self.stackedMergeIconProvidersIfActive() == nil,
+              self.shouldMergeIcons, self.settings.menuBarShowsHighestUsage
+        else {
             return false
         }
         let activeProviders = self.store.enabledFirstPartyProvidersForDisplay()
@@ -192,7 +197,7 @@ extension StatusItemController {
         -> [TimeInterval]
     {
         providers.compactMap { provider in
-            let resolution = self.settings.menuBarLayoutResolution(for: provider)
+            let resolution = self.renderedMenuBarLayoutResolution(for: provider)
             guard !resolution.usesLegacyRendering,
                   self.settings.menuBarIconStyle == .iconAndPercent
             else { return nil }
@@ -231,7 +236,9 @@ extension StatusItemController {
         -> [TimeInterval]
     {
         let metrics = self.referencedConditionalMetrics(resolution: resolution)
-        guard metrics.contains(where: \.isClockDerivedRate) else { return [] }
+        let tokens = resolution.layout.flattenedTokens(conditionals: self.settings.menuBarLayoutConditionals)
+        guard metrics.contains(where: \.isClockDerivedRate)
+            || tokens.contains(.runsOut) || tokens.contains(.runsOutCompact) else { return [] }
         let secondsIntoMinute = now.timeIntervalSince1970.truncatingRemainder(dividingBy: 60)
         return [max(
             Self.menuBarCountdownRefreshEpsilon,
