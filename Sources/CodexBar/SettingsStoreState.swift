@@ -42,6 +42,7 @@ struct SettingsDefaultsState {
     var iCloudSyncEnabled: Bool
     var notificationPushToiOSEnabled: Bool
     var multiAccountMenuLayoutRaw: String
+    var accountWidgetsEnabled: Bool
     var menuBarMetricPreferencesRaw: [String: String]
     var storedMenuBarLayout: MenuBarLayout?
     var menuBarLayoutConditionals: [MenuBarLayoutConditional]
@@ -71,6 +72,7 @@ struct SettingsDefaultsState {
     var claudeWebExtrasEnabledRaw: Bool
     var showOptionalCreditsAndExtraUsage: Bool
     var claudeDailyRoutinesUsageVisible: Bool
+    var claudeModelScopedWeeklyUsageVisible: Bool
     var codexSparkUsageVisible: Bool
     var codexExternalOAuthSourcesAllowed: Bool
     var openAIWebAccessEnabled: Bool

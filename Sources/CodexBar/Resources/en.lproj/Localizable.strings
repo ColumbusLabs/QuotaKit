@@ -1619,3 +1619,8 @@
 "Share Usage Snapshot…" = "Share Usage Snapshot…";
 "Usage snapshot unavailable" = "Usage snapshot unavailable";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Keep accounts updated for widgets";
+"account_widgets_description" = "Choose an account in each Account Usage widget. Refreshes up to six accounts per provider.";

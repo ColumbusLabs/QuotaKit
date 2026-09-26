@@ -573,6 +573,35 @@ struct CodexBarWidgetProviderTests {
     }
 
     @Test
+    func `Claude widget renders projected model scoped weekly rows`() {
+        let entry = WidgetSnapshot.ProviderEntry(
+            provider: .claude,
+            updatedAt: Date(),
+            primary: nil,
+            secondary: nil,
+            tertiary: nil,
+            usageRows: [
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "primary", title: "Session", percentLeft: 75),
+                WidgetSnapshot.WidgetUsageRowSnapshot(id: "secondary", title: "Weekly", percentLeft: 50),
+                WidgetSnapshot.WidgetUsageRowSnapshot(
+                    id: "claude-weekly-scoped-fable",
+                    title: "Fable only",
+                    percentLeft: 70),
+            ],
+            creditsRemaining: nil,
+            codeReviewRemainingPercent: nil,
+            tokenUsage: nil,
+            dailyUsage: [])
+
+        #expect(WidgetUsageRow.smallWidgetRowLimit(for: entry) == nil)
+        #expect(WidgetUsageRow.rows(for: entry).map(\.id) == [
+            "primary",
+            "secondary",
+            "claude-weekly-scoped-fable",
+        ])
+    }
+
+    @Test
     func `codex widget session cap lifts at weekly reset without a new snapshot`() {
         let now = Date(timeIntervalSince1970: 1_800_000_000)
         let weeklyReset = now.addingTimeInterval(3600)
@@ -930,7 +959,7 @@ extension CodexBarWidgetProviderTests {
     }
 
     @Test
-    func `widget token titles disclose stale age for today and history rows`() {
+    func `widget token titles retain metric labels while stale age uses the saved token timestamp`() {
         let entryUpdatedAt = Date()
         let staleToken = WidgetSnapshot.TokenUsageSummary(
             sessionCostUSD: 1.25,
@@ -945,21 +974,9 @@ extension CodexBarWidgetProviderTests {
             last30DaysTokens: 42000,
             updatedAt: entryUpdatedAt.addingTimeInterval(-5 * 60))
 
-        let todayTitle = WidgetFormat.tokenRowTitle(
-            staleToken.sessionLabel,
-            summary: staleToken,
-            entryUpdatedAt: entryUpdatedAt)
-        let historyTitle = WidgetFormat.tokenRowTitle(
-            staleToken.last30DaysLabel,
-            summary: staleToken,
-            entryUpdatedAt: entryUpdatedAt)
-
-        #expect(todayTitle.hasPrefix("Today · "))
-        #expect(historyTitle.hasPrefix("30d · "))
-        #expect(WidgetFormat.tokenRowTitle(
-            freshToken.sessionLabel,
-            summary: freshToken,
-            entryUpdatedAt: entryUpdatedAt) == "Today")
+        #expect(staleToken.isStale(comparedTo: entryUpdatedAt))
+        #expect(!freshToken.isStale(comparedTo: entryUpdatedAt))
+        #expect(staleToken.updatedAt != nil)
 
         let entry = WidgetSnapshot.ProviderEntry(
             provider: .codex,
@@ -974,8 +991,8 @@ extension CodexBarWidgetProviderTests {
         let todayMetric = CompactMetricFormatter.display(for: entry, metric: .todayCost)
         let historyMetric = CompactMetricFormatter.display(for: entry, metric: .last30DaysCost)
 
-        #expect(todayMetric.label.hasPrefix("Today API est. · not billed · "))
-        #expect(historyMetric.label.hasPrefix("30d API est. · not billed · "))
+        #expect(todayMetric.label == "Today API est. · not billed")
+        #expect(historyMetric.label == "30d API est. · not billed")
         #expect(CompactMetricFormatter.costMetricLabel("7d", provider: .codex) == "7d API est. · not billed")
         #expect(CompactMetricFormatter.costMetricLabel("90d", provider: .codex) == "90d API est. · not billed")
         #expect(CompactMetricFormatter.costMetricLabel("This month", provider: .codex) ==

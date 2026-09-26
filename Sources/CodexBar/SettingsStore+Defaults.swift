@@ -331,6 +331,14 @@ extension SettingsStore {
         set { self.setOptionalDefault(\.kiroMenuBarDisplayModeRaw, newValue.rawValue, key: "kiroMenuBarDisplayMode") }
     }
 
+    var accountWidgetsEnabled: Bool {
+        get { self.defaultsState.accountWidgetsEnabled }
+        set {
+            self.defaultsState.accountWidgetsEnabled = newValue
+            self.userDefaults.set(newValue, forKey: "accountWidgetsEnabled")
+        }
+    }
+
     var multiAccountMenuLayout: MultiAccountMenuLayout {
         get { MultiAccountMenuLayout(rawValue: self.defaultsState.multiAccountMenuLayoutRaw) ?? .segmented }
         set {
@@ -743,6 +751,11 @@ extension SettingsStore {
     var claudeDailyRoutinesUsageVisible: Bool {
         get { self.defaultsState.claudeDailyRoutinesUsageVisible }
         set { self.setDefault(\.claudeDailyRoutinesUsageVisible, newValue, key: "claudeDailyRoutinesUsageVisible") }
+    }
+
+    var claudeModelScopedWeeklyUsageVisible: Bool {
+        get { self.defaultsState.claudeModelScopedWeeklyUsageVisible }
+        set { self.setDefault(\.claudeModelScopedWeeklyUsageVisible, newValue, key: "claudeModelScopedWeeklyUsageVisible") }
     }
 
     var codexSparkUsageVisible: Bool {

@@ -1616,3 +1616,8 @@
 "Share Usage Snapshot…" = "使用状況の概要を共有…";
 "Usage snapshot unavailable" = "使用状況の概要を利用できません";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit で共有用の使用状況の概要を準備できませんでした。「使用状況と支出」を更新して、もう一度お試しください。";
+
+/* Account widgets */
+"section_widgets" = "ウィジェット";
+"account_widgets_title" = "ウィジェット用にアカウントを更新する";
+"account_widgets_description" = "各 Account Usage ウィジェットでアカウントを選択します。プロバイダーごとに最大6つのアカウントを更新します。";

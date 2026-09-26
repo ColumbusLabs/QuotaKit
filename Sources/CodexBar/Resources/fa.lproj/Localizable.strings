@@ -1620,3 +1620,8 @@
 "Share Usage Snapshot…" = "اشتراک‌گذاری نمای کلی استفاده…";
 "Usage snapshot unavailable" = "نمای کلی استفاده در دسترس نیست";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit نتوانست نمای کلی استفاده قابل اشتراک‌گذاری را آماده کند. استفاده و هزینه را تازه‌سازی کنید و دوباره امتحان کنید.";
+
+/* Account widgets */
+"section_widgets" = "ویجت‌ها";
+"account_widgets_title" = "حساب‌ها را برای ویجت‌ها به‌روز نگه دارید";
+"account_widgets_description" = "در هر ویجت Account Usage یک حساب انتخاب کنید. حداکثر شش حساب برای هر ارائه‌دهنده به‌روز می‌شود.";

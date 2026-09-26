@@ -1615,3 +1615,8 @@
 "Share Usage Snapshot…" = "Gebruiksoverzicht delen…";
 "Usage snapshot unavailable" = "Gebruiksoverzicht niet beschikbaar";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kon geen deelbaar gebruiksoverzicht maken. Vernieuw Gebruik en uitgaven en probeer het opnieuw.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Accounts voor widgets actueel houden";
+"account_widgets_description" = "Kies een account in elke Account Usage-widget. Werkt maximaal zes accounts per aanbieder bij.";

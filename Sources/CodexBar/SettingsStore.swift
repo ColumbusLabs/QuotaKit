@@ -454,6 +454,7 @@ extension SettingsStore {
     private struct OptionalCreditsDefaults {
         let showOptionalCreditsAndExtraUsage: Bool
         let claudeDailyRoutinesUsageVisible: Bool
+        let claudeModelScopedWeeklyUsageVisible: Bool
         let codexSparkUsageVisible: Bool
     }
 
@@ -541,6 +542,7 @@ extension SettingsStore {
         let notificationPushToiOSEnabled = userDefaults.object(
             forKey: "notificationPushToiOSEnabled") as? Bool ?? true
         let multiAccountMenuLayoutRaw = Self.loadMultiAccountMenuLayoutRaw(userDefaults: userDefaults)
+        let accountWidgetsEnabled = userDefaults.bool(forKey: "accountWidgetsEnabled")
         let resolvedPreferences = Self.loadMenuBarMetricPreferences(userDefaults: userDefaults)
         let storedMenuBarLayout = Self.loadMenuBarLayout(userDefaults: userDefaults)
         let menuBarLayoutConditionals = Self.loadMenuBarLayoutConditionals(userDefaults: userDefaults)
@@ -656,6 +658,7 @@ extension SettingsStore {
             iCloudSyncEnabled: iCloudSyncEnabled,
             notificationPushToiOSEnabled: notificationPushToiOSEnabled,
             multiAccountMenuLayoutRaw: multiAccountMenuLayoutRaw,
+            accountWidgetsEnabled: accountWidgetsEnabled,
             menuBarMetricPreferencesRaw: resolvedPreferences,
             storedMenuBarLayout: storedMenuBarLayout,
             menuBarLayoutConditionals: menuBarLayoutConditionals,
@@ -689,6 +692,7 @@ extension SettingsStore {
             claudeWebExtrasEnabledRaw: claudeWebExtrasEnabledRaw,
             showOptionalCreditsAndExtraUsage: optionalCreditsDefaults.showOptionalCreditsAndExtraUsage,
             claudeDailyRoutinesUsageVisible: optionalCreditsDefaults.claudeDailyRoutinesUsageVisible,
+            claudeModelScopedWeeklyUsageVisible: optionalCreditsDefaults.claudeModelScopedWeeklyUsageVisible,
             codexSparkUsageVisible: optionalCreditsDefaults.codexSparkUsageVisible,
             codexExternalOAuthSourcesAllowed: codexExternalOAuthSourcesAllowed,
             openAIWebAccessEnabled: openAIWebDefaults.accessEnabled,
@@ -723,6 +727,8 @@ extension SettingsStore {
                 "showOptionalCreditsAndExtraUsage", fallback: true, from: userDefaults),
             claudeDailyRoutinesUsageVisible: Self.loadBoolDefault(
                 "claudeDailyRoutinesUsageVisible", fallback: true, from: userDefaults),
+            claudeModelScopedWeeklyUsageVisible: Self.loadBoolDefault(
+                "claudeModelScopedWeeklyUsageVisible", fallback: true, from: userDefaults),
             codexSparkUsageVisible: Self.loadBoolDefault(
                 "codexSparkUsageVisible", fallback: true, from: userDefaults))
     }

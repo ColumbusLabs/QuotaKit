@@ -1647,3 +1647,8 @@
 "Share Usage Snapshot…" = "分享用量總覽…";
 "Usage snapshot unavailable" = "用量總覽無法使用";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit 無法準備可分享的用量總覽。請重新整理「使用量與支出」後再試一次。";
+
+/* Account widgets */
+"section_widgets" = "小工具";
+"account_widgets_title" = "為小工具保持帳戶更新";
+"account_widgets_description" = "在每個 Account Usage 小工具中選擇一個帳戶。每個供應商最多重新整理六個帳戶。";

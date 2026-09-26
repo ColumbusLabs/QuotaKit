@@ -1620,3 +1620,8 @@
 "Share Usage Snapshot…" = "مشاركة ملخص الاستخدام…";
 "Usage snapshot unavailable" = "ملخص الاستخدام غير متاح";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "تعذر على QuotaKit إعداد ملخص استخدام قابل للمشاركة. حدّث الاستخدام والإنفاق ثم حاول مرة أخرى.";
+
+/* Account widgets */
+"section_widgets" = "الأدوات";
+"account_widgets_title" = "تحديث الحسابات للأدوات";
+"account_widgets_description" = "اختر حسابًا في كل أداة Account Usage. يتم تحديث ما يصل إلى ستة حسابات لكل مزوّد.";

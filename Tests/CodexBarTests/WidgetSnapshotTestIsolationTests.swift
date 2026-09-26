@@ -113,6 +113,34 @@ struct WidgetSnapshotTestIsolationTests {
         #expect(WidgetSnapshotStore.load(from: snapshotURL) != nil)
     }
 
+    @Test
+    func `cold invalidation keeps current account pins while dropping the invalid provider`() async {
+        let store = Self.makeStore(suite: "account-invalidation")
+        let now = Date(timeIntervalSince1970: 1_800_000_000)
+        let old = WidgetSnapshot(entries: [], enabledProviders: [.claude, .codex], generatedAt: now)
+        store.lastQueuedWidgetSnapshot = WidgetSnapshot(
+            entries: [],
+            accounts: [
+                .init(id: "claude/token:work", provider: .claude, label: "Work", usage: nil),
+                .init(id: "codex/visible:personal", provider: .codex, label: "Personal", usage: nil),
+            ],
+            enabledProviders: [.claude, .codex],
+            generatedAt: now)
+        store.widgetSnapshotPersistenceState.pendingColdLoad = true
+        store.setWidgetSnapshotLoadOverrideForTesting { old }
+        defer { store.setWidgetSnapshotLoadOverrideForTesting(nil) }
+        var saved: [WidgetSnapshot] = []
+        store._test_widgetSnapshotSaveOverride = { saved.append($0) }
+        defer { store._test_widgetSnapshotSaveOverride = nil }
+
+        store.invalidateGenericWidgetUsage(for: .codex)
+        await store.widgetSnapshotPersistTask?.value
+
+        #expect(saved.count == 1)
+        #expect(saved.first?.accounts.map(\.id) == ["claude/token:work"])
+        #expect(saved.first?.entries.isEmpty == true)
+    }
+
     private static func makeStore(suite: String, widgetSnapshotURL: URL? = nil) -> UsageStore {
         let settings = testSettingsStore(suiteName: "WidgetSnapshotTestIsolationTests-\(suite)")
         settings.providerDetectionCompleted = true

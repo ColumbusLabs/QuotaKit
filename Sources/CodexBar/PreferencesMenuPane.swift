@@ -94,6 +94,20 @@ struct MenuPane: View {
                 Text(L("section_content"))
             }
 
+            Section(L("section_widgets")) {
+                Toggle(isOn: self.$settings.accountWidgetsEnabled) {
+                    SettingsRowLabel(
+                        L("account_widgets_title"),
+                        subtitle: L("account_widgets_description"))
+                }
+                .onChange(of: self.settings.accountWidgetsEnabled) { _, enabled in
+                    self.store.persistWidgetSnapshot(reason: "account-widgets-setting")
+                    if enabled {
+                        Task { await self.store.refresh() }
+                    }
+                }
+            }
+
             CostSummarySettingsSection(settings: self.settings, store: self.store)
 
             AgentSessionsSettingsSection(settings: self.settings)

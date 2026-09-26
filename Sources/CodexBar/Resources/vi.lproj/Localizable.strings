@@ -1617,3 +1617,8 @@
 "Share Usage Snapshot…" = "Chia sẻ tổng quan mức sử dụng…";
 "Usage snapshot unavailable" = "Không có tổng quan mức sử dụng";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit không thể chuẩn bị tổng quan mức sử dụng để chia sẻ. Hãy làm mới Mức sử dụng và chi phí rồi thử lại.";
+
+/* Account widgets */
+"section_widgets" = "Tiện ích";
+"account_widgets_title" = "Cập nhật tài khoản cho tiện ích";
+"account_widgets_description" = "Chọn một tài khoản trong mỗi tiện ích Account Usage. Làm mới tối đa sáu tài khoản cho mỗi nhà cung cấp.";

@@ -1620,3 +1620,8 @@
 "Share Usage Snapshot…" = "แชร์ภาพรวมการใช้งาน…";
 "Usage snapshot unavailable" = "ภาพรวมการใช้งานไม่พร้อมใช้งาน";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit ไม่สามารถเตรียมภาพรวมการใช้งานสำหรับแชร์ได้ รีเฟรชการใช้งานและค่าใช้จ่ายแล้วลองอีกครั้ง";
+
+/* Account widgets */
+"section_widgets" = "วิดเจ็ต";
+"account_widgets_title" = "อัปเดตบัญชีสำหรับวิดเจ็ต";
+"account_widgets_description" = "เลือกบัญชีในวิดเจ็ต Account Usage แต่ละรายการ อัปเดตได้สูงสุดหกบัญชีต่อผู้ให้บริการ";

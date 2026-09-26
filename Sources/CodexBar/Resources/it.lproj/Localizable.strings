@@ -1619,3 +1619,8 @@
 "Share Usage Snapshot…" = "Condividi riepilogo utilizzo…";
 "Usage snapshot unavailable" = "Riepilogo utilizzo non disponibile";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit non ha potuto preparare un riepilogo dell’utilizzo da condividere. Aggiorna Utilizzo e spesa e riprova.";
+
+/* Account widgets */
+"section_widgets" = "Widget";
+"account_widgets_title" = "Mantieni aggiornati gli account per i widget";
+"account_widgets_description" = "Scegli un account in ogni widget Account Usage. Aggiorna fino a sei account per fornitore.";

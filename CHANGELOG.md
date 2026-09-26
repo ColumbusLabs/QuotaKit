@@ -128,6 +128,9 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 ### Added
 
 - Overview: choose Detailed or Compact in Menu settings, with labeled usage bars, the existing provider navigation, and useful details for providers without quota bars (#2616). Thanks @Zihao-Qi!
+- Widgets: improve quota readability with shared responsive tiles, full provider names, and visible secondary allowances (upstream #3137).
+- Widgets: pin verified saved accounts in a dedicated QuotaKit Account Usage widget, with opt-in refresh and privacy-aware labels (upstream #3585).
+- Claude widgets: show verified model-specific weekly quota rows by default, with a Claude setting to hide only those widget rows.
 - Replicate: show current-month billing spend and optional credit balance from a saved or browser session, with labeled account support and iPhone spend sync.
 - Kimi: save labeled web accounts with isolated cookies and region-aware Mac and CLI usage, including Linux.
 - Provider plugins can format currency amounts with the same precision and rounding as native QuotaKit providers.

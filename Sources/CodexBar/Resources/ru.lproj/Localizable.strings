@@ -1617,3 +1617,8 @@
 "Share Usage Snapshot…" = "Поделиться сводкой использования…";
 "Usage snapshot unavailable" = "Сводка использования недоступна";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit не удалось подготовить сводку использования для отправки. Обновите раздел «Использование и расходы» и повторите попытку.";
+
+/* Account widgets */
+"section_widgets" = "Виджеты";
+"account_widgets_title" = "Обновлять данные аккаунтов для виджетов";
+"account_widgets_description" = "Выберите аккаунт в каждом виджете Account Usage. Обновляет до шести аккаунтов для каждого провайдера.";

@@ -46,6 +46,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         let webOrganizationID: String?
         let webExtrasTimeout: TimeInterval
         let includePrepaidBalance: Bool
+        let includeAccountIdentity: Bool
         let keepCLISessionsAlive: Bool
         let browserDetection: BrowserDetection
     }
@@ -218,6 +219,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
         webOrganizationID: String? = nil,
         webExtrasTimeout: TimeInterval = 15,
         includePrepaidBalance: Bool = false,
+        includeAccountIdentity: Bool = false,
         keepCLISessionsAlive: Bool = false)
     {
         self.configuration = Configuration(
@@ -233,6 +235,7 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
             webOrganizationID: webOrganizationID,
             webExtrasTimeout: webExtrasTimeout,
             includePrepaidBalance: includePrepaidBalance,
+            includeAccountIdentity: includeAccountIdentity,
             keepCLISessionsAlive: keepCLISessionsAlive,
             browserDetection: browserDetection)
     }
@@ -273,8 +276,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     oauthKeychainCredentialMismatch: keychainMatch.isMismatch,
                     oauthKeychainCredentialAbsent: keychainMatch.isAbsent,
                     oauthKeychainCredentialUnavailable: keychainMatch.isUnavailable)
+                let identified = try await self.fetcher.appendingAccountIdentity(
+                    to: snapshot, accessToken: credentials.accessToken)
                 return try await self.fetcher.applyWebExtrasIfNeeded(
-                    to: snapshot,
+                    to: identified,
                     oauthAccessToken: credentials.accessToken)
             } catch let error as CancellationError {
                 throw error
@@ -428,8 +433,10 @@ public struct ClaudeUsageFetcher: ClaudeUsageFetching, Sendable {
                     oauthKeychainCredentialMismatch: keychainMatch.isMismatch,
                     oauthKeychainCredentialAbsent: keychainMatch.isAbsent,
                     oauthKeychainCredentialUnavailable: keychainMatch.isUnavailable)
+                let identified = try await self.fetcher.appendingAccountIdentity(
+                    to: snapshot, accessToken: refreshedCredentials.accessToken)
                 return try await self.fetcher.applyWebExtrasIfNeeded(
-                    to: snapshot,
+                    to: identified,
                     oauthAccessToken: refreshedCredentials.accessToken)
             } catch let error where ClaudeOAuthFetchError.isCancellation(error) {
                 throw error
@@ -896,6 +903,28 @@ extension ClaudeUsageFetcher {
         return try await ClaudeOAuthUsageFetcher.fetchProfile(accessToken: accessToken)
     }
 
+    private func appendingAccountIdentity(
+        to snapshot: ClaudeUsageSnapshot,
+        accessToken: String) async throws -> ClaudeUsageSnapshot
+    {
+        guard self.configuration.includeAccountIdentity else { return snapshot }
+        do {
+            let profile = try await Self.fetchOAuthProfile(accessToken: accessToken)
+            try Task.checkCancellation()
+            guard let owner = ClaudeVerifiedAccountOwner.ownerID(
+                accountUUID: profile.accountUuid,
+                email: profile.emailAddress,
+                organizationUUID: profile.organizationUuid)
+            else { return snapshot }
+            return snapshot.withAccountIdentity(owner)
+        } catch {
+            try Task.checkCancellation()
+            if ClaudeOAuthFetchError.isCancellation(error) { throw error }
+            // Optional identity failure must not invalidate successful usage or trigger credential repair.
+            return snapshot
+        }
+    }
+
     private static func attemptDelegatedRefresh(
         now: Date = Date(),
         timeout: TimeInterval = 15,
@@ -1215,7 +1244,11 @@ extension ClaudeUsageFetcher {
             accountEmail: webData.accountEmail,
             accountOrganization: webData.accountOrganization,
             loginMethod: webData.loginMethod,
-            rawText: nil)
+            rawText: nil,
+            accountID: self.configuration.includeAccountIdentity ? ClaudeVerifiedAccountOwner.ownerID(
+                accountUUID: nil,
+                email: webData.accountEmail,
+                organizationUUID: webData.accountOrganizationID) : nil)
     }
 
     private static func formatResetDate(_ date: Date) -> String {

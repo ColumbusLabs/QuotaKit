@@ -1615,3 +1615,8 @@
 "Share Usage Snapshot…" = "Dela användningsöversikt…";
 "Usage snapshot unavailable" = "Användningsöversikt är inte tillgänglig";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit kunde inte förbereda en delbar användningsöversikt. Uppdatera Användning och utgifter och försök igen.";
+
+/* Account widgets */
+"section_widgets" = "Widgetar";
+"account_widgets_title" = "Håll konton uppdaterade för widgetar";
+"account_widgets_description" = "Välj ett konto i varje Account Usage-widget. Uppdaterar upp till sex konton per leverantör.";

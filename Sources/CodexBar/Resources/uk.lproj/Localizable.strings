@@ -1616,3 +1616,8 @@
 "Share Usage Snapshot…" = "Поділитися оглядом використання…";
 "Usage snapshot unavailable" = "Огляд використання недоступний";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit не вдалося підготувати огляд використання для поширення. Оновіть розділ «Використання й витрати» та повторіть спробу.";
+
+/* Account widgets */
+"section_widgets" = "Віджети";
+"account_widgets_title" = "Оновлювати дані облікових записів для віджетів";
+"account_widgets_description" = "Виберіть обліковий запис у кожному віджеті Account Usage. Оновлює до шести облікових записів для кожного постачальника.";

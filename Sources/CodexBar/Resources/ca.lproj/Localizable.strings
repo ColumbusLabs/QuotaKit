@@ -1619,3 +1619,8 @@
 "Share Usage Snapshot…" = "Comparteix la instantània d'ús…";
 "Usage snapshot unavailable" = "Instantània d'ús no disponible";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit no ha pogut preparar una instantània d'ús per compartir. Actualitza Ús i despesa i torna-ho a provar.";
+
+/* Account widgets */
+"section_widgets" = "Ginys";
+"account_widgets_title" = "Mantén els comptes actualitzats per als ginys";
+"account_widgets_description" = "Tria un compte a cada giny Account Usage. Actualitza fins a sis comptes per proveïdor.";

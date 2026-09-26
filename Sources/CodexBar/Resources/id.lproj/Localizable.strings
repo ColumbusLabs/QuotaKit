@@ -1619,3 +1619,8 @@
 "Share Usage Snapshot…" = "Bagikan ringkasan penggunaan…";
 "Usage snapshot unavailable" = "Ringkasan penggunaan tidak tersedia";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit tidak dapat menyiapkan ringkasan penggunaan untuk dibagikan. Segarkan Penggunaan & pengeluaran, lalu coba lagi.";
+
+/* Account widgets */
+"section_widgets" = "Widget";
+"account_widgets_title" = "Perbarui akun untuk widget";
+"account_widgets_description" = "Pilih akun di setiap widget Account Usage. Memperbarui hingga enam akun per penyedia.";

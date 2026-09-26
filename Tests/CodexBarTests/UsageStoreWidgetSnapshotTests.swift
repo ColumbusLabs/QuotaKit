@@ -268,6 +268,11 @@ struct UsageStoreWidgetSnapshotTests {
                         resetsAt: now.addingTimeInterval(3600),
                         resetDescription: nil)),
                 NamedRateWindow(
+                    id: "claude-weekly-scoped-unknown",
+                    title: "Unknown model only",
+                    window: RateWindow(usedPercent: 20, windowMinutes: 10080, resetsAt: nil, resetDescription: nil),
+                    usageKnown: false),
+                NamedRateWindow(
                     id: "claude-routines",
                     title: "Daily Routines",
                     window: RateWindow(
@@ -291,6 +296,15 @@ struct UsageStoreWidgetSnapshotTests {
         #expect(entry.usageRows?.map(\.title) == ["Session", "Weekly", "Fable only"])
         #expect(entry.usageRows?.compactMap(\.percentLeft) == [75, 60, 32])
         #expect(entry.usageRows?.last?.window?.resetsAt == now.addingTimeInterval(3600))
+
+        settings.claudeModelScopedWeeklyUsageVisible = false
+        store.persistWidgetSnapshot(reason: "claude-scoped-weekly-hidden-test")
+        await store.widgetSnapshotPersistTask?.value
+
+        let hidden = try #require(widgetSnapshots.last?.entries.first { $0.provider == .claude })
+        #expect(hidden.usageRows?.map(\.id) == ["primary", "secondary"])
+        #expect(hidden.primary?.usedPercent == 25)
+        #expect(hidden.secondary?.usedPercent == 40)
     }
 
     @Test

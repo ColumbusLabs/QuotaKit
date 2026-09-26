@@ -1585,3 +1585,8 @@
 "Share Usage Snapshot…" = "사용량 개요 공유…";
 "Usage snapshot unavailable" = "사용량 개요를 사용할 수 없음";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit에서 공유할 사용량 개요를 준비하지 못했습니다. 사용량 및 지출을 새로 고친 후 다시 시도하세요.";
+
+/* Account widgets */
+"section_widgets" = "위젯";
+"account_widgets_title" = "위젯의 계정을 최신 상태로 유지";
+"account_widgets_description" = "각 Account Usage 위젯에서 계정을 선택하세요. 제공업체당 최대 6개 계정을 새로 고칩니다.";

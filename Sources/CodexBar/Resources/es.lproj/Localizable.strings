@@ -1614,3 +1614,8 @@
 "Share Usage Snapshot…" = "Compartir instantánea de uso…";
 "Usage snapshot unavailable" = "Instantánea de uso no disponible";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit no pudo preparar una instantánea de uso para compartir. Actualiza Uso y gasto y vuelve a intentarlo.";
+
+/* Account widgets */
+"section_widgets" = "Widgets";
+"account_widgets_title" = "Mantener las cuentas actualizadas para los widgets";
+"account_widgets_description" = "Elige una cuenta en cada widget Account Usage. Actualiza hasta seis cuentas por proveedor.";

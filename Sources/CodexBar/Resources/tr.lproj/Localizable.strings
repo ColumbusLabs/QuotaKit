@@ -1618,3 +1618,8 @@
 "Share Usage Snapshot…" = "Kullanım özetini paylaş…";
 "Usage snapshot unavailable" = "Kullanım özeti kullanılamıyor";
 "QuotaKit couldn't prepare a shareable usage snapshot. Refresh Usage & Spend and try again." = "QuotaKit paylaşılabilir bir kullanım özeti hazırlayamadı. Kullanım ve harcamayı yenileyip tekrar deneyin.";
+
+/* Account widgets */
+"section_widgets" = "Araç takımları";
+"account_widgets_title" = "Araç takımları için hesapları güncel tut";
+"account_widgets_description" = "Her Account Usage araç takımında bir hesap seçin. Sağlayıcı başına en fazla altı hesabı yeniler.";

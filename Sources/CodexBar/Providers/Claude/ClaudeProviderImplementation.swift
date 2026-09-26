@@ -20,6 +20,7 @@ struct ClaudeProviderImplementation: ProviderImplementation {
     func observeSettings(_ settings: SettingsStore) {
         _ = settings.claudeUsageDataSource
         _ = settings.claudeWorkspaceSpendEnabled
+        _ = settings.claudeModelScopedWeeklyUsageVisible
         _ = settings.claudeAdminAPIKey
         _ = settings.claudeCookieSource
         _ = settings.claudeCookieHeader
@@ -99,6 +100,18 @@ struct ClaudeProviderImplementation: ProviderImplementation {
                 title: "Show workspace spend",
                 subtitle: "Break down Admin API spend by workspace over the last 30 days.",
                 binding: context.binding(\.claudeWorkspaceSpendEnabled),
+                statusText: nil,
+                actions: [],
+                isVisible: nil,
+                isEnabled: nil,
+                onChange: nil,
+                onAppDidBecomeActive: nil,
+                onAppearWhenEnabled: nil),
+            ProviderSettingsToggleDescriptor(
+                id: "claude-model-scoped-weekly-usage-visible",
+                title: "Show model-specific weekly usage in widgets",
+                subtitle: "Shows model-specific Claude quotas, such as Fable, in QuotaKit widgets.",
+                binding: context.boolBinding(\.claudeModelScopedWeeklyUsageVisible),
                 statusText: nil,
                 actions: [],
                 isVisible: nil,

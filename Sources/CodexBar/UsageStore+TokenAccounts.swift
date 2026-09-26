@@ -10,13 +10,15 @@ struct TokenAccountUsageSnapshot: Identifiable {
     let error: String?
     let sourceLabel: String?
     let cacheKey: String
+    let fetchError: (any Error)?
 
     init(
         account: ProviderTokenAccount,
         snapshot: UsageSnapshot?,
         error: String?,
         sourceLabel: String?,
-        cacheKey: String? = nil)
+        cacheKey: String? = nil,
+        fetchError: (any Error)? = nil)
     {
         self.id = account.id
         self.account = account
@@ -24,6 +26,7 @@ struct TokenAccountUsageSnapshot: Identifiable {
         self.error = error
         self.sourceLabel = sourceLabel
         self.cacheKey = cacheKey ?? account.id.uuidString
+        self.fetchError = fetchError
     }
 }
 
@@ -164,51 +167,6 @@ private struct CodexManagedVisibleAccountRuntimeState {
 }
 
 extension UsageStore {
-    static let tokenAccountMenuSnapshotLimit = 6
-
-    func freshCodexVisibleAccountsForSnapshotHydration() -> [CodexVisibleAccount] {
-        self.freshCodexVisibleAccountProjectionForAccountRefresh().visibleAccounts
-    }
-
-    func tokenAccounts(for provider: UsageProvider) -> [ProviderTokenAccount] {
-        guard TokenAccountSupportCatalog.support(for: provider) != nil else { return [] }
-        return self.settings.tokenAccounts(for: provider)
-    }
-
-    func shouldFetchAllTokenAccounts(provider: UsageProvider, accounts: [ProviderTokenAccount]) -> Bool {
-        guard TokenAccountSupportCatalog.support(for: provider) != nil else { return false }
-        guard accounts.count > 1 else { return false }
-        // Phase G hotfix — Mac menu layout decides the LOCAL Mac UI
-        // (stacked = 1 card per account; segmented = 1 card with
-        // top tabs showing only active). But that layout choice MUST
-        // NOT gate the CloudKit sync fan-out. If the user has iCloud
-        // sync enabled, every token account snapshot needs to flow
-        // through `accountSnapshots[provider]` → SyncCoordinator →
-        // CloudKit → iPhone — otherwise the user with 2 OpenAI admin
-        // keys sees the Mac segmented switcher locally but only 1
-        // card on iPhone (Phase G regression discovered in dogfood).
-        //
-        // Performance note: iCloud sync users were already paying for
-        // every provider's API calls every refresh cycle. Per-account
-        // fan-out only adds N-1 extra calls per multi-account provider,
-        // bounded by `limitedTokenAccounts` upstream.
-        if self.settings.iCloudSyncEnabled {
-            return true
-        }
-        // Mac-only user (no iCloud sync): preserve upstream's intent
-        // — only fan-out when stacked layout actually renders all
-        // accounts; segmented layout doesn't need extra fetches.
-        return self.settings.multiAccountMenuLayout == .stacked
-    }
-
-    func shouldFetchAllCodexVisibleAccounts() -> Bool {
-        // PAT is not a per-visible-account credential. Fan-out would fetch the same token for
-        // every row and then reject its whoami identity against other accounts.
-        guard !self.shouldUseAmbientCodexPATForUsage() else { return false }
-        let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
-        return self.settings.multiAccountMenuLayout == .stacked && projection.visibleAccounts.count > 1
-    }
-
     func refreshCodexVisibleAccountsForMenu(generation: UInt64? = nil) async {
         let projection = self.freshCodexVisibleAccountProjectionForAccountRefresh()
         let accounts = self.limitedCodexVisibleAccounts(
@@ -393,7 +351,7 @@ extension UsageStore {
             originalAccount, account: currentActiveAccount)
     }
 
-    private func freshCodexVisibleAccountProjectionForAccountRefresh(
+    func freshCodexVisibleAccountProjectionForAccountRefresh(
         requireLiveManagedAuthFor accountIDs: Set<UUID> = []) -> CodexVisibleAccountProjection
     {
         // Auth files can change while account fetches are in flight, so account refreshes bypass the
@@ -989,6 +947,7 @@ extension UsageStore {
                 provider: provider,
                 settings: self.settings,
                 override: override),
+            includeAccountIdentity: self.settings.accountWidgetsEnabled && account != nil,
             webTimeout: 60,
             webDebugDumpHTML: false,
             verbose: self.settings.isVerboseLoggingEnabled,
@@ -1327,7 +1286,8 @@ extension UsageStore {
                 snapshot: retained?.snapshot,
                 error: oauthLimited ? nil : self.tokenAccountSnapshotErrorMessage(error),
                 sourceLabel: retained?.sourceLabel,
-                cacheKey: self.tokenAccountSnapshotCacheKey(provider: provider, account: account))
+                cacheKey: self.tokenAccountSnapshotCacheKey(provider: provider, account: account),
+                fetchError: error)
             return ResolvedAccountOutcome(snapshot: snapshot, usage: retained?.snapshot, freshUsage: nil)
         }
     }
