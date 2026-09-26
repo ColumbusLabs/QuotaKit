@@ -81,7 +81,8 @@ public struct ProviderSettingsSectionRegistration: Sendable {
     public let providerID: ProviderInstanceID
     let sectionTypeID: ObjectIdentifier
     public let defaultContribution: ProviderSettingsSnapshotContribution?
-    public private(set) var cookieContribution: (@Sendable (CookieProviderSettings) -> ProviderSettingsSnapshotContribution)?
+    public private(set) var cookieContribution: (@Sendable (CookieProviderSettings)
+        -> ProviderSettingsSnapshotContribution)?
     private let cookieSettingsReader: @Sendable (ProviderSettingsSnapshot) -> CookieProviderSettings?
     private let credentialContributionReader: @Sendable (
         ProviderCredentialSettingsContext) -> ProviderSettingsSnapshotContribution?

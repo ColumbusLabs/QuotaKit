@@ -158,7 +158,7 @@ struct QuotaTransitionSubscriptionsTests {
 
     @Test
     @MainActor
-    func `restored reconciliation expands build 176 subscriptions from 12 to 192 without data loss`() async throws {
+    func `restored reconciliation expands build 176 subscriptions to the full provider catalog without data loss`() async throws {
         let build176ProviderIDs = ["codex", "claude", "cursor", "grok"]
         let states = ["depleted", "restored", "warning"]
         let build176Managed = try build176ProviderIDs.flatMap { providerID in
@@ -189,6 +189,8 @@ struct QuotaTransitionSubscriptionsTests {
 
         let allManagedIDs = Set(QuotaTransitionSubscriptions.managedSubscriptionIDs(
             providerIDs: QuotaProviderList.providers.map(\.id)))
+        let expectedManagedCount = QuotaProviderList.providers.count * states.count
+        let expectedNewCount = expectedManagedCount - build176Managed.count
         let build176ManagedIDs = Set(build176Managed.map(\.subscriptionID))
         let savedIDs = Set(database.savedSubscriptionBatches.flatMap {
             $0.map(\.subscriptionID)
@@ -203,17 +205,17 @@ struct QuotaTransitionSubscriptionsTests {
             CloudSyncConstants.quotaTransitionRestoredSubscriptionID,
         ]
 
-        #expect(allManagedIDs.count == 192)
+        #expect(allManagedIDs.count == expectedManagedCount)
         #expect(database.savedSubscriptionBatches.count == 1)
-        #expect(database.savedSubscriptionBatches.first?.count == 180)
-        #expect(savedIDs.count == 180)
+        #expect(database.savedSubscriptionBatches.first?.count == expectedNewCount)
+        #expect(savedIDs.count == expectedNewCount)
         #expect(savedIDs == allManagedIDs.subtracting(build176ManagedIDs))
         #expect(deletedIDs == expectedLegacyCleanupIDs)
         #expect(deletedIDs.isDisjoint(with: build176ManagedIDs))
         #expect(!deletedIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
         #expect(!deletedIDs.contains("unrelated-subscription"))
-        #expect(finalIDs.count == 194)
-        #expect(finalIDs.intersection(allManagedIDs).count == 192)
+        #expect(finalIDs.count == expectedManagedCount + 2)
+        #expect(finalIDs.intersection(allManagedIDs).count == expectedManagedCount)
         #expect(finalIDs.contains(DeviceProviderZoneSubscription.subscriptionID))
         #expect(finalIDs.contains("unrelated-subscription"))
     }
@@ -230,10 +232,11 @@ struct QuotaTransitionSubscriptionsTests {
         let finalManagedIDs = Set(database.subscriptionsByID.keys).intersection(
             QuotaTransitionSubscriptions.managedSubscriptionIDs(
                 providerIDs: QuotaProviderList.providers.map(\.id)))
+        let expectedManagedCount = QuotaProviderList.providers.count * 3
         #expect(database.savedZoneBatches.count == 1)
         #expect(database.savedSubscriptionBatches.count == 1)
-        #expect(database.savedSubscriptionBatches.first?.count == 192)
-        #expect(finalManagedIDs.count == 192)
+        #expect(database.savedSubscriptionBatches.first?.count == expectedManagedCount)
+        #expect(finalManagedIDs.count == expectedManagedCount)
     }
 
     @Test

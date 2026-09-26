@@ -12,7 +12,10 @@ struct TypeSafeCookieStrategyTests {
         private let lock = NSLock()
         private var entries: [String] = []
 
-        func append(_ entry: String) { self.lock.withLock { self.entries.append(entry) } }
+        func append(_ entry: String) {
+            self.lock.withLock { self.entries.append(entry) }
+        }
+
         var values: [String] {
             self.lock.withLock { self.entries }
         }
@@ -373,11 +376,16 @@ private actor RequestLog {
 }
 
 private struct TypeSafeCookieStrategyClaudeFetcher: ClaudeUsageFetching {
-    func detectVersion() -> String? { nil }
+    func detectVersion() -> String? {
+        nil
+    }
+
     func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
         throw ProviderPluginError.script("unused")
     }
 
-    func debugRawProbe(model _: String) async -> String { "unused" }
+    func debugRawProbe(model _: String) async -> String {
+        "unused"
+    }
 }
 #endif

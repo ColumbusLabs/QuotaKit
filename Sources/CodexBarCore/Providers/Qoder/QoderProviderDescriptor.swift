@@ -107,7 +107,9 @@ struct QoderPluginFetchStrategy: ProviderFetchStrategy {
             }, isEnabled: { _ in true })
     }
 
-    func isAvailable(_ context: ProviderFetchContext) async -> Bool { await self.script.isAvailable(context) }
+    func isAvailable(_ context: ProviderFetchContext) async -> Bool {
+        await self.script.isAvailable(context)
+    }
 
     func fetch(_ context: ProviderFetchContext) async throws -> ProviderFetchResult {
         let result = try await self.script.fetch(context)
@@ -120,5 +122,7 @@ struct QoderPluginFetchStrategy: ProviderFetchStrategy {
         return self.makeResult(usage: usage, sourceLabel: source)
     }
 
-    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool { false }
+    func shouldFallback(on _: Error, context _: ProviderFetchContext) -> Bool {
+        false
+    }
 }

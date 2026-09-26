@@ -1,12 +1,13 @@
+import CodexBarSync
+import Foundation
+import Testing
+@testable import CodexBar
+
 // swiftlint:disable multiline_arguments
 //
 // Scoped to this file: the native-usage fixtures pack several trailing
 // values per line so each model breakdown reads as one row. Re-enabled at EOF.
 @testable import CodexBarCore
-import CodexBarSync
-import Foundation
-import Testing
-@testable import CodexBar
 
 /// Unit tests for the provider→envelope mappers added for the iOS 1.9.0 /
 /// Mac 0.29.0 parity gap-fills (C / D / E / G). Each mapper is provider-gated

@@ -54,5 +54,5 @@ enum BrowserCookieImportSupport {
             return cookies.isEmpty ? nil : (profile.label, cookies)
         }
     }
-#endif
+    #endif
 }

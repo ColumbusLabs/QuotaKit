@@ -54,7 +54,7 @@ struct TypeSafePluginTests {
         #expect(post.value(forHTTPHeaderField: "Next-Action") == Self.freshActionID)
         #expect(post.value(forHTTPHeaderField: "Content-Type") == "application/json")
         #expect(post.httpBody == Data("[]".utf8))
-        #expect(recorded.filter { $0.url?.path == "/_next/static/chunks/app.js" }.count == 1)
+        #expect(recorded.count(where: { $0.url?.path == "/_next/static/chunks/app.js" }) == 1)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -78,8 +78,8 @@ struct TypeSafePluginTests {
         _ = try await Self.fetch(runtime: runtime)
 
         let recorded = await requests.all
-        #expect(recorded.filter { $0.url?.path == "/_next/static/chunks/app.js" }.count == 1)
-        #expect(recorded.filter { $0.httpMethod == "POST" }.count == 2)
+        #expect(recorded.count(where: { $0.url?.path == "/_next/static/chunks/app.js" }) == 1)
+        #expect(recorded.count(where: { $0.httpMethod == "POST" }) == 2)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -113,8 +113,8 @@ struct TypeSafePluginTests {
         _ = try await Self.fetch(runtime: runtime)
 
         let recorded = await requests.all
-        #expect(recorded.filter { $0.url?.path == "/settings/billing" && $0.httpMethod == "GET" }.count == 2)
-        #expect(recorded.filter { $0.url?.path == "/_next/static/chunks/app.js" }.count == 2)
+        #expect(recorded.count(where: { $0.url?.path == "/settings/billing" && $0.httpMethod == "GET" }) == 2)
+        #expect(recorded.count(where: { $0.url?.path == "/_next/static/chunks/app.js" }) == 2)
         #expect(recorded.filter { $0.httpMethod == "POST" }.map { $0.value(forHTTPHeaderField: "Next-Action") } == [
             Self.oldActionID,
             Self.freshActionID,
@@ -189,8 +189,8 @@ struct TypeSafePluginTests {
         _ = try await first[0].fetch(context)
         _ = try await second[0].fetch(context)
         let recorded = await requests.all
-        #expect(recorded.filter { $0.url?.path == "/_next/static/chunks/app.js" }.count == 1)
-        #expect(recorded.filter { $0.httpMethod == "POST" }.count == 2)
+        #expect(recorded.count(where: { $0.url?.path == "/_next/static/chunks/app.js" }) == 1)
+        #expect(recorded.count(where: { $0.httpMethod == "POST" }) == 2)
     }
 
     @Test(arguments: BundledPluginTestSupport.engines)
@@ -232,7 +232,7 @@ struct TypeSafePluginTests {
                 #expect(rows.last?.label == "Additional credits")
                 #expect(rows.last?.value == String(count - slots + 1))
             } else {
-                #expect(rows.filter { $0.label == "Credit" }.count == count)
+                #expect(rows.count(where: { $0.label == "Credit" }) == count)
             }
         }
     }
@@ -403,7 +403,9 @@ private actor RequestCounter {
 }
 
 private struct TypeSafePluginClaudeFetcher: ClaudeUsageFetching {
-    func detectVersion() -> String? { nil }
+    func detectVersion() -> String? {
+        nil
+    }
 
     func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
         throw ProviderPluginError.script("unused")

@@ -252,7 +252,7 @@ final class ProviderPluginCookieBroker: @unchecked Sendable {
 
     #if os(macOS)
     static func cookieQuery(domain: String, provider: UsageProvider? = nil) -> BrowserCookieQuery {
-        BrowserCookieQuery(domains: Self.cookieHosts(domain: domain, provider: provider), domainMatch: .exact)
+        BrowserCookieQuery(domains: self.cookieHosts(domain: domain, provider: provider), domainMatch: .exact)
     }
 
     static func cookiesForRequest(

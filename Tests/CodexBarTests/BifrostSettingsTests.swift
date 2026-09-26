@@ -79,7 +79,15 @@ struct BifrostSettingsTests {
 }
 
 private struct BifrostUnusedClaudeFetcher: ClaudeUsageFetching {
-    func detectVersion() -> String? { nil }
-    func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot { throw CancellationError() }
-    func debugRawProbe(model _: String) async -> String { "unused" }
+    func detectVersion() -> String? {
+        nil
+    }
+
+    func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
+        throw CancellationError()
+    }
+
+    func debugRawProbe(model _: String) async -> String {
+        "unused"
+    }
 }

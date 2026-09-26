@@ -9,7 +9,8 @@ struct UsageStoreTokenRetryPolicyTests {
         #expect(UsageStore.tokenFetchFailureRetryDelay(CostUsageError.timedOut(seconds: 600), ttl: 900) == 900)
         #expect(UsageStore.tokenFetchFailureRetryDelay(CocoaError(.fileReadNoSuchFile), ttl: 900) == nil)
         #expect(UsageStore.tokenFetchFailureRetryDelay(CursorStatusProbeError.notLoggedIn, ttl: 900) == nil)
-        #expect(UsageStore.tokenFetchFailureRetryDelay(CursorStatusProbeError.networkError("HTTP 403"), ttl: 900) == nil)
+        #expect(UsageStore
+            .tokenFetchFailureRetryDelay(CursorStatusProbeError.networkError("HTTP 403"), ttl: 900) == nil)
     }
 
     @Test(arguments: [nil, 900, 1800, 43200] as [TimeInterval?])

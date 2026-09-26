@@ -51,8 +51,16 @@ struct PerplexityProviderTests {
     }
 
     private struct StubClaudeFetcher: ClaudeUsageFetching {
-        func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot { throw URLError(.unknown) }
-        func debugRawProbe(model _: String) async -> String { "fixture" }
-        func detectVersion() -> String? { nil }
+        func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
+            throw URLError(.unknown)
+        }
+
+        func debugRawProbe(model _: String) async -> String {
+            "fixture"
+        }
+
+        func detectVersion() -> String? {
+            nil
+        }
     }
 }

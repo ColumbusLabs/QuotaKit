@@ -25,11 +25,16 @@ enum ProviderCutoverTestSupport {
     }
 
     private struct UnusedClaudeFetcher: ClaudeUsageFetching {
-        func detectVersion() -> String? { nil }
+        func detectVersion() -> String? {
+            nil
+        }
+
         func loadLatestUsage(model _: String) async throws -> ClaudeUsageSnapshot {
             throw ProviderPluginError.script("unused")
         }
 
-        func debugRawProbe(model _: String) async -> String { "unused" }
+        func debugRawProbe(model _: String) async -> String {
+            "unused"
+        }
     }
 }
