@@ -238,6 +238,21 @@ extension CodexBarCLI {
         return nil
     }
 
+    static func intFromAppDefaults(_ key: String) -> Int? {
+        for domain in ["com.columbuslabs.quotakit.mac", "com.columbuslabs.quotakit.mac.debug"] {
+            if let value = UserDefaults(suiteName: domain)?.object(forKey: key) as? Int {
+                return value
+            }
+        }
+        return UserDefaults.standard.object(forKey: key) as? Int
+    }
+
+    static func costReportingPeriodFromDefaults() -> CostReportingPeriod {
+        .migrated(
+            rawValue: self.stringFromAppDefaults(CostReportingPeriod.defaultsKey),
+            legacyDays: self.intFromAppDefaults(CostReportingPeriod.legacyDaysKey))
+    }
+
     static func fetchProviderUsage(
         provider: UsageProvider,
         context: ProviderFetchContext) async -> ProviderFetchOutcome

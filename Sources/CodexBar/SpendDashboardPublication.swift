@@ -79,6 +79,7 @@ struct SpendDashboardPublication: Sendable {
 
     func model(
         requestedDays: Int,
+        reportingPeriod: CostReportingPeriod? = nil,
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,
@@ -98,6 +99,7 @@ struct SpendDashboardPublication: Sendable {
             inputs: inputs,
             inputRevision: self.inputRevision,
             requestedDays: requestedDays,
+            reportingPeriod: reportingPeriod,
             now: now,
             calendar: calendar,
             preferredCurrencyCode: preferredCurrencyCode,

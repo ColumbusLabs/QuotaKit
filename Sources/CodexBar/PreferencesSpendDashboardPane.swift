@@ -327,11 +327,15 @@ struct SpendDashboardPane: View {
                     .foregroundStyle(.secondary)
             }
             Spacer()
-            Picker(L("Time range"), selection: self.daysBinding) {
-                Text(spendDashboardDayRangeText(7)).tag(7)
-                Text(spendDashboardDayRangeText(30)).tag(30)
-                Text(spendDashboardDayRangeText(90)).tag(90)
-                Text(spendDashboardDayRangeText(SpendDashboardSource.scanDays)).tag(SpendDashboardSource.scanDays)
+            Picker(L("Time range"), selection: self.periodBinding) {
+                Text(spendDashboardDayRangeText(7)).tag(CostReportingPeriod.rolling(days: 7))
+                Text(spendDashboardDayRangeText(30)).tag(CostReportingPeriod.rolling(days: 30))
+                Text(spendDashboardDayRangeText(90)).tag(CostReportingPeriod.rolling(days: 90))
+                Text(L("Month to date")).tag(CostReportingPeriod.monthToDate)
+                Text(spendDashboardDayRangeText(365)).tag(CostReportingPeriod.allTime)
+                if case let .rolling(days) = self.controller.selectedPeriod, ![7, 30, 90].contains(days) {
+                    Text(spendDashboardDayRangeText(days)).tag(self.controller.selectedPeriod)
+                }
             }
             .labelsHidden()
             .pickerStyle(.segmented)
@@ -641,12 +645,12 @@ struct SpendDashboardPane: View {
         return names
     }
 
-    private var daysBinding: Binding<Int> {
+    private var periodBinding: Binding<CostReportingPeriod> {
         Binding(
-            get: { self.controller.selectedDays },
+            get: { self.controller.selectedPeriod },
             // #160: `selectDays` updates active demand when the dashboard is
             // visible and only the persisted preference when it is closed.
-            set: { self.controller.selectDays($0) })
+            set: { self.controller.selectPeriod($0) })
     }
 }
 

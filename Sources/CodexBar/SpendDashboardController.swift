@@ -175,8 +175,8 @@ enum SpendDashboardSource {
     typealias CodexCacheRootResolver = @Sendable (CodexSpendScanRequest) -> URL
 
     static let activityDays = 365
-    /// Local spend scan window. Matches token-activity depth so 7d / 30d / All share one snapshot.
-    static let scanDays = activityDays
+    /// Scan available logs once; display periods and the activity heatmap project this history.
+    static let scanDays = 365
 
     /// Codex history-horizon policy (#160). One authority answering how many
     /// Codex history days a dashboard operation actually requires.
@@ -1044,14 +1044,17 @@ final class SpendDashboardController {
     private(set) var failedSourceCount = 0
     private(set) var generation: UInt64 = 0
     private(set) var configuration: SpendDashboardConfiguration?
-    private(set) var selectedDays: Int
+    private(set) var selectedPeriod: CostReportingPeriod
+    var selectedDays: Int {
+        self.selectedPeriod.days(now: self.nowProvider(), calendar: self.configuration?.bucketCalendar ?? .current)
+    }
     private(set) var selectedDay: Date?
     /// Ephemeral visibility flag for #160 history demand. See
     /// `activeRequestedHistoryDays`: the persisted `selectedDays` preference
     /// must never widen background collection unless this is true.
     private(set) var isHistoryDemandActive = false
 
-    private static let daysDefaultsKey = "settingsSpendDashboardDays"
+    private static let periodDefaultsKey = "settingsSpendDashboardPeriod"
     private let userDefaults: UserDefaults
     private let requestBuilder: RequestBuilder
     private let cachedLoader: CachedLoader?
@@ -1100,7 +1103,13 @@ final class SpendDashboardController {
             counters: modelDerivationCounters,
             supportsAsynchronousBuilds: true)
         self.modelDerivationCounters = modelDerivationCounters
-        self.selectedDays = Self.normalizedDays(userDefaults.integer(forKey: Self.daysDefaultsKey))
+        let legacyDays = userDefaults.object(forKey: "settingsSpendDashboardDays") as? Int
+        let migratedDays = [7, 30, 90, 365].contains(legacyDays ?? 30) ? legacyDays ?? 30 : 30
+        self.selectedPeriod = userDefaults.string(forKey: Self.periodDefaultsKey)
+            .flatMap(CostReportingPeriod.init(rawValue:))
+            ?? (migratedDays == 365 ? .allTime : CostReportingPeriod.migrated(
+                rawValue: nil,
+                legacyDays: migratedDays))
     }
 
     func update(configuration: SpendDashboardConfiguration, force: Bool = false) {
@@ -1555,10 +1564,14 @@ final class SpendDashboardController {
     }
 
     func selectDays(_ days: Int) {
-        let days = Self.normalizedDays(days)
-        guard days != self.selectedDays else { return }
-        self.selectedDays = days
-        self.userDefaults.set(days, forKey: Self.daysDefaultsKey)
+        let normalized = [7, 30, 90, 365].contains(days) ? days : 30
+        self.selectPeriod(normalized == 365 ? .allTime : .rolling(days: normalized))
+    }
+
+    func selectPeriod(_ period: CostReportingPeriod) {
+        guard period != self.selectedPeriod else { return }
+        self.selectedPeriod = period
+        self.userDefaults.set(period.rawValue, forKey: Self.periodDefaultsKey)
         self.rebuildModel(publish: false)
     }
 
@@ -1862,12 +1875,6 @@ final class SpendDashboardController {
             return ("codex:\(accountID)", identity)
         })
     }
-
-    private static let supportedDayRanges = [7, 30, 90, SpendDashboardSource.scanDays]
-
-    private static func normalizedDays(_ value: Int) -> Int {
-        self.supportedDayRanges.contains(value) ? value : 30
-    }
 }
 
 extension SpendDashboardController {
@@ -1887,6 +1894,7 @@ extension SpendDashboardController {
             inputs: self.loadedInputs,
             inputRevision: self.loadedInputsRevision,
             requestedDays: self.selectedDays,
+            reportingPeriod: self.selectedPeriod,
             now: self.loadedAt,
             calendar: calendar,
             preferredCurrencyCode: configuration?.preferredCurrencyCode ?? "auto",

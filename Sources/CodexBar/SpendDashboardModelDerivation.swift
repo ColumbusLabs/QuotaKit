@@ -190,6 +190,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
     let codexHistoryDays: Int
     let inputIdentities: [InputIdentity]
     let requestedDays: Int
+    let reportingPeriod: CostReportingPeriod
     let effectiveNowDay: Date
     let calendarIdentifier: String
     let bucketTimeZoneIdentifier: String
@@ -205,6 +206,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
         inputs: [SpendDashboardModel.ProviderInput],
         inputRevision: UInt64 = 0,
         requestedDays: Int,
+        reportingPeriod: CostReportingPeriod = .rolling(days: 30),
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,
@@ -230,6 +232,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
                 hasTokenActivityCache: input.tokenActivityCache != nil)
         }
         self.requestedDays = requestedDays
+        self.reportingPeriod = reportingPeriod
         self.effectiveNowDay = calendar.startOfDay(for: now)
         self.calendarIdentifier = String(describing: calendar.identifier)
         self.bucketTimeZoneIdentifier = calendar.timeZone.identifier
@@ -245,6 +248,7 @@ struct SpendDashboardModelBuildKey: Hashable, Sendable {
 struct SpendDashboardModelBuildRequest: Sendable {
     let inputs: [SpendDashboardModel.ProviderInput]
     let requestedDays: Int
+    let reportingPeriod: CostReportingPeriod
     let now: Date
     let calendar: Calendar
     let preferredCurrencyCode: String
@@ -259,6 +263,7 @@ struct SpendDashboardModelBuildRequest: Sendable {
         inputs: [SpendDashboardModel.ProviderInput],
         inputRevision: UInt64 = 0,
         requestedDays: Int,
+        reportingPeriod: CostReportingPeriod = .rolling(days: 30),
         now: Date,
         calendar: Calendar,
         preferredCurrencyCode: String,
@@ -269,6 +274,7 @@ struct SpendDashboardModelBuildRequest: Sendable {
         self.inputs = inputs
         self.inputRevision = inputRevision
         self.requestedDays = requestedDays
+        self.reportingPeriod = reportingPeriod
         self.now = now
         self.calendar = calendar
         self.preferredCurrencyCode = preferredCurrencyCode
@@ -280,6 +286,7 @@ struct SpendDashboardModelBuildRequest: Sendable {
             inputs: inputs,
             inputRevision: inputRevision,
             requestedDays: requestedDays,
+            reportingPeriod: reportingPeriod,
             now: now,
             calendar: calendar,
             preferredCurrencyCode: preferredCurrencyCode,
@@ -292,6 +299,7 @@ struct SpendDashboardModelBuildRequest: Sendable {
         SpendDashboardModel.build(
             inputs: self.inputs,
             requestedDays: self.requestedDays,
+            reportingPeriod: self.reportingPeriod,
             now: self.now,
             calendar: self.calendar,
             preferredCurrencyCode: self.preferredCurrencyCode,

@@ -119,7 +119,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)]
                        [--no-color] [--pretty] [--refresh] [--provider-native-only]
-                       [--days <days>] [--group-by project|session]
+                       [--days <days>] [--period month-to-date|all] [--group-by project|session]
 
         Description:
           Print local token cost usage from Claude/Codex native logs plus supported pi and OMP sessions.
@@ -130,6 +130,7 @@ extension CodexBarCLI {
           quotakit cost
           quotakit cost --provider codex --group-by project
           quotakit cost --provider claude --format json --pretty
+          quotakit cost --period month-to-date --format json
         """
     }
 
@@ -464,7 +465,7 @@ extension CodexBarCLI {
                        [--json-output] [--log-level <trace|verbose|debug|info|warning|error|critical>] [-v|--verbose]
                        [--provider \(ProviderHelp.list)] [--no-color] [--pretty] [--refresh]
                        [--provider-native-only]
-                       [--days <days>] [--group-by project]
+                       [--days <days>] [--period month-to-date|all] [--group-by project]
           quotakit sessions [--json|--json-v2] [--pretty]
           quotakit sessions focus <id>
           quotakit dashboard [--pretty] [--timeout <seconds>] [--identity <redacted|full>] [--output <path>]

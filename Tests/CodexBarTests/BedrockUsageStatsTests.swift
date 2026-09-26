@@ -331,14 +331,15 @@ struct BedrockUsageStatsTests {
             return responses.next(url: url)
         }
 
-        let snapshot = try await CostUsageFetcher().loadTokenSnapshot(
-            provider: .bedrock,
-            environment: [
-                BedrockSettingsReader.accessKeyIDKey: "AKIATEST",
-                BedrockSettingsReader.secretAccessKeyKey: "testSecret",
-                BedrockSettingsReader.apiURLKey: "https://bedrock.test",
-            ],
-            now: Date(timeIntervalSince1970: 1_765_324_800))
+        let snapshot = try await CostUsageFetcher(calendar: CostUsageBucketTimeZone.calendar(identifier: "UTC"))
+            .loadTokenSnapshot(
+                provider: .bedrock,
+                environment: [
+                    BedrockSettingsReader.accessKeyIDKey: "AKIATEST",
+                    BedrockSettingsReader.secretAccessKeyKey: "testSecret",
+                    BedrockSettingsReader.apiURLKey: "https://bedrock.test",
+                ],
+                now: Date(timeIntervalSince1970: 1_765_324_800))
 
         #expect(snapshot.last30DaysCostUSD == 7.25)
         #expect(snapshot.sessionCostUSD == 7.25)

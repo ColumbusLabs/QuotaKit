@@ -192,12 +192,14 @@ extension StatusItemController {
                 return SpendDashboardModel.build(
                     inputs: [],
                     requestedDays: self.settings.costUsageHistoryDays,
+                    reportingPeriod: self.settings.costReportingPeriod,
                     now: now,
                     calendar: self.settings.costUsageBucketCalendar,
                     preferredCurrencyCode: self.settings.preferredCurrencyCode)
             }
             return publication.model(
                 requestedDays: self.settings.costUsageHistoryDays,
+                reportingPeriod: self.settings.costReportingPeriod,
                 now: now,
                 calendar: self.settings.costUsageBucketCalendar,
                 preferredCurrencyCode: self.settings.preferredCurrencyCode,
@@ -217,6 +219,7 @@ extension StatusItemController {
         return SpendDashboardModel.build(
             inputs: inputs,
             requestedDays: self.settings.costUsageHistoryDays,
+            reportingPeriod: self.settings.costReportingPeriod,
             now: now,
             calendar: self.settings.costUsageBucketCalendar,
             preferredCurrencyCode: self.settings.preferredCurrencyCode)

@@ -197,6 +197,7 @@ payloads include the visible account label in `account`.
 
 ### Cost JSON payload
 `quotakit cost --format json` emits an array of payloads (one per provider).
+- `reportingPeriod` and `historyLabel` identify the selected rolling window, calendar month to date, or available 365-day history. `--days` overrides `--period` and the saved Mac selection.
 - `provider`, `source` (`local` for Claude/Codex log scans, `web` for Cursor dashboard data), `updatedAt`
 - `sessionTokens`, `sessionCostUSD`
 - `last30DaysTokens`, `last30DaysCostUSD`: with histories longer than 30 days, these cover the latest 30 local calendar dates ending at `updatedAt`; an empty window stays unknown. Shorter histories retain their available window totals.
@@ -216,6 +217,8 @@ quotakit --format json --pretty   # machine output
 quotakit --format json --provider both
 quotakit cost                     # local cost usage (default 30-day window + today)
 quotakit cost --days 90           # choose a 1...365 day cost window
+quotakit cost --period month-to-date # use the pinned cost calendar month
+quotakit cost --period all        # use the available 365-day horizon
 quotakit cost --provider codex --group-by project
 quotakit cost --provider claude --format json --pretty
 quotakit cost --provider cursor   # Cursor dashboard cost (API-rate + Cursor-metered)
