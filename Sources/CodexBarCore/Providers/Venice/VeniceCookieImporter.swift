@@ -10,21 +10,11 @@ public enum VeniceCookieImporter {
     private static let cookieImportOrder: BrowserCookieImportOrder =
         ProviderDefaults.metadata[.venice]?.browserCookieOrder ?? [.chrome]
 
-    public struct SessionInfo: Sendable {
-        public let cookieHeader: String
-        public let sourceLabel: String
-
-        public init(cookieHeader: String, sourceLabel: String) {
-            self.cookieHeader = cookieHeader
-            self.sourceLabel = sourceLabel
-        }
-    }
-
     public static func importSessions(
         browserDetection: BrowserDetection = BrowserDetection(),
-        logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
+        logger: ((String) -> Void)? = nil) throws -> [VeniceResolvedSession]
     {
-        var sessions: [SessionInfo] = []
+        var sessions: [VeniceResolvedSession] = []
         let candidates = self.cookieImportOrder.cookieImportCandidates(using: browserDetection)
         for browserSource in candidates {
             do {
@@ -46,16 +36,16 @@ public enum VeniceCookieImporter {
 
     public static func importSessions(
         from browserSource: Browser,
-        logger: ((String) -> Void)? = nil) throws -> [SessionInfo]
+        logger: ((String) -> Void)? = nil) throws -> [VeniceResolvedSession]
     {
-        let query = BrowserCookieQuery(domains: self.cookieDomains)
+        let query = BrowserCookieQuery(domains: self.cookieDomains, domainMatch: .exact)
         let log: (String) -> Void = { msg in self.emit(msg, logger: logger) }
         let sources = try Self.cookieClient.codexBarRecords(
             matching: query,
             in: browserSource,
             logger: log)
 
-        var sessions: [SessionInfo] = []
+        var sessions: [VeniceResolvedSession] = []
         let grouped = Dictionary(grouping: sources, by: { $0.store.profile.id })
         let sortedGroups = grouped.values.sorted { lhs, rhs in
             self.mergedLabel(for: lhs) < self.mergedLabel(for: rhs)
@@ -64,13 +54,14 @@ public enum VeniceCookieImporter {
         for group in sortedGroups where !group.isEmpty {
             let label = self.mergedLabel(for: group)
             let mergedRecords = self.mergeRecords(group)
+
             let sessionRecords = mergedRecords.filter { VeniceCookieHeader.isSessionCookieName($0.name) }
             guard !sessionRecords.isEmpty else { continue }
             let httpCookies = BrowserCookieClient.makeHTTPCookies(sessionRecords, origin: query.origin)
             guard let cookieHeader = VeniceCookieHeader.header(from: httpCookies) else { continue }
             let names = Set(httpCookies.map(\.name)).sorted().joined(separator: ", ")
             log("Found Venice session cookie (\(names)) in \(label)")
-            sessions.append(SessionInfo(cookieHeader: cookieHeader, sourceLabel: label))
+            sessions.append(VeniceResolvedSession(cookieHeader: cookieHeader, sourceLabel: label))
         }
         return sessions
     }
