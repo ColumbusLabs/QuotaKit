@@ -1584,7 +1584,7 @@ public struct CostUsageFetcher: Sendable {
             // rescan on the strength of another source's scan.
             return CachedCodexTokenSnapshotResult(
                 snapshot: Self.tokenSnapshot(
-                    from: CostUsageDailyReport.merged(reports),
+                    from: CostUsageDailyReport.merged(reports, calendar: options.calendar),
                     now: now,
                     historyDays: clampedHistoryDays,
                     calendar: options.calendar,
@@ -2155,6 +2155,8 @@ public struct CostUsageFetcher: Sendable {
             daily: daily.data,
             projects: projects,
             sessions: sessions,
+            hourly: daily.hourly,
+            quotaSlices: daily.quotaSlices,
             updatedAt: updatedAt ?? now)
     }
 

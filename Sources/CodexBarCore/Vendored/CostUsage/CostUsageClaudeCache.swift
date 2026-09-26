@@ -66,8 +66,8 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
 
     static let shared = CostUsageClaudeReportMemo()
     static let persistedVersion = 1
-    /// Bump when bundled pricing or daily report aggregation changes without artifact stamps.
-    static let reportSemanticsVersion = 1
+    /// Bump when pricing, aliases, or report aggregation changes without new artifact stamps.
+    static let reportSemanticsVersion = 5
 
     private struct StoredEntry {
         let entry: Entry
@@ -79,8 +79,9 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         var reportSemanticsVersion: Int
         var sourceInventory: [String: CostUsageClaudeFileStamp]
         var reportKey: CostUsageClaudeReportMemoKey
-        var data: [CostUsageCodexPreviousReport.Entry]
-        var summary: CostUsageCodexPreviousReport.Summary?
+        var report: CostUsageDailyReport
+        var hourly: [CostUsageCodexPreviousReport.HourlyEntry]?
+        var quotaSlices: [CostUsageCodexPreviousReport.QuotaSlice]?
     }
 
     private let lock = NSLock()
@@ -156,14 +157,22 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
         guard let data = try? Data(contentsOf: url),
               let envelope = try? JSONDecoder().decode(PersistedEnvelope.self, from: data),
               envelope.version == Self.persistedVersion,
-              envelope.reportSemanticsVersion == Self.reportSemanticsVersion
+              envelope.reportSemanticsVersion == Self.reportSemanticsVersion,
+              Self.hasValidIncompleteCounts(envelope.report)
         else { return nil }
         return Entry(
             sourceInventory: envelope.sourceInventory,
             reportKey: envelope.reportKey,
             report: CostUsageDailyReport(
-                data: envelope.data.map(\.dailyReportValue),
-                summary: envelope.summary?.dailyReportValue))
+                data: envelope.report.data,
+                summary: envelope.report.summary,
+                hourly: (envelope.hourly ?? []).map(\.hourlyValue),
+                quotaSlices: (envelope.quotaSlices ?? []).map(\.timedValue)))
+    }
+
+    private static func hasValidIncompleteCounts(_ report: CostUsageDailyReport) -> Bool {
+        let counts = report.data.flatMap { $0.modelBreakdowns ?? [] }.compactMap(\.incompleteRequestCount)
+        return counts.allSatisfy { $0 >= 0 } && CheckedSum.integers(counts) != nil
     }
 
     private static func persist(_ entry: Entry, canonicalCachePath: String) {
@@ -173,8 +182,9 @@ final class CostUsageClaudeReportMemo: @unchecked Sendable {
             reportSemanticsVersion: Self.reportSemanticsVersion,
             sourceInventory: entry.sourceInventory,
             reportKey: entry.reportKey,
-            data: entry.report.data.map(CostUsageCodexPreviousReport.Entry.init),
-            summary: entry.report.summary.map(CostUsageCodexPreviousReport.Summary.init))
+            report: entry.report,
+            hourly: entry.report.hourly.map(CostUsageCodexPreviousReport.HourlyEntry.init),
+            quotaSlices: entry.report.quotaSlices.map(CostUsageCodexPreviousReport.QuotaSlice.init))
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.sortedKeys]
         guard let data = try? encoder.encode(envelope) else { return }

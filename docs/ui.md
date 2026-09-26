@@ -78,6 +78,10 @@ named percentages are omitted from those older projections without removing the 
 - Codex credits can add a separate “Buy Credits…” menu action.
 - Claude capped Extra Usage follows the used/remaining fill preference; spending amounts and “% used” copy stay unchanged.
 - Codex OpenAI web extras: code review remaining and usage breakdown render when dashboard data is attached.
+- Codex and Claude cost cards: a Recent windows list under the daily bars shows each quota window's
+  range, cost, and tokens (Current window, Previous window, N windows ago), split at official and banked resets.
+  Inferred boundaries are labeled estimated; incomplete local subtotals show ≥ and a partial-estimate note.
+  Without weekly reset metadata, the existing calendar cost history remains visible.
 - Token accounts: optional account switcher bar or stacked account cards (up to 6) when multiple manual tokens exist.
 - Provider storage usage is opt-in from Advanced settings. When enabled, overview rows and provider detail cards can show
   local provider-owned storage totals, with a submenu for path breakdowns and copyable paths.

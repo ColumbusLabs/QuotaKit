@@ -161,7 +161,16 @@ extension StatusItemController {
             paceVisible: self.settings.paceVisible,
             usesLiveSubtitle: surface == .liveCard,
             preferredCurrencyCode: self.settings.preferredCurrencyCode,
-            now: now)
+            costUsageBucketCalendar: self.settings.costUsageBucketCalendar,
+            now: now,
+            observedWeeklyResets: ProviderDescriptorRegistry.descriptor(for: target)
+                .presentation.menuCard.showsQuotaWeekCost
+                ? self.store.weeklyQuotaWindowResetObservations(
+                    for: target,
+                    snapshot: snapshot,
+                    historySelection: historySelectionOverride,
+                    usesLiveAccount: surface == .liveCard)
+                : [])
         return UsageMenuCardView.Model.make(input).applyingUsageItemVisibility(
             hiddenItemIDs: self.settings.hiddenUsageItemIDs(for: target))
     }

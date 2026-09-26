@@ -19,6 +19,7 @@ on Columbus Labs QuotaKit releases and product-facing changes.
 
 - Mac fleet sync: remove stale Macs and their usage snapshots from the iCloud Sync pane.
 
+- Codex and Claude local cost history now lines up with observed weekly quota resets, including exact reset-day usage and explicit partial estimates.
 - Cost history: choose a calendar month-to-date reporting period or the available 365-day horizon across Mac menus, Usage & Spend, CLI, HTTP, and widgets.
 - Pi and OMP local token history as a separate usage and spend source, with scoped cache validation and duplicate-free combined totals.
 - Mac currency preference: add Turkish lira and twelve more display currencies, with offline fallback rates.
