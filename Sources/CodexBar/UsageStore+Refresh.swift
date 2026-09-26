@@ -2,7 +2,7 @@ import CodexBarCore
 import Foundation
 
 extension UsageStore {
-    private struct ProviderRefreshOutcomeContext {
+    struct ProviderRefreshOutcomeContext {
         let generation: UInt64
         let includesCredits: Bool
         let claudeUsesConsumerAutoPipeline: Bool
@@ -13,6 +13,7 @@ extension UsageStore {
         let codexSuppressesWeeklyResetCelebration: Bool
         let claudeOAuthHistoryPersistentRefHash: String?
         let claudeOAuthActiveAccountObservation: ClaudeOAuthActiveAccountObservation
+        var claudeCredentialFingerprint: String?
 
         var codexSessionQuotaOwnerKey: CodexSessionQuotaOwnerKey? {
             UsageStore.codexSessionQuotaOwnerKey(for: self.codexExpectedGuard)
@@ -39,6 +40,7 @@ extension UsageStore {
         let disposition: ClaudeRefreshDisposition
         let oauthHistoryPersistentRefHash: String?
         let oauthActiveAccountObservation: ClaudeOAuthActiveAccountObservation
+        var credentialFingerprint: String?
     }
 
     private enum ClaudeRefreshDisposition {
@@ -509,7 +511,8 @@ extension UsageStore {
             codexLimitResetOwnerKey: publishedCodexLimitResetOwnerKey,
             codexSuppressesWeeklyResetCelebration: codexSuppressesWeeklyResetCelebration,
             claudeOAuthHistoryPersistentRefHash: claudeReconciliation.oauthHistoryPersistentRefHash,
-            claudeOAuthActiveAccountObservation: claudeReconciliation.oauthActiveAccountObservation)
+            claudeOAuthActiveAccountObservation: claudeReconciliation.oauthActiveAccountObservation,
+            claudeCredentialFingerprint: claudeReconciliation.credentialFingerprint)
         return await self.completeProviderRefreshPass(
             provider: provider,
             outcome: outcome,
@@ -654,7 +657,10 @@ extension UsageStore {
         return ClaudeRefreshReconciliation(
             disposition: disposition,
             oauthHistoryPersistentRefHash: persistentRefHash,
-            oauthActiveAccountObservation: activeAccountObservation)
+            oauthActiveAccountObservation: activeAccountObservation,
+            credentialFingerprint: historyAccountState.wasStable &&
+                input.beforeFetch?.fingerprintToken == fingerprintAfterFetch && fingerprintAfterFetch != "none"
+                ? fingerprintAfterFetch : nil)
     }
 
     private func applyProviderRefreshOutcome(
@@ -816,6 +822,10 @@ extension UsageStore {
             provider: provider,
             resetBackfillSource: resetBackfillSource,
             context: context)
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: self.credentialAccount(provider: provider, context: context),
+            result: .success(result))
         let warningAccounts = self.warningAccountDiscriminators(
             provider: provider,
             tokenAccount: publication.currentTokenAccount,
@@ -953,6 +963,10 @@ extension UsageStore {
         if provider == .deepseek {
             self.markDeepSeekProfileTransitionUnavailable()
         }
+        self.handleCredentialOutcome(
+            provider: provider,
+            account: self.credentialAccount(provider: provider, context: context),
+            result: .failure(error))
         self.bindCodexFailurePublicationOwner(
             provider: provider,
             expectedGuard: context.codexExpectedGuard)
