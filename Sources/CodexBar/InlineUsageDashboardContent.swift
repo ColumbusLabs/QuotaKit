@@ -139,8 +139,7 @@ extension UsageMenuCardView.Model {
             return self.tokenHistoryInlineDashboard(
                 provider: provider,
                 snapshot: snapshot,
-                comparisonPeriodsEnabled: comparisonPeriodsEnabled,
-                calendar: calendar)
+                comparisonPeriodsEnabled: comparisonPeriodsEnabled)
         }
         let displayCurrencyCode = UsageFormatter.convertedCost(
             0,
@@ -286,10 +285,8 @@ extension UsageMenuCardView.Model {
     private static func tokenHistoryInlineDashboard(
         provider: UsageProvider,
         snapshot: CostUsageTokenSnapshot,
-        comparisonPeriodsEnabled: Bool,
-        calendar: Calendar) -> InlineUsageDashboardModel
+        comparisonPeriodsEnabled: Bool) -> InlineUsageDashboardModel
     {
-        let config = ProviderDescriptorRegistry.descriptor(for: provider).tokenCost
         let historyDays = max(1, min(365, snapshot.historyDays))
         let historyLabel = snapshot.historyLabel ?? Self.costHistoryWindowLabel(days: historyDays)
         var kpis = [InlineUsageDashboardModel.KPI(
@@ -306,19 +303,18 @@ extension UsageMenuCardView.Model {
         if details.isEmpty { details.append(L("Local token history · dollar costs unavailable")) }
         if let coverage = Self.tokenHistoryCoverageHint(snapshot) { details.append(coverage) }
         if comparisonPeriodsEnabled {
-            details.append(contentsOf: snapshot.comparisonSummaries(calendar: calendar).map {
+            details.append(contentsOf: snapshot.comparisonSummaries().map {
                 Self.tokenWindowLine(label: Self.costHistoryWindowLabel(days: $0.days), tokens: $0.totalTokens)
             })
         }
-        let points = Self.inlineCostHistoryPoints(
-            days: Self.inlineCostHistoryDays(
-                snapshot: snapshot,
-                historyDays: historyDays,
-                preservesCalendarDays: config.preservesCalendarDaysInCharts,
-                calendar: calendar),
-            displayCurrencyCode: "USD",
-            convertedValue: { $0 },
-            tokensOnly: true)
+        let points = snapshot.daily.suffix(historyDays).compactMap { entry -> InlineUsageDashboardModel.Point? in
+            guard let tokens = entry.totalTokens, tokens >= 0 else { return nil }
+            return InlineUsageDashboardModel.Point(
+                id: entry.date,
+                label: Self.shortDayLabel(entry.date),
+                value: Double(tokens),
+                accessibilityValue: "\(entry.date): \(L("%@ tokens", UsageFormatter.tokenCountString(tokens)))")
+        }
         let name = ProviderDescriptorRegistry.descriptor(for: provider).metadata.displayName
         return InlineUsageDashboardModel(
             accessibilityLabel: L("%@: %@", name, L("Token history")),

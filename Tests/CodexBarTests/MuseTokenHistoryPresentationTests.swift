@@ -24,8 +24,6 @@ struct MuseTokenHistoryPresentationTests {
         #expect(dashboard.currencyCode == nil)
         #expect(dashboard.kpis.allSatisfy { !$0.value.contains("$") && !$0.title.lowercased().contains("cost") })
         #expect(dashboard.points.first?.value == 300)
-        #expect(dashboard.points.first?.hoverDetail?.tokensOnly == true)
-        #expect(dashboard.points.first?.hoverDetail?.cost == nil)
         #expect(dashboard.points.first?.accessibilityValue.contains("300 tokens") == true)
         #expect(dashboard.detailLines.contains { $0.contains("dollar costs unavailable") })
     }
