@@ -732,6 +732,8 @@ extension CostUsageStore {
                     ? CostUsageScanner.codexTurnIDs(rows: rows) ?? [] : nil,
                 codexWorkspaceContentFingerprint: details.workspaceFingerprint,
                 codexRows: details.hasRows && isHydrated ? restoredRows : nil,
+                codexPendingPricing: isHydrated
+                    ? Self.bufferedPricingEvidence(buffers) : nil,
                 codexTokenSnapshots: details.hasTokenSnapshots && isHydrated ? tokenSnapshots : nil,
                 codexTokenCheckpoints: details.hasTokenSnapshots && isHydrated
                     ? CostUsageScanner.codexTokenCheckpoints(for: tokenSnapshots) : nil,
@@ -1790,6 +1792,16 @@ extension CostUsageStore {
     }
 
     private func persistBuffers(path: String, usage: CostUsageFileUsage) {
+        let pricingPayload = usage.codexPendingPricing.flatMap { try? JSONEncoder().encode($0) }
+        _ = self.replaceBufferedLines(path: path, kind: .pricingEvidence, lines: pricingPayload.map {
+            [CostUsageStoreBufferedLine(
+                path: path,
+                kind: .pricingEvidence,
+                lineIndex: 0,
+                ordinal: nil,
+                endOffset: nil,
+                payload: $0)]
+        } ?? [])
         let pairs: [(CostUsageStoreBufferedLineKind, [CostUsageScanner.CodexBufferedFastLine]?)] = [
             (.subagent, usage.codexBufferedSubagentLines),
             (.unresolvedFork, usage.codexBufferedUnresolvedForkLines),
@@ -1806,6 +1818,14 @@ extension CostUsageStore {
                     payload: payload)
             }
             _ = self.replaceBufferedLines(path: path, kind: kind, lines: lines)
+        }
+    }
+
+    private static func bufferedPricingEvidence(
+        _ values: [CostUsageStoreBufferedLine]) -> [String: CostUsageScanner.CodexPricingEvidence]?
+    {
+        values.first(where: { $0.kind == .pricingEvidence }).flatMap {
+            try? JSONDecoder().decode([String: CostUsageScanner.CodexPricingEvidence].self, from: $0.payload)
         }
     }
 

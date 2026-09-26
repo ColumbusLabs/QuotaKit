@@ -12,6 +12,57 @@ import CSQLite3
 // swiftlint:disable file_length
 
 struct CostUsageStoreTests {
+    @Test
+    func `pending Codex pricing survives a staged replacement reload`() throws {
+        let fixture = try StoreFixture()
+        defer { fixture.remove() }
+        let store = CostUsageStore(cacheRoot: fixture.root)
+        let path = "/sessions/pricing-replacement.jsonl"
+        let evidence = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: "gpt-5.6-sol", pricingMode: "priority")
+        var usage = CostUsageFileUsage(mtimeUnixMs: 1000, size: 100, days: [:])
+        usage.parsedBytes = 50
+        usage.codexScanFileId = "7:42"
+        usage.codexScanTargetSize = 100
+        usage.codexScanComplete = false
+        usage.codexReplacementScanPending = true
+        usage.codexPendingPricing = ["request-key": evidence]
+        var cache = CostUsageCache()
+        cache.scanSinceKey = "2026-08-01"
+        cache.scanUntilKey = "2026-08-01"
+        cache.files[path] = usage
+
+        let result = store.syncSaveCodexCache(
+            cache,
+            calendar: .current,
+            requestedScanWindow: (sinceKey: "2026-08-01", untilKey: "2026-08-01"))
+        #expect(!result.catchUpRequired)
+        let restored = store.syncLoadCodexCache(calendar: .current)
+        #expect(restored.files[path]?.codexPendingPricing == ["request-key": evidence])
+        #expect(restored.files[path]?.codexReplacementScanPending == true)
+    }
+
+    @Test
+    func `rescan rows retain observed model and tier when fresh trace omits them`() {
+        let row = CostUsageScanner.CodexUsageRow(
+            day: "2026-08-01",
+            model: "test-model",
+            turnID: "turn-1",
+            eventIndex: 0,
+            input: 10,
+            cached: 2,
+            output: 3)
+        let evidence = CostUsageScanner.CodexPricingEvidence(
+            pricingModel: "test-priced-model", pricingMode: "priority")
+        let classified = CostUsageScanner.codexRowsWithPricingMetadata(
+            [row],
+            priorityTurns: [:],
+            preservingPricingFrom: { _ in evidence })
+
+        #expect(classified.first?.pricingModel == evidence.pricingModel)
+        #expect(classified.first?.pricingMode == evidence.pricingMode)
+    }
+
     /// The store actor runs on a custom DispatchQueue-backed `SerialExecutor`, and its
     /// `sync*` bridges hand work to the actor from inside `queue.sync`. Getting that handoff
     /// wrong takes the app down on launch with "Incorrect actor executor assumption", so the
@@ -1431,6 +1482,7 @@ extension CostUsageStoreTests {
         let fixture = try StoreFixture()
         defer { fixture.remove() }
         #expect(CostUsageStore.compatiblePredecessorParserHashes == [
+            "fd299eccf5e46671",
             "6fd5257bc1319193",
             "154f5c0cc5ea50d3",
             "606a690018e2845e",

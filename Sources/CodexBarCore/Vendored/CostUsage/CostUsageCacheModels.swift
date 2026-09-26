@@ -319,6 +319,8 @@ struct CostUsageFileUsage: Codable, Equatable {
     var codexTurnIDs: [String]?
     var codexWorkspaceContentFingerprint: String?
     var codexRows: [CostUsageScanner.CodexUsageRow]?
+    /// Pricing observed before a bounded replacement, retained while its committed rows stay live.
+    var codexPendingPricing: [String: CostUsageScanner.CodexPricingEvidence]? = nil
     var codexTokenSnapshots: [CostUsageCodexTokenSnapshot]?
     var codexTokenCheckpoints: [CostUsageCodexTokenCheckpoint]?
     var codexTokenTimestampsMonotonic: Bool?
